@@ -6599,15 +6599,6 @@ function updateCushionSegmentsFromTable(table) {
     if (dir.lengthSq() < 1e-6) return;
     segments.push({ start, end, type });
   };
-  const resolveAngle = (angles, key, fallback) =>
-    typeof angles?.[key] === 'number' ? angles[key] : fallback;
-  const computeCutOffset = (depth, cutLength, angleDeg) => {
-    if (!Number.isFinite(depth) || depth <= 0) return Math.max(0, cutLength);
-    const rad = THREE.MathUtils.degToRad(angleDeg);
-    const tan = Math.tan(rad);
-    const angleOffset = tan > MICRO_EPS ? depth / tan : cutLength;
-    return Math.max(0, Math.min(cutLength, angleOffset));
-  };
   table.userData.cushions.forEach((cushion) => {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) return;
@@ -6615,25 +6606,16 @@ function updateCushionSegmentsFromTable(table) {
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
     const maxCut = Math.max(0, cutEnds.max || 0);
-    const cutTypes = data.cutTypes || {};
-    const minTypeScale = cutTypes.min === 'side' ? 0.2 : 1;
-    const maxTypeScale = cutTypes.max === 'side' ? 0.2 : 1;
-    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
-    const minInset = Math.min(minCut, cutInsetBase * minTypeScale);
-    const maxInset = Math.min(maxCut, cutInsetBase * maxTypeScale);
-    const cutAngles = data.cutAngles || {};
-    const cutAnglesByEnd = data.cutAnglesByEnd || {};
-    const defaultAngle = resolveAngle(cutAngles, 'cutAngle', CUSHION_CUT_ANGLE);
-    const minAngle = resolveAngle(cutAnglesByEnd, 'min', defaultAngle);
-    const maxAngle = resolveAngle(cutAnglesByEnd, 'max', defaultAngle);
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.18;
+    const minInset = Math.min(minCut, cutInsetBase);
+    const maxInset = Math.min(maxCut, cutInsetBase);
+    const minInner = minCut + minInset;
+    const maxInner = maxCut + maxInset;
     if (data.horizontal) {
       const innerZ = data.side < 0 ? box.max.z : box.min.z;
       const outerZ = data.side < 0 ? box.min.z : box.max.z;
-      const depth = Math.abs(innerZ - outerZ);
-      const leftCut = computeCutOffset(depth, minCut + minInset, minAngle);
-      const rightCut = computeCutOffset(depth, maxCut + maxInset, maxAngle);
-      const leftInner = new THREE.Vector2(box.min.x + leftCut, innerZ);
-      const rightInner = new THREE.Vector2(box.max.x - rightCut, innerZ);
+      const leftInner = new THREE.Vector2(box.min.x + minInner, innerZ);
+      const rightInner = new THREE.Vector2(box.max.x - maxInner, innerZ);
       const leftOuter = new THREE.Vector2(box.min.x, outerZ);
       const rightOuter = new THREE.Vector2(box.max.x, outerZ);
       if (rightInner.x - leftInner.x > MICRO_EPS) {
@@ -6644,11 +6626,8 @@ function updateCushionSegmentsFromTable(table) {
     } else {
       const innerX = data.side < 0 ? box.max.x : box.min.x;
       const outerX = data.side < 0 ? box.min.x : box.max.x;
-      const depth = Math.abs(innerX - outerX);
-      const bottomCut = computeCutOffset(depth, minCut + minInset, minAngle);
-      const topCut = computeCutOffset(depth, maxCut + maxInset, maxAngle);
-      const bottomInner = new THREE.Vector2(innerX, box.min.z + bottomCut);
-      const topInner = new THREE.Vector2(innerX, box.max.z - topCut);
+      const bottomInner = new THREE.Vector2(innerX, box.min.z + minInner);
+      const topInner = new THREE.Vector2(innerX, box.max.z - maxInner);
       const bottomOuter = new THREE.Vector2(outerX, box.min.z);
       const topOuter = new THREE.Vector2(outerX, box.max.z);
       if (topInner.y - bottomInner.y > MICRO_EPS) {
@@ -9625,7 +9604,7 @@ function Table3D(
     const rightDistanceToSidePocket = Math.abs(worldZRight);
     const leftCloserToCenter = leftDistanceToSidePocket < rightDistanceToSidePocket;
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
-    const cutConfig = !horizontal
+    const sidePocketCuts = !horizontal
       ? {
           leftCutAngle: leftCloserToCenter
             ? CUSHION_CUT_ANGLE
@@ -9634,16 +9613,9 @@ function Table3D(
             ? VISUAL_SIDE_CUSHION_CUT_ANGLE
             : CUSHION_CUT_ANGLE
         }
-      : {};
-    const resolvedCutAngles = {
-      cutAngle: CUSHION_CUT_ANGLE,
-      leftCutAngle: cutConfig.leftCutAngle ?? CUSHION_CUT_ANGLE,
-      rightCutAngle: cutConfig.rightCutAngle ?? CUSHION_CUT_ANGLE,
-      leftStraightEdge: cutConfig.leftStraightEdge,
-      rightStraightEdge: cutConfig.rightStraightEdge
-    };
-    const cutLengths = computeCushionCutLengths(len, horizontal, resolvedCutAngles);
-    const geo = cushionProfileAdvanced(len, horizontal, resolvedCutAngles);
+      : undefined;
+    const cutLengths = computeCushionCutLengths(len, horizontal, sidePocketCuts);
+    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
@@ -9714,20 +9686,9 @@ function Table3D(
     const leftWorld = leftLocal.clone().applyMatrix4(group.matrixWorld);
     const rightWorld = rightLocal.clone().applyMatrix4(group.matrixWorld);
     const leftIsMin = horizontal ? leftWorld.x <= rightWorld.x : leftWorld.z <= rightWorld.z;
-    const leftCutType = horizontal ? 'corner' : leftCloserToCenter ? 'side' : 'corner';
-    const rightCutType = horizontal ? 'corner' : leftCloserToCenter ? 'corner' : 'side';
     group.userData.cutEnds = {
       min: leftIsMin ? cutLengths.leftCut : cutLengths.rightCut,
       max: leftIsMin ? cutLengths.rightCut : cutLengths.leftCut
-    };
-    group.userData.cutTypes = {
-      min: leftIsMin ? leftCutType : rightCutType,
-      max: leftIsMin ? rightCutType : leftCutType
-    };
-    group.userData.cutAngles = resolvedCutAngles;
-    group.userData.cutAnglesByEnd = {
-      min: leftIsMin ? resolvedCutAngles.leftCutAngle : resolvedCutAngles.rightCutAngle,
-      max: leftIsMin ? resolvedCutAngles.rightCutAngle : resolvedCutAngles.leftCutAngle
     };
     table.add(group);
     table.userData.cushions.push(group);
