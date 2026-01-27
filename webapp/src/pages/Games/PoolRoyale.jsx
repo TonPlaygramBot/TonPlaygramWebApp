@@ -5896,20 +5896,29 @@ function reflectRails(ball) {
     const centers = pocketCenters();
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
+    let nearestPocketCenter = null;
     centers.forEach((center, index) => {
       const dist = ball.pos.distanceTo(center);
       if (dist < nearestPocketDist) {
         nearestPocketDist = dist;
         nearestCaptureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+        nearestPocketCenter = center;
       }
     });
     const nearPocket = nearestPocketDist < nearPocketRadius;
     const inCaptureZone = nearestPocketDist < nearestCaptureRadius;
+    let movingIntoPocket = false;
+    if (nearestPocketCenter && inCaptureZone) {
+      const toPocket = TMP_VEC2_LIMIT.copy(nearestPocketCenter).sub(ball.pos);
+      if (toPocket.lengthSq() > 1e-8) {
+        movingIntoPocket = ball.vel.dot(toPocket) > 0;
+      }
+    }
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
-      if (inCaptureZone && segment.type === 'cut') continue;
+      if (inCaptureZone && segment.type === 'cut' && movingIntoPocket) continue;
       const velocityToward = ball.vel.dot(segment.normal);
       if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
@@ -23470,7 +23479,30 @@ const powerRef = useRef(hud.power);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
+            const validateAiPlan = (candidate) => {
+              if (!candidate) return null;
+              const normalized = normalizeAiPlanAim(candidate);
+              if (!normalized?.aimDir || !cue?.active) return null;
+              if (
+                normalized.type === 'pot' &&
+                normalized.targetBall?.active &&
+                !normalized.viaCushion
+              ) {
+                const impact = calcTarget(cue, normalized.aimDir.clone(), ballsList);
+                if (
+                  impact?.targetBall &&
+                  String(impact.targetBall.id) === String(normalized.targetBall.id)
+                ) {
+                  return normalized;
+                }
+                return null;
+              }
+              return normalized;
+            };
+            let plan = validateAiPlan(options.bestPot ?? null);
+            if (!plan) {
+              plan = validateAiPlan(options.bestSafety ?? null);
+            }
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
