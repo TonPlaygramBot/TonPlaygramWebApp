@@ -1354,7 +1354,7 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.03; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
@@ -1368,7 +1368,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -6529,7 +6529,7 @@ function updateCushionSegmentsFromTable(table) {
     const cutTypes = data.cutTypes || {};
     const minTypeScale = cutTypes.min === 'side' ? 0.2 : 1;
     const maxTypeScale = cutTypes.max === 'side' ? 0.2 : 1;
-    const cutInsetBase = 0;
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
     const minInset = Math.min(minCut, cutInsetBase * minTypeScale);
     const maxInset = Math.min(maxCut, cutInsetBase * maxTypeScale);
     const cutAngles = data.cutAngles || {};
@@ -21137,25 +21137,6 @@ const powerRef = useRef(hud.power);
         return { side, vert, hasSpin };
       };
 
-      const applyCueSpinOmega = (cueBall, aimDirection, baseVelocity, spinInput) => {
-        if (!cueBall?.omega || !aimDirection || !baseVelocity) return;
-        const shotDir = TMP_VEC3_C.set(aimDirection.x, 0, aimDirection.y);
-        if (shotDir.lengthSq() < 1e-8) return;
-        shotDir.normalize();
-        const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
-        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
-        const spinX = spinInput?.x ?? 0;
-        const spinY = spinInput?.y ?? 0;
-        const rOffset = TMP_VEC3_E
-          .copy(sideAxis)
-          .multiplyScalar(spinX * BALL_R)
-          .addScaledVector(TMP_VEC3_A.set(0, 1, 0), spinY * BALL_R);
-        const impulseMag = BALL_MASS * (baseVelocity.length?.() ?? 0);
-        const impulse = TMP_VEC3_B.copy(shotDir).multiplyScalar(impulseMag);
-        const torqueImpulse = rOffset.cross(impulse);
-        cueBall.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
-      };
-
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
@@ -21175,7 +21156,20 @@ const powerRef = useRef(hud.power);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
-        applyCueSpinOmega(cue, aimDir, base, offsetScaled);
+        const shotDir = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
+        if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
+        const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
+        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
+        const rOffset = TMP_VEC3_E
+          .copy(sideAxis)
+          .multiplyScalar(offsetScaled.x * BALL_R)
+          .addScaledVector(new THREE.Vector3(0, 1, 0), offsetScaled.y * BALL_R);
+        const impulseMag = BALL_MASS * base.length();
+        const impulse = TMP_VEC3_A.copy(shotDir).multiplyScalar(impulseMag);
+        const torqueImpulse = TMP_VEC3_B.copy(rOffset).cross(impulse);
+        if (cue.omega) {
+          cue.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
+        }
         resetSpinRef.current?.();
         cueLiftRef.current.lift = 0;
         cueLiftRef.current.startLift = 0;
@@ -21469,10 +21463,6 @@ const powerRef = useRef(hud.power);
           if (cue.spin) {
             cue.spin.set(spinSide, spinTop);
           }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-          }
-          applyCueSpinOmega(cue, aimDir, base, physicsSpin);
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
