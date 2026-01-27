@@ -5972,47 +5972,45 @@ function reflectRails(ball) {
     };
   }
 
-  if (!Array.isArray(CUSHION_SEGMENTS) || CUSHION_SEGMENTS.length === 0) {
-    const sideSpan = SIDE_POCKET_SPAN;
-    const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
-    const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
-    const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-    const sidePocketCenters = getSidePocketCenters();
-    const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
-    const sideCutCos = Math.cos(sideCutRad);
-    const sideCutSin = Math.sin(sideCutRad);
-    for (const center of sidePocketCenters) {
-      TMP_VEC2_A.copy(ball.pos).sub(center);
-      const distToCenterSq = TMP_VEC2_A.lengthSq();
-      if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
-      const signX = center.x >= 0 ? 1 : -1;
-      for (const signY of SIDE_POCKET_CUT_SIGNS) {
-        if (TMP_VEC2_A.y * signY < 0) continue;
-        TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-        TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-        TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-        TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
-        const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
-        if (distNormal >= railRadius) continue;
-        if (distNormal < -sideDepthLimit) continue;
-        const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-        if (lateral < sideGuardClearance) continue;
-        const push = railRadius - distNormal;
-        ball.pos.addScaledVector(TMP_VEC2_B, push);
-        preImpactVel = ball.vel.clone();
-        const stamp =
-          typeof performance !== 'undefined' && performance.now
-            ? performance.now()
-            : Date.now();
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = 'cut';
-        return {
-          type: 'cut',
-          normal: TMP_VEC2_B.clone(),
-          tangent: TMP_VEC2_D.clone(),
-          preImpactVel
-        };
-      }
+  const sideSpan = SIDE_POCKET_SPAN;
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
+  const sidePocketCenters = getSidePocketCenters();
+  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
+  const sideCutCos = Math.cos(sideCutRad);
+  const sideCutSin = Math.sin(sideCutRad);
+  for (const center of sidePocketCenters) {
+    TMP_VEC2_A.copy(ball.pos).sub(center);
+    const distToCenterSq = TMP_VEC2_A.lengthSq();
+    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
+    const signX = center.x >= 0 ? 1 : -1;
+    for (const signY of SIDE_POCKET_CUT_SIGNS) {
+      if (TMP_VEC2_A.y * signY < 0) continue;
+      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
+      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
+      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+      TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
+      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
+      if (distNormal >= railRadius) continue;
+      if (distNormal < -sideDepthLimit) continue;
+      const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
+      if (lateral < sideGuardClearance) continue;
+      const push = railRadius - distNormal;
+      ball.pos.addScaledVector(TMP_VEC2_B, push);
+      preImpactVel = ball.vel.clone();
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = 'cut';
+      return {
+        type: 'cut',
+        normal: TMP_VEC2_B.clone(),
+        tangent: TMP_VEC2_D.clone(),
+        preImpactVel
+      };
     }
   }
 
