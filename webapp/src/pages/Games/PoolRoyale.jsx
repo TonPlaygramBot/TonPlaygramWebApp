@@ -5909,7 +5909,6 @@ function reflectRails(ball) {
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
-      if (nearPocket && segment.type === 'rail') continue;
       if (inCaptureZone && segment.type === 'cut') continue;
       const velocityToward = ball.vel.dot(segment.normal);
       if (velocityToward >= 0) continue;
@@ -22799,8 +22798,8 @@ const powerRef = useRef(hud.power);
             .slice()
             .sort((a, b) => a.id - b.id)
             .map((ball) => {
-              const x = Math.round(ball.x * 10);
-              const y = Math.round(ball.y * 10);
+              const x = Math.round(ball.x * 100);
+              const y = Math.round(ball.y * 100);
               return `${ball.id}:${ball.colour}:${ball.pocketed ? 1 : 0}:${x}:${y}`;
             })
             .join('|');
