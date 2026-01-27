@@ -609,7 +609,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.04; // reduce the outer fascia extension so the outside edge trims back slightly
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.98; // trim the outer fascia edge slightly more by the middle pockets
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
@@ -1274,14 +1274,14 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
 );
 const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
@@ -1372,34 +1372,31 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.46;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
-    POCKET_VIS_R * 1.95 +
-    BALL_R * 1.1) *
-  POCKET_CAM_EDGE_SCALE;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
+  POCKET_VIS_R * 2.25 +
+  BALL_R * 1.6;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
-    POCKET_VIS_R * 1.95 +
-    BALL_R * 1.05) *
-  POCKET_CAM_EDGE_SCALE;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.34 +
+  POCKET_VIS_R * 2.28 +
+  BALL_R * 1.54;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 18,
-  dotThreshold: 0.15,
+  triggerDist: CAPTURE_R * 12,
+  dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 0.98,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 0.9,
-  heightOffsetShortMultiplier: 0.9,
+  heightOffset: BALL_R * 1.9,
+  heightOffsetShortMultiplier: 0.96,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
-  heightDrop: BALL_R * 0.2,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.04,
+  heightDrop: BALL_R * 0.45,
   distanceScale: 0.96,
-  heightScale: 0.98,
-  focusBlend: 0,
-  lateralFocusShift: 0,
-  railFocusLong: BALL_R * 5.6,
-  railFocusShort: BALL_R * 6.6
+  heightScale: 1.06,
+  focusBlend: 0.22,
+  lateralFocusShift: POCKET_VIS_R * 0.32,
+  railFocusLong: BALL_R * 8,
+  railFocusShort: BALL_R * 5.4
 });
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
@@ -1412,7 +1409,7 @@ const POCKET_GLOW_COLORS = Object.freeze({
   foul: 0xff4b4b
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.85;
+const POCKET_GUARANTEED_ALIGNMENT = 0.95;
 const POCKET_EARLY_ALIGNMENT = 0.7;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
@@ -4946,7 +4943,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0;
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = BALL_R * 0.92;
+const CUSHION_CUT_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -9189,7 +9186,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.5, PLAY_W * 0.27));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.28;
+  const brandPlateOutwardShift = endRailW * 0.36;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9227,7 +9224,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.62;
+  const railMarkerOutset = longRailW * 0.54;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
