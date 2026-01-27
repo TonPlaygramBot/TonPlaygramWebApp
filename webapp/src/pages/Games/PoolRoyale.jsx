@@ -609,7 +609,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.62; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.04; // reduce the outer fascia extension so the outside edge trims back slightly
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.98; // reduce the outer fascia extension so the outside edge trims back slightly
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
@@ -1339,27 +1339,27 @@ const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.26;
 const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted balls meet the chrome holders cleanly
-const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.68; // stop the fall slightly above the ring/strap junction
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.1; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.22; // match Snooker Royal pocket net lift for identical potted-ball framing
+const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // match Snooker Royal pocket net lift for identical potted-ball framing
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.08;
+const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.1; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.01; // lift the chrome holder rails so the short L segments meet the ring
-const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.11; // nudge the L segments toward the leather strap
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.82; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1368,7 +1368,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.42; // align strap height with Snooker Royal for identical potted-ball rests
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // align strap height with Snooker Royal for identical potted-ball rests
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -4947,6 +4947,7 @@ let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0;
 const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = BALL_R * 0.92;
+const SIDE_POCKET_CUT_CONTACT_SCALE = 0.82; // tighten middle-pocket cut collisions so balls must contact the angled face
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -4990,7 +4991,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
 const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
-const USE_STANDING_BROADCAST_CAMERA = true; // keep broadcast cuts aligned with the standing camera instead of side-rail rigs
+const USE_STANDING_BROADCAST_CAMERA = false; // use rail-mounted broadcast rigs like Snooker Royal
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
 const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
@@ -5920,7 +5921,10 @@ function reflectRails(ball) {
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
+      const contactRadius =
+        segment.type === 'cut'
+          ? segment.contactRadius ?? cutRadius
+          : railRadius;
       if (distSq >= contactRadius * contactRadius) continue;
       const dist = Math.sqrt(distSq);
       const penetration = contactRadius - dist;
@@ -6505,17 +6509,20 @@ function updateCushionSegmentsFromTable(table) {
   }
   table.updateMatrixWorld(true);
   const segments = [];
-  const addSegment = (start, end, type) => {
+  const addSegment = (start, end, type, meta = {}) => {
     if (!start || !end) return;
     const dir = end.clone().sub(start);
     if (dir.lengthSq() < 1e-6) return;
-    segments.push({ start, end, type });
+    segments.push({ start, end, type, ...meta });
   };
   table.userData.cushions.forEach((cushion) => {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) return;
     const box = new THREE.Box3().setFromObject(cushion);
     const cutEnds = data.cutEnds || {};
+    const cutAngles = data.cutAngles || {};
+    const minCutAngle = Number.isFinite(cutAngles.min) ? cutAngles.min : CUSHION_CUT_ANGLE;
+    const maxCutAngle = Number.isFinite(cutAngles.max) ? cutAngles.max : CUSHION_CUT_ANGLE;
     const minCut = Math.max(0, cutEnds.min || 0);
     const maxCut = Math.max(0, cutEnds.max || 0);
     const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
@@ -6531,10 +6538,23 @@ function updateCushionSegmentsFromTable(table) {
       const leftOuter = new THREE.Vector2(box.min.x, outerZ);
       const rightOuter = new THREE.Vector2(box.max.x, outerZ);
       if (rightInner.x - leftInner.x > MICRO_EPS) {
-        addSegment(leftInner, rightInner, 'rail');
+        addSegment(leftInner, rightInner, 'rail', {
+          horizontal: true,
+          side: data.side
+        });
       }
-      addSegment(leftOuter, leftInner, 'cut');
-      addSegment(rightOuter, rightInner, 'cut');
+      addSegment(leftOuter, leftInner, 'cut', {
+        horizontal: true,
+        side: data.side,
+        end: 'min',
+        cutAngle: minCutAngle
+      });
+      addSegment(rightOuter, rightInner, 'cut', {
+        horizontal: true,
+        side: data.side,
+        end: 'max',
+        cutAngle: maxCutAngle
+      });
     } else {
       const innerX = data.side < 0 ? box.max.x : box.min.x;
       const outerX = data.side < 0 ? box.min.x : box.max.x;
@@ -6543,27 +6563,70 @@ function updateCushionSegmentsFromTable(table) {
       const bottomOuter = new THREE.Vector2(outerX, box.min.z);
       const topOuter = new THREE.Vector2(outerX, box.max.z);
       if (topInner.y - bottomInner.y > MICRO_EPS) {
-        addSegment(bottomInner, topInner, 'rail');
+        addSegment(bottomInner, topInner, 'rail', {
+          horizontal: false,
+          side: data.side
+        });
       }
-      addSegment(bottomOuter, bottomInner, 'cut');
-      addSegment(topOuter, topInner, 'cut');
+      addSegment(bottomOuter, bottomInner, 'cut', {
+        horizontal: false,
+        side: data.side,
+        end: 'min',
+        cutAngle: minCutAngle
+      });
+      addSegment(topOuter, topInner, 'cut', {
+        horizontal: false,
+        side: data.side,
+        end: 'max',
+        cutAngle: maxCutAngle
+      });
     }
   });
   const tableCenter = new THREE.Vector2(0, 0);
+  const sidePocketCenters = getSidePocketCenters();
   segments.forEach((segment) => {
-    const dir = TMP_VEC2_A.copy(segment.end).sub(segment.start);
-    const normal = TMP_VEC2_B.set(-dir.y, dir.x);
-    if (normal.lengthSq() < 1e-8) return;
-    normal.normalize();
     const midpoint = TMP_VEC2_C
       .copy(segment.start)
       .add(segment.end)
       .multiplyScalar(0.5);
+    let normal = null;
+    if (
+      segment.type === 'cut' &&
+      typeof segment.side === 'number' &&
+      Number.isFinite(segment.cutAngle)
+    ) {
+      const angleRad = THREE.MathUtils.degToRad(segment.cutAngle);
+      const baseNormal = segment.horizontal
+        ? new THREE.Vector2(0, -segment.side)
+        : new THREE.Vector2(-segment.side, 0);
+      const endSign = segment.end === 'min' ? 1 : -1;
+      const endDir = segment.horizontal
+        ? new THREE.Vector2(endSign, 0)
+        : new THREE.Vector2(0, endSign);
+      normal = baseNormal
+        .multiplyScalar(Math.cos(angleRad))
+        .add(endDir.multiplyScalar(Math.sin(angleRad)));
+    } else {
+      const dir = TMP_VEC2_A.copy(segment.end).sub(segment.start);
+      normal = TMP_VEC2_B.set(-dir.y, dir.x);
+    }
+    if (!normal || normal.lengthSq() < 1e-8) return;
+    normal.normalize();
     const toCenter = TMP_VEC2_D.copy(tableCenter).sub(midpoint);
     if (normal.dot(toCenter) < 0) {
       normal.multiplyScalar(-1);
     }
     segment.normal = normal.clone();
+    if (segment.type === 'cut' && sidePocketCenters.length) {
+      let nearestSidePocket = Infinity;
+      for (const center of sidePocketCenters) {
+        const dist = midpoint.distanceTo(center);
+        if (dist < nearestSidePocket) nearestSidePocket = dist;
+      }
+      if (nearestSidePocket < SIDE_POCKET_RADIUS * 1.35) {
+        segment.contactRadius = CUSHION_CUT_CONTACT_RADIUS * SIDE_POCKET_CUT_CONTACT_SCALE;
+      }
+    }
   });
   CUSHION_SEGMENTS = segments;
   table.userData.cushionSegments = segments;
@@ -9694,6 +9757,9 @@ export function Table3D(
             : CUSHION_CUT_ANGLE
         }
       : undefined;
+    const defaultCutAngle = CUSHION_CUT_ANGLE;
+    const leftCutAngle = sidePocketCuts?.leftCutAngle ?? defaultCutAngle;
+    const rightCutAngle = sidePocketCuts?.rightCutAngle ?? defaultCutAngle;
     const cutLengths = computeCushionCutLengths(len, horizontal, sidePocketCuts);
     const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
@@ -9769,6 +9835,10 @@ export function Table3D(
     group.userData.cutEnds = {
       min: leftIsMin ? cutLengths.leftCut : cutLengths.rightCut,
       max: leftIsMin ? cutLengths.rightCut : cutLengths.leftCut
+    };
+    group.userData.cutAngles = {
+      min: leftIsMin ? leftCutAngle : rightCutAngle,
+      max: leftIsMin ? rightCutAngle : leftCutAngle
     };
     table.add(group);
     table.userData.cushions.push(group);
