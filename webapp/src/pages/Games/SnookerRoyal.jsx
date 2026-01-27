@@ -1061,7 +1061,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_SIZE_BOOST = 1.28; // expand the snooker table footprint by ~28% to make the table wider and taller
+  const TABLE_SIZE_BOOST = 1.6; // expand the snooker table footprint by ~25% to make the table wider and taller
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -1563,9 +1563,9 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.28; // keep orbit height aligned with the cue while leaving a tighter buffer at cue-top level
-const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
+const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1576,14 +1576,26 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_RETURN_PUSH = 0.78;
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18;
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8;
+const CUE_POWER_GAMMA = 1.85;
+const CUE_STRIKE_DURATION_MS = 260;
+const PLAYER_CUE_STRIKE_MIN_MS = 120;
+const PLAYER_CUE_STRIKE_MAX_MS = 1400;
+const PLAYER_CUE_FORWARD_MIN_MS = 240;
+const PLAYER_CUE_FORWARD_MAX_MS = 520;
+const PLAYER_CUE_FORWARD_EASE = 0.65;
+const CUE_STRIKE_HOLD_MS = 80;
+const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
 const CUE_STROKE_SPEED_MAX = BALL_R * 32;
-const CUE_FOLLOW_MIN_MS = 180;
-const CUE_FOLLOW_MAX_MS = 420;
-const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
-const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
+const CUE_FOLLOW_MIN_MS = 250;
+const CUE_FOLLOW_MAX_MS = 560;
+const CUE_FOLLOW_SPEED_MIN = BALL_R * 9.5;
+const CUE_FOLLOW_SPEED_MAX = BALL_R * 20.5;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
@@ -1594,23 +1606,23 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.45;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.56;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.92;
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.9;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = BALL_R * 0.45;
-const MAX_SPIN_VERTICAL = BALL_R * 0.92;
+const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
+const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
+const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.65;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
@@ -4956,9 +4968,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.08; // lift the 2D top view slightly to keep framing consistent after the table expansion
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
@@ -20749,10 +20761,22 @@ const powerRef = useRef(hud.power);
         const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
         const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+        const isReturning =
+          !dragging &&
+          !instant &&
+          clampedTarget <= 0 &&
+          (cuePullCurrentRef.current ?? 0) > 0;
+        const returnSmoothing = isReturning
+          ? Math.max(smoothing, CUE_PULL_RETURN_PUSH)
+          : smoothing;
         const nextPull =
-          smoothing >= 1
+          returnSmoothing >= 1
             ? clampedTarget
-            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
+            : THREE.MathUtils.lerp(
+                cuePullCurrentRef.current ?? 0,
+                clampedTarget,
+                returnSmoothing
+              );
         cuePullTargetRef.current = clampedTarget;
         cuePullCurrentRef.current = nextPull;
         return nextPull;
