@@ -609,9 +609,9 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.62; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.6; // trim fascia span so the middle plates shave off a little on both sides
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.12; // reduce the outer fascia extension so the outside edge trims back slightly
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.06; // trim the outer fascia edge slightly for a cleaner outside line
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.9; // pull the plate ends back from the pocket entry
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.965; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.985; // widen the middle fascia slightly so both flanks expand evenly
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
@@ -21101,7 +21101,7 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
