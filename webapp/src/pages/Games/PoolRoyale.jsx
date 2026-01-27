@@ -130,6 +130,7 @@ function applyTablePhysicsSpec(meta) {
       ? meta.cushionCutAngleDeg
       : DEFAULT_SIDE_CUSHION_CUT_ANGLE;
   SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
+  VISUAL_SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
   const sidePocketPhysicsAngle = Number.isFinite(meta?.sidePocketCutAngleDeg)
     ? meta.sidePocketCutAngleDeg
     : VISUAL_SIDE_CUSHION_CUT_ANGLE;
@@ -1125,7 +1126,7 @@ const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 45° cut mapping
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.08;
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -1631,11 +1632,11 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 45;
 // match the corner-cushion cut angle on both sides of the corner pockets
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 20;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 60;
 const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
-const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
+let VISUAL_SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
+const SIDE_POCKET_CUT_ANGLE_DEG = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
