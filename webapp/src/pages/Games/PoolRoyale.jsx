@@ -1126,7 +1126,7 @@ const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 45° cut mapping
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 65° cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -1570,6 +1570,7 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
+const CUE_PULL_DISTANCE_SCALE = 0.6;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
@@ -1629,13 +1630,13 @@ const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
-const DEFAULT_CUSHION_CUT_ANGLE = 45;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
 const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -12670,6 +12671,7 @@ const powerRef = useRef(hud.power);
   const aiShotCueDropTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
+  const aiCuePullReadyAtRef = useRef(0);
   const aiRetryTimeoutRef = useRef(null);
   const aiSpinAdjustRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
@@ -12716,6 +12718,9 @@ const powerRef = useRef(hud.power);
   const setAiShotCueViewActive = useCallback(
     (value) => {
       aiShotCueViewRef.current = value;
+      if (!value) {
+        aiCuePullReadyAtRef.current = 0;
+      }
       recomputeAiShotState();
     },
     [recomputeAiShotState]
@@ -21169,7 +21174,7 @@ const powerRef = useRef(hud.power);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER;
+        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -21709,6 +21714,9 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           cueStick.visible = true;
+          if (shotRecording) {
+            recordReplayFrame(performance.now());
+          }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
           const forwardDuration = isAiStroke
@@ -23580,6 +23588,7 @@ const powerRef = useRef(hud.power);
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
+              aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
               animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
@@ -24408,7 +24417,7 @@ const powerRef = useRef(hud.power);
         }
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+        if (canShowCue && (isPlayerTurn || previewingAiShot || aiCueViewActive)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
@@ -24565,12 +24574,16 @@ const powerRef = useRef(hud.power);
             impactRing.visible = false;
           }
           const maxPull = CUE_PULL_BASE;
-          const desiredPull = computePullTargetFromPower(
-            powerRef.current,
-            maxPull
-          );
+          const aiPullReady =
+            !isAiTurn ||
+            (aiCueViewActive && now >= (aiCuePullReadyAtRef.current ?? 0));
+          const desiredPull = aiPullReady
+            ? computePullTargetFromPower(powerRef.current, maxPull)
+            : 0;
           const pull = computeCuePull(desiredPull, maxPull, {
-            instant: Boolean(sliderInstanceRef.current?.dragging)
+            instant:
+              Boolean(sliderInstanceRef.current?.dragging) ||
+              (isAiTurn && !aiPullReady)
           });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
