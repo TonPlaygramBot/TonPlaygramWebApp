@@ -4,13 +4,15 @@ const STORAGE_KEY = 'tonplaygram-pwa-dismissed';
 
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches ||
-  window.navigator.standalone === true ||
-  window.Telegram?.WebApp?.isExpanded;
+  window.navigator.standalone === true;
+
+const isTelegramWebApp = () => Boolean(window.Telegram?.WebApp);
 
 export default function usePwaInstallPrompt() {
   const [promptEvent, setPromptEvent] = useState(null);
   const [installed, setInstalled] = useState(isStandalone());
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1');
+  const [telegramDetected, setTelegramDetected] = useState(() => isTelegramWebApp());
 
   useEffect(() => {
     const handler = event => {
@@ -28,6 +30,12 @@ export default function usePwaInstallPrompt() {
     };
     window.addEventListener('appinstalled', onInstalled);
     return () => window.removeEventListener('appinstalled', onInstalled);
+  }, []);
+
+  useEffect(() => {
+    if (isTelegramWebApp()) {
+      setTelegramDetected(true);
+    }
   }, []);
 
   const markDismissed = () => {
@@ -53,11 +61,30 @@ export default function usePwaInstallPrompt() {
     [dismissed, installed, promptEvent]
   );
 
+  const canShowTelegramInstall = useMemo(
+    () => !installed && !dismissed && telegramDetected && !promptEvent,
+    [dismissed, installed, promptEvent, telegramDetected]
+  );
+
+  const openExternalInstall = () => {
+    const url = window.location.href;
+    if (window.Telegram?.WebApp?.openLink) {
+      window.Telegram.WebApp.openLink(url, { try_instant_view: false });
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const mode = canInstall ? 'prompt' : canShowTelegramInstall ? 'telegram' : 'none';
+
   return {
     canInstall,
+    canShowTelegramInstall,
+    mode,
     installed,
     dismissed,
     promptToInstall,
+    openExternalInstall,
     dismiss: markDismissed
   };
 }

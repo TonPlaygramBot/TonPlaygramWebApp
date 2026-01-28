@@ -1,8 +1,16 @@
 import React from 'react';
 import { Download } from 'lucide-react';
 
-export default function PwaInstallBanner({ canInstall, onInstall, onDismiss }) {
-  if (!canInstall) return null;
+export default function PwaInstallBanner({ mode = 'none', onInstall, onDismiss }) {
+  if (mode === 'none') return null;
+
+  const title =
+    mode === 'telegram' ? 'Install TonPlaygram on your device' : 'Install TonPlaygram for Telegram';
+  const description =
+    mode === 'telegram'
+      ? 'Open this page in Chrome or Safari, then add it to your home screen.'
+      : 'Add to Home Screen to cache the full game shell and cut reload times.';
+  const ctaLabel = mode === 'telegram' ? 'Open in browser' : 'Install now';
 
   return (
     <div className="fixed bottom-[5.5rem] inset-x-0 z-[60] px-4">
@@ -11,17 +19,15 @@ export default function PwaInstallBanner({ canInstall, onInstall, onDismiss }) {
           <Download className="text-accent drop-shadow" size={28} />
         </div>
         <div className="flex-1">
-          <p className="text-white text-lg leading-tight">Install TonPlaygram for Telegram</p>
-          <p className="text-sm text-text/80 mt-1">
-            Add to Home Screen to cache the full game shell and cut reload times.
-          </p>
+          <p className="text-white text-lg leading-tight">{title}</p>
+          <p className="text-sm text-text/80 mt-1">{description}</p>
           <div className="flex gap-3 mt-3">
             <button
               type="button"
               className="bg-primary text-white px-3 py-2 rounded-lg text-sm hover:bg-primary-hover transition"
               onClick={onInstall}
             >
-              Install now
+              {ctaLabel}
             </button>
             <button
               type="button"
