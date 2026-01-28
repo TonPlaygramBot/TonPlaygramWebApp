@@ -7,7 +7,6 @@ import {
   getPoolRoyalInventoryRemote,
   setPoolRoyalInventoryRemote
 } from './api.js';
-import { getPlayerId } from './telegram.js';
 
 const STORAGE_KEY = 'poolRoyalInventoryByAccount';
 const MIGRATION_KEY = 'poolRoyalInventoryMigrated';
@@ -29,8 +28,6 @@ const resolveAccountId = (accountId) => {
   if (typeof window !== 'undefined') {
     const stored = window.localStorage.getItem('accountId');
     if (stored) return stored;
-    const generated = getPlayerId();
-    if (generated) return generated;
   }
   return 'guest';
 };
