@@ -1111,7 +1111,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.97 * 1.15; // scale balls up 15% while keeping the base real-table match
+const BALL_SIZE_SCALE = 0.97; // shrink balls ~3% for a tighter match to the real table size
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -18329,8 +18329,7 @@ const powerRef = useRef(hud.power);
           }
           if (localTime <= pullEnd && pullback > 0) {
             const t = THREE.MathUtils.clamp(localTime / Math.max(pullback, 1e-6), 0, 1);
-            const eased = easeOutCubic(t);
-            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             syncCueShadow();
             return;
           }
@@ -18342,8 +18341,7 @@ const powerRef = useRef(hud.power);
             );
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
-            const eased = easeInCubic(t);
-            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             syncCueShadow();
             return;
           }
@@ -18356,8 +18354,7 @@ const powerRef = useRef(hud.power);
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
             tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
             cueStick.visible = true;
-            const eased = easeInOutSine(t);
-            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             syncCueShadow();
             return;
           }
@@ -18370,8 +18367,7 @@ const powerRef = useRef(hud.power);
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
             tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
             cueStick.visible = true;
-            const eased = easeInOutSine(t);
-            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             syncCueShadow();
             return;
           }
@@ -18435,8 +18431,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
-            cueStick.position.lerpVectors(warmupPos, startPos, eased);
+            cueStick.position.lerpVectors(warmupPos, startPos, t);
             syncCueShadow();
             return true;
           }
@@ -18446,7 +18441,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInCubic(t);
+            const eased = 1 - Math.pow(1 - t, 3);
             cueStick.position.lerpVectors(startPos, impactPos, eased);
             syncCueShadow();
             return true;
@@ -18457,11 +18452,10 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutSine(t);
             cueStick.position.lerpVectors(
               impactPos,
               settlePos ?? impactPos,
-              eased
+              t
             );
             syncCueShadow();
             return true;
@@ -18472,8 +18466,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutSine(t);
-            cueStick.position.lerpVectors(impactPos, idlePos, eased);
+            cueStick.position.lerpVectors(impactPos, idlePos, t);
             syncCueShadow();
             return true;
           }
@@ -21184,10 +21177,7 @@ const powerRef = useRef(hud.power);
         const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
-      // Easing functions adapted from https://easings.net (MIT License).
-      const easeInCubic = (t) => t * t * t;
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-      const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -21837,7 +21827,7 @@ const powerRef = useRef(hud.power);
                 const t = forwardDuration > 0
                   ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1)
                   : 1;
-                const eased = easeInCubic(t);
+                const eased = easeOutCubic(t);
                 cueStick.position.lerpVectors(pullPos, idlePos, eased);
               } else if (now <= settleTime) {
                 cueStick.position.copy(idlePos);
