@@ -966,8 +966,8 @@ const TABLE_FOOTPRINT_SCALE = 1.05;
 const TABLE_SIZE_MULTIPLIER = 2; // snooker table is double the pool table size
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.8; // match Pool Royale table height and display scale
-const CAMERA_DISPLAY_SCALE = 1;
+const TABLE_DISPLAY_SCALE = 0.92; // pull the entire table set closer so the arena feels larger while keeping proportions intact
+const CAMERA_DISPLAY_SCALE = TABLE_DISPLAY_SCALE / 0.88;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1630,14 +1630,14 @@ const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
-// angle for cushion cuts guiding balls into corner pockets (match Snooker Royale spec)
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts match the Snooker Royale spec for identical cushion angles
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 55;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 54;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 56;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 55;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 55;
+// angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
+const DEFAULT_CUSHION_CUT_ANGLE = 45;
+// middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -1975,8 +1975,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2;
-  const rowSpacing = ballRadius * Math.sqrt(3);
+  const columnSpacing = ballRadius * 2.05;
+  const rowSpacing = columnSpacing * (Math.sqrt(3) / 2);
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -6500,7 +6500,7 @@ const isSnookerColourId = (colorId) => Boolean(SNOOKER_COLOR_SPOTS[colorId]);
 const resolveSnookerSpotKey = (colorId) => SNOOKER_COLOR_SPOTS[colorId] ?? null;
 const isRespotPositionClear = (pos, balls, reserved = [], ignoreId = null) => {
   if (!pos) return false;
-  const minDistance = BALL_R * 2;
+  const minDistance = BALL_R * 2.02;
   const minDistanceSq = minDistance * minDistance;
   for (const ball of balls) {
     if (!ball?.active) continue;
@@ -6538,7 +6538,7 @@ const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
       return candidatePos;
     }
   }
-  const minDistance = BALL_R * 2;
+  const minDistance = BALL_R * 2.02;
   const blockers = balls.filter((ball) => {
     if (!ball?.active) return false;
     const dx = ball.pos.x - baseSpot.x;
@@ -19140,7 +19140,6 @@ const powerRef = useRef(hud.power);
         if (variant === 'snooker') {
           const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
           const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
-          const rackRowSpacing = BALL_R * Math.sqrt(3);
           const snookerPalette = {
             red: 0xb1262c,
             yellow: 0xf7d000,
@@ -19152,7 +19151,7 @@ const powerRef = useRef(hud.power);
             cue: 0xfafafa
           };
           rackPositions.forEach((pos, index) => {
-            const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * rackRowSpacing };
+            const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * BALL_R * 1.6 };
             addDecorBall(snookerPalette.red, null, 'solid', placement, SNOOKER_BALL_MATERIAL_VARIANT);
           });
           [
@@ -19640,11 +19639,10 @@ const powerRef = useRef(hud.power);
           BALL_R,
           rackStartZ
         );
-        const rackRowSpacing = BALL_R * Math.sqrt(3);
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
-            z: rackStartZ + rid * rackRowSpacing
+            z: rackStartZ + rid * BALL_R * 1.9
           };
           const color = getPoolBallColor(variantConfig, rid);
           const number = getPoolBallNumber(variantConfig, rid);
