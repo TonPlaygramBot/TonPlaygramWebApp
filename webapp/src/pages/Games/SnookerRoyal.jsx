@@ -1062,7 +1062,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.18; // expand the snooker playfield by ~18% to make the table wider and taller
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
   const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
@@ -1157,9 +1157,9 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
+const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.97; // align ball sizing with Pool Royale calibration
+const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -4815,7 +4815,6 @@ function applySnookerScaling({
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
     'applySnookerScaling: table aspect ratio must remain 2:1.'
   );
-  const expectedBallRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
   const expectedCornerMouth =
     CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
   const expectedSideMouth =
@@ -4842,42 +4841,14 @@ function applySnookerScaling({
     const halfWidth = width / 2;
     const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
-    const lineThickness = Math.max(expectedBallRadius * 0.08, 0.1);
-    const baulkLineLength = width - SIDE_RAIL_INNER_THICKNESS * 0.4;
-    if (markings.baulkLine.geometry) {
-      markings.baulkLine.geometry.dispose();
-      markings.baulkLine.geometry = new THREE.PlaneGeometry(
-        baulkLineLength,
-        lineThickness
-      );
-    }
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
     if (markings.dArc) {
-      const dRadius = D_RADIUS_REF * mmToUnits;
-      const dThickness = Math.max(lineThickness * 0.75, expectedBallRadius * 0.07);
-      if (markings.dArc.geometry) {
-        markings.dArc.geometry.dispose();
-        markings.dArc.geometry = new THREE.RingGeometry(
-          Math.max(0.001, dRadius - dThickness),
-          dRadius,
-          64,
-          1,
-          0,
-          Math.PI
-        );
-      }
       markings.dArc.position.set(center.x, markingY, baulkZ);
     }
     if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
       const [yellow, brown, green, blue, pink, black] = markings.spots;
       const spotY = yellow?.position?.y ?? markingY;
       const dRadius = D_RADIUS_REF * mmToUnits;
-      const spotRadius = expectedBallRadius * 0.26;
-      markings.spots.forEach((spot) => {
-        if (!spot?.geometry) return;
-        spot.geometry.dispose();
-        spot.geometry = new THREE.CircleGeometry(spotRadius, 32);
-      });
       if (yellow) yellow.position.set(-dRadius, spotY, baulkZ);
       if (brown) brown.position.set(0, spotY, baulkZ);
       if (green) green.position.set(dRadius, spotY, baulkZ);
@@ -4890,7 +4861,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = expectedBallRadius;
+    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
