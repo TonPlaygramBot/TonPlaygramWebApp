@@ -24,7 +24,7 @@ const sortUnique = (values) =>
     .sort();
 
 const resolveAccountId = (accountId) => {
-  if (accountId && accountId !== 'guest') return accountId;
+  if (accountId) return accountId;
   if (typeof window !== 'undefined') {
     const stored = window.localStorage.getItem('accountId');
     if (stored) return stored;
@@ -185,38 +185,13 @@ const syncWithServer = async (accountId, localInventory) => {
 const readCachedInventory = (accountId) => {
   const inventories = readAllInventories();
   const normalized = normalizeInventory(inventories[accountId]);
-  let finalInventory = normalized;
-  let shouldDispatch = false;
-
-  if (typeof window !== 'undefined' && accountId && accountId !== 'guest') {
-    const flags = readMigrationFlags();
-    const flagKey = `guest:${accountId}`;
-    if (!flags[flagKey]) {
-      const guestInventory = inventories.guest;
-      if (!isInventoryEmpty(guestInventory)) {
-        finalInventory = mergeInventories(normalized, guestInventory);
-        shouldDispatch = true;
-      }
-      flags[flagKey] = true;
-      writeMigrationFlags(flags);
-    }
-  }
-
   if (typeof window !== 'undefined') {
-    const normalizedFinal = normalizeInventory(finalInventory);
     writeAllInventories({
       ...inventories,
-      [accountId]: normalizedFinal
+      [accountId]: normalized
     });
-    if (shouldDispatch) {
-      window.dispatchEvent(
-        new CustomEvent('poolRoyalInventoryUpdate', {
-          detail: { accountId, inventory: normalizedFinal }
-        })
-      );
-    }
   }
-  return normalizeInventory(finalInventory);
+  return normalized;
 };
 
 export const getCachedPoolRoyalInventory = (accountId) =>
