@@ -22,7 +22,14 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
   const inviteSoundRef = useRef(null);
-  const { canInstall, promptToInstall, dismiss } = usePwaInstallPrompt();
+  const {
+    canInstall,
+    canShowTelegramInstall,
+    mode,
+    promptToInstall,
+    openExternalInstall,
+    dismiss
+  } = usePwaInstallPrompt();
   const { isUpdating } = useAppUpdate();
 
   useEffect(() => {
@@ -120,6 +127,8 @@ export default function Layout({ children }) {
     }
   }, [location.pathname]);
 
+  const showPwaBanner = showNavbar && (canInstall || canShowTelegramInstall);
+
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
       {showHeader && (
@@ -171,8 +180,8 @@ export default function Layout({ children }) {
       />
 
       <PwaInstallBanner
-        canInstall={canInstall && showNavbar}
-        onInstall={promptToInstall}
+        mode={showPwaBanner ? mode : 'none'}
+        onInstall={mode === 'telegram' ? openExternalInstall : promptToInstall}
         onDismiss={dismiss}
       />
 
