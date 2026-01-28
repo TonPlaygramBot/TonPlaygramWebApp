@@ -4964,15 +4964,12 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
 });
-const REPLAY_TOP_VIEW_MARGIN = 1.15;
-const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
-const REPLAY_TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22);
-const REPLAY_TOP_VIEW_RADIUS_SCALE = 1.26;
-const REPLAY_TOP_VIEW_RESOLVED_PHI = Math.max(REPLAY_TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
-const REPLAY_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.006,
-  z: PLAY_H * 0.006
-});
+const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
+const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
+const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
+const REPLAY_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
+const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
+const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -5041,8 +5038,8 @@ const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
-const AI_CUE_PULLBACK_DURATION_MS = 520;
-const AI_CUE_FORWARD_DURATION_MS = 520;
+const AI_CUE_PULLBACK_DURATION_MS = 260;
+const AI_CUE_FORWARD_DURATION_MS = 240;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -5084,6 +5081,7 @@ const AI_SPIN_ADJUST_DELAY_MS = 2000;
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_STROKE_TIME_SCALE = 2.15;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
+const AI_CUE_PULL_SCALE = 0.72;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 1;
@@ -21656,7 +21654,11 @@ const powerRef = useRef(hud.power);
           const pullVisibilityBoost = isAiStroke
             ? AI_CUE_PULL_VISIBILITY_BOOST
             : PLAYER_CUE_PULL_VISIBILITY_BOOST;
-          const pullTarget = computePullTargetFromPower(clampedPower, maxPull) * pullVisibilityBoost;
+          const pullScale = isAiStroke ? AI_CUE_PULL_SCALE : 1;
+          const pullTarget =
+            computePullTargetFromPower(clampedPower, maxPull) *
+            pullVisibilityBoost *
+            pullScale;
           const pull = computeCuePull(pullTarget, maxPull, {
             instant: true,
             preserveLarger: true
@@ -21790,7 +21792,7 @@ const powerRef = useRef(hud.power);
             }
           }
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
-            const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
+            const strokeStartOffset = 0;
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
