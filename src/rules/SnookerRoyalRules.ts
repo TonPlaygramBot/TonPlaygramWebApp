@@ -149,7 +149,7 @@ export class SnookerRoyalRules {
       freeBall: false,
       hud: buildHud(base, scores, base.ballOn),
       state: {
-        ballInHand: false
+        ballInHand: true
       }
     } satisfies SnookerMeta;
     return base;
