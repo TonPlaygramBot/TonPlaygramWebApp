@@ -208,6 +208,21 @@ function detectHighRefreshDisplay() {
   return false;
 }
 
+const sortOptionsByLabel = (options, { getLabel, getId, defaultId } = {}) => {
+  if (!Array.isArray(options)) return [];
+  const label = getLabel || ((option) => option?.label ?? option?.name ?? option?.id ?? '');
+  const idResolver = getId || ((option) => option?.id);
+  return [...options].sort((a, b) => {
+    if (defaultId) {
+      if (idResolver(a) === defaultId) return -1;
+      if (idResolver(b) === defaultId) return 1;
+    }
+    const labelA = label(a);
+    const labelB = label(b);
+    return String(labelA).localeCompare(String(labelB));
+  });
+};
+
 const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
 
 const wait = (ms = 0) =>
@@ -11408,57 +11423,85 @@ function PoolRoyaleGame({
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
   const availableTableFinishes = useMemo(
     () =>
-      TABLE_FINISH_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('tableFinish', option.id, poolInventory)
+      sortOptionsByLabel(
+        TABLE_FINISH_OPTIONS.filter((option) =>
+          isPoolOptionUnlocked('tableFinish', option.id, poolInventory)
+        ),
+        { defaultId: DEFAULT_TABLE_FINISH_ID }
       ),
     [poolInventory]
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      sortOptionsByLabel(
+        POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+        ),
+        { getLabel: (option) => option?.name, defaultId: DEFAULT_TABLE_BASE_ID }
       ),
     [poolInventory]
   );
   const availableChromeOptions = useMemo(
     () =>
-      CHROME_COLOR_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('chromeColor', option.id, poolInventory)
+      sortOptionsByLabel(
+        CHROME_COLOR_OPTIONS.filter((option) =>
+          isPoolOptionUnlocked('chromeColor', option.id, poolInventory)
+        ),
+        { defaultId: DEFAULT_CHROME_COLOR_ID }
       ),
     [poolInventory]
   );
   const availableRailMarkerColors = useMemo(
     () =>
-      RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
+      sortOptionsByLabel(
+        RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
+          isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
+        ),
+        { defaultId: DEFAULT_RAIL_MARKER_COLOR_ID }
       ),
     [poolInventory]
   );
   const availableClothOptions = useMemo(
     () =>
-      CLOTH_COLOR_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('clothColor', option.id, poolInventory)
+      sortOptionsByLabel(
+        CLOTH_COLOR_OPTIONS.filter((option) =>
+          isPoolOptionUnlocked('clothColor', option.id, poolInventory)
+        ),
+        { defaultId: DEFAULT_CLOTH_COLOR_ID }
       ),
     [poolInventory]
   );
   const availableEnvironmentHdris = useMemo(
     () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
+      sortOptionsByLabel(
+        POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+          isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
+        ),
+        { getLabel: (option) => option?.name, defaultId: POOL_ROYALE_DEFAULT_HDRI_ID }
       ),
     [poolInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
-      POCKET_LINER_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
+      sortOptionsByLabel(
+        POCKET_LINER_OPTIONS.filter((option) =>
+          isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
+        ),
+        { defaultId: DEFAULT_POCKET_LINER_OPTION_ID }
       ),
     [poolInventory]
   );
   const availableCueStyles = useMemo(
     () =>
-      CUE_FINISH_OPTIONS.map((finish, index) => ({ preset: finish, index })).filter(({ preset }) =>
-        isCueFinishUnlocked(preset.id, poolInventory)
+      sortOptionsByLabel(
+        CUE_FINISH_OPTIONS.map((finish, index) => ({ preset: finish, index })).filter(({ preset }) =>
+          isCueFinishUnlocked(preset.id, poolInventory)
+        ),
+        {
+          getLabel: (option) => option?.preset?.label,
+          getId: (option) => option?.preset?.id,
+          defaultId: DEFAULT_CUE_STYLE_ID
+        }
       ),
     [isCueFinishUnlocked, poolInventory]
   );
