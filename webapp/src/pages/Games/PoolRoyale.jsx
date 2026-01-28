@@ -1373,7 +1373,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.36;
+const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -2865,6 +2865,24 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.14,
     avoidPocketCameras: false,
     forceActionActivation: true
+  },
+  {
+    id: 'rail-overhead-snooker2d',
+    label: 'Rail Overhead + Snooker 2D',
+    description:
+      'Broadcast rail heads paired with the snooker-style 2D top view framing.',
+    method: 'Overhead rail mounts with snooker 2D replay/top-view cuts.',
+    orbitBias: 0.68,
+    railPush: BALL_R * 6,
+    lateralDolly: BALL_R * 0.6,
+    focusLift: BALL_R * 5.4,
+    focusDepthBias: -BALL_R * 0.6,
+    focusPan: 0,
+    trackingBias: 0.52,
+    smoothing: 0.14,
+    avoidPocketCameras: false,
+    forceActionActivation: true,
+    topViewVariant: 'snooker2d'
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
@@ -4977,6 +4995,30 @@ const BROADCAST_TOP_VIEW_PHI = 0;
 const BROADCAST_TOP_VIEW_RADIUS_SCALE = 1.06;
 const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
 const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_SNOOKER_TOP_VIEW_MARGIN = 1.14;
+const BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = 1.06;
+const BROADCAST_SNOOKER_TOP_VIEW_PHI = 0;
+const BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE = 1.06;
+const BROADCAST_SNOOKER_TOP_VIEW_RESOLVED_PHI = BROADCAST_SNOOKER_TOP_VIEW_PHI;
+const BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
+  pool: Object.freeze({
+    margin: BROADCAST_TOP_VIEW_MARGIN,
+    minRadiusScale: BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE,
+    radiusScale: BROADCAST_TOP_VIEW_RADIUS_SCALE,
+    phi: BROADCAST_TOP_VIEW_RESOLVED_PHI,
+    screenOffset: BROADCAST_TOP_VIEW_SCREEN_OFFSET
+  }),
+  snooker2d: Object.freeze({
+    margin: BROADCAST_SNOOKER_TOP_VIEW_MARGIN,
+    minRadiusScale: BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE,
+    radiusScale: BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE,
+    phi: BROADCAST_SNOOKER_TOP_VIEW_RESOLVED_PHI,
+    screenOffset: BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET
+  })
+});
+const resolveBroadcastTopViewVariant = (variant) =>
+  BROADCAST_TOP_VIEW_VARIANTS[variant] ?? BROADCAST_TOP_VIEW_VARIANTS.pool;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -16472,27 +16514,32 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
+          const systemVariant =
+            broadcastSystemRef.current?.topViewVariant ??
+            activeBroadcastSystem?.topViewVariant ??
+            'pool';
+          const topViewConfig = resolveBroadcastTopViewVariant(systemVariant);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const focusTarget =
             focusOverride?.clone?.() ??
             TMP_VEC3_TOP_VIEW
               .set(
-                playerOffsetRef.current + BROADCAST_TOP_VIEW_SCREEN_OFFSET.x,
+                playerOffsetRef.current + topViewConfig.screenOffset.x,
                 ORBIT_FOCUS_BASE_Y,
-                BROADCAST_TOP_VIEW_SCREEN_OFFSET.z
+                topViewConfig.screenOffset.z
               )
               .multiplyScalar(scale);
           if (focusTarget && Number.isFinite(minTargetY)) {
             focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
           }
           const topRadiusBase =
-            fitRadius(camera, BROADCAST_TOP_VIEW_MARGIN) * BROADCAST_TOP_VIEW_RADIUS_SCALE;
+            fitRadius(camera, topViewConfig.margin) * topViewConfig.radiusScale;
           const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE)
+            Math.max(topRadiusBase, CAMERA.minR * topViewConfig.minRadiusScale)
           );
           const spherical = new THREE.Spherical(
             topRadius,
-            BROADCAST_TOP_VIEW_RESOLVED_PHI,
+            topViewConfig.phi,
             Math.PI
           );
           const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
