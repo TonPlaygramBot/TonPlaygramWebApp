@@ -963,6 +963,10 @@ function addPocketCuts(
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const TABLE_FOOTPRINT_SCALE = 1.05;
+const POOL_TABLE_BASE_SCALE = 1.2;
+const POOL_TABLE_WIDTH_SCALE = 1.25;
+const POOL_TABLE_SCALE = POOL_TABLE_BASE_SCALE * TABLE_REDUCTION * POOL_TABLE_WIDTH_SCALE;
+const POOL_TABLE_THICKNESS = 1.8 * POOL_TABLE_SCALE;
 const TABLE_SIZE_MULTIPLIER = 2; // snooker table is double the pool table size
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -1568,7 +1572,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = 1; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
+const TABLE_HEIGHT_DROP = (TABLE_H + POOL_TABLE_THICKNESS) * 0.18; // lower the full table assembly by 18%
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -1634,10 +1638,10 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 54;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 56;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 55;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 55;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -1975,9 +1979,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const rackGapBias = 0.02 * (ballRadius / 0.0525);
-  const columnSpacing = ballRadius * 2 + rackGapBias;
-  const rowSpacing = columnSpacing * (Math.sqrt(3) / 2);
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -4971,9 +4974,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match the Pool Royale 2D framing with a slight lift for the larger snooker table
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // match Pool Royale 2D framing
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.06; // keep Pool Royale framing while lifting the snooker 2D camera slightly
+const TOP_VIEW_RADIUS_SCALE = 1.04; // keep Pool Royale framing
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
@@ -19141,8 +19144,7 @@ const powerRef = useRef(hud.power);
         if (variant === 'snooker') {
           const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
           const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
-          const rackRowSpacing =
-            (BALL_R * 2 + 0.02 * (BALL_R / 0.0525)) * (Math.sqrt(3) / 2);
+          const rackRowSpacing = BALL_R * 1.9;
           const snookerPalette = {
             red: 0xb1262c,
             yellow: 0xf7d000,
@@ -19642,8 +19644,7 @@ const powerRef = useRef(hud.power);
           BALL_R,
           rackStartZ
         );
-        const rackRowSpacing =
-          (BALL_R * 2 + 0.02 * (BALL_R / 0.0525)) * (Math.sqrt(3) / 2);
+        const rackRowSpacing = BALL_R * 1.9;
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
