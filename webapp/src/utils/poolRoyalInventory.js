@@ -10,6 +10,7 @@ import {
 
 const STORAGE_KEY = 'poolRoyalInventoryByAccount';
 const MIGRATION_KEY = 'poolRoyalInventoryMigrated';
+const GUEST_MIGRATION_KEY = 'poolRoyalInventoryGuestMigrated';
 const inflightSync = new Map();
 
 const copyDefaults = () =>
@@ -30,6 +31,13 @@ const resolveAccountId = (accountId) => {
     if (stored) return stored;
   }
   return 'guest';
+};
+
+const storeAccountId = (accountId) => {
+  if (!accountId || accountId === 'guest') return;
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('accountId', accountId);
+  }
 };
 
 const readAllInventories = () => {
@@ -62,6 +70,22 @@ const readMigrationFlags = () => {
 const writeMigrationFlags = (payload) => {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(MIGRATION_KEY, JSON.stringify(payload));
+};
+
+const readGuestMigrationFlags = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(GUEST_MIGRATION_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.warn('Failed to read Pool Royale guest migration flags', err);
+    return {};
+  }
+};
+
+const writeGuestMigrationFlags = (payload) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(GUEST_MIGRATION_KEY, JSON.stringify(payload));
 };
 
 const normalizeInventory = (rawInventory) => {
@@ -183,6 +207,22 @@ const syncWithServer = async (accountId, localInventory) => {
 };
 
 const readCachedInventory = (accountId) => {
+  storeAccountId(accountId);
+  if (accountId && accountId !== 'guest' && typeof window !== 'undefined') {
+    const guestFlags = readGuestMigrationFlags();
+    if (!guestFlags[accountId]) {
+      const inventories = readAllInventories();
+      const guestInventory = inventories.guest;
+      if (!isInventoryEmpty(guestInventory)) {
+        const merged = mergeInventories(guestInventory, inventories[accountId]);
+        writeAllInventories({
+          ...inventories,
+          [accountId]: merged
+        });
+      }
+      writeGuestMigrationFlags({ ...guestFlags, [accountId]: true });
+    }
+  }
   const inventories = readAllInventories();
   const normalized = normalizeInventory(inventories[accountId]);
   if (typeof window !== 'undefined') {
