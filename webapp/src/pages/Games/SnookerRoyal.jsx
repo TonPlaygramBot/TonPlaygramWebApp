@@ -962,7 +962,7 @@ function addPocketCuts(
 // while keeping the same table height for mobile presentation.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // match the Pool Royale footprint scaling before doubling the table size
+const TABLE_FOOTPRINT_SCALE = 1.05;
 const TABLE_SIZE_MULTIPLIER = 2; // snooker table is double the pool table size
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -1975,8 +1975,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const columnSpacing = ballRadius * 2.05;
+  const rowSpacing = columnSpacing * (Math.sqrt(3) / 2);
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
