@@ -1373,7 +1373,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.4;
+const POCKET_CAM_EDGE_SCALE = 0.46;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -2865,24 +2865,6 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.14,
     avoidPocketCameras: false,
     forceActionActivation: true
-  },
-  {
-    id: 'snooker-overhead-2d',
-    label: 'Snooker 2D Overhead',
-    description:
-      'Broadcast top-down camera aligned to the Snooker Royale 2D framing.',
-    method: 'Snooker 2D top cam',
-    orbitBias: 0.68,
-    railPush: BALL_R * 6,
-    lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
-    focusDepthBias: -BALL_R * 0.6,
-    focusPan: 0,
-    trackingBias: 0.52,
-    smoothing: 0.14,
-    avoidPocketCameras: false,
-    forceActionActivation: true,
-    replayCamera: 'snooker-2d'
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
@@ -4982,15 +4964,6 @@ const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
-});
-const SNOOKER_TOP_VIEW_MARGIN = 1.14;
-const SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = 1.06;
-const SNOOKER_TOP_VIEW_PHI = 0;
-const SNOOKER_TOP_VIEW_RADIUS_SCALE = 1.06;
-const SNOOKER_TOP_VIEW_RESOLVED_PHI = SNOOKER_TOP_VIEW_PHI;
-const SNOOKER_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045,
-  z: PLAY_H * -0.078
 });
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
@@ -14019,14 +13992,12 @@ const powerRef = useRef(hud.power);
         if (rec) {
           const frameTime = Number.isFinite(payload.frameTs) ? payload.frameTs : now;
           const rel = Math.max(0, frameTime - (rec.startTime ?? frameTime));
-          const cameraSnapshot = captureReplayCameraSnapshotRef.current
-            ? captureReplayCameraSnapshotRef.current()
-            : null;
           rec.frames.push({
             t: rel,
             balls: payload.layout,
-            camera: cameraSnapshot?.main ?? cameraSnapshot ?? null,
-            snookerCamera: cameraSnapshot?.snookerTop ?? null
+            camera: captureReplayCameraSnapshotRef.current
+              ? captureReplayCameraSnapshotRef.current()
+              : null
           });
           const cueEntry = payload.layout.find((entry) => String(entry.id) === 'cue');
           const cuePos = cueEntry?.mesh?.position || cueEntry?.pos;
@@ -16491,33 +16462,6 @@ const powerRef = useRef(hud.power);
           return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
-        const resolveSnookerTopViewCamera = ({
-          focusOverride = null,
-          minTargetY = null
-        } = {}) => {
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const focusTarget =
-            focusOverride?.clone?.() ??
-            TMP_VEC3_TOP_VIEW
-              .set(
-                playerOffsetRef.current + SNOOKER_TOP_VIEW_SCREEN_OFFSET.x,
-                ORBIT_FOCUS_BASE_Y,
-                SNOOKER_TOP_VIEW_SCREEN_OFFSET.z
-              )
-              .multiplyScalar(scale);
-          if (focusTarget && Number.isFinite(minTargetY)) {
-            focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
-          }
-          const topRadiusBase =
-            fitRadius(camera, SNOOKER_TOP_VIEW_MARGIN) * SNOOKER_TOP_VIEW_RADIUS_SCALE;
-          const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE)
-          );
-          const spherical = new THREE.Spherical(topRadius, SNOOKER_TOP_VIEW_RESOLVED_PHI, Math.PI);
-          const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
-          return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
-        };
-
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
           minTargetY = null
@@ -18082,22 +18026,11 @@ const powerRef = useRef(hud.power);
           if (positionSnapshot.y < minTargetY) {
             positionSnapshot.y = minTargetY;
           }
-          const snookerTopSnapshot = resolveSnookerTopViewCamera({ minTargetY });
           return {
-            main: {
-              position: positionSnapshot,
-              target: targetSnapshot,
-              fov: fovSnapshot,
-              minTargetY
-            },
-            snookerTop: snookerTopSnapshot
-              ? {
-                  position: snookerTopSnapshot.position,
-                  target: snookerTopSnapshot.target,
-                  fov: snookerTopSnapshot.fov,
-                  minTargetY: snookerTopSnapshot.minTargetY
-                }
-              : null
+            position: positionSnapshot,
+            target: targetSnapshot,
+            fov: fovSnapshot,
+            minTargetY
           };
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -18168,8 +18101,7 @@ const powerRef = useRef(hud.power);
           shotRecording.frames.push({
             t: relative,
             balls: snapshot,
-            camera: cameraSnapshot?.main ?? cameraSnapshot ?? null,
-            snookerCamera: cameraSnapshot?.snookerTop ?? null,
+            camera: cameraSnapshot,
             cue: cueSnapshot
           });
           const cueBall = balls.find((b) => b.id === 'cue');
@@ -18647,16 +18579,6 @@ const powerRef = useRef(hud.power);
           return { frames, cuePath, duration, cueStroke };
         };
 
-        const resolveReplayFrameCamera = (frame) => {
-          if (!frame) return null;
-          const broadcastSystem =
-            broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
-          if (broadcastSystem?.replayCamera === 'snooker-2d') {
-            return frame.snookerCamera ?? frame.camera ?? null;
-          }
-          return frame.camera ?? null;
-        };
-
         const storeReplayCameraFrame = () => {
           const activeCamera = activeRenderCameraRef.current ?? camera;
           const storedTarget =
@@ -18772,7 +18694,7 @@ const powerRef = useRef(hud.power);
           primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
           if (!LOCK_REPLAY_CAMERA) {
-            const initialCamera = resolveReplayFrameCamera(trimmed.frames?.[0] ?? null);
+            const initialCamera = trimmed.frames?.[0]?.camera ?? null;
             if (initialCamera) {
               replayFrameCameraRef.current = {
                 frameA: initialCamera,
@@ -24244,8 +24166,8 @@ const powerRef = useRef(hud.power);
             }
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const frameCameraA = resolveReplayFrameCamera(frameA ?? null);
-              const frameCameraB = resolveReplayFrameCamera(frameB ?? null) ?? frameCameraA;
+              const frameCameraA = frameA?.camera ?? null;
+              const frameCameraB = frameB?.camera ?? frameCameraA;
               if (frameCameraA || frameCameraB) {
                 replayFrameCameraRef.current = {
                   frameA: frameCameraA ?? frameCameraB,
