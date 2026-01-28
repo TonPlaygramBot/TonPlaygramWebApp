@@ -17830,16 +17830,14 @@ const powerRef = useRef(hud.power);
             forceEarly &&
             bestScore >= POCKET_EARLY_ALIGNMENT;
           if (!isGuaranteedPocket && !allowEarly) return null;
-          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
-            !forcedEarly &&
-            ((predictedTravelForBall != null &&
+            (predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
-              best.dist < SHORT_SHOT_CAMERA_DISTANCE)
+            best.dist < SHORT_SHOT_CAMERA_DISTANCE
           ) {
             return null;
           }
@@ -17853,6 +17851,8 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
+          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
@@ -21403,16 +21403,10 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(null);
         }
         const shotStartTime = performance.now();
-        const frameStateCurrent = frameRef.current ?? null;
-        const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        if (!isBreakShot) {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-        } else {
-          setOrbitFocusToDefault();
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
         applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
@@ -21431,8 +21425,7 @@ const powerRef = useRef(hud.power);
         shotContextRef.current = {
           placedFromHand,
           contactMade: false,
-          cushionAfterContact: false,
-          breakShot: isBreakShot
+          cushionAfterContact: false
         };
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
@@ -21497,167 +21490,162 @@ const powerRef = useRef(hud.power);
             : null
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
-        const isDirectShot =
-          shotPrediction.ballId != null &&
-          (shotPrediction.railNormal === null ||
-            shotPrediction.railNormal === undefined);
-        if (isDirectShot || isBreakShot) {
-          powerImpactHoldRef.current = shotStartTime;
-        }
-        const intentTimestamp = performance.now();
-        if (shotPrediction.ballId && !shotPrediction.railNormal) {
-          pocketSwitchIntentRef.current = {
-            ballId: shotPrediction.ballId,
-            allowEarly: isDirectShot,
-            forced: isDirectShot,
-            createdAt: intentTimestamp
-          };
-        } else {
-          pocketSwitchIntentRef.current = null;
-        }
-        lastPocketBallRef.current = null;
-        const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
-        lastShotPower = clampedPower;
-        const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-        if (isMaxPowerShot && !isDirectShot && !isBreakShot) {
-          powerImpactHoldRef.current = Math.max(
-            powerImpactHoldRef.current || 0,
-            performance.now() + MAX_POWER_CAMERA_HOLD_MS
+          const intentTimestamp = performance.now();
+          if (shotPrediction.ballId && !isShortShot) {
+            const isDirectHit =
+              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
+            pocketSwitchIntentRef.current = {
+              ballId: shotPrediction.ballId,
+              allowEarly: isDirectHit,
+              forced: isDirectHit,
+              createdAt: intentTimestamp
+            };
+          } else {
+            pocketSwitchIntentRef.current = null;
+          }
+          lastPocketBallRef.current = null;
+          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
+          lastShotPower = clampedPower;
+          const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
+          if (isMaxPowerShot) {
+            powerImpactHoldRef.current = Math.max(
+              powerImpactHoldRef.current || 0,
+              performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            );
+          }
+          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
+            powerImpactHoldRef.current = Math.max(
+              powerImpactHoldRef.current || 0,
+              performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
+            );
+          }
+          const spinMagnitude = Math.hypot(
+            spinRef.current?.x ?? 0,
+            spinRef.current?.y ?? 0
           );
-        }
-        if (aiOpponentEnabled && hudRef.current?.turn === 1 && !isDirectShot && !isBreakShot) {
-          powerImpactHoldRef.current = Math.max(
-            powerImpactHoldRef.current || 0,
-            performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
-          );
-        }
-        const spinMagnitude = Math.hypot(
-          spinRef.current?.x ?? 0,
-          spinRef.current?.y ?? 0
-        );
-        const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
-        if (isPowerShot) replayTags.add('power');
-        if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
-        const shouldRecordReplay = true;
-        const preferZoomReplay =
-          replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-        const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
-        const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-        const base = shotAimDir
-          .clone()
-          .multiplyScalar(speedBase * powerScale);
-        const predictedCueSpeed = base.length();
-        shotPrediction.speed = predictedCueSpeed;
-        if (shouldRecordReplay) {
-          const frameTiming = frameTimingRef.current;
-          const frameTimeMs =
-            frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          shotRecording = {
-            longShot: replayTags.has('long'),
-            targetBallId: shotPrediction.ballId ?? null,
-            startTime: performance.now(),
-            startState: captureBallSnapshot(),
-            frames: [],
-            cuePath: [],
-            frameTimeMs,
-            replayTags: Array.from(replayTags),
-            zoomOnly: preferZoomReplay
-          };
-          shotReplayRef.current = shotRecording;
-          recordReplayFrame(shotRecording.startTime);
-        } else {
-          shotRecording = null;
-          shotReplayRef.current = null;
-        }
-        const allowLongShotCameraSwitch =
-          !isShortShot &&
-          (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD) &&
-          !isBreakShot &&
-          !shotPrediction.railNormal;
-        const broadcastSystem =
-          broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
-        const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
-        const forceActionActivation = broadcastSystem?.forceActionActivation;
-        const orbitSnapshot = sphRef.current
-          ? {
-              radius: sphRef.current.radius,
-              phi: sphRef.current.phi,
-              theta: sphRef.current.theta
-            }
-          : null;
-        const standingBounds = cameraBoundsRef.current?.standing;
-        const followView = standingBounds
-          ? {
-              orbitSnapshot: {
-                radius: clampOrbitRadius(
-                  standingBounds.radius ?? sphRef.current?.radius ?? BREAK_VIEW.radius
-                ),
-                phi: THREE.MathUtils.clamp(
-                  standingBounds.phi,
-                  CAMERA.minPhi,
-                  CAMERA.maxPhi
-                ),
-                theta: sphRef.current?.theta ?? 0
+          const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
+          if (isPowerShot) replayTags.add('power');
+          if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
+          const shouldRecordReplay = true;
+          const preferZoomReplay =
+            replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
+          const frameStateCurrent = frameRef.current ?? null;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const base = shotAimDir
+            .clone()
+            .multiplyScalar(speedBase * powerScale);
+          const predictedCueSpeed = base.length();
+          shotPrediction.speed = predictedCueSpeed;
+          if (shouldRecordReplay) {
+            const frameTiming = frameTimingRef.current;
+            const frameTimeMs =
+              frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
+                ? frameTiming.targetMs
+                : 1000 / 60;
+            shotRecording = {
+              longShot: replayTags.has('long'),
+              targetBallId: shotPrediction.ballId ?? null,
+              startTime: performance.now(),
+              startState: captureBallSnapshot(),
+              frames: [],
+              cuePath: [],
+              frameTimeMs,
+              replayTags: Array.from(replayTags),
+              zoomOnly: preferZoomReplay
+            };
+            shotReplayRef.current = shotRecording;
+            recordReplayFrame(shotRecording.startTime);
+          } else {
+            shotRecording = null;
+            shotReplayRef.current = null;
+          }
+          const allowLongShotCameraSwitch =
+            !isShortShot &&
+            (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
+          const broadcastSystem =
+            broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
+          const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
+          const forceActionActivation = broadcastSystem?.forceActionActivation;
+          const orbitSnapshot = sphRef.current
+            ? {
+                radius: sphRef.current.radius,
+                phi: sphRef.current.phi,
+                theta: sphRef.current.theta
               }
-            }
-          : orbitSnapshot
-            ? { orbitSnapshot }
             : null;
-        const actionView = allowLongShotCameraSwitch
-          ? makeActionCameraView(
-              cue,
-              shotPrediction.ballId,
-              followView,
-              shotPrediction.railNormal,
-              {
-                longShot: isLongShot,
-                travelDistance: predictedTravel
+          const standingBounds = cameraBoundsRef.current?.standing;
+          const followView = standingBounds
+            ? {
+                orbitSnapshot: {
+                  radius: clampOrbitRadius(
+                    standingBounds.radius ?? sphRef.current?.radius ?? BREAK_VIEW.radius
+                  ),
+                  phi: THREE.MathUtils.clamp(
+                    standingBounds.phi,
+                    CAMERA.minPhi,
+                    CAMERA.maxPhi
+                  ),
+                  theta: sphRef.current?.theta ?? 0
+                }
               }
-            )
-          : null;
-        const earlyPocketView =
-          !suppressPocketCameras && shotPrediction.ballId && followView
-            ? makePocketCameraView(shotPrediction.ballId, followView, {
-                forceEarly: true
-              })
+            : orbitSnapshot
+              ? { orbitSnapshot }
+              : null;
+          const actionView = allowLongShotCameraSwitch
+            ? makeActionCameraView(
+                cue,
+                shotPrediction.ballId,
+                followView,
+                shotPrediction.railNormal,
+                {
+                  longShot: isLongShot,
+                  travelDistance: predictedTravel
+                }
+              )
             : null;
-        if (actionView && cameraRef.current) {
-          actionView.smoothedPos = cameraRef.current.position.clone();
-          const storedTarget = lastCameraTargetRef.current?.clone();
-          if (storedTarget) actionView.smoothedTarget = storedTarget;
-        }
-        const ranges = spinRangeRef.current || {};
-        const powerSpinScale = 0.55 + clampedPower * 0.45;
-        const baseSide = physicsSpin.x * (ranges.side ?? 0);
-        let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-        let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-        if (physicsSpin.y < 0) {
-          spinTop *= BACKSPIN_MULTIPLIER;
-        } else if (physicsSpin.y > 0) {
-          spinTop *= TOPSPIN_MULTIPLIER;
-        }
-        cue.vel.copy(base);
-        if (cue.spin) {
-          cue.spin.set(spinSide, spinTop);
-        }
-        if (cue.omega) {
-          cue.omega.set(0, 0, 0);
-          TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-          if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-          TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-          if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-          TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((physicsSpin.x ?? 0) * BALL_R);
-          TMP_VEC3_C.y += (physicsSpin.y ?? 0) * BALL_R;
-          const impulseMag = BALL_MASS * base.length();
-          TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-          TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-          cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-        }
-        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-        cue.spinMode =
-          spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+          const earlyPocketView =
+            !suppressPocketCameras && shotPrediction.ballId && followView
+              ? makePocketCameraView(shotPrediction.ballId, followView, {
+                  forceEarly: true
+                })
+              : null;
+          if (actionView && cameraRef.current) {
+            actionView.smoothedPos = cameraRef.current.position.clone();
+            const storedTarget = lastCameraTargetRef.current?.clone();
+            if (storedTarget) actionView.smoothedTarget = storedTarget;
+          }
+          const ranges = spinRangeRef.current || {};
+          const powerSpinScale = 0.55 + clampedPower * 0.45;
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
+            spinTop *= BACKSPIN_MULTIPLIER;
+          } else if (physicsSpin.y > 0) {
+            spinTop *= TOPSPIN_MULTIPLIER;
+          }
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((physicsSpin.x ?? 0) * BALL_R);
+            TMP_VEC3_C.y += (physicsSpin.y ?? 0) * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode =
+            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           const swerveSettings = resolveSwerveSettings(
             physicsSpin,
             clampedPower,
@@ -21852,12 +21840,10 @@ const powerRef = useRef(hud.power);
               settleDuration,
               Math.max(180, forwardDuration * 0.9)
             );
-          if (!isDirectShot && !isBreakShot) {
-            powerImpactHoldRef.current = Math.max(
-              powerImpactHoldRef.current || 0,
-              forwardPreviewHold
-            );
-          }
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            forwardPreviewHold
+          );
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
           let pocketViewActivated = false;
@@ -25533,7 +25519,6 @@ const powerRef = useRef(hud.power);
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
             const movingCount = movingBalls.length;
-            const breakShotActive = shotContextRef.current?.breakShot;
             const lastPocketBall = lastPocketBallRef.current;
             let bestPocketView = null;
             for (const ball of ballsList) {
@@ -25553,7 +25538,6 @@ const powerRef = useRef(hud.power);
               const qualifiesAsGuaranteed =
                 isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
               const allowDuringChaos =
-                breakShotActive ||
                 movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
                 matchesIntent ||
                 qualifiesAsGuaranteed ||
@@ -25561,7 +25545,6 @@ const powerRef = useRef(hud.power);
               if (!allowDuringChaos) continue;
               if (
                 movingCount > POCKET_CHAOS_MOVING_THRESHOLD &&
-                !breakShotActive &&
                 !matchesIntent &&
                 !qualifiesAsGuaranteed &&
                 lastPocketBall &&
