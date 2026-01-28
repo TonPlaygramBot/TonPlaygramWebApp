@@ -1243,15 +1243,15 @@ const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
 const SPIN_SLIDE_EPS = 0.02;
-const SPIN_KINETIC_FRICTION = 0.22;
-const SPIN_ROLL_DAMPING = 0.1;
-const SPIN_ANGULAR_DAMPING = 0.04;
+const SPIN_KINETIC_FRICTION = 0.2;
+const SPIN_ROLL_DAMPING = 0.08;
+const SPIN_ANGULAR_DAMPING = 0.032;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.45;
+const STOP_EPS = 0.014;
+const STOP_SOFTENING = 0.965; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.32;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -1493,11 +1493,11 @@ const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is 
 const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ball hits the object ball
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
+// Reduce overall strike output to 20% of the current tuning.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 // Pool Royale request: increase shot power by an additional 50% for stronger strikes.
-const SHOT_POWER_REDUCTION = 0.6375; // reduce overall shot strength by another 25%
+const SHOT_POWER_REDUCTION = 0.1275; // reduce overall shot strength to 20% of prior tuning
 const SHOT_POWER_MULTIPLIER = 1.25;
 const SHOT_POWER_BOOST = 1.5;
 const SHOT_SPEED_MULTIPLIER = 1.38;
