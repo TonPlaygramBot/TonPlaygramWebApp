@@ -963,7 +963,7 @@ function addPocketCuts(
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const TABLE_FOOTPRINT_SCALE = 0.82; // match the Pool Royale footprint scaling before doubling the table size
-const TABLE_SIZE_MULTIPLIER = 2; // snooker table is double the pool table size
+const TABLE_SIZE_MULTIPLIER = 1; // snooker table is double the pool table size
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.92; // pull the entire table set closer so the arena feels larger while keeping proportions intact
@@ -1062,10 +1062,10 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
-  const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
-  const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
-  const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
+  const TABLE_FIELD_EXPANSION = 1;
+  const TABLE_SIZE_BOOST = 1;
+  const TABLE_BASE_SCALE = 1.2;
+  const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
@@ -1074,8 +1074,8 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
-const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
-const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
+const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
+const RAIL_HEIGHT = TABLE.THICK * 1.18; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1159,7 +1159,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
+const BALL_SIZE_SCALE = 1.1155; // trim ball sizing slightly for tighter snooker proportions
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1511,7 +1511,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 4.21875; // +50% more shot power
+const SHOT_POWER_MULTIPLIER = 6.328125; // +50% more shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1631,13 +1631,13 @@ const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
-const DEFAULT_CUSHION_CUT_ANGLE = 45;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
