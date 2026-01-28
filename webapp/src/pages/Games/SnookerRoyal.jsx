@@ -1062,7 +1062,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.18; // expand the snooker playfield by ~18% to make the table wider and taller
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
   const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
@@ -1159,7 +1159,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.97; // keep ball sizing aligned with Pool Royale mapping
+const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -4797,12 +4797,6 @@ function spotPositions(baulkZ) {
   };
 }
 
-const resolveBallMeshScale = (mesh) => {
-  const scale = mesh?.userData?.ballScale;
-  if (!Number.isFinite(scale) || scale <= 0) return 1;
-  return scale;
-};
-
 function applySnookerScaling({
   tableInnerRect,
   cushions,
@@ -4847,35 +4841,13 @@ function applySnookerScaling({
     const halfWidth = width / 2;
     const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
-    const expectedBallRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
-    const lineThickness = Math.max(expectedBallRadius * 0.08, 0.1);
-    const baulkLineLength = width - SIDE_RAIL_INNER_THICKNESS * 0.4;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
-    markings.baulkLine.geometry.dispose();
-    markings.baulkLine.geometry = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
     if (markings.dArc) {
-      const dRadius = D_RADIUS_REF * mmToUnits;
-      const dThickness = Math.max(lineThickness * 0.75, expectedBallRadius * 0.07);
-      markings.dArc.geometry.dispose();
-      markings.dArc.geometry = new THREE.RingGeometry(
-        Math.max(0.001, dRadius - dThickness),
-        dRadius,
-        64,
-        1,
-        0,
-        Math.PI
-      );
       markings.dArc.position.set(center.x, markingY, baulkZ);
     }
     if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
       const [yellow, brown, green, blue, pink, black] = markings.spots;
       const spotY = yellow?.position?.y ?? markingY;
-      const spotRadius = expectedBallRadius * 0.26;
-      [yellow, brown, green, blue, pink, black].forEach((spot) => {
-        if (!spot) return;
-        spot.geometry.dispose();
-        spot.geometry = new THREE.CircleGeometry(spotRadius, 32);
-      });
       const dRadius = D_RADIUS_REF * mmToUnits;
       if (yellow) yellow.position.set(-dRadius, spotY, baulkZ);
       if (brown) brown.position.set(0, spotY, baulkZ);
@@ -4899,8 +4871,6 @@ function applySnookerScaling({
       if (Number.isFinite(baseRadius) && baseRadius > 0) {
         const scale = expectedRadius / baseRadius;
         mesh.scale.setScalar(scale);
-        mesh.userData = mesh.userData || {};
-        mesh.userData.ballScale = scale;
       }
     });
   }
@@ -6459,8 +6429,6 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = false;
   mesh.receiveShadow = true;
-  mesh.userData = mesh.userData || {};
-  mesh.userData.ballScale = 1;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
       ? new THREE.Mesh(BALL_SHADOW_GEOMETRY, BALL_SHADOW_MATERIAL.clone())
@@ -23278,7 +23246,7 @@ const powerRef = useRef(hud.power);
             ball.pos.set(respot.x, respot.z);
             if (ball.mesh) {
               ball.mesh.visible = true;
-              ball.mesh.scale.setScalar(resolveBallMeshScale(ball.mesh));
+              ball.mesh.scale.set(1, 1, 1);
               ball.mesh.position.set(respot.x, BALL_CENTER_Y, respot.z);
             }
             if (ball.shadow) {
@@ -23387,7 +23355,7 @@ const powerRef = useRef(hud.power);
               if (stateBall.onTable) {
                 if (!simBall.active) {
                   pocketDropRef.current.delete(simBall.id);
-                  simBall.mesh.scale.setScalar(resolveBallMeshScale(simBall.mesh));
+                  simBall.mesh.scale.set(1, 1, 1);
                   const [sx, sy] = SPOTS[name];
                   simBall.active = true;
                   simBall.mesh.visible = true;
@@ -25100,7 +25068,7 @@ const powerRef = useRef(hud.power);
                 resting: false
               };
               b.mesh.visible = true;
-              b.mesh.scale.setScalar(resolveBallMeshScale(b.mesh));
+              b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
               const mappedColor = toBallColorId(b.id);
@@ -25221,7 +25189,7 @@ const powerRef = useRef(hud.power);
               if (entry.resting) {
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
-                mesh.scale.setScalar(resolveBallMeshScale(mesh));
+                mesh.scale.set(1, 1, 1);
                 return;
               }
               entry.velocityY =
@@ -25241,7 +25209,7 @@ const powerRef = useRef(hud.power);
               let posX = xDrop;
               let posZ = zDrop;
               mesh.visible = true;
-              mesh.scale.setScalar(resolveBallMeshScale(mesh));
+              mesh.scale.set(1, 1, 1);
               if (entry.rollStartAt && now >= entry.rollStartAt) {
                 const runSpeed = Math.max(MICRO_EPS, entry.runSpeed ?? POCKET_HOLDER_RUN_SPEED_MIN);
                 const rollDuration = Math.max(MICRO_EPS, (entry.restDistance ?? 0) / runSpeed);
