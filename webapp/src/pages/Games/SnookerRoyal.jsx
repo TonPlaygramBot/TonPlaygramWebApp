@@ -1062,10 +1062,10 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1; // keep the snooker footprint width-only so table height matches Pool Royale
-  const TABLE_SIZE_BOOST = 1; // remove extra vertical scaling so the table height stays identical to Pool Royale
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
+  const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
-  const TABLE_WIDTH_SCALE = 1.25; // match Pool Royale table width scaling
+  const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
@@ -1075,7 +1075,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
-const RAIL_HEIGHT = TABLE.THICK * 1.18; // match Pool Royale rail height so table stance aligns vertically
+const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1634,11 +1634,10 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
-const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 54;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 56;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 55;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 55;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -1976,8 +1975,9 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const rackGapBias = 0.02 * (ballRadius / 0.0525);
+  const columnSpacing = ballRadius * 2 + rackGapBias;
+  const rowSpacing = columnSpacing * (Math.sqrt(3) / 2);
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -4971,9 +4971,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // match Pool Royale 2D framing for identical standing camera limits
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match the Pool Royale 2D framing with a slight lift for the larger snooker table
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.04; // match Pool Royale top-view framing for identical camera coordinates
+const TOP_VIEW_RADIUS_SCALE = 1.06; // keep Pool Royale framing while lifting the snooker 2D camera slightly
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
