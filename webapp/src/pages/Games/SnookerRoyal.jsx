@@ -86,7 +86,8 @@ import { chatBeep } from '../../assets/soundData.js';
 import {
   mapSpinForPhysics,
   normalizeSpinInput,
-  SPIN_STUN_RADIUS
+  SPIN_STUN_RADIUS,
+  clampToUnitCircle
 } from './poolRoyaleSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1158,7 +1159,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.97; // match Pool Royale ball sizing
+const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -4942,7 +4943,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
+const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // keep the aiming guide proportional to the ball size
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -13219,7 +13220,8 @@ const powerRef = useRef(hud.power);
     const scaledY = (displayY * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
-    const magnitude = Math.hypot(x, y);
+    const applied = spinRef.current || { x, y };
+    const magnitude = Math.hypot(applied.x ?? x, applied.y ?? y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor =
       magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
@@ -18578,15 +18580,13 @@ const powerRef = useRef(hud.power);
           exit: (immediate = true) => exitTopView(immediate)
         };
         cameraUpdateRef.current = () => updateCamera();
-        const clampSpinToLimits = () => {
+        const clampSpinToLimits = (input) => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
-          const current = spinRef.current || { x: 0, y: 0 };
-          const clamped = {
+          const current = input || spinRequestRef.current || spinRef.current || { x: 0, y: 0 };
+          return {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
             y: clamp(current.y ?? 0, limits.minY, limits.maxY)
           };
-          spinRef.current = clamped;
-          return clamped;
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
           const cueBall = cueRef.current || cue;
@@ -18609,16 +18609,19 @@ const powerRef = useRef(hud.power);
             });
             spinLegalityRef.current = legality;
           }
-          const applied = clampSpinToLimits();
-          const normalized = normalizeSpinInput(applied);
+          const clampedRequest = clampSpinToLimits();
+          spinRequestRef.current = clampedRequest;
+          const normalized = normalizeSpinInput(clampedRequest);
           if (
-            normalized.x !== applied.x ||
-            normalized.y !== applied.y
+            normalized.x !== clampedRequest.x ||
+            normalized.y !== clampedRequest.y
           ) {
             spinRef.current = normalized;
+          } else {
+            spinRef.current = clampedRequest;
           }
           if (updateUi) {
-            updateSpinDotPosition(normalized, legality.blocked);
+            updateSpinDotPosition(clampedRequest, legality.blocked);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
@@ -25620,11 +25623,12 @@ const powerRef = useRef(hud.power);
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = normalizeSpinInput({ x: nx, y: ny });
-      spinRequestRef.current = normalized;
-      const limited = clampToLimits(normalized.x, normalized.y);
-      const limitedNormalized = normalizeSpinInput(limited);
-      spinRef.current = limitedNormalized;
+      const raw = clampToUnitCircle(nx, ny);
+      spinRequestRef.current = raw;
+      const limited = clampToLimits(raw.x, raw.y);
+      const clamped = clampToUnitCircle(limited.x, limited.y);
+      const normalized = normalizeSpinInput(clamped);
+      spinRef.current = normalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -25635,17 +25639,12 @@ const powerRef = useRef(hud.power);
       const viewVec = cueBall && activeCamera
         ? computeCueViewVector(cueBall, activeCamera)
         : null;
-      const legality = checkSpinLegality2D(
-        cueBall,
-        normalized,
-        ballsList || [],
-        {
-          axes,
-          view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
-        }
-      );
+      const legality = checkSpinLegality2D(cueBall, clamped, ballsList || [], {
+        axes,
+        view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+      });
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limitedNormalized, legality.blocked);
+      updateSpinDotPosition(clamped, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
