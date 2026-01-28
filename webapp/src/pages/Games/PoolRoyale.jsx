@@ -12879,6 +12879,8 @@ const powerRef = useRef(hud.power);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
+  const breakShotRef = useRef(false);
+  const pocketHoldBypassRef = useRef(false);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const lowViewSlideRef = useRef(0);
   const initialCuePhi = THREE.MathUtils.clamp(
@@ -14539,17 +14541,27 @@ const powerRef = useRef(hud.power);
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
-            shotCameraHoldTimeoutRef.current = null;
-            if (!shooting) return;
-            topViewRef.current = true;
-            topViewLockedRef.current = true;
-            enterTopView(true);
-          }, SHOT_CAMERA_HOLD_MS);
+          if (!breakShotRef.current) {
+            shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
+              shotCameraHoldTimeoutRef.current = null;
+              if (!shooting) return;
+              topViewRef.current = true;
+              topViewLockedRef.current = true;
+              enterTopView(true);
+            }, SHOT_CAMERA_HOLD_MS);
+          } else {
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
+          }
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
           topViewLockedRef.current = preShotTopViewLockRef.current;
+        }
+        if (!shooting) {
+          breakShotRef.current = false;
+          pocketHoldBypassRef.current = false;
         }
         setShotActive(value);
       };
@@ -17851,7 +17863,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
@@ -21379,6 +21390,7 @@ const powerRef = useRef(hud.power);
       const fire = () => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
+        const isBreakShot = (frameSnapshot?.currentBreak ?? 0) === 0;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         const inHandPlacementActive = Boolean(
@@ -21403,7 +21415,7 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(null);
         }
         const shotStartTime = performance.now();
-        const forcedCueView = aiShotCueViewRef.current;
+        const forcedCueView = !isBreakShot && aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
         alignStandingCameraToAim(cue, aimDirRef.current);
@@ -21427,6 +21439,8 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false
         };
+        breakShotRef.current = isBreakShot;
+        pocketHoldBypassRef.current = isBreakShot;
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -21529,8 +21543,6 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
@@ -21593,18 +21605,19 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const actionView = allowLongShotCameraSwitch
-            ? makeActionCameraView(
-                cue,
-                shotPrediction.ballId,
-                followView,
-                shotPrediction.railNormal,
-                {
-                  longShot: isLongShot,
-                  travelDistance: predictedTravel
-                }
-              )
-            : null;
+          const actionView =
+            allowLongShotCameraSwitch && !isBreakShot && !shotPrediction.railNormal
+              ? makeActionCameraView(
+                  cue,
+                  shotPrediction.ballId,
+                  followView,
+                  shotPrediction.railNormal,
+                  {
+                    longShot: isLongShot,
+                    travelDistance: predictedTravel
+                  }
+                )
+              : null;
           const earlyPocketView =
             !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
@@ -21847,7 +21860,7 @@ const powerRef = useRef(hud.power);
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
           let pocketViewActivated = false;
-          if (earlyPocketView && !isMaxPowerShot) {
+          if (earlyPocketView) {
             const now = performance.now();
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
@@ -21864,12 +21877,16 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            if (holdUntil > 0) {
+            const allowImmediatePocket = Boolean(earlyPocketView.forcedEarly);
+            pocketHoldBypassRef.current =
+              pocketHoldBypassRef.current || allowImmediatePocket;
+            const pocketHoldActive = holdActive && !allowImmediatePocket;
+            if (holdUntil > 0 && pocketHoldActive) {
               const baseDelay = earlyPocketView.activationDelay ?? 0;
               earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
             }
-            earlyPocketView.pendingActivation = holdActive;
-            if (holdActive) {
+            earlyPocketView.pendingActivation = pocketHoldActive;
+            if (pocketHoldActive) {
               queuedPocketView = earlyPocketView;
               pocketViewActivated = true;
             } else {
@@ -25468,6 +25485,7 @@ const powerRef = useRef(hud.power);
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
         const pocketHoldActive =
+          !pocketHoldBypassRef.current &&
           powerImpactHoldRef.current &&
           performance.now() < powerImpactHoldRef.current;
         if (pocketHoldActive && activeShotView?.mode === 'pocket') {
@@ -25525,8 +25543,10 @@ const powerRef = useRef(hud.power);
               if (!ball.active) continue;
               const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
               const matchesIntent = pocketIntent?.ballId === ball.id;
+              const forceEarly =
+                (matchesIntent && pocketIntent?.allowEarly) || breakShotRef.current;
               const candidate = makePocketCameraView(ball.id, resumeView, {
-                forceEarly: matchesIntent && pocketIntent?.allowEarly
+                forceEarly
               });
               if (!candidate) continue;
               const matchesPrediction = shotPrediction?.ballId === ball.id;
@@ -25538,6 +25558,7 @@ const powerRef = useRef(hud.power);
               const qualifiesAsGuaranteed =
                 isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
               const allowDuringChaos =
+                breakShotRef.current ||
                 movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
                 matchesIntent ||
                 qualifiesAsGuaranteed ||
