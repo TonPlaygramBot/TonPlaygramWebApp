@@ -1,13 +1,13 @@
 const BASE_TABLE_SCALE = 1.46;
 const BASE_TABLE_MOBILE_SCALE = 1.52;
 const BASE_TABLE_COMPACT_SCALE = 1.36;
-const BASE_PLAYFIELD_WIDTH_MM = 3569; // official 12ft snooker playfield width
+const BASE_PLAYFIELD_WIDTH_MM = 5080; // double pool table width reference for snooker Royale
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
   '12ft': {
     id: '12ft',
     label: '12 ft (Championship)',
-    playfield: Object.freeze({ widthMm: 3569, heightMm: 1778 }), // official 12ft snooker playfield
+    playfield: Object.freeze({ widthMm: 5080, heightMm: 2540 }), // double 9ft pool playfield
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
       corner: 114.3,
@@ -25,7 +25,7 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
   '10ft': {
     id: '10ft',
     label: '10 ft (Club)',
-    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // official 10ft snooker playfield
+    playfield: Object.freeze({ widthMm: 4470, heightMm: 2236 }), // double 8ft pool playfield
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
       corner: 114.3,

@@ -1399,34 +1399,31 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.2;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
-    POCKET_VIS_R * 1.95 +
-    BALL_R * 1.1) *
-  POCKET_CAM_EDGE_SCALE;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
+  POCKET_VIS_R * 2.25 +
+  BALL_R * 1.6;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
-    POCKET_VIS_R * 1.95 +
-    BALL_R * 1.05) *
-  POCKET_CAM_EDGE_SCALE;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.34 +
+  POCKET_VIS_R * 2.28 +
+  BALL_R * 1.54;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 18,
-  dotThreshold: 0.15,
+  triggerDist: CAPTURE_R * 12,
+  dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 0.98,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 0.9,
-  heightOffsetShortMultiplier: 0.9,
+  heightOffset: BALL_R * 1.9,
+  heightOffsetShortMultiplier: 0.96,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
-  heightDrop: BALL_R * 0.2,
-  distanceScale: 0.82,
-  heightScale: 0.98,
-  focusBlend: 0,
-  lateralFocusShift: 0,
-  railFocusLong: BALL_R * 5.6,
-  railFocusShort: BALL_R * 6.6
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.04,
+  heightDrop: BALL_R * 0.45,
+  distanceScale: 0.96,
+  heightScale: 1.06,
+  focusBlend: 0.22,
+  lateralFocusShift: POCKET_VIS_R * 0.32,
+  railFocusLong: BALL_R * 8,
+  railFocusShort: BALL_R * 5.4
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.95;
