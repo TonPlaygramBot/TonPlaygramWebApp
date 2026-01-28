@@ -1079,7 +1079,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
+const RAIL_HEIGHT = TABLE.THICK * 1.35; // raise rails to match the Pool Royale table height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1979,8 +1979,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const columnSpacing = ballRadius * 2;
+  const rowSpacing = ballRadius * Math.sqrt(3);
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -19144,7 +19144,7 @@ const powerRef = useRef(hud.power);
         if (variant === 'snooker') {
           const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
           const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
-          const rackRowSpacing = BALL_R * 1.9;
+          const rackRowSpacing = BALL_R * Math.sqrt(3);
           const snookerPalette = {
             red: 0xb1262c,
             yellow: 0xf7d000,
@@ -19644,7 +19644,7 @@ const powerRef = useRef(hud.power);
           BALL_R,
           rackStartZ
         );
-        const rackRowSpacing = BALL_R * 1.9;
+        const rackRowSpacing = BALL_R * Math.sqrt(3);
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
