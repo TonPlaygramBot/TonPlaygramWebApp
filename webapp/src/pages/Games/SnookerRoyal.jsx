@@ -639,9 +639,9 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.978; // shave the chrome plate slightly so it ends at the jaw line on the long rail
+const CHROME_CORNER_WIDTH_SCALE = 0.984; // expand the chrome plate slightly so both flanks breathe while staying flush to the jaw line
 const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.055; // pull the corner fascia inward toward the table centre while keeping the chrome cut fixed
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
@@ -661,18 +661,18 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.62; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.6; // trim fascia span so the middle plates shave off a little on both sides
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.12; // reduce the outer fascia extension so the outside edge trims back slightly
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.9; // pull the plate ends back from the pocket entry
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.01; // trim the outer fascia extension so the outside edge tucks in slightly
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.008; // trim the outer fascia edge just a touch for a tighter outside finish
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // match the corner fascia trim so side plates align with the pool layout
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // open the rounded chrome cut slightly wider on the middle pockets only
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
@@ -1079,7 +1079,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
-const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
+const RAIL_HEIGHT = TABLE.THICK * 1.18; // align rail height with Pool Royale so cushions and jaws sit at the same elevation
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1271,6 +1271,32 @@ if (BALL_SHADOW_MATERIAL) {
   BALL_SHADOW_MATERIAL.polygonOffsetFactor = -0.5;
   BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 }
+
+const resolveBallScale = (ball) => {
+  const mesh = ball?.mesh;
+  if (!mesh) return 1;
+  const stored = mesh.userData?.ballScale;
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  const scale = mesh.scale?.x;
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+};
+
+const resolveBallRadius = (ball) => {
+  const mesh = ball?.mesh;
+  const baseRadius = mesh?.geometry?.parameters?.radius ?? BALL_R;
+  return baseRadius * resolveBallScale(ball);
+};
+
+const resolveBallCenterY = (ball) =>
+  CLOTH_TOP_LOCAL + CLOTH_LIFT + resolveBallRadius(ball) - CLOTH_DROP;
+
+const resolveBallShadowY = (ball) => {
+  const radius = resolveBallRadius(ball);
+  const scale = radius / Math.max(BALL_R, 1e-6);
+  const lift = BALL_SHADOW_LIFT * scale;
+  const eps = MICRO_EPS * scale;
+  return resolveBallCenterY(ball) - radius + lift + eps;
+};
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.985,
@@ -4874,6 +4900,13 @@ function applySnookerScaling({
       if (Number.isFinite(baseRadius) && baseRadius > 0) {
         const scale = expectedRadius / baseRadius;
         mesh.scale.setScalar(scale);
+        mesh.userData = mesh.userData || {};
+        mesh.userData.ballScale = scale;
+      }
+      mesh.position.y = resolveBallCenterY(ball);
+      if (ball.shadow) {
+        ball.shadow.scale.setScalar(resolveBallScale(ball));
+        ball.shadow.position.y = resolveBallShadowY(ball);
       }
     });
   }
@@ -6432,6 +6465,8 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = false;
   mesh.receiveShadow = true;
+  mesh.userData = mesh.userData || {};
+  mesh.userData.ballScale = 1;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
       ? new THREE.Mesh(BALL_SHADOW_GEOMETRY, BALL_SHADOW_MATERIAL.clone())
@@ -6502,31 +6537,49 @@ const SNOOKER_COLOR_SPOTS = {
 const SNOOKER_SPOT_PRIORITY = ['BLACK', 'PINK', 'BLUE', 'BROWN', 'GREEN', 'YELLOW'];
 const isSnookerColourId = (colorId) => Boolean(SNOOKER_COLOR_SPOTS[colorId]);
 const resolveSnookerSpotKey = (colorId) => SNOOKER_COLOR_SPOTS[colorId] ?? null;
-const isRespotPositionClear = (pos, balls, reserved = [], ignoreId = null) => {
+const isRespotPositionClear = (
+  pos,
+  balls,
+  reserved = [],
+  ignoreId = null,
+  targetRadius = BALL_R
+) => {
   if (!pos) return false;
-  const minDistance = BALL_R * 2.02;
-  const minDistanceSq = minDistance * minDistance;
+  const targetR = Number.isFinite(targetRadius) && targetRadius > 0 ? targetRadius : BALL_R;
   for (const ball of balls) {
     if (!ball?.active) continue;
     if (ignoreId != null && String(ball.id) === String(ignoreId)) continue;
+    const ballRadius = resolveBallRadius(ball);
+    const minDistance = (targetR + ballRadius) * 1.01;
+    const minDistanceSq = minDistance * minDistance;
     const dx = ball.pos.x - pos.x;
     const dy = ball.pos.y - pos.z;
     if (dx * dx + dy * dy < minDistanceSq) return false;
   }
   for (const entry of reserved) {
+    const entryRadius =
+      entry?.radius ?? entry?.r ?? (Number.isFinite(entry?.ballRadius) ? entry.ballRadius : targetR);
+    const minDistance = (targetR + entryRadius) * 1.01;
+    const minDistanceSq = minDistance * minDistance;
     const dx = entry.x - pos.x;
     const dy = entry.z - pos.z;
     if (dx * dx + dy * dy < minDistanceSq) return false;
   }
   return true;
 };
-const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
+const resolveSnookerRespotPosition = (
+  colorId,
+  spots,
+  balls,
+  reserved = [],
+  targetRadius = BALL_R
+) => {
   if (!spots) return null;
   const spotKey = resolveSnookerSpotKey(colorId);
   const spotCoords = spotKey ? spots[spotKey] : null;
   if (!spotCoords) return null;
   const baseSpot = { x: spotCoords[0], z: spotCoords[1] };
-  if (isRespotPositionClear(baseSpot, balls, reserved)) {
+  if (isRespotPositionClear(baseSpot, balls, reserved, null, targetRadius)) {
     return baseSpot;
   }
   const spotCandidates = [];
@@ -6538,16 +6591,17 @@ const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
     spotCandidates.push({ x: coords[0], z: coords[1] });
   }
   for (const candidatePos of spotCandidates) {
-    if (isRespotPositionClear(candidatePos, balls, reserved)) {
+    if (isRespotPositionClear(candidatePos, balls, reserved, null, targetRadius)) {
       return candidatePos;
     }
   }
-  const minDistance = BALL_R * 2.02;
   const blockers = balls.filter((ball) => {
     if (!ball?.active) return false;
+    const ballRadius = resolveBallRadius(ball);
+    const needed = (targetRadius + ballRadius) * 1.01;
     const dx = ball.pos.x - baseSpot.x;
     const dz = ball.pos.y - baseSpot.z;
-    return dx * dx + dz * dz < minDistance * minDistance;
+    return dx * dx + dz * dz < needed * needed;
   });
   const blocker = blockers.reduce((closest, ball) => {
     if (!ball) return closest;
@@ -6565,19 +6619,19 @@ const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
     maxZ,
     Math.max(baseSpot.z, blocker?.pos?.y ?? baseSpot.z) + minDistance
   );
-  const step = BALL_R * 0.25;
+  const step = targetRadius * 0.25;
   const xCandidates = [];
   const anchorX = blocker?.pos?.x ?? baseSpot.x;
   xCandidates.push(anchorX);
   xCandidates.push(baseSpot.x);
-  xCandidates.push(anchorX + BALL_R * 0.6);
-  xCandidates.push(anchorX - BALL_R * 0.6);
-  xCandidates.push(anchorX + BALL_R * 1.1);
-  xCandidates.push(anchorX - BALL_R * 1.1);
+  xCandidates.push(anchorX + targetRadius * 0.6);
+  xCandidates.push(anchorX - targetRadius * 0.6);
+  xCandidates.push(anchorX + targetRadius * 1.1);
+  xCandidates.push(anchorX - targetRadius * 1.1);
   for (let z = startZ; z <= maxZ + 1e-6; z += step) {
     for (const x of xCandidates) {
       const candidatePos = { x, z };
-      if (isRespotPositionClear(candidatePos, balls, reserved)) {
+      if (isRespotPositionClear(candidatePos, balls, reserved, null, targetRadius)) {
         return candidatePos;
       }
     }
@@ -23231,7 +23285,14 @@ const powerRef = useRef(hud.power);
             if (!colorId || !isSnookerColourId(colorId)) return;
             const ball = ballsList.find((candidate) => toBallColorId(candidate.id) === colorId);
             if (!ball) return;
-            const respot = resolveSnookerRespotPosition(colorId, spots, ballsList, reserved);
+            const ballRadius = resolveBallRadius(ball);
+            const respot = resolveSnookerRespotPosition(
+              colorId,
+              spots,
+              ballsList,
+              reserved,
+              ballRadius
+            );
             if (!respot) return;
             ball.active = true;
             ball.vel.set(0, 0);
@@ -23247,15 +23308,16 @@ const powerRef = useRef(hud.power);
             ball.pos.set(respot.x, respot.z);
             if (ball.mesh) {
               ball.mesh.visible = true;
-              ball.mesh.scale.set(1, 1, 1);
-              ball.mesh.position.set(respot.x, BALL_CENTER_Y, respot.z);
+              ball.mesh.scale.setScalar(resolveBallScale(ball));
+              ball.mesh.position.set(respot.x, resolveBallCenterY(ball), respot.z);
             }
             if (ball.shadow) {
               ball.shadow.visible = true;
-              ball.shadow.position.set(respot.x, BALL_SHADOW_Y, respot.z);
+              ball.shadow.scale.setScalar(resolveBallScale(ball));
+              ball.shadow.position.set(respot.x, resolveBallShadowY(ball), respot.z);
             }
             pocketDropRef.current.delete(ball.id);
-            reserved.push(respot);
+            reserved.push({ ...respot, radius: ballRadius });
           });
         }
         const metaState =
@@ -24985,6 +25047,9 @@ const powerRef = useRef(hud.power);
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
+              const ballRadius = resolveBallRadius(b);
+              const ballScale = resolveBallScale(b);
+              const ballCenterY = resolveBallCenterY(b);
               const holderDir = resolvePocketHolderDirection(c, pocketId);
               const pocketRestIndex =
                 pocketRestIndexRef.current.get(pocketId) ?? 0;
@@ -24997,10 +25062,10 @@ const powerRef = useRef(hud.power);
                 ? anchorEntry.ringAnchor.clone()
                 : new THREE.Vector3(
                     c.x,
-                    BALL_CENTER_Y - POCKET_DROP_DEPTH + POCKET_NET_RING_VERTICAL_OFFSET,
+                    ballCenterY - POCKET_DROP_DEPTH + POCKET_NET_RING_VERTICAL_OFFSET,
                     c.y
                   );
-              const holderSpacing = POCKET_HOLDER_REST_SPACING;
+              const holderSpacing = ballRadius * 2 * 1.02;
               const railStartDistance =
                 POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
                 POCKET_GUIDE_RING_CLEARANCE +
@@ -25013,7 +25078,7 @@ const powerRef = useRef(hud.power);
               );
               const minRestDistance = Math.max(
                 railStartDistance + holderSpacing * 0.5,
-                railStartDistance + BALL_R * 0.6
+                railStartDistance + ballRadius * 0.6
               );
               const clampedRestIndex = Math.max(0, pocketRestIndex);
               const restDistance = Math.max(
@@ -25037,13 +25102,13 @@ const powerRef = useRef(hud.power);
                     -POCKET_GUIDE_VERTICAL_DROP - POCKET_GUIDE_FLOOR_DROP,
                     0
                   )
-                );
+              );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
               const dropEntry = {
                 start: dropStart,
-                fromY: BALL_CENTER_Y,
-                currentY: BALL_CENTER_Y,
+                fromY: ballCenterY,
+                currentY: ballCenterY,
                 targetY: restY,
                 fromX: ringAnchor.x,
                 fromZ: ringAnchor.z,
@@ -25069,8 +25134,8 @@ const powerRef = useRef(hud.power);
                 resting: false
               };
               b.mesh.visible = true;
-              b.mesh.scale.set(1, 1, 1);
-              b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+              b.mesh.scale.setScalar(ballScale);
+              b.mesh.position.set(fromX, ballCenterY, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
               const mappedColor = toBallColorId(b.id);
               const colorId =
