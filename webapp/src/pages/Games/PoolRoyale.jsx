@@ -1395,7 +1395,7 @@ const POCKET_CAM = Object.freeze({
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.96,
+  distanceScale: 0.82,
   heightScale: 0.98,
   focusBlend: 0,
   lateralFocusShift: 0,
@@ -5073,7 +5073,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
+const POCKET_CAMERA_FOV = Math.max(38, STANDING_VIEW_FOV * 0.88);
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -17257,8 +17257,10 @@ const powerRef = useRef(hud.power);
               anchorType === 'short'
                 ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
                 : POCKET_CAM.outwardOffset;
+            const distanceScale =
+              activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
             const cameraDistance =
-              baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0);
+              (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) * distanceScale;
             const desiredPosition =
               activeShotView.fixedPos ??
               new THREE.Vector3(
@@ -17911,6 +17913,7 @@ const powerRef = useRef(hud.power);
             anchorOutward:
               anchorOutward?.normalize() ?? fallbackOutward,
             cameraDistance,
+            distanceScale: POCKET_CAM.distanceScale,
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
