@@ -10,7 +10,7 @@ export const SPIN_LEVEL1_MAG = 0.18 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.42 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 0.82 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = 0;
+export const STUN_TOPSPIN_BIAS = -0.06;
 export const SPIN_RESPONSE_POWER = 1.35;
 
 export const SPIN_DIRECTIONS = [
@@ -52,28 +52,28 @@ export const SPIN_DIRECTIONS = [
   {
     id: 'top-left',
     label: 'TOPSPIN + LEFT',
-    offset: { x: -0.45, y: 0.45 },
+    offset: { x: -0.34, y: 0.34 },
     effect:
       'Offset diagonal sipër-majtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
   },
   {
     id: 'top-right',
     label: 'TOPSPIN + RIGHT',
-    offset: { x: 0.45, y: 0.45 },
+    offset: { x: 0.34, y: 0.34 },
     effect:
       'Offset diagonal sipër-djathtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
   },
   {
     id: 'back-left',
     label: 'BACKSPIN + LEFT',
-    offset: { x: -0.45, y: -0.45 },
+    offset: { x: -0.34, y: -0.34 },
     effect:
       'Offset diagonal poshtë-majtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
   },
   {
     id: 'back-right',
     label: 'BACKSPIN + RIGHT',
-    offset: { x: 0.45, y: -0.45 },
+    offset: { x: 0.34, y: -0.34 },
     effect:
       'Offset diagonal poshtë-djathtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
   }
@@ -186,7 +186,7 @@ export const mapUiOffsetToCueFrame = (
       : { x: 0, z: 1 };
   const side = { x: -forwardPlanar.z, z: forwardPlanar.x };
   return {
-    x: -(offsetWorld.x * side.x + offsetWorld.z * side.z),
+    x: offsetWorld.x * side.x + offsetWorld.z * side.z,
     y: offsetWorld.x * forwardPlanar.x + offsetWorld.z * forwardPlanar.z
   };
 };
