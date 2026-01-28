@@ -958,16 +958,15 @@ function addPocketCuts(
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions tuned for a pool Royale footprint, then doubled for the snooker arena,
-// while keeping the same table height for mobile presentation.
+// Dimensions tuned for the Pool Royale footprint for identical table sizing and layout.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // match the Pool Royale footprint scaling before doubling the table size
-const TABLE_SIZE_MULTIPLIER = 2; // snooker table is double the pool table size
+const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
+const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.92; // pull the entire table set closer so the arena feels larger while keeping proportions intact
-const CAMERA_DISPLAY_SCALE = TABLE_DISPLAY_SCALE / 0.88;
+const TABLE_DISPLAY_SCALE = 0.8; // shrink the table footprint slightly less so the playfield reads larger
+const CAMERA_DISPLAY_SCALE = 1;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1062,20 +1061,18 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
-  const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
-  const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
-  const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
+  const TABLE_BASE_SCALE = 1.2;
+  const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
-    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
+    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
+    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
     THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
+    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
-const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
-const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
+const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
+const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1157,9 +1154,9 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
+const MM_TO_UNITS = innerLong / WIDTH_REF;
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
+const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1304,21 +1301,21 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now mirrors the bowl radius
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // keep a slim safety margin so clean entries aren't rejected
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections with a tighter inset
+  SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.18
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
 const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
-const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
+  SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
+let SIDE_POCKET_SPAN =
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tuned further once pocket geometry is resolved
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1342,7 +1339,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops furthe
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.28; // round the exterior wooden rail edges while keeping the rail angles intact
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
@@ -9865,14 +9862,17 @@ function Table3D(
     finishParts.frameMeshes = finishParts.frameMeshes.filter((mesh) => !mesh?.userData?.__basePart);
   };
 
+  const baseFootprintX = frameOuterX * BASE_FOOTPRINT_SHRINK;
+  const baseFootprintZ = frameOuterZ * BASE_FOOTPRINT_SHRINK;
+  const baseLegInset = legInset * BASE_FOOTPRINT_SHRINK;
   const baseContext = {
-    frameOuterX,
-    frameOuterZ,
+    frameOuterX: baseFootprintX,
+    frameOuterZ: baseFootprintZ,
     frameTopY,
     tableY: TABLE_Y,
     floorY: FLOOR_Y,
     renderer,
-    legInset,
+    legInset: baseLegInset,
     legY,
     legR,
     legH,
@@ -19681,7 +19681,9 @@ const powerRef = useRef(hud.power);
         color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.9,
+        depthTest: false,
+        depthWrite: false
       });
       const aimGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -19702,7 +19704,9 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE * 0.9,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.45
+          opacity: 0.45,
+          depthTest: false,
+          depthWrite: false
         })
       );
       cueAfter.visible = false;
@@ -19713,7 +19717,11 @@ const powerRef = useRef(hud.power);
       ]);
       const tick = new THREE.Line(
         tickGeom,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
+        new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          depthTest: false,
+          depthWrite: false
+        })
       );
       tick.visible = false;
       table.add(tick);
@@ -19730,7 +19738,9 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65
+          opacity: 0.65,
+          depthTest: false,
+          depthWrite: false
         })
       );
       target.visible = false;
