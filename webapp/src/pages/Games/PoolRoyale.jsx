@@ -1576,8 +1576,6 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.18;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.28;
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
@@ -5094,7 +5092,6 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
-const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -16489,35 +16486,6 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
-        const hasReplayCameraChanged = (previous, next) => {
-          if (!next) return false;
-          if (!previous) return true;
-          const dist = (a, b) => {
-            if (a && b && typeof a.distanceTo === 'function') return a.distanceTo(b);
-            if (a && b) {
-              const ax = Number.isFinite(a.x) ? a.x : 0;
-              const ay = Number.isFinite(a.y) ? a.y : 0;
-              const az = Number.isFinite(a.z) ? a.z : 0;
-              const bx = Number.isFinite(b.x) ? b.x : 0;
-              const by = Number.isFinite(b.y) ? b.y : 0;
-              const bz = Number.isFinite(b.z) ? b.z : 0;
-              return Math.hypot(ax - bx, ay - by, az - bz);
-            }
-            return Infinity;
-          };
-          const positionShift = dist(previous.position, next.position);
-          const targetShift = dist(previous.target, next.target);
-          const fovShift =
-            Number.isFinite(previous.fov) && Number.isFinite(next.fov)
-              ? Math.abs(previous.fov - next.fov)
-              : 0;
-          return (
-            positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            fovShift > 1e-3
-          );
-        };
-
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
@@ -21574,92 +21542,82 @@ const powerRef = useRef(hud.power);
           } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
-          let shotApplied = false;
-          const applyShotPhysics = () => {
-            if (shotApplied) return;
-            shotApplied = true;
-            cue.vel.copy(base);
-            if (cue.spin) {
-              cue.spin.set(spinSide, spinTop);
-            }
-            if (cue.omega) {
-              cue.omega.set(0, 0, 0);
-              TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-              if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-              TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-              if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-              TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((physicsSpin.x ?? 0) * BALL_R);
-              TMP_VEC3_C.y += (physicsSpin.y ?? 0) * BALL_R;
-              const impulseMag = BALL_MASS * base.length();
-              TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-              TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-              cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-            }
-            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-            cue.spinMode =
-              spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-            const swerveSettings = resolveSwerveSettings(
-              physicsSpin,
-              clampedPower,
-              cue.spinMode === 'swerve',
-              liftStrength
-            );
-            cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
-            cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
-            resetSpinRef.current?.();
-            cueLiftRef.current.lift = 0;
-            cueLiftRef.current.startLift = 0;
-            cue.impacted = false;
-            cue.launchDir = shotAimDir.clone().normalize();
-            maxPowerLiftTriggered = false;
-            cue.lift = 0;
-            cue.liftVel = 0;
-            const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-            if (
-              clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-              liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-              topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-            ) {
-              const powerRatio = THREE.MathUtils.clamp(
-                (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const liftRatio = THREE.MathUtils.clamp(
-                (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const spinRatio = THREE.MathUtils.clamp(
-                (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const jumpStrength =
-                (0.25 + 0.75 * powerRatio) *
-                (0.4 + 0.6 * liftRatio) *
-                (0.55 + 0.45 * spinRatio);
-              const jumpVelocity =
-                MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-              const physicsHeight =
-                (jumpVelocity * jumpVelocity) /
-                (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-              const jumpHeight = Math.min(
-                MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-                physicsHeight
-              );
-              cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-              cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-            }
-            playCueHit(clampedPower * 0.6);
-          };
-          const delayImpact = isAiStroke && ENABLE_CUE_STROKE_ANIMATION;
-          if (!delayImpact) {
-            applyShotPhysics();
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
           }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((physicsSpin.x ?? 0) * BALL_R);
+            TMP_VEC3_C.y += (physicsSpin.y ?? 0) * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode =
+            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+          const swerveSettings = resolveSwerveSettings(
+            physicsSpin,
+            clampedPower,
+            cue.spinMode === 'swerve',
+            liftStrength
+          );
+          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
+          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = shotAimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+          if (
+            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
+            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
+            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
+          ) {
+            const powerRatio = THREE.MathUtils.clamp(
+              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const liftRatio = THREE.MathUtils.clamp(
+              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const spinRatio = THREE.MathUtils.clamp(
+              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const jumpStrength =
+              (0.25 + 0.75 * powerRatio) *
+              (0.4 + 0.6 * liftRatio) *
+              (0.55 + 0.45 * spinRatio);
+            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
+            const physicsHeight =
+              (jumpVelocity * jumpVelocity) /
+              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+            const jumpHeight = Math.min(
+              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
+              physicsHeight
+            );
+            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
+          }
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -21766,11 +21724,6 @@ const powerRef = useRef(hud.power);
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          if (delayImpact) {
-            pendingImpactRef.current = { time: impactTime, apply: applyShotPhysics };
-          } else {
-            pendingImpactRef.current = null;
-          }
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -24186,20 +24139,13 @@ const powerRef = useRef(hud.power);
             }
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-              const previousFrameCamera =
-                replayFrameCameraRef.current?.frameB ??
-                replayFrameCameraRef.current?.frameA ??
-                null;
-              if (
-                nextFrameCamera &&
-                (!replayFrameCameraRef.current ||
-                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-              ) {
+              const frameCameraA = frameA?.camera ?? null;
+              const frameCameraB = frameB?.camera ?? frameCameraA;
+              if (frameCameraA || frameCameraB) {
                 replayFrameCameraRef.current = {
-                  frameA: nextFrameCamera,
-                  frameB: nextFrameCamera,
-                  alpha: 0
+                  frameA: frameCameraA ?? frameCameraB,
+                  frameB: frameCameraB ?? frameCameraA,
+                  alpha
                 };
               }
             } else {
