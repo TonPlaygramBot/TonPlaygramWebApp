@@ -13,7 +13,7 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
       corner: 114.3,
       side: 127
     }),
-    cushionCutAngleDeg: 30,
+    cushionCutAngleDeg: 27,
     sideCushionCutAngleDeg: 45,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     scaleOverrides: Object.freeze({
@@ -31,7 +31,7 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
       corner: 114.3,
       side: 127
     }),
-    cushionCutAngleDeg: 30,
+    cushionCutAngleDeg: 27,
     sideCushionCutAngleDeg: 45,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
