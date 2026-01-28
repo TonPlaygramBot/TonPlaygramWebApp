@@ -1062,7 +1062,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.5;
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
   const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
@@ -1159,7 +1159,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.97;
+const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -4821,7 +4821,6 @@ function applySnookerScaling({
     SIDE_MOUTH_REF * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
   const actualCornerMouth = POCKET_VIS_R * 2;
   const actualSideMouth = SIDE_POCKET_RADIUS * 2;
-  const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
   console.assert(
     Math.abs(actualCornerMouth - expectedCornerMouth) <= POCKET_MOUTH_TOLERANCE,
     'applySnookerScaling: corner pocket mouth mismatch.'
@@ -4842,49 +4841,14 @@ function applySnookerScaling({
     const halfWidth = width / 2;
     const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
-    const lineThickness = Math.max(expectedRadius * 0.08, 0.1);
-    if (markings.baulkLine.geometry) {
-      markings.baulkLine.geometry.dispose();
-    }
-    markings.baulkLine.geometry = new THREE.PlaneGeometry(
-      PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4,
-      lineThickness
-    );
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
     if (markings.dArc) {
-      const dRadius = D_RADIUS_REF * mmToUnits;
-      const dThickness = Math.max(lineThickness * 0.75, expectedRadius * 0.07);
-      if (markings.dArc.geometry) {
-        markings.dArc.geometry.dispose();
-      }
-      markings.dArc.geometry = new THREE.RingGeometry(
-        Math.max(0.001, dRadius - dThickness),
-        dRadius,
-        64,
-        1,
-        0,
-        Math.PI
-      );
       markings.dArc.position.set(center.x, markingY, baulkZ);
     }
     if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
       const [yellow, brown, green, blue, pink, black] = markings.spots;
       const spotY = yellow?.position?.y ?? markingY;
       const dRadius = D_RADIUS_REF * mmToUnits;
-      const spotRadius = expectedRadius * 0.26;
-      const updateSpot = (spot) => {
-        if (!spot) return;
-        if (spot.geometry) {
-          spot.geometry.dispose();
-        }
-        spot.geometry = new THREE.CircleGeometry(spotRadius, 32);
-      };
-      updateSpot(yellow);
-      updateSpot(brown);
-      updateSpot(green);
-      updateSpot(blue);
-      updateSpot(pink);
-      updateSpot(black);
       if (yellow) yellow.position.set(-dRadius, spotY, baulkZ);
       if (brown) brown.position.set(0, spotY, baulkZ);
       if (green) green.position.set(dRadius, spotY, baulkZ);
@@ -4896,24 +4860,24 @@ function applySnookerScaling({
       if (black) black.position.set(0, spotY, blackZ);
     }
   }
-  const baseBallRadius = BALL_GEOMETRY?.parameters?.radius ?? BALL_R;
-  const ballScale =
-    Number.isFinite(baseBallRadius) && baseBallRadius > 0
-      ? expectedRadius / baseBallRadius
-      : 1;
   if (Array.isArray(balls)) {
+    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
       const mesh = ball.mesh;
       if (!mesh) return;
-      mesh.scale.setScalar(ballScale);
+      const baseRadius = mesh.geometry?.parameters?.radius;
+      if (Number.isFinite(baseRadius) && baseRadius > 0) {
+        const scale = expectedRadius / baseRadius;
+        mesh.scale.setScalar(scale);
+      }
     });
   }
   void cushions;
   void camera;
   void ui;
-  return { mmToUnits, ballScale };
+  return { mmToUnits };
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
@@ -13271,7 +13235,6 @@ const powerRef = useRef(hud.power);
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
-  const ballMeshScaleRef = useRef(1);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
   const snookerSpotsRef = useRef(null);
@@ -19701,7 +19664,7 @@ const powerRef = useRef(hud.power);
             Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, finishPalette[k], x, z)])
           );
 
-      const scaling = applySnookerScaling({
+      applySnookerScaling({
         tableInnerRect: {
           width: PLAY_H,
           height: PLAY_W,
@@ -19714,10 +19677,6 @@ const powerRef = useRef(hud.power);
         camera,
         ui: null
       });
-      ballMeshScaleRef.current =
-        Number.isFinite(scaling?.ballScale) && scaling.ballScale > 0
-          ? scaling.ballScale
-          : 1;
 
       cueRef.current = cue;
       ballsRef.current = balls;
@@ -23287,13 +23246,12 @@ const powerRef = useRef(hud.power);
             ball.pos.set(respot.x, respot.z);
             if (ball.mesh) {
               ball.mesh.visible = true;
-              ball.mesh.scale.setScalar(ballMeshScaleRef.current || 1);
+              ball.mesh.scale.set(1, 1, 1);
               ball.mesh.position.set(respot.x, BALL_CENTER_Y, respot.z);
             }
             if (ball.shadow) {
               ball.shadow.visible = true;
               ball.shadow.position.set(respot.x, BALL_SHADOW_Y, respot.z);
-              ball.shadow.scale.setScalar(ballMeshScaleRef.current || 1);
             }
             pocketDropRef.current.delete(ball.id);
             reserved.push(respot);
@@ -23397,7 +23355,7 @@ const powerRef = useRef(hud.power);
               if (stateBall.onTable) {
                 if (!simBall.active) {
                   pocketDropRef.current.delete(simBall.id);
-                  simBall.mesh.scale.setScalar(ballMeshScaleRef.current || 1);
+                  simBall.mesh.scale.set(1, 1, 1);
                   const [sx, sy] = SPOTS[name];
                   simBall.active = true;
                   simBall.mesh.visible = true;
@@ -25110,7 +25068,7 @@ const powerRef = useRef(hud.power);
                 resting: false
               };
               b.mesh.visible = true;
-              b.mesh.scale.setScalar(ballMeshScaleRef.current || 1);
+              b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
               const mappedColor = toBallColorId(b.id);
@@ -25231,7 +25189,7 @@ const powerRef = useRef(hud.power);
               if (entry.resting) {
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
-                mesh.scale.setScalar(ballMeshScaleRef.current || 1);
+                mesh.scale.set(1, 1, 1);
                 return;
               }
               entry.velocityY =
@@ -25251,7 +25209,7 @@ const powerRef = useRef(hud.power);
               let posX = xDrop;
               let posZ = zDrop;
               mesh.visible = true;
-              mesh.scale.setScalar(ballMeshScaleRef.current || 1);
+              mesh.scale.set(1, 1, 1);
               if (entry.rollStartAt && now >= entry.rollStartAt) {
                 const runSpeed = Math.max(MICRO_EPS, entry.runSpeed ?? POCKET_HOLDER_RUN_SPEED_MIN);
                 const rollDuration = Math.max(MICRO_EPS, (entry.restDistance ?? 0) / runSpeed);
