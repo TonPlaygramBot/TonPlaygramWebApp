@@ -1373,7 +1373,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.46;
+const POCKET_CAM_EDGE_SCALE = 0.36;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -4971,6 +4971,12 @@ const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
 const REPLAY_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
 const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_TOP_VIEW_MARGIN = 1.14;
+const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = 1.06;
+const BROADCAST_TOP_VIEW_PHI = 0;
+const BROADCAST_TOP_VIEW_RADIUS_SCALE = 1.06;
+const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
+const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -16462,6 +16468,37 @@ const powerRef = useRef(hud.power);
           return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
+        const resolveBroadcastTopViewCamera = ({
+          focusOverride = null,
+          minTargetY = null
+        } = {}) => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const focusTarget =
+            focusOverride?.clone?.() ??
+            TMP_VEC3_TOP_VIEW
+              .set(
+                playerOffsetRef.current + BROADCAST_TOP_VIEW_SCREEN_OFFSET.x,
+                ORBIT_FOCUS_BASE_Y,
+                BROADCAST_TOP_VIEW_SCREEN_OFFSET.z
+              )
+              .multiplyScalar(scale);
+          if (focusTarget && Number.isFinite(minTargetY)) {
+            focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
+          }
+          const topRadiusBase =
+            fitRadius(camera, BROADCAST_TOP_VIEW_MARGIN) * BROADCAST_TOP_VIEW_RADIUS_SCALE;
+          const topRadius = clampOrbitRadius(
+            Math.max(topRadiusBase, CAMERA.minR * BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE)
+          );
+          const spherical = new THREE.Spherical(
+            topRadius,
+            BROADCAST_TOP_VIEW_RESOLVED_PHI,
+            Math.PI
+          );
+          const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
+          return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
+        };
+
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
           minTargetY = null
@@ -18026,12 +18063,30 @@ const powerRef = useRef(hud.power);
           if (positionSnapshot.y < minTargetY) {
             positionSnapshot.y = minTargetY;
           }
-          return {
+          const baseSnapshot = {
             position: positionSnapshot,
             target: targetSnapshot,
             fov: fovSnapshot,
             minTargetY
           };
+          if (topViewRef.current) {
+            return baseSnapshot;
+          }
+          const broadcastCamera = resolveBroadcastTopViewCamera({
+            focusOverride: targetSnapshot,
+            minTargetY
+          });
+          if (broadcastCamera?.position && broadcastCamera?.target) {
+            return {
+              position: broadcastCamera.position,
+              target: broadcastCamera.target,
+              fov: Number.isFinite(broadcastCamera.fov) ? broadcastCamera.fov : fovSnapshot,
+              minTargetY: Number.isFinite(broadcastCamera.minTargetY)
+                ? broadcastCamera.minTargetY
+                : minTargetY
+            };
+          }
+          return baseSnapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
 
