@@ -11008,10 +11008,25 @@ function PoolRoyaleGame({
     [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
-  const resolvedAccountId = useMemo(
-    () => poolRoyalAccountId(accountId),
-    [accountId]
+  const [resolvedAccountId, setResolvedAccountId] = useState(() =>
+    poolRoyalAccountId(accountId || (typeof window !== 'undefined' ? window.localStorage.getItem('accountId') : ''))
   );
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const updateAccountId = () => {
+      const nextId = poolRoyalAccountId(
+        accountId || window.localStorage.getItem('accountId')
+      );
+      setResolvedAccountId((prev) => (prev === nextId ? prev : nextId));
+    };
+    updateAccountId();
+    window.addEventListener('focus', updateAccountId);
+    window.addEventListener('storage', updateAccountId);
+    return () => {
+      window.removeEventListener('focus', updateAccountId);
+      window.removeEventListener('storage', updateAccountId);
+    };
+  }, [accountId]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return Number(params.get('amount')) || 0;
@@ -11406,55 +11421,68 @@ function PoolRoyaleGame({
     [commentaryPresetId]
   );
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
-  const availableTableFinishes = useMemo(
-    () =>
-      TABLE_FINISH_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('tableFinish', option.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const availableTableBases = useMemo(
-    () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const availableChromeOptions = useMemo(
-    () =>
-      CHROME_COLOR_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('chromeColor', option.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const availableRailMarkerColors = useMemo(
-    () =>
-      RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const availableClothOptions = useMemo(
-    () =>
-      CLOTH_COLOR_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('clothColor', option.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const availableEnvironmentHdris = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const availablePocketLiners = useMemo(
-    () =>
-      POCKET_LINER_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
-      ),
-    [poolInventory]
-  );
+  const sortByLabel = useCallback((options, getLabel) => {
+    return [...options].sort((a, b) =>
+      getLabel(a).localeCompare(getLabel(b), undefined, { sensitivity: 'base' })
+    );
+  }, []);
+  const availableTableFinishes = useMemo(() => {
+    const unlocked = TABLE_FINISH_OPTIONS.filter((option) =>
+      isPoolOptionUnlocked('tableFinish', option.id, poolInventory)
+    );
+    return sortByLabel(
+      unlocked,
+      (option) => POOL_ROYALE_OPTION_LABELS.tableFinish?.[option.id] || option.label || option.id
+    );
+  }, [poolInventory, sortByLabel]);
+  const availableTableBases = useMemo(() => {
+    const unlocked = POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
+      isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+    );
+    return sortByLabel(unlocked, (variant) => variant.name || variant.id);
+  }, [poolInventory, sortByLabel]);
+  const availableChromeOptions = useMemo(() => {
+    const unlocked = CHROME_COLOR_OPTIONS.filter((option) =>
+      isPoolOptionUnlocked('chromeColor', option.id, poolInventory)
+    );
+    return sortByLabel(
+      unlocked,
+      (option) => POOL_ROYALE_OPTION_LABELS.chromeColor?.[option.id] || option.label || option.id
+    );
+  }, [poolInventory, sortByLabel]);
+  const availableRailMarkerColors = useMemo(() => {
+    const unlocked = RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
+      isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
+    );
+    return sortByLabel(
+      unlocked,
+      (option) => POOL_ROYALE_OPTION_LABELS.railMarkerColor?.[option.id] || option.name || option.id
+    );
+  }, [poolInventory, sortByLabel]);
+  const availableClothOptions = useMemo(() => {
+    const unlocked = CLOTH_COLOR_OPTIONS.filter((option) =>
+      isPoolOptionUnlocked('clothColor', option.id, poolInventory)
+    );
+    return sortByLabel(
+      unlocked,
+      (option) => POOL_ROYALE_OPTION_LABELS.clothColor?.[option.id] || option.label || option.id
+    );
+  }, [poolInventory, sortByLabel]);
+  const availableEnvironmentHdris = useMemo(() => {
+    const unlocked = POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+      isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
+    );
+    return sortByLabel(unlocked, (variant) => variant.name || variant.id);
+  }, [poolInventory, sortByLabel]);
+  const availablePocketLiners = useMemo(() => {
+    const unlocked = POCKET_LINER_OPTIONS.filter((option) =>
+      isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
+    );
+    return sortByLabel(
+      unlocked,
+      (option) => POOL_ROYALE_OPTION_LABELS.pocketLiner?.[option.id] || option.label || option.id
+    );
+  }, [poolInventory, sortByLabel]);
   const availableCueStyles = useMemo(
     () =>
       CUE_FINISH_OPTIONS.map((finish, index) => ({ preset: finish, index })).filter(({ preset }) =>
