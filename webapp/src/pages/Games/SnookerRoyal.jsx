@@ -968,7 +968,6 @@ const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.8; // match Pool Royale table height and display scale
 const CAMERA_DISPLAY_SCALE = 1;
-const CAMERA_TABLE_SCALE = 1.2 * TABLE_REDUCTION * 1.25; // lock standing/cue camera radii to Pool Royale coordinates
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1068,16 +1067,15 @@ const ENABLE_TABLE_MAPPING_LINES = false;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_THICK_SCALE = 1.2 * TABLE_REDUCTION * 1.25; // match Pool Royale table height and base stance
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
     H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
-    THICK: 1.8 * TABLE_THICK_SCALE,
+    THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
-const RAIL_HEIGHT = TABLE.THICK * 1.18; // mirror Pool Royale rail height so table stance matches exactly
+const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1636,10 +1634,10 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 54;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 56;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 55;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 55;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -1977,8 +1975,9 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const rackGapBias = 0.02 * (ballRadius / 0.0525);
+  const columnSpacing = ballRadius * 2 + rackGapBias;
+  const rowSpacing = columnSpacing * (Math.sqrt(3) / 2);
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -4931,15 +4930,10 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR:
-    18 *
-    CAMERA_TABLE_SCALE *
-    GLOBAL_SIZE_FACTOR *
-    PLAYER_CAMERA_DISTANCE_FACTOR *
-    CAMERA_DISPLAY_SCALE,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * PLAYER_CAMERA_DISTANCE_FACTOR * CAMERA_DISPLAY_SCALE,
   maxR:
     260 *
-    CAMERA_TABLE_SCALE *
+    TABLE_SCALE *
     GLOBAL_SIZE_FACTOR *
     BROADCAST_RADIUS_LIMIT_MULTIPLIER *
     CAMERA_DISPLAY_SCALE,
@@ -19147,7 +19141,8 @@ const powerRef = useRef(hud.power);
         if (variant === 'snooker') {
           const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
           const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
-          const rackRowSpacing = BALL_R * 1.6;
+          const rackRowSpacing =
+            (BALL_R * 2 + 0.02 * (BALL_R / 0.0525)) * (Math.sqrt(3) / 2);
           const snookerPalette = {
             red: 0xb1262c,
             yellow: 0xf7d000,
@@ -19647,7 +19642,8 @@ const powerRef = useRef(hud.power);
           BALL_R,
           rackStartZ
         );
-        const rackRowSpacing = BALL_R * 1.9;
+        const rackRowSpacing =
+          (BALL_R * 2 + 0.02 * (BALL_R / 0.0525)) * (Math.sqrt(3) / 2);
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
