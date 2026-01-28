@@ -1062,9 +1062,10 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1;
-  const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
+  const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
+  const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
+  const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
@@ -1073,8 +1074,8 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
-const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const RAIL_HEIGHT = TABLE.THICK * 1.18;
+const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
+const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1156,12 +1157,9 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
-const MARKINGS_MM_TO_UNITS = MM_TO_UNITS;
+const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
+const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 0.96; // trim ball sizing slightly for tighter snooker proportions
-const POOL_BALL_SIZE_SCALE = 1.1155;
-const POOL_BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * POOL_BALL_SIZE_SCALE;
-const POOL_BALL_R = POOL_BALL_DIAMETER / 2;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1344,7 +1342,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops furthe
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.28;
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
@@ -1373,21 +1371,21 @@ const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted balls meet the chrome holders cleanly
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
-const POCKET_NET_RING_TUBE_RADIUS = POOL_BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = POOL_BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = POOL_BALL_R * 0.16; // raise the net so the weave sits higher on screen
+const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
+const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
-const POCKET_GUIDE_RADIUS = POOL_BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
+const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
-const POCKET_GUIDE_DROP = POOL_BALL_R * 0.12;
-const POCKET_GUIDE_SPREAD = POOL_BALL_R * 0.48;
-const POCKET_GUIDE_RING_CLEARANCE = POOL_BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
+const POCKET_GUIDE_DROP = BALL_R * 0.12;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
+const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = POOL_BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = POOL_BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
-const POCKET_GUIDE_RING_TOWARD_STRAP = POOL_BALL_R * 0.08; // nudge the L segments toward the leather strap
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
@@ -1400,7 +1398,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1513,7 +1511,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 6.328125; // +50% more shot power
+const SHOT_POWER_MULTIPLIER = 4.21875; // +50% more shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1633,13 +1631,13 @@ const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
+const DEFAULT_CUSHION_CUT_ANGLE = 45;
 // middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
 const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
 const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
