@@ -11406,54 +11406,66 @@ function PoolRoyaleGame({
     [commentaryPresetId]
   );
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const optionLabelSorter = useMemo(
+    () => new Intl.Collator('en', { numeric: true, sensitivity: 'base' }),
+    []
+  );
+  const sortByOptionLabel = useCallback(
+    (a, b) =>
+      optionLabelSorter.compare(
+        String(a?.label ?? a?.name ?? a?.id ?? ''),
+        String(b?.label ?? b?.name ?? b?.id ?? '')
+      ),
+    [optionLabelSorter]
+  );
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
         isPoolOptionUnlocked('tableFinish', option.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availableTableBases = useMemo(
     () =>
       POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
         isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availableChromeOptions = useMemo(
     () =>
       CHROME_COLOR_OPTIONS.filter((option) =>
         isPoolOptionUnlocked('chromeColor', option.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availableRailMarkerColors = useMemo(
     () =>
       RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
         isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availableClothOptions = useMemo(
     () =>
       CLOTH_COLOR_OPTIONS.filter((option) =>
         isPoolOptionUnlocked('clothColor', option.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availableEnvironmentHdris = useMemo(
     () =>
       POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
         isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availablePocketLiners = useMemo(
     () =>
       POCKET_LINER_OPTIONS.filter((option) =>
         isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
-      ),
-    [poolInventory]
+      ).slice().sort(sortByOptionLabel),
+    [poolInventory, sortByOptionLabel]
   );
   const availableCueStyles = useMemo(
     () =>
