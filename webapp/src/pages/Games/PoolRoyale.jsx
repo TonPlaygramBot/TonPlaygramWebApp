@@ -1373,7 +1373,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.46;
+const POCKET_CAM_EDGE_SCALE = 0.38;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -4971,6 +4971,12 @@ const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
 const REPLAY_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
 const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
+const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = 1.06;
+const BROADCAST_TOP_VIEW_PHI = TOP_VIEW_PHI;
+const BROADCAST_TOP_VIEW_RADIUS_SCALE = 1.06;
+const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
+const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -16462,6 +16468,37 @@ const powerRef = useRef(hud.power);
           return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
+        const resolveBroadcastTopViewCamera = ({
+          focusOverride = null,
+          minTargetY = null
+        } = {}) => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const focusTarget =
+            focusOverride?.clone?.() ??
+            TMP_VEC3_TOP_VIEW
+              .set(
+                playerOffsetRef.current + BROADCAST_TOP_VIEW_SCREEN_OFFSET.x,
+                ORBIT_FOCUS_BASE_Y,
+                BROADCAST_TOP_VIEW_SCREEN_OFFSET.z
+              )
+              .multiplyScalar(scale);
+          if (focusTarget && Number.isFinite(minTargetY)) {
+            focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
+          }
+          const topRadiusBase =
+            fitRadius(camera, BROADCAST_TOP_VIEW_MARGIN) * BROADCAST_TOP_VIEW_RADIUS_SCALE;
+          const topRadius = clampOrbitRadius(
+            Math.max(topRadiusBase, CAMERA.minR * BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE)
+          );
+          const spherical = new THREE.Spherical(
+            topRadius,
+            BROADCAST_TOP_VIEW_RESOLVED_PHI,
+            Math.PI
+          );
+          const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
+          return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
+        };
+
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
           minTargetY = null
@@ -16610,6 +16647,14 @@ const powerRef = useRef(hud.power);
             lookTarget = focusTarget;
             broadcastArgs.focusWorld = focusTarget.clone();
             broadcastArgs.targetWorld = focusTarget.clone();
+            const broadcastTopView = resolveBroadcastTopViewCamera({
+              minTargetY
+            });
+            if (broadcastTopView?.position && broadcastTopView?.target) {
+              broadcastArgs.focusWorld = broadcastTopView.target.clone();
+              broadcastArgs.targetWorld = broadcastTopView.target.clone();
+              broadcastArgs.orbitWorld = broadcastTopView.position.clone();
+            }
             broadcastArgs.lerp = 0;
           } else if (galleryState?.active) {
             const basePosition =
@@ -17263,7 +17308,43 @@ const powerRef = useRef(hud.power);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
-          if (overheadVariant === 'replay') {
+          if (overheadVariant === 'broadcast-top') {
+            const overheadCamera = resolveBroadcastTopViewCamera({
+              focusOverride: topFocusTarget,
+              minTargetY
+            });
+            if (overheadCamera?.position) {
+              const resolvedTarget = overheadCamera.target ?? topFocusTarget;
+              camera.up.set(0, 0, 1);
+              camera.position.copy(overheadCamera.position);
+              if (Number.isFinite(overheadCamera.fov) && camera.fov !== overheadCamera.fov) {
+                camera.fov = overheadCamera.fov;
+                camera.updateProjectionMatrix();
+              }
+              camera.lookAt(resolvedTarget);
+              renderCamera = camera;
+              lookTarget = resolvedTarget;
+              lastCameraTargetRef.current.copy(resolvedTarget);
+              const broadcastTopView = resolveBroadcastTopViewCamera({
+                focusOverride: topFocusTarget,
+                minTargetY
+              });
+              if (broadcastTopView?.position && broadcastTopView?.target) {
+                broadcastArgs.focusWorld = broadcastTopView.target.clone();
+                broadcastArgs.targetWorld = broadcastTopView.target.clone();
+                broadcastArgs.orbitWorld = broadcastTopView.position.clone();
+              } else {
+                broadcastArgs.focusWorld = resolvedTarget.clone();
+                broadcastArgs.targetWorld = resolvedTarget.clone();
+                broadcastArgs.orbitWorld = overheadCamera.position.clone();
+              }
+              if (broadcastCamerasRef.current) {
+                broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+              }
+              broadcastArgs.lerp = 0.12;
+              overheadApplied = true;
+            }
+          } else if (overheadVariant === 'replay') {
             const overheadCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
               minTargetY
@@ -17280,9 +17361,19 @@ const powerRef = useRef(hud.power);
               renderCamera = camera;
               lookTarget = resolvedTarget;
               lastCameraTargetRef.current.copy(resolvedTarget);
-              broadcastArgs.focusWorld = resolvedTarget.clone();
-              broadcastArgs.targetWorld = resolvedTarget.clone();
-              broadcastArgs.orbitWorld = overheadCamera.position.clone();
+              const broadcastTopView = resolveBroadcastTopViewCamera({
+                focusOverride: topFocusTarget,
+                minTargetY
+              });
+              if (broadcastTopView?.position && broadcastTopView?.target) {
+                broadcastArgs.focusWorld = broadcastTopView.target.clone();
+                broadcastArgs.targetWorld = broadcastTopView.target.clone();
+                broadcastArgs.orbitWorld = broadcastTopView.position.clone();
+              } else {
+                broadcastArgs.focusWorld = resolvedTarget.clone();
+                broadcastArgs.targetWorld = resolvedTarget.clone();
+                broadcastArgs.orbitWorld = overheadCamera.position.clone();
+              }
               if (broadcastCamerasRef.current) {
                 broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
@@ -17308,9 +17399,19 @@ const powerRef = useRef(hud.power);
             camera.updateProjectionMatrix();
             camera.lookAt(resolvedTarget);
             renderCamera = camera;
-            broadcastArgs.focusWorld = resolvedTarget.clone();
-            broadcastArgs.targetWorld = resolvedTarget.clone();
-            broadcastArgs.orbitWorld = resolvedPosition.clone();
+            const broadcastTopView = resolveBroadcastTopViewCamera({
+              focusOverride: topFocusTarget,
+              minTargetY
+            });
+            if (broadcastTopView?.position && broadcastTopView?.target) {
+              broadcastArgs.focusWorld = broadcastTopView.target.clone();
+              broadcastArgs.targetWorld = broadcastTopView.target.clone();
+              broadcastArgs.orbitWorld = broadcastTopView.position.clone();
+            } else {
+              broadcastArgs.focusWorld = resolvedTarget.clone();
+              broadcastArgs.targetWorld = resolvedTarget.clone();
+              broadcastArgs.orbitWorld = resolvedPosition.clone();
+            }
             if (broadcastCamerasRef.current) {
               broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
             }
