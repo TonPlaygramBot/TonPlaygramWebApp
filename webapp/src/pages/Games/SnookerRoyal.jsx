@@ -1062,7 +1062,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.65; // expand the snooker playfield by ~27% to make the table wider and taller
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
   const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
@@ -1975,8 +1975,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2.06 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 2.02;
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -19151,7 +19151,7 @@ const powerRef = useRef(hud.power);
             cue: 0xfafafa
           };
           rackPositions.forEach((pos, index) => {
-            const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * BALL_R * 2.02 };
+            const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * BALL_R * 1.6 };
             addDecorBall(snookerPalette.red, null, 'solid', placement, SNOOKER_BALL_MATERIAL_VARIANT);
           });
           [
@@ -19642,7 +19642,7 @@ const powerRef = useRef(hud.power);
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
-            z: rackStartZ + rid * BALL_R * 2.02
+            z: rackStartZ + rid * BALL_R * 1.9
           };
           const color = getPoolBallColor(variantConfig, rid);
           const number = getPoolBallNumber(variantConfig, rid);
