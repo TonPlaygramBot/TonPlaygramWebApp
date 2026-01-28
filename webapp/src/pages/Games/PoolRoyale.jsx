@@ -13040,7 +13040,6 @@ const powerRef = useRef(hud.power);
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
-  const breakShotActiveRef = useRef(false);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -17835,14 +17834,12 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
-          if (!forceEarly) {
-            if (
-              (predictedTravelForBall != null &&
-                predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
-              best.dist < SHORT_SHOT_CAMERA_DISTANCE
-            ) {
-              return null;
-            }
+          if (
+            (predictedTravelForBall != null &&
+              predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
+            best.dist < SHORT_SHOT_CAMERA_DISTANCE
+          ) {
+            return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
           const approachDir = best.pocketDir.clone();
@@ -21409,27 +21406,10 @@ const powerRef = useRef(hud.power);
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        const isBreakShot = (frameSnapshot?.currentBreak ?? 0) === 0;
-        breakShotActiveRef.current = isBreakShot;
-        if (isBreakShot) {
-          const sph = sphRef.current;
-          const standingBounds = cameraBoundsRef.current?.standing;
-          if (sph && standingBounds) {
-            sph.radius = clampOrbitRadius(standingBounds.radius);
-            sph.phi = THREE.MathUtils.clamp(
-              standingBounds.phi,
-              CAMERA.minPhi,
-              CAMERA.maxPhi
-            );
-            syncBlendToSpherical();
-          }
-          setOrbitFocusToDefault();
-        } else {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(!isBreakShot && forcedCueView ? forcedCueBlend : 1);
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -21549,7 +21529,8 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          const frameStateCurrent = frameRef.current ?? frameSnapshot ?? null;
+          const frameStateCurrent = frameRef.current ?? null;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
@@ -21612,9 +21593,7 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const allowActionView =
-            allowLongShotCameraSwitch && !isBreakShot && !shotPrediction.railNormal;
-          const actionView = allowActionView
+          const actionView = allowLongShotCameraSwitch
             ? makeActionCameraView(
                 cue,
                 shotPrediction.ballId,
@@ -21866,10 +21845,7 @@ const powerRef = useRef(hud.power);
             forwardPreviewHold
           );
           const holdUntil = powerImpactHoldRef.current || 0;
-          const preferImmediatePocket =
-            isBreakShot || Boolean(earlyPocketView?.forcedEarly);
-          const holdActive =
-            holdUntil > performance.now() && !preferImmediatePocket;
+          const holdActive = holdUntil > performance.now();
           let pocketViewActivated = false;
           if (earlyPocketView && !isMaxPowerShot) {
             const now = performance.now();
@@ -24114,7 +24090,6 @@ const powerRef = useRef(hud.power);
             });
           }
           setShootingState(false);
-          breakShotActiveRef.current = false;
           spinRef.current = { x: 0, y: 0 };
           spinRequestRef.current = { x: 0, y: 0 };
           spinAppliedRef.current = { x: 0, y: 0, magnitude: 0, mode: 'standard' };
