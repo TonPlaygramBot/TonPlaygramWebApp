@@ -1584,8 +1584,8 @@ const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes control
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 240;
-const PLAYER_CUE_FORWARD_MAX_MS = 520;
+const PLAYER_CUE_FORWARD_MIN_MS = 360;
+const PLAYER_CUE_FORWARD_MAX_MS = 820;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -4983,6 +4983,8 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
 });
+const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match Snooker Royal rail overhead coordinates
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = 1.06; // match Snooker Royal rail overhead coordinates
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
@@ -5030,8 +5032,10 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const halfHorizontal = Math.max(Math.atan(Math.tan(halfVertical) * aspect), 1e-3);
   const halfWidth = PLAY_W / 2 + BROADCAST_MARGIN_WIDTH;
   const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
-  const widthDistance = (halfWidth / Math.tan(halfHorizontal)) * TOP_VIEW_RADIUS_SCALE;
-  const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
+  const widthDistance =
+    (halfWidth / Math.tan(halfHorizontal)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
+  const lengthDistance =
+    (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
 const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
@@ -5088,7 +5092,7 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 260;
-const AI_CUE_FORWARD_DURATION_MS = 240;
+const AI_CUE_FORWARD_DURATION_MS = 520;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -15025,8 +15029,8 @@ const powerRef = useRef(hud.power);
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
         const topDownRadius = Math.max(
-          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
-          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE
         );
         return topDownRadius;
       };
@@ -18069,40 +18073,33 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const activeCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(activeCamera?.fov) ? activeCamera.fov : camera.fov;
-          const targetSnapshot =
-            lastCameraTargetRef.current?.clone?.() ??
-            new THREE.Vector3(playerOffsetRef.current * scale, ORBIT_FOCUS_BASE_Y * scale, 0);
-          targetSnapshot.y = Math.max(targetSnapshot.y ?? 0, minTargetY);
-          const positionSnapshot = activeCamera?.position?.clone?.() ?? camera.position.clone();
-          if (positionSnapshot.y < minTargetY) {
-            positionSnapshot.y = minTargetY;
-          }
-          const baseSnapshot = {
-            position: positionSnapshot,
-            target: targetSnapshot,
-            fov: fovSnapshot,
-            minTargetY
-          };
-          if (topViewRef.current) {
-            return baseSnapshot;
-          }
-          const broadcastCamera = resolveBroadcastTopViewCamera({
+          const fallbackCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
+            ? fallbackCamera.fov
+            : camera.fov;
+          const targetSnapshot = lastCameraTargetRef.current
+            ? lastCameraTargetRef.current.clone()
+            : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const overheadCamera = resolveRailOverheadReplayCamera({
             focusOverride: targetSnapshot,
             minTargetY
           });
-          if (broadcastCamera?.position && broadcastCamera?.target) {
-            return {
-              position: broadcastCamera.position,
-              target: broadcastCamera.target,
-              fov: Number.isFinite(broadcastCamera.fov) ? broadcastCamera.fov : fovSnapshot,
-              minTargetY: Number.isFinite(broadcastCamera.minTargetY)
-                ? broadcastCamera.minTargetY
-                : minTargetY
-            };
+          const resolvedPosition = overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(overheadCamera?.fov)
+            ? overheadCamera.fov
+            : fovSnapshot;
+          if (!resolvedPosition && !resolvedTarget) return null;
+          const snapshot = {
+            position: resolvedPosition,
+            target: resolvedTarget,
+            fov: resolvedFov
+          };
+          if (Number.isFinite(overheadCamera?.minTargetY)) {
+            snapshot.minTargetY = overheadCamera.minTargetY;
           }
-          return baseSnapshot;
+          return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
 
@@ -18729,7 +18726,15 @@ const powerRef = useRef(hud.power);
               cueStick.visible = true;
               cueAnimating = true;
               syncCueShadow();
+              return;
             }
+          }
+          const cueBall = cueRef.current || cue;
+          if (cueBall?.pos) {
+            cueStick.position.set(cueBall.pos.x, CUE_Y, cueBall.pos.y - CUE_TIP_GAP);
+            cueStick.visible = true;
+            cueAnimating = true;
+            syncCueShadow();
           }
         };
 
