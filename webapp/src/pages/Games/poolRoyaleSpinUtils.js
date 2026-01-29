@@ -1,7 +1,7 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-export const MAX_SPIN_OFFSET = 0.62;
-export const SPIN_STUN_RADIUS = 0.2;
+export const MAX_SPIN_OFFSET = 0.68;
+export const SPIN_STUN_RADIUS = 0.24;
 export const SPIN_RING1_RADIUS = 0.32;
 export const SPIN_RING2_RADIUS = 0.48;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
@@ -10,8 +10,9 @@ export const SPIN_LEVEL1_MAG = 0.18 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.42 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 0.82 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.01;
+export const STUN_TOPSPIN_BIAS = 0;
 export const SPIN_RESPONSE_POWER = 1.35;
+export const SPIN_OUTPUT_GAIN = 1.08;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -156,6 +157,13 @@ export const normalizeSpinInput = (spin) => {
     if (boost > 0) {
       result.y = clamp(result.y - boost, -1, 1);
     }
+  }
+  const gain = Number.isFinite(SPIN_OUTPUT_GAIN) ? SPIN_OUTPUT_GAIN : 1;
+  if (gain !== 1) {
+    return {
+      x: clamp(result.x * gain, -1, 1),
+      y: clamp(result.y * gain, -1, 1)
+    };
   }
   return result;
 };
