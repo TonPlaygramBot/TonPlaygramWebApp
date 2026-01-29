@@ -1494,13 +1494,9 @@ const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ba
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Pool Royale power pass: lift overall shot strength by another 25%.
-// Pool Royale request: increase shot power by an additional 50% for stronger strikes.
-const SHOT_POWER_REDUCTION = 0.6375; // reduce overall shot strength by another 25%
-const SHOT_POWER_MULTIPLIER = 1.25;
-const SHOT_POWER_BOOST = 1.5;
-const SHOT_SPEED_MULTIPLIER = 1.104;
+// Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
+const SHOT_POWER_REDUCTION = 0.85;
+const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1509,10 +1505,9 @@ const SHOT_FORCE_BOOST =
   1.3 *
   0.85 *
   SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_BOOST;
+  SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * SHOT_SPEED_MULTIPLIER;
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -17337,30 +17332,64 @@ const powerRef = useRef(hud.power);
             ORBIT_FOCUS_BASE_Y,
             TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
-          const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
-          const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
-          );
-          const topTheta = Math.PI;
-          const topPhi = TOP_VIEW_RESOLVED_PHI;
-          TMP_SPH.set(topRadius, topPhi, topTheta);
-          camera.up.set(0, 0, 1);
-          camera.position.setFromSpherical(TMP_SPH);
-          camera.position.add(topFocusTarget);
-          const resolvedTarget = topFocusTarget.clone();
-          const resolvedPosition = camera.position.clone();
-          lookTarget = resolvedTarget;
-          lastCameraTargetRef.current.copy(resolvedTarget);
-          camera.updateProjectionMatrix();
-          camera.lookAt(resolvedTarget);
-          renderCamera = camera;
-          broadcastArgs.focusWorld = resolvedTarget.clone();
-          broadcastArgs.targetWorld = resolvedTarget.clone();
-          broadcastArgs.orbitWorld = resolvedPosition.clone();
-          if (broadcastCamerasRef.current) {
-            broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+          const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          let overheadApplied = false;
+          if (overheadVariant === 'replay') {
+            const overheadCamera = resolveRailOverheadReplayCamera({
+              focusOverride: topFocusTarget,
+              minTargetY
+            });
+            if (overheadCamera?.position) {
+              const resolvedTarget = overheadCamera.target ?? topFocusTarget;
+              camera.up.set(0, 1, 0);
+              camera.position.copy(overheadCamera.position);
+              if (Number.isFinite(overheadCamera.fov) && camera.fov !== overheadCamera.fov) {
+                camera.fov = overheadCamera.fov;
+                camera.updateProjectionMatrix();
+              }
+              camera.lookAt(resolvedTarget);
+              renderCamera = camera;
+              lookTarget = resolvedTarget;
+              lastCameraTargetRef.current.copy(resolvedTarget);
+              broadcastArgs.focusWorld = resolvedTarget.clone();
+              broadcastArgs.targetWorld = resolvedTarget.clone();
+              broadcastArgs.orbitWorld = overheadCamera.position.clone();
+              if (broadcastCamerasRef.current) {
+                broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+              }
+              broadcastArgs.lerp = 0.12;
+              overheadApplied = true;
+            }
           }
-          broadcastArgs.lerp = 0.12;
+          if (!overheadApplied) {
+            const topRadiusBase =
+              fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+            const topRadius = clampOrbitRadius(
+              Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+            );
+            const topTheta = Math.PI;
+            const topPhi = TOP_VIEW_RESOLVED_PHI;
+            TMP_SPH.set(topRadius, topPhi, topTheta);
+            camera.up.set(0, 0, 1);
+            camera.position.setFromSpherical(TMP_SPH);
+            camera.position.add(topFocusTarget);
+            const resolvedTarget = topFocusTarget.clone();
+            const resolvedPosition = camera.position.clone();
+            lookTarget = resolvedTarget;
+            lastCameraTargetRef.current.copy(resolvedTarget);
+            camera.updateProjectionMatrix();
+            camera.lookAt(resolvedTarget);
+            renderCamera = camera;
+            broadcastArgs.focusWorld = resolvedTarget.clone();
+            broadcastArgs.targetWorld = resolvedTarget.clone();
+            broadcastArgs.orbitWorld = resolvedPosition.clone();
+            if (broadcastCamerasRef.current) {
+              broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+            }
+            broadcastArgs.lerp = 0.12;
+          }
         } else {
           camera.up.set(0, 1, 0);
           TMP_SPH.copy(sph);
