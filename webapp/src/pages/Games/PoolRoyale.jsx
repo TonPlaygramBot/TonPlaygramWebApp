@@ -24779,15 +24779,21 @@ const powerRef = useRef(hud.power);
               cueFollowDirSpinAdjusted.normalize();
             }
           }
-          const cueFollowLength =
-            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
+          const spinMagnitude = Math.hypot(physicsSpin.x || 0, physicsSpin.y || 0);
+          const spinIndicator = THREE.MathUtils.clamp(spinMagnitude, 0, 1);
+          const spinIndicatorActive = spinIndicator > 1e-3;
+          const cueFollowLength = spinIndicatorActive
+            ? BALL_R * (6 + spinIndicator * 30)
+            : BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
-          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.material.color.setHex(
+            spinIndicatorActive ? 0xff3b3b : cueBackwards ? 0xff3b3b : 0x7ce7ff
+          );
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
@@ -24934,19 +24940,8 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const spinTargetDir = resolveTargetSpinDeflection(
-              rawTargetDir,
-              cueDir,
-              physicsSpin,
-              powerStrength,
-              liftStrength
-            );
             const tDir =
-              spinTargetDir && spinTargetDir.lengthSq() > 1e-8
-                ? spinTargetDir
-                : rawTargetDir.lengthSq() > 1e-8
-                  ? rawTargetDir.normalize()
-                  : dir.clone();
+              rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
@@ -25054,15 +25049,21 @@ const powerRef = useRef(hud.power);
               cueFollowDirSpinAdjusted.normalize();
             }
           }
-          const cueFollowLength =
-            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
+          const spinMagnitude = Math.hypot(remotePhysicsSpin.x || 0, remotePhysicsSpin.y || 0);
+          const spinIndicator = THREE.MathUtils.clamp(spinMagnitude, 0, 1);
+          const spinIndicatorActive = spinIndicator > 1e-3;
+          const cueFollowLength = spinIndicatorActive
+            ? BALL_R * (6 + spinIndicator * 30)
+            : BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
-          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.material.color.setHex(
+            spinIndicatorActive ? 0xff3b3b : cueBackwards ? 0xff3b3b : 0x7ce7ff
+          );
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
@@ -25104,18 +25105,8 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const spinTargetDir = resolveTargetSpinDeflection(
-              rawTargetDir,
-              cueDir,
-              remotePhysicsSpin,
-              powerStrength
-            );
             const tDir =
-              spinTargetDir && spinTargetDir.lengthSq() > 1e-8
-                ? spinTargetDir
-                : rawTargetDir.lengthSq() > 1e-8
-                  ? rawTargetDir.normalize()
-                  : baseDir.clone();
+              rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : baseDir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
