@@ -965,7 +965,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.8; // shrink the table footprint slightly less so the playfield reads larger
+const TABLE_DISPLAY_SCALE = 1.06; // shrink the table footprint slightly less so the playfield reads larger
 const CAMERA_DISPLAY_SCALE = 1;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
@@ -4980,9 +4980,10 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // match the Pool Royale 2D framing
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.04; // match the Pool Royale 2D framing
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
+const TOP_VIEW_SCREEN_OFFSET_SCALE = 0.8 / TABLE_DISPLAY_SCALE;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
-  z: PLAY_H * -0.078 // keep the existing vertical alignment
+  x: PLAY_W * -0.045 * TOP_VIEW_SCREEN_OFFSET_SCALE,
+  z: PLAY_H * -0.078 * TOP_VIEW_SCREEN_OFFSET_SCALE
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
