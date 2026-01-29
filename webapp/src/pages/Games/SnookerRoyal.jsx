@@ -86,8 +86,7 @@ import { chatBeep } from '../../assets/soundData.js';
 import {
   mapSpinForPhysics,
   normalizeSpinInput,
-  SPIN_STUN_RADIUS,
-  clampToUnitCircle
+  SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -25757,12 +25756,11 @@ const powerRef = useRef(hud.power);
     };
 
     const setSpin = (nx, ny) => {
-      const raw = clampToUnitCircle(nx, ny);
-      spinRequestRef.current = raw;
-      const limited = clampToLimits(raw.x, raw.y);
-      const clamped = clampToUnitCircle(limited.x, limited.y);
-      const normalized = normalizeSpinInput(clamped);
-      spinRef.current = normalized;
+      const normalized = normalizeSpinInput({ x: nx, y: ny });
+      spinRequestRef.current = normalized;
+      const limited = clampToLimits(normalized.x, normalized.y);
+      const limitedNormalized = normalizeSpinInput(limited);
+      spinRef.current = limitedNormalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -25773,12 +25771,12 @@ const powerRef = useRef(hud.power);
       const viewVec = cueBall && activeCamera
         ? computeCueViewVector(cueBall, activeCamera)
         : null;
-      const legality = checkSpinLegality2D(cueBall, clamped, ballsList || [], {
+      const legality = checkSpinLegality2D(cueBall, normalized, ballsList || [], {
         axes,
         view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
       });
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(clamped, legality.blocked);
+      updateSpinDotPosition(limitedNormalized, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
