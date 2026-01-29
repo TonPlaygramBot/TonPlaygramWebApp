@@ -958,11 +958,10 @@ function addPocketCuts(
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions tuned for the official 12ft snooker footprint while preserving the current layout.
+// Dimensions tuned for the Pool Royale footprint for identical table sizing and layout.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
-const TABLE_PLAYFIELD_UPSCALE = 1.5; // scale an 8ft pool footprint up to the official 12ft snooker length
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -1067,8 +1066,8 @@ const ENABLE_TABLE_MAPPING_LINES = false;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
-    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_PLAYFIELD_UPSCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_PLAYFIELD_UPSCALE,
+    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
+    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
@@ -1155,11 +1154,10 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const LAYOUT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const MARKINGS_MM_TO_UNITS = LAYOUT_MM_TO_UNITS;
-const COMPONENT_MM_TO_UNITS = LAYOUT_MM_TO_UNITS / TABLE_PLAYFIELD_UPSCALE;
+const MM_TO_UNITS = innerLong / WIDTH_REF;
+const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
-const BALL_DIAMETER = BALL_D_REF * COMPONENT_MM_TO_UNITS * BALL_SIZE_SCALE;
+const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
@@ -1192,8 +1190,8 @@ const POCKET_SIDE_MOUTH_SCALE =
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
 const SIDE_POCKET_CUT_SCALE = 0.985; // match Pool Royale middle pocket cut size
 const POCKET_CORNER_MOUTH =
-  CORNER_MOUTH_REF * COMPONENT_MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * COMPONENT_MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1208,7 +1206,7 @@ const CORNER_CHROME_NOTCH_RADIUS =
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
   POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
-const POCKET_MOUTH_TOLERANCE = 0.5 * COMPONENT_MM_TO_UNITS;
+const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
@@ -1218,7 +1216,7 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * COMPONENT_MM_TO_UNITS,
+  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
 const CLOTH_LIFT = (() => {
@@ -14296,7 +14294,7 @@ const powerRef = useRef(hud.power);
           ? worldScaleFactor
           : WORLD_SCALE * tableScale;
         const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
-        const unitsPerMeter = LAYOUT_MM_TO_UNITS * 1000 * resolvedWorldScale;
+        const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
         const cameraHeightMeters = Math.max(
           activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
           MIN_HDRI_CAMERA_HEIGHT_M
