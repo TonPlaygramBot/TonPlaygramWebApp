@@ -1,14 +1,14 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-export const MAX_SPIN_OFFSET = 0.7;
+export const MAX_SPIN_OFFSET = 1;
 export const SPIN_STUN_RADIUS = 0.16;
-export const SPIN_RING1_RADIUS = 0.32;
-export const SPIN_RING2_RADIUS = 0.52;
+export const SPIN_RING1_RADIUS = 0.33;
+export const SPIN_RING2_RADIUS = 0.66;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
 export const SPIN_LEVEL0_MAG = 0;
-export const SPIN_LEVEL1_MAG = 0.18 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL2_MAG = 0.45 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL3_MAG = 0.9 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
+export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
+export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = 0;
 
@@ -51,28 +51,28 @@ export const SPIN_DIRECTIONS = [
   {
     id: 'top-left',
     label: 'TOPSPIN + LEFT',
-    offset: { x: -0.45, y: 0.45 },
+    offset: { x: -SPIN_RING2_RADIUS, y: SPIN_RING2_RADIUS },
     effect:
       'Offset diagonal sipër-majtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
   },
   {
     id: 'top-right',
     label: 'TOPSPIN + RIGHT',
-    offset: { x: 0.45, y: 0.45 },
+    offset: { x: SPIN_RING2_RADIUS, y: SPIN_RING2_RADIUS },
     effect:
       'Offset diagonal sipër-djathtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
   },
   {
     id: 'back-left',
     label: 'BACKSPIN + LEFT',
-    offset: { x: -0.45, y: -0.45 },
+    offset: { x: -SPIN_RING2_RADIUS, y: -SPIN_RING2_RADIUS },
     effect:
       'Offset diagonal poshtë-majtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
   },
   {
     id: 'back-right',
     label: 'BACKSPIN + RIGHT',
-    offset: { x: 0.45, y: -0.45 },
+    offset: { x: SPIN_RING2_RADIUS, y: -SPIN_RING2_RADIUS },
     effect:
       'Offset diagonal poshtë-djathtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
   }
