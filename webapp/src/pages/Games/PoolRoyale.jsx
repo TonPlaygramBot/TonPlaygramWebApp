@@ -5054,7 +5054,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = Math.max(38, STANDING_VIEW_FOV * 0.88);
+const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -17248,13 +17248,11 @@ const powerRef = useRef(hud.power);
               activeShotView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusBallPos2D = focusBall?.pos
-              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
-              : activeShotView.lastBallPos?.clone?.() ?? null;
             const focusPoint2D =
-              focusBallPos2D ??
-              activeShotView.fixedTarget2D?.clone?.() ??
-              pocketCenter2D;
+              activeShotView.fixedTarget2D?.clone?.() ?? pocketCenter2D;
+            if (!activeShotView.fixedTarget2D) {
+              activeShotView.fixedTarget2D = focusPoint2D.clone();
+            }
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
