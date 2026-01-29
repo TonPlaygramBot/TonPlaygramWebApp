@@ -24780,15 +24780,21 @@ const powerRef = useRef(hud.power);
               cueFollowDirSpinAdjusted.normalize();
             }
           }
-          const cueFollowLength =
-            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
+          const spinMagnitude = Math.hypot(physicsSpin.x || 0, physicsSpin.y || 0);
+          const spinIndicator = THREE.MathUtils.clamp(spinMagnitude, 0, 1);
+          const spinIndicatorActive = spinIndicator > 1e-3;
+          const cueFollowLength = spinIndicatorActive
+            ? BALL_R * (6 + spinIndicator * 30)
+            : BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
-          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.material.color.setHex(
+            spinIndicatorActive ? 0xff3b3b : cueBackwards ? 0xff3b3b : 0x7ce7ff
+          );
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
@@ -25044,15 +25050,21 @@ const powerRef = useRef(hud.power);
               cueFollowDirSpinAdjusted.normalize();
             }
           }
-          const cueFollowLength =
-            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
+          const spinMagnitude = Math.hypot(remotePhysicsSpin.x || 0, remotePhysicsSpin.y || 0);
+          const spinIndicator = THREE.MathUtils.clamp(spinMagnitude, 0, 1);
+          const spinIndicatorActive = spinIndicator > 1e-3;
+          const cueFollowLength = spinIndicatorActive
+            ? BALL_R * (6 + spinIndicator * 30)
+            : BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
-          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.material.color.setHex(
+            spinIndicatorActive ? 0xff3b3b : cueBackwards ? 0xff3b3b : 0x7ce7ff
+          );
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
