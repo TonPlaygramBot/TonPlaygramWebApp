@@ -1512,7 +1512,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 4.21875; // +50% more shot power
+const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1632,13 +1632,12 @@ const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
-const DEFAULT_CUSHION_CUT_ANGLE = 45;
-// middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
+const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
 const SIDE_POCKET_CUT_SIGNS = [-1, 1];
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -5023,6 +5022,7 @@ const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the 
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
+const CUE_VIEW_SPIN_ZOOM = 0;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
@@ -5032,7 +5032,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
+const POCKET_CAMERA_FOV = Math.max(38, STANDING_VIEW_FOV * 0.88);
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -5588,12 +5588,14 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-0.72, 1).normalize(),
-  BR: new THREE.Vector2(0.72, 1).normalize()
+  BR: new THREE.Vector2(0.72, 1).normalize(),
+  TM: new THREE.Vector2(-1, 0).normalize(),
+  BM: new THREE.Vector2(1, 0).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -5605,20 +5607,10 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BL':
     case 'BR':
       return pocketId;
-    case 'TM': {
-      const ballY = ballPos?.y ?? 0;
-      if (ballY > 0.01) return 'BL';
-      if (ballY < -0.01) return 'TL';
-      const dirY = approachDir?.y ?? 0;
-      return dirY >= 0 ? 'BL' : 'TL';
-    }
-    case 'BM': {
-      const ballY = ballPos?.y ?? 0;
-      if (ballY > 0.01) return 'BR';
-      if (ballY < -0.01) return 'TR';
-      const dirY = approachDir?.y ?? 0;
-      return dirY >= 0 ? 'BR' : 'TR';
-    }
+    case 'TM':
+      return 'TM';
+    case 'BM':
+      return 'BM';
     default:
       return pocketId;
   }
@@ -17398,6 +17390,21 @@ const powerRef = useRef(hud.power);
               );
             }
           }
+          if (!replayActive && !shooting && cue?.active) {
+            const spinInput = spinRef.current ?? { x: 0, y: 0 };
+            const spinMagnitude = Math.hypot(spinInput.x ?? 0, spinInput.y ?? 0);
+            if (spinMagnitude > 1e-4) {
+              const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+              const cueBias = 1 - blend;
+              if (cueBias > 1e-3) {
+                const zoom = spinMagnitude * CUE_VIEW_SPIN_ZOOM * cueBias;
+                TMP_SPH.radius = clampOrbitRadius(
+                  TMP_SPH.radius - zoom,
+                  CUE_VIEW_MIN_RADIUS
+                );
+              }
+            }
+          }
           const aimLineWorldY =
             (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
           const scaleFactor = Number.isFinite(worldScaleFactor)
@@ -25527,9 +25534,8 @@ const powerRef = useRef(hud.power);
         const spinCenter = spinLeft + spinWidth / 2;
         const desiredCenter = (leftCenter + spinCenter) / 2;
         const screenCenter = viewportWidth / 2;
-        const chatButtonOffset = 3.15 * 16;
         setBottomHudOffset(
-          desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX + chatButtonOffset
+          desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX
         );
       } else {
         setBottomHudOffset(0);
