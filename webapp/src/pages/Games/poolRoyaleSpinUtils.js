@@ -1,18 +1,16 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-export const MAX_SPIN_OFFSET = 0.68;
-export const SPIN_STUN_RADIUS = 0.24;
+export const MAX_SPIN_OFFSET = 0.7;
+export const SPIN_STUN_RADIUS = 0.16;
 export const SPIN_RING1_RADIUS = 0.32;
-export const SPIN_RING2_RADIUS = 0.48;
+export const SPIN_RING2_RADIUS = 0.52;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
 export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = 0.18 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL2_MAG = 0.42 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL3_MAG = 0.82 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL2_MAG = 0.45 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL3_MAG = 0.9 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = 0;
-export const SPIN_RESPONSE_POWER = 1.35;
-export const SPIN_OUTPUT_GAIN = 1.08;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -53,28 +51,28 @@ export const SPIN_DIRECTIONS = [
   {
     id: 'top-left',
     label: 'TOPSPIN + LEFT',
-    offset: { x: -0.34, y: 0.34 },
+    offset: { x: -0.45, y: 0.45 },
     effect:
       'Offset diagonal sipër-majtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
   },
   {
     id: 'top-right',
     label: 'TOPSPIN + RIGHT',
-    offset: { x: 0.34, y: 0.34 },
+    offset: { x: 0.45, y: 0.45 },
     effect:
       'Offset diagonal sipër-djathtas: follow me efekt në banda dhe cut shots, me spin lateral aktiv.'
   },
   {
     id: 'back-left',
     label: 'BACKSPIN + LEFT',
-    offset: { x: -0.34, y: -0.34 },
+    offset: { x: -0.45, y: -0.45 },
     effect:
       'Offset diagonal poshtë-majtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
   },
   {
     id: 'back-right',
     label: 'BACKSPIN + RIGHT',
-    offset: { x: 0.34, y: -0.34 },
+    offset: { x: 0.45, y: -0.45 },
     effect:
       'Offset diagonal poshtë-djathtas: draw me kontroll lateral pas kontaktit dhe reagim më agresiv me bandat.'
   }
@@ -136,36 +134,10 @@ export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
   const distance = Math.hypot(x, y);
-  const deadzone = Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE);
-  if (distance <= deadzone) {
+  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
     return { x: 0, y: STUN_TOPSPIN_BIAS };
   }
-  const clamped = clampToUnitCircle(x, y);
-  const clampedDistance = Math.min(1, Math.hypot(clamped.x, clamped.y));
-  const normalizedDistance = clamp(
-    (clampedDistance - deadzone) / Math.max(1 - deadzone, 1e-6),
-    0,
-    1
-  );
-  const eased = Math.pow(normalizedDistance, SPIN_RESPONSE_POWER);
-  const scale = eased / Math.max(clampedDistance, 1e-6);
-  const result = { x: clamped.x * scale, y: clamped.y * scale };
-  if (result.y < 0) {
-    const centerWeight = clamp(1 - Math.abs(clamped.x) / 0.3, 0, 1);
-    const ringWeight = clamp((0.45 - clampedDistance) / 0.45, 0, 1);
-    const boost = 0.04 * centerWeight * ringWeight;
-    if (boost > 0) {
-      result.y = clamp(result.y - boost, -1, 1);
-    }
-  }
-  const gain = Number.isFinite(SPIN_OUTPUT_GAIN) ? SPIN_OUTPUT_GAIN : 1;
-  if (gain !== 1) {
-    return {
-      x: clamp(result.x * gain, -1, 1),
-      y: clamp(result.y * gain, -1, 1)
-    };
-  }
-  return result;
+  return computeQuantizedOffsetScaled(x, y);
 };
 
 export const mapUiOffsetToCueFrame = (
@@ -194,7 +166,7 @@ export const mapUiOffsetToCueFrame = (
       : { x: 0, z: 1 };
   const side = { x: -forwardPlanar.z, z: forwardPlanar.x };
   return {
-    x: offsetWorld.x * side.x + offsetWorld.z * side.z,
+    x: -(offsetWorld.x * side.x + offsetWorld.z * side.z),
     y: offsetWorld.x * forwardPlanar.x + offsetWorld.z * forwardPlanar.z
   };
 };
