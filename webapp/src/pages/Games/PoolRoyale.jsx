@@ -12465,6 +12465,7 @@ function PoolRoyaleGame({
   const aiPlanCacheRef = useRef({ key: null, plan: null });
   const aiPlanningRef = useRef(null);
   const aiTurnShotCountRef = useRef(0);
+  const aiLastPlannedShotRef = useRef(0);
   const lastTurnRef = useRef(0);
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
@@ -17247,8 +17248,13 @@ const powerRef = useRef(hud.power);
               activeShotView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
+            const focusBallPos2D = focusBall?.pos
+              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
+              : activeShotView.lastBallPos?.clone?.() ?? null;
             const focusPoint2D =
-              activeShotView.fixedTarget2D?.clone?.() ?? pocketCenter2D;
+              focusBallPos2D ??
+              activeShotView.fixedTarget2D?.clone?.() ??
+              pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
@@ -23234,6 +23240,12 @@ const powerRef = useRef(hud.power);
         };
         const startAiThinking = () => {
           stopAiThinking();
+          if (aiLastPlannedShotRef.current !== aiTurnShotCountRef.current) {
+            aiLastPlannedShotRef.current = aiTurnShotCountRef.current;
+            aiPlanRef.current = null;
+            aiPlanCacheRef.current = { key: null, plan: null };
+            setAiPlanning(null);
+          }
           if (!allStopped(balls)) {
             aiPlanRef.current = null;
             setAiPlanning(null);

@@ -10,7 +10,7 @@ export const SPIN_LEVEL1_MAG = 0.18 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.42 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 0.82 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.02;
+export const STUN_TOPSPIN_BIAS = -0.01;
 export const SPIN_RESPONSE_POWER = 1.35;
 
 export const SPIN_DIRECTIONS = [
