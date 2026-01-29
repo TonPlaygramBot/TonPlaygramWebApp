@@ -1355,12 +1355,12 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.04; // lift the chrome holder rails slightly so the L segments sit higher
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.0; // raise the resting spot so potted balls clear the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1369,11 +1369,11 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap a bit higher than the holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.2;
+const POCKET_CAM_EDGE_SCALE = 0.46;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1395,7 +1395,7 @@ const POCKET_CAM = Object.freeze({
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.82,
+  distanceScale: 1,
   heightScale: 0.98,
   focusBlend: 0,
   lateralFocusShift: 0,
@@ -17308,8 +17308,8 @@ const powerRef = useRef(hud.power);
               ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
               : activeShotView.lastBallPos?.clone?.() ?? null;
             const focusPoint2D =
-              focusBallPos2D ??
               activeShotView.fixedTarget2D?.clone?.() ??
+              focusBallPos2D ??
               pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
@@ -25767,6 +25767,7 @@ const powerRef = useRef(hud.power);
                   BALL_CENTER_Y + POCKET_POPUP_LIFT,
                   c.y
                 );
+                popupMesh.visible = !pocketCameraStateRef.current;
                 popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
                 popupMesh.castShadow = false;
                 popupMesh.receiveShadow = false;
@@ -26030,6 +26031,7 @@ const powerRef = useRef(hud.power);
           if (pocketPopupRef.current.length > 0) {
             pocketPopupRef.current = pocketPopupRef.current.filter((entry) => {
               if (!entry?.mesh) return false;
+              entry.mesh.visible = !pocketCameraStateRef.current;
               if (now < entry.expiresAt) return true;
               entry.mesh.parent?.remove?.(entry.mesh);
               return false;
@@ -26460,12 +26462,11 @@ const powerRef = useRef(hud.power);
     };
 
     const setSpin = (nx, ny) => {
-      const raw = clampToUnitCircle(nx, ny);
-      spinRequestRef.current = raw;
-      const limited = clampToLimits(raw.x, raw.y);
-      const clamped = clampToUnitCircle(limited.x, limited.y);
-      const normalized = normalizeSpinInput(clamped);
-      spinRef.current = normalized;
+      const normalized = normalizeSpinInput({ x: nx, y: ny });
+      spinRequestRef.current = normalized;
+      const limited = clampToLimits(normalized.x, normalized.y);
+      const limitedNormalized = normalizeSpinInput(limited);
+      spinRef.current = limitedNormalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -26476,17 +26477,12 @@ const powerRef = useRef(hud.power);
       const viewVec = cueBall && activeCamera
         ? computeCueViewVector(cueBall, activeCamera)
         : null;
-      const legality = checkSpinLegality2D(
-        cueBall,
-        clamped,
-        ballsList || [],
-        {
-          axes,
-          view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
-        }
-      );
+      const legality = checkSpinLegality2D(cueBall, normalized, ballsList || [], {
+        axes,
+        view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+      });
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(clamped, legality.blocked);
+      updateSpinDotPosition(limitedNormalized, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
