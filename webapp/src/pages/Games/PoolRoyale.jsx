@@ -1584,8 +1584,8 @@ const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes control
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 360;
-const PLAYER_CUE_FORWARD_MAX_MS = 780;
+const PLAYER_CUE_FORWARD_MIN_MS = 240;
+const PLAYER_CUE_FORWARD_MAX_MS = 520;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -4983,9 +4983,6 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
 });
-const RAIL_OVERHEAD_TOP_VIEW_MARGIN = 1.14;
-const RAIL_OVERHEAD_MIN_RADIUS_SCALE = 1.06;
-const RAIL_OVERHEAD_RADIUS_SCALE = 1.06;
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
@@ -5091,7 +5088,7 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 260;
-const AI_CUE_FORWARD_DURATION_MS = 360;
+const AI_CUE_FORWARD_DURATION_MS = 240;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -15028,8 +15025,8 @@ const powerRef = useRef(hud.power);
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
         const topDownRadius = Math.max(
-          fitRadius(tempCamera, RAIL_OVERHEAD_TOP_VIEW_MARGIN) * RAIL_OVERHEAD_RADIUS_SCALE,
-          CAMERA.minR * RAIL_OVERHEAD_MIN_RADIUS_SCALE
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
         return topDownRadius;
       };
@@ -18717,8 +18714,8 @@ const powerRef = useRef(hud.power);
               if (quat) {
                 cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
               }
-              cueStick.visible = true;
-              cueAnimating = true;
+              cueStick.visible = cueSnapshot.visible ?? true;
+              cueAnimating = cueStick.visible;
               syncCueShadow();
               return;
             }
