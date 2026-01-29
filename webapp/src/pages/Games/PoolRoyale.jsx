@@ -1606,9 +1606,6 @@ const CUE_OBSTRUCTION_LIFT = BALL_R * 0.56;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
-const CUE_OBSTRUCTION_HELPER_PADDING = CUE_TIP_RADIUS * 0.9;
-const CUE_OBSTRUCTION_HELPER_INFLUENCE = 0.85;
-const CUE_OBSTRUCTION_SAMPLE_POINTS = 6;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -5056,8 +5053,6 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
-const BACKSPIN_PREVIEW_MIN = 0.08;
-const BACKSPIN_PREVIEW_EXP = 0.65;
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
@@ -5240,13 +5235,6 @@ const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
 const TMP_VEC3_CAM_DIR = new THREE.Vector3();
 const TMP_VEC3_CUE_DIR = new THREE.Vector3();
-const TMP_VEC3_SPIN_CONTACT = new THREE.Vector3();
-const TMP_VEC3_OBSTRUCT_START = new THREE.Vector3();
-const TMP_VEC3_OBSTRUCT_END = new THREE.Vector3();
-const TMP_VEC3_OBSTRUCT_DELTA = new THREE.Vector3();
-const TMP_VEC3_OBSTRUCT_POINT = new THREE.Vector3();
-const TMP_VEC3_OBSTRUCT_CLOSEST = new THREE.Vector3();
-let SPIN_CUSHION_HELPERS = [];
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -5405,19 +5393,6 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     Math.abs(contact.y) > cushionClearY
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
-  }
-  if (SPIN_CUSHION_HELPERS.length) {
-    TMP_VEC3_SPIN_CONTACT.set(contact.x, BALL_CENTER_Y, contact.y);
-    for (const box of SPIN_CUSHION_HELPERS) {
-      if (!box) continue;
-      box.clampPoint(TMP_VEC3_SPIN_CONTACT, TMP_VEC3_OBSTRUCT_CLOSEST);
-      if (
-        TMP_VEC3_OBSTRUCT_CLOSEST.distanceToSquared(TMP_VEC3_SPIN_CONTACT) <=
-        SPIN_CUSHION_EPS * SPIN_CUSHION_EPS
-      ) {
-        return { blocked: true, reason: 'Cushion blocks that strike point' };
-      }
-    }
   }
   const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
   const blockingRadiusSq = blockingRadius * blockingRadius;
@@ -6763,34 +6738,6 @@ function updateCushionSegmentsFromTable(table) {
   });
   CUSHION_SEGMENTS = segments;
   table.userData.cushionSegments = segments;
-}
-
-function updateCueObstructionHelpersFromTable(table) {
-  if (!table?.userData?.cushions?.length) {
-    if (table?.userData) {
-      table.userData.cueObstructionHelpers = { cushions: [], padding: 0 };
-    }
-    SPIN_CUSHION_HELPERS = [];
-    return;
-  }
-  table.updateMatrixWorld(true);
-  const cushions = [];
-  table.userData.cushions.forEach((cushion) => {
-    if (!cushion) return;
-    const box = new THREE.Box3().setFromObject(cushion);
-    const padded = box.clone().expandByScalar(CUE_OBSTRUCTION_HELPER_PADDING);
-    cushions.push({
-      box: padded,
-      baseBox: box,
-      horizontal: cushion.userData?.horizontal,
-      side: cushion.userData?.side
-    });
-  });
-  table.userData.cueObstructionHelpers = {
-    cushions,
-    padding: CUE_OBSTRUCTION_HELPER_PADDING
-  };
-  SPIN_CUSHION_HELPERS = cushions.map((entry) => entry.box);
 }
 
 // --------------------------------------------------
@@ -10726,7 +10673,6 @@ export function Table3D(
   table.updateMatrixWorld(true);
   updateRailLimitsFromTable(table);
   updateCushionSegmentsFromTable(table);
-  updateCueObstructionHelpersFromTable(table);
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopLocal = cushionTopLocal;
@@ -24681,73 +24627,6 @@ const powerRef = useRef(hud.power);
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
             strength = Math.max(strength, influence);
           });
-          const cushionHelpers = table?.userData?.cueObstructionHelpers?.cushions ?? [];
-          if (cushionHelpers.length || balls.length) {
-            const offsetX = cueOffset?.x ?? 0;
-            const offsetY = cueOffset?.y ?? 0;
-            const offsetZ = cueOffset?.z ?? 0;
-            TMP_VEC3_OBSTRUCT_START.set(
-              cue.pos.x + offsetX - dirVec3.x * (CUE_TIP_GAP + pullDistance),
-              CUE_Y + offsetY,
-              cue.pos.y + offsetZ - dirVec3.z * (CUE_TIP_GAP + pullDistance)
-            );
-            TMP_VEC3_OBSTRUCT_DELTA.set(-dirVec3.x, 0, -dirVec3.z);
-            if (TMP_VEC3_OBSTRUCT_DELTA.lengthSq() > 1e-8) {
-              TMP_VEC3_OBSTRUCT_DELTA.normalize();
-            } else {
-              TMP_VEC3_OBSTRUCT_DELTA.set(0, 0, 1);
-            }
-            TMP_VEC3_OBSTRUCT_END
-              .copy(TMP_VEC3_OBSTRUCT_START)
-              .addScaledVector(TMP_VEC3_OBSTRUCT_DELTA, cueLen);
-            const segmentLength = Math.max(cueLen, 1e-4);
-            balls.forEach((b) => {
-              if (!b?.active || b === cue) return;
-              TMP_VEC3_OBSTRUCT_POINT.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-              TMP_VEC3_OBSTRUCT_CLOSEST
-                .copy(TMP_VEC3_OBSTRUCT_POINT)
-                .sub(TMP_VEC3_OBSTRUCT_START);
-              const t = THREE.MathUtils.clamp(
-                TMP_VEC3_OBSTRUCT_CLOSEST.dot(TMP_VEC3_OBSTRUCT_DELTA) / segmentLength,
-                0,
-                segmentLength
-              );
-              TMP_VEC3_OBSTRUCT_CLOSEST
-                .copy(TMP_VEC3_OBSTRUCT_START)
-                .addScaledVector(TMP_VEC3_OBSTRUCT_DELTA, t);
-              const dist = TMP_VEC3_OBSTRUCT_CLOSEST.distanceTo(TMP_VEC3_OBSTRUCT_POINT);
-              const clearance = BALL_R + CUE_TIP_RADIUS * 0.95;
-              if (dist > clearance) return;
-              const proximity = THREE.MathUtils.clamp(1 - dist / clearance, 0, 1);
-              const depth = THREE.MathUtils.clamp(1 - t / segmentLength, 0, 1);
-              const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-              strength = Math.max(strength, influence);
-            });
-            cushionHelpers.forEach((helper) => {
-              const box = helper?.box;
-              if (!box) return;
-              let minDistance = Infinity;
-              for (let i = 0; i <= CUE_OBSTRUCTION_SAMPLE_POINTS; i += 1) {
-                const t = i / CUE_OBSTRUCTION_SAMPLE_POINTS;
-                TMP_VEC3_OBSTRUCT_POINT
-                  .copy(TMP_VEC3_OBSTRUCT_START)
-                  .addScaledVector(TMP_VEC3_OBSTRUCT_DELTA, segmentLength * t);
-                box.clampPoint(TMP_VEC3_OBSTRUCT_POINT, TMP_VEC3_OBSTRUCT_CLOSEST);
-                const dist = TMP_VEC3_OBSTRUCT_CLOSEST.distanceTo(TMP_VEC3_OBSTRUCT_POINT);
-                if (dist < minDistance) minDistance = dist;
-              }
-              if (minDistance > CUE_OBSTRUCTION_CLEARANCE) return;
-              const proximity = THREE.MathUtils.clamp(
-                1 - minDistance / CUE_OBSTRUCTION_CLEARANCE,
-                0,
-                1
-              );
-              strength = Math.max(
-                strength,
-                proximity * Math.max(CUE_OBSTRUCTION_HELPER_INFLUENCE, CUE_OBSTRUCTION_RAIL_INFLUENCE)
-              );
-            });
-          }
           const topspinLift = Math.max(0, cueOffset?.y ?? 0);
           if (strength > 0 && topspinLift > 0) {
             const topspinRatio = THREE.MathUtils.clamp(
@@ -24876,8 +24755,6 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
-          const cuePerp = backSpinWeight > 1e-6 ? perp.clone().multiplyScalar(-1) : perp;
           const spinSideInfluence =
             (physicsSpin.x || 0) *
             (0.4 + 0.42 * powerStrength) *
@@ -24885,21 +24762,14 @@ const powerRef = useRef(hud.power);
           const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
-            .add(cuePerp.clone().multiplyScalar(spinSideInfluence))
+            .add(perp.clone().multiplyScalar(spinSideInfluence))
             .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
-            const drawLerp = Math.min(
-              1,
-              Math.max(
-                BACKSPIN_PREVIEW_MIN,
-                Math.pow(backSpinWeight, BACKSPIN_PREVIEW_EXP)
-              ) *
-                (0.6 + 0.4 * powerStrength) *
-                BACKSPIN_DIRECTION_PREVIEW
-            );
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
             cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
             if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
@@ -25149,8 +25019,6 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
-          const cuePerp = backSpinWeight > 1e-6 ? perp.clone().multiplyScalar(-1) : perp;
           const spinSideInfluence =
             (remotePhysicsSpin.x || 0) *
             (0.4 + 0.42 * powerStrength) *
@@ -25158,21 +25026,14 @@ const powerRef = useRef(hud.power);
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
-            .add(cuePerp.clone().multiplyScalar(spinSideInfluence))
+            .add(perp.clone().multiplyScalar(spinSideInfluence))
             .add(baseDir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
+          const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
-            const drawLerp = Math.min(
-              1,
-              Math.max(
-                BACKSPIN_PREVIEW_MIN,
-                Math.pow(backSpinWeight, BACKSPIN_PREVIEW_EXP)
-              ) *
-                (0.6 + 0.4 * powerStrength) *
-                BACKSPIN_DIRECTION_PREVIEW
-            );
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = baseDir.clone().negate();
             cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
             if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
