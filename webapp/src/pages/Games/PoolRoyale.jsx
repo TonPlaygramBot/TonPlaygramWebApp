@@ -1355,12 +1355,12 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1369,11 +1369,11 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.2;
+const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1395,8 +1395,8 @@ const POCKET_CAM = Object.freeze({
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.82,
-  heightScale: 0.98,
+  distanceScale: 1,
+  heightScale: 1,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -5054,7 +5054,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = Math.max(38, STANDING_VIEW_FOV * 0.88);
+const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -13057,6 +13057,7 @@ const powerRef = useRef(hud.power);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
   const pocketPopupRef = useRef([]);
+  const pocketPopupPendingRef = useRef([]);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -17303,7 +17304,7 @@ const powerRef = useRef(hud.power);
             if (!activeShotView.anchorOutward) {
               activeShotView.anchorOutward = outward.clone();
             }
-            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.6;
             const focusBallPos2D = focusBall?.pos
               ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
               : activeShotView.lastBallPos?.clone?.() ?? null;
@@ -25761,20 +25762,32 @@ const powerRef = useRef(hud.power);
               if (b.id === 'cue') b.impacted = false;
               const isCueBall = b.id === 'cue';
               if (b.mesh && table && !isCueBall) {
-                const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
-                popupMesh.position.set(
-                  c.x,
-                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
-                  c.y
-                );
-                popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
-                popupMesh.castShadow = false;
-                popupMesh.receiveShadow = false;
-                table.add(popupMesh);
-                pocketPopupRef.current.push({
-                  mesh: popupMesh,
-                  expiresAt: performance.now() + POCKET_POPUP_DURATION_MS
-                });
+                if (pocketCameraStateRef.current) {
+                  pocketPopupPendingRef.current.push({
+                    position: new THREE.Vector3(
+                      c.x,
+                      BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                      c.y
+                    ),
+                    material: b.mesh.material,
+                    renderOrder: (b.mesh.renderOrder ?? 0) + 1
+                  });
+                } else {
+                  const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
+                  popupMesh.position.set(
+                    c.x,
+                    BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                    c.y
+                  );
+                  popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
+                  popupMesh.castShadow = false;
+                  popupMesh.receiveShadow = false;
+                  table.add(popupMesh);
+                  pocketPopupRef.current.push({
+                    mesh: popupMesh,
+                    expiresAt: performance.now() + POCKET_POPUP_DURATION_MS
+                  });
+                }
               }
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const dropStart = performance.now();
@@ -26035,6 +26048,26 @@ const powerRef = useRef(hud.power);
               return false;
             });
           }
+          if (
+            !pocketCameraStateRef.current &&
+            pocketPopupPendingRef.current.length > 0 &&
+            table
+          ) {
+            const pending = pocketPopupPendingRef.current.splice(0);
+            pending.forEach((entry) => {
+              if (!entry?.material || !entry?.position) return;
+              const popupMesh = new THREE.Mesh(BALL_GEOMETRY, entry.material);
+              popupMesh.position.copy(entry.position);
+              popupMesh.renderOrder = entry.renderOrder ?? 0;
+              popupMesh.castShadow = false;
+              popupMesh.receiveShadow = false;
+              table.add(popupMesh);
+              pocketPopupRef.current.push({
+                mesh: popupMesh,
+                expiresAt: now + POCKET_POPUP_DURATION_MS
+              });
+            });
+          }
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
@@ -26156,6 +26189,7 @@ const powerRef = useRef(hud.power);
           entry?.mesh?.parent?.remove?.(entry.mesh);
         });
         pocketPopupRef.current = [];
+        pocketPopupPendingRef.current = [];
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = null;
