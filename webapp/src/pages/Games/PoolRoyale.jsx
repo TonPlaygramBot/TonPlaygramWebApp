@@ -26473,31 +26473,27 @@ const powerRef = useRef(hud.power);
       }),
     []
   );
-  const spinRingLabels = useMemo(
-    () => {
-      const radius = 72;
-      const labels = [
-        { text: 'HIGH', angle: -90 },
-        { text: 'HIGH RIGHT', angle: -45 },
-        { text: 'RIGHT', angle: 0 },
-        { text: 'LOW RIGHT', angle: 45 },
-        { text: 'LOW', angle: 90 },
-        { text: 'LOW LEFT', angle: 135 },
-        { text: 'LEFT', angle: 180 },
-        { text: 'HIGH LEFT', angle: -135 }
-      ];
-      return labels.map((label) => {
-        const radians = (label.angle * Math.PI) / 180;
-        return {
-          text: label.text,
-          left: 50 + Math.cos(radians) * radius,
-          top: 50 + Math.sin(radians) * radius,
-          rotation: label.angle + 90
-        };
-      });
-    },
-    []
-  );
+  const spinRingLabels = useMemo(() => {
+    const radius = SPIN_CONTROL_DIAMETER_PX / 2 + (isPortrait ? 22 : 16);
+    const labels = [
+      { text: 'HIGH', angle: -90 },
+      { text: 'HIGH RIGHT', angle: -45 },
+      { text: 'RIGHT', angle: 0 },
+      { text: 'LOW RIGHT', angle: 45 },
+      { text: 'LOW', angle: 90 },
+      { text: 'LOW LEFT', angle: 135 },
+      { text: 'LEFT', angle: 180 },
+      { text: 'HIGH LEFT', angle: -135 }
+    ];
+    return labels.map((label) => {
+      const radians = (label.angle * Math.PI) / 180;
+      return {
+        text: label.text,
+        x: Math.cos(radians) * radius,
+        y: Math.sin(radians) * radius
+      };
+    });
+  }, [isPortrait]);
 
   // Spin controller interactions
   useEffect(() => {
@@ -28157,7 +28153,7 @@ const powerRef = useRef(hud.power);
           className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             bottom: `${6 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale * 0.88})`,
+            transform: `scale(${uiScale * (isPortrait ? 0.98 : 0.88)})`,
             transformOrigin: 'bottom right'
           }}
         >
@@ -28167,15 +28163,18 @@ const powerRef = useRef(hud.power);
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
+              background: isPortrait
+                ? `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7), rgba(255,255,255,0) 40%), radial-gradient(circle at center, #f9f0d6 0 58%, #b91c1c 59% 100%)`
+                : `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
             }}
           >
             <div className="absolute inset-0 rounded-full overflow-hidden">
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
+                  boxShadow: isPortrait
+                    ? 'inset 0 0 0 2px rgba(255,255,255,0.45), inset 0 14px 24px rgba(255,255,255,0.22), inset 0 -14px 24px rgba(0,0,0,0.35)'
+                    : 'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
                   pointerEvents: 'none'
                 }}
               />
@@ -28183,21 +28182,23 @@ const powerRef = useRef(hud.power);
                 className="absolute rounded-full"
                 style={{
                   inset: `${SPIN_RING_THICKNESS_PX}px`,
-                  background: '#fef6df',
-                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                  background: isPortrait ? '#f8eed2' : '#fef6df',
+                  boxShadow: isPortrait
+                    ? 'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 0 0 6px rgba(185,28,28,0.35)'
+                    : 'inset 0 0 0 2px rgba(255,255,255,0.6)',
                   pointerEvents: 'none'
                 }}
               />
               <div
-                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
+                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-600/70"
                 style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
               />
               <div
-                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
+                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-600/70"
                 style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
               />
               <div
-                className="absolute rounded-full border-2 border-rose-500/70"
+                className="absolute rounded-full border-2 border-rose-600/80"
                 style={{
                   width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
                   height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
@@ -28207,6 +28208,23 @@ const powerRef = useRef(hud.power);
                   pointerEvents: 'none'
                 }}
               />
+              {isPortrait && (
+                <div className="absolute inset-0 pointer-events-none">
+                  {spinRingLabels.map((label) => (
+                    <span
+                      key={label.text}
+                      className="absolute text-[10px] font-semibold uppercase tracking-[0.2em] text-[#b91c1c] drop-shadow-[0_2px_2px_rgba(0,0,0,0.45)]"
+                      style={{
+                        left: `calc(50% + ${label.x}px)`,
+                        top: `calc(50% + ${label.y}px)`,
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      {label.text}
+                    </span>
+                  ))}
+                </div>
+              )}
               {spinDecorationPoints.map((point, index) => (
                 <span
                   key={`spin-deco-${index}`}
