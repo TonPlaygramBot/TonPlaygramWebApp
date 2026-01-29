@@ -10,9 +10,8 @@ export const SPIN_LEVEL1_MAG = 0.18 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.42 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 0.82 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.1;
+export const STUN_TOPSPIN_BIAS = -0.06;
 export const SPIN_RESPONSE_POWER = 1.35;
-export const BACKSPIN_RESPONSE_POWER = 1.25;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -151,12 +150,9 @@ export const normalizeSpinInput = (spin) => {
   const scale = eased / Math.max(clampedDistance, 1e-6);
   const result = { x: clamped.x * scale, y: clamped.y * scale };
   if (result.y < 0) {
-    const backspinStrength = Math.abs(result.y);
-    const easedBackspin = Math.pow(backspinStrength, BACKSPIN_RESPONSE_POWER);
-    result.y = clamp(-easedBackspin, -1, 1);
     const centerWeight = clamp(1 - Math.abs(clamped.x) / 0.25, 0, 1);
     const ringWeight = clamp((0.5 - clampedDistance) / 0.5, 0, 1);
-    const boost = 0.04 * centerWeight * ringWeight;
+    const boost = 0.08 * centerWeight * ringWeight;
     if (boost > 0) {
       result.y = clamp(result.y - boost, -1, 1);
     }
