@@ -11804,7 +11804,7 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (isTopDownView) {
       topViewLockedRef.current = true;
-      topViewControlsRef.current.enter?.();
+      topViewControlsRef.current.enter?.(false, { variant: 'top' });
     } else {
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
@@ -14525,7 +14525,7 @@ const powerRef = useRef(hud.power);
             if (!shooting) return;
             topViewRef.current = true;
             topViewLockedRef.current = true;
-            enterTopView(true);
+            enterTopView(true, { variant: 'replay' });
           }, SHOT_CAMERA_HOLD_MS);
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
@@ -16717,6 +16717,16 @@ const powerRef = useRef(hud.power);
           } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
+            const movingCount = ballsList.reduce(
+              (count, ball) =>
+                count +
+                (ball.active && ball.vel.lengthSq() > STOP_EPS * STOP_EPS ? 1 : 0),
+              0
+            );
+            const useOverheadBroadcast =
+              activeShotView.preferRailOverhead ||
+              movingCount > POCKET_CHAOS_MOVING_THRESHOLD;
+            let overheadApplied = false;
             if (!cueBall?.active) {
               activeShotView = null;
             } else {
@@ -17095,20 +17105,44 @@ const powerRef = useRef(hud.power);
                 }
               }
               if (focusTargetVec3 && desiredPosition) {
-                if (!activeShotView.smoothedPos) {
-                  activeShotView.smoothedPos = desiredPosition.clone();
-                } else {
-                  activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
+                if (useOverheadBroadcast) {
+                  const railReplayCamera = resolveRailOverheadReplayCamera({
+                    focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                    minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
+                  });
+                  if (railReplayCamera?.position) {
+                    const resolvedTarget =
+                      railReplayCamera.target ??
+                      focusTargetVec3 ??
+                      lookTarget ??
+                      broadcastArgs.focusWorld;
+                    camera.position.copy(railReplayCamera.position);
+                    camera.lookAt(resolvedTarget);
+                    lookTarget = resolvedTarget;
+                    renderCamera = camera;
+                    broadcastArgs.focusWorld = resolvedTarget.clone();
+                    broadcastArgs.targetWorld = resolvedTarget.clone();
+                    broadcastArgs.orbitWorld = railReplayCamera.position.clone();
+                    broadcastArgs.lerp = 0.12;
+                    overheadApplied = true;
+                  }
                 }
-                if (!activeShotView.smoothedTarget) {
-                  activeShotView.smoothedTarget = focusTargetVec3.clone();
-                } else {
-                  activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
+                if (!overheadApplied) {
+                  if (!activeShotView.smoothedPos) {
+                    activeShotView.smoothedPos = desiredPosition.clone();
+                  } else {
+                    activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
+                  }
+                  if (!activeShotView.smoothedTarget) {
+                    activeShotView.smoothedTarget = focusTargetVec3.clone();
+                  } else {
+                    activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
+                  }
+                  camera.position.copy(activeShotView.smoothedPos);
+                  camera.lookAt(activeShotView.smoothedTarget);
+                  lookTarget = activeShotView.smoothedTarget;
+                  renderCamera = camera;
                 }
-                camera.position.copy(activeShotView.smoothedPos);
-                camera.lookAt(activeShotView.smoothedTarget);
-                lookTarget = activeShotView.smoothedTarget;
-                renderCamera = camera;
               }
             }
           } else if (!cameraHoldActive && activeShotView?.mode === 'pocket') {
@@ -17116,12 +17150,6 @@ const powerRef = useRef(hud.power);
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
             );
-            if (focusBall?.active) {
-              activeShotView.lastBallPos.set(
-                focusBall.pos.x,
-                focusBall.pos.y
-              );
-            }
             const pocketCenter = activeShotView.pocketCenter;
             const anchorType =
               activeShotView.anchorType ??
@@ -17219,9 +17247,8 @@ const powerRef = useRef(hud.power);
               activeShotView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusPoint2D = focusBall?.active
-              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
-              : activeShotView.lastBallPos?.clone?.() ?? pocketCenter2D;
+            const focusPoint2D =
+              activeShotView.fixedTarget2D?.clone?.() ?? pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
@@ -17278,7 +17305,7 @@ const powerRef = useRef(hud.power);
             if (!activeShotView.smoothedTarget) {
               activeShotView.smoothedTarget = focusTarget.clone();
             } else {
-              activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
+              activeShotView.smoothedTarget.copy(focusTarget);
             }
             if (pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
@@ -17905,12 +17932,19 @@ const powerRef = useRef(hud.power);
                 fallback: signed(pos.y, 1)
               })
             : railDir;
+          const focusLead = isSidePocket
+            ? POCKET_CAM.railFocusLong ?? POCKET_CAM.railFocusShort
+            : POCKET_CAM.railFocusShort ?? POCKET_CAM.railFocusLong;
+          const fixedTarget2D = best.center
+            .clone()
+            .add(approachDir.clone().multiplyScalar(-focusLead));
           return {
             mode: 'pocket',
             ballId,
             pocketId: anchorPocketId,
             pocketCenter: best.center.clone(),
             approach: approachDir,
+            fixedTarget2D,
             heightOffset,
             heightScale: POCKET_CAM.heightScale,
             lastBallPos: pos.clone(),
@@ -18865,10 +18899,10 @@ const powerRef = useRef(hud.power);
         };
         skipReplayRef.current = skipReplay;
 
-        const enterTopView = (immediate = false) => {
+        const enterTopView = (immediate = false, { variant = 'top' } = {}) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = 'top';
+          overheadBroadcastVariantRef.current = variant;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
