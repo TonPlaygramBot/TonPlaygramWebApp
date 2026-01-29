@@ -1065,11 +1065,12 @@ const ENABLE_TABLE_MAPPING_LINES = false;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
+  const TABLE_SIZE_MULTIPLIER = 3569 / 2540;
   const TABLE = {
-    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
-    THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
+    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
+    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
+    THICK: 1.8 * TABLE_SCALE * TABLE_SIZE_MULTIPLIER,
+    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
@@ -1154,10 +1155,10 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
+const OBJECT_MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_SIZE_MULTIPLIER);
 const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
-const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
+const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
@@ -1190,8 +1191,8 @@ const POCKET_SIDE_MOUTH_SCALE =
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
 const SIDE_POCKET_CUT_SCALE = 0.985; // match Pool Royale middle pocket cut size
 const POCKET_CORNER_MOUTH =
-  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
+  CORNER_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1206,7 +1207,7 @@ const CORNER_CHROME_NOTCH_RADIUS =
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
   POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
-const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
+const POCKET_MOUTH_TOLERANCE = 0.5 * OBJECT_MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
@@ -1216,7 +1217,7 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
+  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * OBJECT_MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
 const CLOTH_LIFT = (() => {
@@ -4815,9 +4816,9 @@ function applySnookerScaling({
     'applySnookerScaling: table aspect ratio must remain 2:1.'
   );
   const expectedCornerMouth =
-    CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
+    CORNER_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
   const expectedSideMouth =
-    SIDE_MOUTH_REF * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
+    SIDE_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
   const actualCornerMouth = POCKET_VIS_R * 2;
   const actualSideMouth = SIDE_POCKET_RADIUS * 2;
   console.assert(
@@ -4860,7 +4861,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
+    const expectedRadius = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -14294,7 +14295,7 @@ const powerRef = useRef(hud.power);
           ? worldScaleFactor
           : WORLD_SCALE * tableScale;
         const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
-        const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
+        const unitsPerMeter = MARKINGS_MM_TO_UNITS * 1000 * resolvedWorldScale;
         const cameraHeightMeters = Math.max(
           activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
           MIN_HDRI_CAMERA_HEIGHT_M
