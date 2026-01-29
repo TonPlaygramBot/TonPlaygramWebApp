@@ -1490,8 +1490,9 @@ const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ball hits the object ball
+const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side spin
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -5050,7 +5051,7 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
-const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
+const BACKSPIN_DIRECTION_PREVIEW = 0; // keep cue-ball follow line rolling forward even with backspin
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
@@ -6252,6 +6253,7 @@ function resolveSwerveAimDir(
   liftStrength = 0
 ) {
   if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
+  if (SPIN_ENGLISH_DEFLECTION_SCALE <= 0) return aimDir;
   const swerve = resolveSpinPreviewSettings(
     spin,
     powerStrength,
@@ -6290,6 +6292,14 @@ function buildSwerveAimLinePoints(
   liftStrength = 0
 ) {
   if (!points) return [start, end];
+  if (SPIN_ENGLISH_DEFLECTION_SCALE <= 0) {
+    points.length = 2;
+    if (!points[0]) points[0] = new THREE.Vector3();
+    if (!points[1]) points[1] = new THREE.Vector3();
+    points[0].copy(start);
+    points[1].copy(end);
+    return points;
+  }
   const swerve = resolveSpinPreviewSettings(
     spin,
     powerStrength,
@@ -6353,12 +6363,15 @@ function resolveTargetSpinDeflection(
   const dir = targetDir.clone();
   if (dir.lengthSq() < 1e-8) return dir;
   dir.normalize();
+  if (SPIN_ENGLISH_DEFLECTION_SCALE <= 0) return dir;
   const sideSpin = spin?.x ?? 0;
   const forwardSpin = spin?.y ?? 0;
   const powerScale = 0.35 + powerStrength * 0.75;
   const liftScale = 0.85 + Math.max(0, liftStrength) * 0.25;
-  const sideInfluence = Math.min(Math.abs(sideSpin), 1) * powerScale * liftScale;
-  const forwardInfluence = Math.min(Math.abs(forwardSpin), 1) * powerScale * 0.1;
+  const sideInfluence =
+    Math.min(Math.abs(sideSpin), 1) * powerScale * liftScale * SPIN_ENGLISH_DEFLECTION_SCALE;
+  const forwardInfluence =
+    Math.min(Math.abs(forwardSpin), 1) * powerScale * 0.1 * SPIN_ENGLISH_DEFLECTION_SCALE;
   if (sideInfluence <= 1e-4 && forwardInfluence <= 1e-4) return dir;
   const perp = new THREE.Vector3(-dir.z, 0, dir.x);
   if (perp.lengthSq() > 1e-8) perp.normalize();
@@ -17208,6 +17221,12 @@ const powerRef = useRef(hud.power);
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
             );
+            if (focusBall?.active) {
+              activeShotView.lastBallPos.set(
+                focusBall.pos.x,
+                focusBall.pos.y
+              );
+            }
             const pocketCenter = activeShotView.pocketCenter;
             const anchorType =
               activeShotView.anchorType ??
@@ -17305,12 +17324,13 @@ const powerRef = useRef(hud.power);
               activeShotView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.6;
-            const focusBallPos2D = focusBall?.pos
+            const focusBallPos2D = focusBall?.active
               ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
-              : activeShotView.lastBallPos?.clone?.() ?? null;
+              : null;
             const focusPoint2D =
               focusBallPos2D ??
               activeShotView.fixedTarget2D?.clone?.() ??
+              activeShotView.lastBallPos?.clone?.() ??
               pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
@@ -24738,7 +24758,10 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinSideInfluence =
+            (physicsSpin.x || 0) *
+            (0.4 + 0.42 * powerStrength) *
+            SPIN_ENGLISH_DEFLECTION_SCALE;
           const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
@@ -25010,7 +25033,10 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const spinSideInfluence = (remotePhysicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinSideInfluence =
+            (remotePhysicsSpin.x || 0) *
+            (0.4 + 0.42 * powerStrength) *
+            SPIN_ENGLISH_DEFLECTION_SCALE;
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
@@ -25271,6 +25297,17 @@ const powerRef = useRef(hud.power);
                 b.vel.x = TMP_VEC3_A.x;
                 b.vel.y = TMP_VEC3_A.z;
                 b.omega.copy(TMP_VEC3_C);
+              }
+            }
+            if (
+              isCue &&
+              !b.impacted &&
+              b.launchDir &&
+              (b.spin?.y ?? 0) < -1e-4
+            ) {
+              const forwardDot = b.vel.dot(b.launchDir);
+              if (forwardDot < 0) {
+                b.vel.addScaledVector(b.launchDir, -forwardDot);
               }
             }
             b.pos.addScaledVector(b.vel, stepScale);
