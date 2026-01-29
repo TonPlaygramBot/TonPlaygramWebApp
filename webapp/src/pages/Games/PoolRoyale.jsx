@@ -1493,6 +1493,9 @@ const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is 
 const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side spin
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
+const TARGET_SPIN_LINE_THRESHOLD = 0.05; // minimum spin amount to tint the target line red
+const TARGET_SPIN_LINE_MIN = BALL_R * 8;
+const TARGET_SPIN_LINE_MAX = BALL_R * 28;
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -24934,30 +24937,40 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const spinTargetDir = resolveTargetSpinDeflection(
-              rawTargetDir,
-              cueDir,
-              physicsSpin,
-              powerStrength,
-              liftStrength
+            const appliedSpinMagnitude = Math.hypot(
+              appliedSpin?.x ?? 0,
+              appliedSpin?.y ?? 0
             );
-            const tDir =
-              spinTargetDir && spinTargetDir.lengthSq() > 1e-8
-                ? spinTargetDir
+            const spinLineActive = appliedSpinMagnitude >= TARGET_SPIN_LINE_THRESHOLD;
+            const spinLineScale = THREE.MathUtils.clamp(appliedSpinMagnitude, 0, 1);
+            const spinLineLength = THREE.MathUtils.lerp(
+              TARGET_SPIN_LINE_MIN,
+              TARGET_SPIN_LINE_MAX,
+              spinLineScale
+            );
+            const cueLineDir =
+              cueDir && (cueDir.x || cueDir.y)
+                ? new THREE.Vector3(cueDir.x, 0, cueDir.y)
+                : null;
+            const baseTargetDir =
+              spinLineActive && cueLineDir
+                ? cueLineDir
                 : rawTargetDir.lengthSq() > 1e-8
-                  ? rawTargetDir.normalize()
+                  ? rawTargetDir
                   : dir.clone();
+            const tDir =
+              baseTargetDir.lengthSq() > 1e-8 ? baseTargetDir.normalize() : dir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
               targetBall.pos.y
             );
-            const distanceScale = travelScale;
+            const distanceScale = spinLineActive ? spinLineLength : travelScale;
             const tEnd = targetStart
               .clone()
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
-            target.material.color.setHex(0xffd166);
+            target.material.color.setHex(spinLineActive ? 0xff3b3b : 0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
@@ -25104,29 +25117,37 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const spinTargetDir = resolveTargetSpinDeflection(
-              rawTargetDir,
-              cueDir,
-              remotePhysicsSpin,
-              powerStrength
+            const remoteSpinMagnitude = Math.hypot(remoteSpin?.x ?? 0, remoteSpin?.y ?? 0);
+            const spinLineActive = remoteSpinMagnitude >= TARGET_SPIN_LINE_THRESHOLD;
+            const spinLineScale = THREE.MathUtils.clamp(remoteSpinMagnitude, 0, 1);
+            const spinLineLength = THREE.MathUtils.lerp(
+              TARGET_SPIN_LINE_MIN,
+              TARGET_SPIN_LINE_MAX,
+              spinLineScale
             );
-            const tDir =
-              spinTargetDir && spinTargetDir.lengthSq() > 1e-8
-                ? spinTargetDir
+            const cueLineDir =
+              cueDir && (cueDir.x || cueDir.y)
+                ? new THREE.Vector3(cueDir.x, 0, cueDir.y)
+                : null;
+            const baseTargetDir =
+              spinLineActive && cueLineDir
+                ? cueLineDir
                 : rawTargetDir.lengthSq() > 1e-8
-                  ? rawTargetDir.normalize()
+                  ? rawTargetDir
                   : baseDir.clone();
+            const tDir =
+              baseTargetDir.lengthSq() > 1e-8 ? baseTargetDir.normalize() : baseDir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
               targetBall.pos.y
             );
-            const distanceScale = travelScale;
+            const distanceScale = spinLineActive ? spinLineLength : travelScale;
             const tEnd = targetStart
               .clone()
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
-            target.material.color.setHex(0xffd166);
+            target.material.color.setHex(spinLineActive ? 0xff3b3b : 0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
