@@ -3460,11 +3460,12 @@ export default function SnakeAndLadder() {
         <div className="relative">
           <button
             type="button"
-            aria-label={showConfig ? 'Close game settings' : 'Open game settings'}
+            aria-label={showConfig ? 'Close game settings menu' : 'Open game settings menu'}
             onClick={() => setShowConfig((prev) => !prev)}
-            className="bg-transparent p-2 text-lg text-gray-100 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            ⚙️
+            <span className="text-base leading-none">☰</span>
+            <span className="leading-none">Menu</span>
           </button>
           {showConfig && (
             <div className="absolute right-0 mt-2 w-[min(22rem,80vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
