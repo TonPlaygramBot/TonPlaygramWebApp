@@ -16,6 +16,8 @@ import PwaInstallBanner from './PwaInstallBanner.jsx';
 import UpdatingOverlay from './UpdatingOverlay.jsx';
 import useAppUpdate from '../hooks/useAppUpdate.js';
 
+const GAME_ACTIVE_KEY = 'tonplaygram-game-active';
+
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -124,6 +126,24 @@ export default function Layout({ children }) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const isGameActive =
+      location.pathname.startsWith('/games/') &&
+      !location.pathname.includes('/lobby') &&
+      !location.pathname.includes('/transactions') &&
+      !location.pathname.endsWith('/results');
+    let previous = false;
+    try {
+      previous = localStorage.getItem(GAME_ACTIVE_KEY) === 'true';
+      if (previous === isGameActive) return;
+      localStorage.setItem(GAME_ACTIVE_KEY, isGameActive ? 'true' : 'false');
+    } catch {}
+    window.dispatchEvent(new CustomEvent('tonplaygram-game-activity', { detail: { active: isGameActive } }));
+    if (!isGameActive && previous) {
+      window.dispatchEvent(new Event('tonplaygram-game-ended'));
     }
   }, [location.pathname]);
 
