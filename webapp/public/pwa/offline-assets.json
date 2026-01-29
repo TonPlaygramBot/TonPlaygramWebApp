@@ -259,6 +259,8 @@
   "/pwa/gltf-assets.json",
   "/pwa/hallway-assets.json",
   "/pwa/offline-assets.json",
+  "/pwa/open-source-assets.json",
+  "/pwa/open-source-sources.json",
   "/robots.txt",
   "/roulette.html",
   "/service-worker.js",

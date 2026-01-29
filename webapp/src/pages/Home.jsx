@@ -5,6 +5,7 @@ import NftGiftCard from '../components/NftGiftCard.jsx';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
+import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 
 import {
   FaArrowUp,
@@ -233,6 +234,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <PwaDownloadFrame />
       <p className="text-center text-xs text-subtext">Status: {status}</p>
       <div className="mt-4 space-y-2 text-center text-xs text-subtext">
         <p>

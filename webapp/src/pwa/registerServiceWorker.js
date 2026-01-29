@@ -3,8 +3,11 @@ import { APP_BUILD } from '../config/buildInfo.js';
 
 const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
+const UPDATE_PENDING_KEY = 'tonplaygram-sw-update-pending';
+const GAME_ACTIVE_KEY = 'tonplaygram-game-active';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_URL = `/service-worker.js?v=${APP_BUILD}`;
+let gameEndListenerAttached = false;
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
@@ -23,8 +26,43 @@ function hasRefreshedAlready() {
   return sessionStorage.getItem(REFRESH_FLAG_KEY) === '1';
 }
 
+function isGameActive() {
+  try {
+    return localStorage.getItem(GAME_ACTIVE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function markPendingUpdate() {
+  sessionStorage.setItem(UPDATE_PENDING_KEY, '1');
+}
+
+function clearPendingUpdate() {
+  sessionStorage.removeItem(UPDATE_PENDING_KEY);
+}
+
+function hasPendingUpdate() {
+  return sessionStorage.getItem(UPDATE_PENDING_KEY) === '1';
+}
+
+function attachGameEndListener() {
+  if (gameEndListenerAttached) return;
+  gameEndListenerAttached = true;
+  window.addEventListener('tonplaygram-game-ended', () => {
+    if (!hasPendingUpdate() || isGameActive()) return;
+    clearPendingUpdate();
+    forceReloadOnceReady();
+  });
+}
+
 function forceReloadOnceReady() {
   if (hasRefreshedAlready()) return;
+  if (isGameActive()) {
+    markPendingUpdate();
+    attachGameEndListener();
+    return;
+  }
   markRefreshed();
   window.location.reload();
 }
