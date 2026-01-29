@@ -4927,7 +4927,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.14); // slightly thicker guides for cue/target direction lines
+const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18); // thicker guides for cue/target direction lines
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -5489,8 +5489,8 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   const axes = [
     { key: 'maxX', dir: lateral.clone(), positive: true },
     { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
-    { key: 'minY', dir: forward.clone(), positive: false },
-    { key: 'maxY', dir: forward.clone().multiplyScalar(-1), positive: true }
+    { key: 'maxY', dir: forward.clone(), positive: true },
+    { key: 'minY', dir: forward.clone().multiplyScalar(-1), positive: false }
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
   const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
@@ -20127,13 +20127,11 @@ const powerRef = useRef(hud.power);
       ]);
       const cueAfter = new THREE.Line(
         cueAfterGeom,
-        new THREE.LineDashedMaterial({
+        new THREE.LineBasicMaterial({
           color: 0x7ce7ff,
           linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE * 0.9,
-          gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.45,
+          opacity: 0.55,
           depthTest: false,
           depthWrite: false
         })
@@ -20161,13 +20159,11 @@ const powerRef = useRef(hud.power);
       ]);
       const target = new THREE.Line(
         targetGeom,
-        new THREE.LineDashedMaterial({
+        new THREE.LineBasicMaterial({
           color: 0xffd166,
           linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE,
-          gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65,
+          opacity: 0.75,
           depthTest: false,
           depthWrite: false
         })
