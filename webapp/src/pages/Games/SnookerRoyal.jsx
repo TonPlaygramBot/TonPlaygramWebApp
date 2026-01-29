@@ -964,6 +964,10 @@ const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus 
 const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
+const SNOOKER_PLAYFIELD_WIDTH_MM = 3569;
+const POOL_PLAYFIELD_WIDTH_MM = 2540;
+const SNOOKER_TABLE_SCALE = SNOOKER_PLAYFIELD_WIDTH_MM / POOL_PLAYFIELD_WIDTH_MM;
+const BALL_AND_POCKET_SCALE = 1 / SNOOKER_TABLE_SCALE;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.8; // shrink the table footprint slightly less so the playfield reads larger
 const CAMERA_DISPLAY_SCALE = 1;
@@ -1062,9 +1066,9 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
   const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
+  const TABLE_WIDTH_SCALE = 1.25 * SNOOKER_TABLE_SCALE;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
+  const TABLE_LENGTH_SCALE = 0.8 * SNOOKER_TABLE_SCALE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
     H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
@@ -1157,7 +1161,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
-const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
+const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE * BALL_AND_POCKET_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
@@ -1190,8 +1194,9 @@ const POCKET_SIDE_MOUTH_SCALE =
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
 const SIDE_POCKET_CUT_SCALE = 0.985; // match Pool Royale middle pocket cut size
 const POCKET_CORNER_MOUTH =
-  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE * BALL_AND_POCKET_SCALE;
+const POCKET_SIDE_MOUTH =
+  SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE * BALL_AND_POCKET_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
