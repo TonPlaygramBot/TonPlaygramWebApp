@@ -1395,8 +1395,8 @@ const POCKET_CAM = Object.freeze({
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.82,
-  heightScale: 0.98,
+  distanceScale: 1,
+  heightScale: 1,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -1497,7 +1497,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 // Pool Royale request: increase shot power by an additional 50% for stronger strikes.
-const SHOT_POWER_REDUCTION = 0.6375; // reduce overall shot strength by another 25%
+const SHOT_POWER_REDUCTION = 0.51;
 const SHOT_POWER_MULTIPLIER = 1.25;
 const SHOT_POWER_BOOST = 1.5;
 const SHOT_SPEED_MULTIPLIER = 1.38;
@@ -1584,8 +1584,8 @@ const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes control
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 360;
-const PLAYER_CUE_FORWARD_MAX_MS = 820;
+const PLAYER_CUE_FORWARD_MIN_MS = 480;
+const PLAYER_CUE_FORWARD_MAX_MS = 1050;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -2865,24 +2865,6 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.14,
     avoidPocketCameras: false,
     forceActionActivation: true
-  },
-  {
-    id: 'rail-overhead-snooker2d',
-    label: 'Rail Overhead + Snooker 2D',
-    description:
-      'Broadcast rail heads paired with the snooker-style 2D top view framing.',
-    method: 'Overhead rail mounts with snooker 2D replay/top-view cuts.',
-    orbitBias: 0.68,
-    railPush: BALL_R * 6,
-    lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
-    focusDepthBias: -BALL_R * 0.6,
-    focusPan: 0,
-    trackingBias: 0.52,
-    smoothing: 0.14,
-    avoidPocketCameras: false,
-    forceActionActivation: true,
-    topViewVariant: 'snooker2d'
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
@@ -5092,7 +5074,7 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 260;
-const AI_CUE_FORWARD_DURATION_MS = 520;
+const AI_CUE_FORWARD_DURATION_MS = 720;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -17242,9 +17224,7 @@ const powerRef = useRef(hud.power);
               activeShotView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusPoint2D = focusBall?.active
-              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
-              : pocketCenter2D;
+            const focusPoint2D = pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
@@ -17372,12 +17352,12 @@ const powerRef = useRef(hud.power);
           camera.updateProjectionMatrix();
           camera.lookAt(resolvedTarget);
           renderCamera = camera;
-          broadcastArgs.focusWorld = resolvedTarget.clone();
-          broadcastArgs.targetWorld = resolvedTarget.clone();
-          broadcastArgs.orbitWorld = resolvedPosition.clone();
-          if (broadcastCamerasRef.current) {
-            broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
-          }
+          const broadcastFocus =
+            broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ??
+            resolvedTarget.clone();
+          broadcastArgs.focusWorld = broadcastFocus.clone();
+          broadcastArgs.targetWorld = broadcastFocus.clone();
+          broadcastArgs.orbitWorld = broadcastFocus.clone();
           broadcastArgs.lerp = 0.12;
         } else {
           camera.up.set(0, 1, 0);
@@ -18073,20 +18053,27 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackCamera = activeRenderCameraRef.current ?? camera;
+          const isTopView = topViewRef.current;
+          const fallbackCamera = (!isTopView ? activeRenderCameraRef.current : null) ?? camera;
           const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
             ? fallbackCamera.fov
             : camera.fov;
-          const targetSnapshot = lastCameraTargetRef.current
-            ? lastCameraTargetRef.current.clone()
-            : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY
-          });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+          const baseFocus =
+            broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const targetSnapshot =
+            lastCameraTargetRef.current?.clone?.() ?? baseFocus;
+          const overheadCamera = isTopView
+            ? resolveRailOverheadReplayCamera({
+                focusOverride: baseFocus ?? targetSnapshot,
+                minTargetY
+              })
+            : null;
+          const resolvedPosition =
+            overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ??
+            null;
+          const resolvedTarget =
+            overheadCamera?.target?.clone?.() ?? targetSnapshot;
           const resolvedFov = Number.isFinite(overheadCamera?.fov)
             ? overheadCamera.fov
             : fovSnapshot;
@@ -24235,9 +24222,7 @@ const powerRef = useRef(hud.power);
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
             const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
-            if (playback?.cueStroke) {
-              applyReplayCueStroke(playback, targetTime);
-            } else if (!hasCueSnapshot) {
+            if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
             }
             updateReplayTrail(playback.cuePath, targetTime);
