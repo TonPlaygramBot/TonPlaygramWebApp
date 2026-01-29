@@ -3,16 +3,28 @@ import { APP_BUILD } from '../config/buildInfo.js';
 const RUNTIME_CACHE_NAME = `tonplaygram-runtime-${APP_BUILD}`;
 
 const GAME_ENTRYPOINTS = [
+  '/flag-emojis.js',
+  '/free-kick-api.js',
   '/goal-rush.html',
   '/goal-rush-api.js',
+  '/goal-rush-bracket.html',
+  '/goal-rush-calibration.json',
+  '/init.js',
   '/texas-holdem.html',
   '/texas-holdem.js',
+  '/lib/texasHoldem.js',
+  '/lib/texasHoldemGame.js',
   '/domino-royal.html',
   '/murlan-royale.html',
   '/roulette.html',
   '/chess-royale.html',
+  '/pool-royale-bracket.html',
   '/pool-royale-api.js',
+  '/lib/poolAi.js',
+  '/snooker-royale-bracket.html',
   '/snooker-royale-api.js',
+  '/game-preloads/pool-royale-preload.txt',
+  '/game-preloads/snooker-royale-preload.txt',
   '/power-slider.js',
   '/power-slider.css'
 ];
