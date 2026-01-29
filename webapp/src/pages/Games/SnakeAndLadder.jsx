@@ -3468,7 +3468,7 @@ export default function SnakeAndLadder() {
             <span className="leading-none">Menu</span>
           </button>
           {showConfig && (
-            <div className="absolute right-0 mt-2 w-[min(22rem,80vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
+            <div className="absolute left-0 mt-2 w-[min(22rem,80vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
               <div className="flex items-center justify-between">
                 <span className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-sky-200/80">
                   Table Setup
