@@ -1493,6 +1493,7 @@ const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is 
 const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side spin
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
+const CUE_AFTER_SPIN_DEFLECTION_SCALE = 1; // keep cue-ball follow line aligned with real spin direction
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -4926,7 +4927,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
+const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.14); // slightly thicker guides for cue/target direction lines
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -5051,7 +5052,7 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
-const BACKSPIN_DIRECTION_PREVIEW = 0; // keep cue-ball follow line rolling forward even with backspin
+const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
@@ -24761,7 +24762,7 @@ const powerRef = useRef(hud.power);
           const spinSideInfluence =
             (physicsSpin.x || 0) *
             (0.4 + 0.42 * powerStrength) *
-            SPIN_ENGLISH_DEFLECTION_SCALE;
+            CUE_AFTER_SPIN_DEFLECTION_SCALE;
           const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
@@ -24934,19 +24935,8 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const spinTargetDir = resolveTargetSpinDeflection(
-              rawTargetDir,
-              cueDir,
-              physicsSpin,
-              powerStrength,
-              liftStrength
-            );
             const tDir =
-              spinTargetDir && spinTargetDir.lengthSq() > 1e-8
-                ? spinTargetDir
-                : rawTargetDir.lengthSq() > 1e-8
-                  ? rawTargetDir.normalize()
-                  : dir.clone();
+              rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
@@ -25036,7 +25026,7 @@ const powerRef = useRef(hud.power);
           const spinSideInfluence =
             (remotePhysicsSpin.x || 0) *
             (0.4 + 0.42 * powerStrength) *
-            SPIN_ENGLISH_DEFLECTION_SCALE;
+            CUE_AFTER_SPIN_DEFLECTION_SCALE;
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
@@ -25104,18 +25094,8 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const spinTargetDir = resolveTargetSpinDeflection(
-              rawTargetDir,
-              cueDir,
-              remotePhysicsSpin,
-              powerStrength
-            );
             const tDir =
-              spinTargetDir && spinTargetDir.lengthSq() > 1e-8
-                ? spinTargetDir
-                : rawTargetDir.lengthSq() > 1e-8
-                  ? rawTargetDir.normalize()
-                  : baseDir.clone();
+              rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : baseDir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
