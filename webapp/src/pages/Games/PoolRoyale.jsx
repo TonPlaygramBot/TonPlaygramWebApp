@@ -1017,7 +1017,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
+const RAIL_HEIGHT = TABLE.THICK * 1.24; // shorten rails by ~35% so the stance sits lower
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1028,8 +1028,8 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.025; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.14; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1308,8 +1308,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.072; // lower the cushion base slightly so the lip sits closer to the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops further so they sit a touch lower than before
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.05; // lower the cushion base slightly so the lip sits closer to the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // trim the cushion tops further so they sit a touch lower than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5940,6 +5940,9 @@ function reflectRails(ball) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
       if (nearPocket && segment.type === 'rail') continue;
       if (inCaptureZone && segment.type === 'cut') continue;
+      if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
+        if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
+      }
       const velocityToward = ball.vel.dot(segment.normal);
       if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
@@ -6666,8 +6669,45 @@ function updateCushionSegmentsFromTable(table) {
       addSegment(topOuter, topInner, 'cut');
     }
   });
+  const jawEntries = Array.isArray(table.userData.pocketJaws)
+    ? table.userData.pocketJaws
+    : [];
+  jawEntries.forEach((jaw) => {
+    if (!(jaw?.center instanceof THREE.Vector2)) return;
+    if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
+    if (!Number.isFinite(jaw?.jawAngle) || jaw.jawAngle <= MICRO_EPS) return;
+    const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
+    const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
+    const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
+    let prev = null;
+    for (let i = 0; i <= steps; i += 1) {
+      const t = steps === 0 ? 0 : i / steps;
+      const theta = startAngle + (endAngle - startAngle) * t;
+      const point = new THREE.Vector2(
+        jaw.center.x + Math.cos(theta) * jaw.outerRadius,
+        jaw.center.y + Math.sin(theta) * jaw.outerRadius
+      );
+      if (prev) {
+        const mid = prev.clone().add(point).multiplyScalar(0.5);
+        const normal = mid.clone().sub(jaw.center);
+        if (normal.lengthSq() > 1e-8) {
+          normal.normalize();
+        }
+        segments.push({
+          start: prev.clone(),
+          end: point.clone(),
+          type: 'jaw',
+          normal,
+          center: jaw.center.clone(),
+          captureRadius: jaw.captureRadius
+        });
+      }
+      prev = point;
+    }
+  });
   const tableCenter = new THREE.Vector2(0, 0);
   segments.forEach((segment) => {
+    if (segment.normal) return;
     const dir = TMP_VEC2_A.copy(segment.end).sub(segment.start);
     const normal = TMP_VEC2_B.set(-dir.y, dir.x);
     if (normal.lengthSq() < 1e-8) return;
@@ -6752,6 +6792,7 @@ export function Table3D(
   const table = new THREE.Group();
   table.userData = table.userData || {};
   table.userData.cushions = [];
+  table.userData.pocketJaws = [];
   table.userData.componentPreset = tableSizeMeta?.componentPreset || 'pool';
 
   const finishParts = {
@@ -8946,7 +8987,19 @@ export function Table3D(
       group.add(rimMesh);
     }
 
-    return { group, jawMesh, rimMesh };
+    const baseOuterLimit =
+      Number.isFinite(localClampOuter) && localClampOuter > MICRO_EPS
+        ? localClampOuter
+        : effectiveBaseRadius * baseOuterScale;
+    const jawMeta = {
+      center: center.clone(),
+      jawAngle: localJawAngle,
+      orientationAngle,
+      outerRadius: baseOuterLimit + Math.max(0, outerExpansion ?? 0),
+      captureRadius: isMiddle ? SIDE_CAPTURE_R : CAPTURE_R,
+      isMiddle
+    };
+    return { group, jawMesh, rimMesh, jawMeta };
   };
 
   const scalePocketJawUvs = (geometry, referenceScale = pocketStrapWidth) => {
@@ -8991,6 +9044,9 @@ export function Table3D(
     scalePocketJawUvs(assembly.jawMesh?.geometry);
     pocketJawGroup.add(assembly.group);
     finishParts.pocketJawMeshes.push(assembly.jawMesh);
+    if (assembly.jawMeta) {
+      table.userData.pocketJaws.push(assembly.jawMeta);
+    }
     if (assembly.rimMesh) {
       finishParts.pocketRimMeshes.push(assembly.rimMesh);
     }
