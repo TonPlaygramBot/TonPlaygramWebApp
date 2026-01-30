@@ -5677,8 +5677,8 @@ const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
-  BL: new THREE.Vector2(-1.2, 0.85).normalize(),
-  BR: new THREE.Vector2(1.2, 0.85).normalize(),
+  BL: new THREE.Vector2(-0.72, 1).normalize(),
+  BR: new THREE.Vector2(0.72, 1).normalize(),
   TM: new THREE.Vector2(-1, 0).normalize(),
   BM: new THREE.Vector2(1, 0).normalize()
 });
