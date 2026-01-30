@@ -237,9 +237,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Buonasera dalla {arena}. {speaker} al commento. {player} e {opponent} sono {playerScore}-{opponentScore}.'
       ],
       introReply: [
-        'Grazie {speaker}. La differenza la farà il controllo della battente e la gestione delle linee.',
-        'Felice di esserci, {speaker}. Qui il posizionamento è tutto.',
-        'Esatto, {speaker}. {player} e {opponent} hanno bisogno di imbucate pulite e rotazione precisa.'
+        'Grazie {speaker}. Qui conta il controllo della battente e la gestione degli angoli.',
+        'Felice di esserci, {speaker}. Nel pool, posizionamento e tempi di gioco fanno la differenza.',
+        'Esatto, {speaker}. {player} e {opponent} cercano imbucate pulite con rotazione precisa.'
       ],
       breakShot: [
         '{player} va al break; una buona apertura crea subito opportunità.',
@@ -267,10 +267,10 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Qui si vede il sangue freddo di {player}.'
       ],
       pot: [
-        '{player} imbuca {targetBall} in {pocket}, con la battente in buona posizione.',
-        'Imbucata: {targetBall} in {pocket}.',
-        '{player} manda {targetBall} in {pocket} con controllo.',
-        'Che imbucata! {player} lascia la battente perfetta per il prossimo tiro.'
+        '{player} imbuca {targetBall} in {pocket} e lascia la battente in posizione.',
+        'Imbucata netta: {targetBall} in {pocket}.',
+        '{player} manda {targetBall} in {pocket} con controllo di battente.',
+        'Che imbucata! {player} tiene la battente perfetta per il colpo successivo.'
       ],
       combo: [
         '{player} combina {targetBall} in {pocket}.',
@@ -279,7 +279,7 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       bank: [
         '{player} di sponda: {targetBall} in {pocket}.',
-        'Banca riuscita: {targetBall} in {pocket}.',
+        'Sponda riuscita: {targetBall} in {pocket}.',
         '{player} manda {targetBall} di sponda con grande controllo.'
       ],
       kick: [
@@ -299,7 +299,7 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       foul: [
         'Fallo di {player}.',
-        'Fallo: {opponent} torna al tavolo con controllo.',
+        'Fallo: {opponent} torna al tavolo con palla in mano.',
         '{player} commette fallo.'
       ],
       inHand: [
@@ -329,7 +329,7 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       tournamentRecall: [
         '{player} arriva da {previousResult} nel round precedente: fiducia alta.',
-        'L’ultimo turno è finito {previousResult}; ci aspettiamo una prova da professionista.',
+        'L’ultimo turno è finito {previousResult}; ci aspettiamo una prova di livello.',
         'Con lo slancio di {previousResult}, {player} sembra pronto a un’altra prova solida.'
       ],
       outro: [
@@ -893,15 +893,16 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Goditje me presion; prekja e butë dhe efekti janë vendimtarë.'
       ],
       pot: [
-        '{player} fut {targetBall} në {pocket} dhe ruan pozicionin.',
+        '{player} fut {targetBall} në {pocket} dhe ruan pozicionin e topit të bardhë.',
         'Goditje shumë e pastër nga {player}; topi i bardhë bie në pozicion perfekt.',
-        'Super finishing: {player} fut {targetBall} dhe mban kënd të mirë për tjetrin.'
+        'Mbyllje elegante: {player} fut {targetBall} dhe mban kënd të mirë për tjetrin.'
       ],
       combo: [
         '{player} bën kombinim dhe fut {targetBall} në {pocket}.'
       ],
       bank: [
-        '{player} godet nga banka dhe fut {targetBall} në {pocket}.'
+        '{player} godet nga banka dhe fut {targetBall} në {pocket}.',
+        'Bankë e bukur nga {player}; {targetBall} bie në {pocket}.'
       ],
       kick: [
         '{player} duhet ta gjejë topin përmes bankës.'
@@ -913,14 +914,17 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         '{player} e humb; shans për {opponent}.'
       ],
       foul: [
-        'Faull nga {player}.'
+        'Faull nga {player}.',
+        'Gabim nga {player}; {opponent} rikthehet në tavolinë.'
       ],
       inHand: [
-        'Top në dorë për {opponent}.'
+        'Top në dorë për {opponent}.',
+        '{opponent} ka top në dorë dhe përparësi të qartë.'
       ],
       runout: [
         '{player} është në ritëm—mund të mbyllë gjithë tavolinën.',
-        '{player} ka planin dhe kërkon vetëm pozicion të butë për mbyllje.'
+        '{player} ka planin dhe kërkon vetëm pozicion të butë për mbyllje.',
+        '{player} po e ndërton serinë me qetësi.'
       ],
       hillHill: [
         'Rack vendimtar; tension maksimal.'

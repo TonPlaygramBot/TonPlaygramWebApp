@@ -998,11 +998,11 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'albanian-booth',
     label: 'Albanian Booth',
-    description: 'Albanian commentary with authentic cadence',
-    language: 'sq',
+    description: 'Shqip commentary with native cadence',
+    language: 'sq-AL',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
     },
     speakerSettings: {
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
@@ -1012,11 +1012,11 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'italian-gallery',
     label: 'Italian Gallery',
-    description: 'Italian commentary with rich pacing',
-    language: 'it',
+    description: 'Italian booth with authentic broadcast rhythm',
+    language: 'it-IT',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['it-IT', 'it', 'Italian', 'male', 'Marco', 'Luca', 'Giovanni', 'Alessandro'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['it-IT', 'it', 'Italian', 'female', 'Giulia', 'Chiara', 'Francesca', 'Elena']
+      [POOL_ROYALE_SPEAKERS.analyst]: ['it-IT', 'Italian', 'female', 'Giulia']
     },
     speakerSettings: {
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.98, volume: 1 },
@@ -1599,7 +1599,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_GAP = BALL_R * 1.12 + CUE_TIP_CLEARANCE; // pull the blue tip farther back so it stays visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1612,14 +1612,14 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.4; // ensure the forward push is visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 2.6; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 560;
-const PLAYER_CUE_FORWARD_MAX_MS = 1280;
+const PLAYER_CUE_FORWARD_MIN_MS = 700;
+const PLAYER_CUE_FORWARD_MAX_MS = 1500;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -5113,7 +5113,7 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 260;
-const AI_CUE_FORWARD_DURATION_MS = 820;
+const AI_CUE_FORWARD_DURATION_MS = 980;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -5163,7 +5163,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -18674,7 +18674,29 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return;
           }
+          const applyCueSnapshot = () => {
+            const frames = playback?.frames ?? [];
+            if (!frames.length) return false;
+            let frameIndex = 0;
+            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+              frameIndex += 1;
+            }
+            const cueSnapshot = frames[frameIndex]?.cue ?? frames[0]?.cue ?? null;
+            if (!cueSnapshot?.position) return false;
+            const pos = normalizeVector3Snapshot(cueSnapshot.position);
+            if (!pos) return false;
+            cueStick.position.set(pos.x, pos.y, pos.z);
+            const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
+            if (quat) {
+              cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+            }
+            cueStick.visible = cueSnapshot.visible ?? true;
+            cueAnimating = cueStick.visible;
+            syncCueShadow();
+            return true;
+          };
           if (!stroke) {
+            if (applyCueSnapshot()) return;
             const cuePath = playback?.cuePath ?? [];
             const cueBall = cueRef.current || cue;
             const cueBallPos = cueBall?.mesh?.position ?? null;
@@ -18727,9 +18749,11 @@ const powerRef = useRef(hud.power);
             settleSnap
           );
           if (!warmupSnap || !startSnap || !impactSnap || !settleSnap || !idleSnap) {
-            cueStick.visible = false;
-            cueAnimating = false;
-            syncCueShadow();
+            if (!applyCueSnapshot()) {
+              cueStick.visible = false;
+              cueAnimating = false;
+              syncCueShadow();
+            }
             return;
           }
           const replayScale = REPLAY_CUE_STROKE_SLOWDOWN;
@@ -26045,6 +26069,20 @@ const powerRef = useRef(hud.power);
         const suppressPocketCameras =
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
+        const earlyPocketIntent = pocketSwitchIntentRef.current;
+        if (earlyPocketIntent && earlyPocketIntent.createdAt) {
+          const now = performance.now();
+          if (now - earlyPocketIntent.createdAt <= POCKET_INTENT_TIMEOUT_MS) {
+            const cueBall = cueRef.current;
+            const cueSpeed =
+              cueBall?.vel && typeof cueBall.vel.length === 'function'
+                ? cueBall.vel.length() * frameScale
+                : 0;
+            if (earlyPocketIntent.allowEarly && cueSpeed > STOP_EPS) {
+              powerImpactHoldRef.current = 0;
+            }
+          }
+        }
         const pocketHoldActive =
           powerImpactHoldRef.current &&
           performance.now() < powerImpactHoldRef.current;
