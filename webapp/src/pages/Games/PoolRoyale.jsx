@@ -994,6 +994,34 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Albanian commentary with authentic cadence',
+    language: 'sq',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'italian-gallery',
+    label: 'Italian Gallery',
+    description: 'Italian commentary with rich pacing',
+    language: 'it',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['it-IT', 'it', 'Italian', 'male', 'Marco', 'Luca', 'Giovanni', 'Alessandro'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['it-IT', 'it', 'Italian', 'female', 'Giulia', 'Chiara', 'Francesca', 'Elena']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.98, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.04, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -1375,7 +1403,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.85; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -6167,6 +6195,81 @@ function reflectRails(ball) {
     }
   }
   return null;
+}
+
+function resolveSpinFrame(ball) {
+  const speed = Math.max(ball?.vel?.length?.() ?? 0, 0);
+  const forward =
+    speed > 1e-6
+      ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
+      : ball?.launchDir
+        ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
+        : TMP_VEC2_FORWARD.set(0, 1);
+  const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
+  return { forward, lateral, speed };
+}
+
+function resolveSpinWorldVector(ball, output) {
+  if (!ball?.spin) return null;
+  const { forward, lateral } = resolveSpinFrame(ball);
+  const sideSpin =
+    ball.spinMode === 'swerve' ? -(ball.spin.x || 0) : (ball.spin.x || 0);
+  const forwardSpin = ball.spin.y || 0;
+  const target = output ?? TMP_VEC2_SPIN;
+  target.copy(lateral).multiplyScalar(sideSpin).addScaledVector(forward, forwardSpin);
+  return target;
+}
+
+function applySpinImpulse(ball, scale = 1) {
+  if (!ball?.spin) return false;
+  if (ball.spin.lengthSq() < 1e-6) return false;
+  const { forward, lateral, speed } = resolveSpinFrame(ball);
+  const sideSpin = ball.spin.x || 0;
+  const forwardSpin = ball.spin.y || 0;
+  const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
+  const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
+  const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
+  const forwardKick = forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
+  if (Math.abs(lateralKick) > 1e-8) {
+    ball.vel.addScaledVector(lateral, lateralKick);
+  }
+  if (Math.abs(forwardKick) > 1e-8) {
+    ball.vel.addScaledVector(forward, forwardKick);
+  }
+  if (ball.id === 'cue' && ball.spinMode === 'swerve') {
+    ball.spinMode = 'standard';
+    ball.swerveStrength = 0;
+    ball.swervePowerStrength = 0;
+  }
+  const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
+  ball.spin.multiplyScalar(decayFactor);
+  if (ball.spin.lengthSq() < 1e-6) {
+    ball.spin.set(0, 0);
+    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+    if (ball.id === 'cue') ball.swervePowerStrength = 0;
+  }
+  return true;
+}
+
+function applyRailSpinResponse(ball, impact) {
+  if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
+  const normal = impact.normal.clone().normalize();
+  const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
+  const speed = Math.max(ball.vel.length(), 0);
+  const preImpactSpin = ball.spin.clone();
+  const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
+  if (!worldSpin) return;
+  const throwFactor = Math.max(
+    0,
+    Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
+  );
+  const spinAlongTangent = worldSpin.dot(tangent);
+  if (Math.abs(spinAlongTangent) > 1e-6) {
+    const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
+    ball.vel.addScaledVector(tangent, throwStrength);
+  }
+  ball.spin.copy(preImpactSpin);
+  applySpinImpulse(ball, 0.6);
 }
 
 function applyRailImpulse(ball, impact) {
@@ -11131,6 +11234,21 @@ function PoolRoyaleGame({
     () => `poolRoyaleTournamentAiFlag_${tournamentKey}`,
     [tournamentKey]
   );
+  const tournamentLastResult = useMemo(() => {
+    if (!tournamentMode || typeof window === 'undefined') return null;
+    try {
+      const stored = window.localStorage.getItem(tournamentLastResultKey);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      const scoreA = Number(parsed?.p1);
+      const scoreB = Number(parsed?.p2);
+      if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return null;
+      return `${scoreA}-${scoreB}`;
+    } catch (err) {
+      console.warn('Pool Royale tournament last result load failed', err);
+      return null;
+    }
+  }, [tournamentLastResultKey, tournamentMode]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
@@ -11143,6 +11261,10 @@ function PoolRoyaleGame({
   }, [activeVariant]);
   const isUkAmericanSet = useMemo(
     () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
+    [activeVariant]
+  );
+  const isUkClassicSet = useMemo(
+    () => activeVariant?.id === 'uk' && activeVariant?.ballSet !== 'american',
     [activeVariant]
   );
   const activeTableSize = useMemo(
@@ -11398,6 +11520,7 @@ function PoolRoyaleGame({
   const commentaryQueueRef = useRef([]);
   const commentarySpeakingRef = useRef(false);
   const commentaryLastEventAtRef = useRef(0);
+  const commentaryGreetingRef = useRef(false);
   const pendingCommentaryLinesRef = useRef(null);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
@@ -13458,6 +13581,9 @@ const powerRef = useRef(hud.power);
       const colorKey = String(entry.color || '').toUpperCase();
       const idValue = typeof entry.id === 'string' ? entry.id : '';
       if (colorKey === 'CUE' || entry.id === 'cue') return 'the cue ball';
+      if (isUkClassicSet && (colorKey === 'RED' || colorKey === 'YELLOW')) {
+        return colorKey === 'RED' ? 'a red' : 'a yellow';
+      }
       const idMatch = /(\d+)/.exec(idValue) || /BALL_(\d+)/.exec(colorKey);
       if (idMatch) return `the ${parseInt(idMatch[1], 10)} ball`;
       if (colorKey === 'BLACK') return isUkAmericanSet ? 'the 8 ball' : 'the black';
@@ -13471,7 +13597,7 @@ const powerRef = useRef(hud.power);
       if (colorKey === 'SOLID') return 'a solid';
       return `the ${colorKey.toLowerCase()}`;
     },
-    [isUkAmericanSet]
+    [isUkAmericanSet, isUkClassicSet]
   );
 
   const resolvePotSummary = useCallback(
@@ -13645,6 +13771,42 @@ const powerRef = useRef(hud.power);
       variantKey
     ]
   );
+  useEffect(() => {
+    if (commentaryGreetingRef.current) return;
+    commentaryGreetingRef.current = true;
+    const scoreA = frameState?.players?.A?.score ?? 0;
+    const scoreB = frameState?.players?.B?.score ?? 0;
+    const context = {
+      player: resolveSeatLabel('A'),
+      opponent: resolveSeatLabel('B'),
+      playerScore: scoreA,
+      opponentScore: scoreB,
+      playerPoints: scoreA,
+      opponentPoints: scoreB,
+      scoreline: resolveScoreline(scoreA, scoreB),
+      ballSet: activeVariant?.ballSet,
+      previousResult: tournamentLastResult ?? undefined
+    };
+    enqueuePoolCommentaryEvent('welcome', context, {
+      priority: true,
+      speaker: POOL_ROYALE_SPEAKERS.lead
+    });
+    if (tournamentMode && tournamentLastResult) {
+      enqueuePoolCommentaryEvent(
+        'tournamentRecall',
+        { ...context, previousResult: tournamentLastResult },
+        { speaker: POOL_ROYALE_SPEAKERS.analyst }
+      );
+    }
+  }, [
+    activeVariant?.ballSet,
+    enqueuePoolCommentaryEvent,
+    frameState?.players,
+    resolveScoreline,
+    resolveSeatLabel,
+    tournamentLastResult,
+    tournamentMode
+  ]);
 
   const maybeSpeakShotCommentary = useCallback(
     ({
@@ -25398,6 +25560,7 @@ const powerRef = useRef(hud.power);
           balls.forEach((b) => {
             if (!b.active) return;
             const isCue = b.id === 'cue';
+            const hasSpin = b.spin?.lengthSq() > 1e-6;
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
             if (hasLift) {
               const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
@@ -25424,6 +25587,108 @@ const powerRef = useRef(hud.power);
               if (nextLift <= 1e-4 && Math.abs(nextVel) <= 1e-4) {
                 b.lift = 0;
                 b.liftVel = 0;
+              }
+              if (hasSpin && (b.lift ?? 0) > 0 && (!isCue || b.impacted)) {
+                const airborneSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
+                const spinMag = airborneSpin?.length() ?? 0;
+                if (spinMag > 1e-6) {
+                  const liftRatio = THREE.MathUtils.clamp(
+                    (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
+                    0,
+                    1.2
+                  );
+                  const driftScale = LIFT_SPIN_AIR_DRIFT * liftRatio * stepScale;
+                  airborneSpin.normalize().multiplyScalar(driftScale);
+                  b.vel.add(airborneSpin);
+                }
+              }
+            }
+            if (hasSpin) {
+              const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
+              const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
+              const swervePower = swerveTravel
+                ? Math.max(0, b.swervePowerStrength ?? 0)
+                : 0;
+              const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
+              const swerveScale =
+                swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
+              const allowRoll =
+                !isCue || b.impacted || swerveTravel || (isCue && b.spin?.lengthSq() > 1e-8);
+              const preImpact = isCue && !b.impacted;
+              if (allowRoll) {
+                const rollMultiplier = swerveTravel
+                  ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
+                  : 1;
+                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
+                if (!worldSpin) {
+                  TMP_VEC2_SPIN.set(0, 0);
+                } else {
+                  TMP_VEC2_SPIN.copy(worldSpin);
+                }
+                TMP_VEC2_SPIN.multiplyScalar(
+                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
+                );
+                if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
+                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
+                }
+                if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
+                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
+                  const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
+                  b.vel.add(TMP_VEC2_AXIS);
+                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
+                  if (b.pendingSpin) {
+                    b.pendingSpin.addScaledVector(
+                      TMP_VEC2_LATERAL,
+                      swerveScale > 0 ? swerveScale : 1
+                    );
+                  }
+                  const alignedSpeed = b.vel.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                  b.vel.copy(TMP_VEC2_AXIS);
+                } else {
+                  b.vel.add(TMP_VEC2_SPIN);
+                  if (
+                    isCue &&
+                    b.pendingSpin &&
+                    b.pendingSpin.lengthSq() > 0
+                  ) {
+                    const driftScale = swerveScale > 0 ? swerveScale : 1;
+                    b.vel.addScaledVector(
+                      b.pendingSpin,
+                      PRE_IMPACT_SPIN_DRIFT * driftScale
+                    );
+                    b.pendingSpin.multiplyScalar(0);
+                  }
+                }
+                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
+                b.spin.multiplyScalar(rollDecay);
+                if (isCue && b.swerveStrength > 0) {
+                  b.swerveStrength *= rollDecay;
+                  if (b.swerveStrength < 1e-3) {
+                    b.swerveStrength = 0;
+                    b.swervePowerStrength = 0;
+                  }
+                }
+              } else {
+                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
+                b.spin.multiplyScalar(airDecay);
+                if (isCue && b.swerveStrength > 0) {
+                  b.swerveStrength *= airDecay;
+                  if (b.swerveStrength < 1e-3) {
+                    b.swerveStrength = 0;
+                    b.swervePowerStrength = 0;
+                  }
+                }
+              }
+              if (b.spin.lengthSq() < 1e-6) {
+                b.spin.set(0, 0);
+                if (b.pendingSpin) b.pendingSpin.set(0, 0);
+                if (isCue) {
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
+                }
               }
             }
             if (!hasLift) {
@@ -25495,6 +25760,7 @@ const powerRef = useRef(hud.power);
             }
             if (railImpact) {
               applyRailImpulse(b, railImpact);
+              applyRailSpinResponse(b, railImpact);
             }
             if (railImpact) {
               const nowRail = performance.now();
@@ -26935,7 +27201,9 @@ const powerRef = useRef(hud.power);
                 : colorKey.startsWith('BALL_')
                   ? /BALL_(\d+)/.exec(colorKey)
                   : null;
-            const ballNumber = idMatch ? parseInt(idMatch[1], 10) : null;
+            const rawBallNumber = idMatch ? parseInt(idMatch[1], 10) : null;
+            const hideUkNumber = isUkClassicSet && (colorKey === 'RED' || colorKey === 'YELLOW');
+            const ballNumber = hideUkNumber ? null : rawBallNumber;
             const isStripe =
               (isUkAmericanSet && ballNumber != null && ballNumber >= 9) ||
               colorKey === 'STRIPE';
@@ -27034,6 +27302,7 @@ const powerRef = useRef(hud.power);
       darkenHex,
       getBallPreview,
       isUkAmericanSet,
+      isUkClassicSet,
       pottedGap,
       pottedNumberBadgeSize,
       pottedTokenSize
