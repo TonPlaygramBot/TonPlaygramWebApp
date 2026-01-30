@@ -1029,7 +1029,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.17; // lower the visible rim so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.19; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1374,7 +1374,7 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
-const POCKET_CAM_OUTWARD_MULTIPLIER = 1.85;
+const POCKET_CAM_OUTWARD_MULTIPLIER = 1.55;
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -18004,18 +18004,8 @@ const powerRef = useRef(hud.power);
           const allowEarly =
             forceEarly &&
             bestScore >= POCKET_EARLY_ALIGNMENT;
-          if (!isGuaranteedPocket && !allowEarly) return null;
-          const predictedTravelForBall =
-            shotPrediction?.ballId === ballId
-              ? shotPrediction?.travel ?? null
-              : null;
-          if (
-            (predictedTravelForBall != null &&
-              predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
-            best.dist < SHORT_SHOT_CAMERA_DISTANCE
-          ) {
-            return null;
-          }
+          const allowCornerPocket = bestScore >= POCKET_EARLY_ALIGNMENT;
+          if (!isGuaranteedPocket && !allowEarly && !allowCornerPocket) return null;
           const anchorPocketId = pocketIdFromCenter(best.center);
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
