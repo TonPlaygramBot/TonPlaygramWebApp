@@ -1072,8 +1072,8 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1081,10 +1081,10 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // rou
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.025; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.17; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // hold the thicker centre section longer before easing toward the chrome trim
@@ -1111,7 +1111,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a to
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1289,8 +1289,8 @@ const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
-const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
-const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
+const MAX_POWER_SPIN_LATERAL_THROW = 0; // remove max-power lateral throw from side spin
+const MAX_POWER_SPIN_LIFT_BONUS = 0; // remove max-power spin-driven lift bonus
 const JUMP_SHOT_POWER_THRESHOLD = 0.7;
 const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
@@ -1333,9 +1333,11 @@ const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wra
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
+const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.072; // lower the cushion base slightly so the lip sits closer to the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops further so they sit a touch lower than before
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.03; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.16; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1492,9 +1494,10 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.034;
+const SPIN_GLOBAL_SCALE = 0.8; // reduce overall spin impact by 20%
+const SPIN_STRENGTH = BALL_R * 0.034 * SPIN_GLOBAL_SCALE;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
@@ -1504,8 +1507,10 @@ const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ball hits the object ball
+const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side spin
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
+const CUE_AFTER_SPIN_DEFLECTION_SCALE = 0; // remove spin deflection so the cue follow line tracks the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -1604,7 +1609,8 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so t
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.08; // keep the cue butt from dipping below the cushion top surface
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.11; // keep the cue butt from dipping below the cushion top surface
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cushions rise so it never touches
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -5924,13 +5930,21 @@ function reflectRails(ball) {
       ball.pos.addScaledVector(bestImpact.normal, bestPenetration);
       const vn = ball.vel.dot(bestImpact.normal);
       if (vn < 0) {
+        const isCutImpact = bestImpact.type === 'cut';
         const restitution =
-          bestImpact.type === 'jaw' ? CUSHION_RESTITUTION * 0.55 : CUSHION_RESTITUTION;
+          bestImpact.type === 'jaw'
+            ? CUSHION_RESTITUTION * 0.55
+            : CUSHION_RESTITUTION * (isCutImpact ? CUSHION_CUT_RESTITUTION_SCALE : 1);
         ball.vel.addScaledVector(bestImpact.normal, -(1 + restitution) * vn);
         const vt = bestImpact.tangent
           .clone()
           .multiplyScalar(ball.vel.dot(bestImpact.tangent));
-        const tangentDamping = bestImpact.type === 'jaw' ? 0.9 : 0.96;
+        const tangentDamping =
+          bestImpact.type === 'jaw'
+            ? 0.9
+            : isCutImpact
+              ? 0.96 / CUSHION_CUT_FRICTION_SCALE
+              : 0.96;
         ball.vel
           .sub(vt)
           .add(vt.multiplyScalar(tangentDamping));
@@ -5966,12 +5980,12 @@ function reflectRails(ball) {
       ball.pos.addScaledVector(TMP_VEC2_B, push);
       const vn = ball.vel.dot(TMP_VEC2_B);
       if (vn < 0) {
-        const restitution = CUSHION_RESTITUTION;
+        const restitution = CUSHION_RESTITUTION * CUSHION_CUT_RESTITUTION_SCALE;
         ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
         const vt = TMP_VEC2_D.copy(ball.vel).sub(
           TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
         );
-        const tangentDamping = 0.96;
+        const tangentDamping = 0.96 / CUSHION_CUT_FRICTION_SCALE;
         ball.vel
           .sub(vt)
           .add(vt.multiplyScalar(tangentDamping));
@@ -6020,11 +6034,11 @@ function reflectRails(ball) {
         ball.pos.addScaledVector(TMP_VEC2_B, push);
         const vn = ball.vel.dot(TMP_VEC2_B);
         if (vn < 0) {
-          const restitution = CUSHION_RESTITUTION;
+          const restitution = CUSHION_RESTITUTION * CUSHION_CUT_RESTITUTION_SCALE;
           ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
           TMP_VEC2_LIMIT.copy(TMP_VEC2_B).multiplyScalar(ball.vel.dot(TMP_VEC2_B));
           const vt = TMP_VEC2_D.copy(ball.vel).sub(TMP_VEC2_LIMIT);
-          const tangentDamping = 0.96;
+          const tangentDamping = 0.96 / CUSHION_CUT_FRICTION_SCALE;
           ball.vel
             .sub(vt)
             .add(vt.multiplyScalar(tangentDamping));
@@ -6244,6 +6258,7 @@ function resolveSwerveAimDir(
   liftStrength = 0
 ) {
   if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
+  if (SPIN_ENGLISH_DEFLECTION_SCALE <= 0) return aimDir;
   const swerve = resolveSpinPreviewSettings(
     spin,
     powerStrength,
@@ -6282,6 +6297,14 @@ function buildSwerveAimLinePoints(
   liftStrength = 0
 ) {
   if (!points) return [start, end];
+  if (SPIN_ENGLISH_DEFLECTION_SCALE <= 0) {
+    points.length = 2;
+    if (!points[0]) points[0] = new THREE.Vector3();
+    if (!points[1]) points[1] = new THREE.Vector3();
+    points[0].copy(start);
+    points[1].copy(end);
+    return points;
+  }
   const swerve = resolveSpinPreviewSettings(
     spin,
     powerStrength,
@@ -19937,7 +19960,8 @@ const powerRef = useRef(hud.power);
         const info = cueStick.userData?.buttTilt;
         const len = info?.length ?? cueLen;
         if (!Number.isFinite(len) || len <= 1e-4) return;
-        const minButtHeight = cushionTop + CUE_BUTT_CUSHION_CLEARANCE;
+        const minButtHeight =
+          cushionTop + CUE_BUTT_CUSHION_CLEARANCE + CUE_CUSHION_LIFT_BIAS;
         const requiredOffset = minButtHeight - tipTarget.y;
         if (requiredOffset <= 0) return;
         const requiredTilt = Math.asin(
