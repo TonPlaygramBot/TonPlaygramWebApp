@@ -117,9 +117,8 @@ import {
   listOwnedTexasOptions,
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
-import { claimPurchase, getTonBalance } from '../utils/api.js';
+import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
-import { useTonAddress } from '@tonconnect/ui-react';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -223,8 +222,7 @@ const TEXAS_TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 
-const TON_ICON = '/assets/icons/TON.webp';
-const TON_STORE_ADDRESS = 'UQCQGCCgdpWaXoSSEp6F49I-pQ2KDDiQPeBzdM7bSRV86GtH';
+const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -702,7 +700,7 @@ export default function Store() {
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
   const [texasOwned, setTexasOwned] = useState(() => getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-  const [tonBalance, setTonBalance] = useState(null);
+  const [tpcBalance, setTpcBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -718,8 +716,6 @@ export default function Store() {
   const [detailItem, setDetailItem] = useState(null);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
-  const [paymentHash, setPaymentHash] = useState('');
-  const walletAddress = useTonAddress(true);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -796,27 +792,18 @@ export default function Store() {
 
   useEffect(() => {
     const loadBalance = async () => {
-      if (!walletAddress) {
-        setTonBalance(null);
-        return;
-      }
+      if (!accountId || accountId === 'guest') return;
       try {
-        const res = await getTonBalance(walletAddress);
+        const res = await getAccountBalance(accountId);
         if (typeof res?.balance === 'number') {
-          setTonBalance(res.balance);
+          setTpcBalance(res.balance);
         }
       } catch (err) {
-        console.error('Failed to load TON balance', err);
+        console.error('Failed to load TPC balance', err);
       }
     };
     loadBalance();
-  }, [walletAddress]);
-
-  useEffect(() => {
-    if (confirmItem || confirmItems.length) {
-      setPaymentHash('');
-    }
-  }, [confirmItem, confirmItems.length]);
+  }, [accountId]);
 
   const storeItemsBySlug = useMemo(
     () => ({
@@ -1175,13 +1162,9 @@ export default function Store() {
     setInfo('Your NFT listing has been added to the marketplace.');
   };
 
-  const handlePurchase = async (items, txHash) => {
+  const handlePurchase = async (items) => {
     const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
     if (!payload.length) return;
-    if (!walletAddress) {
-      setInfo('Connect your TON wallet before submitting a payment.');
-      return;
-    }
     const seen = new Set();
     const unique = payload.filter((item) => {
       const key = selectionKey(item);
@@ -1198,13 +1181,28 @@ export default function Store() {
       setInfo('Link your TPC account in the wallet first.');
       return;
     }
-    if (!txHash || !txHash.trim()) {
-      setInfo('Add the TON transaction hash so we can verify your payment.');
+
+    const storeAccounts = {
+      poolroyale: POOL_STORE_ACCOUNT_ID,
+      airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
+      chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
+      ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
+      murlanroyale: MURLAN_STORE_ACCOUNT_ID,
+      'domino-royal': DOMINO_STORE_ACCOUNT_ID,
+      snake: SNAKE_STORE_ACCOUNT_ID,
+      texasholdem: TEXAS_STORE_ACCOUNT_ID
+    };
+
+    const totalPrice = purchasable.reduce((sum, item) => sum + item.price, 0);
+    if (tpcBalance !== null && totalPrice > tpcBalance) {
+      setInfo('Insufficient TPC balance for this purchase.');
       return;
     }
 
     const groupedBySlug = purchasable.reduce((acc, item) => {
-      acc[item.slug] = acc[item.slug] || { items: [], gameName: storeMeta[item.slug]?.name || item.slug };
+      const storeId = storeAccounts[item.slug];
+      if (!storeId) return acc;
+      acc[item.slug] = acc[item.slug] || { storeId, items: [], gameName: storeMeta[item.slug]?.name || item.slug };
       acc[item.slug].items.push(item);
       return acc;
     }, {});
@@ -1221,13 +1219,14 @@ export default function Store() {
     resetStatus();
 
     try {
-      const verification = await claimPurchase(accountId, txHash.trim());
-      if (verification?.error) {
-        setInfo(verification.error || 'Unable to verify TON payment.');
-        return;
-      }
-
       for (const [slug, group] of Object.entries(groupedBySlug)) {
+        const total = group.items.reduce((sum, entry) => sum + entry.price, 0);
+        const res = await sendAccountTpc(accountId, group.storeId, total, `${group.gameName}: ${group.items.length} cosmetics`);
+        if (res?.error) {
+          setInfo(res.error || 'Purchase failed.');
+          return;
+        }
+
         for (const entry of group.items) {
           if (slug === 'poolroyale') {
             const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, accountId);
@@ -1248,6 +1247,11 @@ export default function Store() {
             setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, accountId));
           }
         }
+      }
+
+      const bal = await getAccountBalance(accountId);
+      if (typeof bal?.balance === 'number') {
+        setTpcBalance(bal.balance);
       }
 
       const resolver = (item) => labelResolver(item.slug, item);
@@ -1333,14 +1337,14 @@ export default function Store() {
                             </div>
                           </div>
                           <div className="text-right text-sm text-white/80">
-                          <div className="flex items-center justify-end gap-1 font-semibold">
-                            <span>{item.price}</span>
-                            <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                            <div className="flex items-center justify-end gap-1 font-semibold">
+                              <span>{item.price}</span>
+                              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                            </div>
+                            <div className="text-[11px] text-white/50">Base price</div>
                           </div>
-                          <div className="text-[11px] text-white/50">Base price</div>
-                        </div>
-                      </button>
-                    );
+                        </button>
+                      );
                     })
                   ) : (
                     <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-white/70">
@@ -1367,7 +1371,7 @@ export default function Store() {
                 </div>
 
                 <label className="grid gap-1 text-sm text-white/80">
-                  <span className="text-xs uppercase tracking-wide text-white/60">Listing price (TON)</span>
+                  <span className="text-xs uppercase tracking-wide text-white/60">Listing price (TPC)</span>
                   <input
                     type="number"
                     min="0"
@@ -1423,13 +1427,13 @@ export default function Store() {
             </div>
             <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {confirmItem.price}
-              <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
             </div>
           </div>
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Send the TON amount from your connected wallet, then paste the transaction hash so we can verify it on-chain.
+              This NFT cosmetic will be unlocked instantly for your account. Please confirm the payment to continue.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1451,30 +1455,10 @@ export default function Store() {
                 <span className="text-white/60">Price</span>
                 <span className="flex items-center gap-1 font-semibold">
                   {confirmItem.price}
-                  <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
                 </span>
               </div>
             </div>
-            <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-white/60">Send to address</span>
-                <span className="font-semibold text-white">{TON_STORE_ADDRESS}</span>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFT sent to linked TPC account after confirmation</span>
-              </div>
-            </div>
-            <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
-              <input
-                type="text"
-                value={paymentHash}
-                onChange={(e) => setPaymentHash(e.target.value)}
-                placeholder="Paste the transaction hash"
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
-              />
-            </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -1485,7 +1469,7 @@ export default function Store() {
               </button>
               <button
                 type="button"
-                onClick={() => handlePurchase(confirmItem, paymentHash)}
+                onClick={() => handlePurchase(confirmItem)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
                 disabled={Boolean(processing)}
               >
@@ -1523,7 +1507,7 @@ export default function Store() {
             </div>
             <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {totalPrice.toLocaleString()}
-              <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
             </div>
           </div>
 
@@ -1543,7 +1527,7 @@ export default function Store() {
                   </div>
                   <div className="flex items-center gap-1 text-sm font-semibold">
                     {item.price}
-                    <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
                   </div>
                 </div>
               ))}
@@ -1551,28 +1535,8 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Send a single TON payment, then add the transaction hash to verify on-chain.</p>
+              <p className="mt-1">One TPC transaction per game, applied to every unowned NFT selected.</p>
             </div>
-            <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-white/60">Send to address</span>
-                <span className="font-semibold text-white">{TON_STORE_ADDRESS}</span>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFTs sent to linked TPC account after confirmation</span>
-              </div>
-            </div>
-            <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
-              <input
-                type="text"
-                value={paymentHash}
-                onChange={(e) => setPaymentHash(e.target.value)}
-                placeholder="Paste the transaction hash"
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
-              />
-            </label>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
@@ -1584,7 +1548,7 @@ export default function Store() {
               </button>
               <button
                 type="button"
-                onClick={() => handlePurchase(confirmItems, paymentHash)}
+                onClick={() => handlePurchase(confirmItems)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
                 disabled={Boolean(processing)}
               >
@@ -1630,7 +1594,7 @@ export default function Store() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
                 {detailItem.price}
-                <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
               </div>
               <button
                 type="button"
@@ -1718,7 +1682,7 @@ export default function Store() {
                         {event.price ? (
                           <span className="flex items-center gap-1 font-semibold text-white">
                             {event.price}
-                            <img src={TON_ICON} alt="TON" className="h-3.5 w-3.5" />
+                            <img src={TPC_ICON} alt="TPC" className="h-3.5 w-3.5" />
                           </span>
                         ) : null}
                       </div>
@@ -1753,7 +1717,7 @@ export default function Store() {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                 <p className="font-semibold text-white">What you get</p>
-                <p className="mt-1">Once your TON payment is verified, the NFT unlocks on your linked TPC account.</p>
+                <p className="mt-1">Unlock this cosmetic instantly for your next match with your linked TPC account.</p>
               </div>
             </div>
           </div>
@@ -2042,7 +2006,7 @@ export default function Store() {
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
             {item.price}
-            <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
           </div>
           <button
             type="button"
@@ -2083,10 +2047,10 @@ export default function Store() {
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:flex">
-              <span className="text-white/60">TON</span>
+              <span className="text-white/60">TPC</span>
               <span className="flex items-center gap-1 font-semibold text-white">
-                {tonBalance === null ? '—' : tonBalance}
-                <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                {tpcBalance === null ? '—' : tpcBalance}
+                <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
               </span>
             </div>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
@@ -2113,7 +2077,7 @@ export default function Store() {
             </h1>
 
             <p className="max-w-2xl text-sm text-white/70">
-              Mobile-first design inspired by the mock above. Every card shows TON price, accessory type, and whether you already own it.
+              Mobile-first design inspired by the mock above. Every card shows TPC price, accessory type, and whether you already own it.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2145,10 +2109,10 @@ export default function Store() {
                   <p className="font-semibold text-white">{ownedCount}</p>
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-white/60">TON</p>
+                  <p className="text-xs text-white/60">TPC</p>
                   <p className="flex items-center gap-1 font-semibold text-white">
-                    {tonBalance === null ? '—' : tonBalance}
-                    <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                    {tpcBalance === null ? '—' : tpcBalance}
+                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
                   </p>
                 </div>
               </div>
@@ -2261,7 +2225,7 @@ export default function Store() {
                     className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!selectedPurchasable.length || Boolean(processing)}
                   >
-                    Buy selected ({selectedTotalPrice.toLocaleString()} TON)
+                    Buy selected ({selectedTotalPrice.toLocaleString()} TPC)
                   </button>
                 </div>
               </div>
@@ -2283,7 +2247,7 @@ export default function Store() {
                 <p className="text-[11px] uppercase tracking-wide text-white/60">Total value</p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.totalValue.toLocaleString()}
-                  <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
                 </p>
                 <p className="text-xs text-white/60">Sum of your active listings</p>
               </div>
@@ -2291,7 +2255,7 @@ export default function Store() {
                 <p className="text-[11px] uppercase tracking-wide text-white/60">Average price</p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.avgPrice.toLocaleString()}
-                  <img src={TON_ICON} alt="TON" className="h-4 w-4" />
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
                 </p>
                 <p className="text-xs text-white/60">Per item across your listings</p>
               </div>
@@ -2299,7 +2263,7 @@ export default function Store() {
                 <p className="text-[11px] uppercase tracking-wide text-white/60">Floor price</p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.total ? userListingStats.floorPrice.toLocaleString() : '—'}
-                  {userListingStats.total ? <img src={TON_ICON} alt="TON" className="h-4 w-4" /> : null}
+                  {userListingStats.total ? <img src={TPC_ICON} alt="TPC" className="h-4 w-4" /> : null}
                 </p>
                 <p className="text-xs text-white/60">Lowest priced NFT you listed</p>
               </div>
@@ -2359,7 +2323,7 @@ export default function Store() {
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
               <div className="text-base font-semibold">{showMyListings ? 'Your listings' : 'Marketplace'}</div>
-              <div className="text-xs text-white/60">{visibleItems.length} listings | pay with TON | accessories for every game</div>
+              <div className="text-xs text-white/60">{visibleItems.length} listings | pay with TPC | accessories for every game</div>
             </div>
             <button className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 md:inline">
               View analytics
