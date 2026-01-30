@@ -1375,8 +1375,9 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.85; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.8; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
+const POCKET_CAM_LOOK_DOWN_OFFSET = BALL_R * 0.8; // slight downward tilt so pocket cams look into the drop
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1405,6 +1406,7 @@ const POCKET_CAM = Object.freeze({
   heightDrop: BALL_R * 0.2,
   distanceScale: 1,
   heightScale: 1,
+  lookDownOffset: POCKET_CAM_LOOK_DOWN_OFFSET,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -7516,6 +7518,25 @@ export function Table3D(
   dArc.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(dArc);
 
+  const inHandZoneMat = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.18,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const inHandShape = new THREE.Shape();
+  inHandShape.moveTo(-dRadius, 0);
+  inHandShape.absarc(0, 0, dRadius, Math.PI, 0, true);
+  inHandShape.lineTo(-dRadius, 0);
+  const inHandGeo = new THREE.ShapeGeometry(inHandShape, 64);
+  const inHandZone = new THREE.Mesh(inHandGeo, inHandZoneMat);
+  inHandZone.rotation.x = -Math.PI / 2;
+  inHandZone.position.set(0, markingHeight + MICRO_EPS * 4, baulkLineZ);
+  inHandZone.renderOrder = cloth.renderOrder + 0.8;
+  inHandZone.visible = false;
+  markingsGroup.add(inHandZone);
+
   const spotRadius = BALL_R * 0.26;
   const spotMeshes = [];
   const addSpot = (x, z) => {
@@ -7545,7 +7566,8 @@ export function Table3D(
     group: markingsGroup,
     baulkLine,
     dArc,
-    spots: spotMeshes
+    spots: spotMeshes,
+    inHandZone
   };
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
@@ -12306,6 +12328,9 @@ function PoolRoyaleGame({
     [highlightChalks]
   );
   const tableSizeRef = useRef(responsiveTableSize);
+  const primaryTableRef = useRef(null);
+  const baulkLineZRef = useRef(0);
+  const inHandFocusRef = useRef(null);
   useEffect(() => {
     tableSizeRef.current = responsiveTableSize;
   }, [responsiveTableSize]);
@@ -12643,10 +12668,13 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-const initialHudInHand = useMemo(
-  () => deriveInHandFromFrame(initialFrame),
-  [initialFrame]
-);
+  const initialHudInHand = useMemo(() => {
+    const derived = deriveInHandFromFrame(initialFrame);
+    if (derived) return true;
+    const meta = initialFrame?.meta;
+    if (!meta || !meta.state) return true;
+    return Boolean(meta.state.breakInProgress);
+  }, [initialFrame]);
 const [hud, setHud] = useState({
   power: 0,
   A: 0,
@@ -12732,7 +12760,12 @@ const powerRef = useRef(hud.power);
     localSeatRef.current = localSeat;
   }, [localSeat]);
   useEffect(() => {
-    const nextInHand = deriveInHandFromFrame(initialFrame);
+    const derivedInHand = deriveInHandFromFrame(initialFrame);
+    const nextInHand = derivedInHand
+      ? true
+      : (!initialFrame?.meta || !initialFrame.meta.state)
+        ? true
+        : Boolean(initialFrame.meta.state.breakInProgress);
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
     lastAssignmentsRef.current = { A: null, B: null };
@@ -14400,10 +14433,14 @@ const powerRef = useRef(hud.power);
           blend: cameraBlendRef.current ?? 0
         };
       }
-      const radiusLimit = orbitRadiusLimitRef.current ?? CAMERA.maxR;
-      const expandedRadius = Math.max(radiusLimit, CAMERA.maxR * 0.92);
-      sph.radius = THREE.MathUtils.clamp(expandedRadius, CAMERA.minR, CAMERA.maxR);
-      sph.phi = Math.max(sph.phi, STANDING_VIEW.phi);
+      const standingBounds = cameraBoundsRef.current?.standing;
+      const baseRadius = standingBounds?.radius ?? sph.radius;
+      const expandedRadius = clampOrbitRadius(
+        baseRadius * IN_HAND_CAMERA_RADIUS_MULTIPLIER,
+        CAMERA.minR
+      );
+      sph.radius = expandedRadius;
+      sph.phi = Math.max(standingBounds?.phi ?? sph.phi, STANDING_VIEW.phi);
       cameraBlendRef.current = 1;
       cameraUpdateRef.current?.();
     } else if (restore) {
@@ -14413,6 +14450,23 @@ const powerRef = useRef(hud.power);
       cameraBlendRef.current = restore.blend ?? cameraBlendRef.current;
       inHandCameraRestoreRef.current = null;
       cameraUpdateRef.current?.();
+    }
+  }, [hud.inHand]);
+
+  useEffect(() => {
+    const table = primaryTableRef.current;
+    const inHandZone = table?.userData?.markings?.inHandZone;
+    if (inHandZone) {
+      inHandZone.visible = Boolean(hud.inHand);
+    }
+    if (hud.inHand) {
+      inHandFocusRef.current = new THREE.Vector3(
+        0,
+        BALL_CENTER_Y,
+        baulkLineZRef.current ?? 0
+      );
+    } else {
+      inHandFocusRef.current = null;
     }
   }, [hud.inHand]);
 
@@ -15120,22 +15174,22 @@ const powerRef = useRef(hud.power);
           : null;
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const topDownRadius = Math.max(
-          fitRadius(tempCamera, TOP_VIEW_MARGIN) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE,
-          CAMERA.minR * RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE
+        const standingRadius = Math.max(
+          fitRadius(tempCamera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
+          CAMERA.minR
         );
-        return topDownRadius;
+        return standingRadius;
       };
-      const resolveTopDownCoords = () => {
+      const resolveStandingCoords = () => {
         const radius = resolveBroadcastDistance();
-        const phi = TOP_VIEW_RESOLVED_PHI;
+        const phi = STANDING_VIEW_PHI;
         const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
         const height = focusY + Math.cos(phi) * radius;
         const horizontal = Math.sin(phi) * radius;
         return { radius, height, horizontal };
       };
       const { height: topDownHeight, horizontal: topDownHorizontal } =
-        resolveTopDownCoords();
+        resolveStandingCoords();
       const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
         topDownHorizontal,
@@ -17434,7 +17488,11 @@ const powerRef = useRef(hud.power);
                 : 1;
             const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
             const leveledTarget = focusTarget.clone();
-            leveledTarget.y = desiredPosition.y;
+            const lookDownOffset =
+              activeShotView.lookDownOffset ?? POCKET_CAM.lookDownOffset ?? 0;
+            const targetY =
+              desiredPosition.y - Math.max(0, lookDownOffset * heightScale);
+            leveledTarget.y = Math.max(baseSurfaceWorldY, targetY);
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
@@ -17456,7 +17514,12 @@ const powerRef = useRef(hud.power);
             const aimFocus =
               !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
-            if (
+            const hudState = hudRef.current ?? null;
+            const lockInHandFocus =
+              hudState?.inHand && !shooting && !replayActive && inHandFocusRef.current;
+            if (lockInHandFocus) {
+              focusTarget = inHandFocusRef.current.clone();
+            } else if (
               aimFocus &&
               Number.isFinite(aimFocus.x) &&
               Number.isFinite(aimFocus.y) &&
@@ -17487,77 +17550,77 @@ const powerRef = useRef(hud.power);
                   setOrbitFocusToDefault();
                 }
               }
-          focusTarget = store.target.clone();
-        }
-        focusTarget.multiplyScalar(worldScaleFactor);
-        lookTarget = focusTarget;
-        if (topViewRef.current) {
-          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
-            ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
-          ).multiplyScalar(worldScaleFactor);
-          const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          let overheadApplied = false;
-          if (overheadVariant === 'replay') {
-            const overheadCamera = resolveRailOverheadReplayCamera({
-              focusOverride: topFocusTarget,
-              minTargetY
-            });
-            if (overheadCamera?.position) {
-              const resolvedTarget = overheadCamera.target ?? topFocusTarget;
-              camera.up.set(0, 1, 0);
-              camera.position.copy(overheadCamera.position);
-              if (Number.isFinite(overheadCamera.fov) && camera.fov !== overheadCamera.fov) {
-                camera.fov = overheadCamera.fov;
-                camera.updateProjectionMatrix();
+              focusTarget = store.target.clone();
+            }
+            focusTarget.multiplyScalar(worldScaleFactor);
+            lookTarget = focusTarget;
+          if (topViewRef.current) {
+            const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+              playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+              ORBIT_FOCUS_BASE_Y,
+              TOP_VIEW_SCREEN_OFFSET.z
+            ).multiplyScalar(worldScaleFactor);
+            const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
+            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+            let overheadApplied = false;
+            if (overheadVariant === 'replay') {
+              const overheadCamera = resolveRailOverheadReplayCamera({
+                focusOverride: topFocusTarget,
+                minTargetY
+              });
+              if (overheadCamera?.position) {
+                const resolvedTarget = overheadCamera.target ?? topFocusTarget;
+                camera.up.set(0, 1, 0);
+                camera.position.copy(overheadCamera.position);
+                if (Number.isFinite(overheadCamera.fov) && camera.fov !== overheadCamera.fov) {
+                  camera.fov = overheadCamera.fov;
+                  camera.updateProjectionMatrix();
+                }
+                camera.lookAt(resolvedTarget);
+                renderCamera = camera;
+                lookTarget = resolvedTarget;
+                lastCameraTargetRef.current.copy(resolvedTarget);
+                broadcastArgs.focusWorld = resolvedTarget.clone();
+                broadcastArgs.targetWorld = resolvedTarget.clone();
+                broadcastArgs.orbitWorld = overheadCamera.position.clone();
+                if (broadcastCamerasRef.current) {
+                  broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+                }
+                broadcastArgs.lerp = 0.12;
+                overheadApplied = true;
               }
-              camera.lookAt(resolvedTarget);
-              renderCamera = camera;
+            }
+            if (!overheadApplied) {
+              const topRadiusBase =
+                fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+              const topRadius = clampOrbitRadius(
+                Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+              );
+              const topTheta = Math.PI;
+              const topPhi = TOP_VIEW_RESOLVED_PHI;
+              TMP_SPH.set(topRadius, topPhi, topTheta);
+              camera.up.set(0, 0, 1);
+              camera.position.setFromSpherical(TMP_SPH);
+              camera.position.add(topFocusTarget);
+              const resolvedTarget = topFocusTarget.clone();
+              const resolvedPosition = camera.position.clone();
               lookTarget = resolvedTarget;
               lastCameraTargetRef.current.copy(resolvedTarget);
+              camera.updateProjectionMatrix();
+              camera.lookAt(resolvedTarget);
+              renderCamera = camera;
               broadcastArgs.focusWorld = resolvedTarget.clone();
               broadcastArgs.targetWorld = resolvedTarget.clone();
-              broadcastArgs.orbitWorld = overheadCamera.position.clone();
+              broadcastArgs.orbitWorld = resolvedPosition.clone();
               if (broadcastCamerasRef.current) {
                 broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
               broadcastArgs.lerp = 0.12;
-              overheadApplied = true;
             }
-          }
-          if (!overheadApplied) {
-            const topRadiusBase =
-              fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
-            const topRadius = clampOrbitRadius(
-              Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
-            );
-            const topTheta = Math.PI;
-            const topPhi = TOP_VIEW_RESOLVED_PHI;
-            TMP_SPH.set(topRadius, topPhi, topTheta);
-            camera.up.set(0, 0, 1);
-            camera.position.setFromSpherical(TMP_SPH);
-            camera.position.add(topFocusTarget);
-            const resolvedTarget = topFocusTarget.clone();
-            const resolvedPosition = camera.position.clone();
-            lookTarget = resolvedTarget;
-            lastCameraTargetRef.current.copy(resolvedTarget);
-            camera.updateProjectionMatrix();
-            camera.lookAt(resolvedTarget);
-            renderCamera = camera;
-            broadcastArgs.focusWorld = resolvedTarget.clone();
-            broadcastArgs.targetWorld = resolvedTarget.clone();
-            broadcastArgs.orbitWorld = resolvedPosition.clone();
-            if (broadcastCamerasRef.current) {
-              broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
-            }
-            broadcastArgs.lerp = 0.12;
-          }
-        } else {
-          camera.up.set(0, 1, 0);
-          TMP_SPH.copy(sph);
+          } else {
+            camera.up.set(0, 1, 0);
+            TMP_SPH.copy(sph);
           if (sidePocketAimRef.current && !shooting && !replayActive) {
             TMP_SPH.radius = clampOrbitRadius(
               TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
@@ -18860,16 +18923,27 @@ const powerRef = useRef(hud.power);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
-          const storedPosition = activeCamera?.position?.clone?.() ?? null;
+          const railCamera = resolveRailOverheadReplayCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
+          const storedPosition =
+            railCamera?.position?.clone?.() ??
+            activeCamera?.position?.clone?.() ??
+            null;
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
-          const storedFov = Number.isFinite(activeCamera?.fov)
-            ? activeCamera.fov
-            : camera.fov;
+          const storedFov = Number.isFinite(railCamera?.fov)
+            ? railCamera.fov
+            : Number.isFinite(activeCamera?.fov)
+              ? activeCamera.fov
+              : camera.fov;
+          const resolvedTarget =
+            railCamera?.target?.clone?.() ?? storedTarget.clone();
           replayCameraRef.current = {
             position: storedPosition,
-            target: storedTarget,
+            target: resolvedTarget,
             fov: storedFov,
             restoreFov: camera?.fov
           };
@@ -19549,6 +19623,8 @@ const powerRef = useRef(hud.power);
         activeTableBase,
         rendererRef.current
       );
+      primaryTableRef.current = table ?? null;
+      baulkLineZRef.current = Number.isFinite(baulkZ) ? baulkZ : 0;
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
