@@ -48,6 +48,8 @@ import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useTelegramFullscreen from './hooks/useTelegramFullscreen.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
 import useNativePushNotifications from './hooks/useNativePushNotifications.js';
+import { BOT_USERNAME } from './utils/constants.js';
+import { isTelegramWebView } from './utils/telegram.js';
 
 export default function App() {
   useTelegramAuth();
@@ -56,10 +58,19 @@ export default function App() {
   useNativePushNotifications();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+  const returnUrl = window.location.href;
+  const telegramReturnUrl = `https://t.me/${BOT_USERNAME}/webapp`;
+  const actionsConfiguration = {
+    returnUrl,
+    twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
+  };
 
   return (
     <BrowserRouter>
-      <TonConnectUIProvider manifestUrl={manifestUrl}>
+      <TonConnectUIProvider
+        manifestUrl={manifestUrl}
+        actionsConfiguration={actionsConfiguration}
+      >
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
