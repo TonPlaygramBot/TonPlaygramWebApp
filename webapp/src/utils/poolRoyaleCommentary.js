@@ -35,12 +35,14 @@ const DEFAULT_CONTEXT = Object.freeze({
   groupPrimary: 'reds',
   groupSecondary: 'yellows',
   ballSet: 'uk',
-  rackNumber: 'this rack'
+  rackNumber: 'this rack',
+  tournamentRecap: ''
 });
 
 const ENGLISH_TEMPLATES = Object.freeze({
   common: {
     intro: [
+      'Welcome to {arena}. {speaker} with you for {player} versus {opponent}. {tournamentRecap}',
       'Welcome to {arena}. {speaker} here. {player} faces {opponent}; {scoreline} in {variantName}.',
       'Match time at {arena}. {speaker} with you. {player} versus {opponent} in {variantName}, {scoreline}.',
       'Good evening from {arena}. {speaker} on the call. {player} and {opponent} are locked at {playerScore}-{opponentScore}.'
@@ -78,7 +80,12 @@ const ENGLISH_TEMPLATES = Object.freeze({
     pot: [
       '{player} pots {targetBall} into {pocket}, cue ball held in good position.',
       'Pot: {targetBall} in {pocket}.',
-      '{player} sends {targetBall} down the {pocket} with smooth control.'
+      '{player} sends {targetBall} down the {pocket} with smooth control.',
+      'Superb pot on {targetBall} into {pocket}, and the cue ball is set for the next shot.',
+      '{player} drops {targetBall} in {pocket} and leaves a perfect angle for the next target.',
+      'Beautiful touch on {targetBall} into {pocket}; position play is spot on.',
+      '{player} knocks {targetBall} into {pocket}, cue ball drifting into prime position.',
+      'Clinical pot on {targetBall} to {pocket}—that leaves a natural path to the next ball.'
     ],
     combo: [
       '{player} combos {targetBall} into {pocket}, great sighting.',
@@ -628,7 +635,7 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     ...ENGLISH_TEMPLATES,
     common: {
       intro: [
-        'Mirë se vini në {arena}. Me ju është {speaker}. {player} përballë {opponent}; {scoreline} në {variantName}.'
+        'Mirë se vini në {arena}. Me ju është {speaker}. {player} përballë {opponent}. {tournamentRecap}'
       ],
       introReply: [
         'Faleminderit, {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.'
@@ -649,7 +656,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Goditje me presion; prekja e butë dhe efekti janë vendimtarë.'
       ],
       pot: [
-        '{player} fut {targetBall} në {pocket} dhe ruan pozicionin.'
+        '{player} fut {targetBall} në {pocket} dhe ruan pozicionin.',
+        'Goditje elegante: {targetBall} në {pocket}, topi i bardhë gati për goditjen tjetër.',
+        '{player} e fut {targetBall} në {pocket} me kontroll të pastër dhe kënd të përsosur.'
       ],
       combo: [
         '{player} bën kombinim dhe fut {targetBall} në {pocket}.'
@@ -707,6 +716,92 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       freeBall: ['{player} ka top të lirë dhe dy vizita.'],
       blackBall: ['Tani topi i zi; kërkohet kënd i përsosur.']
     }
+  },
+  it: {
+    ...ENGLISH_TEMPLATES,
+    common: {
+      intro: [
+        'Benvenuti a {arena}. {speaker} con voi per {player} contro {opponent}. {tournamentRecap}'
+      ],
+      introReply: [
+        'Grazie, {speaker}. Controllo della battente e posizione faranno la differenza.'
+      ],
+      breakShot: [
+        '{player} si prepara al break: apertura e controllo della bianca sono fondamentali.'
+      ],
+      breakResult: [
+        'Buon break, tavolo aperto e linee chiare.'
+      ],
+      openTable: [
+        'Tavolo aperto; {player} cerca angoli naturali e continuità.'
+      ],
+      safety: [
+        '{player} sceglie la difesa e nasconde la battente.'
+      ],
+      pressure: [
+        'Tiro di pressione: tocco morbido ed effetto preciso.'
+      ],
+      pot: [
+        '{player} imbuca {targetBall} in {pocket} e tiene una buona posizione.',
+        'Gran pot su {targetBall} in {pocket}, la bianca resta perfetta per la prossima.',
+        '{player} manda {targetBall} in {pocket} con controllo e lascia un angolo ideale.'
+      ],
+      combo: [
+        '{player} gioca la combinazione e imbuca {targetBall} in {pocket}.'
+      ],
+      bank: [
+        '{player} va di sponda e imbuca {targetBall} in {pocket}.'
+      ],
+      kick: [
+        '{player} deve andare di sponda per trovare la palla.'
+      ],
+      jump: [
+        '{player} esegue un salto per superare l’ostacolo.'
+      ],
+      miss: [
+        '{player} sbaglia la pot; occasione per {opponent}.'
+      ],
+      foul: [
+        'Fallo di {player}.'
+      ],
+      inHand: [
+        '{opponent} ha palla in mano.'
+      ],
+      runout: [
+        '{player} è in ritmo; la chiusura è possibile.'
+      ],
+      hillHill: [
+        'Rack decisivo—tensione al massimo.'
+      ],
+      frameWin: [
+        '{player} vince il rack.'
+      ],
+      matchWin: [
+        'Match finito. {player} vince {playerScore}-{opponentScore}.'
+      ],
+      outro: [
+        'Da {arena} è tutto, grazie per averci seguito.'
+      ]
+    },
+    nineBall: {
+      variantName: '9-bilie americano',
+      rotation: ['Nel 9-bilie si colpisce sempre per prima la più bassa.'],
+      goldenBreak: ['Se la 9 entra al break, è finita subito.'],
+      comboNine: ['{player} vede la combinazione sulla 9—chance enorme.'],
+      pushOut: ['{player} gioca il push-out per migliorare la posizione.']
+    },
+    eightBallUs: {
+      variantName: '8-bilie americano',
+      groupCall: ['Tavolo aperto tra {groupPrimary} e {groupSecondary}.'],
+      inHand: ['{opponent} ha palla in mano—grande vantaggio.'],
+      eightBall: ['Ora la 8 è in gioco; la posizione decide.']
+    },
+    eightBallUk: {
+      variantName: '8-bilie UK',
+      groupCall: ['Regole UK: {groupPrimary} e {groupSecondary} sono ancora aperti.'],
+      freeBall: ['{player} ha una free ball e due visite.'],
+      blackBall: ['La nera è in gioco; l’angolo è decisivo.']
+    }
   }
 });
 
@@ -760,6 +855,7 @@ const resolveLanguageKey = (language = 'en') => {
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
   if (normalized.startsWith('sq')) return 'sq';
+  if (normalized.startsWith('it')) return 'it';
   if (normalized.startsWith('en')) return 'en';
   return normalized || 'en';
 };
