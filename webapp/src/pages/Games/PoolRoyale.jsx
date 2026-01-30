@@ -998,8 +998,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'albanian-booth',
     label: 'Albanian Booth',
-    description: 'Albanian booth with native Tirana cadence',
-    language: 'sq-AL',
+    description: 'Albanian commentary with authentic cadence',
+    language: 'sq',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
@@ -1012,8 +1012,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'italian-gallery',
     label: 'Italian Gallery',
-    description: 'Italian booth with authentic broadcast rhythm',
-    language: 'it-IT',
+    description: 'Italian commentary with rich pacing',
+    language: 'it',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['it-IT', 'it', 'Italian', 'male', 'Marco', 'Luca', 'Giovanni', 'Alessandro'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['it-IT', 'it', 'Italian', 'female', 'Giulia', 'Chiara', 'Francesca', 'Elena']
@@ -1599,7 +1599,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip slightly farther back so it stays visible
+const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1612,8 +1612,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.28; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 2.05; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -5163,7 +5163,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.35;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -26045,20 +26045,6 @@ const powerRef = useRef(hud.power);
         const suppressPocketCameras =
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
-        const earlyPocketIntent = pocketSwitchIntentRef.current;
-        if (earlyPocketIntent && earlyPocketIntent.createdAt) {
-          const now = performance.now();
-          if (now - earlyPocketIntent.createdAt <= POCKET_INTENT_TIMEOUT_MS) {
-            const cueBall = cueRef.current;
-            const cueSpeed =
-              cueBall?.vel && typeof cueBall.vel.length === 'function'
-                ? cueBall.vel.length() * frameScale
-                : 0;
-            if (earlyPocketIntent.allowEarly && cueSpeed > STOP_EPS) {
-              powerImpactHoldRef.current = 0;
-            }
-          }
-        }
         const pocketHoldActive =
           powerImpactHoldRef.current &&
           performance.now() < powerImpactHoldRef.current;
