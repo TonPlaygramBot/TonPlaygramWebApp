@@ -1374,8 +1374,8 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
-const POCKET_CAM_OUTWARD_MULTIPLIER = 2.35;
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 4; // push middle-pocket cameras toward the corner-side edges
+const POCKET_CAM_OUTWARD_MULTIPLIER = 1.85;
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1599,7 +1599,7 @@ const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.11; // keep the cue butt from dipping below the cushion top surface
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cushions rise so it never touches
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.08; // lift the cue slightly more as cushions rise so it never touches
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -1607,10 +1607,10 @@ const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.45;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.56;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
-const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
+const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.52;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
@@ -23515,6 +23515,16 @@ const powerRef = useRef(hud.power);
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
+          const metaState = frameSnapshot?.meta?.state ?? null;
+          const shooterId = metaState?.currentPlayer ?? frameSnapshot?.activePlayer;
+          const assignments = metaState?.assignments ?? {};
+          const assignmentTargets =
+            activeVariantId === 'uk'
+              ? mapAssignmentToTargets(
+                  shooterId ? assignments[shooterId] : null,
+                  activeVariantId
+                )
+              : [];
           const targetOrder = resolveTargetPriorities(
             frameSnapshot,
             activeVariantId,
@@ -23524,14 +23534,34 @@ const powerRef = useRef(hud.power);
             ? frameSnapshot.ballOn
             : [];
           const combinedTargets = [...targetOrder];
+          if (assignmentTargets.length > 0) {
+            assignmentTargets
+              .slice()
+              .reverse()
+              .forEach((target) => {
+                if (!combinedTargets.includes(target)) {
+                  combinedTargets.unshift(target);
+                }
+              });
+          }
           legalTargetsRaw
             .map((entry) => normalizeTargetId(entry))
             .filter((entry) => entry && isBallTargetId(entry))
             .forEach((entry) => {
               if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
             });
+          const preferredActiveBalls =
+            assignmentTargets.length > 0
+              ? activeBalls.filter((ball) =>
+                  assignmentTargets.some((target) => matchesTargetId(ball, target))
+                )
+              : activeBalls;
+          const candidateBalls =
+            assignmentTargets.length > 0 && preferredActiveBalls.length > 0
+              ? preferredActiveBalls
+              : activeBalls;
           const pickFallbackBall = () =>
-            activeBalls.reduce((best, ball) => {
+            candidateBalls.reduce((best, ball) => {
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
@@ -23543,7 +23573,7 @@ const powerRef = useRef(hud.power);
             }, null);
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
-              const matches = activeBalls.filter(
+              const matches = candidateBalls.filter(
                 (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
               );
               if (matches.length > 0) {
@@ -23558,7 +23588,7 @@ const powerRef = useRef(hud.power);
             return null;
           };
           const findRackApex = () =>
-            activeBalls.reduce((best, ball) => {
+            candidateBalls.reduce((best, ball) => {
               if (!best) return ball;
               if (ball.pos.y > best.pos.y + 1e-6) return ball;
               if (
@@ -23612,7 +23642,7 @@ const powerRef = useRef(hud.power);
             );
           }
 
-          if (!targetBall && activeBalls.length > 0) {
+          if (!targetBall && candidateBalls.length > 0) {
             targetBall = pickFallbackBall();
           }
 
@@ -23751,13 +23781,7 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (plan?.aimDir && !plan.viaCushion) {
-            const dir = plan.aimDir.clone();
-            if (applyAimDirection(dir, summary?.key ?? null)) return;
-            suggestionAimKeyRef.current = null;
-          } else {
-            suggestionAimKeyRef.current = null;
-          }
+          suggestionAimKeyRef.current = null;
           applyAutoAimFallback();
         };
         stopAiThinkingRef.current = stopAiThinking;
