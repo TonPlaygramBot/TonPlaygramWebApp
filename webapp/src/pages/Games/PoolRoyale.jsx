@@ -1374,7 +1374,7 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
-const POCKET_CAM_OUTWARD_MULTIPLIER = 1.16;
+const POCKET_CAM_OUTWARD_MULTIPLIER = 1.9;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1496,7 +1496,7 @@ const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is 
 const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side spin
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
-const CUE_AFTER_SPIN_DEFLECTION_SCALE = 1; // keep cue-ball follow line aligned with real spin direction
+const CUE_AFTER_SPIN_DEFLECTION_SCALE = 0; // remove spin deflection so the cue follow line tracks the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -5370,11 +5370,9 @@ const computeShortRailPairFraming = (camera, cuePos, targetPos = null, margin = 
   };
 };
 
-const resolveBackspinPreviewLerp = (backSpinWeight, powerStrength) => {
+const resolveBackspinPreviewLerp = (backSpinWeight) => {
   if (!Number.isFinite(backSpinWeight) || backSpinWeight <= 1e-4) return 0;
-  const powerScale = 0.55 + THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1) * 0.45;
-  const scaled = backSpinWeight * powerScale;
-  const eased = Math.min(1, Math.pow(scaled, 0.75));
+  const eased = Math.min(1, Math.pow(backSpinWeight, 0.75));
   const minimum = Math.min(0.18, backSpinWeight * 0.35 + 0.04);
   return Math.min(1, Math.max(eased, minimum));
 };
@@ -23010,6 +23008,8 @@ const powerRef = useRef(hud.power);
             .map((plan) => ({ plan, score: scorePotPlan(plan) }))
             .sort(
               (a, b) =>
+                (b.plan?.potChance ?? b.score ?? 0) -
+                  (a.plan?.potChance ?? a.score ?? 0) ||
                 b.score - a.score ||
                 (a.plan?.difficulty ?? 0) - (b.plan?.difficulty ?? 0)
             );
@@ -24573,10 +24573,25 @@ const powerRef = useRef(hud.power);
         const aimLerpFactor = chalkAssistTargetRef.current
           ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
           : baseAimLerp;
+        const currentHud = hudRef.current;
+        const isPlayerTurn = currentHud?.turn === 0;
+        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
+        const previewingAiShot = aiShotPreviewRef.current;
+        const aiCueViewActive = aiShotCueViewRef.current;
+        const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
+        const shouldLockAiAim =
+          isAiTurn && activeAiPlan?.aimDir && (previewingAiShot || aiCueViewActive);
         if (!lookModeRef.current) {
-          aimDir.lerp(tmpAim, aimLerpFactor);
-          if (aimDir.lengthSq() > 1e-6) {
-            aimDir.normalize();
+          if (shouldLockAiAim) {
+            aimDir.copy(activeAiPlan.aimDir);
+            if (aimDir.lengthSq() > 1e-6) {
+              aimDir.normalize();
+            }
+          } else {
+            aimDir.lerp(tmpAim, aimLerpFactor);
+            if (aimDir.lengthSq() > 1e-6) {
+              aimDir.normalize();
+            }
           }
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
@@ -24586,18 +24601,12 @@ const powerRef = useRef(hud.power);
         const newCollisions = new Set();
         let shouldSlowAim = false;
         // Aiming vizual
-        const currentHud = hudRef.current;
-        const isPlayerTurn = currentHud?.turn === 0;
-        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
-        const previewingAiShot = aiShotPreviewRef.current;
-        const aiCueViewActive = aiShotCueViewRef.current;
         const remoteShotActive =
           currentHud?.turn === 1 && remoteShotActiveRef.current;
         const remoteAimState = remoteAimRef.current;
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
-        const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
           allStopped(balls) &&
           cue?.active &&
@@ -24876,25 +24885,12 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const backspinSideFlip = physicsSpin.y < -1e-4 ? -1 : 1;
-          const spinSideInfluence =
-            (physicsSpin.x || 0) *
-            (0.4 + 0.42 * powerStrength) *
-            CUE_AFTER_SPIN_DEFLECTION_SCALE *
-            backspinSideFlip;
-          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
-          const cueFollowDirSpinAdjusted = cueFollowDir
-            .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence))
-            .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
-          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-            cueFollowDirSpinAdjusted.normalize();
-          }
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = resolveBackspinPreviewLerp(
-              backSpinWeight * BACKSPIN_DIRECTION_PREVIEW,
-              powerStrength
+              backSpinWeight * BACKSPIN_DIRECTION_PREVIEW
             );
             const drawDir = dir.clone().negate();
             cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
@@ -25145,25 +25141,12 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const backspinSideFlip = remotePhysicsSpin.y < -1e-4 ? -1 : 1;
-          const spinSideInfluence =
-            (remotePhysicsSpin.x || 0) *
-            (0.4 + 0.42 * powerStrength) *
-            CUE_AFTER_SPIN_DEFLECTION_SCALE *
-            backspinSideFlip;
-          const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
-          const cueFollowDirSpinAdjusted = cueFollowDir
-            .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence))
-            .add(baseDir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
-          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-            cueFollowDirSpinAdjusted.normalize();
-          }
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = resolveBackspinPreviewLerp(
-              backSpinWeight * BACKSPIN_DIRECTION_PREVIEW,
-              powerStrength
+              backSpinWeight * BACKSPIN_DIRECTION_PREVIEW
             );
             const drawDir = baseDir.clone().negate();
             cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
