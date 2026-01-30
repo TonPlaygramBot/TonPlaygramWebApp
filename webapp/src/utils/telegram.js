@@ -40,6 +40,40 @@ export function getTelegramId() {
   return null;
 }
 
+export function getTelegramBotUsername() {
+  if (typeof document === 'undefined') return '';
+  const meta = document.querySelector('meta[name="telegram:web_app:bot_username"]');
+  const content = meta?.getAttribute('content') || meta?.content || '';
+  return content.trim();
+}
+
+export function getTelegramStartParam() {
+  if (typeof window === 'undefined') return '';
+  const initStart =
+    window?.Telegram?.WebApp?.initDataUnsafe?.start_param ||
+    window?.Telegram?.WebApp?.initDataUnsafe?.startParam;
+  if (initStart) return String(initStart);
+  const params = new URLSearchParams(window.location.search);
+  const urlStart =
+    params.get('tgWebAppStartParam') ||
+    params.get('start_param') ||
+    params.get('startapp') ||
+    params.get('start') ||
+    params.get('ref');
+  if (urlStart) return urlStart;
+  return localStorage.getItem('telegramStartParam') || '';
+}
+
+export function getTelegramReturnUrl() {
+  if (typeof window === 'undefined') return undefined;
+  const botUsername = getTelegramBotUsername();
+  if (!botUsername) return undefined;
+  const startParam = getTelegramStartParam();
+  const base = `https://t.me/${botUsername}`;
+  if (!startParam) return base;
+  return `${base}?startapp=${encodeURIComponent(startParam)}`;
+}
+
 function generateAccountId() {
   if (typeof window === 'undefined') return null;
   if (window.crypto?.randomUUID) {
