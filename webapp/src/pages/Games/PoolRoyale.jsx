@@ -994,6 +994,34 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Albanian commentary with authentic cadence',
+    language: 'sq-AL',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'male', 'Arben', 'Ilir', 'Besnik'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'female', 'Elira', 'Anila', 'Besa']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.04, volume: 1 }
+    }
+  },
+  {
+    id: 'italian-booth',
+    label: 'Italian Booth',
+    description: 'Italian commentary with energetic cadence',
+    language: 'it-IT',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['it-IT', 'it', 'Italian', 'male', 'Luca', 'Marco', 'Gianni'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['it-IT', 'it', 'Italian', 'female', 'Giulia', 'Sara', 'Francesca']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.06, pitch: 1.04, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -1375,7 +1403,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.85; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras slightly further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1485,7 +1513,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.8; // reduce overall spin impact by 20%
+const SPIN_GLOBAL_SCALE = 1; // restore full side spin strength without pre-impact deflection
 const SPIN_STRENGTH = BALL_R * 0.034 * SPIN_GLOBAL_SCALE;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
@@ -11145,6 +11173,7 @@ function PoolRoyaleGame({
     () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
     [activeVariant]
   );
+  const isUkEightBall = useMemo(() => activeVariant?.id === 'uk', [activeVariant]);
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
@@ -11399,6 +11428,7 @@ function PoolRoyaleGame({
   const commentarySpeakingRef = useRef(false);
   const commentaryLastEventAtRef = useRef(0);
   const pendingCommentaryLinesRef = useRef(null);
+  const commentaryIntroPlayedRef = useRef(false);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
@@ -11547,6 +11577,12 @@ function PoolRoyaleGame({
       POOL_ROYALE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
+  const commentaryGroupLabels = useMemo(() => {
+    if (activeVariant?.id === 'uk') {
+      return { primary: 'reds', secondary: 'yellows' };
+    }
+    return { primary: 'solids', secondary: 'stripes' };
+  }, [activeVariant?.id]);
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
   const availableTableFinishes = useMemo(
     () =>
@@ -12563,6 +12599,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     setFrameState(initialFrame);
   }, [initialFrame]);
+  useEffect(() => {
+    commentaryIntroPlayedRef.current = false;
+  }, [initialFrame, commentaryPresetId, activeVariant?.id, activeVariant?.ballSet]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -13458,9 +13497,12 @@ const powerRef = useRef(hud.power);
       const colorKey = String(entry.color || '').toUpperCase();
       const idValue = typeof entry.id === 'string' ? entry.id : '';
       if (colorKey === 'CUE' || entry.id === 'cue') return 'the cue ball';
+      if (isUkEightBall && (colorKey === 'RED' || colorKey === 'YELLOW')) {
+        return colorKey === 'RED' ? 'a red' : 'a yellow';
+      }
       const idMatch = /(\d+)/.exec(idValue) || /BALL_(\d+)/.exec(colorKey);
       if (idMatch) return `the ${parseInt(idMatch[1], 10)} ball`;
-      if (colorKey === 'BLACK') return isUkAmericanSet ? 'the 8 ball' : 'the black';
+      if (colorKey === 'BLACK') return isUkEightBall ? 'the black' : 'the 8 ball';
       if (colorKey === 'RED') return 'a red';
       if (colorKey === 'YELLOW') return 'a yellow';
       if (colorKey === 'BLUE') return 'the blue';
@@ -13471,7 +13513,7 @@ const powerRef = useRef(hud.power);
       if (colorKey === 'SOLID') return 'a solid';
       return `the ${colorKey.toLowerCase()}`;
     },
-    [isUkAmericanSet]
+    [isUkEightBall]
   );
 
   const resolvePotSummary = useCallback(
@@ -13645,6 +13687,29 @@ const powerRef = useRef(hud.power);
       variantKey
     ]
   );
+  const buildPoolCommentaryLine = useCallback(
+    (event, speaker, context = {}) => {
+      const text = buildCommentaryLine({
+        event,
+        variant: activeVariant?.id ?? variantKey ?? '9ball',
+        speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: 'Pool Royale arena',
+          ballSet: activeVariant?.ballSet,
+          ...context
+        }
+      });
+      return { speaker, text };
+    },
+    [
+      activeCommentaryPreset?.language,
+      activeVariant?.ballSet,
+      activeVariant?.id,
+      commentaryPresetId,
+      variantKey
+    ]
+  );
 
   const maybeSpeakShotCommentary = useCallback(
     ({
@@ -13670,6 +13735,8 @@ const powerRef = useRef(hud.power);
       const shooterPots = (pottedBySeat?.[shooter]?.length ?? 0) + (potCount ?? 0);
       const opponentPots = pottedBySeat?.[opponent]?.length ?? 0;
       const { targetBall, potCount: resolvedPotCount, pocket } = resolvePotSummary(pottedBalls);
+      const nextTargets = formatBallOnLabel(safeState?.ballOn ?? frameState?.ballOn ?? []);
+      const nextTarget = nextTargets.length ? nextTargets.join(' or ') : '';
       const context = {
         player: shooterName,
         opponent: opponentName,
@@ -13682,7 +13749,10 @@ const powerRef = useRef(hud.power);
         scoreline,
         targetBall,
         potCount: resolvedPotCount,
-        pocket
+        pocket,
+        nextTarget,
+        groupPrimary: commentaryGroupLabels.primary,
+        groupSecondary: commentaryGroupLabels.secondary
       };
 
       if (safeState?.frameOver) {
@@ -13716,22 +13786,36 @@ const powerRef = useRef(hud.power);
       }
 
       if (hadObjectPot) {
-        if (replayDecision?.tags?.includes('bank')) {
-          enqueuePoolCommentaryEvent('bank', context);
-        } else if (replayDecision?.tags?.includes('multi')) {
-          enqueuePoolCommentaryEvent('combo', context);
-        } else {
-          enqueuePoolCommentaryEvent('pot', context);
+        const primarySpeaker = resolveCommentarySpeaker();
+        const secondarySpeaker =
+          primarySpeaker === POOL_ROYALE_SPEAKERS.lead
+            ? POOL_ROYALE_SPEAKERS.analyst
+            : POOL_ROYALE_SPEAKERS.lead;
+        const primaryEvent = replayDecision?.tags?.includes('bank')
+          ? 'bank'
+          : replayDecision?.tags?.includes('multi')
+            ? 'combo'
+            : 'pot';
+        const lines = [buildPoolCommentaryLine(primaryEvent, primarySpeaker, context)];
+        lines.push(buildPoolCommentaryLine('compliment', secondarySpeaker, context));
+        if (nextTarget) {
+          lines.push(buildPoolCommentaryLine('positioning', secondarySpeaker, context));
         }
+        enqueuePoolCommentary(lines);
         return;
       }
 
       enqueuePoolCommentaryEvent('miss', context);
     },
     [
+      buildPoolCommentaryLine,
+      commentaryGroupLabels,
+      enqueuePoolCommentary,
       enqueuePoolCommentaryEvent,
       frameState?.players,
+      formatBallOnLabel,
       pottedBySeat,
+      resolveCommentarySpeaker,
       resolvePotSummary,
       resolveScoreline,
       resolveSeatLabel
@@ -13765,6 +13849,63 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('keydown', unlockCommentary);
     };
   }, [enqueuePoolCommentary]);
+  useEffect(() => {
+    if (commentaryIntroPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    if (!commentaryReadyRef.current) return;
+    if (frameState?.frameOver) return;
+    const scoreA = frameState?.players?.A?.score ?? 0;
+    const scoreB = frameState?.players?.B?.score ?? 0;
+    const scoreline = resolveScoreline(scoreA, scoreB);
+    const context = {
+      player: resolveSeatLabel('A'),
+      opponent: resolveSeatLabel('B'),
+      playerScore: scoreA,
+      opponentScore: scoreB,
+      playerPoints: scoreA,
+      opponentPoints: scoreB,
+      playerPots: pottedBySeat?.A?.length ?? 0,
+      opponentPots: pottedBySeat?.B?.length ?? 0,
+      scoreline,
+      groupPrimary: commentaryGroupLabels.primary,
+      groupSecondary: commentaryGroupLabels.secondary
+    };
+    const lines = [
+      buildPoolCommentaryLine('welcome', POOL_ROYALE_SPEAKERS.lead, context),
+      buildPoolCommentaryLine('intro', POOL_ROYALE_SPEAKERS.lead, context),
+      buildPoolCommentaryLine('introReply', POOL_ROYALE_SPEAKERS.analyst, context)
+    ];
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(tournamentLastResultKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const previousScoreline = `${parsed?.p1 ?? 0}-${parsed?.p2 ?? 0}`;
+          lines.push(
+            buildPoolCommentaryLine('tournamentRecap', POOL_ROYALE_SPEAKERS.analyst, {
+              ...context,
+              previousScoreline
+            })
+          );
+        }
+      } catch (err) {
+        console.warn('Pool Royale tournament recap load failed', err);
+      }
+    }
+    enqueuePoolCommentary(lines, { priority: true });
+    commentaryIntroPlayedRef.current = true;
+  }, [
+    buildPoolCommentaryLine,
+    commentaryGroupLabels,
+    enqueuePoolCommentary,
+    frameState?.frameOver,
+    frameState?.players,
+    pottedBySeat,
+    resolveScoreline,
+    resolveSeatLabel,
+    tournamentLastResultKey,
+    tournamentMode
+  ]);
 
   useEffect(() => {
     document.title = 'Pool Royale 3D';
@@ -13939,17 +14080,17 @@ const powerRef = useRef(hud.power);
       const normalized = rawList
         .map((c) => (typeof c === 'string' ? c.toUpperCase() : String(c)))
         .filter(Boolean);
-      if (!isUkAmericanSet) {
+      if (!isUkEightBall) {
         return normalized.map((entry) => entry.toLowerCase());
       }
       return normalized.map((entry) => {
-        if (entry === 'YELLOW' || entry === 'BLUE') return 'stripes';
-        if (entry === 'RED') return 'solids';
-        if (entry === 'BLACK') return '8';
+        if (entry === 'YELLOW' || entry === 'BLUE') return 'yellows';
+        if (entry === 'RED') return 'reds';
+        if (entry === 'BLACK') return 'black';
         return entry.toLowerCase();
       });
     },
-    [isUkAmericanSet]
+    [isUkEightBall]
   );
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
@@ -24203,10 +24344,10 @@ const powerRef = useRef(hud.power);
                       : 'AI';
                 const assignmentLabel = (() => {
                   if (nextAssign === 'blue') {
-                    return isUkAmericanSet ? 'Solids' : 'Yellows';
+                    return isUkEightBall ? 'Yellows' : 'Solids';
                   }
                   if (nextAssign === 'red') {
-                    return isUkAmericanSet ? 'Stripes' : 'Reds';
+                    return isUkEightBall ? 'Reds' : 'Stripes';
                   }
                   return nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
                 })();
@@ -26936,31 +27077,40 @@ const powerRef = useRef(hud.power);
                   ? /BALL_(\d+)/.exec(colorKey)
                   : null;
             const ballNumber = idMatch ? parseInt(idMatch[1], 10) : null;
+            const isUkSpotColor = isUkEightBall && (colorKey === 'RED' || colorKey === 'YELLOW');
             const isStripe =
-              (isUkAmericanSet && ballNumber != null && ballNumber >= 9) ||
-              colorKey === 'STRIPE';
+              !isUkSpotColor &&
+              ((isUkAmericanSet && ballNumber != null && ballNumber >= 9) ||
+                colorKey === 'STRIPE');
             const isSolid =
-              (isUkAmericanSet && ballNumber != null && ballNumber > 0 && ballNumber < 9) ||
-              colorKey === 'SOLID';
+              !isUkSpotColor &&
+              ((isUkAmericanSet && ballNumber != null && ballNumber > 0 && ballNumber < 9) ||
+                colorKey === 'SOLID');
             let colorHex =
-              (isUkAmericanSet && ballNumber != null
-                ? americanBallSwatches[ballNumber]
-                : null) ||
+              (isUkSpotColor
+                ? ballSwatches[colorKey]
+                : isUkAmericanSet && ballNumber != null
+                  ? americanBallSwatches[ballNumber]
+                  : null) ||
               ballSwatches[colorKey] ||
               (ballNumber != null ? americanBallSwatches[ballNumber] : null) ||
               (colorKey.startsWith('BALL_') ? '#f5f5f4' : '#e5e7eb');
             const label =
-              ballNumber != null
-                ? ballNumber
-                : colorKey === 'BLACK'
-                  ? '8'
-                  : isStripe
-                    ? 'ST'
-                    : isSolid
-                      ? 'SO'
-                      : colorKey.charAt(0);
+              isUkSpotColor
+                ? colorKey === 'RED'
+                  ? 'R'
+                  : 'Y'
+                : ballNumber != null
+                  ? ballNumber
+                  : colorKey === 'BLACK'
+                    ? '8'
+                    : isStripe
+                      ? 'ST'
+                      : isSolid
+                        ? 'SO'
+                        : colorKey.charAt(0);
             const badgeNumber =
-              ballNumber != null ? ballNumber : colorKey === 'BLACK' ? 8 : null;
+              isUkSpotColor ? null : ballNumber != null ? ballNumber : colorKey === 'BLACK' ? 8 : null;
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
             const shade = darkenHex(colorHex, 0.6);
             const gloss = isStripe
@@ -26979,9 +27129,11 @@ const powerRef = useRef(hud.power);
             const previewUrl = getBallPreview({
               colorHex,
               pattern: isStripe ? 'stripe' : 'solid',
-              number: ballNumber ?? (colorKey === 'BLACK' ? 8 : null)
+              number: isUkSpotColor ? null : ballNumber ?? (colorKey === 'BLACK' ? 8 : null)
             });
-            const altLabel = `Pocketed ${label}`;
+            const altLabel = isUkSpotColor
+              ? `Pocketed ${colorKey === 'RED' ? 'red' : 'yellow'}`
+              : `Pocketed ${label}`;
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
@@ -27034,6 +27186,7 @@ const powerRef = useRef(hud.power);
       darkenHex,
       getBallPreview,
       isUkAmericanSet,
+      isUkEightBall,
       pottedGap,
       pottedNumberBadgeSize,
       pottedTokenSize
