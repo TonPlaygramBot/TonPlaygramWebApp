@@ -154,6 +154,35 @@ public class CueCamera : MonoBehaviour
     // Choose which short rail the player view should favour before a shot begins.
     public bool startLookingTowardPositiveZ = true;
 
+    [Header("Standing camera anchor")]
+    // Use the standing camera pose captured at match start as the broadcast anchor.
+    public bool useStandingCameraForBroadcast = true;
+    // Capture the current camera pose in Awake for broadcast/replay use.
+    public bool cacheStandingCameraOnStart = true;
+    // Distance from the standing camera to the table focus, captured on start.
+    public float standingCameraDistance = 0.82f;
+    // Height offset above the table focus, captured on start.
+    public float standingCameraHeight = 0.48f;
+
+    [Header("Pocket camera framing")]
+    // Pull the pocket camera slightly inward for tighter pocket coverage.
+    public float pocketCameraDistanceInset = 0.08f;
+    // Nudge the pocket camera look target downward for a slightly steeper angle.
+    public float pocketCameraLookDownOffset = 0.03f;
+
+    [Header("Ball in hand view")]
+    // Start the match in a locked standing camera view for ball-in-hand placement.
+    public bool startWithBallInHand = true;
+    // Distance from the table focus while placing the cue ball.
+    public float ballInHandDistance = 1.05f;
+    // Height offset above the table focus while placing the cue ball.
+    public float ballInHandHeight = 0.62f;
+    // Fraction of the table half-length to shift focus toward the break line.
+    [Range(0f, 1f)]
+    public float ballInHandFocusOffset = 0.45f;
+    // Downward look offset to keep the ball-in-hand area framed.
+    public float ballInHandLookDownOffset = 0.04f;
+
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
     // the camera raised, 1 hugs the cue for a tight aiming angle.
@@ -169,6 +198,8 @@ public class CueCamera : MonoBehaviour
     private int cueAimSideSign = 1;
     private int broadcastSideSign = -1;
     private bool nextShotIsAi;
+    private bool ballInHandActive;
+    private bool cachedStandingCamera;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -224,6 +255,7 @@ public class CueCamera : MonoBehaviour
         TargetBall = target;
         currentBall = CueBall;
         shotInProgress = true;
+        ballInHandActive = false;
         usingTargetCamera = target != null;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
@@ -255,6 +287,11 @@ public class CueCamera : MonoBehaviour
         cueAimLowering = ClampCueAimLowering(defaultCueAimLowering);
         cueAimForward = GetInitialCueForward();
         targetViewFocus = GetBroadcastFocus(CueBall != null ? CueBall.position : tableBounds.center);
+        ballInHandActive = startWithBallInHand;
+        if (cacheStandingCameraOnStart)
+        {
+            CacheStandingCameraPose();
+        }
     }
 
     private void LateUpdate()
@@ -266,7 +303,14 @@ public class CueCamera : MonoBehaviour
 
         if (!shotInProgress)
         {
-            UpdateCueAimCamera();
+            if (ballInHandActive)
+            {
+                UpdateBallInHandCamera();
+            }
+            else
+            {
+                UpdateCueAimCamera();
+            }
             return;
         }
 
@@ -583,7 +627,7 @@ public class CueCamera : MonoBehaviour
         currentBall = CueBall;
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
-        ApplyBroadcastCamera(GetBroadcastFocus(focus));
+        ApplyBroadcastCamera(GetBroadcastFocus(focus), false);
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -615,7 +659,7 @@ public class CueCamera : MonoBehaviour
 
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
-        ApplyBroadcastCamera(targetViewFocus);
+        ApplyBroadcastCamera(targetViewFocus, true);
 
         bool targetSettled = TargetBall == null || !TargetBall.gameObject.activeInHierarchy || !IsMoving(TargetBall);
         if (!targetSettled)
@@ -647,6 +691,44 @@ public class CueCamera : MonoBehaviour
         PositionCueAimCamera(0f, true);
     }
 
+    private void UpdateBallInHandCamera()
+    {
+        Vector3 focus = GetBallInHandFocus();
+        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+
+        float heightOffset = Mathf.Max(ballInHandHeight, minimumHeightAboveFocus);
+        float height = Mathf.Max(heightOffset, minRailHeight);
+        float distance = Mathf.Max(ballInHandDistance, broadcastMinDistance);
+
+        yaw = GetShortRailYaw(cueAimSideSign);
+        Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
+        Vector3 forward = rotation * Vector3.forward;
+
+        Vector3 lookTarget = focus;
+        lookTarget.y = focus.y - Mathf.Max(0f, ballInHandLookDownOffset);
+
+        ApplyShortRailCamera(focus, forward, distance, height, minimumHeightAboveFocus, lookTarget);
+    }
+
+    private Vector3 GetBallInHandFocus()
+    {
+        Vector3 focus = tableBounds.center;
+        float offset = Mathf.Clamp01(ballInHandFocusOffset) * tableBounds.extents.z;
+        focus.z += offset * cueAimSideSign;
+        focus.x = 0f;
+        focus.y = Mathf.Max(focus.y, tableBounds.center.y);
+        return focus;
+    }
+
+    public void SetBallInHandActive(bool active)
+    {
+        ballInHandActive = active;
+        if (active && cacheStandingCameraOnStart && !cachedStandingCamera)
+        {
+            CacheStandingCameraPose();
+        }
+    }
+
     private Vector3 GetBroadcastFocus(Vector3 desired)
     {
         Vector3 centre = tableBounds.center;
@@ -657,7 +739,7 @@ public class CueCamera : MonoBehaviour
         return focus;
     }
 
-    private void ApplyBroadcastCamera(Vector3 focus)
+    private void ApplyBroadcastCamera(Vector3 focus, bool isPocketCamera)
     {
         Camera cam = cachedCamera != null ? cachedCamera : GetComponent<Camera>();
         if (cam == null)
@@ -671,7 +753,13 @@ public class CueCamera : MonoBehaviour
 
         float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
         float baseHeight = Mathf.Max(broadcastHeight, focus.y + minimumHeightAboveFocus);
-        float height = Mathf.Max(baseHeight + Mathf.Max(0f, broadcastHeightPadding), minRailHeight);
+        float heightOffset = baseHeight;
+        if (useStandingCameraForBroadcast && cachedStandingCamera)
+        {
+            heightOffset = Mathf.Max(standingCameraHeight, minimumHeightAboveFocus);
+        }
+        float heightPadding = useStandingCameraForBroadcast && cachedStandingCamera ? 0f : Mathf.Max(0f, broadcastHeightPadding);
+        float height = Mathf.Max(heightOffset + heightPadding, minRailHeight);
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
@@ -680,11 +768,35 @@ public class CueCamera : MonoBehaviour
         focus.x = 0f;
         focus.z = broadcastBounds.center.z;
 
-        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+        float distance = useStandingCameraForBroadcast && cachedStandingCamera
+            ? standingCameraDistance
+            : ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+        if (isPocketCamera)
+        {
+            distance = Mathf.Max(distance - Mathf.Max(0f, pocketCameraDistanceInset), broadcastMinDistance);
+        }
+        distance = Mathf.Clamp(distance, broadcastMinDistance, broadcastMaxDistance);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
+        if (isPocketCamera)
+        {
+            lookTarget.y -= Mathf.Max(0f, pocketCameraLookDownOffset);
+        }
 
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
+    }
+
+    private void CacheStandingCameraPose()
+    {
+        Vector3 focus = tableBounds.center;
+        focus.x = 0f;
+        focus.y = Mathf.Max(focus.y, tableBounds.center.y);
+
+        Vector3 flatFocus = new Vector3(focus.x, 0f, focus.z);
+        Vector3 flatPos = new Vector3(transform.position.x, 0f, transform.position.z);
+        standingCameraDistance = Vector3.Distance(flatPos, flatFocus);
+        standingCameraHeight = transform.position.y - focus.y;
+        cachedStandingCamera = true;
     }
 
     private Bounds GetBroadcastBounds(Vector3 focus)
