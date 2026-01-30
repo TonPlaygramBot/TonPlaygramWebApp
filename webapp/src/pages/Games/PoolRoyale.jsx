@@ -1391,12 +1391,12 @@ const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 18,
   dotThreshold: 0.15,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.6,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 0.98,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 0.9,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
   distanceScale: 1,
   heightScale: 1,
@@ -5677,8 +5677,8 @@ const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
-  BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize(),
+  BL: new THREE.Vector2(-0.72, 1).normalize(),
+  BR: new THREE.Vector2(0.72, 1).normalize(),
   TM: new THREE.Vector2(-1, 0).normalize(),
   BM: new THREE.Vector2(1, 0).normalize()
 });
