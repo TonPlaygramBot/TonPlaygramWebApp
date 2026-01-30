@@ -1375,6 +1375,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
+const POCKET_CAM_INWARD_SCALE = 0.85; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1390,13 +1391,17 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 18,
   dotThreshold: 0.15,
-  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 + BALL_DIAMETER * 2.5,
+  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE * POCKET_CAM_INWARD_SCALE,
+  minOutsideShort:
+    POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
+    BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 0.9,
   heightOffsetShortMultiplier: 0.9,
-  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 + BALL_DIAMETER * 2.5,
+  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
+  outwardOffsetShort:
+    POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
+    BALL_DIAMETER * 2.5,
   heightDrop: BALL_R * 0.2,
   distanceScale: 1,
   heightScale: 1,
@@ -1499,9 +1504,9 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
 const CUE_AFTER_SPIN_DEFLECTION_SCALE = 0; // remove spin deflection so the cue follow line tracks the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
+// Apply an additional 30% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
-const SHOT_POWER_REDUCTION = 0.85;
+const SHOT_POWER_REDUCTION = 0.7;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
