@@ -49,7 +49,6 @@ import {
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import { planShot as planOfflineShot } from '../../../../lib/poolAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
 import {
@@ -1018,7 +1017,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.27; // raise rails slightly to follow the lifted cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.24; // shorten rails by ~35% so the stance sits lower
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1030,7 +1029,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.025; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.16; // lift jaws subtly so they track the raised cushion line
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.14; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1309,8 +1308,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.02; // lift the cushion base slightly so the lip rides higher above the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.16; // trim the cushion tops a touch less to match the raised profile
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.05; // lower the cushion base slightly so the lip sits closer to the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // trim the cushion tops further so they sit a touch lower than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1478,7 +1477,6 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_OUTPUT_SCALE = 0.8; // reduce overall spin influence by 20%
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
@@ -1486,8 +1484,8 @@ const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
-const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45 * SPIN_OUTPUT_SCALE; // inject extra sideways carry while the cue ball is airborne
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36 * SPIN_OUTPUT_SCALE; // let cushion contacts inherit noticeable throw from active side spin
+const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
@@ -1496,8 +1494,6 @@ const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
 const CUE_AFTER_SPIN_DEFLECTION_SCALE = 1; // keep cue-ball follow line aligned with real spin direction
-const scaleSpinVector = (spin, scale = SPIN_OUTPUT_SCALE) =>
-  new THREE.Vector2((spin?.x ?? 0) * scale, (spin?.y ?? 0) * scale);
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -1579,14 +1575,14 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.24; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 2.05; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 620;
-const PLAYER_CUE_FORWARD_MAX_MS = 1320;
+const PLAYER_CUE_FORWARD_MIN_MS = 450;
+const PLAYER_CUE_FORWARD_MAX_MS = 1025;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -5079,10 +5075,9 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 260;
-const AI_CUE_FORWARD_DURATION_MS = 920;
+const AI_CUE_FORWARD_DURATION_MS = 700;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
-const AI_OFFLINE_POT_TIME_BUDGET_MS = 18;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
 const SHOT_CAMERA_HOLD_MS = 2000;
@@ -17421,12 +17416,10 @@ const powerRef = useRef(hud.power);
             } else {
               activeShotView.smoothedPos.copy(desiredPosition);
             }
-            const levelTarget = focusTarget.clone();
-            levelTarget.y = desiredPosition.y;
             if (!activeShotView.smoothedTarget) {
-              activeShotView.smoothedTarget = levelTarget.clone();
+              activeShotView.smoothedTarget = focusTarget.clone();
             } else {
-              activeShotView.smoothedTarget.copy(levelTarget);
+              activeShotView.smoothedTarget.copy(focusTarget);
             }
             if (pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
@@ -21463,10 +21456,9 @@ const powerRef = useRef(hud.power);
         if (!payload || payload.applied) return;
         payload.applied = true;
         const { base, aimDir, physicsSpin, clampedPower, liftStrength } = payload;
-        const scaledSpin = scaleSpinVector(physicsSpin);
         const offsetScaled = {
-          x: scaledSpin?.x ?? 0,
-          y: scaledSpin?.y ?? 0
+          x: physicsSpin?.x ?? 0,
+          y: physicsSpin?.y ?? 0
         };
         cue.vel.copy(base);
         if (cue.spin) {
@@ -21501,7 +21493,7 @@ const powerRef = useRef(hud.power);
         maxPowerLiftTriggered = false;
         cue.lift = 0;
         cue.liftVel = 0;
-        const topSpinWeight = Math.max(0, scaledSpin?.y || 0);
+        const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
         if (
           clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
           liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -21617,11 +21609,10 @@ const powerRef = useRef(hud.power);
         const liftAngle = resolveUserCueLift();
         const liftStrength = normalizeCueLift(liftAngle);
         const physicsSpin = mapSpinForPhysics(appliedSpin);
-        const scaledSpin = scaleSpinVector(physicsSpin);
         const swerveActive = spinAppliedRef.current?.mode === 'swerve';
         const guideAimDir2D = resolveSwerveAimDir(
           aimDir.clone(),
-          scaledSpin,
+          physicsSpin,
           clampedPower,
           swerveActive,
           liftStrength
@@ -21787,12 +21778,12 @@ const powerRef = useRef(hud.power);
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledSpin.y < 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledSpin.y > 0) {
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
@@ -21805,8 +21796,8 @@ const powerRef = useRef(hud.power);
             if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
             TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
             if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((scaledSpin.x ?? 0) * BALL_R);
-            TMP_VEC3_C.y += (scaledSpin.y ?? 0) * BALL_R;
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((physicsSpin.x ?? 0) * BALL_R);
+            TMP_VEC3_C.y += (physicsSpin.y ?? 0) * BALL_R;
             const impulseMag = BALL_MASS * base.length();
             TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
             TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
@@ -21816,7 +21807,7 @@ const powerRef = useRef(hud.power);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           const swerveSettings = resolveSwerveSettings(
-            scaledSpin,
+            physicsSpin,
             clampedPower,
             cue.spinMode === 'swerve',
             liftStrength
@@ -21831,7 +21822,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, scaledSpin.y || 0);
+          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -23126,144 +23117,6 @@ const powerRef = useRef(hud.power);
           ].join('::');
         };
 
-        const resolveOfflineAiGame = (variantId) => {
-          if (variantId === '9ball') return 'NINE_BALL';
-          if (variantId === 'uk') return 'EIGHT_POOL_UK';
-          return 'AMERICAN_BILLIARDS';
-        };
-
-        const mapOfflineAiBallId = (ballId) => {
-          if (typeof ballId === 'number') return ballId;
-          if (typeof ballId !== 'string') return null;
-          const lower = ballId.toLowerCase();
-          if (lower === 'cue' || lower === 'cue_ball') return 0;
-          const match = lower.match(/\d+/);
-          return match ? Number.parseInt(match[0], 10) : null;
-        };
-
-        const computeOfflinePotPlan = (allBalls, cueBall, frameSnapshot) => {
-          if (!cueBall?.active) return null;
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          if (variantId === 'uk') return null;
-          const game = resolveOfflineAiGame(variantId);
-          const width = PLAY_W;
-          const height = PLAY_H;
-          const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
-          const pocketPositions = pocketEntranceCenters();
-          const pockets = pocketPositions.map((center) => {
-            const aiPos = toAi(center);
-            return { x: aiPos.x, y: aiPos.y };
-          });
-          const aiBalls = [];
-          allBalls.forEach((ball) => {
-            if (!ball?.pos) return;
-            const mappedId = mapOfflineAiBallId(ball.id);
-            if (mappedId == null) return;
-            const aiPos = toAi(ball.pos);
-            aiBalls.push({
-              id: mappedId,
-              x: aiPos.x,
-              y: aiPos.y,
-              vx: ball.vel?.x ?? 0,
-              vy: ball.vel?.y ?? 0,
-              pocketed: !ball.active
-            });
-          });
-          if (!aiBalls.some((ball) => ball.id === 0 && !ball.pocketed)) {
-            return null;
-          }
-          const request = {
-            game,
-            state: {
-              balls: aiBalls,
-              pockets,
-              width,
-              height,
-              ballRadius: BALL_R,
-              friction: FRICTION,
-              ballInHand: Boolean(frameSnapshot?.meta?.state?.ballInHand)
-            },
-            timeBudgetMs: AI_OFFLINE_POT_TIME_BUDGET_MS
-          };
-          const decision = planOfflineShot(request);
-          if (!decision || !Number.isFinite(decision.angleRad)) return null;
-          const aimPoint = decision.aimPoint;
-          let aimDir = null;
-          if (aimPoint && Number.isFinite(aimPoint.x) && Number.isFinite(aimPoint.y)) {
-            const aimLocal = new THREE.Vector2(
-              aimPoint.x - width / 2,
-              aimPoint.y - height / 2
-            );
-            const delta = aimLocal.clone().sub(cueBall.pos);
-            if (delta.lengthSq() > 1e-6) {
-              aimDir = delta.normalize();
-            }
-          }
-          if (!aimDir) {
-            aimDir = new THREE.Vector2(Math.cos(decision.angleRad), Math.sin(decision.angleRad));
-          }
-          if (aimDir.lengthSq() < 1e-6) return null;
-          const targetBall = allBalls.find(
-            (ball) => mapOfflineAiBallId(ball.id) === decision.targetBallId
-          );
-          const potChance = THREE.MathUtils.clamp(decision.quality ?? 0, 0, 1);
-          const spinSide = decision.spin?.side ?? 0;
-          const spinY = (decision.spin?.top ?? 0) - (decision.spin?.back ?? 0);
-          let pocketCenter = null;
-          let pocketId = null;
-          if (decision.targetPocket) {
-            const pocketLocal = new THREE.Vector2(
-              decision.targetPocket.x - width / 2,
-              decision.targetPocket.y - height / 2
-            );
-            let bestIndex = -1;
-            let bestDist = Infinity;
-            pocketPositions.forEach((center, index) => {
-              const d = center.distanceToSquared(pocketLocal);
-              if (d < bestDist) {
-                bestDist = d;
-                bestIndex = index;
-              }
-            });
-            if (bestIndex >= 0) {
-              pocketCenter = pocketPositions[bestIndex].clone();
-              pocketId = POCKET_IDS[bestIndex] ?? null;
-            }
-          }
-          const cueToTarget = targetBall
-            ? cueBall.pos.distanceTo(targetBall.pos)
-            : cueBall.pos.distanceTo(cueBall.pos.clone().add(aimDir));
-          const targetToPocket =
-            targetBall && pocketCenter
-              ? targetBall.pos.distanceTo(pocketCenter)
-              : 0;
-          return {
-            type: 'pot',
-            aimDir,
-            power: THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95),
-            target: targetBall
-              ? toBallColorId(targetBall.id)
-              : `BALL_${decision.targetBallId ?? 'X'}`,
-            targetBall: targetBall ?? null,
-            pocketId: pocketId ?? 'SAFETY',
-            pocketCenter: pocketCenter ? pocketCenter.clone() : null,
-            difficulty: (1 - potChance) * 1000,
-            cueToTarget,
-            targetToPocket,
-            railNormal: null,
-            viaCushion: false,
-            quality: potChance,
-            spin: {
-              x: THREE.MathUtils.clamp(spinSide, -1, 1),
-              y: THREE.MathUtils.clamp(spinY, -1, 1)
-            },
-            aiMeta: {
-              potChance,
-              source: 'offline'
-            }
-          };
-        };
-
         const computeUkAdvancedPlan = (allBalls, cueBall, frameSnapshot) => {
           if (!cueBall?.active) return null;
           const variantId = activeVariantRef.current?.id ?? variantKey;
@@ -23396,24 +23249,10 @@ const powerRef = useRef(hud.power);
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
-            if (!cue?.active) return baseline;
+            if (variantId !== 'uk' || !cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            const offlinePlan = computeOfflinePotPlan(balls, cue, stateSnapshot);
-            const applyOfflinePlan = (result) => {
-              if (!offlinePlan) return result;
-              const offlineChance = offlinePlan.aiMeta?.potChance ?? offlinePlan.quality ?? 0;
-              const baseChance =
-                result.bestPot?.aiMeta?.potChance ?? result.bestPot?.quality ?? 0;
-              if (!result.bestPot || offlineChance >= baseChance) {
-                result.bestPot = offlinePlan;
-              }
-              return result;
-            };
-            if (variantId !== 'uk') {
-              return applyOfflinePlan({ ...baseline });
-            }
             const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
-            if (!advancedPlan) return applyOfflinePlan({ ...baseline });
+            if (!advancedPlan) return baseline;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
               result.bestPot = advancedPlan;
@@ -23422,7 +23261,7 @@ const powerRef = useRef(hud.power);
               result.bestSafety = advancedPlan;
               if (!result.bestPot) result.bestPot = baseline.bestPot;
             }
-            return applyOfflinePlan(result);
+            return result;
           } catch (err) {
             console.warn('AI evaluation fallback', err);
             return evaluateShotOptionsBaseline();
@@ -24702,7 +24541,6 @@ const powerRef = useRef(hud.power);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
         const physicsSpin = mapSpinForPhysics(appliedSpin);
-        const scaledSpin = scaleSpinVector(physicsSpin);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -24897,7 +24735,7 @@ const powerRef = useRef(hud.power);
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            scaledSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -24922,7 +24760,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            scaledSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -24997,13 +24835,13 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const backspinSideFlip = scaledSpin.y < -1e-4 ? -1 : 1;
+          const backspinSideFlip = physicsSpin.y < -1e-4 ? -1 : 1;
           const spinSideInfluence =
-            (scaledSpin.x || 0) *
+            (physicsSpin.x || 0) *
             (0.4 + 0.42 * powerStrength) *
             CUE_AFTER_SPIN_DEFLECTION_SCALE *
             backspinSideFlip;
-          const spinVerticalInfluence = (scaledSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -25011,7 +24849,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, -(scaledSpin.y || 0));
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = resolveBackspinPreviewLerp(
               backSpinWeight * BACKSPIN_DIRECTION_PREVIEW,
@@ -25227,10 +25065,9 @@ const powerRef = useRef(hud.power);
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
-          const remoteScaledSpin = scaleSpinVector(remotePhysicsSpin);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            remoteScaledSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -25251,7 +25088,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remoteScaledSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -25267,13 +25104,13 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const backspinSideFlip = remoteScaledSpin.y < -1e-4 ? -1 : 1;
+          const backspinSideFlip = remotePhysicsSpin.y < -1e-4 ? -1 : 1;
           const spinSideInfluence =
-            (remoteScaledSpin.x || 0) *
+            (remotePhysicsSpin.x || 0) *
             (0.4 + 0.42 * powerStrength) *
             CUE_AFTER_SPIN_DEFLECTION_SCALE *
             backspinSideFlip;
-          const spinVerticalInfluence = (remoteScaledSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -25281,7 +25118,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, -(remoteScaledSpin.y || 0));
+          const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = resolveBackspinPreviewLerp(
               backSpinWeight * BACKSPIN_DIRECTION_PREVIEW,
