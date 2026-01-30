@@ -1016,9 +1016,9 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.24; // shorten rails by ~35% so the stance sits lower
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
+const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1026,10 +1026,10 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // rou
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.025; // nudge jaws outward to track the cushion line precisely
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.14; // lower the visible rim so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.17; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1056,7 +1056,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a to
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1308,8 +1308,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.05; // lower the cushion base slightly so the lip sits closer to the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // trim the cushion tops further so they sit a touch lower than before
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.03; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.16; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1374,6 +1374,7 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
+const POCKET_CAM_OUTWARD_MULTIPLIER = 1.16;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1383,7 +1384,8 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
     POCKET_VIS_R * 1.95 +
     BALL_R * 1.05) *
-  POCKET_CAM_EDGE_SCALE;
+  POCKET_CAM_EDGE_SCALE *
+  POCKET_CAM_OUTWARD_MULTIPLIER;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 18,
   dotThreshold: 0.15,
@@ -1477,9 +1479,10 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_STRENGTH = BALL_R * 0.034;
+const SPIN_GLOBAL_SCALE = 0.8; // reduce overall spin impact by 20%
+const SPIN_STRENGTH = BALL_R * 0.034 * SPIN_GLOBAL_SCALE;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const SPIN_ROLL_DECAY = 0.983;
@@ -1581,20 +1584,21 @@ const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes control
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 450;
-const PLAYER_CUE_FORWARD_MAX_MS = 1025;
+const PLAYER_CUE_FORWARD_MIN_MS = 560;
+const PLAYER_CUE_FORWARD_MAX_MS = 1280;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
-const CUE_FOLLOW_SPEED_MIN = BALL_R * 9.5;
-const CUE_FOLLOW_SPEED_MAX = BALL_R * 20.5;
+const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
+const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.08; // keep the cue butt from dipping below the cushion top surface
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.11; // keep the cue butt from dipping below the cushion top surface
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cushions rise so it never touches
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -5075,7 +5079,7 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 260;
-const AI_CUE_FORWARD_DURATION_MS = 700;
+const AI_CUE_FORWARD_DURATION_MS = 820;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -17411,15 +17415,17 @@ const powerRef = useRef(hud.power);
                 ? 1 - Math.exp(-dt / POCKET_VIEW_SMOOTH_TIME)
                 : 1;
             const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
+            const leveledTarget = focusTarget.clone();
+            leveledTarget.y = desiredPosition.y;
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
               activeShotView.smoothedPos.copy(desiredPosition);
             }
             if (!activeShotView.smoothedTarget) {
-              activeShotView.smoothedTarget = focusTarget.clone();
+              activeShotView.smoothedTarget = leveledTarget.clone();
             } else {
-              activeShotView.smoothedTarget.copy(focusTarget);
+              activeShotView.smoothedTarget.copy(leveledTarget);
             }
             if (pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
@@ -20319,7 +20325,8 @@ const powerRef = useRef(hud.power);
         const info = cueStick.userData?.buttTilt;
         const len = info?.length ?? cueLen;
         if (!Number.isFinite(len) || len <= 1e-4) return;
-        const minButtHeight = cushionTop + CUE_BUTT_CUSHION_CLEARANCE;
+        const minButtHeight =
+          cushionTop + CUE_BUTT_CUSHION_CLEARANCE + CUE_CUSHION_LIFT_BIAS;
         const requiredOffset = minButtHeight - tipTarget.y;
         if (requiredOffset <= 0) return;
         const requiredTilt = Math.asin(
@@ -21778,12 +21785,16 @@ const powerRef = useRef(hud.power);
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
+          const scaledSpin = {
+            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
+            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
+          };
+          const baseSide = scaledSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
+          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (scaledSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
+          } else if (scaledSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
@@ -21796,8 +21807,8 @@ const powerRef = useRef(hud.power);
             if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
             TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
             if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((physicsSpin.x ?? 0) * BALL_R);
-            TMP_VEC3_C.y += (physicsSpin.y ?? 0) * BALL_R;
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
             const impulseMag = BALL_MASS * base.length();
             TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
             TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
@@ -21807,7 +21818,7 @@ const powerRef = useRef(hud.power);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           const swerveSettings = resolveSwerveSettings(
-            physicsSpin,
+            scaledSpin,
             clampedPower,
             cue.spinMode === 'swerve',
             liftStrength
@@ -21822,7 +21833,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+          const topSpinWeight = Math.max(0, scaledSpin.y || 0);
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -22607,6 +22618,11 @@ const powerRef = useRef(hud.power);
             if (isAimLaneBlocked(plan)) return false;
             const clearanceTarget = isRotationVariant ? 0.7 : 0.6;
             if (measureLaneClearance(plan) < clearanceTarget) return false;
+            const potChance = Number.isFinite(plan.potChance)
+              ? plan.potChance
+              : plan.quality ?? 0;
+            const minimumPotChance = plan.viaCushion ? 0.18 : 0.22;
+            if (potChance < minimumPotChance) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
           };
@@ -22755,6 +22771,16 @@ const powerRef = useRef(hud.power);
                 1
               );
               const cushionPenalty = cushionAid ? 0.18 : 0;
+              const potChance = THREE.MathUtils.clamp(
+                0.45 * entryAlignment +
+                  0.25 * (1 - cutSeverity) +
+                  0.15 * viewScore +
+                  0.1 * openLaneNorm +
+                  0.05 * (1 - travelPenalty) -
+                  cushionPenalty,
+                0,
+                1
+              );
               plan.quality = THREE.MathUtils.clamp(
                 0.32 * entryAlignment +
                   0.24 * (1 - cutSeverity) +
@@ -22765,6 +22791,7 @@ const powerRef = useRef(hud.power);
                 0,
                 1
               );
+              plan.potChance = potChance;
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -22854,6 +22881,14 @@ const powerRef = useRef(hud.power);
                 );
                 const viewAngle = Math.atan2(ballDiameter, toPocket);
                 const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
+                const potChance = THREE.MathUtils.clamp(
+                  0.45 * entryAlignment +
+                    0.25 * (1 - cutSeverity) +
+                    0.15 * viewScore +
+                    0.05 * (1 - travelPenalty),
+                  0,
+                  1
+                );
                 const quality = THREE.MathUtils.clamp(
                   0.32 * entryAlignment +
                     0.24 * (1 - cutSeverity) +
@@ -22877,6 +22912,7 @@ const powerRef = useRef(hud.power);
                   railNormal: null,
                   viaCushion: false,
                   quality,
+                  potChance,
                   spin: computePlanSpin(
                     {
                       type: 'pot',
@@ -22891,7 +22927,8 @@ const powerRef = useRef(hud.power);
                       targetToPocket: toPocket,
                       railNormal: null,
                       viaCushion: false,
-                      quality
+                      quality,
+                      potChance
                     },
                     state
                   )
@@ -22933,6 +22970,9 @@ const powerRef = useRef(hud.power);
             );
             const cueEase = Math.max(0, 1 - cueToTarget / Math.max(PLAY_W, PLAY_H, BALL_R));
             const quality = plan.quality ?? 0;
+            const potChance = Number.isFinite(plan.potChance)
+              ? plan.potChance
+              : quality;
             const routeEase = Math.max(
               0,
               1 - (cueToTarget + targetToPocket) / Math.max(PLAY_W, PLAY_H, BALL_R * 2)
@@ -22953,7 +22993,8 @@ const powerRef = useRef(hud.power);
             const leaveScore = scoreNextShotPosition(plan);
             const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
             return (
-              quality * 0.48 +
+              quality * 0.32 +
+              potChance * 0.28 +
               difficultyEase * 0.18 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
