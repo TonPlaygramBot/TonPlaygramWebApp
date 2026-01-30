@@ -1375,6 +1375,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 2.35;
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 4; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -5950,21 +5951,26 @@ function reflectRails(ball) {
     const centers = pocketCenters();
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
+    let nearestPocketIndex = 0;
     centers.forEach((center, index) => {
       const dist = ball.pos.distanceTo(center);
       if (dist < nearestPocketDist) {
         nearestPocketDist = dist;
         nearestCaptureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+        nearestPocketIndex = index;
       }
     });
     const nearPocket = nearestPocketDist < nearPocketRadius;
     const inCaptureZone = nearestPocketDist < nearestCaptureRadius;
+    const pocketGuardClearance =
+      nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
+    const inGuardZone = nearestPocketDist < pocketGuardClearance;
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
       if (nearPocket && segment.type === 'rail') continue;
-      if (inCaptureZone && segment.type === 'cut') continue;
+      if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
@@ -17385,13 +17391,22 @@ const powerRef = useRef(hud.power);
               activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
             const cameraDistance =
               (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) * distanceScale;
+            const sideEdgeShift =
+              anchorType === 'side'
+                ? POCKET_CAM_SIDE_EDGE_SHIFT *
+                  signed(
+                    focusPoint2D.y - pocketCenter2D.y,
+                    approachDir.y || 1
+                  )
+                : 0;
             const desiredPosition =
               activeShotView.fixedPos ??
               new THREE.Vector3(
                 (pocketCenter2D.x + outward.x * cameraDistance) * worldScaleFactor,
                 (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
                   worldScaleFactor,
-                (pocketCenter2D.y + outward.y * cameraDistance) * worldScaleFactor
+                (pocketCenter2D.y + outward.y * cameraDistance + sideEdgeShift) *
+                  worldScaleFactor
               );
             if (!activeShotView.fixedPos) {
               activeShotView.fixedPos = desiredPosition.clone();
