@@ -35,18 +35,11 @@ const DEFAULT_CONTEXT = Object.freeze({
   groupPrimary: 'reds',
   groupSecondary: 'yellows',
   ballSet: 'uk',
-  rackNumber: 'this rack',
-  nextTarget: 'the next ball',
-  previousScoreline: '0-0'
+  rackNumber: 'this rack'
 });
 
 const ENGLISH_TEMPLATES = Object.freeze({
   common: {
-    welcome: [
-      'Welcome back to {arena}. {speaker} with you for {variantName}.',
-      'We are live in {arena}; {speaker} on the mic for {variantName}.',
-      'Glad to have you with us at {arena}. {speaker} ready for {variantName}.'
-    ],
     intro: [
       'Welcome to {arena}. {speaker} here. {player} faces {opponent}; {scoreline} in {variantName}.',
       'Match time at {arena}. {speaker} with you. {player} versus {opponent} in {variantName}, {scoreline}.',
@@ -81,22 +74,6 @@ const ENGLISH_TEMPLATES = Object.freeze({
       'Big moment. {player} needs this pot to keep the scoring run alive.',
       'Pressure shot here for {player}; it is all about soft touch, spin, and position.',
       'This is where nerves show—{player} has to deliver for the scoreboard.'
-    ],
-    compliment: [
-      'Beautiful cue-ball control from {player}.',
-      'That is a classy pot by {player}.',
-      'Excellent pace and touch from {player}.',
-      'Silky stroke there—{player} looks locked in.',
-      'Superb potting rhythm from {player}.',
-      'Great timing and smooth delivery from {player}.'
-    ],
-    positioning: [
-      'That leaves {player} looking at {nextTarget} next.',
-      'Perfect angle here—{nextTarget} is on.',
-      '{player} has a natural lane to {nextTarget}.',
-      'Nice route for {nextTarget} after that.',
-      'Cue ball lands well; {nextTarget} is the call.',
-      'Position set up for {nextTarget}.'
     ],
     pot: [
       '{player} pots {targetBall} into {pocket}, cue ball held in good position.',
@@ -157,11 +134,6 @@ const ENGLISH_TEMPLATES = Object.freeze({
       'Match over. {player} wins {playerScore}-{opponentScore}.',
       '{player} takes the match, {playerScore}-{opponentScore}.',
       'Final score {playerScore}-{opponentScore}. {player} wins.'
-    ],
-    tournamentRecap: [
-      'Earlier in the tournament, the last result was {previousScoreline}.',
-      'Tournament form note: the previous match ended {previousScoreline}.',
-      '{speaker} here—last tournament scoreline reads {previousScoreline}.'
     ],
     outro: [
       'That wraps it up from {arena}. Thanks for joining us.',
@@ -235,7 +207,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   zh: {
     ...ENGLISH_TEMPLATES,
     common: {
-      welcome: ['欢迎来到{arena}，{speaker}为您解说{variantName}。'],
       intro: [
         '欢迎来到{arena}。{speaker}为您带来解说。{player}对阵{opponent}，{scoreline}，{variantName}。'
       ],
@@ -256,16 +227,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       pressure: [
         '关键一杆，{player}需要稳住力度与旋转。'
-      ],
-      compliment: [
-        '{player}这一杆手感极佳。',
-        '漂亮的进球，{player}控制到位。',
-        '{player}节奏很好，走位精确。'
-      ],
-      positioning: [
-        '母球停得好，下一颗{nextTarget}有机会。',
-        '角度舒服，{nextTarget}在视线内。',
-        '路线明确，{player}可以转向{nextTarget}。'
       ],
       pot: [
         '{player}将{targetBall}打进{pocket}，母球位置不错。'
@@ -303,10 +264,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       matchWin: [
         '比赛结束，{player}以{playerScore}-{opponentScore}获胜。'
       ],
-      tournamentRecap: [
-        '本次赛事上一场比分为{previousScoreline}。',
-        '赛程回顾：上一场以{previousScoreline}收尾。'
-      ],
       outro: [
         '{arena}的比赛告一段落，感谢观看。'
       ]
@@ -334,7 +291,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   hi: {
     ...ENGLISH_TEMPLATES,
     common: {
-      welcome: ['{arena} से सीधे. {speaker} आपके साथ {variantName} के लिए।'],
       intro: [
         '{arena} से स्वागत है। {speaker} आपके साथ हैं। {player} बनाम {opponent}, {scoreline}, {variantName} में।'
       ],
@@ -355,16 +311,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       pressure: [
         'यह दबाव भरा शॉट है—टच और स्पिन दोनों ज़रूरी हैं।'
-      ],
-      compliment: [
-        '{player} की शानदार पॉटिंग और टच।',
-        'बेहतरीन स्ट्रोक—{player} पूरी तरह सेट हैं।',
-        '{player} का नियंत्रण कमाल का है।'
-      ],
-      positioning: [
-        'अब {nextTarget} पर बढ़िया लाइन है।',
-        'क्यू-बॉल की पोज़िशन {nextTarget} के लिए सही है।',
-        '{player} के लिए {nextTarget} खुला है।'
       ],
       pot: [
         '{player} ने {targetBall} को {pocket} में पॉट किया, पोजिशन बढ़िया है।'
@@ -402,10 +348,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       matchWin: [
         'मैच समाप्त। {player} ने {playerScore}-{opponentScore} से जीता।'
       ],
-      tournamentRecap: [
-        'टूर्नामेंट का पिछला स्कोर {previousScoreline} रहा था।',
-        'पिछले मैच का नतीजा {previousScoreline} था।'
-      ],
       outro: [
         '{arena} से यहीं तक, देखने के लिए धन्यवाद।'
       ]
@@ -433,7 +375,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   es: {
     ...ENGLISH_TEMPLATES,
     common: {
-      welcome: ['Bienvenidos a {arena}. {speaker} en la narración de {variantName}.'],
       intro: [
         'Bienvenidos a {arena}. {speaker} con ustedes. {player} contra {opponent}, {scoreline}, en {variantName}.'
       ],
@@ -454,16 +395,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       pressure: [
         'Golpe de presión; toque suave y efecto preciso.'
-      ],
-      compliment: [
-        'Qué clase de {player}, tiro muy fino.',
-        'Pot de alto nivel; {player} está inspirado.',
-        'Gran ritmo y control de {player}.'
-      ],
-      positioning: [
-        'Queda {nextTarget} como siguiente opción.',
-        'Buen ángulo: {nextTarget} está servido.',
-        '{player} tiene línea clara hacia {nextTarget}.'
       ],
       pot: [
         '{player} emboca {targetBall} en {pocket} y deja buena posición.'
@@ -501,10 +432,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       matchWin: [
         'Final: {player} gana {playerScore}-{opponentScore}.'
       ],
-      tournamentRecap: [
-        'En el torneo, el último resultado fue {previousScoreline}.',
-        'Apunte de torneo: el partido anterior terminó {previousScoreline}.'
-      ],
       outro: [
         'Desde {arena}, gracias por acompañarnos.'
       ]
@@ -532,7 +459,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   fr: {
     ...ENGLISH_TEMPLATES,
     common: {
-      welcome: ['Bienvenue à {arena}. {speaker} au micro pour {variantName}.'],
       intro: [
         'Bienvenue à {arena}. {speaker} est avec vous. {player} contre {opponent}, {scoreline}, en {variantName}.'
       ],
@@ -553,16 +479,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       pressure: [
         'Coup sous pression; toucher doux et effet précis.'
-      ],
-      compliment: [
-        'Superbe touche de {player}.',
-        'Très belle réalisation de {player}.',
-        'Quel contrôle de bille pour {player}.'
-      ],
-      positioning: [
-        'Belle position pour {nextTarget}.',
-        'L’angle est parfait sur {nextTarget}.',
-        '{player} a une ligne claire vers {nextTarget}.'
       ],
       pot: [
         '{player} empoche {targetBall} dans {pocket} et garde la position.'
@@ -600,10 +516,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       matchWin: [
         'Match terminé. {player} gagne {playerScore}-{opponentScore}.'
       ],
-      tournamentRecap: [
-        'Dans le tournoi, le dernier score était {previousScoreline}.',
-        'Note de tournoi : le match précédent s’est terminé {previousScoreline}.'
-      ],
       outro: [
         'Depuis {arena}, merci de votre présence.'
       ]
@@ -631,7 +543,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   ar: {
     ...ENGLISH_TEMPLATES,
     common: {
-      welcome: ['مرحبًا بكم في {arena}. {speaker} معكم لـ {variantName}.'],
       intro: [
         'مرحبًا بكم في {arena}. {speaker} معكم. {player} ضد {opponent}، {scoreline} في {variantName}.'
       ],
@@ -652,16 +563,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       pressure: [
         'ضربة تحت ضغط؛ لمسة ناعمة ودوران مضبوط.'
-      ],
-      compliment: [
-        'لمسة رائعة من {player}.',
-        'تسديد ممتاز من {player}.',
-        '{player} يتحكم بالكرة بإتقان.'
-      ],
-      positioning: [
-        'التمركز ممتاز لـ {nextTarget}.',
-        'زاوية جميلة نحو {nextTarget}.',
-        '{player} لديه مسار واضح إلى {nextTarget}.'
       ],
       pot: [
         '{player} يودع {targetBall} في {pocket} ويثبت الوضعية.'
@@ -699,10 +600,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       matchWin: [
         'نهاية المباراة. {player} يفوز {playerScore}-{opponentScore}.'
       ],
-      tournamentRecap: [
-        'في البطولة، النتيجة السابقة كانت {previousScoreline}.',
-        'معلومة بطولة: المباراة السابقة انتهت {previousScoreline}.'
-      ],
       outro: [
         'من {arena}، شكرًا على المتابعة.'
       ]
@@ -730,7 +627,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   sq: {
     ...ENGLISH_TEMPLATES,
     common: {
-      welcome: ['Mirë se vini në {arena}. {speaker} me ju për {variantName}.'],
       intro: [
         'Mirë se vini në {arena}. Me ju është {speaker}. {player} përballë {opponent}; {scoreline} në {variantName}.'
       ],
@@ -751,16 +647,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       pressure: [
         'Goditje me presion; prekja e butë dhe efekti janë vendimtarë.'
-      ],
-      compliment: [
-        'Goditje shumë e pastër nga {player}.',
-        'Potim elegant, {player} në formë.',
-        'Kontroll i shkëlqyer i topit nga {player}.'
-      ],
-      positioning: [
-        'Pozicion perfekt për {nextTarget}.',
-        '{player} ka linjë të qartë për {nextTarget}.',
-        'Këndi është ideal për {nextTarget}.'
       ],
       pot: [
         '{player} fut {targetBall} në {pocket} dhe ruan pozicionin.'
@@ -798,10 +684,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       matchWin: [
         'Ndeshja mbyllet. {player} fiton {playerScore}-{opponentScore}.'
       ],
-      tournamentRecap: [
-        'Në turne, rezultati i fundit ishte {previousScoreline}.',
-        'Shënim turneu: ndeshja e kaluar përfundoi {previousScoreline}.'
-      ],
       outro: [
         'Kaq nga {arena}. Faleminderit që na ndoqët.'
       ]
@@ -825,105 +707,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       freeBall: ['{player} ka top të lirë dhe dy vizita.'],
       blackBall: ['Tani topi i zi; kërkohet kënd i përsosur.']
     }
-  },
-  it: {
-    ...ENGLISH_TEMPLATES,
-    common: {
-      welcome: ['Benvenuti a {arena}. {speaker} con voi per {variantName}.'],
-      intro: [
-        'Siamo in diretta da {arena}. {speaker} con voi. {player} contro {opponent}, {scoreline}, {variantName}.'
-      ],
-      introReply: [
-        'Grazie {speaker}. Controllo della battente e posizionamento saranno decisivi.'
-      ],
-      breakShot: [
-        '{player} al break; serve una spaccata pulita e battente controllata.'
-      ],
-      breakResult: [
-        'Ottima spaccata: tavolo aperto e linee pulite.'
-      ],
-      openTable: [
-        'Tavolo aperto; {player} cerca l’angolo naturale per la prossima biglia.'
-      ],
-      safety: [
-        '{player} sceglie la difesa e nasconde la battente.'
-      ],
-      pressure: [
-        'Tiro di pressione per {player}; conta il tocco e la rotazione.'
-      ],
-      compliment: [
-        'Che tocco di {player}.',
-        'Colpo elegante, {player} in grande ritmo.',
-        'Ottimo controllo della battente da {player}.'
-      ],
-      positioning: [
-        'Posizione perfetta su {nextTarget}.',
-        '{player} ha linea chiara per {nextTarget}.',
-        'Angolo ideale per {nextTarget}.'
-      ],
-      pot: [
-        '{player} imbuca {targetBall} in {pocket}, buona posizione.'
-      ],
-      combo: [
-        '{player} imbuca con combinazione su {targetBall} in {pocket}.'
-      ],
-      bank: [
-        '{player} gioca di sponda e imbuca {targetBall} in {pocket}.'
-      ],
-      kick: [
-        '{player} deve trovare la biglia di sponda.'
-      ],
-      jump: [
-        '{player} usa il salto per superare il blocco.'
-      ],
-      miss: [
-        '{player} sbaglia; chance per {opponent}.'
-      ],
-      foul: [
-        'Fallo di {player}.'
-      ],
-      inHand: [
-        'Palla in mano per {opponent}.'
-      ],
-      runout: [
-        '{player} ha ritmo—può chiudere il tavolo.'
-      ],
-      hillHill: [
-        'Rack decisivo; tensione massima.'
-      ],
-      frameWin: [
-        '{player} vince il rack.'
-      ],
-      matchWin: [
-        'Fine del match. {player} vince {playerScore}-{opponentScore}.'
-      ],
-      tournamentRecap: [
-        'Nel torneo, l’ultimo risultato è stato {previousScoreline}.',
-        'Nota torneo: la partita precedente è finita {previousScoreline}.'
-      ],
-      outro: [
-        'Da {arena} è tutto, grazie per averci seguito.'
-      ]
-    },
-    nineBall: {
-      variantName: '9-ball americano',
-      rotation: ['Nel 9-ball si colpisce sempre la biglia più bassa.'],
-      goldenBreak: ['Se il 9 entra al break è golden break.'],
-      comboNine: ['{player} guarda la combinazione sul 9—colpo pesante.'],
-      pushOut: ['{player} gioca il push-out per migliorare la situazione.']
-    },
-    eightBallUs: {
-      variantName: '8-ball americano',
-      groupCall: ['Tavolo aperto tra {groupPrimary} e {groupSecondary}.'],
-      inHand: ['Fallo: palla in mano per {opponent}.'],
-      eightBall: ['Ora l’8 è in gioco; il posizionamento è tutto.']
-    },
-    eightBallUk: {
-      variantName: '8-ball UK',
-      groupCall: ['Regole UK: {groupPrimary} e {groupSecondary} sono aperti.'],
-      freeBall: ['{player} ha free ball e due visite.'],
-      blackBall: ['Ora la nera: serve l’angolo perfetto.']
-    }
   }
 });
 
@@ -935,10 +718,6 @@ const EVENT_POOLS = Object.freeze({
   openTable: 'openTable',
   safety: 'safety',
   pressure: 'pressure',
-  welcome: 'welcome',
-  compliment: 'compliment',
-  positioning: 'positioning',
-  tournamentRecap: 'tournamentRecap',
   pot: 'pot',
   combo: 'combo',
   bank: 'bank',
@@ -981,7 +760,6 @@ const resolveLanguageKey = (language = 'en') => {
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
   if (normalized.startsWith('sq')) return 'sq';
-  if (normalized.startsWith('it')) return 'it';
   if (normalized.startsWith('en')) return 'en';
   return normalized || 'en';
 };
@@ -1039,7 +817,6 @@ export const createMatchCommentaryScript = ({
   };
 
   const script = [
-    { speaker: lead, event: EVENT_POOLS.welcome },
     { speaker: lead, event: EVENT_POOLS.intro },
     { speaker: analyst, event: EVENT_POOLS.introReply },
     { speaker: lead, event: EVENT_POOLS.breakShot },
@@ -1056,7 +833,9 @@ export const createMatchCommentaryScript = ({
 
   const groupLabels =
     variant === 'uk'
-      ? { primary: 'reds', secondary: 'yellows' }
+      ? ballSet === 'american'
+        ? { primary: 'solids', secondary: 'stripes' }
+        : { primary: 'reds', secondary: 'yellows' }
       : { primary: 'solids', secondary: 'stripes' };
 
   const variantScriptExtras =
