@@ -1375,8 +1375,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.8; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_TILT_DOWN = BALL_R * 0.35; // add a slight downward pitch to pocket cams
+const POCKET_CAM_INWARD_SCALE = 0.85; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -4846,13 +4845,6 @@ function applySnookerScaling({
     const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
-    if (markings.inHandZone) {
-      markings.inHandZone.position.set(
-        center.x,
-        markingY,
-        (baulkZ - halfWidth) / 2
-      );
-    }
     if (markings.dArc) {
       markings.dArc.position.set(center.x, markingY, baulkZ);
     }
@@ -5063,7 +5055,7 @@ const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
-const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.55; // pull the orbit back while the cue ball is in-hand for a wider placement view
+const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -7508,21 +7500,6 @@ export function Table3D(
   baulkLine.rotation.x = -Math.PI / 2;
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(baulkLine);
-  const inHandZoneDepth = Math.max(0.01, Math.abs(baulkLineZ - -PLAY_H / 2));
-  const inHandZoneGeom = new THREE.PlaneGeometry(baulkLineLength, inHandZoneDepth);
-  const inHandZoneMat = new THREE.MeshBasicMaterial({
-    color: 0x7ce7ff,
-    transparent: true,
-    opacity: 0.18,
-    depthWrite: false,
-    side: THREE.DoubleSide
-  });
-  const inHandZone = new THREE.Mesh(inHandZoneGeom, inHandZoneMat);
-  inHandZone.rotation.x = -Math.PI / 2;
-  inHandZone.position.set(0, markingHeight + MICRO_EPS * 3, (baulkLineZ - PLAY_H / 2) / 2);
-  inHandZone.visible = false;
-  inHandZone.renderOrder = cloth.renderOrder + 1;
-  markingsGroup.add(inHandZone);
 
   const dRadius = D_RADIUS;
   const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
@@ -7567,7 +7544,6 @@ export function Table3D(
   table.userData.markings = {
     group: markingsGroup,
     baulkLine,
-    inHandZone,
     dArc,
     spots: spotMeshes
   };
@@ -12667,12 +12643,10 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-const initialHudInHand = useMemo(() => {
-  const derived = deriveInHandFromFrame(initialFrame);
-  const openingBreak = (initialFrame?.currentBreak ?? 0) === 0;
-  const isLocalStarter = initialFrame?.activePlayer === localSeat;
-  return derived || (openingBreak && isLocalStarter);
-}, [initialFrame, localSeat]);
+const initialHudInHand = useMemo(
+  () => deriveInHandFromFrame(initialFrame),
+  [initialFrame]
+);
 const [hud, setHud] = useState({
   power: 0,
   A: 0,
@@ -12758,10 +12732,7 @@ const powerRef = useRef(hud.power);
     localSeatRef.current = localSeat;
   }, [localSeat]);
   useEffect(() => {
-    const derived = deriveInHandFromFrame(initialFrame);
-    const openingBreak = (initialFrame?.currentBreak ?? 0) === 0;
-    const isLocalStarter = initialFrame?.activePlayer === localSeat;
-    const nextInHand = derived || (openingBreak && isLocalStarter);
+    const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
     lastAssignmentsRef.current = { A: null, B: null };
@@ -12778,7 +12749,7 @@ const powerRef = useRef(hud.power);
       inHand: nextInHand,
       over: false
     }));
-  }, [initialFrame, localSeat]);
+  }, [initialFrame]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
@@ -15143,43 +15114,37 @@ const powerRef = useRef(hud.power);
         updateCueRackHighlights();
       }
 
-      const resolveStandingCoords = () => {
+      const resolveBroadcastDistance = () => {
         const hostAspect = host?.clientWidth && host?.clientHeight
           ? host.clientWidth / host.clientHeight
           : null;
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const zoomProfile = resolveCameraZoomProfile(aspect);
-        const standingPhi = THREE.MathUtils.clamp(
-          STANDING_VIEW_PHI,
-          CAMERA.minPhi,
-          CAMERA.maxPhi
+        const topDownRadius = Math.max(
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE
         );
-        const standingRadius = clamp(
-          fitRadius(
-            tempCamera,
-            STANDING_VIEW.margin * zoomProfile.margin,
-            STANDING_VIEW_DISTANCE_SCALE
-          ),
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
-        const height = focusY + Math.cos(standingPhi) * standingRadius;
-        const horizontal = Math.sin(standingPhi) * standingRadius;
-        return { radius: standingRadius, height, horizontal };
+        return topDownRadius;
       };
-      const { height: standingHeight, horizontal: standingHorizontal } =
-        resolveStandingCoords();
+      const resolveTopDownCoords = () => {
+        const radius = resolveBroadcastDistance();
+        const phi = TOP_VIEW_RESOLVED_PHI;
+        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
+        const height = focusY + Math.cos(phi) * radius;
+        const horizontal = Math.sin(phi) * radius;
+        return { radius, height, horizontal };
+      };
+      const { height: topDownHeight, horizontal: topDownHorizontal } =
+        resolveTopDownCoords();
       const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        standingHorizontal,
+        topDownHorizontal,
         arenaHalfDepth - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: standingHeight,
+        cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
@@ -17469,13 +17434,7 @@ const powerRef = useRef(hud.power);
                 : 1;
             const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
             const leveledTarget = focusTarget.clone();
-            const pocketTilt = POCKET_CAM_TILT_DOWN * worldScaleFactor;
-            const minTargetY =
-              baseSurfaceWorldY + BALL_R * 0.2 * worldScaleFactor;
-            leveledTarget.y = Math.max(
-              minTargetY,
-              desiredPosition.y - pocketTilt
-            );
+            leveledTarget.y = desiredPosition.y;
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
@@ -17772,10 +17731,6 @@ const powerRef = useRef(hud.power);
             ) {
               clothMat.bumpScale = clothMat.userData.bumpScale;
             }
-          }
-          const inHandZone = table?.userData?.markings?.inHandZone;
-          if (inHandZone) {
-            inHandZone.visible = Boolean(hudRef.current?.inHand);
           }
           updateHdriScale(renderCamera, lookTarget);
           updateBroadcastCameras(broadcastArgs);
@@ -21364,22 +21319,21 @@ const powerRef = useRef(hud.power);
           cue.active = true;
           cueBallPlacedFromHandRef.current = true;
         }
-        const focusStore = ensureOrbitFocus();
-        const inHandFocusZ = allowFullTableInHand()
-          ? 0
-          : (baulkZ - PLAY_H / 2) / 2;
-        focusStore.target.set(0, BALL_CENTER_Y, inHandFocusZ);
-        focusStore.ballId = null;
-        const standingBounds = cameraBoundsRef.current?.standing;
-        if (standingBounds) {
-          sph.radius = clampOrbitRadius(standingBounds.radius);
-          sph.phi = THREE.MathUtils.clamp(
-            standingBounds.phi,
-            CAMERA.minPhi,
-            CAMERA.maxPhi
-          );
-          syncBlendToSpherical();
-          updateCamera();
+        if (allowFullTableInHand()) {
+          const focusStore = ensureOrbitFocus();
+          focusStore.target.set(0, BALL_CENTER_Y, 0);
+          focusStore.ballId = null;
+          const standingBounds = cameraBoundsRef.current?.standing;
+          if (standingBounds) {
+            sph.radius = clampOrbitRadius(standingBounds.radius);
+            sph.phi = THREE.MathUtils.clamp(
+              standingBounds.phi,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
+            syncBlendToSpherical();
+            updateCamera();
+          }
         }
       }
 
@@ -21632,7 +21586,6 @@ const powerRef = useRef(hud.power);
       const fire = () => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
-        const isBreakShot = (frameSnapshot?.currentBreak ?? 0) === 0;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         const inHandPlacementActive = Boolean(
@@ -21660,9 +21613,7 @@ const powerRef = useRef(hud.power);
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        if (!isBreakShot) {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
         applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
@@ -21786,6 +21737,7 @@ const powerRef = useRef(hud.power);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
@@ -21817,7 +21769,6 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
           }
           const allowLongShotCameraSwitch =
-            !isBreakShot &&
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const broadcastSystem =
