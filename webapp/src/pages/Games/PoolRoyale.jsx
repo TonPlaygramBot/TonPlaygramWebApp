@@ -1029,7 +1029,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.17; // lower the visible rim so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.155; // trim the jaw height slightly so the top edge sits lower
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1374,7 +1374,7 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
-const POCKET_CAM_OUTWARD_MULTIPLIER = 1.85;
+const POCKET_CAM_OUTWARD_MULTIPLIER = 1.55;
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -17965,7 +17965,11 @@ const powerRef = useRef(hud.power);
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
           if (!followView) return null;
-          const { forceEarly = false } = options;
+          const {
+            forceEarly = false,
+            forceCornerCapture = false,
+            pocketCenterOverride = null
+          } = options;
           if (shotPrediction?.railNormal) return null;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
@@ -17975,44 +17979,62 @@ const powerRef = useRef(hud.power);
           if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
             dir.copy(shotPrediction.dir ?? new THREE.Vector2());
           }
-          if (dir.lengthSq() < 1e-6) return null;
-          dir.normalize();
+          if (dir.lengthSq() < 1e-6) {
+            if (!forceCornerCapture) return null;
+          } else {
+            dir.normalize();
+          }
           const centers = pocketCenters();
           const pos = targetBall.pos.clone();
           let best = null;
           let bestScore = -Infinity;
-          for (const center of centers) {
-            const toPocket = center.clone().sub(pos);
+          if (forceCornerCapture && pocketCenterOverride) {
+            const toPocket = pocketCenterOverride.clone().sub(pos);
             const dist = toPocket.length();
-            if (dist < BALL_R * 1.5) continue;
-            const pocketDir = toPocket.clone().normalize();
-            const score = pocketDir.dot(dir);
-            if (score > bestScore) {
-              bestScore = score;
-              best = { center, dist, pocketDir };
+            const pocketDir =
+              dist > 1e-6
+                ? toPocket.clone().normalize()
+                : pocketCenterOverride.clone().normalize().multiplyScalar(-1);
+            bestScore = 1;
+            best = { center: pocketCenterOverride.clone(), dist, pocketDir };
+          } else {
+            for (const center of centers) {
+              const toPocket = center.clone().sub(pos);
+              const dist = toPocket.length();
+              if (dist < BALL_R * 1.5) continue;
+              const pocketDir = toPocket.clone().normalize();
+              const score = pocketDir.dot(dir);
+              if (score > bestScore) {
+                bestScore = score;
+                best = { center, dist, pocketDir };
+              }
             }
+            if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
           }
-          if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedAlignment =
             shotPrediction?.ballId === ballId && shotPrediction?.dir
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
-              : null;
+              : forceCornerCapture
+                ? 1
+                : null;
           const isGuaranteedPocket =
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           const allowEarly =
-            forceEarly &&
-            bestScore >= POCKET_EARLY_ALIGNMENT;
-          if (!isGuaranteedPocket && !allowEarly) return null;
+            forceCornerCapture ||
+            (forceEarly &&
+              bestScore >= POCKET_EARLY_ALIGNMENT);
+          if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
-            (predictedTravelForBall != null &&
+            !forceCornerCapture &&
+            ((predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
-            best.dist < SHORT_SHOT_CAMERA_DISTANCE
+              best.dist < SHORT_SHOT_CAMERA_DISTANCE)
           ) {
             return null;
           }
@@ -18028,7 +18050,7 @@ const powerRef = useRef(hud.power);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
           if (isSidePocket) return null;
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
-          if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
+          if (!forceCornerCapture && best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
@@ -25912,6 +25934,49 @@ const powerRef = useRef(hud.power);
                 0,
                 1
               );
+              const shouldForceCornerPocketView =
+                !suppressPocketCameras &&
+                !topViewRef.current &&
+                pocketIndex < 4;
+              if (shouldForceCornerPocketView) {
+                const sph = sphRef.current;
+                const resumeView = sph
+                  ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
+                  : null;
+                const forcedCornerView = makePocketCameraView(b.id, resumeView, {
+                  forceCornerCapture: true,
+                  pocketCenterOverride: c
+                });
+                const shouldSwapView =
+                  forcedCornerView &&
+                  (!activeShotView ||
+                    activeShotView.mode !== 'pocket' ||
+                    activeShotView.ballId !== b.id);
+                if (shouldSwapView) {
+                  forcedCornerView.lastUpdate = performance.now();
+                  if (cameraRef.current) {
+                    const cam = cameraRef.current;
+                    forcedCornerView.smoothedPos = cam.position.clone();
+                    const storedTarget = lastCameraTargetRef.current?.clone();
+                    if (storedTarget) {
+                      forcedCornerView.smoothedTarget = storedTarget;
+                    }
+                  }
+                  if (pocketHoldActive) {
+                    queuedPocketView = forcedCornerView;
+                    queuedPocketView.pendingActivation = true;
+                  } else {
+                    if (activeShotView?.mode === 'action') {
+                      suspendedActionView = activeShotView;
+                      forcedCornerView.resumeAction = activeShotView;
+                    } else if (suspendedActionView?.mode === 'action') {
+                      forcedCornerView.resumeAction = suspendedActionView;
+                    }
+                    updatePocketCameraState(true);
+                    activeShotView = forcedCornerView;
+                  }
+                }
+              }
               if (shotRecording) {
                 recordReplayFrame(performance.now());
               }
