@@ -137,6 +137,9 @@ export const normalizeSpinInput = (spin) => {
   if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
     return { x: 0, y: STUN_TOPSPIN_BIAS };
   }
+  if (Math.abs(x) <= STRAIGHT_SPIN_DEADZONE && Math.abs(y) > STRAIGHT_SPIN_DEADZONE) {
+    x = 0;
+  }
   return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
 };
 
