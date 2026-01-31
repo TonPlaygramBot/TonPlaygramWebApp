@@ -27073,6 +27073,18 @@ const powerRef = useRef(hud.power);
     let revertTimer = null;
     let activePointer = null;
     let moved = false;
+    let rafId = null;
+    let lastTime = null;
+    const spinState = {
+      current: { x: 0, y: 0 },
+      target: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 }
+    };
+
+    const SPRING_STIFFNESS = 38;
+    const SPRING_DAMPING = 12;
+    const MAX_STEP_SECONDS = 0.04;
+    const SETTLE_EPS = 0.0015;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -27082,11 +27094,17 @@ const powerRef = useRef(hud.power);
       };
     };
 
-    const setSpin = (nx, ny) => {
+    const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
-      spinRequestRef.current = raw;
       const limited = clampToLimits(raw.x, raw.y);
-      const clamped = clampToUnitCircle(limited.x, limited.y);
+      return clampToUnitCircle(limited.x, limited.y);
+    };
+
+    const applySpin = (nx, ny, { updateRequest = true } = {}) => {
+      const clamped = clampToPlayable(nx, ny);
+      if (updateRequest) {
+        spinRequestRef.current = { x: clamped.x, y: clamped.y };
+      }
       const normalized = normalizeSpinInput(clamped);
       spinRef.current = normalized;
       const cueBall = cueRef.current;
@@ -27111,7 +27129,13 @@ const powerRef = useRef(hud.power);
       spinLegalityRef.current = legality;
       updateSpinDotPosition(clamped, legality.blocked);
     };
-    const resetSpin = () => setSpin(0, 0);
+
+    const resetSpin = () => {
+      spinState.current = { x: 0, y: 0 };
+      spinState.target = { x: 0, y: 0 };
+      spinState.velocity = { x: 0, y: 0 };
+      applySpin(0, 0);
+    };
     resetSpin();
     resetSpinRef.current = resetSpin;
 
@@ -27121,7 +27145,9 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      setSpin(nx, ny);
+      spinState.target = clampToPlayable(nx, ny);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const scaleBox = (value) => {
@@ -27143,6 +27169,41 @@ const powerRef = useRef(hud.power);
         } catch {}
         activePointer = null;
       }
+    };
+
+    const startSpring = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(stepSpring);
+    };
+
+    const stepSpring = (timestamp) => {
+      if (!showSpinController) {
+        rafId = null;
+        return;
+      }
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
+      lastTime = timestamp;
+      const { current, target, velocity } = spinState;
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const ax = SPRING_STIFFNESS * dx - SPRING_DAMPING * velocity.x;
+      const ay = SPRING_STIFFNESS * dy - SPRING_DAMPING * velocity.y;
+      velocity.x += ax * dt;
+      velocity.y += ay * dt;
+      current.x += velocity.x * dt;
+      current.y += velocity.y * dt;
+      applySpin(current.x, current.y, { updateRequest: false });
+      const settled =
+        Math.abs(dx) < SETTLE_EPS &&
+        Math.abs(dy) < SETTLE_EPS &&
+        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
+      if (settled) {
+        spinState.current = { ...target };
+        spinState.velocity = { x: 0, y: 0 };
+      }
+      const shouldContinue = activePointer !== null || !settled;
+      rafId = shouldContinue ? requestAnimationFrame(stepSpring) : null;
     };
 
     const handlePointerDown = (e) => {
@@ -27194,6 +27255,10 @@ const powerRef = useRef(hud.power);
       spinDotElRef.current = null;
       releasePointer();
       clearTimer();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
