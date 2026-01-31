@@ -119,7 +119,8 @@ import {
 } from '../utils/texasHoldemInventory.js';
 import { claimPurchase, getTonBalance } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
-import { useTonAddress } from '@tonconnect/ui-react';
+import { getGameThumbnail } from '../config/gameAssets.js';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -721,7 +722,9 @@ export default function Store() {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
   const [paymentHash, setPaymentHash] = useState('');
+  const [isWalletPaying, setIsWalletPaying] = useState(false);
   const walletAddress = useTonAddress(true);
+  const [tonConnectUI] = useTonConnectUI();
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -1161,6 +1164,57 @@ export default function Store() {
     setInfo('');
   };
 
+  const tonToNano = (amount) => {
+    const numeric = Number(amount);
+    if (!Number.isFinite(numeric)) return '0';
+    return String(Math.round(numeric * 1e9));
+  };
+
+  const handleWalletPayment = async (items) => {
+    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
+    if (!payload.length) return;
+    if (!walletAddress) {
+      setInfo('Connect your TON wallet to pay.');
+      return;
+    }
+    if (!tonConnectUI) {
+      setInfo('TON wallet connection is unavailable right now.');
+      return;
+    }
+    const total = payload.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    if (!Number.isFinite(total) || total <= 0) {
+      setInfo('Unable to calculate the total TON amount.');
+      return;
+    }
+
+    setIsWalletPaying(true);
+    resetStatus();
+
+    try {
+      const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [
+          {
+            address: TON_STORE_ADDRESS,
+            amount: tonToNano(total)
+          }
+        ]
+      };
+      const result = await tonConnectUI.sendTransaction(transaction);
+      const txHash = result?.transactionHash || result?.hash || result?.boc;
+      if (!txHash) {
+        setInfo('Payment sent. Paste the transaction hash if verification is required.');
+        return;
+      }
+      await handlePurchase(payload, txHash);
+    } catch (err) {
+      console.error('Wallet payment failed', err);
+      setInfo('Wallet payment was canceled or failed.');
+    } finally {
+      setIsWalletPaying(false);
+    }
+  };
+
   const handleGameChange = useCallback(
     (slug) => {
       setActiveGame(slug);
@@ -1185,6 +1239,30 @@ export default function Store() {
     });
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [activeGame, visibleItems]);
+
+  const allGameSections = useMemo(() => {
+    const groupedByGame = new Map();
+    Object.keys(storeMeta).forEach((slug) => {
+      groupedByGame.set(slug, new Map());
+    });
+
+    visibleItems.forEach((item) => {
+      const gameGroups = groupedByGame.get(item.slug) || new Map();
+      const category = item.typeLabel || 'Accessories';
+      if (!gameGroups.has(category)) {
+        gameGroups.set(category, []);
+      }
+      gameGroups.get(category).push(item);
+      groupedByGame.set(item.slug, gameGroups);
+    });
+
+    return Object.entries(storeMeta).map(([slug, meta]) => {
+      const categories = Array.from(groupedByGame.get(slug)?.entries() || []).sort((a, b) =>
+        a[0].localeCompare(b[0])
+      );
+      return { slug, meta, categories };
+    });
+  }, [visibleItems]);
 
   const handleListSubmit = (event) => {
     event?.preventDefault();
@@ -1477,7 +1555,7 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Send the TON amount from your connected wallet, then paste the transaction hash so we can verify it on-chain.
+              Pay from your connected wallet and we will verify the transaction on-chain. Once confirmed, the NFT is delivered immediately to your linked account.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1510,11 +1588,11 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFT sent to linked TPC account after confirmation</span>
+                <span className="font-semibold text-white">NFT sent instantly after confirmation</span>
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
+              <span className="text-white/60">TON transaction hash (manual verification)</span>
               <input
                 type="text"
                 value={paymentHash}
@@ -1526,6 +1604,14 @@ export default function Store() {
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
+                onClick={() => handleWalletPayment(confirmItem)}
+                className="w-full rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                disabled={Boolean(processing) || isWalletPaying}
+              >
+                {isWalletPaying ? 'Paying…' : 'Pay with wallet'}
+              </button>
+              <button
+                type="button"
                 onClick={() => setConfirmItem(null)}
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
               >
@@ -1535,7 +1621,7 @@ export default function Store() {
                 type="button"
                 onClick={() => handlePurchase(confirmItem, paymentHash)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={Boolean(processing)}
+                disabled={Boolean(processing) || isWalletPaying}
               >
                 {processing ? 'Processing…' : 'Confirm & Buy'}
               </button>
@@ -1599,7 +1685,7 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Send a single TON payment, then add the transaction hash to verify on-chain.</p>
+              <p className="mt-1">Send a single TON payment. Once verified on-chain, all NFTs are delivered immediately.</p>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1608,11 +1694,11 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFTs sent to linked TPC account after confirmation</span>
+                <span className="font-semibold text-white">NFTs sent instantly after confirmation</span>
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
+              <span className="text-white/60">TON transaction hash (manual verification)</span>
               <input
                 type="text"
                 value={paymentHash}
@@ -1625,6 +1711,14 @@ export default function Store() {
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
+                onClick={() => handleWalletPayment(confirmItems)}
+                className="w-full rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                disabled={Boolean(processing) || isWalletPaying}
+              >
+                {isWalletPaying ? 'Paying…' : 'Pay with wallet'}
+              </button>
+              <button
+                type="button"
                 onClick={() => setConfirmItems([])}
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
               >
@@ -1634,7 +1728,7 @@ export default function Store() {
                 type="button"
                 onClick={() => handlePurchase(confirmItems, paymentHash)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={Boolean(processing)}
+                disabled={Boolean(processing) || isWalletPaying}
               >
                 {processing ? 'Processing…' : 'Confirm & Buy All'}
               </button>
@@ -2433,8 +2527,71 @@ export default function Store() {
                 </section>
               ))
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {visibleItems.map((item) => renderStoreCard(item))}
+              <div className="grid gap-6">
+                {allGameSections.map(({ slug, meta, categories }) => (
+                  <section
+                    key={slug}
+                    className="relative rounded-3xl border border-white/10 bg-white/5 px-4 pb-4 pt-10 shadow-sm"
+                  >
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950/90 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+                        <img
+                          src={getGameThumbnail(slug)}
+                          alt={`${meta.name} thumbnail`}
+                          className="h-6 w-6 rounded-full object-cover"
+                        />
+                        <span>{meta.name}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {categories.length ? (
+                        categories.map(([typeLabel, items]) => (
+                          <div
+                            key={`${slug}-${typeLabel}`}
+                            className="rounded-2xl border border-white/10 bg-black/20 p-3"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm font-semibold text-white">{typeLabel}</div>
+                              <div className="text-xs text-white/60">{items.length} items</div>
+                            </div>
+                            <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+                              {items.slice(0, 8).map((item) => (
+                                <button
+                                  key={`${item.slug}-${item.id}-thumb`}
+                                  type="button"
+                                  onClick={() => setDetailItem(item)}
+                                  className="shrink-0 text-left"
+                                >
+                                  {renderStoreThumbnail(item, 'compact')}
+                                </button>
+                              ))}
+                              {items.length > 8 ? (
+                                <div className="flex shrink-0 items-center rounded-2xl border border-white/10 bg-white/5 px-4 text-xs font-semibold text-white/70">
+                                  +{items.length - 8} more
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-white/60">
+                          No categories match the current filters for this game.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleGameChange(slug)}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
+                      >
+                        View {meta.name}
+                      </button>
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </div>
