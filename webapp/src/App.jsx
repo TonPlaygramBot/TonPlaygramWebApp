@@ -44,7 +44,6 @@ import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 
 import Layout from './components/Layout.jsx';
-import TonConnectSync from './components/TonConnectSync.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useTelegramFullscreen from './hooks/useTelegramFullscreen.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
@@ -59,13 +58,11 @@ export default function App() {
   useNativePushNotifications();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
-  const startParam = window?.Telegram?.WebApp?.initDataUnsafe?.start_param;
-  const telegramReturnUrl = startParam
-    ? `https://t.me/${BOT_USERNAME}/webapp?startapp=${startParam}`
-    : `https://t.me/${BOT_USERNAME}/webapp`;
+  const returnUrl = window.location.href;
+  const telegramReturnUrl = `https://t.me/${BOT_USERNAME}/webapp`;
   const actionsConfiguration = {
-    returnStrategy: 'back',
-    twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : undefined,
+    returnUrl,
+    twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
   };
 
   return (
@@ -74,7 +71,6 @@ export default function App() {
         manifestUrl={manifestUrl}
         actionsConfiguration={actionsConfiguration}
       >
-        <TonConnectSync />
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
