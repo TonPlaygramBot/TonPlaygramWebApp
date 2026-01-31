@@ -82,29 +82,29 @@ const SNAKE_TABLE_FINISH_THUMBNAILS = Object.freeze({
 });
 
 const SNAKE_FLOOR_TEXTURE_THUMBNAILS = Object.freeze({
-  paving_stones_02: swatchThumbnail(['#9ca3af', '#6b7280', '#e2e8f0']),
-  paving_stones_07: swatchThumbnail(['#94a3b8', '#64748b', '#cbd5f5']),
-  paving_stones_08: swatchThumbnail(['#a3a3a3', '#525252', '#e5e5e5']),
-  paving_stones_12: swatchThumbnail(['#cbd5f5', '#94a3b8', '#e2e8f0']),
+  paving_stones_02: polyHavenThumb('paving_stones_02'),
+  paving_stones_07: polyHavenThumb('paving_stones_07'),
+  paving_stones_08: polyHavenThumb('paving_stones_08'),
+  paving_stones_12: polyHavenThumb('paving_stones_12'),
   cobblestone_floor_03: polyHavenThumb('cobblestone_floor_03'),
   cobblestone_floor_05: polyHavenThumb('cobblestone_floor_05'),
-  concrete_pavers_01: swatchThumbnail(['#94a3b8', '#475569', '#e2e8f0']),
+  concrete_pavers_01: polyHavenThumb('concrete_pavers_01'),
   concrete_pavers_02: polyHavenThumb('concrete_pavers_02'),
-  stone_floor_05: swatchThumbnail(['#9ca3af', '#4b5563', '#e5e7eb']),
-  stone_floor_06: swatchThumbnail(['#a8a29e', '#78716c', '#f5f5f4'])
+  stone_floor_05: polyHavenThumb('stone_floor_05'),
+  stone_floor_06: polyHavenThumb('stone_floor_06')
 });
 
 const SNAKE_WALL_TEXTURE_THUMBNAILS = Object.freeze({
   brick_wall_02: polyHavenThumb('brick_wall_02'),
-  brick_wall_03: swatchThumbnail(['#b91c1c', '#7f1d1d', '#fecaca']),
-  castle_wall_01: swatchThumbnail(['#9ca3af', '#6b7280', '#e5e7eb']),
-  concrete_wall_002: swatchThumbnail(['#94a3b8', '#475569', '#e2e8f0']),
+  brick_wall_03: polyHavenThumb('brick_wall_03'),
+  castle_wall_01: polyHavenThumb('castle_wall_01'),
+  concrete_wall_002: polyHavenThumb('concrete_wall_002'),
   concrete_wall_004: polyHavenThumb('concrete_wall_004'),
-  painted_wall_01: swatchThumbnail(['#e2e8f0', '#cbd5f5', '#f8fafc']),
-  plaster_wall_01: swatchThumbnail(['#f5f5f4', '#d6d3d1', '#e7e5e4']),
+  painted_wall_01: polyHavenThumb('painted_wall_01'),
+  plaster_wall_01: polyHavenThumb('plaster_wall_01'),
   stone_wall_02: polyHavenThumb('stone_wall_02'),
   stone_wall_03: polyHavenThumb('stone_wall_03'),
-  tiles_wall_01: swatchThumbnail(['#e5e7eb', '#94a3b8', '#f8fafc'])
+  tiles_wall_01: polyHavenThumb('tiles_wall_01')
 });
 
 const SNAKE_THEME_THUMBNAILS = Object.freeze({

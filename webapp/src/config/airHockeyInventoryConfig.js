@@ -407,7 +407,10 @@ const AIR_HOCKEY_TABLE_BASES = Object.freeze([
     accent: '#caa07a',
     swatches: ['#6f5140', '#caa07a']
   })
-]);
+].map((variant) => ({
+  ...variant,
+  thumbnail: TABLE_BASE_THUMBNAILS[variant.id]
+})));
 
 const createPolyHavenGltfUrls = (assetId, size = '2k') =>
   Object.freeze([

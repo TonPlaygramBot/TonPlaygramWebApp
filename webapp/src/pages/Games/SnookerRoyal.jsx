@@ -63,6 +63,7 @@ import {
   SNOOKER_ROYALE_OPTION_LABELS
 } from '../../config/snookerRoyalInventoryConfig.js';
 import { SNOOKER_ROYALE_CLOTH_VARIANTS } from '../../config/snookerRoyalClothPresets.js';
+import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
   getCachedSnookerRoyalInventory,
   getSnookerRoyalInventory,
@@ -2478,6 +2479,7 @@ const createStandardWoodFinish = ({
 }) => ({
   id,
   label,
+  thumbnail: woodTextureId ? polyHavenThumb(woodTextureId) : undefined,
   colors: makeColorPalette({
     cloth,
     rail,
@@ -2955,6 +2957,7 @@ const POCKET_LINER_OPTIONS = Object.freeze(
       id: config.id,
       label: `${config.label} Pocket Jaws`,
       textureId: config.textureId ?? config.id,
+      thumbnail: polyHavenThumb(config.textureId ?? config.id),
       roughness: 0.86,
       metalness: 0.04,
       clearcoat: 0.14,
@@ -26554,19 +26557,28 @@ const powerRef = useRef(hud.power);
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableFinishes.map((option) => {
                     const active = option.id === tableFinishId;
+                    const thumb = option.thumbnail;
                     return (
                       <button
                         key={option.id}
                         type="button"
                         onClick={() => setTableFinishId(option.id)}
                         aria-pressed={active}
-                        className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'
                         }`}
                       >
-                        {option.label}
+                        <span className="truncate">{option.label}</span>
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={option.label}
+                            className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                            loading="lazy"
+                          />
+                        ) : null}
                       </button>
                     );
                   })}
@@ -26581,6 +26593,7 @@ const powerRef = useRef(hud.power);
                     const active = option.id === tableBaseId;
                     const swatchA = option.swatches?.[0] ?? '#0f172a';
                     const swatchB = option.swatches?.[1] ?? '#1f2937';
+                    const thumb = option.thumbnail;
                     return (
                       <button
                         key={option.id}
@@ -26594,13 +26607,22 @@ const powerRef = useRef(hud.power);
                         }`}
                       >
                         <span className="truncate">{option.name}</span>
-                        <span
-                          className="h-5 w-8 rounded-lg border border-white/25"
-                          aria-hidden="true"
-                          style={{
-                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                          }}
-                        />
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={option.name}
+                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            className="h-5 w-8 rounded-lg border border-white/25"
+                            aria-hidden="true"
+                            style={{
+                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                            }}
+                          />
+                        )}
                       </button>
                     );
                   })}
@@ -26615,6 +26637,7 @@ const powerRef = useRef(hud.power);
                     const active = variant.id === environmentHdriId;
                     const swatchA = variant.swatches?.[0] ?? '#0ea5e9';
                     const swatchB = variant.swatches?.[1] ?? '#111827';
+                    const thumb = variant.thumbnail;
                     return (
                       <button
                         key={variant.id}
@@ -26628,13 +26651,22 @@ const powerRef = useRef(hud.power);
                         }`}
                       >
                         <span>{variant.name}</span>
-                        <span
-                          className="h-6 w-10 rounded-lg border border-white/30"
-                          aria-hidden="true"
-                          style={{
-                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                          }}
-                        />
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={`${variant.name} HDRI`}
+                            className="h-6 w-10 rounded-lg border border-white/30 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            className="h-6 w-10 rounded-lg border border-white/30"
+                            aria-hidden="true"
+                            style={{
+                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                            }}
+                          />
+                        )}
                       </button>
                     );
                   })}
@@ -26679,19 +26711,28 @@ const powerRef = useRef(hud.power);
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {availableCueStyles.map(({ preset, index }) => {
                     const active = cueStyleIndex === index;
+                    const thumb = preset.thumbnail;
                     return (
                       <button
                         key={preset.id}
                         type="button"
                         onClick={() => selectCueStyleFromMenu(index)}
                         aria-pressed={active}
-                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'
                         }`}
                       >
-                        {preset.label}
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={preset.label}
+                            className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                            loading="lazy"
+                          />
+                        ) : null}
+                        <span className="truncate">{preset.label}</span>
                       </button>
                     );
                   })}
@@ -26705,26 +26746,35 @@ const powerRef = useRef(hud.power);
                   <div className="mt-2 flex flex-wrap gap-2">
                     {availableClothOptions.map((option) => {
                       const active = option.id === clothColorId;
+                      const thumb = option.thumbnail;
                       return (
                         <button
                           key={option.id}
                           type="button"
                           onClick={() => setClothColorId(option.id)}
                           aria-pressed={active}
-                          className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                             active
                               ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                               : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                           }`}
                         >
-                          <span className="flex items-center justify-center gap-2">
+                          <span className="flex items-center gap-2">
                             <span
                               className="h-3.5 w-3.5 rounded-full border border-white/40"
                               style={{ backgroundColor: toHexColor(option.color) }}
                               aria-hidden="true"
                             />
-                            {option.label}
+                            <span className="truncate">{option.label}</span>
                           </span>
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={option.label}
+                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
                         </button>
                       );
                     })}
@@ -26766,26 +26816,35 @@ const powerRef = useRef(hud.power);
                       const active = option.id === pocketLinerId;
                       const swatchColor =
                         option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
+                      const thumb = option.thumbnail;
                       return (
                         <button
                           key={option.id}
                           type="button"
                           onClick={() => setPocketLinerId(option.id)}
                           aria-pressed={active}
-                          className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          className={`flex min-w-[9rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                             active
                               ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                               : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                           }`}
                         >
-                          <span className="flex items-center justify-center gap-2">
+                          <span className="flex items-center gap-2">
                             <span
                               className="h-3.5 w-3.5 rounded-full border border-white/40"
                               style={{ backgroundColor: toHexColor(swatchColor) }}
                               aria-hidden="true"
                             />
-                            {option.label}
+                            <span className="truncate">{option.label}</span>
                           </span>
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={option.label}
+                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
                         </button>
                       );
                     })}

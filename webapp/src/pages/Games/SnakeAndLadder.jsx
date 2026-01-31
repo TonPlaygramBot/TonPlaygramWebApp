@@ -38,6 +38,7 @@ import {
 } from "../../utils/api.js";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from "../../config/murlanThemes.js";
+import { polyHavenThumb } from "../../config/storeThumbnails.js";
 import {
   SNAKE_PAWN_HEAD_OPTIONS,
   SNAKE_TOKEN_COLOR_OPTIONS
@@ -595,35 +596,40 @@ const TABLE_FINISH_OPTIONS = Object.freeze([
     label: 'Wood Peeling Paint Weathered',
     grainId: 'wood_peeling_paint_weathered',
     presetId: 'birch',
-    swatches: ['#d6d0c7', '#a89f95']
+    swatches: ['#d6d0c7', '#a89f95'],
+    thumbnail: polyHavenThumb('wood_peeling_paint_weathered')
   },
   {
     id: 'oakVeneer01',
     label: 'Oak Veneer 01',
     grainId: 'oak_veneer_01',
     presetId: 'oak',
-    swatches: ['#e0bb7a', '#b9854e']
+    swatches: ['#e0bb7a', '#b9854e'],
+    thumbnail: polyHavenThumb('oak_veneer_01')
   },
   {
     id: 'woodTable001',
     label: 'Wood Table 001',
     grainId: 'wood_table_001',
     presetId: 'walnut',
-    swatches: ['#c89a64', '#8f6243']
+    swatches: ['#c89a64', '#8f6243'],
+    thumbnail: polyHavenThumb('wood_table_001')
   },
   {
     id: 'darkWood',
     label: 'Dark Wood',
     grainId: 'dark_wood',
     presetId: 'wenge',
-    swatches: ['#6a5a52', '#2f241f']
+    swatches: ['#6a5a52', '#2f241f'],
+    thumbnail: polyHavenThumb('dark_wood')
   },
   {
     id: 'rosewoodVeneer01',
     label: 'Rosewood Veneer 01',
     grainId: 'rosewood_veneer_01',
     presetId: 'cherry',
-    swatches: ['#9b5a44', '#6f3a2f']
+    swatches: ['#9b5a44', '#6f3a2f'],
+    thumbnail: polyHavenThumb('rosewood_veneer_01')
   }
 ]);
 
@@ -633,70 +639,80 @@ const FLOOR_TEXTURE_OPTIONS = Object.freeze([
     label: 'Paving Stones 02',
     assetId: 'paving_stones_02',
     repeat: 2.2,
-    swatches: ['#9ca3af', '#4b5563']
+    swatches: ['#9ca3af', '#4b5563'],
+    thumbnail: polyHavenThumb('paving_stones_02')
   },
   {
     id: 'paving_stones_07',
     label: 'Paving Stones 07',
     assetId: 'paving_stones_07',
     repeat: 2.4,
-    swatches: ['#a3a3a3', '#52525b']
+    swatches: ['#a3a3a3', '#52525b'],
+    thumbnail: polyHavenThumb('paving_stones_07')
   },
   {
     id: 'paving_stones_08',
     label: 'Paving Stones 08',
     assetId: 'paving_stones_08',
     repeat: 2.6,
-    swatches: ['#b0b0b0', '#6b7280']
+    swatches: ['#b0b0b0', '#6b7280'],
+    thumbnail: polyHavenThumb('paving_stones_08')
   },
   {
     id: 'paving_stones_12',
     label: 'Paving Stones 12',
     assetId: 'paving_stones_12',
     repeat: 2.4,
-    swatches: ['#94a3b8', '#475569']
+    swatches: ['#94a3b8', '#475569'],
+    thumbnail: polyHavenThumb('paving_stones_12')
   },
   {
     id: 'cobblestone_floor_03',
     label: 'Cobblestone Floor 03',
     assetId: 'cobblestone_floor_03',
     repeat: 2.1,
-    swatches: ['#9ca3af', '#374151']
+    swatches: ['#9ca3af', '#374151'],
+    thumbnail: polyHavenThumb('cobblestone_floor_03')
   },
   {
     id: 'cobblestone_floor_05',
     label: 'Cobblestone Floor 05',
     assetId: 'cobblestone_floor_05',
     repeat: 2.1,
-    swatches: ['#9aa3af', '#4b5563']
+    swatches: ['#9aa3af', '#4b5563'],
+    thumbnail: polyHavenThumb('cobblestone_floor_05')
   },
   {
     id: 'concrete_pavers_01',
     label: 'Concrete Pavers 01',
     assetId: 'concrete_pavers_01',
     repeat: 2.8,
-    swatches: ['#cbd5e1', '#64748b']
+    swatches: ['#cbd5e1', '#64748b'],
+    thumbnail: polyHavenThumb('concrete_pavers_01')
   },
   {
     id: 'concrete_pavers_02',
     label: 'Concrete Pavers 02',
     assetId: 'concrete_pavers_02',
     repeat: 2.6,
-    swatches: ['#cbd5e1', '#6b7280']
+    swatches: ['#cbd5e1', '#6b7280'],
+    thumbnail: polyHavenThumb('concrete_pavers_02')
   },
   {
     id: 'stone_floor_05',
     label: 'Stone Floor 05',
     assetId: 'stone_floor_05',
     repeat: 2.3,
-    swatches: ['#94a3b8', '#475569']
+    swatches: ['#94a3b8', '#475569'],
+    thumbnail: polyHavenThumb('stone_floor_05')
   },
   {
     id: 'stone_floor_06',
     label: 'Stone Floor 06',
     assetId: 'stone_floor_06',
     repeat: 2.2,
-    swatches: ['#8b95a1', '#475569']
+    swatches: ['#8b95a1', '#475569'],
+    thumbnail: polyHavenThumb('stone_floor_06')
   }
 ]);
 
@@ -706,70 +722,80 @@ const WALL_TEXTURE_OPTIONS = Object.freeze([
     label: 'Brick Wall 02',
     assetId: 'brick_wall_02',
     repeat: 1.6,
-    swatches: ['#b45309', '#7c2d12']
+    swatches: ['#b45309', '#7c2d12'],
+    thumbnail: polyHavenThumb('brick_wall_02')
   },
   {
     id: 'brick_wall_03',
     label: 'Brick Wall 03',
     assetId: 'brick_wall_03',
     repeat: 1.6,
-    swatches: ['#c2410c', '#7c2d12']
+    swatches: ['#c2410c', '#7c2d12'],
+    thumbnail: polyHavenThumb('brick_wall_03')
   },
   {
     id: 'castle_wall_01',
     label: 'Castle Wall 01',
     assetId: 'castle_wall_01',
     repeat: 1.4,
-    swatches: ['#9ca3af', '#4b5563']
+    swatches: ['#9ca3af', '#4b5563'],
+    thumbnail: polyHavenThumb('castle_wall_01')
   },
   {
     id: 'concrete_wall_002',
     label: 'Concrete Wall 002',
     assetId: 'concrete_wall_002',
     repeat: 1.5,
-    swatches: ['#a1a1aa', '#52525b']
+    swatches: ['#a1a1aa', '#52525b'],
+    thumbnail: polyHavenThumb('concrete_wall_002')
   },
   {
     id: 'concrete_wall_004',
     label: 'Concrete Wall 004',
     assetId: 'concrete_wall_004',
     repeat: 1.5,
-    swatches: ['#9ca3af', '#4b5563']
+    swatches: ['#9ca3af', '#4b5563'],
+    thumbnail: polyHavenThumb('concrete_wall_004')
   },
   {
     id: 'painted_wall_01',
     label: 'Painted Wall 01',
     assetId: 'painted_wall_01',
     repeat: 1.8,
-    swatches: ['#e2e8f0', '#94a3b8']
+    swatches: ['#e2e8f0', '#94a3b8'],
+    thumbnail: polyHavenThumb('painted_wall_01')
   },
   {
     id: 'plaster_wall_01',
     label: 'Plaster Wall 01',
     assetId: 'plaster_wall_01',
     repeat: 1.7,
-    swatches: ['#e2e8f0', '#94a3b8']
+    swatches: ['#e2e8f0', '#94a3b8'],
+    thumbnail: polyHavenThumb('plaster_wall_01')
   },
   {
     id: 'stone_wall_02',
     label: 'Stone Wall 02',
     assetId: 'stone_wall_02',
     repeat: 1.5,
-    swatches: ['#9ca3af', '#475569']
+    swatches: ['#9ca3af', '#475569'],
+    thumbnail: polyHavenThumb('stone_wall_02')
   },
   {
     id: 'stone_wall_03',
     label: 'Stone Wall 03',
     assetId: 'stone_wall_03',
     repeat: 1.5,
-    swatches: ['#94a3b8', '#64748b']
+    swatches: ['#94a3b8', '#64748b'],
+    thumbnail: polyHavenThumb('stone_wall_03')
   },
   {
     id: 'tiles_wall_01',
     label: 'Tiles Wall 01',
     assetId: 'tiles_wall_01',
     repeat: 1.7,
-    swatches: ['#e2e8f0', '#64748b']
+    swatches: ['#e2e8f0', '#64748b'],
+    thumbnail: polyHavenThumb('tiles_wall_01')
   }
 ]);
 
@@ -3329,7 +3355,11 @@ export default function SnakeAndLadder() {
           <div
             className="w-full h-12 rounded-xl border border-white/10"
             style={{
-              background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`
+              backgroundImage: option.thumbnail
+                ? `url(${option.thumbnail})`
+                : `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
             }}
           />
         );
@@ -3384,7 +3414,11 @@ export default function SnakeAndLadder() {
           <div
             className="w-full h-12 rounded-xl border border-white/10"
             style={{
-              background: `linear-gradient(120deg, ${swatches[0]}, ${swatches[1]})`,
+              backgroundImage: option.thumbnail
+                ? `url(${option.thumbnail})`
+                : `linear-gradient(120deg, ${swatches[0]}, ${swatches[1]})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               boxShadow: `0 8px 18px ${swatches[1]}44`
             }}
           />
@@ -3398,7 +3432,11 @@ export default function SnakeAndLadder() {
           <div
             className="w-full h-12 rounded-xl border border-white/10"
             style={{
-              background: `linear-gradient(120deg, ${swatches[0]}, ${swatches[1]})`,
+              backgroundImage: option.thumbnail
+                ? `url(${option.thumbnail})`
+                : `linear-gradient(120deg, ${swatches[0]}, ${swatches[1]})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               boxShadow: `0 10px 25px ${swatches[0]}44`
             }}
           >
