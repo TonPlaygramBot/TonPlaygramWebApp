@@ -26,7 +26,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   const handleOpenTelegram = () => {
     setCtaMessage('Opening Telegram…');
     const deepLink = 'tg://resolve?domain=TonPlaygramBot&startapp=account';
-    const fallback = 'https://t.me/TonPlaygramBot/webapp';
+    const fallback = 'https://t.me/TonPlaygramBot?startapp=account';
     window.location.href = deepLink;
     setTimeout(() => {
       window.open(fallback, '_blank', 'noopener');
