@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-function verifyTelegramInitData(initData) {
+export function verifyTelegramInitData(initData) {
   try {
     const params = new URLSearchParams(initData);
     const hash = params.get('hash');
@@ -40,6 +40,7 @@ export default function authenticate(req, res, next) {
   }
 
   if (allowedToken && token === allowedToken) {
+    req.auth = { apiToken: true };
     return next();
   }
 

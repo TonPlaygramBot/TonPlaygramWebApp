@@ -4,8 +4,27 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
+import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
+
+function createInitData(id, token) {
+  const params = new URLSearchParams();
+  params.set('user', JSON.stringify({ id }));
+  const dataCheckString = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join('\n');
+  const secret = crypto
+    .createHmac('sha256', 'WebAppData')
+    .update(token)
+    .digest();
+  const hash = crypto.createHmac('sha256', secret)
+    .update(dataCheckString)
+    .digest('hex');
+  params.set('hash', hash);
+  return params.toString();
+}
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -39,7 +58,7 @@ test('joinRoom clears lobby seat', { concurrency: false, timeout: 20000 }, async
     await fetch('http://localhost:3204/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: '1', name: 'A', confirmed: true })
     });
 
     let res = await fetch('http://localhost:3204/api/snake/lobbies');
@@ -47,9 +66,12 @@ test('joinRoom clears lobby seat', { concurrency: false, timeout: 20000 }, async
     let lobby = lobbies.find(l => l.id === 'snake-2');
     assert.equal(lobby.players, 1);
 
-    const s1 = io('http://localhost:3204');
+    const s1 = io('http://localhost:3204', {
+      auth: { initData: createInitData(1, 'dummy') }
+    });
     await new Promise((resolve) => s1.on('connect', resolve));
-    s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
+    s1.emit('register', { playerId: '1' });
+    s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: '1', name: 'A' });
     await delay(500);
 
     res = await fetch('http://localhost:3204/api/snake/lobbies');
