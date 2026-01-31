@@ -119,7 +119,7 @@ import {
 } from '../utils/texasHoldemInventory.js';
 import { claimPurchase, getTonBalance } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
-import { useTonAddress } from '@tonconnect/ui-react';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -722,6 +722,8 @@ export default function Store() {
   const [confirmItems, setConfirmItems] = useState([]);
   const [paymentHash, setPaymentHash] = useState('');
   const walletAddress = useTonAddress(true);
+  const [tonConnectUI] = useTonConnectUI();
+  const [isPaying, setIsPaying] = useState(false);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -1316,6 +1318,60 @@ export default function Store() {
     }
   };
 
+  const toNanoTon = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return '0';
+    return Math.round(numeric * 1e9).toString();
+  };
+
+  const initiateTonPayment = async (items) => {
+    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
+    if (!payload.length) return;
+    if (!walletAddress) {
+      setInfo('Connect your TON wallet before paying.');
+      return;
+    }
+    if (!accountId || accountId === 'guest') {
+      setInfo('Link your TPC account in the wallet first.');
+      return;
+    }
+    const purchasable = payload.filter((item) => !item.owned);
+    if (!purchasable.length) {
+      setInfo('No new items selected for purchase.');
+      return;
+    }
+    const totalPrice = purchasable.reduce((sum, item) => sum + item.price, 0);
+    if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+      setInfo('Unable to compute total TON payment.');
+      return;
+    }
+    setIsPaying(true);
+    resetStatus();
+    try {
+      const result = await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [
+          {
+            address: TON_STORE_ADDRESS,
+            amount: toNanoTon(totalPrice)
+          }
+        ]
+      });
+      const txHash = result?.boc || result?.transaction?.hash || '';
+      if (!txHash) {
+        setInfo('Payment sent. Paste the transaction hash to verify delivery.');
+        return;
+      }
+      setPaymentHash(txHash);
+      await handlePurchase(purchasable, txHash);
+    } catch (err) {
+      console.error('Payment failed', err);
+      setInfo('TON payment was not completed.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   const featuredCount = allMarketplaceItems.length;
   const ownedCount = allMarketplaceItems.filter((item) => item.owned).length;
   const walletLabel = accountId && accountId !== 'guest' ? 'Wallet connected' : 'Guest mode';
@@ -1477,7 +1533,7 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Send the TON amount from your connected wallet, then paste the transaction hash so we can verify it on-chain.
+              Pay with TON from your connected wallet. Once the payment is confirmed on-chain we deliver the NFT immediately.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1510,16 +1566,16 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFT sent to linked TPC account after confirmation</span>
+                <span className="font-semibold text-white">NFT sent immediately after confirmation</span>
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
+              <span className="text-white/60">TON transaction hash (optional if auto-captured)</span>
               <input
                 type="text"
                 value={paymentHash}
                 onChange={(e) => setPaymentHash(e.target.value)}
-                placeholder="Paste the transaction hash"
+                placeholder="Paste the transaction hash if needed"
                 className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
               />
             </label>
@@ -1533,11 +1589,19 @@ export default function Store() {
               </button>
               <button
                 type="button"
+                onClick={() => initiateTonPayment(confirmItem)}
+                className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
+                disabled={Boolean(processing) || isPaying}
+              >
+                {isPaying ? 'Paying…' : 'Pay with TON'}
+              </button>
+              <button
+                type="button"
                 onClick={() => handlePurchase(confirmItem, paymentHash)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={Boolean(processing)}
+                disabled={Boolean(processing) || !paymentHash.trim()}
               >
-                {processing ? 'Processing…' : 'Confirm & Buy'}
+                {processing ? 'Processing…' : 'Verify & Deliver'}
               </button>
             </div>
           </div>
@@ -1599,7 +1663,7 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Send a single TON payment, then add the transaction hash to verify on-chain.</p>
+              <p className="mt-1">Pay once with TON, then we verify on-chain and deliver instantly.</p>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1608,16 +1672,16 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFTs sent to linked TPC account after confirmation</span>
+                <span className="font-semibold text-white">NFTs sent immediately after confirmation</span>
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
+              <span className="text-white/60">TON transaction hash (optional if auto-captured)</span>
               <input
                 type="text"
                 value={paymentHash}
                 onChange={(e) => setPaymentHash(e.target.value)}
-                placeholder="Paste the transaction hash"
+                placeholder="Paste the transaction hash if needed"
                 className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
               />
             </label>
@@ -1632,11 +1696,19 @@ export default function Store() {
               </button>
               <button
                 type="button"
+                onClick={() => initiateTonPayment(confirmItems)}
+                className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
+                disabled={Boolean(processing) || isPaying}
+              >
+                {isPaying ? 'Paying…' : 'Pay with TON'}
+              </button>
+              <button
+                type="button"
                 onClick={() => handlePurchase(confirmItems, paymentHash)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={Boolean(processing)}
+                disabled={Boolean(processing) || !paymentHash.trim()}
               >
-                {processing ? 'Processing…' : 'Confirm & Buy All'}
+                {processing ? 'Processing…' : 'Verify & Deliver All'}
               </button>
             </div>
           </div>
@@ -1801,7 +1873,7 @@ export default function Store() {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                 <p className="font-semibold text-white">What you get</p>
-                <p className="mt-1">Once your TON payment is verified, the NFT unlocks on your linked TPC account.</p>
+                <p className="mt-1">After the TON payment is confirmed, the NFT unlocks immediately on your linked TPC account.</p>
               </div>
             </div>
           </div>
