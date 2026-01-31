@@ -110,6 +110,7 @@ export const computeQuantizedOffsetScaled = (
   const level1Mag = options.level1Mag ?? SPIN_LEVEL1_MAG;
   const level2Mag = options.level2Mag ?? SPIN_LEVEL2_MAG;
   const level3Mag = options.level3Mag ?? SPIN_LEVEL3_MAG;
+  const angleStep = options.angleStepRad ?? Math.PI / 4;
 
   const raw = clampToMaxOffset(rawX, rawY, maxOffset);
   const distance = Math.hypot(raw.x, raw.y);
@@ -126,8 +127,14 @@ export const computeQuantizedOffsetScaled = (
   if (mag === 0 || distance <= 1e-6) {
     return { x: 0, y: 0 };
   }
-  const scale = mag / distance;
-  return { x: raw.x * scale, y: raw.y * scale };
+  const angle = Math.atan2(raw.y, raw.x);
+  const snappedAngle = angleStep > 0
+    ? Math.round(angle / angleStep) * angleStep
+    : angle;
+  return {
+    x: Math.cos(snappedAngle) * mag,
+    y: Math.sin(snappedAngle) * mag
+  };
 };
 
 export const normalizeSpinInput = (spin) => {
