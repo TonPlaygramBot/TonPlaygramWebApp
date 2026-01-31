@@ -12,6 +12,16 @@ let audioContext;
 let audioContextUnlocked = false;
 let speechUnlockInstalled = false;
 let speechUnlockHandler;
+let speechUnlockComplete = false;
+let speechUnlockListenersInstalled = false;
+
+const speechUnlockEvents = ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'];
+
+const removeSpeechUnlockListeners = () => {
+  if (typeof window === 'undefined' || !speechUnlockListenersInstalled) return;
+  speechUnlockListenersInstalled = false;
+  speechUnlockEvents.forEach((event) => window.removeEventListener(event, speechUnlockHandler));
+};
 
 const ensureAudioContext = () => {
   if (typeof window === 'undefined') return null;
@@ -58,20 +68,20 @@ const createSpeechUnlockHandler = () => {
     if (!synth) return;
     ensureSpeechUnlocked(synth);
     primeSpeechSynthesis();
+    if (audioContextUnlocked || speechUnlockComplete) {
+      removeSpeechUnlockListeners();
+    }
   };
   return speechUnlockHandler;
 };
 
 export const installSpeechSynthesisUnlock = () => {
   if (typeof window === 'undefined' || speechUnlockInstalled) return;
-  if (!getSpeechSynthesis()) return;
   speechUnlockInstalled = true;
   const handler = createSpeechUnlockHandler();
-  const options = { once: true, passive: true };
-  window.addEventListener('pointerdown', handler, options);
-  window.addEventListener('touchend', handler, options);
-  window.addEventListener('click', handler, options);
-  window.addEventListener('keydown', handler, options);
+  speechUnlockListenersInstalled = true;
+  const options = { passive: true };
+  speechUnlockEvents.forEach((event) => window.addEventListener(event, handler, options));
 };
 
 export const getSpeechSynthesis = () => {
@@ -118,6 +128,7 @@ export const primeSpeechSynthesis = () => {
   };
   utterance.onerror = utterance.onend;
   synth.speak(utterance);
+  speechUnlockComplete = true;
 };
 
 const loadVoices = (synth, timeoutMs = 3500) =>
