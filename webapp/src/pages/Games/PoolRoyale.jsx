@@ -1046,7 +1046,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.032; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1054,7 +1054,7 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // rou
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.04; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.155; // trim the jaw height slightly so the top edge sits lower
@@ -1075,7 +1075,7 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.32; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
@@ -1450,7 +1450,7 @@ const POCKET_GLOW_COLORS = Object.freeze({
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.85;
-const POCKET_EARLY_ALIGNMENT = 0.7;
+const POCKET_EARLY_ALIGNMENT = 0.55;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -1519,6 +1519,7 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
+const BACKSPIN_POWER_COMPENSATION = 0.65; // boost forward velocity so draw shots travel like normal power
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -18186,7 +18187,7 @@ const powerRef = useRef(hud.power);
             forceCornerCapture = false,
             pocketCenterOverride = null
           } = options;
-          if (shotPrediction?.railNormal) return null;
+          if (shotPrediction?.railNormal && !forceCornerCapture) return null;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
@@ -18496,25 +18497,22 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY
-          });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(overheadCamera?.fov)
-            ? overheadCamera.fov
-            : fovSnapshot;
+          const resolvedPosition = fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = targetSnapshot?.clone?.() ?? null;
+          const resolvedFov = fovSnapshot;
           if (!resolvedPosition && !resolvedTarget) return null;
+          if (resolvedTarget && resolvedTarget.y < minTargetY) {
+            resolvedTarget.y = minTargetY;
+          }
+          if (resolvedPosition && resolvedPosition.y < minTargetY) {
+            resolvedPosition.y = minTargetY;
+          }
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
             fov: resolvedFov
           };
-          if (Number.isFinite(overheadCamera?.minTargetY)) {
-            snapshot.minTargetY = overheadCamera.minTargetY;
-          }
+          snapshot.minTargetY = minTargetY;
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -21975,9 +21973,12 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const backspinStrength = Math.max(0, -(appliedSpin?.y ?? 0));
+          const backspinPowerBoost =
+            1 + backspinStrength * BACKSPIN_POWER_COMPENSATION;
           const base = shotAimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(speedBase * powerScale * backspinPowerBoost);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
