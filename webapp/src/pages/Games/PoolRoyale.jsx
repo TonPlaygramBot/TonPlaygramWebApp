@@ -1519,7 +1519,6 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const PRE_IMPACT_BACKSPIN_ATTENUATION = 0.18;
 const BACKSPIN_POWER_COMPENSATION = 0.75; // boost forward velocity so draw shots travel like normal power
 const BACKSPIN_POWER_MAX_BOOST = 1.75; // cap boost so draw shots don't overpower full-strength strokes
 const SPIN_ROLL_DECAY = 0.983;
@@ -25712,11 +25711,7 @@ const powerRef = useRef(hud.power);
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                  const adjustedForwardMag =
-                    forwardMag < 0
-                      ? forwardMag * PRE_IMPACT_BACKSPIN_ATTENUATION
-                      : forwardMag;
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(adjustedForwardMag);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
                   if (b.pendingSpin) {
