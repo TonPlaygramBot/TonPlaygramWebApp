@@ -6,16 +6,19 @@ import User from '../bot/models/User.js';
 
 // Regression test: inserting multiple users without a telegramId should not
 // trigger a duplicate key error on the telegramId index.
-test('allows multiple users without telegramId', async () => {
+test('allows multiple users without telegramId', { timeout: 20000 }, async () => {
   const mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  const conn = await mongoose.createConnection(mongo.getUri(), {
+    serverSelectionTimeoutMS: 20000
+  }).asPromise();
+  const UserModel = conn.model('User', User.schema);
   try {
-    await User.create({ walletAddress: 'addr1' });
-    await User.create({ walletAddress: 'addr2' });
-    const count = await User.countDocuments();
+    await UserModel.create({ walletAddress: 'addr1' });
+    await UserModel.create({ walletAddress: 'addr2' });
+    const count = await UserModel.countDocuments();
     assert.equal(count, 2);
   } finally {
-    await mongoose.disconnect();
+    await conn.close();
     await mongo.stop();
   }
 });

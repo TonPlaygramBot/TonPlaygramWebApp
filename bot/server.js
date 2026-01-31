@@ -48,12 +48,14 @@ import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import {
   registerConnection,
   removeConnection,
   countOnline,
   listOnline
 } from './services/connectionService.js';
+import authenticate, { verifyTelegramInitData } from './middleware/auth.js';
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
@@ -114,13 +116,59 @@ const rateLimitWindowMs =
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  return allowedOrigins.includes(origin);
+};
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    }
+  })
+);
 const httpServer = http.createServer(app);
 const io = initSocket(httpServer, {
-  cors: { origin: allowedOrigins.length ? allowedOrigins : '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST']
+  },
   transports: ['websocket', 'polling'],
   pingInterval: 25000,
   pingTimeout: 60000
+});
+io.use((socket, next) => {
+  const initData =
+    socket.handshake.auth?.initData ||
+    socket.handshake.headers['x-telegram-init-data'];
+  const authHeader = socket.handshake.headers.authorization || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  const allowedToken = process.env.API_AUTH_TOKEN;
+
+  if (initData) {
+    const data = verifyTelegramInitData(initData);
+    if (data) {
+      socket.data.auth = {
+        telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined
+      };
+      return next();
+    }
+  }
+
+  if (allowedToken && token === allowedToken) {
+    socket.data.auth = { token };
+    return next();
+  }
+
+  return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
 
@@ -138,6 +186,25 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 
 // Middleware and routes
 app.use(compression());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "base-uri": ["'self'"],
+        "frame-ancestors": ["'self'"],
+        "img-src": ["'self'", "data:", "https:"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "connect-src": ["'self'", "https:", "wss:"],
+        "font-src": ["'self'", "data:"],
+        "object-src": ["'none'"],
+        "upgrade-insecure-requests": []
+      }
+    }
+  })
+);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
 const apiLimiter = rateLimit({
@@ -146,7 +213,19 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+const userLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  limit: rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const telegramId = req.body?.telegramId || req.query?.telegramId;
+    const accountId = req.body?.accountId || req.query?.accountId;
+    return String(telegramId || accountId || req.ip);
+  }
+});
 app.use('/api', apiLimiter);
+app.use('/api', userLimiter);
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
@@ -169,18 +248,23 @@ app.use('/api/online', onlineRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 
-app.post('/api/goal-rush/calibration', (req, res) => {
+app.post('/api/goal-rush/calibration', authenticate, async (req, res) => {
   const { accountId, calibration } = req.body || {};
   const devAccounts = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
     process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
     process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
-  if (
-    devAccounts.length &&
-    (!accountId || !devAccounts.includes(accountId))
-  ) {
-    return res.status(403).json({ error: 'unauthorized' });
+  if (devAccounts.length) {
+    const authId = req.auth?.telegramId;
+    if (!authId) {
+      return res.status(403).json({ error: 'unauthorized' });
+    }
+    const user = await User.findOne({ telegramId: authId });
+    const isDev = user && devAccounts.includes(user.accountId);
+    if (!isDev || (accountId && !devAccounts.includes(accountId))) {
+      return res.status(403).json({ error: 'unauthorized' });
+    }
   }
   if (!calibration || typeof calibration !== 'object') {
     return res.status(400).json({ error: 'invalid calibration' });
@@ -738,14 +822,29 @@ app.post('/api/snake/table/seat', (req, res) => {
   const pid = playerId || accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
-  seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
-  res.json({ success: true });
+  const table = seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
+  res.json({ success: true, tableId: table?.id });
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
   const { tableId, playerId, accountId } = req.body || {};
   const pid = playerId || accountId;
-  unseatTableSocket(pid, tableId);
+  let resolvedTableId = tableId;
+  if (pid && tableId && !tableMap.has(tableId)) {
+    const [gameType, capStr] = tableId.split('-');
+    const capacity = Number(capStr);
+    for (const [id, table] of tableMap.entries()) {
+      if (
+        table.gameType === gameType &&
+        table.maxPlayers === capacity &&
+        table.players.some((p) => String(p.id) === String(pid))
+      ) {
+        resolvedTableId = id;
+        break;
+      }
+    }
+  }
+  unseatTableSocket(pid, resolvedTableId);
   res.json({ success: true });
 });
 app.get('/api/snake/lobbies', async (req, res) => {

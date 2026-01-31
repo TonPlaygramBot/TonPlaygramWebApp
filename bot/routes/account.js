@@ -27,8 +27,13 @@ import {
 
 const router = Router();
 
+function ensureAccountOwner(req, user) {
+  if (!user?.telegramId) return true;
+  return req.auth?.telegramId === user.telegramId;
+}
+
 // Create or fetch account for a user
-router.post('/create', async (req, res) => {
+router.post('/create', authenticate, async (req, res) => {
   const {
     telegramId,
     accountId,
@@ -38,6 +43,9 @@ router.post('/create', async (req, res) => {
     lastName,
     photo
   } = req.body;
+  if (telegramId && req.auth?.telegramId !== Number(telegramId)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   const useMemoryStore = shouldUseMemoryUserStore();
 
   try {
@@ -223,12 +231,15 @@ router.post('/create', async (req, res) => {
 });
 
 // Get balance by account id
-router.post('/balance', async (req, res) => {
+router.post('/balance', authenticate, async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!ensureAccountOwner(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   const balance = calculateBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
@@ -242,12 +253,15 @@ router.post('/balance', async (req, res) => {
 });
 
 // Get full account info including gifts and transactions
-router.post('/info', async (req, res) => {
+router.post('/info', authenticate, async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!ensureAccountOwner(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
@@ -276,7 +290,7 @@ router.post('/info', async (req, res) => {
 });
 
 // Send TPC between accounts
-router.post('/send', async (req, res) => {
+router.post('/send', authenticate, async (req, res) => {
   const { fromAccount, toAccount, amount, note } = req.body;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
     return res
@@ -288,6 +302,9 @@ router.post('/send', async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
+  if (!ensureAccountOwner(req, sender)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   const feeSender = Math.round(amount * 0.02);
   const feeReceiver = Math.round(amount * 0.01);
   if (sender.balance < amount + feeSender) {
@@ -422,7 +439,7 @@ router.post('/send', async (req, res) => {
 });
 
 // Send a gift using account ids
-router.post('/gift', async (req, res) => {
+router.post('/gift', authenticate, async (req, res) => {
   const { fromAccount, toAccount, gift } = req.body;
   if (!fromAccount || !toAccount || !gift) {
     return res
@@ -436,6 +453,9 @@ router.post('/gift', async (req, res) => {
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender || sender.balance < g.price) {
     return res.status(400).json({ error: 'insufficient balance' });
+  }
+  if (!ensureAccountOwner(req, sender)) {
+    return res.status(403).json({ error: 'forbidden' });
   }
 
   let receiver = await User.findOne({ accountId: toAccount });
@@ -515,7 +535,7 @@ router.post('/gift', async (req, res) => {
 });
 
 // Convert received gifts to TPC
-router.post('/convert-gifts', async (req, res) => {
+router.post('/convert-gifts', authenticate, async (req, res) => {
   const { accountId, giftIds, action = 'burn', toAccount } = req.body;
   if (!accountId || !Array.isArray(giftIds)) {
     return res.status(400).json({ error: 'accountId and giftIds required' });
@@ -523,6 +543,9 @@ router.post('/convert-gifts', async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!ensureAccountOwner(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
@@ -642,11 +665,14 @@ router.post('/convert-gifts', async (req, res) => {
 });
 
 // List transactions by account id
-router.post('/transactions', async (req, res) => {
+router.post('/transactions', authenticate, async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!ensureAccountOwner(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   ensureTransactionArray(user);
   res.json({ transactions: user.transactions });
 });
