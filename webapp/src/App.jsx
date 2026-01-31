@@ -58,7 +58,11 @@ export default function App() {
   useReferralClaim();
   useNativePushNotifications();
 
-  const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+  const manifestOverride = import.meta.env.VITE_TONCONNECT_MANIFEST_URL;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const isHttpOrigin = origin.startsWith('http://') || origin.startsWith('https://');
+  const manifestUrl = manifestOverride
+    || (isHttpOrigin ? `${origin}/tonconnect-manifest.json` : 'https://tonplaygram.com/tonconnect-manifest.json');
   const returnUrl = window.location.href;
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
   const actionsConfiguration = {
