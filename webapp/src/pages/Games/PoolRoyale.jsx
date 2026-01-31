@@ -87,8 +87,10 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
+  computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
+  smoothDamp,
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 
@@ -27104,8 +27106,8 @@ const powerRef = useRef(hud.power);
       velocity: { x: 0, y: 0 }
     };
 
-    const SPRING_STIFFNESS = 38;
-    const SPRING_DAMPING = 12;
+    const SMOOTH_TIME = 0.085;
+    const MAX_SPEED = 6;
     const MAX_STEP_SECONDS = 0.04;
     const SETTLE_EPS = 0.0015;
 
@@ -27151,6 +27153,16 @@ const powerRef = useRef(hud.power);
       );
       spinLegalityRef.current = legality;
       updateSpinDotPosition(clamped, legality.blocked);
+    };
+
+    const applySnapTarget = () => {
+      const snapped = computeQuantizedOffsetScaled(
+        spinState.target.x,
+        spinState.target.y
+      );
+      spinState.target = clampToPlayable(snapped.x, snapped.y);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const resetSpin = () => {
@@ -27208,15 +27220,29 @@ const powerRef = useRef(hud.power);
       const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
       lastTime = timestamp;
       const { current, target, velocity } = spinState;
+      const nextX = smoothDamp(
+        current.x,
+        target.x,
+        velocity.x,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      const nextY = smoothDamp(
+        current.y,
+        target.y,
+        velocity.y,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      current.x = nextX.value;
+      current.y = nextY.value;
+      velocity.x = nextX.velocity;
+      velocity.y = nextY.velocity;
+      applySpin(current.x, current.y, { updateRequest: false });
       const dx = target.x - current.x;
       const dy = target.y - current.y;
-      const ax = SPRING_STIFFNESS * dx - SPRING_DAMPING * velocity.x;
-      const ay = SPRING_STIFFNESS * dy - SPRING_DAMPING * velocity.y;
-      velocity.x += ax * dt;
-      velocity.y += ay * dt;
-      current.x += velocity.x * dt;
-      current.y += velocity.y * dt;
-      applySpin(current.x, current.y, { updateRequest: false });
       const settled =
         Math.abs(dx) < SETTLE_EPS &&
         Math.abs(dy) < SETTLE_EPS &&
@@ -27226,7 +27252,12 @@ const powerRef = useRef(hud.power);
         spinState.velocity = { x: 0, y: 0 };
       }
       const shouldContinue = activePointer !== null || !settled;
-      rafId = shouldContinue ? requestAnimationFrame(stepSpring) : null;
+      if (shouldContinue) {
+        rafId = requestAnimationFrame(stepSpring);
+      } else {
+        rafId = null;
+        lastTime = null;
+      }
     };
 
     const handlePointerDown = (e) => {
@@ -27258,6 +27289,7 @@ const powerRef = useRef(hud.power);
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
       finishInteraction(50);
+      applySnapTarget();
     };
 
     const handlePointerCancel = (e) => {
@@ -27265,6 +27297,7 @@ const powerRef = useRef(hud.power);
       releasePointer();
       clearTimer();
       scaleBox(1);
+      applySnapTarget();
     };
 
     if (showPlayerControls) {

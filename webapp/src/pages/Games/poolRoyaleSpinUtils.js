@@ -186,3 +186,33 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     cueForward
   );
 };
+
+// Smooth damp helper adapted from Unity's Mathf.SmoothDamp (MIT licensed).
+export const smoothDamp = (
+  current,
+  target,
+  currentVelocity,
+  smoothTime,
+  maxSpeed,
+  deltaTime
+) => {
+  const clampedSmooth = Math.max(0.0001, smoothTime || 0);
+  const omega = 2 / clampedSmooth;
+  const x = omega * deltaTime;
+  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  let change = current - target;
+  const originalTarget = target;
+  const maxChange = (maxSpeed ?? Number.POSITIVE_INFINITY) * clampedSmooth;
+  if (Number.isFinite(maxChange)) {
+    change = clamp(change, -maxChange, maxChange);
+  }
+  target = current - change;
+  const temp = (currentVelocity + omega * change) * deltaTime;
+  let velocity = (currentVelocity - omega * temp) * exp;
+  let output = target + (change + temp) * exp;
+  if ((originalTarget - current > 0) === (output > originalTarget)) {
+    output = originalTarget;
+    velocity = (output - originalTarget) / Math.max(deltaTime, 1e-4);
+  }
+  return { value: output, velocity };
+};
