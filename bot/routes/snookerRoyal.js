@@ -55,10 +55,11 @@ async function handleInventoryGet(accountId, res) {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   let user;
+  let inMemoryStore = false;
   try {
-    if (shouldUseMemoryUserStore()) {
-      user = findMemoryUser({ accountId });
-    } else {
+    user = findMemoryUser({ accountId });
+    inMemoryStore = !!user;
+    if (!user && !shouldUseMemoryUserStore()) {
       user = await User.findOne({ accountId });
     }
   } catch (err) {
@@ -71,7 +72,7 @@ async function handleInventoryGet(accountId, res) {
   if (!areInventoriesEqual(user.snookerRoyalInventory, normalized)) {
     user.snookerRoyalInventory = normalized;
     try {
-      if (shouldUseMemoryUserStore()) {
+      if (shouldUseMemoryUserStore() || inMemoryStore) {
         saveMemoryUser(user);
       } else {
         await user.save();
@@ -87,10 +88,11 @@ async function handleInventorySet(accountId, inventory, res) {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   let user;
+  let inMemoryStore = false;
   try {
-    if (shouldUseMemoryUserStore()) {
-      user = findMemoryUser({ accountId });
-    } else {
+    user = findMemoryUser({ accountId });
+    inMemoryStore = !!user;
+    if (!user && !shouldUseMemoryUserStore()) {
       user = await User.findOne({ accountId });
     }
   } catch (err) {
@@ -102,7 +104,7 @@ async function handleInventorySet(accountId, inventory, res) {
   const merged = mergeInventories(user.snookerRoyalInventory, inventory);
   user.snookerRoyalInventory = merged;
   try {
-    if (shouldUseMemoryUserStore()) {
+    if (shouldUseMemoryUserStore() || inMemoryStore) {
       saveMemoryUser(user);
     } else {
       await user.save();

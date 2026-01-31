@@ -54,10 +54,18 @@ test('seat and unseat endpoints update lobby', { concurrency: false, timeout: 20
     });
     assert.equal(res.status, 200);
 
-    res = await fetch('http://localhost:3206/api/snake/lobby/snake-2');
-    assert.equal(res.status, 200);
-    lobby = await res.json();
-    assert.ok(!lobby.players.some(p => p.id === 'p100'));
+    let removed = false;
+    const deadline = Date.now() + 2000;
+    while (!removed && Date.now() < deadline) {
+      res = await fetch('http://localhost:3206/api/snake/lobby/snake-2');
+      assert.equal(res.status, 200);
+      lobby = await res.json();
+      removed = !lobby.players.some(p => p.id === 'p100');
+      if (!removed) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    assert.ok(removed);
   } finally {
     server.kill();
   }

@@ -31,6 +31,7 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     PORT: '3203',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
+    API_AUTH_TOKEN: 'test-token',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1'
   };
@@ -42,7 +43,9 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
       body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
 
-    const s1 = io('http://localhost:3203');
+    const s1 = io('http://localhost:3203', {
+      extraHeaders: { Authorization: 'Bearer test-token' }
+    });
     const errors = [];
     await new Promise((resolve) => s1.on('connect', resolve));
     s1.on('error', (e) => errors.push(e));
