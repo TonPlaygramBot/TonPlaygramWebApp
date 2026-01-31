@@ -14,7 +14,7 @@ import {
 } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
-import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+import { useTonAddress } from '@tonconnect/ui-react';
 
 const xIcon = (
   <img
@@ -44,7 +44,6 @@ export default function Home() {
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
-  const [tonConnectUI] = useTonConnectUI();
 
   useEffect(() => {
     ping()
