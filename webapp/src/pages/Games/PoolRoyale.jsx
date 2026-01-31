@@ -12696,6 +12696,7 @@ const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
+const [replayFoul, setReplayFoul] = useState(null);
 const handleSkipReplayClick = useCallback(() => {
   if (skipReplayRef.current) {
     skipReplayRef.current();
@@ -12703,8 +12704,9 @@ const handleSkipReplayClick = useCallback(() => {
     setReplayActive(false);
   }
 }, []);
-const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
-const [bottomHudOffset, setBottomHudOffset] = useState(0);
+  const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
+  const [bottomHudOffset, setBottomHudOffset] = useState(0);
+  const inHandTopViewRef = useRef(false);
 const leftControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
@@ -14280,6 +14282,11 @@ const powerRef = useRef(hud.power);
           (captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
         recording.startState =
           recording.startState || recording.frames?.[0]?.balls || null;
+        if (hasState && payload.state?.foul) {
+          recording.replayFoul = { ...payload.state.foul };
+        } else if (hasState) {
+          recording.replayFoul = null;
+        }
         pendingRemoteReplayRef.current = { ...recording };
         incomingRemoteShotRef.current = null;
         remoteShotActiveRef.current = false;
@@ -14527,6 +14534,25 @@ const powerRef = useRef(hud.power);
       cameraUpdateRef.current?.();
     }
   }, [hud.inHand]);
+
+  useEffect(() => {
+    if (replayActive) return;
+    const controls = topViewControlsRef.current;
+    const meta = frameState?.meta;
+    const variant = meta?.variant ?? activeVariantRef.current?.id ?? null;
+    const allowFullTable =
+      variant === 'uk' ||
+      ((variant === 'american' || variant === '9ball') && !meta?.breakInProgress);
+    if (hud.inHand && allowFullTable && controls?.enter) {
+      controls.enter(true, { variant: 'top' });
+      inHandTopViewRef.current = true;
+      return;
+    }
+    if (!hud.inHand && inHandTopViewRef.current && controls?.exit) {
+      controls.exit(true);
+      inHandTopViewRef.current = false;
+    }
+  }, [frameState, hud.inHand, replayActive]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -18678,15 +18704,66 @@ const powerRef = useRef(hud.power);
             const replayHoldWindow = Number.isFinite(playback?.duration)
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
-            const showCue = targetTime <= replayHoldWindow;
+            const fallbackPullback = CUE_PULL_BASE * 0.35;
+            const fallbackForward = CUE_PULL_BASE * 0.18;
+            const pullbackTime = 160;
+            const forwardTime = 210;
+            const settleTime = 120;
+            const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
+            const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
+            const holdWindow = Math.max(replayHoldWindow, totalStroke);
+            const showCue = targetTime <= holdWindow;
             cueStick.visible = showCue;
             cueAnimating = showCue;
             if (showCue) {
-              cueStick.position.set(
+              const idlePos = TMP_VEC3_A.set(
                 cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
                 cuePos.y,
                 cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
               );
+              const pullPos = TMP_VEC3_B.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * (CUE_TIP_GAP + fallbackPullback),
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP + fallbackPullback)
+              );
+              const impactPos = TMP_VEC3_C.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * Math.max(CUE_TIP_GAP - fallbackForward, 0),
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * Math.max(CUE_TIP_GAP - fallbackForward, 0)
+              );
+              const settlePos = tmpReplayCueA.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * Math.max(CUE_TIP_GAP - fallbackForward * 0.45, 0),
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * Math.max(CUE_TIP_GAP - fallbackForward * 0.45, 0)
+              );
+              if (targetTime <= pullbackTime && pullbackTime > 0) {
+                const t = THREE.MathUtils.clamp(targetTime / pullbackTime, 0, 1);
+                cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(t));
+              } else if (targetTime <= pullbackTime + forwardTime) {
+                const t = THREE.MathUtils.clamp(
+                  (targetTime - pullbackTime) / Math.max(forwardTime, 1e-6),
+                  0,
+                  1
+                );
+                cueStick.position.lerpVectors(pullPos, impactPos, easeOutQuad(t));
+              } else if (targetTime <= pullbackTime + forwardTime + settleTime) {
+                const t = THREE.MathUtils.clamp(
+                  (targetTime - pullbackTime - forwardTime) / Math.max(settleTime, 1e-6),
+                  0,
+                  1
+                );
+                cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(t));
+              } else if (targetTime <= totalStroke) {
+                const t = THREE.MathUtils.clamp(
+                  (targetTime - pullbackTime - forwardTime - settleTime) /
+                    Math.max(returnTime, 1e-6),
+                  0,
+                  1
+                );
+                cueStick.position.lerpVectors(impactPos, idlePos, easeInOutQuad(t));
+              } else {
+                cueStick.position.copy(idlePos);
+              }
             }
             syncCueShadow();
             return;
@@ -19101,6 +19178,7 @@ const powerRef = useRef(hud.power);
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           setReplayActive(true);
+          setReplayFoul(shotRecording?.replayFoul ?? null);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
@@ -19190,6 +19268,7 @@ const powerRef = useRef(hud.power);
           replayFrameCameraRef.current = null;
           overheadBroadcastVariantRef.current = 'top';
           setReplayActive(false);
+          setReplayFoul(null);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -24249,6 +24328,11 @@ const powerRef = useRef(hud.power);
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
+        if (shotRecording) {
+          shotRecording.replayFoul = safeState?.foul
+            ? { ...safeState.foul }
+            : null;
+        }
         const isFinalShot =
           Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
         if (isFinalShot) {
@@ -27553,6 +27637,11 @@ const powerRef = useRef(hud.power);
             <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
               Replay
             </div>
+            {replayFoul && (
+              <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
+                Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
+              </div>
+            )}
           </div>
           <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
             <button
