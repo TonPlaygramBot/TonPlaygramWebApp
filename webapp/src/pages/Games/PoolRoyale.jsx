@@ -1524,6 +1524,7 @@ const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels str
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
+const BACKSPIN_POWER_BOOST_MAX = 0.22; // increase cue power for low/back spin without altering spin values
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
@@ -21975,9 +21976,12 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const backspinStrength = Math.min(1, Math.max(0, -(physicsSpin.y ?? 0)));
+          const backspinPowerBoost =
+            1 + BACKSPIN_POWER_BOOST_MAX * backspinStrength;
           const base = shotAimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(speedBase * powerScale * backspinPowerBoost);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
