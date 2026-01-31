@@ -10,8 +10,7 @@ const defaultUserFields = () => ({
   referralCode: null,
   walletAddress: null,
   walletPublicKey: null,
-  poolRoyalInventory: undefined,
-  snookerRoyalInventory: undefined
+  poolRoyalInventory: undefined
 });
 
 const findByKey = (key, value) => {

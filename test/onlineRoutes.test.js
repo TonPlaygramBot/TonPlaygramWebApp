@@ -52,8 +52,7 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
     const listRes = await fetch('http://localhost:3205/api/online/list');
     assert.equal(listRes.status, 200);
     const list = await listRes.json();
-    const normalized = JSON.parse(JSON.stringify(list.users));
-    assert.deepEqual(normalized, [{ id: 'player1', status: 'online' }]);
+    assert.deepEqual(list.users, [{ id: 'player1', status: 'online' }]);
   } finally {
     server.kill();
   }

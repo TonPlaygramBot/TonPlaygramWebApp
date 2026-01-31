@@ -8,7 +8,6 @@ import PostRecord from '../models/PostRecord.js';
 import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import CustomTask from '../models/CustomTask.js';
-import authenticate from '../middleware/auth.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
@@ -60,12 +59,9 @@ function parseTelegramLink(link) {
   };
 }
 
-router.post('/list', authenticate, async (req, res) => {
+router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
 
   const TWELVE_HOURS = 12 * 60 * 60 * 1000;
   const baseTasks = await Promise.all(
@@ -105,12 +101,9 @@ router.post('/list', authenticate, async (req, res) => {
   res.json({ version: TASKS_VERSION, tasks: [...baseTasks, ...customTasks] });
 });
 
-router.post('/complete', authenticate, async (req, res) => {
+router.post('/complete', async (req, res) => {
   const { telegramId, taskId } = req.body;
   if (!telegramId || !taskId) return res.status(400).json({ error: 'telegramId and taskId required' });
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
 
   let config = TASKS.find(t => t.id === taskId);
   if (!config && taskId.startsWith('custom_')) {
@@ -136,8 +129,6 @@ router.post('/complete', authenticate, async (req, res) => {
         console.error('telegram reaction verify failed:', err.message);
         return res.status(500).json({ error: 'verification failed' });
       }
-    } else if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
     } else {
       console.warn('BOT_TOKEN not configured; skipping Telegram reaction check');
     }
@@ -158,8 +149,6 @@ router.post('/complete', authenticate, async (req, res) => {
         console.error('engage tweet verify failed:', err.message);
         return res.status(500).json({ error: 'verification failed' });
       }
-    } else if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
     } else {
       console.warn('TWITTER_BEARER_TOKEN not configured; skipping X engagement check');
     }
@@ -187,16 +176,10 @@ router.post('/complete', authenticate, async (req, res) => {
   res.json({ message: 'completed', reward: config.reward });
 });
 
-router.post('/verify-telegram-reaction', authenticate, async (req, res) => {
+router.post('/verify-telegram-reaction', async (req, res) => {
   const { telegramId, messageId, threadId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   if (!process.env.BOT_TOKEN) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
-    }
     console.warn('BOT_TOKEN not configured; skipping Telegram reaction verification');
     return res.json({ reacted: false });
   }
@@ -244,18 +227,12 @@ async function didReply(telegramId, tweetId) {
   return Array.isArray(search?.data?.data) && search.data.data.length > 0;
 }
 
-router.post('/verify-like', authenticate, async (req, res) => {
+router.post('/verify-like', async (req, res) => {
   const { telegramId, tweetUrl } = req.body;
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   if (!twitterClient) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
-    }
     console.warn('TWITTER_BEARER_TOKEN not configured; skipping like verification');
     return res.json({ liked: false });
   }
@@ -270,18 +247,12 @@ router.post('/verify-like', authenticate, async (req, res) => {
   }
 });
 
-router.post('/verify-retweet', authenticate, async (req, res) => {
+router.post('/verify-retweet', async (req, res) => {
   const { telegramId, tweetUrl } = req.body;
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   if (!twitterClient) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
-    }
     console.warn('TWITTER_BEARER_TOKEN not configured; skipping retweet verification');
     return res.json({ retweeted: false });
   }
@@ -296,18 +267,12 @@ router.post('/verify-retweet', authenticate, async (req, res) => {
   }
 });
 
-router.post('/verify-reply', authenticate, async (req, res) => {
+router.post('/verify-reply', async (req, res) => {
   const { telegramId, tweetUrl } = req.body;
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   if (!twitterClient) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
-    }
     console.warn('TWITTER_BEARER_TOKEN not configured; skipping reply verification');
     return res.json({ replied: false });
   }
@@ -322,13 +287,10 @@ router.post('/verify-reply', authenticate, async (req, res) => {
   }
 });
 
-router.post('/verify-post', authenticate, async (req, res) => {
+router.post('/verify-post', async (req, res) => {
   const { telegramId, tweetUrl } = req.body;
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
-  }
-  if (req.auth?.telegramId !== Number(telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
   }
 
   const config = TASKS.find((t) => t.id === 'post_tweet');
@@ -341,9 +303,6 @@ router.post('/verify-post', authenticate, async (req, res) => {
   }
 
   if (!twitterClient) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'verification unavailable' });
-    }
     console.warn('TWITTER_BEARER_TOKEN not configured; skipping post verification');
     await PostRecord.create({ telegramId, tweetId: 'unknown' });
     const user = await User.findOneAndUpdate(

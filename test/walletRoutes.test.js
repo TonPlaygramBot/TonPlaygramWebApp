@@ -62,7 +62,6 @@ test('withdraw route reverts balance on claim failure', { concurrency: false }, 
     PORT: '3211',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    WITHDRAW_ENABLED: 'true',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',
   };
@@ -105,7 +104,6 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
     PORT: '3212',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    WITHDRAW_ENABLED: 'true',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',
   };
