@@ -997,16 +997,16 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   },
   {
     id: 'albanian-booth',
-    label: 'Albanian Booth (Male)',
-    description: 'Shqip commentary with a native male Albanian accent',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary with native cadence',
     language: 'sq-AL',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan']
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
     },
     speakerSettings: {
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.01, pitch: 0.97, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
     }
   },
   {
@@ -25702,18 +25702,6 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_SPIN.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
-                if (
-                  preImpact &&
-                  isCue &&
-                  b.launchDir &&
-                  (b.spin?.y ?? 0) < -1e-4
-                ) {
-                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const forwardInfluence = TMP_VEC2_SPIN.dot(launchDir);
-                  if (forwardInfluence < 0) {
-                    TMP_VEC2_SPIN.addScaledVector(launchDir, -forwardInfluence);
-                  }
-                }
                 if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
                   TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
                 }
