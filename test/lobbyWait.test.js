@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
+const apiToken = 'test-token';
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -31,6 +32,7 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     PORT: '3203',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
+    API_AUTH_TOKEN: apiToken,
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1'
   };
@@ -42,7 +44,7 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
       body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
 
-    const s1 = io('http://localhost:3203');
+    const s1 = io('http://localhost:3203', { auth: { token: apiToken } });
     const errors = [];
     await new Promise((resolve) => s1.on('connect', resolve));
     s1.on('error', (e) => errors.push(e));

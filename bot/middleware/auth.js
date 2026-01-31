@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-function verifyTelegramInitData(initData) {
+export function verifyTelegramInitData(initData, botToken = process.env.BOT_TOKEN) {
   try {
     const params = new URLSearchParams(initData);
     const hash = params.get('hash');
@@ -12,7 +12,7 @@ function verifyTelegramInitData(initData) {
       .join('\n');
     const secret = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(process.env.BOT_TOKEN || '')
+      .update(botToken || '')
       .digest();
     const computed = crypto
       .createHmac('sha256', secret)
@@ -25,23 +25,40 @@ function verifyTelegramInitData(initData) {
   }
 }
 
-export default function authenticate(req, res, next) {
-  const auth = req.get('authorization') || '';
-  const token = auth.replace(/^Bearer\s+/i, '');
+function attachAuth(req, token, initData) {
   const allowedToken = process.env.API_AUTH_TOKEN;
-  const initData = req.get('x-telegram-init-data');
-
   if (initData) {
     const data = verifyTelegramInitData(initData);
     if (data) {
-      req.auth = { telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined };
-      return next();
+      req.auth = {
+        telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined
+      };
+      return true;
     }
   }
-
   if (allowedToken && token === allowedToken) {
+    req.auth = { apiToken: true };
+    return true;
+  }
+  return false;
+}
+
+export default function authenticate(req, res, next) {
+  const auth = req.get('authorization') || '';
+  const token = auth.replace(/^Bearer\s+/i, '');
+  const initData = req.get('x-telegram-init-data');
+
+  if (attachAuth(req, token, initData)) {
     return next();
   }
 
   res.status(401).json({ error: 'unauthorized' });
+}
+
+export function optionalAuthenticate(req, _res, next) {
+  const auth = req.get('authorization') || '';
+  const token = auth.replace(/^Bearer\s+/i, '');
+  const initData = req.get('x-telegram-init-data');
+  attachAuth(req, token, initData);
+  next();
 }

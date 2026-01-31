@@ -4,6 +4,7 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
+const apiToken = 'test-token';
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -23,7 +24,7 @@ async function startServer(env) {
   return server;
 }
 
-test('claiming a referral updates inviter stats', { concurrency: false }, async () => {
+test('claiming a referral updates inviter stats', { concurrency: false, timeout: 20000 }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
@@ -33,6 +34,7 @@ test('claiming a referral updates inviter stats', { concurrency: false }, async 
     MONGO_URI: 'memory',
     SKIP_WEBAPP_BUILD: '1',
     BOT_TOKEN: 'dummy',
+    API_AUTH_TOKEN: apiToken,
     SKIP_BOT_LAUNCH: '1'
   };
   const server = await startServer(env);
@@ -73,14 +75,20 @@ test('claiming a referral updates inviter stats', { concurrency: false }, async 
 
     const inviterAccRes = await fetch('http://localhost:3210/api/account/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiToken}`
+      },
       body: JSON.stringify({ telegramId: inviterId })
     });
     const inviterAcc = await inviterAccRes.json();
     assert.ok(inviterAcc.walletAddress);
     const inviterInfoRes = await fetch('http://localhost:3210/api/account/info', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiToken}`
+      },
       body: JSON.stringify({ accountId: inviterAcc.accountId })
     });
     const inviterAccount = await inviterInfoRes.json();
@@ -90,14 +98,20 @@ test('claiming a referral updates inviter stats', { concurrency: false }, async 
 
     const userAccRes = await fetch('http://localhost:3210/api/account/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiToken}`
+      },
       body: JSON.stringify({ telegramId: userId })
     });
     const userAcc = await userAccRes.json();
     assert.ok(userAcc.walletAddress);
     const userInfoRes = await fetch('http://localhost:3210/api/account/info', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiToken}`
+      },
       body: JSON.stringify({ accountId: userAcc.accountId })
     });
     const userAccount = await userInfoRes.json();

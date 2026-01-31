@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import path from 'node:path';
 
 const distDir = path.resolve(process.cwd(), 'webapp', 'dist');
+const apiToken = 'test-token';
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -25,7 +26,10 @@ async function startServer(env) {
 async function createAccount(port, telegramId) {
   const res = await fetch(`http://localhost:${port}/api/account/create`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiToken}`
+    },
     body: JSON.stringify({ telegramId })
   });
   assert.equal(res.status, 200);
@@ -63,6 +67,7 @@ test('Snooker Royal inventory persists across reloads and devices', async () => 
       PORT: '3213',
       MONGO_URI: 'memory',
       BOT_TOKEN: 'dummy',
+      API_AUTH_TOKEN: apiToken,
       SKIP_WEBAPP_BUILD: '1',
       SKIP_BOT_LAUNCH: '1'
     };
