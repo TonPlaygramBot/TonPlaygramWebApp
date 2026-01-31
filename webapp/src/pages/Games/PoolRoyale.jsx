@@ -997,30 +997,16 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   },
   {
     id: 'albanian-booth',
-    label: 'Albanian Booth (Male)',
-    description: 'Shqip commentary with authentic Albanian male cadence',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary with native cadence',
     language: 'sq-AL',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: [
-        'sq-AL',
-        'Albanian',
-        'male',
-        'Arben',
-        'Besnik',
-        'Luan'
-      ],
-      [POOL_ROYALE_SPEAKERS.analyst]: [
-        'sq-AL',
-        'Albanian',
-        'male',
-        'Altin',
-        'Dritan',
-        'Erion'
-      ]
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
     },
     speakerSettings: {
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
     }
   },
   {
@@ -25722,19 +25708,16 @@ const powerRef = useRef(hud.power);
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                  const forwardKick = Math.max(0, forwardMag);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardKick);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
-                  TMP_VEC2_LATERAL
-                    .copy(TMP_VEC2_SPIN)
-                    .addScaledVector(launchDir, -forwardMag);
+                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
                   if (b.pendingSpin) {
                     b.pendingSpin.addScaledVector(
                       TMP_VEC2_LATERAL,
                       swerveScale > 0 ? swerveScale : 1
                     );
                   }
-                  const alignedSpeed = Math.max(0, b.vel.dot(launchDir));
+                  const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
                 } else {
