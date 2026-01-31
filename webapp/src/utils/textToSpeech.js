@@ -13,6 +13,22 @@ let audioContextUnlocked = false;
 let speechUnlockInstalled = false;
 let speechUnlockHandler;
 let speechUnlockVisibilityHandler;
+let speechSupportMonitorInstalled = false;
+let speechSupportListenerAttached = false;
+let speechSupportState = false;
+
+const SPEECH_SUPPORT_EVENT = 'tonplaygram:speech-support';
+
+const emitSpeechSupport = (supported) => {
+  if (typeof window === 'undefined') return;
+  if (speechSupportState === supported) return;
+  speechSupportState = supported;
+  if (typeof window.CustomEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(SPEECH_SUPPORT_EVENT, { detail: { supported } }));
+  } else {
+    window.dispatchEvent(new Event(SPEECH_SUPPORT_EVENT));
+  }
+};
 
 const ensureAudioContext = () => {
   if (typeof window === 'undefined') return null;
@@ -59,14 +75,40 @@ const createSpeechUnlockHandler = () => {
     if (!synth) return;
     ensureSpeechUnlocked(synth);
     primeSpeechSynthesis();
+    evaluateSpeechSupport();
   };
   return speechUnlockHandler;
 };
 
+const evaluateSpeechSupport = () => {
+  const synth = getSpeechSynthesis();
+  const supported = Boolean(synth && typeof SpeechSynthesisUtterance !== 'undefined');
+  if (supported && !speechSupportListenerAttached) {
+    speechSupportListenerAttached = true;
+    const handler = () => evaluateSpeechSupport();
+    if (typeof synth.addEventListener === 'function') {
+      synth.addEventListener('voiceschanged', handler);
+    } else {
+      synth.onvoiceschanged = handler;
+    }
+  }
+  emitSpeechSupport(supported);
+  return supported;
+};
+
+const installSpeechSupportMonitor = () => {
+  if (typeof window === 'undefined' || speechSupportMonitorInstalled) return;
+  speechSupportMonitorInstalled = true;
+  const handler = () => evaluateSpeechSupport();
+  window.addEventListener('focus', handler, { passive: true });
+  document.addEventListener('visibilitychange', handler, { passive: true });
+  evaluateSpeechSupport();
+};
+
 export const installSpeechSynthesisUnlock = () => {
   if (typeof window === 'undefined' || speechUnlockInstalled) return;
-  if (!getSpeechSynthesis()) return;
   speechUnlockInstalled = true;
+  installSpeechSupportMonitor();
   const handler = createSpeechUnlockHandler();
   const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
   const options = { once: !isTelegram, passive: true };
@@ -88,11 +130,38 @@ export const installSpeechSynthesisUnlock = () => {
 
 export const getSpeechSynthesis = () => {
   if (typeof window === 'undefined') return null;
+  let synth = null;
   try {
-    return window.speechSynthesis || window.webkitSpeechSynthesis || null;
+    synth = window.speechSynthesis;
   } catch {
-    return null;
+    synth = null;
   }
+  if (!synth) {
+    try {
+      synth = window.webkitSpeechSynthesis;
+    } catch {
+      synth = null;
+    }
+  }
+  return synth || null;
+};
+
+export const getSpeechSupport = () => {
+  if (speechSupportState) return true;
+  return Boolean(getSpeechSynthesis() && typeof SpeechSynthesisUtterance !== 'undefined');
+};
+
+export const onSpeechSupportChange = (callback) => {
+  if (typeof window === 'undefined') return () => {};
+  const handler = (event) => {
+    if (event?.detail && typeof event.detail.supported === 'boolean') {
+      callback(event.detail.supported);
+    } else {
+      callback(getSpeechSupport());
+    }
+  };
+  window.addEventListener(SPEECH_SUPPORT_EVENT, handler);
+  return () => window.removeEventListener(SPEECH_SUPPORT_EVENT, handler);
 };
 
 const ensureSpeechUnlocked = (synth) => {
@@ -112,7 +181,7 @@ const ensureSpeechUnlocked = (synth) => {
 
 export const primeSpeechSynthesis = () => {
   const synth = getSpeechSynthesis();
-  if (!synth || synth.speaking || synth.pending) return;
+  if (!synth || synth.speaking || synth.pending || typeof SpeechSynthesisUtterance === 'undefined') return;
   ensureSpeechUnlocked(synth);
   const utterance = new SpeechSynthesisUtterance('.');
   utterance.volume = 0.01;
@@ -129,7 +198,15 @@ export const primeSpeechSynthesis = () => {
     }
   };
   utterance.onerror = utterance.onend;
-  synth.speak(utterance);
+  try {
+    synth.speak(utterance);
+  } catch {
+    if (typeof synth.cancel === 'function') {
+      try {
+        synth.cancel();
+      } catch {}
+    }
+  }
 };
 
 const loadVoices = (synth, timeoutMs = 3500) =>
@@ -138,6 +215,7 @@ const loadVoices = (synth, timeoutMs = 3500) =>
       resolve([]);
       return;
     }
+    ensureSpeechUnlocked(synth);
     const existing = synth.getVoices();
     if (existing.length) {
       resolve(existing);
@@ -266,8 +344,13 @@ export const speakCommentaryLines = async (
           synth.cancel();
         } catch {}
       }
-      synth.speak(utterance);
-      setTimeout(() => ensureSpeechUnlocked(synth), 0);
+      try {
+        synth.speak(utterance);
+        setTimeout(() => ensureSpeechUnlocked(synth), 0);
+      } catch {
+        clearTimeout(timeoutId);
+        finish();
+      }
     });
   }
 };

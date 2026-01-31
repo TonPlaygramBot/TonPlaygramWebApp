@@ -12,7 +12,13 @@ import { AiOutlineInfoCircle, AiOutlineMessage } from 'react-icons/ai';
 import { getGameVolume, isGameMuted, toggleGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { buildAirHockeyCommentaryLine, AIR_HOCKEY_SPEAKERS } from '../utils/airHockeyCommentary.js';
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../utils/textToSpeech.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../utils/textToSpeech.js';
 import { applyWoodTextures, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
 import {
@@ -562,7 +568,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       AIR_HOCKEY_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const initialProfile = useMemo(() => selectPerformanceProfile(activeGraphicsOption), [activeGraphicsOption]);
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
@@ -692,6 +698,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const options = AIR_HOCKEY_CUSTOMIZATION[key] || [];
     return options.find((option) => option.id === optionId) || options[0];
   };
+
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     setAirInventory(getAirHockeyInventory(resolvedAccountId));

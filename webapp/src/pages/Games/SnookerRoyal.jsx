@@ -36,7 +36,7 @@ import {
   buildSnookerCommentaryLine,
   createSnookerMatchCommentaryScript
 } from '../../utils/snookerRoyalCommentary.js';
-import { getSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import { getSpeechSupport, getSpeechSynthesis, onSpeechSupportChange, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -11417,7 +11417,7 @@ function SnookerRoyalGame({
       SNOOKER_ROYAL_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -11535,6 +11535,15 @@ function SnookerRoyalGame({
       POCKET_LINER_OPTIONS[0],
     [availablePocketLiners, pocketLinerId]
   );
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     if (!isSnookerOptionUnlocked('tableFinish', tableFinishId, snookerInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);

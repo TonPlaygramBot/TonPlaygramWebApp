@@ -47,7 +47,13 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 import {
   buildMurlanCommentaryLine,
   MURLAN_ROYALE_SPEAKERS,
@@ -1897,7 +1903,7 @@ export default function MurlanRoyaleArena({ search }) {
       MURLAN_ROYALE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentarySpeakers = useMemo(() => {
     const base = [
       MURLAN_ROYALE_SPEAKERS.lead,
@@ -1919,6 +1925,15 @@ export default function MurlanRoyaleArena({ search }) {
     commentarySpeakerIndexRef.current = index + 1;
     return commentarySpeakers[index % commentarySpeakers.length] || MURLAN_ROYALE_SPEAKERS.analyst;
   }, [activeCommentaryPreset?.id, commentarySpeakers]);
+
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;

@@ -101,7 +101,13 @@ import {
   createSnakeMatchCommentaryScript,
   SNAKE_LADDER_SPEAKERS
 } from "../../utils/snakeAndLadderCommentary.js";
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from "../../utils/textToSpeech.js";
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from "../../utils/textToSpeech.js";
 
 const TOKEN_COLOR_OPTIONS = Object.freeze(
   SNAKE_TOKEN_COLOR_OPTIONS.map((option) => ({
@@ -1279,7 +1285,7 @@ export default function SnakeAndLadder() {
       SNAKE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
@@ -1290,6 +1296,15 @@ export default function SnakeAndLadder() {
   const commentaryIntroPlayedRef = useRef(false);
   const commentaryOutroPlayedRef = useRef(false);
   const pendingCommentaryLinesRef = useRef(null);
+
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     setAppearance((prev) => {
