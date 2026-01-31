@@ -6670,6 +6670,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     swervePowerStrength: 0,
     impacted: false,
     launchDir: null,
+    launchSpeed: null,
     pendingSpin: new THREE.Vector2(),
     lift: 0,
     liftVel: 0,
@@ -18537,6 +18538,7 @@ const powerRef = useRef(hud.power);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
+            ball.launchSpeed = null;
             ball.pos.set(state.pos.x, state.pos.y);
             const meshState = state.mesh;
             if (ball.mesh && meshState) {
@@ -18623,6 +18625,7 @@ const powerRef = useRef(hud.power);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
+            ball.launchSpeed = null;
             const meshA = aState.mesh ?? {};
             const meshB = bState?.mesh ?? meshA;
             if (ball.mesh) {
@@ -21796,6 +21799,7 @@ const powerRef = useRef(hud.power);
         cueLiftRef.current.startLift = 0;
         cue.impacted = false;
         cue.launchDir = aimDir.clone().normalize();
+        cue.launchSpeed = base.length();
         maxPowerLiftTriggered = false;
         cue.lift = 0;
         cue.liftVel = 0;
@@ -22129,6 +22133,7 @@ const powerRef = useRef(hud.power);
           cueLiftRef.current.startLift = 0;
           cue.impacted = false;
           cue.launchDir = shotAimDir.clone().normalize();
+          cue.launchSpeed = base.length();
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
@@ -24591,6 +24596,7 @@ const powerRef = useRef(hud.power);
               cue.swervePowerStrength = 0;
               cue.impacted = false;
               cue.launchDir = null;
+              cue.launchSpeed = null;
             }
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
@@ -25744,7 +25750,14 @@ const powerRef = useRef(hud.power);
                       swerveScale > 0 ? swerveScale : 1
                     );
                   }
-                  const alignedSpeed = b.vel.dot(launchDir);
+                  let alignedSpeed = b.vel.dot(launchDir);
+                  if (
+                    isCue &&
+                    Number.isFinite(b.launchSpeed) &&
+                    (b.spin?.y ?? 0) < -1e-4
+                  ) {
+                    alignedSpeed = Math.max(alignedSpeed, b.launchSpeed);
+                  }
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
                 } else {
@@ -25853,6 +25866,7 @@ const powerRef = useRef(hud.power);
                 b.swervePowerStrength = 0;
               }
               b.launchDir = null;
+              b.launchSpeed = null;
             }
             const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
@@ -26376,6 +26390,7 @@ const powerRef = useRef(hud.power);
               b.swerveStrength = 0;
               b.swervePowerStrength = 0;
               b.launchDir = null;
+              b.launchSpeed = null;
               if (b.id === 'cue') b.impacted = false;
               const isCueBall = b.id === 'cue';
               if (b.mesh && table && !isCueBall) {
@@ -26601,6 +26616,7 @@ const powerRef = useRef(hud.power);
                 if (ball.omega) ball.omega.set(0, 0, 0);
                 if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
                 ball.launchDir = null;
+                ball.launchSpeed = null;
                 ball.impacted = false;
               });
               resolve();
