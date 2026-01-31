@@ -6,6 +6,7 @@ import {
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js';
+import { swatchThumbnail } from './storeThumbnails.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0]?.id],
@@ -66,6 +67,7 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     price: variant.price ?? 1400 + idx * 25,
     description: variant.description || 'Pool Royale HDRI environment tuned for wide-table arenas.',
     swatches: variant.swatches,
+    thumbnail: variant.thumbnail,
     previewShape: 'table'
   })),
   ...TOKEN_PALETTE_OPTIONS.slice(1).map((option, idx) => ({
@@ -74,7 +76,8 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     optionId: option.id,
     name: `${option.label} Palette`,
     price: 260 + idx * 20,
-    description: 'Alternate pawn color palette for every side.'
+    description: 'Alternate pawn color palette for every side.',
+    thumbnail: swatchThumbnail(option.swatches.map((value) => `#${value.toString(16).padStart(6, '0')}`))
   })),
   ...TOKEN_STYLE_OPTIONS.slice(1).map((option) => ({
     id: `ludo-style-${option.id}`,
@@ -82,7 +85,8 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 450,
-    description: 'Swap the token mesh set for a new silhouette.'
+    description: 'Swap the token mesh set for a new silhouette.',
+    thumbnail: swatchThumbnail(['#f8fafc', '#1f2937', '#94a3b8'])
   })),
   ...TOKEN_PIECE_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-piece-${option.id}`,
@@ -90,7 +94,8 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 300 + idx * 20,
-    description: 'Unlock an alternate piece identity for your pawns.'
+    description: 'Unlock an alternate piece identity for your pawns.',
+    thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
   ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
 ];

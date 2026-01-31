@@ -4,6 +4,7 @@ import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js';
+import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
@@ -139,6 +140,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     price: finish.price ?? 980 + idx * 40,
     description: finish.description,
     swatches: finish.swatches,
+    thumbnail: finish.thumbnail,
     previewShape: 'table'
   })),
   ...CHESS_TABLE_OPTIONS.slice(1).map((theme, idx) => ({
@@ -163,31 +165,176 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     thumbnail: option.thumbnail,
     previewShape: 'chair'
   })),
-  { id: 'chess-side-marble', type: 'sideColor', optionId: 'marble', name: 'Marble Pieces', price: 1400, description: 'Premium marble-inspired pieces for either side.' },
-  { id: 'chess-side-forest', type: 'sideColor', optionId: 'darkForest', name: 'Dark Forest Pieces', price: 1300, description: 'Deep forest hue pieces with luxe accents.' },
-  { id: 'chess-side-royal', type: 'sideColor', optionId: 'royalWave', name: 'Royal Wave Pieces', price: 420, description: 'Royal blue quick-select palette.' },
-  { id: 'chess-side-rose', type: 'sideColor', optionId: 'roseMist', name: 'Rose Mist Pieces', price: 420, description: 'Rosy quick-select palette with soft glow.' },
-  { id: 'chess-side-amethyst', type: 'sideColor', optionId: 'amethyst', name: 'Amethyst Pieces', price: 460, description: 'Amethyst quick-select palette with sheen.' },
-  { id: 'chess-side-cinder', type: 'sideColor', optionId: 'cinderBlaze', name: 'Cinder Blaze Pieces', price: 480, description: 'Molten orange-on-charcoal palette for fiery showdowns.' },
-  { id: 'chess-side-arctic', type: 'sideColor', optionId: 'arcticDrift', name: 'Arctic Drift Pieces', price: 520, description: 'Icy stone palette with frosted metallic hints.' },
-  { id: 'chess-board-ivorySlate', type: 'boardTheme', optionId: 'ivorySlate', name: 'Ivory/Slate Board', price: 380, description: 'Alternate board palette for fast swaps.' },
-  { id: 'chess-board-forest', type: 'boardTheme', optionId: 'forest', name: 'Forest Board', price: 410, description: 'Alternate board palette for fast swaps.' },
-  { id: 'chess-board-sand', type: 'boardTheme', optionId: 'sand', name: 'Sand/Brown Board', price: 440, description: 'Alternate board palette for fast swaps.' },
-  { id: 'chess-board-ocean', type: 'boardTheme', optionId: 'ocean', name: 'Ocean Board', price: 470, description: 'Alternate board palette for fast swaps.' },
-  { id: 'chess-board-violet', type: 'boardTheme', optionId: 'violet', name: 'Violet Board', price: 500, description: 'Alternate board palette for fast swaps.' },
-  { id: 'chess-board-chrome', type: 'boardTheme', optionId: 'chrome', name: 'Chrome Board', price: 540, description: 'Alternate board palette for fast swaps.' },
-  { id: 'chess-board-nebula', type: 'boardTheme', optionId: 'nebulaGlass', name: 'Nebula Glass Board', price: 580, description: 'Cosmic glass palette with deep-space contrasts.' },
-  { id: 'chess-head-ruby', type: 'headStyle', optionId: 'headRuby', name: 'Ruby Pawn Heads', price: 310, description: 'Unlocks an additional pawn head glass preset.' },
-  { id: 'chess-head-sapphire', type: 'headStyle', optionId: 'headSapphire', name: 'Sapphire Pawn Heads', price: 335, description: 'Unlocks an additional pawn head glass preset.' },
-  { id: 'chess-head-chrome', type: 'headStyle', optionId: 'headChrome', name: 'Chrome Pawn Heads', price: 360, description: 'Unlocks an additional pawn head glass preset.' },
-  { id: 'chess-head-gold', type: 'headStyle', optionId: 'headGold', name: 'Gold Pawn Heads', price: 385, description: 'Unlocks an additional pawn head glass preset.' },
+  {
+    id: 'chess-side-marble',
+    type: 'sideColor',
+    optionId: 'marble',
+    name: 'Marble Pieces',
+    price: 1400,
+    description: 'Premium marble-inspired pieces for either side.',
+    thumbnail: swatchThumbnail(['#f8fafc', '#e2e8f0', '#cbd5f5'])
+  },
+  {
+    id: 'chess-side-forest',
+    type: 'sideColor',
+    optionId: 'darkForest',
+    name: 'Dark Forest Pieces',
+    price: 1300,
+    description: 'Deep forest hue pieces with luxe accents.',
+    thumbnail: swatchThumbnail(['#14532d', '#0f3d23', '#86efac'])
+  },
+  {
+    id: 'chess-side-royal',
+    type: 'sideColor',
+    optionId: 'royalWave',
+    name: 'Royal Wave Pieces',
+    price: 420,
+    description: 'Royal blue quick-select palette.',
+    thumbnail: swatchThumbnail(['#3b82f6', '#1d4ed8', '#bfdbfe'])
+  },
+  {
+    id: 'chess-side-rose',
+    type: 'sideColor',
+    optionId: 'roseMist',
+    name: 'Rose Mist Pieces',
+    price: 420,
+    description: 'Rosy quick-select palette with soft glow.',
+    thumbnail: swatchThumbnail(['#ef4444', '#be123c', '#fecaca'])
+  },
+  {
+    id: 'chess-side-amethyst',
+    type: 'sideColor',
+    optionId: 'amethyst',
+    name: 'Amethyst Pieces',
+    price: 460,
+    description: 'Amethyst quick-select palette with sheen.',
+    thumbnail: swatchThumbnail(['#8b5cf6', '#6d28d9', '#ddd6fe'])
+  },
+  {
+    id: 'chess-side-cinder',
+    type: 'sideColor',
+    optionId: 'cinderBlaze',
+    name: 'Cinder Blaze Pieces',
+    price: 480,
+    description: 'Molten orange-on-charcoal palette for fiery showdowns.',
+    thumbnail: swatchThumbnail(['#ff6b35', '#7f1d1d', '#fed7aa'])
+  },
+  {
+    id: 'chess-side-arctic',
+    type: 'sideColor',
+    optionId: 'arcticDrift',
+    name: 'Arctic Drift Pieces',
+    price: 520,
+    description: 'Icy stone palette with frosted metallic hints.',
+    thumbnail: swatchThumbnail(['#bcd7ff', '#7aa2f7', '#e2e8f0'])
+  },
+  {
+    id: 'chess-board-ivorySlate',
+    type: 'boardTheme',
+    optionId: 'ivorySlate',
+    name: 'Ivory/Slate Board',
+    price: 380,
+    description: 'Alternate board palette for fast swaps.',
+    thumbnail: swatchThumbnail(['#f8fafc', '#64748b', '#e2e8f0'])
+  },
+  {
+    id: 'chess-board-forest',
+    type: 'boardTheme',
+    optionId: 'forest',
+    name: 'Forest Board',
+    price: 410,
+    description: 'Alternate board palette for fast swaps.',
+    thumbnail: swatchThumbnail(['#065f46', '#134e4a', '#bbf7d0'])
+  },
+  {
+    id: 'chess-board-sand',
+    type: 'boardTheme',
+    optionId: 'sand',
+    name: 'Sand/Brown Board',
+    price: 440,
+    description: 'Alternate board palette for fast swaps.',
+    thumbnail: swatchThumbnail(['#d6c7a1', '#8b6b4f', '#fef3c7'])
+  },
+  {
+    id: 'chess-board-ocean',
+    type: 'boardTheme',
+    optionId: 'ocean',
+    name: 'Ocean Board',
+    price: 470,
+    description: 'Alternate board palette for fast swaps.',
+    thumbnail: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe'])
+  },
+  {
+    id: 'chess-board-violet',
+    type: 'boardTheme',
+    optionId: 'violet',
+    name: 'Violet Board',
+    price: 500,
+    description: 'Alternate board palette for fast swaps.',
+    thumbnail: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe'])
+  },
+  {
+    id: 'chess-board-chrome',
+    type: 'boardTheme',
+    optionId: 'chrome',
+    name: 'Chrome Board',
+    price: 540,
+    description: 'Alternate board palette for fast swaps.',
+    thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
+  },
+  {
+    id: 'chess-board-nebula',
+    type: 'boardTheme',
+    optionId: 'nebulaGlass',
+    name: 'Nebula Glass Board',
+    price: 580,
+    description: 'Cosmic glass palette with deep-space contrasts.',
+    thumbnail: swatchThumbnail(['#312e81', '#111827', '#a855f7'])
+  },
+  {
+    id: 'chess-head-ruby',
+    type: 'headStyle',
+    optionId: 'headRuby',
+    name: 'Ruby Pawn Heads',
+    price: 310,
+    description: 'Unlocks an additional pawn head glass preset.',
+    thumbnail: swatchThumbnail(['#b91c1c', '#7f1d1d', '#fecaca'])
+  },
+  {
+    id: 'chess-head-sapphire',
+    type: 'headStyle',
+    optionId: 'headSapphire',
+    name: 'Sapphire Pawn Heads',
+    price: 335,
+    description: 'Unlocks an additional pawn head glass preset.',
+    thumbnail: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe'])
+  },
+  {
+    id: 'chess-head-chrome',
+    type: 'headStyle',
+    optionId: 'headChrome',
+    name: 'Chrome Pawn Heads',
+    price: 360,
+    description: 'Unlocks an additional pawn head glass preset.',
+    thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
+  },
+  {
+    id: 'chess-head-gold',
+    type: 'headStyle',
+    optionId: 'headGold',
+    name: 'Gold Pawn Heads',
+    price: 385,
+    description: 'Unlocks an additional pawn head glass preset.',
+    thumbnail: swatchThumbnail(['#f59e0b', '#b45309', '#fde68a'])
+  },
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `chess-hdri-${variant.id}`,
     type: 'environmentHdri',
     optionId: variant.id,
     name: `${variant.name} HDRI`,
     price: variant.price ?? 1400 + idx * 30,
-    description: 'Pool Royale HDRI environment, tuned for chess table promos.'
+    description: 'Pool Royale HDRI environment, tuned for chess table promos.',
+    thumbnail: variant.thumbnail
   }))
 ];
 

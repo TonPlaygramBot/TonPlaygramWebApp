@@ -1,4 +1,5 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { khronosThumb, polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const AIR_HOCKEY_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
@@ -284,9 +285,33 @@ const AIR_HOCKEY_HDRI_VARIANTS = Object.freeze(
   RAW_AIR_HOCKEY_HDRI_VARIANTS.map((variant) => ({
     ...variant,
     preferredResolutions: HDRI_RESOLUTION_STACK,
+    thumbnail: polyHavenThumb(variant.assetId),
     ...(AIR_HOCKEY_HDRI_PLACEMENTS[variant.id] || {})
   }))
 );
+
+const TABLE_FINISH_THUMBNAILS = Object.freeze({
+  peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
+  oakVeneer01: polyHavenThumb('oak_veneer_01'),
+  woodTable001: polyHavenThumb('wood_table_001'),
+  darkWood: polyHavenThumb('dark_wood'),
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+});
+
+const TABLE_BASE_THUMBNAILS = Object.freeze({
+  classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
+  openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
+  coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
+  gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
+  woodenTable02Alt: polyHavenThumb('WoodenTable_02')
+});
+
+const FIELD_THUMBNAILS = Object.freeze({
+  'bust-marble': polyHavenThumb('marble_bust_01'),
+  'bust-onyx': polyHavenThumb('marble_bust_01'),
+  'clearcoat-ruby': khronosThumb('ClearCoatCarPaint'),
+  'clearcoat-azure': khronosThumb('ClearCoatCarPaint')
+});
 
 const AIR_HOCKEY_TABLE_FINISHES = Object.freeze([
   Object.freeze({
@@ -460,6 +485,7 @@ const AIR_HOCKEY_CUSHION_CLOTH_OPTIONS = Object.freeze(
       palette: variant.palette,
       detail: variant.detail,
       swatches: variant.swatches,
+      thumbnail: variant.thumbnail,
       price: variant.price,
       sourceId: variant.sourceId,
       description: variant.description
@@ -527,7 +553,8 @@ export const AIR_HOCKEY_STORE_ITEMS = [
     name: `${field.name} Surface`,
     price: 520 + idx * 20,
     description: field.description,
-    swatches: field.swatches
+    swatches: field.swatches,
+    thumbnail: FIELD_THUMBNAILS[field.id] || swatchThumbnail(field.swatches)
   })),
   ...AIR_HOCKEY_TABLE_FINISHES.map((finish) => ({
     id: `finish-${finish.id}`,
@@ -535,20 +562,117 @@ export const AIR_HOCKEY_STORE_ITEMS = [
     optionId: finish.id,
     name: `${finish.name} Finish`,
     price: finish.price,
-    description: finish.description
+    description: finish.description,
+    thumbnail: TABLE_FINISH_THUMBNAILS[finish.id]
   })),
-  { id: 'puck-volt', type: 'puck', optionId: 'volt', name: 'Volt Puck', price: 220, description: 'High-voltage yellow puck glow.' },
-  { id: 'puck-magenta', type: 'puck', optionId: 'magenta', name: 'Magenta Puck', price: 240, description: 'Magenta puck with vivid emissive edge.' },
-  { id: 'puck-frost', type: 'puck', optionId: 'frost', name: 'Frost Puck', price: 260, description: 'Frost-white puck with cyan glow.' },
-  { id: 'puck-jade', type: 'puck', optionId: 'jade', name: 'Jade Puck', price: 280, description: 'Deep jade puck with emerald shine.' },
-  { id: 'mallet-cyan', type: 'mallet', optionId: 'cyan', name: 'Cyan Mallets', price: 260, description: 'Cyan mallets with midnight knobs.' },
-  { id: 'mallet-amber', type: 'mallet', optionId: 'amber', name: 'Amber Mallets', price: 280, description: 'Amber mallets with dark wood knobs.' },
-  { id: 'mallet-violet', type: 'mallet', optionId: 'violet', name: 'Violet Mallets', price: 300, description: 'Violet mallets with indigo knobs.' },
-  { id: 'mallet-lime', type: 'mallet', optionId: 'lime', name: 'Lime Mallets', price: 320, description: 'Lime mallets with forest knobs.' },
-  { id: 'goal-crimson', type: 'goals', optionId: 'crimsonNet', name: 'Crimson Net Goals', price: 330, description: 'Crimson goal nets with deep ember glow.' },
-  { id: 'goal-cobalt', type: 'goals', optionId: 'cobaltNet', name: 'Cobalt Net Goals', price: 360, description: 'Cobalt nets with electric blue emissive.' },
-  { id: 'goal-amber', type: 'goals', optionId: 'amberNet', name: 'Amber Net Goals', price: 390, description: 'Amber nets with warm metallic shine.' },
-  { id: 'goal-ghost', type: 'goals', optionId: 'ghostNet', name: 'Ghost Net Goals', price: 420, description: 'Ghostly pale nets with steel glow.' },
+  {
+    id: 'puck-volt',
+    type: 'puck',
+    optionId: 'volt',
+    name: 'Volt Puck',
+    price: 220,
+    description: 'High-voltage yellow puck glow.',
+    thumbnail: swatchThumbnail(['#eab308', '#854d0e', '#fef08a'])
+  },
+  {
+    id: 'puck-magenta',
+    type: 'puck',
+    optionId: 'magenta',
+    name: 'Magenta Puck',
+    price: 240,
+    description: 'Magenta puck with vivid emissive edge.',
+    thumbnail: swatchThumbnail(['#be185d', '#9f1239', '#fda4af'])
+  },
+  {
+    id: 'puck-frost',
+    type: 'puck',
+    optionId: 'frost',
+    name: 'Frost Puck',
+    price: 260,
+    description: 'Frost-white puck with cyan glow.',
+    thumbnail: swatchThumbnail(['#e0f2fe', '#0ea5e9', '#bae6fd'])
+  },
+  {
+    id: 'puck-jade',
+    type: 'puck',
+    optionId: 'jade',
+    name: 'Jade Puck',
+    price: 280,
+    description: 'Deep jade puck with emerald shine.',
+    thumbnail: swatchThumbnail(['#064e3b', '#10b981', '#6ee7b7'])
+  },
+  {
+    id: 'mallet-cyan',
+    type: 'mallet',
+    optionId: 'cyan',
+    name: 'Cyan Mallets',
+    price: 260,
+    description: 'Cyan mallets with midnight knobs.',
+    thumbnail: swatchThumbnail(['#22d3ee', '#0f172a', '#cffafe'])
+  },
+  {
+    id: 'mallet-amber',
+    type: 'mallet',
+    optionId: 'amber',
+    name: 'Amber Mallets',
+    price: 280,
+    description: 'Amber mallets with dark wood knobs.',
+    thumbnail: swatchThumbnail(['#f59e0b', '#451a03', '#fde68a'])
+  },
+  {
+    id: 'mallet-violet',
+    type: 'mallet',
+    optionId: 'violet',
+    name: 'Violet Mallets',
+    price: 300,
+    description: 'Violet mallets with indigo knobs.',
+    thumbnail: swatchThumbnail(['#a855f7', '#312e81', '#e9d5ff'])
+  },
+  {
+    id: 'mallet-lime',
+    type: 'mallet',
+    optionId: 'lime',
+    name: 'Lime Mallets',
+    price: 320,
+    description: 'Lime mallets with forest knobs.',
+    thumbnail: swatchThumbnail(['#84cc16', '#1a2e05', '#ecfccb'])
+  },
+  {
+    id: 'goal-crimson',
+    type: 'goals',
+    optionId: 'crimsonNet',
+    name: 'Crimson Net Goals',
+    price: 330,
+    description: 'Crimson goal nets with deep ember glow.',
+    thumbnail: swatchThumbnail(['#ef4444', '#7f1d1d', '#fecaca'])
+  },
+  {
+    id: 'goal-cobalt',
+    type: 'goals',
+    optionId: 'cobaltNet',
+    name: 'Cobalt Net Goals',
+    price: 360,
+    description: 'Cobalt nets with electric blue emissive.',
+    thumbnail: swatchThumbnail(['#60a5fa', '#1d4ed8', '#bfdbfe'])
+  },
+  {
+    id: 'goal-amber',
+    type: 'goals',
+    optionId: 'amberNet',
+    name: 'Amber Net Goals',
+    price: 390,
+    description: 'Amber nets with warm metallic shine.',
+    thumbnail: swatchThumbnail(['#f59e0b', '#92400e', '#fde68a'])
+  },
+  {
+    id: 'goal-ghost',
+    type: 'goals',
+    optionId: 'ghostNet',
+    name: 'Ghost Net Goals',
+    price: 420,
+    description: 'Ghostly pale nets with steel glow.',
+    thumbnail: swatchThumbnail(['#e5e7eb', '#6b7280', '#f8fafc'])
+  },
   ...AIR_HOCKEY_CUSHION_CLOTH_OPTIONS.map((variant, idx) => ({
     id: `cushion-cloth-${variant.id}`,
     type: 'cushionCloth',
@@ -556,7 +680,8 @@ export const AIR_HOCKEY_STORE_ITEMS = [
     name: variant.name,
     price: variant.price ?? 680 + idx * 8,
     description: variant.description,
-    swatches: variant.swatches
+    swatches: variant.swatches,
+    thumbnail: variant.thumbnail
   })),
   ...AIR_HOCKEY_TABLE_BASES.map((variant) => ({
     id: `base-${variant.id}`,
@@ -564,7 +689,8 @@ export const AIR_HOCKEY_STORE_ITEMS = [
     optionId: variant.id,
     name: `${variant.name} Base`,
     price: 0,
-    description: variant.description
+    description: variant.description,
+    thumbnail: TABLE_BASE_THUMBNAILS[variant.id]
   })),
   ...AIR_HOCKEY_HDRI_VARIANTS.map((variant) => ({
     id: `hdri-${variant.id}`,
@@ -572,7 +698,8 @@ export const AIR_HOCKEY_STORE_ITEMS = [
     optionId: variant.id,
     name: `${variant.name} HDRI`,
     price: variant.price,
-    description: variant.description
+    description: variant.description,
+    thumbnail: variant.thumbnail
   }))
 ];
 
