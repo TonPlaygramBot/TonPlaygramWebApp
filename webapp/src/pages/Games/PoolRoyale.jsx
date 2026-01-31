@@ -25730,7 +25730,16 @@ const powerRef = useRef(hud.power);
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
                 if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
-                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
+                  const backspinWeight = Math.max(0, -(b.spin?.y ?? 0));
+                  const backspinBoost =
+                    isCue && b.impacted && backspinWeight > 0
+                      ? THREE.MathUtils.lerp(
+                          BACKSPIN_ROLL_BOOST,
+                          CUE_BACKSPIN_ROLL_BOOST,
+                          THREE.MathUtils.clamp(backspinWeight, 0, 1)
+                        )
+                      : BACKSPIN_ROLL_BOOST;
+                  TMP_VEC2_SPIN.multiplyScalar(backspinBoost);
                 }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
