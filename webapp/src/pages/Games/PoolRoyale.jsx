@@ -5416,6 +5416,23 @@ const resolveBackspinPreviewLerp = (backSpinWeight) => {
   return Math.min(1, Math.max(eased, minimum));
 };
 
+const applyCueBackspinOnImpact = (cueBall) => {
+  if (!cueBall?.vel || !cueBall.launchDir) return;
+  const backSpinWeight = Math.max(0, -(cueBall.spin?.y ?? 0));
+  if (backSpinWeight <= 1e-4) return;
+  const drawLerp = resolveBackspinPreviewLerp(
+    backSpinWeight * BACKSPIN_DIRECTION_PREVIEW
+  );
+  if (drawLerp <= 1e-4) return;
+  const speed = cueBall.vel.length();
+  if (speed <= 1e-6) return;
+  TMP_VEC2_A.copy(cueBall.launchDir).normalize().multiplyScalar(-1);
+  TMP_VEC2_B.copy(cueBall.vel).normalize().lerp(TMP_VEC2_A, drawLerp);
+  if (TMP_VEC2_B.lengthSq() <= 1e-8) return;
+  TMP_VEC2_B.normalize();
+  cueBall.vel.copy(TMP_VEC2_B.multiplyScalar(speed));
+};
+
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   if (!cueBall || !cueBall.pos) {
     return { blocked: false, reason: '' };
@@ -26008,6 +26025,9 @@ const powerRef = useRef(hud.power);
                 const targetImpactId = shotPrediction?.ballId ?? null;
                 const isTargetImpact =
                   !targetImpactId || (hitBallId && String(hitBallId) === String(targetImpactId));
+                if (cueBall && hitBallId && isTargetImpact && isNewImpact) {
+                  applyCueBackspinOnImpact(cueBall);
+                }
                 if (
                   cueBall &&
                   hitBallId &&
