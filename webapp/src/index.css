@@ -123,11 +123,11 @@ h6 {
   box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.4);
 }
 
-button {
+#root button {
   @apply px-2 py-1 bg-primary hover:bg-primary-hover text-white text-outline-black text-sm rounded;
 }
 
-.icon-only-button {
+#root .icon-only-button {
   background: transparent;
   border: none;
   padding: 0;
@@ -137,14 +137,14 @@ button {
   text-shadow: none;
 }
 
-.icon-only-button:hover,
-.icon-only-button:focus {
+#root .icon-only-button:hover,
+#root .icon-only-button:focus {
   background: transparent;
   box-shadow: none;
   outline: none;
 }
 
-body.mining-page button {
+body.mining-page #root button {
   @apply text-white-shadow;
 }
 
@@ -154,14 +154,14 @@ body.mining-page button {
   will-change: transform;
 }
 
-input {
+#root input {
   border-color: #facc15;
   color: #facc15;
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.6);
 }
 
-button:focus,
-input:focus {
+#root button:focus,
+#root input:focus {
   outline: none;
   box-shadow: 0 0 10px #facc15;
 }
