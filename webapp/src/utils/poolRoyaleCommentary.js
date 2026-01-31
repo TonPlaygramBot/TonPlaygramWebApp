@@ -39,49 +39,98 @@ const DEFAULT_CONTEXT = Object.freeze({
   previousResult: 'a strong result'
 });
 
+const LOCALIZED_CONTEXT = Object.freeze({
+  sq: {
+    player: 'Lojtari A',
+    opponent: 'Lojtari B',
+    targetBall: 'topi objekt',
+    pocket: 'xhepi',
+    potCount: 0,
+    table: 'tavolina kryesore',
+    arena: 'Arena Pool Royale',
+    breakType: 'thyerje e fortë',
+    scoreline: 'barazim 0-0',
+    groupPrimary: 'të kuqe',
+    groupSecondary: 'të verdha',
+    ballSet: 'uk',
+    rackNumber: 'ky frejm',
+    previousResult: 'rezultat i fortë'
+  }
+});
+
+const GREETING_PREFIXES = Object.freeze({
+  en: ['Hey,', 'Hello,', 'Hi,', 'Alright,', 'Welcome,', 'Good evening,'],
+  es: ['Hola,', 'Buenas,', 'Saludos,', 'Qué tal,', 'Bienvenidos,'],
+  fr: ['Bonjour,', 'Bonsoir,', 'Salut,', 'Bienvenue,', 'Bonsoir à tous,'],
+  it: ['Ciao,', 'Buonasera,', 'Salve,', 'Benvenuti,', 'Buon match,'],
+  ru: ['Здравствуйте,', 'Добрый вечер,', 'Привет,', 'Добрый день,', 'Здравствуйте всем,'],
+  hi: ['नमस्ते,', 'हैलो,', 'स्वागत है,', 'नमस्कार,', 'चलिये,'],
+  ar: ['مرحبًا،', 'أهلًا،', 'مساء الخير،', 'تحية طيبة،', 'أهلًا بكم،'],
+  zh: ['大家好，', '你好，', '欢迎，', '各位好，', '晚上好，'],
+  sq: ['Përshëndetje,', 'Mirë se vini,', 'Tungjatjeta,', 'Mirëmbrëma,', 'Mirëdita,']
+});
+
 const ENGLISH_TEMPLATES = Object.freeze({
   common: {
     welcome: [
       'Welcome to {arena}. {speaker} here with you for {variantName}.',
       'Great to have you with us at {arena}. {speaker} on commentary.',
-      'Hello and welcome—{arena} is the stage for {player} versus {opponent}.'
+      'Hello and welcome—{arena} is the stage for {player} versus {opponent}.',
+      'What a setup tonight—{arena} is ready for {player} and {opponent}.',
+      'Good to be with you—{arena} hosts {variantName} and a big matchup.'
     ],
     intro: [
       'Welcome to {arena}. {speaker} here. {player} faces {opponent}; {scoreline} in {variantName}.',
       'Match time at {arena}. {speaker} with you. {player} versus {opponent} in {variantName}, {scoreline}.',
-      'Good evening from {arena}. {speaker} on the call. {player} and {opponent} are locked at {playerScore}-{opponentScore}.'
+      'Good evening from {arena}. {speaker} on the call. {player} and {opponent} are locked at {playerScore}-{opponentScore}.',
+      '{arena} is live. {speaker} with you as {player} meets {opponent} in {variantName}.',
+      'We are set at {arena}. {player} against {opponent}, {scoreline} so far.'
     ],
     introReply: [
       'Thanks {speaker}. Points are precious—cue ball control and smart pattern play will decide it.',
       'Great to be here, {speaker}. The margins are razor thin, and position play is everything.',
-      'Absolutely, {speaker}. {player} and {opponent} need clean pots and precise spin to control the table.'
+      'Absolutely, {speaker}. {player} and {opponent} need clean pots and precise spin to control the table.',
+      'Exactly, {speaker}. Tempo, patience, and cue-ball routes will separate the best.',
+      'Spot on, {speaker}. The best touch wins this kind of rack.'
     ],
     breakShot: [
       '{player} steps in for the break; a sharp split sets up early pots and a clean cue-ball path.',
       '{player} leans in. A controlled break and measured spin can define the first run.',
-      'Here comes the break from {player}. Cue-ball control will be everything.'
+      'Here comes the break from {player}. Cue-ball control will be everything.',
+      'This break matters—{player} can set the tone right here.',
+      '{player} to break; watch the cue ball and the spread.'
     ],
     breakResult: [
       'Nice spread off the break, {speaker}. The rack is open with clear lanes.',
       'That break has cracked the pack—plenty of options with cue-ball routes available.',
-      'Solid pop on the break. Now it is about speed control and touch.'
+      'Solid pop on the break. Now it is about speed control and touch.',
+      'That break did the job—shots available, but position still matters.',
+      'Decent split. The table is giving options.'
     ],
     openTable: [
       'Early pattern here—{player} wants natural angles and a simple route to the next pot.',
       'Plenty of options with the open table; cue ball paths and spin control decide the points.',
       '{player} is reading the table, mapping the next pot and the cue-ball landing zone.',
       '{player} has choices—key is landing the cue ball on the right side for the next target.',
-      'Lots of routes available; position and shot selection will decide the run.'
+      'Lots of routes available; position and shot selection will decide the run.',
+      '{player} can go into rhythm now—keep it simple and keep it clean.',
+      'Open table, but the angles are tight. It is all about precision.'
     ],
     safety: [
       'A smart safety. {player} tucks the cue ball behind a blocker.',
       'That is a measured safety, leaving {opponent} long and awkward with no clean lane.',
-      '{player} turns down the pot and plays the percentage safety to protect the score.'
+      '{player} turns down the pot and plays the percentage safety to protect the score.',
+      'Not sure that safety is tight enough—{opponent} might have a look.',
+      'Cagey choice; {player} is trying to freeze the table.',
+      'Risky to pass up the pot, but the safety might pay off.'
     ],
     pressure: [
       'Big moment. {player} needs this pot to keep the scoring run alive.',
       'Pressure shot here for {player}; it is all about soft touch, spin, and position.',
-      'This is where nerves show—{player} has to deliver for the scoreboard.'
+      'This is where nerves show—{player} has to deliver for the scoreboard.',
+      'You can feel the pressure—one miss swings the rack.',
+      'Huge shot. That is the moment right there.',
+      'Tense table now; {player} cannot afford a loose touch.'
     ],
     pot: [
       '{player} pots {targetBall} into {pocket}, cue ball held in good position.',
@@ -89,75 +138,99 @@ const ENGLISH_TEMPLATES = Object.freeze({
       '{player} sends {targetBall} down the {pocket} with smooth control.',
       'Lovely pot from {player}; cue ball sits up for the next target.',
       'That is a classy finish—{player} pockets {targetBall} and keeps a natural angle.',
-      'Beautiful touch. {player} pockets {targetBall} and keeps options open.'
+      'Beautiful touch. {player} pockets {targetBall} and keeps options open.',
+      'What a shot! {player} drills {targetBall} and stays in line.',
+      'No way—did you see that? {player} lands it perfectly.',
+      'Unbelievable timing. {player} clears {targetBall} with perfect pace.'
     ],
     combo: [
       '{player} combos {targetBall} into {pocket}, great sighting.',
       'Combination pot on {targetBall} into the {pocket}.',
       '{player} caroms {targetBall} into the {pocket} with precision.',
-      'Excellent combo—{player} keeps the cue ball in line for the next look.'
+      'Excellent combo—{player} keeps the cue ball in line for the next look.',
+      'That combo was pure class. Clean contact, clean pot.',
+      'Brilliant combo—no room for error, and {player} nails it.'
     ],
     bank: [
       '{player} banks {targetBall} into the {pocket} with clean speed.',
       'Bank shot: {targetBall} in the {pocket}.',
       '{player} sends {targetBall} off the cushion and down with control.',
-      'Brilliant bank from {player}; that leaves a playable angle.'
+      'Brilliant bank from {player}; that leaves a playable angle.',
+      'Top drawer bank shot—touch and pace were spot on.',
+      'What a bank! {player} read that perfectly.'
     ],
     kick: [
       'Kick shot required—{player} goes one rail to find it.',
       'Tough kick for {player}; the cue ball needs a thin contact.',
-      '{player} escapes with a kick. Excellent table awareness.'
+      '{player} escapes with a kick. Excellent table awareness.',
+      'This kick has to be perfect—just a sliver of contact.',
+      'It is a guessing game now, and {player} needs the right angle.'
     ],
     jump: [
       'Jump cue out—{player} goes airborne to clear the blocker.',
       'That is a confident jump shot from {player}.',
-      'Jump shot executed; {player} gets the hit and stays in control.'
+      'Jump shot executed; {player} gets the hit and stays in control.',
+      'Bold jump—clean hit and a little bit of flair.',
+      'Great timing on the jump; {player} stays in command.'
     ],
     miss: [
       '{player} misses the pot and leaves a look for {opponent}.',
       'No pot for {player}; the table opens up.',
-      '{player} comes up short and loses the table.'
+      '{player} comes up short and loses the table.',
+      'That is a costly miss—{opponent} will fancy this.',
+      'Questionable choice, and it does not pay off.',
+      'Oh no, that is a let-off for {opponent}.'
     ],
     foul: [
       'Foul on {player}.',
       'Foul called. {opponent} to the table with control.',
-      '{player} commits a foul.'
+      '{player} commits a foul.',
+      'That is a sloppy error, and {opponent} will punish it.',
+      'Unforced foul—big swing in momentum.'
     ],
     inHand: [
       'Ball in hand for {opponent}.',
       '{opponent} has ball in hand.',
-      'Cue ball in hand for {opponent}.'
+      'Cue ball in hand for {opponent}.',
+      '{opponent} now controls the table with ball in hand.'
     ],
     runout: [
       '{player} is in rhythm—this could be a full clearance.',
       'A runout is on. {player} just needs clean angles and speed control.',
       '{player} is stitching it together, ball by ball.',
-      '{player} has the pattern; now it is all about cue-ball placement for the finish.'
+      '{player} has the pattern; now it is all about cue-ball placement for the finish.',
+      'This is a serious run—{player} looks locked in.',
+      '{player} is flowing—every ball is in the right zone.'
     ],
     hillHill: [
       'We are at hill-hill. This is as tense as it gets.',
       'Decider time. One rack for everything.',
-      'Final rack nerves—every shot feels heavier now.'
+      'Final rack nerves—every shot feels heavier now.',
+      'Edge-of-the-seat stuff—one rack to decide it.'
     ],
     frameWin: [
       '{player} wins the rack with composed position play.',
       'Rack to {player}.',
-      '{player} closes the rack.'
+      '{player} closes the rack.',
+      '{player} takes the rack—clean, calm, and clinical.'
     ],
     matchWin: [
       'Match over. {player} wins {playerScore}-{opponentScore}.',
       '{player} takes the match, {playerScore}-{opponentScore}.',
-      'Final score {playerScore}-{opponentScore}. {player} wins.'
+      'Final score {playerScore}-{opponentScore}. {player} wins.',
+      '{player} gets it done. A composed win at {arena}.'
     ],
     tournamentRecall: [
       'Remember, {player} comes in off a {previousResult} result in the previous round—confidence is high.',
       'That last round finished {previousResult}; expect a composed, professional showing.',
-      'Carrying momentum from {previousResult}, {player} looks ready for another statement.'
+      'Carrying momentum from {previousResult}, {player} looks ready for another statement.',
+      '{player} arrives off a {previousResult} finish—plenty of belief in the camp.'
     ],
     outro: [
       'That wraps it up from {arena}. Thanks for joining us.',
       'From {arena}, that is full time. Great match tonight.',
-      'A fantastic finish in {variantName}. Thanks for watching with us.'
+      'A fantastic finish in {variantName}. Thanks for watching with us.',
+      'We will leave it there from {arena}. Appreciate your company.'
     ]
   },
   nineBall: {
@@ -864,103 +937,187 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     }
   },
   sq: {
-    ...ENGLISH_TEMPLATES,
     common: {
       welcome: [
         'Mirë se vini në {arena}. {speaker} me ju për {variantName}.',
-        'Kënaqësi që jeni me ne në {arena}.',
-        'Mirë se vini—{arena} është gati për {player} kundër {opponent}.'
+        'Përshëndetje nga {arena}—{speaker} në komentim.',
+        'Tungjatjeta, {arena} është gati për {player} kundër {opponent}.',
+        'Mirëmbrëma nga {arena}. Sot {player} kundër {opponent}.'
       ],
       intro: [
-        'Mirë se vini në {arena}. Me ju është {speaker}. {player} përballë {opponent}; {scoreline} në {variantName}.'
+        'Mirë se vini në {arena}. {speaker} me ju. {player} përballë {opponent}; {scoreline} në {variantName}.',
+        'Mbrëmje e mirë nga {arena}. {speaker} në komentim. {player} kundër {opponent}, {scoreline}.',
+        '{arena} është skena—{player} dhe {opponent} në {variantName}, {scoreline}.'
       ],
       introReply: [
-        'Faleminderit, {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.'
+        'Faleminderit, {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.',
+        'Kënaqësi të jem këtu, {speaker}. Fiton ai që menaxhon këndet.',
+        'Saktë, {speaker}. Qetësia dhe ritmi janë vendimtarë.'
       ],
       breakShot: [
-        '{player} gati për thyerjen; shpërndarja dhe kontrolli i topit të bardhë janë kyçe.'
+        '{player} gati për thyerjen; shpërndarje e pastër dhe top i bardhë i qetë.',
+        '{player} hyn për thyerje—shpejtësia dhe kontrolli janë kyç.',
+        'Ja thyerja nga {player}; të shohim si hapen topat.'
       ],
       breakResult: [
-        'Thyerje e mirë; topat janë hapur dhe ka linja të pastra.'
+        'Thyerje e mirë—tavolina është hapur.',
+        'Topat u shpërndanë bukur; ka linja të pastra.',
+        'Shpërndarje solide, tani rëndësi ka pozicionimi.'
       ],
       openTable: [
-        'Tavolina është e hapur; {player} kërkon kënde të natyrshme dhe vazhdim të lehtë.'
+        'Tavolina e hapur; {player} kërkon rrugë të thjeshta.',
+        '{player} po lexon këndet dhe zonën e ndalimit.',
+        'Shumë opsione—gjithçka varet nga kontrolli i topit të bardhë.',
+        'Këndi i ardhshëm është çelësi; {player} duhet të ulet mirë.'
       ],
       safety: [
-        '{player} luan siguri dhe fsheh topin e bardhë.'
+        'Siguri e mençur; {player} fsheh topin e bardhë.',
+        'Zgjedhje taktike, e lë {opponent} në pozicion të vështirë.',
+        'S’më bind plotësisht kjo siguri—ka rrezik të mbetet hapur.',
+        'Siguri e pastër; i prish ritmin kundërshtarit.'
       ],
       pressure: [
-        'Goditje me presion; prekja e butë dhe efekti janë vendimtarë.'
+        'Moment me presion; {player} duhet të jetë i saktë.',
+        'Goditje e madhe—mënyra si e prek topin vendos gjithçka.',
+        'Tension i lartë; një gabim këtu kushton.',
+        'Kjo është goditje që ndan fituesin.'
       ],
       pot: [
-        '{player} fut {targetBall} në {pocket} dhe ruan pozicionin e topit të bardhë.',
-        'Goditje shumë e pastër nga {player}; topi i bardhë bie në pozicion perfekt.',
-        'Mbyllje elegante: {player} fut {targetBall} dhe mban kënd të mirë për tjetrin.'
+        'Çfarë goditje! {player} fut {targetBall} në {pocket}.',
+        'E pabesueshme—{player} e fut dhe mban pozicion.',
+        '{player} fut {targetBall} në {pocket}, topi i bardhë qëndron bukur.',
+        'Goditje e pastër; {player} lë kënd të mirë për tjetrin.',
+        'Shkëlqyeshëm! {player} e mbyll me kontroll.',
+        'Super prekje—{player} fut {targetBall} dhe ruan ritmin.'
       ],
       combo: [
-        '{player} bën kombinim dhe fut {targetBall} në {pocket}.'
+        'Kombinim i saktë—{player} fut {targetBall} në {pocket}.',
+        'Kombinim i bukur; {player} e sheh linjën.',
+        'Kjo ishte e vështirë, por e saktë!'
       ],
       bank: [
-        '{player} godet nga banka dhe fut {targetBall} në {pocket}.',
-        'Bankë e bukur nga {player}; {targetBall} bie në {pocket}.'
+        'Goditje nga banda—{player} fut {targetBall} në {pocket}.',
+        'Goditje nga banda dhe topi bie; bravo!',
+        'Goditje nga banda e pastër; kënd i kontrolluar.'
       ],
       kick: [
-        '{player} duhet ta gjejë topin përmes bankës.'
+        'Goditje me bankë e detyruar—{player} kërkon kontaktin.',
+        'Duhet bankë për të prekur topin.',
+        'Goditje me rrezik, por duhet ta prekë.'
       ],
       jump: [
-        '{player} përdor goditje kërcimi për të kaluar bllokimin.'
+        'Goditje kërcimi e pastër—{player} kalon bllokimin.',
+        'Goditje kërcimi; topi u gjet.',
+        'Kërcim i guximshëm dhe i saktë.'
       ],
       miss: [
-        '{player} e humb; shans për {opponent}.'
+        'Ah, e humbi; shans i artë për {opponent}.',
+        'Kjo s’ishte e mirë—gabim i kushtueshëm.',
+        'Zgjedhje e dyshimtë dhe nuk paguan.',
+        'E humbi dhe tavolina hapet.',
+        'Jo, jo! {opponent} merr një dhuratë.'
       ],
       foul: [
         'Faull nga {player}.',
-        'Gabim nga {player}; {opponent} rikthehet në tavolinë.'
+        'Gabim i panevojshëm—{opponent} merr avantazh.',
+        'Faull i rëndë; kjo mund të kthejë lojën.',
+        'Gabim teknik, {opponent} në tavolinë.'
       ],
       inHand: [
-        'Top në dorë për {opponent}.',
-        '{opponent} ka top në dorë dhe përparësi të qartë.'
+        '{opponent} ka top në dorë.',
+        'Top në dorë për {opponent}—mundësi e madhe.',
+        '{opponent} merr kontrollin me topin në dorë.'
       ],
       runout: [
-        '{player} është në ritëm—mund të mbyllë gjithë tavolinën.',
-        '{player} ka planin dhe kërkon vetëm pozicion të butë për mbyllje.',
-        '{player} po e ndërton serinë me qetësi.'
+        '{player} është në seri—mund ta pastrojë tavolinën.',
+        'Ritëm i bukur; po shkon drejt mbylljes.',
+        '{player} ka planin; i duhet vetëm një pozicion i pastër.',
+        'Kjo duket si pastrim tavoline nëse nuk gabon.'
       ],
       hillHill: [
-        'Rack vendimtar; tension maksimal.'
+        'Frejmi vendimtar—tension maksimal.',
+        'Gjithçka në një frejm; nervat janë test.',
+        'Momenti i madh—një goditje e ndryshon ndeshjen.'
       ],
       frameWin: [
-        '{player} fiton këtë rack.'
+        '{player} fiton frejmin.',
+        'Frejm për {player}.',
+        'Mbyllje e qetë nga {player}.'
       ],
       matchWin: [
-        'Ndeshja mbyllet. {player} fiton {playerScore}-{opponentScore}.'
+        'Ndeshja mbyllet. {player} fiton {playerScore}-{opponentScore}.',
+        '{player} e merr ndeshjen, {playerScore}-{opponentScore}.',
+        'Fitore finale për {player}.'
       ],
       tournamentRecall: [
-        '{player} vjen nga {previousResult} në raundin e kaluar—forma është e lartë.',
-        'Raundi i fundit përfundoi {previousResult}; pritet lojë shumë profesionale.'
+        '{player} vjen pas {previousResult} në raundin e kaluar—formë e lartë.',
+        'Raundi i fundit përfundoi {previousResult}; pritshmëri të mëdha.',
+        'Me momentum nga {previousResult}, {player} duket gati.'
       ],
       outro: [
-        'Kaq nga {arena}. Faleminderit që na ndoqët.'
+        'Kaq nga {arena}. Faleminderit që ishit me ne.',
+        'Nga {arena}, ju falënderojmë për shoqërinë.',
+        'Mbyllim këtu; faleminderit për ndjekjen.'
       ]
     },
     nineBall: {
       variantName: '9-boll amerikan',
-      rotation: ['Në 9-boll duhet goditur gjithmonë topi me numrin më të vogël.'],
-      goldenBreak: ['Nëse 9-shi futet në thyerje, është thyerje e artë.'],
-      comboNine: ['{player} sheh kombinimin për 9—shans i madh.'],
-      pushOut: ['{player} luan push-out për një pozicion më të mirë.']
+      rotation: [
+        'Në 9-boll duhet goditur gjithmonë topi më i vogël.',
+        'Rregulli i parë: topi më i ulët, gjithmonë.',
+        'Topi më i vogël është i pari—disiplinë 9-boll.'
+      ],
+      goldenBreak: [
+        'Nëse 9-shi bie në thyerje, mbaron menjëherë.',
+        'Thyerje e artë nëse 9-shi bie direkt.',
+        'Kujdes 9-shin—thyerja mund ta mbyllë.'
+      ],
+      comboNine: [
+        '{player} sheh kombinimin për 9—rrezik i madh.',
+        'Kombinim për 9—shans i madh nëse hyn.',
+        '9-shi me kombinim? Ky është moment i madh.'
+      ],
+      pushOut: [
+        '{player} luan push-out për një pozicion më të mirë.',
+        'Push-out taktik për të krijuar një linjë të pastër.',
+        'Push-out—tani {opponent} duhet të vendosë.'
+      ]
     },
     eightBallUs: {
       variantName: '8-boll amerikan',
-      groupCall: ['Tavolinë e hapur; {groupPrimary} ose {groupSecondary} janë të lira.'],
-      inHand: ['Faulli i jep {opponent} top në dorë—mundësi e madhe.'],
-      eightBall: ['Tani 8-shi është në lojë; pozicioni është gjithçka.']
+      groupCall: [
+        'Tavolinë e hapur; {groupPrimary} ose {groupSecondary} janë në lojë.',
+        'Zgjedhja e grupit vendoset me potin e parë.',
+        'Grupet janë të hapura—{player} duhet të zgjedhë.'
+      ],
+      inHand: [
+        'Faulli i jep {opponent} top në dorë—shans i madh.',
+        '{opponent} me top në dorë; avantazh i qartë.',
+        'Top në dorë për {opponent}—mund të nisë seri.'
+      ],
+      eightBall: [
+        'Tani 8-shi është në lojë; pozicioni është gjithçka.',
+        'Gjithçka kalon te 8-shi nga këtu.',
+        '8-shi në lojë—një gabim e mbyll.'
+      ]
     },
     eightBallUk: {
       variantName: '8-boll britanik',
-      groupCall: ['Rregullat UK: {groupPrimary} dhe {groupSecondary} janë të hapura.'],
-      freeBall: ['{player} ka top të lirë dhe dy vizita.'],
-      blackBall: ['Tani topi i zi; kërkohet kënd i përsosur.']
+      groupCall: [
+        'Rregullat UK: {groupPrimary} dhe {groupSecondary} janë të hapura.',
+        'Rregullat UK—grupet janë të lira për momentin.',
+        '{groupPrimary} ose {groupSecondary}; poti i parë e vendos.'
+      ],
+      freeBall: [
+        'Top i lirë dhe dy vizita për {player}.',
+        '{player} merr top të lirë—avantazh i madh.',
+        'Dy vizita në UK; {player} ka shans të artë.'
+      ],
+      blackBall: [
+        'Topi i zi në lojë; kërkohet kënd i përsosur.',
+        'Tani është topi i zi—qetësi dhe precizion.',
+        'Topi i zi vendos gjithçka.'
+      ]
     }
   }
 });
@@ -1002,6 +1159,12 @@ const pickRandom = (pool) => pool[Math.floor(Math.random() * pool.length)];
 const applyTemplate = (template, context) =>
   template.replace(/\{(\w+)\}/g, (_, key) => String(context[key] ?? `{${key}}`));
 
+const applyGreeting = (line, languageKey) => {
+  const greetings = GREETING_PREFIXES[languageKey] || GREETING_PREFIXES.en;
+  const greeting = pickRandom(greetings || GREETING_PREFIXES.en);
+  return `${greeting} ${line}`.trim();
+};
+
 const resolveVariantData = (variantId, templates) => {
   const source = templates || ENGLISH_TEMPLATES;
   if (variantId === 'uk' || variantId === '8ball-uk') return source.eightBallUk;
@@ -1029,10 +1192,12 @@ export const buildCommentaryLine = ({
   language = 'en',
   context = {}
 }) => {
-  const templates = LOCALIZED_TEMPLATES[resolveLanguageKey(language)] || ENGLISH_TEMPLATES;
+  const languageKey = resolveLanguageKey(language);
+  const templates = LOCALIZED_TEMPLATES[languageKey] || ENGLISH_TEMPLATES;
   const resolvedVariant = resolveVariantData(variant, templates);
   const mergedContext = {
     ...DEFAULT_CONTEXT,
+    ...(LOCALIZED_CONTEXT[languageKey] || {}),
     ...context,
     speaker,
     partner: speaker === POOL_ROYALE_SPEAKERS.lead
@@ -1046,7 +1211,11 @@ export const buildCommentaryLine = ({
     templates.common[EVENT_POOLS[event]] ||
     templates.common.pot;
 
-  return applyTemplate(pickRandom(eventPool), mergedContext);
+  const baseLine = applyTemplate(pickRandom(eventPool), mergedContext);
+  if (event === EVENT_POOLS.welcome) {
+    return applyGreeting(baseLine, languageKey);
+  }
+  return baseLine;
 };
 
 export const createMatchCommentaryScript = ({
