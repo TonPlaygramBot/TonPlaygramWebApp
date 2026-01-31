@@ -1519,7 +1519,7 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const BACKSPIN_POWER_COMPENSATION = 0; // keep draw shots travelling at center-hit speed
+const BACKSPIN_POWER_COMPENSATION = 0.75; // boost forward velocity so draw shots travel like normal power
 const BACKSPIN_POWER_MAX_BOOST = 1.75; // cap boost so draw shots don't overpower full-strength strokes
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
@@ -1531,7 +1531,6 @@ const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const SWERVE_PRE_IMPACT_DRIFT = 0; // keep cue ball path straight even with side spin
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-const PRE_IMPACT_BACKSPIN_ROLL_SCALE = 0.22; // reduce backspin drag before impact so draw shots keep their forward pace
 const SPIN_ENGLISH_DEFLECTION_SCALE = 0; // disable english deflection while preserving spin values
 const CUE_AFTER_SPIN_DEFLECTION_SCALE = 0; // remove spin deflection so the cue follow line tracks the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
@@ -1661,7 +1660,7 @@ const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.65 * 1.15;
+const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.65;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
@@ -25706,21 +25705,13 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_SPIN.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
-                const backspinOpposes =
-                  b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0;
-                if (backspinOpposes) {
-                  const preImpactScale =
-                    preImpact && isCue ? PRE_IMPACT_BACKSPIN_ROLL_SCALE : 1;
-                  TMP_VEC2_SPIN.multiplyScalar(
-                    BACKSPIN_ROLL_BOOST * preImpactScale
-                  );
+                if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
+                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
                 }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                  const alignedForward =
-                    isCue && forwardMag < 0 ? 0 : forwardMag;
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedForward);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
                   if (b.pendingSpin) {
@@ -25747,10 +25738,7 @@ const powerRef = useRef(hud.power);
                     b.pendingSpin.multiplyScalar(0);
                   }
                 }
-                const rollDecay =
-                  preImpact && isCue
-                    ? Math.pow(SPIN_AIR_DECAY, stepScale)
-                    : Math.pow(SPIN_ROLL_DECAY, stepScale);
+                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
                 b.spin.multiplyScalar(rollDecay);
                 if (isCue && b.swerveStrength > 0) {
                   b.swerveStrength *= rollDecay;
