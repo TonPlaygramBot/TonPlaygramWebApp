@@ -48,6 +48,8 @@ import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import authenticate, { optionalAuthenticate, verifyTelegramInitData } from './middleware/auth.js';
 import {
   registerConnection,
   removeConnection,
@@ -114,13 +116,51 @@ const rateLimitWindowMs =
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
+const corsOptions = allowedOrigins.length
+  ? {
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    }
+  }
+  : { origin: false };
+app.use(cors(corsOptions));
 const httpServer = http.createServer(app);
 const io = initSocket(httpServer, {
-  cors: { origin: allowedOrigins.length ? allowedOrigins : '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: allowedOrigins.length ? allowedOrigins : false,
+    methods: ['GET', 'POST']
+  },
   transports: ['websocket', 'polling'],
   pingInterval: 25000,
   pingTimeout: 60000
+});
+io.use((socket, next) => {
+  const authHeader = socket.handshake.headers?.authorization || '';
+  const token =
+    socket.handshake.auth?.token || authHeader.replace(/^Bearer\s+/i, '');
+  const initData =
+    socket.handshake.auth?.initData ||
+    socket.handshake.headers?.['x-telegram-init-data'];
+
+  if (initData) {
+    const data = verifyTelegramInitData(initData);
+    if (data) {
+      socket.data.auth = {
+        telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined
+      };
+      return next();
+    }
+  }
+
+  if (process.env.API_AUTH_TOKEN && token === process.env.API_AUTH_TOKEN) {
+    socket.data.auth = { apiToken: true };
+    return next();
+  }
+
+  return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
 
@@ -137,14 +177,34 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 });
 
 // Middleware and routes
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https:', 'wss:'],
+      fontSrc: ["'self'", 'data:', 'https:'],
+      frameSrc: ["'self'", 'https:']
+    }
+  }
+}));
 app.use(compression());
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
+app.use(optionalAuthenticate);
 const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   limit: rateLimitMax,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    if (req.auth?.telegramId) return `telegram:${req.auth.telegramId}`;
+    if (req.body?.telegramId) return `telegram:${req.body.telegramId}`;
+    if (req.body?.accountId) return `account:${req.body.accountId}`;
+    return req.ip;
+  }
 });
 app.use('/api', apiLimiter);
 app.use('/api/mining', miningRoutes);
@@ -169,16 +229,21 @@ app.use('/api/online', onlineRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 
-app.post('/api/goal-rush/calibration', (req, res) => {
+app.post('/api/goal-rush/calibration', authenticate, async (req, res) => {
   const { accountId, calibration } = req.body || {};
   const devAccounts = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
     process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
     process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
+  let resolvedAccountId = accountId;
+  if (req.auth?.telegramId) {
+    const user = await User.findOne({ telegramId: req.auth.telegramId });
+    resolvedAccountId = user?.accountId;
+  }
   if (
     devAccounts.length &&
-    (!accountId || !devAccounts.includes(accountId))
+    (!resolvedAccountId || !devAccounts.includes(resolvedAccountId))
   ) {
     return res.status(403).json({ error: 'unauthorized' });
   }
@@ -377,10 +442,33 @@ function ensureRegistered(socket, accountId) {
   return true;
 }
 
-function getAvailableTable(gameType, stake = 0, maxPlayers = 4, matchMeta = {}) {
+function getAvailableTable(
+  gameType,
+  stake = 0,
+  maxPlayers = 4,
+  matchMeta = {},
+  forcedTableId = null
+) {
   const normalizedMeta = normalizeMatchMeta(matchMeta);
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
+  if (forcedTableId) {
+    const existing = tableMap.get(forcedTableId);
+    if (existing) return existing;
+    const table = {
+      id: forcedTableId,
+      gameType,
+      stake,
+      maxPlayers,
+      players: [],
+      currentTurn: null,
+      ready: new Set(),
+      meta: normalizedMeta
+    };
+    lobbyTables[key].push(table);
+    tableMap.set(table.id, table);
+    return table;
+  }
   const open = lobbyTables[key].find(
     (t) =>
       t.stake === stake &&
@@ -499,13 +587,20 @@ async function seatTableSocket(
   socket,
   playerAvatar,
   preferredSide,
-  matchMeta = {}
+  matchMeta = {},
+  forcedTableId = null
 ) {
   if (!accountId) return null;
   console.log(
     `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
   );
-  const table = getAvailableTable(gameType, stake, maxPlayers, matchMeta);
+  const table = getAvailableTable(
+    gameType,
+    stake,
+    maxPlayers,
+    matchMeta,
+    forcedTableId
+  );
   const tableId = table.id;
   cleanupSeats();
   // Ensure this user is not seated at any other table
@@ -738,7 +833,18 @@ app.post('/api/snake/table/seat', (req, res) => {
   const pid = playerId || accountId;
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
-  seatTableSocket(pid, gameType, 0, Number(capStr) || 4, name, null, avatar);
+  seatTableSocket(
+    pid,
+    gameType,
+    0,
+    Number(capStr) || 4,
+    name,
+    null,
+    avatar,
+    null,
+    {},
+    tableId
+  );
   res.json({ success: true });
 });
 
@@ -1016,7 +1122,8 @@ io.on('connection', (socket) => {
           socket,
           avatar,
           preferredSide,
-          { variant, mode, playType, tableSize, ballSet, token }
+          { variant, mode, playType, tableSize, ballSet, token },
+          tableId
         );
       } else {
         table = await seatTableSocket(
@@ -1075,8 +1182,11 @@ io.on('connection', (socket) => {
     const map = tableSeats.get(roomId);
     const cap = Number(roomId.split('-')[1]) || 4;
     if (!gameManager.rooms.has(roomId) && map && map.size < cap) {
-      socket.emit('error', 'waiting_for_players');
+      socket.emit('waitingForPlayers', { roomId, current: map.size, capacity: cap });
       return;
+    }
+    if (pid && !socket.data?.playerId) {
+      socket.data.playerId = String(pid);
     }
     if (!ensureRegistered(socket, pid)) return;
     // When a player connects to the actual game room we should keep their

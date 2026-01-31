@@ -4,12 +4,24 @@ import FriendRequest from '../models/FriendRequest.js';
 import Message from '../models/Message.js';
 import Post from '../models/Post.js';
 import bot from '../bot.js';
+import authenticate from '../middleware/auth.js';
 
 const router = Router();
+
+router.use(authenticate);
+
+function requireMatchingTelegram(req, res, telegramId) {
+  if (!req.auth?.telegramId || Number(telegramId) !== req.auth.telegramId) {
+    res.status(403).json({ error: 'forbidden' });
+    return false;
+  }
+  return true;
+}
 
 router.post('/search', async (req, res) => {
   const { query, telegramId } = req.body;
   if (!query) return res.json([]);
+  if (telegramId && !requireMatchingTelegram(req, res, telegramId)) return;
   const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
   const regex = new RegExp(escapeRegExp(query), 'i');
   const filter = {
@@ -33,6 +45,7 @@ router.post('/request', async (req, res) => {
   if (!fromId || !toId) {
     return res.status(400).json({ error: 'fromId and toId required' });
   }
+  if (!requireMatchingTelegram(req, res, fromId)) return;
   const existing = await FriendRequest.findOne({ from: fromId, to: toId });
   if (existing) return res.json(existing);
   const reqDoc = await FriendRequest.create({ from: fromId, to: toId });
@@ -51,6 +64,7 @@ router.post('/accept', async (req, res) => {
   const { requestId } = req.body;
   const fr = await FriendRequest.findById(requestId);
   if (!fr) return res.status(404).json({ error: 'request not found' });
+  if (!requireMatchingTelegram(req, res, fr.to)) return;
   if (fr.status !== 'pending') return res.json(fr);
   fr.status = 'accepted';
   await fr.save();
@@ -70,6 +84,7 @@ router.post('/accept', async (req, res) => {
 router.post('/requests', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const incoming = await FriendRequest.find({ to: telegramId, status: 'pending' });
   res.json(incoming);
 });
@@ -77,6 +92,7 @@ router.post('/requests', async (req, res) => {
 router.post('/friends', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const user = await User.findOne({ telegramId });
   if (!user) return res.json([]);
   const friends = await User.find({ telegramId: { $in: user.friends } })
@@ -88,6 +104,7 @@ router.post('/send-message', async (req, res) => {
   const { fromId, toId, text } = req.body;
   if (!fromId || !toId || !text)
     return res.status(400).json({ error: 'fromId, toId and text required' });
+  if (!requireMatchingTelegram(req, res, fromId)) return;
   const msg = await Message.create({ from: fromId, to: toId, text });
   try {
     await bot.telegram.sendMessage(
@@ -105,6 +122,7 @@ router.post('/messages', async (req, res) => {
   const { telegramId, withId } = req.body;
   if (!telegramId || !withId)
     return res.status(400).json({ error: 'telegramId and withId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const msgs = await Message.find({
     $or: [
       { from: telegramId, to: withId },
@@ -120,6 +138,7 @@ router.post('/unread-count', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId)
     return res.status(400).json({ error: 'telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const user = await User.findOne({ telegramId });
   const since = user?.inboxReadAt || new Date(0);
   const count = await Message.countDocuments({ to: telegramId, createdAt: { $gt: since } });
@@ -130,6 +149,7 @@ router.post('/mark-read', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId)
     return res.status(400).json({ error: 'telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   await User.updateOne({ telegramId }, { inboxReadAt: new Date() });
   res.json({ success: true });
 });
@@ -137,6 +157,7 @@ router.post('/mark-read', async (req, res) => {
 router.post('/wall/list', async (req, res) => {
   const { ownerId } = req.body;
   if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
+  if (!requireMatchingTelegram(req, res, ownerId)) return;
   const posts = await Post.find({ owner: ownerId })
     .sort({ pinned: -1, createdAt: -1 })
     .limit(100);
@@ -146,6 +167,7 @@ router.post('/wall/list', async (req, res) => {
 router.post('/wall/feed', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const user = await User.findOne({ telegramId });
   const owners = [telegramId, ...(user?.friends || [])];
   const posts = await Post.find({ owner: { $in: owners } })
@@ -163,6 +185,8 @@ router.post('/wall/post', async (req, res) => {
   const { ownerId, authorId, text, photo, photoAlt, tags, sharedPost } = req.body;
   if (!ownerId || !authorId)
     return res.status(400).json({ error: 'ownerId and authorId required' });
+  if (!requireMatchingTelegram(req, res, ownerId)) return;
+  if (!requireMatchingTelegram(req, res, authorId)) return;
   const post = await Post.create({
     owner: ownerId,
     author: authorId,
@@ -179,6 +203,7 @@ router.post('/wall/like', async (req, res) => {
   const { postId, telegramId } = req.body;
   if (!postId || !telegramId)
     return res.status(400).json({ error: 'postId and telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const post = await Post.findByIdAndUpdate(
     postId,
     { $addToSet: { likes: telegramId } },
@@ -203,6 +228,7 @@ router.post('/wall/comment', async (req, res) => {
     return res
       .status(400)
       .json({ error: 'postId, telegramId and text required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const comment = { author: telegramId, text };
   const post = await Post.findByIdAndUpdate(
     postId,
@@ -226,6 +252,7 @@ router.post('/wall/share', async (req, res) => {
   const { postId, telegramId } = req.body;
   if (!postId || !telegramId)
     return res.status(400).json({ error: 'postId and telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const original = await Post.findById(postId);
   if (!original) return res.status(404).json({ error: 'post not found' });
   const shared = await Post.create({
@@ -245,6 +272,7 @@ router.post('/wall/react', async (req, res) => {
     return res
       .status(400)
       .json({ error: 'postId, telegramId and emoji required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const update = {};
   update[`reactions.${emoji}`] = telegramId;
   const post = await Post.findByIdAndUpdate(
@@ -271,6 +299,7 @@ router.post('/wall/pin', async (req, res) => {
   const { postId, telegramId, pinned } = req.body;
   if (!postId || !telegramId)
     return res.status(400).json({ error: 'postId and telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
   const post = await Post.findOne({ _id: postId, owner: telegramId });
   if (!post) return res.status(404).json({ error: 'post not found' });
   post.pinned = !!pinned;

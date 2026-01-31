@@ -65,13 +65,17 @@ async function handleInventoryGet(accountId, res) {
     console.error('Snooker Royal inventory lookup failed:', err.message);
     return res.status(500).json({ error: 'failed to load inventory' });
   }
+  if (!user && !shouldUseMemoryUserStore()) {
+    user = findMemoryUser({ accountId });
+  }
   if (!user) return res.status(404).json({ error: 'account not found' });
 
   const normalized = normalizeInventory(user.snookerRoyalInventory);
   if (!areInventoriesEqual(user.snookerRoyalInventory, normalized)) {
     user.snookerRoyalInventory = normalized;
     try {
-      if (shouldUseMemoryUserStore()) {
+      const useMemory = shouldUseMemoryUserStore() || typeof user.save !== 'function';
+      if (useMemory) {
         saveMemoryUser(user);
       } else {
         await user.save();
@@ -97,12 +101,16 @@ async function handleInventorySet(accountId, inventory, res) {
     console.error('Snooker Royal inventory lookup failed:', err.message);
     return res.status(500).json({ error: 'failed to load inventory' });
   }
+  if (!user && !shouldUseMemoryUserStore()) {
+    user = findMemoryUser({ accountId });
+  }
   if (!user) return res.status(404).json({ error: 'account not found' });
 
   const merged = mergeInventories(user.snookerRoyalInventory, inventory);
   user.snookerRoyalInventory = merged;
   try {
-    if (shouldUseMemoryUserStore()) {
+    const useMemory = shouldUseMemoryUserStore() || typeof user.save !== 'function';
+    if (useMemory) {
       saveMemoryUser(user);
     } else {
       await user.save();

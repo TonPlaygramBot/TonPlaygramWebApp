@@ -2,8 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
+const botToken = 'dummy';
+
+function createInitData(id, token) {
+  const params = new URLSearchParams();
+  params.set('user', JSON.stringify({ id }));
+  const dataCheckString = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join('\n');
+  const secret = crypto
+    .createHmac('sha256', 'WebAppData')
+    .update(token)
+    .digest();
+  const hash = crypto.createHmac('sha256', secret)
+    .update(dataCheckString)
+    .digest('hex');
+  params.set('hash', hash);
+  return params.toString();
+}
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -28,7 +48,7 @@ test('search excludes requesting user', { concurrency: false }, async () => {
     ...process.env,
     PORT: '3208',
     MONGO_URI: 'memory',
-    BOT_TOKEN: 'dummy',
+    BOT_TOKEN: botToken,
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1'
   };
@@ -36,17 +56,26 @@ test('search excludes requesting user', { concurrency: false }, async () => {
   try {
     await fetch('http://localhost:3208/api/profile/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(1, botToken)
+      },
       body: JSON.stringify({ telegramId: 1, firstName: 'Alice' })
     });
     await fetch('http://localhost:3208/api/profile/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(2, botToken)
+      },
       body: JSON.stringify({ telegramId: 2, firstName: 'Alicia' })
     });
     const res = await fetch('http://localhost:3208/api/social/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(1, botToken)
+      },
       body: JSON.stringify({ query: 'Ali', telegramId: 1 })
     });
     assert.equal(res.status, 200);
