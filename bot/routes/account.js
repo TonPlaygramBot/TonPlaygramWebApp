@@ -27,29 +27,8 @@ import {
 
 const router = Router();
 
-function assertTelegramOwner(req, res, telegramId) {
-  if (!req.auth?.telegramId || req.auth.telegramId !== Number(telegramId)) {
-    res.status(403).json({ error: 'forbidden' });
-    return false;
-  }
-  return true;
-}
-
-async function assertAccountOwner(req, res, accountId) {
-  const user = await User.findOne({ accountId });
-  if (!user) {
-    res.status(404).json({ error: 'account not found' });
-    return null;
-  }
-  if (user.telegramId && (!req.auth?.telegramId || req.auth.telegramId !== user.telegramId)) {
-    res.status(403).json({ error: 'forbidden' });
-    return null;
-  }
-  return user;
-}
-
 // Create or fetch account for a user
-router.post('/create', authenticate, async (req, res) => {
+router.post('/create', async (req, res) => {
   const {
     telegramId,
     accountId,
@@ -60,9 +39,6 @@ router.post('/create', authenticate, async (req, res) => {
     photo
   } = req.body;
   const useMemoryStore = shouldUseMemoryUserStore();
-  if (telegramId && !assertTelegramOwner(req, res, telegramId)) {
-    return;
-  }
 
   try {
     let user;
@@ -247,12 +223,12 @@ router.post('/create', authenticate, async (req, res) => {
 });
 
 // Get balance by account id
-router.post('/balance', authenticate, async (req, res) => {
+router.post('/balance', async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
-  const user = await assertAccountOwner(req, res, accountId);
-  if (!user) return;
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
   const balance = calculateBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
@@ -266,12 +242,12 @@ router.post('/balance', authenticate, async (req, res) => {
 });
 
 // Get full account info including gifts and transactions
-router.post('/info', authenticate, async (req, res) => {
+router.post('/info', async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
-  const user = await assertAccountOwner(req, res, accountId);
-  if (!user) return;
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
@@ -300,7 +276,7 @@ router.post('/info', authenticate, async (req, res) => {
 });
 
 // Send TPC between accounts
-router.post('/send', authenticate, async (req, res) => {
+router.post('/send', async (req, res) => {
   const { fromAccount, toAccount, amount, note } = req.body;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
     return res
@@ -310,8 +286,8 @@ router.post('/send', authenticate, async (req, res) => {
   if (amount <= 0)
     return res.status(400).json({ error: 'amount must be positive' });
 
-  const sender = await assertAccountOwner(req, res, fromAccount);
-  if (!sender) return;
+  const sender = await User.findOne({ accountId: fromAccount });
+  if (!sender) return res.status(404).json({ error: 'sender not found' });
   const feeSender = Math.round(amount * 0.02);
   const feeReceiver = Math.round(amount * 0.01);
   if (sender.balance < amount + feeSender) {
@@ -446,7 +422,7 @@ router.post('/send', authenticate, async (req, res) => {
 });
 
 // Send a gift using account ids
-router.post('/gift', authenticate, async (req, res) => {
+router.post('/gift', async (req, res) => {
   const { fromAccount, toAccount, gift } = req.body;
   if (!fromAccount || !toAccount || !gift) {
     return res
@@ -457,7 +433,7 @@ router.post('/gift', authenticate, async (req, res) => {
   const g = NFT_GIFTS.find((x) => x.id === gift);
   if (!g) return res.status(400).json({ error: 'invalid gift' });
 
-  const sender = await assertAccountOwner(req, res, fromAccount);
+  const sender = await User.findOne({ accountId: fromAccount });
   if (!sender || sender.balance < g.price) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
@@ -539,14 +515,14 @@ router.post('/gift', authenticate, async (req, res) => {
 });
 
 // Convert received gifts to TPC
-router.post('/convert-gifts', authenticate, async (req, res) => {
+router.post('/convert-gifts', async (req, res) => {
   const { accountId, giftIds, action = 'burn', toAccount } = req.body;
   if (!accountId || !Array.isArray(giftIds)) {
     return res.status(400).json({ error: 'accountId and giftIds required' });
   }
 
-  const user = await assertAccountOwner(req, res, accountId);
-  if (!user) return;
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
@@ -666,11 +642,11 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
 });
 
 // List transactions by account id
-router.post('/transactions', authenticate, async (req, res) => {
+router.post('/transactions', async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
-  const user = await assertAccountOwner(req, res, accountId);
-  if (!user) return;
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
   ensureTransactionArray(user);
   res.json({ transactions: user.transactions });
 });

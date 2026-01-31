@@ -4,27 +4,8 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import { setTimeout as delay } from 'timers/promises';
 import { io } from 'socket.io-client';
-import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
-
-function createInitData(id, token) {
-  const params = new URLSearchParams();
-  params.set('user', JSON.stringify({ id }));
-  const dataCheckString = [...params.entries()]
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join('\n');
-  const secret = crypto
-    .createHmac('sha256', 'WebAppData')
-    .update(token)
-    .digest();
-  const hash = crypto.createHmac('sha256', secret)
-    .update(dataCheckString)
-    .digest('hex');
-  params.set('hash', hash);
-  return params.toString();
-}
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -58,17 +39,14 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: '1', name: 'A', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p1', name: 'A', confirmed: true })
     });
 
-    const s1 = io('http://localhost:3203', {
-      auth: { initData: createInitData(1, 'dummy') }
-    });
+    const s1 = io('http://localhost:3203');
     const errors = [];
     await new Promise((resolve) => s1.on('connect', resolve));
-    s1.emit('register', { playerId: '1' });
     s1.on('error', (e) => errors.push(e));
-    s1.emit('joinRoom', { roomId: 'snake-2-100', playerId: '1', name: 'A' });
+    s1.emit('joinRoom', { roomId: 'snake-2-100', playerId: 'p1', name: 'A' });
     await delay(1500);
     assert.equal(errors.length, 0, 'should not error when table not full');
     s1.off('error');
@@ -77,10 +55,10 @@ test('joinRoom waits until table full', { concurrency: false, timeout: 20000 }, 
     await fetch('http://localhost:3203/api/snake/table/seat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tableId: 'snake-2-100', accountId: '2', name: 'B', confirmed: true })
+      body: JSON.stringify({ tableId: 'snake-2-100', accountId: 'p2', name: 'B', confirmed: true })
     });
 
-    s1.emit('joinRoom', { roomId: 'snake-2-100', playerId: '1', name: 'A' });
+    s1.emit('joinRoom', { roomId: 'snake-2-100', playerId: 'p1', name: 'A' });
     await delay(200);
     assert.equal(errors.length, 0, 'should join when table full');
     s1.disconnect();

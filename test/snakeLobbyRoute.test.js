@@ -24,7 +24,7 @@ async function startServer(env) {
   return server;
 }
 
-test('snake lobby route lists players', { timeout: 20000 }, async () => {
+test('snake lobby route lists players', async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
@@ -55,7 +55,7 @@ test('snake lobby route lists players', { timeout: 20000 }, async () => {
   }
 });
 
-test('snake lobby aggregates seated players by capacity', { timeout: 20000 }, async () => {
+test('snake lobby aggregates seated players by capacity', async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
