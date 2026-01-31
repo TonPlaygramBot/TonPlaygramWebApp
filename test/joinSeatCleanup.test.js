@@ -31,7 +31,6 @@ test('joinRoom clears lobby seat', { concurrency: false, timeout: 20000 }, async
     PORT: '3204',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    API_AUTH_TOKEN: 'test-token',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1'
   };
@@ -48,9 +47,7 @@ test('joinRoom clears lobby seat', { concurrency: false, timeout: 20000 }, async
     let lobby = lobbies.find(l => l.id === 'snake-2');
     assert.equal(lobby.players, 1);
 
-    const s1 = io('http://localhost:3204', {
-      extraHeaders: { Authorization: 'Bearer test-token' }
-    });
+    const s1 = io('http://localhost:3204');
     await new Promise((resolve) => s1.on('connect', resolve));
     s1.emit('joinRoom', { roomId: 'snake-2-100', accountId: 'p1', name: 'A' });
     await delay(500);

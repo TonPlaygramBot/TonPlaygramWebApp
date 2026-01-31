@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export function verifyTelegramInitData(initData) {
+function verifyTelegramInitData(initData) {
   try {
     const params = new URLSearchParams(initData);
     const hash = params.get('hash');
