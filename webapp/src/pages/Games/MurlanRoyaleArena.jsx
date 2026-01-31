@@ -2829,14 +2829,24 @@ export default function MurlanRoyaleArena({ search }) {
       }
       case 'tableFinish': {
         const swatches = option?.swatches ?? ['#b8b3aa', '#d6d0c7'];
+        const thumb = option?.thumbnail;
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10">
-            <div
-              className="h-full w-full"
-              style={{
-                background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1] ?? swatches[0]})`
-              }}
-            />
+            {thumb ? (
+              <img
+                src={thumb}
+                alt={option?.label || 'Table finish'}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1] ?? swatches[0]})`
+                }}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/50" />
           </div>
         );

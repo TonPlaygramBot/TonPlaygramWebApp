@@ -3418,14 +3418,24 @@ function TexasHoldemArena({ search }) {
               .padStart(6, '0')}`
           : '#5a3820';
         const grainLabel = grain?.label ?? WOOD_GRAIN_OPTIONS?.[0]?.label ?? '';
+        const thumb = option?.thumbnail;
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
-              }}
-            />
+            {thumb ? (
+              <img
+                src={thumb}
+                alt={option?.label || 'Table wood'}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
+                }}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
             <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
               {grainLabel.slice(0, 12)}
@@ -3436,12 +3446,21 @@ function TexasHoldemArena({ search }) {
       case 'tableCloth':
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-[999px] border border-white/10"
-                style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
+            {option?.thumbnail ? (
+              <img
+                src={option.thumbnail}
+                alt={option?.label || 'Table cloth'}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
               />
-            </div>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className="h-12 w-20 rounded-[999px] border border-white/10"
+                  style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
+                />
+              </div>
+            )}
             <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
         );
@@ -3462,14 +3481,24 @@ function TexasHoldemArena({ search }) {
       }
       case 'tableFinish': {
         const swatches = option?.swatches ?? ['#8b5a2b', '#3b2f2f'];
+        const thumb = option?.thumbnail;
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[swatches.length - 1]})`
-              }}
-            />
+            {thumb ? (
+              <img
+                src={thumb}
+                alt={option?.label || 'Finish'}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[swatches.length - 1]})`
+                }}
+              />
+            )}
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="rounded-full bg-black/50 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/80">
                 {option?.label || 'Finish'}
@@ -3504,9 +3533,18 @@ function TexasHoldemArena({ search }) {
       case 'environmentHdri':
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-            <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-emerald-100/80">
-              {option?.name || option?.label || 'HDRI'}
-            </div>
+            {option?.thumbnail ? (
+              <img
+                src={option.thumbnail}
+                alt={option?.name || option?.label || 'HDRI'}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-emerald-100/80">
+                {option?.name || option?.label || 'HDRI'}
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
           </div>
         );

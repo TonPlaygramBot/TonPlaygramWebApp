@@ -3631,16 +3631,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const palette = swatches.length ? swatches : fallbackSwatches;
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/50">
-            <div className="absolute inset-0 grid grid-cols-4">
-              {palette.map((swatch, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <div
-                  key={`${option?.id}-swatch-${idx}`}
-                  className="h-full w-full"
-                  style={{ backgroundColor: colorNumberToHex(normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx] || swatch)) }}
-                />
-              ))}
-            </div>
+            {option?.thumbnail ? (
+              <img
+                src={option.thumbnail}
+                alt={`${option?.label || option?.name || 'HDRI'} thumbnail`}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="absolute inset-0 grid grid-cols-4">
+                {palette.map((swatch, idx) => (
+                  // eslint-disable-next-line react/no-array-index-key
+                  <div
+                    key={`${option?.id}-swatch-${idx}`}
+                    className="h-full w-full"
+                    style={{ backgroundColor: colorNumberToHex(normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx] || swatch)) }}
+                  />
+                ))}
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/50" />
           </div>
         );

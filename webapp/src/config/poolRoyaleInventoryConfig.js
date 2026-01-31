@@ -364,7 +364,10 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
     swatches: ['#6f5140', '#caa07a']
   }
-]);
+].map((variant) => ({
+  ...variant,
+  thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
+})));
 
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
