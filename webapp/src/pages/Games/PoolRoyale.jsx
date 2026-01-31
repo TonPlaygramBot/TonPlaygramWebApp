@@ -1549,8 +1549,6 @@ const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
-const LOW_SPIN_POWER_THRESHOLD = 0.08; // start boosting once the tip moves into low-spin territory
-const LOW_SPIN_POWER_BOOST = 0.18; // compensate for backspin energy loss without changing spin values
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
@@ -21735,17 +21733,6 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
-      const resolveLowSpinPowerBoost = (spin) => {
-        const backspin = Math.max(0, -(spin?.y ?? 0));
-        if (backspin <= LOW_SPIN_POWER_THRESHOLD) return 1;
-        const normalized = THREE.MathUtils.clamp(
-          (backspin - LOW_SPIN_POWER_THRESHOLD) /
-            Math.max(1 - LOW_SPIN_POWER_THRESHOLD, 1e-6),
-          0,
-          1
-        );
-        return 1 + normalized * LOW_SPIN_POWER_BOOST;
-      };
 
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
@@ -21986,9 +21973,7 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale =
-            (SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower) *
-            resolveLowSpinPowerBoost(appliedSpin);
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
