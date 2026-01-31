@@ -1073,6 +1073,19 @@ export default function Store() {
           if (sortOption === 'price-low') return a.price - b.price;
           if (sortOption === 'price-high') return b.price - a.price;
           if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
+          const featuredRank = (item) => {
+            const label = item.typeLabel?.toLowerCase() || '';
+            const hasThumbnail = Boolean(item.thumbnail);
+            const isTableOrChair = label.includes('table') || label.includes('chair') || label.includes('stool');
+            if (hasThumbnail && isTableOrChair) return 0;
+            if (hasThumbnail) return 1;
+            if (isTableOrChair) return 2;
+            return 3;
+          };
+          const rankDiff = featuredRank(a) - featuredRank(b);
+          if (rankDiff !== 0) return rankDiff;
+          const nameDiff = a.displayLabel.localeCompare(b.displayLabel);
+          if (nameDiff !== 0) return nameDiff;
           return a.slug.localeCompare(b.slug);
         });
     },
@@ -1724,7 +1737,7 @@ export default function Store() {
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+        <div className="w-full max-w-4xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-start justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">{gameName} • {detailItem.typeLabel}</p>
@@ -2090,11 +2103,12 @@ export default function Store() {
     const wrapperClass = isCompact
       ? 'relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]'
       : 'relative h-32 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]';
+    const imageClass = isCompact ? 'h-full w-full object-contain p-2' : 'h-full w-full object-contain p-3';
 
     if (item.thumbnail) {
       return (
         <div className={wrapperClass}>
-          <img src={item.thumbnail} alt={item.displayLabel || item.name} className="h-full w-full object-cover" loading="lazy" />
+          <img src={item.thumbnail} alt={item.displayLabel || item.name} className={imageClass} loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
           <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
             {label}
