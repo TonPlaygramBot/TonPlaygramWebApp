@@ -6,6 +6,7 @@ import {
   saveMemoryUser,
   shouldUseMemoryUserStore
 } from '../utils/memoryUserStore.js';
+import authenticate from '../middleware/auth.js';
 
 const router = Router();
 
@@ -51,8 +52,11 @@ const areInventoriesEqual = (a, b) => {
   );
 };
 
-async function handleInventoryGet(accountId, res) {
-  if (!accountId) return res.status(400).json({ error: 'accountId required' });
+async function getAuthorizedUser(req, accountId, res) {
+  if (!accountId) {
+    res.status(400).json({ error: 'accountId required' });
+    return null;
+  }
 
   let user;
   try {
@@ -63,9 +67,25 @@ async function handleInventoryGet(accountId, res) {
     }
   } catch (err) {
     console.error('Snooker Royal inventory lookup failed:', err.message);
-    return res.status(500).json({ error: 'failed to load inventory' });
+    res.status(500).json({ error: 'failed to load inventory' });
+    return null;
   }
-  if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!user) {
+    res.status(404).json({ error: 'account not found' });
+    return null;
+  }
+
+  if (user.telegramId && !req.auth?.apiToken && req.auth?.telegramId !== user.telegramId) {
+    res.status(403).json({ error: 'forbidden' });
+    return null;
+  }
+
+  return user;
+}
+
+async function handleInventoryGet(req, accountId, res) {
+  const user = await getAuthorizedUser(req, accountId, res);
+  if (!user) return;
 
   const normalized = normalizeInventory(user.snookerRoyalInventory);
   if (!areInventoriesEqual(user.snookerRoyalInventory, normalized)) {
@@ -83,21 +103,9 @@ async function handleInventoryGet(accountId, res) {
   res.json({ accountId, inventory: normalized });
 }
 
-async function handleInventorySet(accountId, inventory, res) {
-  if (!accountId) return res.status(400).json({ error: 'accountId required' });
-
-  let user;
-  try {
-    if (shouldUseMemoryUserStore()) {
-      user = findMemoryUser({ accountId });
-    } else {
-      user = await User.findOne({ accountId });
-    }
-  } catch (err) {
-    console.error('Snooker Royal inventory lookup failed:', err.message);
-    return res.status(500).json({ error: 'failed to load inventory' });
-  }
-  if (!user) return res.status(404).json({ error: 'account not found' });
+async function handleInventorySet(req, accountId, inventory, res) {
+  const user = await getAuthorizedUser(req, accountId, res);
+  if (!user) return;
 
   const merged = mergeInventories(user.snookerRoyalInventory, inventory);
   user.snookerRoyalInventory = merged;
@@ -114,25 +122,27 @@ async function handleInventorySet(accountId, inventory, res) {
   res.json({ accountId, inventory: merged });
 }
 
+router.use(authenticate);
+
 router.get('/inventory/:accountId', async (req, res) => {
   const { accountId } = req.params || {};
-  return handleInventoryGet(accountId, res);
+  return handleInventoryGet(req, accountId, res);
 });
 
 router.post('/inventory/get', async (req, res) => {
   const { accountId } = req.body || {};
-  return handleInventoryGet(accountId, res);
+  return handleInventoryGet(req, accountId, res);
 });
 
 router.put('/inventory/:accountId', async (req, res) => {
   const { accountId } = req.params || {};
   const { inventory } = req.body || {};
-  return handleInventorySet(accountId, inventory, res);
+  return handleInventorySet(req, accountId, inventory, res);
 });
 
 router.post('/inventory/set', async (req, res) => {
   const { accountId, inventory } = req.body || {};
-  return handleInventorySet(accountId, inventory, res);
+  return handleInventorySet(req, accountId, inventory, res);
 });
 
 export default router;

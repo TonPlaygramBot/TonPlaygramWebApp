@@ -8,6 +8,7 @@ import PostRecord from '../models/PostRecord.js';
 import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import CustomTask from '../models/CustomTask.js';
+import authenticate from '../middleware/auth.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
@@ -23,6 +24,22 @@ const PLATFORM_ICONS = {
   facebook: 'facebook',
   instagram: 'instagram'
 };
+
+function assertAuthenticatedTelegram(req, res, telegramId) {
+  if (!req.auth?.telegramId || req.auth.telegramId !== Number(telegramId)) {
+    res.status(403).json({ error: 'forbidden' });
+    return false;
+  }
+  return true;
+}
+
+function requireConfigToken(res, tokenName) {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(503).json({ error: `${tokenName} not configured` });
+    return false;
+  }
+  return true;
+}
 
 async function fetchReactionIds(messageId = '16', threadId = '1') {
   try {
@@ -59,9 +76,12 @@ function parseTelegramLink(link) {
   };
 }
 
+router.use(authenticate);
+
 router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
 
   const TWELVE_HOURS = 12 * 60 * 60 * 1000;
   const baseTasks = await Promise.all(
@@ -104,6 +124,7 @@ router.post('/list', async (req, res) => {
 router.post('/complete', async (req, res) => {
   const { telegramId, taskId } = req.body;
   if (!telegramId || !taskId) return res.status(400).json({ error: 'telegramId and taskId required' });
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
 
   let config = TASKS.find(t => t.id === taskId);
   if (!config && taskId.startsWith('custom_')) {
@@ -129,8 +150,8 @@ router.post('/complete', async (req, res) => {
         console.error('telegram reaction verify failed:', err.message);
         return res.status(500).json({ error: 'verification failed' });
       }
-    } else {
-      console.warn('BOT_TOKEN not configured; skipping Telegram reaction check');
+    } else if (!requireConfigToken(res, 'BOT_TOKEN')) {
+      return;
     }
   } else if (taskId === 'engage_tweet') {
     if (twitterClient) {
@@ -149,8 +170,8 @@ router.post('/complete', async (req, res) => {
         console.error('engage tweet verify failed:', err.message);
         return res.status(500).json({ error: 'verification failed' });
       }
-    } else {
-      console.warn('TWITTER_BEARER_TOKEN not configured; skipping X engagement check');
+    } else if (!requireConfigToken(res, 'TWITTER_BEARER_TOKEN')) {
+      return;
     }
   }
 
@@ -179,8 +200,9 @@ router.post('/complete', async (req, res) => {
 router.post('/verify-telegram-reaction', async (req, res) => {
   const { telegramId, messageId, threadId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
   if (!process.env.BOT_TOKEN) {
-    console.warn('BOT_TOKEN not configured; skipping Telegram reaction verification');
+    if (!requireConfigToken(res, 'BOT_TOKEN')) return;
     return res.json({ reacted: false });
   }
   try {
@@ -232,8 +254,9 @@ router.post('/verify-like', async (req, res) => {
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
   if (!twitterClient) {
-    console.warn('TWITTER_BEARER_TOKEN not configured; skipping like verification');
+    if (!requireConfigToken(res, 'TWITTER_BEARER_TOKEN')) return;
     return res.json({ liked: false });
   }
   const tweetId = extractTweetId(tweetUrl);
@@ -252,8 +275,9 @@ router.post('/verify-retweet', async (req, res) => {
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
   if (!twitterClient) {
-    console.warn('TWITTER_BEARER_TOKEN not configured; skipping retweet verification');
+    if (!requireConfigToken(res, 'TWITTER_BEARER_TOKEN')) return;
     return res.json({ retweeted: false });
   }
   const tweetId = extractTweetId(tweetUrl);
@@ -272,8 +296,9 @@ router.post('/verify-reply', async (req, res) => {
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
   if (!twitterClient) {
-    console.warn('TWITTER_BEARER_TOKEN not configured; skipping reply verification');
+    if (!requireConfigToken(res, 'TWITTER_BEARER_TOKEN')) return;
     return res.json({ replied: false });
   }
   const tweetId = extractTweetId(tweetUrl);
@@ -292,6 +317,7 @@ router.post('/verify-post', async (req, res) => {
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });
   }
+  if (!assertAuthenticatedTelegram(req, res, telegramId)) return;
 
   const config = TASKS.find((t) => t.id === 'post_tweet');
   if (!config) return res.status(500).json({ error: 'task not configured' });
@@ -303,23 +329,8 @@ router.post('/verify-post', async (req, res) => {
   }
 
   if (!twitterClient) {
-    console.warn('TWITTER_BEARER_TOKEN not configured; skipping post verification');
-    await PostRecord.create({ telegramId, tweetId: 'unknown' });
-    const user = await User.findOneAndUpdate(
-      { telegramId },
-      { $setOnInsert: { referralCode: telegramId.toString() } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    ensureTransactionArray(user);
-    user.minedTPC += config.reward;
-    user.transactions.push({
-      amount: config.reward,
-      type: 'task',
-      status: 'pending',
-      date: new Date()
-    });
-    await user.save();
-    return res.json({ message: 'verified', reward: config.reward });
+    if (!requireConfigToken(res, 'TWITTER_BEARER_TOKEN')) return;
+    return res.json({ verified: false });
   }
 
   const providedId = (tweetUrl.match(/status\/(\d+)/) || [])[1];
