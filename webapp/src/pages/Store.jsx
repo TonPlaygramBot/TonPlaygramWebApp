@@ -119,7 +119,7 @@ import {
 } from '../utils/texasHoldemInventory.js';
 import { claimPurchase, getTonBalance } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
-import { useTonAddress } from '@tonconnect/ui-react';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -241,6 +241,18 @@ const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_I
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
+
+const GAME_THUMBNAILS = {
+  poolroyale: '/assets/icons/pool-royale.svg',
+  snookerroyale: '/assets/icons/snooker-royale.svg',
+  airhockey: '/assets/icons/air-hockey.svg',
+  chessbattleroyal: '/assets/icons/chess-royale.svg',
+  ludobattleroyal: '/assets/icons/ludo-royale.svg',
+  murlanroyale: '/assets/icons/murlan-royale.svg',
+  'domino-royal': '/assets/icons/domino-royal.svg',
+  snake: '/assets/icons/snakes_and_ladders.webp',
+  texasholdem: '/assets/icons/texas-holdem.svg'
+};
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
@@ -720,8 +732,8 @@ export default function Store() {
   const [detailItem, setDetailItem] = useState(null);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
-  const [paymentHash, setPaymentHash] = useState('');
   const walletAddress = useTonAddress(true);
+  const [tonConnectUI] = useTonConnectUI();
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -813,12 +825,6 @@ export default function Store() {
     };
     loadBalance();
   }, [walletAddress]);
-
-  useEffect(() => {
-    if (confirmItem || confirmItems.length) {
-      setPaymentHash('');
-    }
-  }, [confirmItem, confirmItems.length]);
 
   const storeItemsBySlug = useMemo(
     () => ({
@@ -1161,6 +1167,40 @@ export default function Store() {
     setInfo('');
   };
 
+  const resolvePurchasable = (items) => {
+    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
+    if (!payload.length) return null;
+    const seen = new Set();
+    const unique = payload.filter((item) => {
+      const key = selectionKey(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const purchasable = unique.filter((item) => !item.owned);
+    if (!purchasable.length) {
+      setInfo('No new items selected for purchase.');
+      return null;
+    }
+    const groupedBySlug = purchasable.reduce((acc, item) => {
+      acc[item.slug] = acc[item.slug] || { items: [], gameName: storeMeta[item.slug]?.name || item.slug };
+      acc[item.slug].items.push(item);
+      return acc;
+    }, {});
+    const groupedEntries = Object.values(groupedBySlug);
+    if (!groupedEntries.length) {
+      setInfo('Selected items are unavailable for purchase.');
+      return null;
+    }
+    return { purchasable, groupedBySlug, groupedEntries };
+  };
+
+  const toNano = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '0';
+    return String(Math.round(numeric * 1e9));
+  };
+
   const handleGameChange = useCallback(
     (slug) => {
       setActiveGame(slug);
@@ -1170,6 +1210,15 @@ export default function Store() {
       } else {
         navigate(`/store/${slug}`);
       }
+    },
+    [navigate]
+  );
+
+  const handleCategorySelect = useCallback(
+    (slug, typeLabel) => {
+      setActiveGame(slug);
+      setActiveType(typeLabel);
+      navigate(`/store/${slug}`);
     },
     [navigate]
   );
@@ -1184,6 +1233,32 @@ export default function Store() {
       groups.get(key).push(item);
     });
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [activeGame, visibleItems]);
+
+  const gameFrames = useMemo(() => {
+    if (activeGame !== 'all') return [];
+    const itemsBySlug = new Map();
+    visibleItems.forEach((item) => {
+      if (!itemsBySlug.has(item.slug)) itemsBySlug.set(item.slug, []);
+      itemsBySlug.get(item.slug).push(item);
+    });
+    return Object.entries(storeMeta).map(([slug, meta]) => {
+      const gameItems = itemsBySlug.get(slug) || [];
+      const categories = new Map();
+      gameItems.forEach((item) => {
+        const label = item.typeLabel || 'Accessories';
+        if (!categories.has(label)) categories.set(label, []);
+        categories.get(label).push(item);
+      });
+      const categoryCards = Array.from(categories.entries())
+        .map(([label, items]) => ({
+          label,
+          items,
+          sample: items[0]
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+      return { slug, meta, categories: categoryCards, total: gameItems.length };
+    });
   }, [activeGame, visibleItems]);
 
   const handleListSubmit = (event) => {
@@ -1221,53 +1296,21 @@ export default function Store() {
     setInfo('Your NFT listing has been added to the marketplace.');
   };
 
-  const handlePurchase = async (items, txHash) => {
-    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
-    if (!payload.length) return;
-    if (!walletAddress) {
-      setInfo('Connect your TON wallet before submitting a payment.');
+  const finalizePurchase = async (items, txHash) => {
+    const resolved = resolvePurchasable(items);
+    if (!resolved) return;
+    if (!txHash) {
+      setInfo('Unable to confirm the TON payment. Please retry the payment.');
       return;
     }
-    const seen = new Set();
-    const unique = payload.filter((item) => {
-      const key = selectionKey(item);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    const purchasable = unique.filter((item) => !item.owned);
-    if (!purchasable.length) {
-      setInfo('No new items selected for purchase.');
-      return;
-    }
-    if (!accountId || accountId === 'guest') {
-      setInfo('Link your TPC account in the wallet first.');
-      return;
-    }
-    if (!txHash || !txHash.trim()) {
-      setInfo('Add the TON transaction hash so we can verify your payment.');
-      return;
-    }
-
-    const groupedBySlug = purchasable.reduce((acc, item) => {
-      acc[item.slug] = acc[item.slug] || { items: [], gameName: storeMeta[item.slug]?.name || item.slug };
-      acc[item.slug].items.push(item);
-      return acc;
-    }, {});
-
-    const groupedEntries = Object.values(groupedBySlug);
-    if (!groupedEntries.length) {
-      setInfo('Selected items are unavailable for purchase.');
-      return;
-    }
-
+    const { purchasable, groupedBySlug, groupedEntries } = resolved;
     const labelResolver = (slug, item) =>
       labelResolvers[slug] ? labelResolvers[slug](item) : item.name || item.displayLabel;
     setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
     resetStatus();
 
     try {
-      const verification = await claimPurchase(accountId, txHash.trim());
+      const verification = await claimPurchase(accountId, txHash);
       if (verification?.error) {
         setInfo(verification.error || 'Unable to verify TON payment.');
         return;
@@ -1313,6 +1356,43 @@ export default function Store() {
       setProcessing('');
       setConfirmItem(null);
       setConfirmItems([]);
+    }
+  };
+
+  const handleTonPayment = async (items) => {
+    if (!walletAddress) {
+      setInfo('Connect your TON wallet before submitting a payment.');
+      return;
+    }
+    if (!accountId || accountId === 'guest') {
+      setInfo('Link your TPC account in the wallet first.');
+      return;
+    }
+    const resolved = resolvePurchasable(items);
+    if (!resolved) return;
+    const { purchasable } = resolved;
+    const totalPrice = purchasable.reduce((sum, item) => sum + item.price, 0);
+    const transaction = {
+      validUntil: Math.floor(Date.now() / 1000) + 600,
+      messages: [
+        {
+          address: TON_STORE_ADDRESS,
+          amount: toNano(totalPrice)
+        }
+      ]
+    };
+
+    resetStatus();
+    setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
+    try {
+      const result = await tonConnectUI.sendTransaction(transaction);
+      const txHash = result?.boc || result?.transaction?.hash || result?.txHash;
+      await finalizePurchase(items, txHash);
+    } catch (err) {
+      console.error('TON payment failed', err);
+      setInfo('TON payment was cancelled or failed. Please try again.');
+    } finally {
+      setProcessing('');
     }
   };
 
@@ -1477,7 +1557,7 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Send the TON amount from your connected wallet, then paste the transaction hash so we can verify it on-chain.
+              Pay directly from your connected TON wallet. Once the transaction is confirmed, we deliver the NFT immediately.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1510,19 +1590,9 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFT sent to linked TPC account after confirmation</span>
+                <span className="font-semibold text-white">NFT delivered instantly after payment confirmation</span>
               </div>
             </div>
-            <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
-              <input
-                type="text"
-                value={paymentHash}
-                onChange={(e) => setPaymentHash(e.target.value)}
-                placeholder="Paste the transaction hash"
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
-              />
-            </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -1533,11 +1603,11 @@ export default function Store() {
               </button>
               <button
                 type="button"
-                onClick={() => handlePurchase(confirmItem, paymentHash)}
+                onClick={() => handleTonPayment(confirmItem)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
                 disabled={Boolean(processing)}
               >
-                {processing ? 'Processing…' : 'Confirm & Buy'}
+                {processing ? 'Processing…' : 'Pay with TON'}
               </button>
             </div>
           </div>
@@ -1599,7 +1669,7 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Send a single TON payment, then add the transaction hash to verify on-chain.</p>
+              <p className="mt-1">Pay once from your connected wallet to unlock everything immediately.</p>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1608,20 +1678,9 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFTs sent to linked TPC account after confirmation</span>
+                <span className="font-semibold text-white">NFTs delivered instantly after payment confirmation</span>
               </div>
             </div>
-            <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash</span>
-              <input
-                type="text"
-                value={paymentHash}
-                onChange={(e) => setPaymentHash(e.target.value)}
-                placeholder="Paste the transaction hash"
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
-              />
-            </label>
-
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -1632,11 +1691,11 @@ export default function Store() {
               </button>
               <button
                 type="button"
-                onClick={() => handlePurchase(confirmItems, paymentHash)}
+                onClick={() => handleTonPayment(confirmItems)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
                 disabled={Boolean(processing)}
               >
-                {processing ? 'Processing…' : 'Confirm & Buy All'}
+                {processing ? 'Processing…' : 'Pay with TON'}
               </button>
             </div>
           </div>
@@ -1801,7 +1860,7 @@ export default function Store() {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                 <p className="font-semibold text-white">What you get</p>
-                <p className="mt-1">Once your TON payment is verified, the NFT unlocks on your linked TPC account.</p>
+                <p className="mt-1">Once your TON payment is confirmed, the NFT unlocks immediately on your linked TPC account.</p>
               </div>
             </div>
           </div>
@@ -2112,6 +2171,23 @@ export default function Store() {
           </button>
         </div>
       </div>
+    );
+  };
+
+  const renderCategoryCard = (category, slug) => {
+    if (!category) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => handleCategorySelect(slug, category.label)}
+        className="group flex min-w-[180px] flex-col gap-2 rounded-2xl border border-white/10 bg-black/30 p-3 text-left text-white/80 transition hover:border-white/30 hover:bg-white/10"
+      >
+        {renderStoreThumbnail(category.sample, 'compact')}
+        <div className="space-y-0.5">
+          <div className="text-sm font-semibold text-white">{category.label}</div>
+          <div className="text-[11px] text-white/60">{category.items.length} items</div>
+        </div>
+      </button>
     );
   };
 
@@ -2433,8 +2509,50 @@ export default function Store() {
                 </section>
               ))
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {visibleItems.map((item) => renderStoreCard(item))}
+              <div className="grid gap-5">
+                {gameFrames.map((frame) => (
+                  <section
+                    key={frame.slug}
+                    className="relative rounded-3xl border border-white/10 bg-black/30 px-4 pb-4 pt-6 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.8)]"
+                  >
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950 px-4 py-1 text-xs font-semibold text-white shadow">
+                        {GAME_THUMBNAILS[frame.slug] ? (
+                          <img
+                            src={GAME_THUMBNAILS[frame.slug]}
+                            alt={`${frame.meta.name} icon`}
+                            className="h-5 w-5 rounded-full bg-white/10 p-0.5"
+                          />
+                        ) : null}
+                        <span>{frame.meta.name}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/60">
+                      <span>{frame.total} cosmetics</span>
+                      <button
+                        type="button"
+                        onClick={() => handleGameChange(frame.slug)}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70 hover:bg-white/10"
+                      >
+                        View all
+                      </button>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Categories</div>
+                      <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+                        {frame.categories.length ? (
+                          frame.categories.map((category) => renderCategoryCard(category, frame.slug))
+                        ) : (
+                          <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-xs text-white/60">
+                            No categories match the current filters.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </div>
