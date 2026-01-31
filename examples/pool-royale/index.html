@@ -337,49 +337,24 @@
         cueSpinDot.style.top = pos(sy);
       }
 
-      const spinTuning = {
-        deadZone: 0.12,
-        responseCurve: 1.6
-      };
-
-      function clampToCircle (dx, dy, radius) {
-        const dist = Math.hypot(dx, dy);
-        if (dist === 0) return { x: 0, y: 0, dist: 0 };
-        const scale = Math.min(1, radius / dist);
-        return { x: dx * scale, y: dy * scale, dist: Math.min(dist, radius) };
-      }
-
-      function applySpinInput (clientX, clientY) {
-        const r = spinController.getBoundingClientRect();
-        const radius = Math.min(r.width, r.height) / 2;
-        const dx = clientX - r.left - radius;
-        const dy = clientY - r.top - radius;
-        const clamped = clampToCircle(dx, dy, radius);
-        const nx = clamped.x / radius;
-        const ny = clamped.y / radius;
-        const rawSpin = { x: nx, y: -ny };
-        const strength = Math.min(1, Math.hypot(rawSpin.x, rawSpin.y));
-
-        if (strength < spinTuning.deadZone) {
-          spin = { x: 0, y: 0 };
-          updateSpinDots(0, 0);
-          return;
-        }
-
-        const normalizedStrength =
-          (strength - spinTuning.deadZone) / (1 - spinTuning.deadZone);
-        const easedStrength = Math.pow(normalizedStrength, spinTuning.responseCurve);
-        const dirX = rawSpin.x / strength;
-        const dirY = rawSpin.y / strength;
-        spin = { x: dirX * easedStrength, y: dirY * easedStrength };
-        updateSpinDots(rawSpin.x, rawSpin.y);
-      }
-
       // update spin both on click and while dragging for better precision
       let spinning = false;
       function setSpin (e) {
         if (e.type === 'pointermove' && !spinning) return;
-        applySpinInput(e.clientX, e.clientY);
+        const r = spinController.getBoundingClientRect();
+        const cx = r.width / 2;
+        const cy = r.height / 2;
+        const dx = e.clientX - r.left - cx;
+        const dy = e.clientY - r.top - cy;
+        const nx = Math.max(Math.min(dx / cx, 1), -1);
+        const ny = Math.max(Math.min(dy / cy, 1), -1);
+        // invert the vertical component so positive y is top spin
+        const rawSpin = { x: nx, y: -ny };
+        // ease the response so tiny adjustments near centre produce gentle spin
+        const strength = Math.min(1, Math.hypot(rawSpin.x, rawSpin.y));
+        const eased = strength * strength;
+        spin = { x: rawSpin.x * eased, y: rawSpin.y * eased };
+        updateSpinDots(rawSpin.x, rawSpin.y);
       }
       spinController.addEventListener('pointerdown', (e) => {
         spinning = true;
@@ -388,10 +363,6 @@
       });
       spinController.addEventListener('pointermove', setSpin);
       spinController.addEventListener('pointerup', (e) => {
-        spinning = false;
-        spinController.releasePointerCapture(e.pointerId);
-      });
-      spinController.addEventListener('pointercancel', (e) => {
         spinning = false;
         spinController.releasePointerCapture(e.pointerId);
       });
