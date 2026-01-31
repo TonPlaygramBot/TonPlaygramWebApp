@@ -10,6 +10,8 @@ const DEFAULT_SPEAKER_SETTINGS = {
 
 let audioContext;
 let audioContextUnlocked = false;
+let speechUnlockInstalled = false;
+let speechUnlockHandler;
 
 const ensureAudioContext = () => {
   if (typeof window === 'undefined') return null;
@@ -47,6 +49,29 @@ const unlockAudioContext = () => {
         audioContextUnlocked = false;
       }
     });
+};
+
+const createSpeechUnlockHandler = () => {
+  if (speechUnlockHandler) return speechUnlockHandler;
+  speechUnlockHandler = () => {
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    ensureSpeechUnlocked(synth);
+    primeSpeechSynthesis();
+  };
+  return speechUnlockHandler;
+};
+
+export const installSpeechSynthesisUnlock = () => {
+  if (typeof window === 'undefined' || speechUnlockInstalled) return;
+  if (!getSpeechSynthesis()) return;
+  speechUnlockInstalled = true;
+  const handler = createSpeechUnlockHandler();
+  const options = { once: true, passive: true };
+  window.addEventListener('pointerdown', handler, options);
+  window.addEventListener('touchend', handler, options);
+  window.addEventListener('click', handler, options);
+  window.addEventListener('keydown', handler, options);
 };
 
 export const getSpeechSynthesis = () => {
