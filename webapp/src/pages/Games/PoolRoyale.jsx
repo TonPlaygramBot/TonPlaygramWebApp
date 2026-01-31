@@ -13458,7 +13458,7 @@ const powerRef = useRef(hud.power);
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.ball;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current * 0.9, 0, 1);
+    const scaled = clamp(vol * volumeRef.current * 0.72, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -13671,7 +13671,8 @@ const powerRef = useRef(hud.power);
     [activeCommentaryPreset, playNextCommentary]
   );
 
-  const resolveFlagLabel = useCallback((flagEmoji) => {
+  const commentaryLocale = activeCommentaryPreset?.language ?? 'en';
+  const resolveFlagLabel = useCallback((flagEmoji, locale = commentaryLocale) => {
     if (!flagEmoji) return 'Flag';
     try {
       const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
@@ -13680,7 +13681,7 @@ const powerRef = useRef(hud.power);
         const base = 0x1f1e6;
         const region = String.fromCharCode(a - base + 65, b - base + 65);
         if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
-          const display = new Intl.DisplayNames(['en'], { type: 'region' });
+          const display = new Intl.DisplayNames([locale || 'en'], { type: 'region' });
           return display.of(region) || region;
         }
         return region;
@@ -13689,7 +13690,7 @@ const powerRef = useRef(hud.power);
       console.warn('flag label resolve failed', err);
     }
     return flagEmoji;
-  }, []);
+  }, [commentaryLocale]);
   const playerFlag = useMemo(
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
@@ -13722,24 +13723,72 @@ const powerRef = useRef(hud.power);
   }, [tournamentAiFlagStorageKey, tournamentMode]);
   const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
 
+  const resolveFallbackPlayerLabel = useCallback(
+    (seat) => {
+      const localeKey = String(commentaryLocale || 'en').toLowerCase();
+      if (localeKey.startsWith('sq')) return seat === 'A' ? 'Lojtari A' : 'Lojtari B';
+      if (localeKey.startsWith('es')) return seat === 'A' ? 'Jugador A' : 'Jugador B';
+      if (localeKey.startsWith('fr')) return seat === 'A' ? 'Joueur A' : 'Joueur B';
+      if (localeKey.startsWith('it')) return seat === 'A' ? 'Giocatore A' : 'Giocatore B';
+      if (localeKey.startsWith('ru')) return seat === 'A' ? 'Игрок A' : 'Игрок B';
+      if (localeKey.startsWith('hi')) return seat === 'A' ? 'खिलाड़ी A' : 'खिलाड़ी B';
+      if (localeKey.startsWith('ar')) return seat === 'A' ? 'اللاعب A' : 'اللاعب B';
+      return seat === 'A' ? 'Player A' : 'Player B';
+    },
+    [commentaryLocale]
+  );
+
   const resolveSeatLabel = useCallback(
     (seat) => {
       if (seat === 'A') {
-        if (aiOpponentEnabled && localSeat === 'B') return aiFlagLabel || framePlayerAName || 'Player A';
-        return framePlayerAName || 'Player A';
+        const fallback = resolveFallbackPlayerLabel('A');
+        if (aiOpponentEnabled && localSeat === 'B') return aiFlagLabel || framePlayerAName || fallback;
+        return framePlayerAName || fallback;
       }
-      if (aiOpponentEnabled && localSeat === 'A') return aiFlagLabel || framePlayerBName || 'Player B';
-      return framePlayerBName || 'Player B';
+      const fallback = resolveFallbackPlayerLabel('B');
+      if (aiOpponentEnabled && localSeat === 'A') return aiFlagLabel || framePlayerBName || fallback;
+      return framePlayerBName || fallback;
     },
-    [aiFlagLabel, aiOpponentEnabled, framePlayerAName, framePlayerBName, localSeat]
+    [
+      aiFlagLabel,
+      aiOpponentEnabled,
+      framePlayerAName,
+      framePlayerBName,
+      localSeat,
+      resolveFallbackPlayerLabel
+    ]
   );
 
-  const resolveScoreline = useCallback((scoreA, scoreB) => {
-    if (scoreA === scoreB) return `level at ${scoreA}-${scoreB}`;
-    return scoreA > scoreB
-      ? `${resolveSeatLabel('A')} leads ${scoreA}-${scoreB}`
-      : `${resolveSeatLabel('B')} leads ${scoreB}-${scoreA}`;
-  }, [resolveSeatLabel]);
+  const resolveScoreline = useCallback(
+    (scoreA, scoreB) => {
+      const localeKey = String(commentaryLocale || 'en').toLowerCase();
+      const leader =
+        scoreA > scoreB ? resolveSeatLabel('A') : resolveSeatLabel('B');
+      const leadScore = scoreA > scoreB ? scoreA : scoreB;
+      const trailScore = scoreA > scoreB ? scoreB : scoreA;
+
+      if (scoreA === scoreB) {
+        if (localeKey.startsWith('sq')) return `barazim ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('es')) return `igualado ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('fr')) return `égalité ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('it')) return `parità ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('ru')) return `равно ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('hi')) return `बराबरी ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('ar')) return `تعادل ${scoreA}-${scoreB}`;
+        return `level at ${scoreA}-${scoreB}`;
+      }
+
+      if (localeKey.startsWith('sq')) return `${leader} kryeson ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('es')) return `${leader} lidera ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('fr')) return `${leader} mène ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('it')) return `${leader} avanti ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('ru')) return `${leader} ведёт ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('hi')) return `${leader} आगे है ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('ar')) return `${leader} يتقدم ${leadScore}-${trailScore}`;
+      return `${leader} leads ${leadScore}-${trailScore}`;
+    },
+    [commentaryLocale, resolveSeatLabel]
+  );
 
   const resolveCommentarySpeaker = useCallback(() => {
     return POOL_ROYALE_SPEAKERS.analyst;
