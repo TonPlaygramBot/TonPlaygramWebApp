@@ -1070,8 +1070,6 @@ export default function Store() {
           );
         })
         .sort((a, b) => {
-          const thumbnailPriority = Number(Boolean(b.thumbnail)) - Number(Boolean(a.thumbnail));
-          if (thumbnailPriority !== 0) return thumbnailPriority;
           if (sortOption === 'price-low') return a.price - b.price;
           if (sortOption === 'price-high') return b.price - a.price;
           if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
@@ -1725,8 +1723,8 @@ export default function Store() {
     const usageDetails = resolveUsageDetails(detailItem, gameName);
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6">
-        <div className="w-full max-w-4xl max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-start justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">{gameName} • {detailItem.typeLabel}</p>
@@ -2094,12 +2092,9 @@ export default function Store() {
       : 'relative h-32 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]';
 
     if (item.thumbnail) {
-      const imageClassName = isCompact
-        ? 'h-full w-full object-contain p-1.5'
-        : 'h-full w-full object-contain p-2';
       return (
         <div className={wrapperClass}>
-          <img src={item.thumbnail} alt={item.displayLabel || item.name} className={imageClassName} loading="lazy" />
+          <img src={item.thumbnail} alt={item.displayLabel || item.name} className="h-full w-full object-cover" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
           <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
             {label}
