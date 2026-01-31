@@ -64,7 +64,7 @@ test('Snooker Royal inventory persists across reloads and devices', async () => 
 
     const env = {
       ...process.env,
-      PORT: '3214',
+      PORT: '3213',
       MONGO_URI: 'memory',
       BOT_TOKEN: 'dummy',
       API_AUTH_TOKEN: apiToken,
@@ -73,30 +73,30 @@ test('Snooker Royal inventory persists across reloads and devices', async () => 
     };
     const server = await startServer(env);
     try {
-      const accountId = await createAccount(3214, 999991);
-      const initialInventory = await getInventory(3214, accountId);
+      const accountId = await createAccount(3213, 999991);
+      const initialInventory = await getInventory(3213, accountId);
 
       const deviceAInventory = {
         ...initialInventory,
         clothColor: [...(initialInventory.clothColor || []), 'denimFabric03Blue'],
         cueStyle: [...(initialInventory.cueStyle || []), 'carbon-matrix']
       };
-      const afterDeviceA = await saveInventory(3214, accountId, deviceAInventory);
+      const afterDeviceA = await saveInventory(3213, accountId, deviceAInventory);
       assert.ok(afterDeviceA.clothColor.includes('denimFabric03Blue'));
       assert.ok(afterDeviceA.cueStyle.includes('carbon-matrix'));
 
-      const afterReload = await getInventory(3214, accountId);
+      const afterReload = await getInventory(3213, accountId);
       assert.ok(afterReload.clothColor.includes('denimFabric03Blue'));
       assert.ok(afterReload.cueStyle.includes('carbon-matrix'));
 
       const deviceBInventory = {
         tableFinish: ['jetBlackCarbon']
       };
-      const afterDeviceB = await saveInventory(3214, accountId, deviceBInventory);
+      const afterDeviceB = await saveInventory(3213, accountId, deviceBInventory);
       assert.ok(afterDeviceB.tableFinish.includes('jetBlackCarbon'));
       assert.ok(afterDeviceB.cueStyle.includes('carbon-matrix'));
 
-      const finalInventory = await getInventory(3214, accountId);
+      const finalInventory = await getInventory(3213, accountId);
       assert.ok(finalInventory.tableFinish.includes('jetBlackCarbon'));
       assert.ok(finalInventory.clothColor.includes('denimFabric03Blue'));
       assert.ok(finalInventory.cueStyle.includes('carbon-matrix'));
