@@ -4,7 +4,7 @@ import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
-import authenticate, { requireApiToken } from '../middleware/auth.js';
+import authenticate from '../middleware/auth.js';
 
 export function parseTwitterHandle(input) {
   if (!input) return '';
@@ -29,49 +29,24 @@ export function parseTwitterHandle(input) {
 
 const router = Router();
 
-function getOwnerToken(req) {
-  return req.get('x-account-owner-token') || req.body?.ownerToken || '';
-}
-
-function canAccessProfile(req, user) {
-  if (!user) return false;
-  if (req.auth?.apiToken) return true;
-  if (user.telegramId) {
-    return req.auth?.telegramId === user.telegramId;
-  }
-  return user.ownerToken && getOwnerToken(req) === user.ownerToken;
-}
-
-router.post('/register-wallet', authenticate, async (req, res) => {
+router.post('/register-wallet', async (req, res) => {
   const { walletAddress } = req.body;
   if (!walletAddress) {
     return res.status(400).json({ error: 'walletAddress required' });
-  }
-  if (!req.auth?.apiToken && !req.auth?.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
   }
   const normalized = normalizeAddress(walletAddress);
   if (!normalized) {
     return res.status(400).json({ error: 'invalid walletAddress' });
   }
-  const query = req.auth?.telegramId
-    ? { telegramId: req.auth.telegramId }
-    : { walletAddress: normalized };
-  const update = req.auth?.telegramId
-    ? {
-      $set: { walletAddress: normalized },
-      $setOnInsert: { referralCode: String(req.auth.telegramId) }
-    }
-    : { $setOnInsert: { walletAddress: normalized, referralCode: normalized } };
-  const user = await User.findOneAndUpdate(query, update, {
-    upsert: true,
-    new: true,
-    setDefaultsOnInsert: true
-  });
+  const user = await User.findOneAndUpdate(
+    { walletAddress: normalized },
+    { $setOnInsert: { walletAddress: normalized, referralCode: normalized } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
   res.json(sanitizeUser(user));
 });
 
-router.post('/register-google', authenticate, requireApiToken, async (req, res) => {
+router.post('/register-google', async (req, res) => {
   const { googleId } = req.body;
   if (!googleId) {
     return res.status(400).json({ error: 'googleId required' });
@@ -101,7 +76,7 @@ router.post('/telegram-info', async (req, res) => {
   }
 });
 
-router.post('/get', authenticate, async (req, res) => {
+router.post('/get', async (req, res) => {
   const { telegramId, accountId } = req.body;
   if (!telegramId && !accountId) {
     return res.status(400).json({ error: 'telegramId or accountId required' });
@@ -150,14 +125,13 @@ router.post('/get', authenticate, async (req, res) => {
     await user.save();
   }
 
-  const isOwner = canAccessProfile(req, user);
+  const isOwner =
+    req.auth?.telegramId &&
+    user?.telegramId &&
+    req.auth.telegramId === user.telegramId;
 
   if (isOwner) {
     return res.json({ ...sanitizeUser(user), filledFromTelegram });
-  }
-
-  if (!user.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
   }
 
   return res.json({
@@ -203,10 +177,13 @@ router.post('/update', authenticate, async (req, res) => {
   res.json(sanitizeUser(user));
 });
 
-router.post('/updateBalance', authenticate, requireApiToken, async (req, res) => {
+router.post('/updateBalance', authenticate, async (req, res) => {
   const { telegramId, balance } = req.body;
   if (!telegramId || balance === undefined) {
     return res.status(400).json({ error: 'telegramId and balance required' });
+  }
+  if (!req.auth?.telegramId || req.auth.telegramId !== telegramId) {
+    return res.status(403).json({ error: 'forbidden' });
   }
   const user = await User.findOneAndUpdate(
     { telegramId },
@@ -216,15 +193,21 @@ router.post('/updateBalance', authenticate, requireApiToken, async (req, res) =>
   res.json({ balance: user.balance });
 });
 
-router.post('/addTransaction', authenticate, requireApiToken, async (req, res) => {
+router.post('/addTransaction', authenticate, async (req, res) => {
   const { telegramId, accountId, amount, type, game, players } = req.body;
   if ((telegramId == null && !accountId) || amount === undefined || !type) {
     return res
       .status(400)
       .json({ error: 'telegramId or accountId, amount and type required' });
   }
+  if (!req.auth?.telegramId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   let user = null;
   if (telegramId != null) {
+    if (req.auth.telegramId !== telegramId) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
     user = await User.findOne({ telegramId });
   }
   if (!user && accountId) user = await User.findOne({ accountId });
@@ -242,6 +225,9 @@ router.post('/addTransaction', authenticate, requireApiToken, async (req, res) =
   if (players) tx.players = players;
   user.transactions.push(tx);
   await user.save();
+  if (!user.telegramId || user.telegramId !== req.auth.telegramId) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   res.json({ transactions: user.transactions });
 });
 

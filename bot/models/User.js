@@ -55,7 +55,6 @@ const userSchema = new mongoose.Schema({
   walletAddress: { type: String, unique: true, sparse: true },
   walletPublicKey: { type: String },
 
-  ownerToken: { type: String, default: undefined },
 
   accountId: { type: String, unique: true },
 
@@ -150,9 +149,6 @@ userSchema.pre('save', function(next) {
   if (!this.referralCode) {
     const base = this.telegramId || this.googleId || this.walletAddress || '';
     this.referralCode = String(base);
-  }
-  if (!this.telegramId && !this.ownerToken) {
-    this.ownerToken = uuidv4();
   }
   if (!this.accountId) {
     this.accountId = uuidv4();

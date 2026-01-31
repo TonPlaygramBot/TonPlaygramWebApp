@@ -27,8 +27,6 @@ export function verifyTelegramInitData(initData, botToken = process.env.BOT_TOKE
 
 function attachAuth(req, token, initData) {
   const allowedToken = process.env.API_AUTH_TOKEN;
-  const ownerToken = req.get('x-account-owner-token');
-  const ownerAccountId = req.get('x-account-id');
   if (initData) {
     const data = verifyTelegramInitData(initData);
     if (data) {
@@ -40,10 +38,6 @@ function attachAuth(req, token, initData) {
   }
   if (allowedToken && token === allowedToken) {
     req.auth = { apiToken: true };
-    return true;
-  }
-  if (ownerToken && ownerAccountId) {
-    req.auth = { ownerToken: ownerToken, accountId: ownerAccountId };
     return true;
   }
   return false;
@@ -67,11 +61,4 @@ export function optionalAuthenticate(req, _res, next) {
   const initData = req.get('x-telegram-init-data');
   attachAuth(req, token, initData);
   next();
-}
-
-export function requireApiToken(req, res, next) {
-  if (req.auth?.apiToken) {
-    return next();
-  }
-  res.status(403).json({ error: 'forbidden' });
 }

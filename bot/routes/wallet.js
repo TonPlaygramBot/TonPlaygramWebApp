@@ -10,9 +10,8 @@ import { sendTransferNotification, sendTPCNotification } from '../utils/notifica
 
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 
-import authenticate, { requireApiToken } from '../middleware/auth.js';
+import authenticate from '../middleware/auth.js';
 import tonClaim from '../utils/tonClaim.js';
-import { verifyRewardReceipt, signRewardReceipt } from '../utils/rewardReceipt.js';
 
 const WITHDRAW_ENABLED = process.env.WITHDRAW_ENABLED === 'true';
 
@@ -26,11 +25,6 @@ const TPC_JETTON_ADDRESS =
   'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
 
 const router = Router();
-
-function enforceRewardLimit(amount) {
-  const maxReward = Number(process.env.REWARD_MAX_AMOUNT) || 1000;
-  return Number.isFinite(amount) && amount > 0 && amount <= maxReward;
-}
 
 router.post('/balance', authenticate, async (req, res) => {
 
@@ -329,37 +323,17 @@ router.post('/send', authenticate, async (req, res) => {
 
 // ✅ Credit user balance after a TON deposit
 
-router.post('/deposit', authenticate, requireApiToken, async (req, res) => {
+router.post('/deposit', authenticate, async (req, res) => {
 
-  const { telegramId, amount, receipt, nonce, ts } = req.body;
+  const { telegramId, amount } = req.body;
   const authId = req.auth?.telegramId;
-  const isApiToken = req.auth?.apiToken;
-  const secret = process.env.REWARD_SIGNING_SECRET;
 
   if (!telegramId || typeof amount !== 'number' || amount <= 0) {
 
     return res.status(400).json({ error: 'telegramId and positive amount required' });
 
   }
-  if (!enforceRewardLimit(amount)) {
-    return res.status(400).json({ error: 'amount exceeds limit' });
-  }
-  if (!receipt || !nonce || !ts) {
-    if (!isApiToken) {
-      return res.status(400).json({ error: 'receipt, nonce and ts required' });
-    }
-  } else {
-    const check = verifyRewardReceipt(
-      { purpose: 'wallet_deposit', telegramId, amount, nonce, ts },
-      receipt,
-      secret
-    );
-    if (!check.ok) {
-      const status = check.error === 'missing_secret' ? 503 : 403;
-      return res.status(status).json({ error: 'invalid receipt' });
-    }
-  }
-  if (!isApiToken && (!authId || telegramId !== authId)) {
+  if (!authId || telegramId !== authId) {
     return res.status(403).json({ error: "forbidden" });
   }
 
@@ -399,83 +373,6 @@ router.post('/deposit', authenticate, requireApiToken, async (req, res) => {
 
   res.json({ balance: user.balance, transaction: tx });
 
-});
-
-router.post('/receipt', authenticate, async (req, res) => {
-  const { telegramId, amount } = req.body;
-  if (!telegramId || typeof amount !== 'number') {
-    return res.status(400).json({ error: 'telegramId and amount required' });
-  }
-  if (!enforceRewardLimit(amount)) {
-    return res.status(400).json({ error: 'amount exceeds limit' });
-  }
-  if (!req.auth?.telegramId || telegramId !== req.auth.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  const secret = process.env.REWARD_SIGNING_SECRET;
-  if (!secret) return res.status(503).json({ error: 'receipt unavailable' });
-  const nonce = crypto.randomUUID();
-  const ts = Date.now();
-  const receipt = signRewardReceipt(
-    { purpose: 'wallet_deposit', telegramId, amount, nonce, ts },
-    secret
-  );
-  res.json({ receipt, nonce, ts });
-});
-
-router.post('/claim-reward', authenticate, async (req, res) => {
-  const { telegramId, amount, receipt, nonce, ts } = req.body;
-  if (!telegramId || typeof amount !== 'number' || amount <= 0) {
-    return res.status(400).json({ error: 'telegramId and positive amount required' });
-  }
-  if (!enforceRewardLimit(amount)) {
-    return res.status(400).json({ error: 'amount exceeds limit' });
-  }
-  if (!receipt || !nonce || !ts) {
-    return res.status(400).json({ error: 'receipt, nonce and ts required' });
-  }
-  if (!req.auth?.telegramId || telegramId !== req.auth.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  const check = verifyRewardReceipt(
-    { purpose: 'wallet_deposit', telegramId, amount, nonce, ts },
-    receipt,
-    process.env.REWARD_SIGNING_SECRET
-  );
-  if (!check.ok) {
-    const status = check.error === 'missing_secret' ? 503 : 403;
-    return res.status(status).json({ error: 'invalid receipt' });
-  }
-  const user = await User.findOneAndUpdate(
-    { telegramId },
-    { $inc: { balance: amount }, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  ensureTransactionArray(user);
-
-  const tx = {
-    amount,
-    type: 'deposit',
-    token: 'TPC',
-    status: 'delivered',
-    date: new Date()
-  };
-
-  user.transactions.push(tx);
-
-  await user.save();
-
-  try {
-    await sendTPCNotification(
-      bot,
-      telegramId,
-      `\u{1FA99} Your deposit of ${amount} TPC was credited`
-    );
-  } catch (err) {
-    console.error('Failed to send Telegram notification:', err.message);
-  }
-
-  res.json({ balance: user.balance, transaction: tx });
 });
 
 // ✅ Request withdrawal to a TON wallet address
