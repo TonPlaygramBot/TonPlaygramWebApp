@@ -65,6 +65,7 @@ const createSpeechUnlockHandler = () => {
 
 export const installSpeechSynthesisUnlock = () => {
   if (typeof window === 'undefined' || speechUnlockInstalled) return;
+  if (!getSpeechSynthesis()) return;
   speechUnlockInstalled = true;
   const handler = createSpeechUnlockHandler();
   const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
@@ -87,21 +88,11 @@ export const installSpeechSynthesisUnlock = () => {
 
 export const getSpeechSynthesis = () => {
   if (typeof window === 'undefined') return null;
-  let synth = null;
   try {
-    synth = window.speechSynthesis;
+    return window.speechSynthesis || window.webkitSpeechSynthesis || null;
   } catch {
-    synth = null;
+    return null;
   }
-  if (!synth) {
-    try {
-      synth = window.webkitSpeechSynthesis;
-    } catch {
-      synth = null;
-    }
-  }
-  if (!synth || typeof synth.speak !== 'function') return null;
-  return synth;
 };
 
 const ensureSpeechUnlocked = (synth) => {
@@ -121,7 +112,7 @@ const ensureSpeechUnlocked = (synth) => {
 
 export const primeSpeechSynthesis = () => {
   const synth = getSpeechSynthesis();
-  if (!synth || synth.speaking || synth.pending || typeof SpeechSynthesisUtterance === 'undefined') return;
+  if (!synth || synth.speaking || synth.pending) return;
   ensureSpeechUnlocked(synth);
   const utterance = new SpeechSynthesisUtterance('.');
   utterance.volume = 0.01;
@@ -138,24 +129,7 @@ export const primeSpeechSynthesis = () => {
     }
   };
   utterance.onerror = utterance.onend;
-  try {
-    synth.speak(utterance);
-  } catch {
-    if (typeof synth.cancel === 'function') {
-      try {
-        synth.cancel();
-      } catch {}
-    }
-  }
-};
-
-const safeGetVoices = (synth) => {
-  if (!synth || typeof synth.getVoices !== 'function') return [];
-  try {
-    return synth.getVoices() || [];
-  } catch {
-    return [];
-  }
+  synth.speak(utterance);
 };
 
 const loadVoices = (synth, timeoutMs = 3500) =>
@@ -164,11 +138,7 @@ const loadVoices = (synth, timeoutMs = 3500) =>
       resolve([]);
       return;
     }
-    ensureSpeechUnlocked(synth);
-    if (typeof SpeechSynthesisUtterance !== 'undefined') {
-      primeSpeechSynthesis();
-    }
-    const existing = safeGetVoices(synth);
+    const existing = synth.getVoices();
     if (existing.length) {
       resolve(existing);
       return;
@@ -182,7 +152,7 @@ const loadVoices = (synth, timeoutMs = 3500) =>
       resolve(voices);
     };
     const handleVoices = () => {
-      const next = safeGetVoices(synth);
+      const next = synth.getVoices();
       if (next.length) finalize(next);
     };
     if (typeof synth.addEventListener === 'function') {
@@ -241,14 +211,7 @@ export const speakCommentaryLines = async (
   { speakerSettings = DEFAULT_SPEAKER_SETTINGS, voiceHints = DEFAULT_VOICE_HINTS } = {}
 ) => {
   const synth = getSpeechSynthesis();
-  if (
-    !synth ||
-    typeof SpeechSynthesisUtterance === 'undefined' ||
-    !Array.isArray(lines) ||
-    lines.length === 0
-  ) {
-    return;
-  }
+  if (!synth || !Array.isArray(lines) || lines.length === 0) return;
 
   const voices = await loadVoices(synth);
   const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Mason'))];
@@ -303,13 +266,8 @@ export const speakCommentaryLines = async (
           synth.cancel();
         } catch {}
       }
-      try {
-        synth.speak(utterance);
-        setTimeout(() => ensureSpeechUnlocked(synth), 0);
-      } catch {
-        clearTimeout(timeoutId);
-        finish();
-      }
+      synth.speak(utterance);
+      setTimeout(() => ensureSpeechUnlocked(synth), 0);
     });
   }
 };
