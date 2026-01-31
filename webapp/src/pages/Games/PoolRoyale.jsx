@@ -1513,7 +1513,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.8; // reduce overall spin impact by 20%
+const SPIN_GLOBAL_SCALE = 0.6; // reduce overall spin impact by 25%
 const SPIN_STRENGTH = BALL_R * 0.034 * SPIN_GLOBAL_SCALE;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021 * SPIN_GLOBAL_SCALE;
@@ -1618,8 +1618,8 @@ const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes control
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 700;
-const PLAYER_CUE_FORWARD_MAX_MS = 1500;
+const PLAYER_CUE_FORWARD_MIN_MS = 900;
+const PLAYER_CUE_FORWARD_MAX_MS = 1700;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -18774,7 +18774,10 @@ const powerRef = useRef(hud.power);
             cuePos.y = CUE_Y;
             cueStick.rotation.y = Math.atan2(TMP_VEC3_CUE_DIR.x, TMP_VEC3_CUE_DIR.z) + Math.PI;
             cueStick.rotation.x = 0;
-            const showCue = targetTime <= REPLAY_CUE_STICK_HOLD_MS;
+            const replayHoldWindow = Number.isFinite(playback?.duration)
+              ? playback.duration
+              : REPLAY_CUE_STICK_HOLD_MS;
+            const showCue = targetTime <= replayHoldWindow;
             cueStick.visible = showCue;
             cueAnimating = showCue;
             if (showCue) {
@@ -18880,6 +18883,16 @@ const powerRef = useRef(hud.power);
             tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
             cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
+            syncCueShadow();
+            return;
+          }
+          const replayHoldWindow = Number.isFinite(playback?.duration)
+            ? playback.duration
+            : returnEnd;
+          if (localTime <= replayHoldWindow) {
+            cueStick.visible = true;
+            cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
+            cueAnimating = true;
             syncCueShadow();
             return;
           }
@@ -20632,6 +20645,13 @@ const powerRef = useRef(hud.power);
           obstructionLift > 0 ? Math.atan2(obstructionLift, liftDivisor) : 0;
         return { obstructionTilt, obstructionLift, obstructionTiltFromLift };
       };
+      const applyCueObstructionLift = (tipTarget, liftAmount) => {
+        if (!tipTarget || !Number.isFinite(liftAmount) || liftAmount <= 0) {
+          return tipTarget;
+        }
+        tipTarget.y += liftAmount;
+        return tipTarget;
+      };
 
       const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
@@ -21733,7 +21753,6 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
-
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
@@ -22216,7 +22235,7 @@ const powerRef = useRef(hud.power);
             pull,
             activeRenderCameraRef.current ?? cameraRef.current ?? camera
           );
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
@@ -22232,6 +22251,7 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
             const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            applyCueObstructionLift(tipTarget, obstructionLift);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -25244,7 +25264,7 @@ const powerRef = useRef(hud.power);
             null,
             spinWorld
           );
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const liftTilt = resolveUserCueLift();
@@ -25258,6 +25278,7 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           let visibleChalkIndex = null;
@@ -25485,7 +25506,7 @@ const powerRef = useRef(hud.power);
             activeRenderCameraRef.current ?? cameraRef.current ?? camera,
             spinWorld
           );
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
@@ -25498,6 +25519,7 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
+          applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
@@ -25572,7 +25594,7 @@ const powerRef = useRef(hud.power);
             activeRenderCameraRef.current ?? cameraRef.current ?? camera,
             spinWorld
           );
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
@@ -25585,6 +25607,7 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
