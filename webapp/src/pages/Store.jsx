@@ -118,7 +118,7 @@ import {
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { claimPurchase, getTonBalance } from '../utils/api.js';
-import { ADSGRAM_WALLET, DEV_INFO } from '../utils/constants.js';
+import { DEV_INFO } from '../utils/constants.js';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
 
 const TYPE_LABELS = {
@@ -224,13 +224,9 @@ const TEXAS_TYPE_LABELS = {
 };
 
 const TON_ICON = '/assets/icons/TON.webp';
-const TON_STORE_ADDRESS = ADSGRAM_WALLET;
+const TON_STORE_ADDRESS = 'UQCQGCCgdpWaXoSSEp6F49I-pQ2KDDiQPeBzdM7bSRV86GtH';
 const TON_PRICE_MIN = 0.1;
 const TON_PRICE_MAX = 5;
-const TON_API_BASE_URL = 'https://tonapi.io/v2';
-const TON_TX_SEARCH_LIMIT = 20;
-const TON_TX_MAX_ATTEMPTS = 6;
-const TON_TX_RETRY_DELAY_MS = 2500;
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -261,76 +257,6 @@ const resolvePreviewShape = (slug, type, preferredShape) => {
 };
 
 const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
-
-const normalizeTonAddress = (address) => (address || '').trim().toLowerCase();
-
-const toBigIntSafe = (value) => {
-  try {
-    if (typeof value === 'bigint') return value;
-    if (typeof value === 'number' && Number.isFinite(value)) return BigInt(Math.trunc(value));
-    if (typeof value === 'string' && value.trim()) return BigInt(value.trim());
-  } catch (err) {
-    return null;
-  }
-  return null;
-};
-
-const fetchTonTransactions = async (address) => {
-  const url = `${TON_API_BASE_URL}/accounts/${encodeURIComponent(address)}/transactions?limit=${TON_TX_SEARCH_LIMIT}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error('Unable to load TON transactions.');
-  }
-  const data = await response.json();
-  if (Array.isArray(data?.transactions)) return data.transactions;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data)) return data;
-  return [];
-};
-
-const findMatchingTonTransaction = (transactions, { destination, amountNano, since }) => {
-  if (!Array.isArray(transactions)) return null;
-  const targetDestination = normalizeTonAddress(destination);
-  const targetAmount = toBigIntSafe(amountNano);
-  const sinceMs = typeof since === 'number' ? since : 0;
-  for (const tx of transactions) {
-    const timestamp = Number(tx?.utime ?? tx?.now ?? tx?.timestamp ?? 0);
-    if (Number.isFinite(timestamp) && sinceMs && timestamp * 1000 + 120000 < sinceMs) {
-      continue;
-    }
-    const outMessages = Array.isArray(tx?.out_msgs) ? tx.out_msgs : [];
-    for (const message of outMessages) {
-      const destinationAddress =
-        message?.destination?.address ||
-        message?.destination ||
-        message?.dst ||
-        message?.address;
-      if (normalizeTonAddress(destinationAddress) !== targetDestination) continue;
-      const amountValue = message?.value ?? message?.amount ?? message?.value?.nano ?? message?.amount?.nano;
-      const messageAmount = toBigIntSafe(amountValue);
-      if (targetAmount && messageAmount && messageAmount === targetAmount) {
-        return tx?.hash || tx?.transaction_id?.hash || null;
-      }
-    }
-  }
-  return null;
-};
-
-const resolveTonTransactionHash = async ({ address, destination, amountNano, since }) => {
-  for (let attempt = 0; attempt < TON_TX_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      const transactions = await fetchTonTransactions(address);
-      const match = findMatchingTonTransaction(transactions, { destination, amountNano, since });
-      if (match) return match;
-    } catch (err) {
-      console.warn('Unable to resolve TON transaction hash yet.', err);
-    }
-    if (attempt < TON_TX_MAX_ATTEMPTS - 1) {
-      await new Promise((resolve) => setTimeout(resolve, TON_TX_RETRY_DELAY_MS));
-    }
-  }
-  return '';
-};
 
 const DEFAULT_LIST_FORM = {
   itemId: '',
@@ -1432,7 +1358,6 @@ export default function Store() {
       setInfo('Unable to compute total TON payment.');
       return;
     }
-    const paymentStartedAt = Date.now();
     setIsPaying(true);
     resetStatus();
     try {
@@ -1445,16 +1370,7 @@ export default function Store() {
           }
         ]
       });
-      let txHash = result?.transaction?.hash || '';
-      if (!txHash) {
-        const amountNano = toNanoTon(totalPrice);
-        txHash = await resolveTonTransactionHash({
-          address: walletAddress,
-          destination: TON_STORE_ADDRESS,
-          amountNano,
-          since: paymentStartedAt
-        });
-      }
+      const txHash = result?.boc || result?.transaction?.hash || '';
       if (!txHash) {
         setInfo('Payment sent. Paste the transaction hash to verify delivery.');
         return;
