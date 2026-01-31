@@ -227,6 +227,9 @@ const TON_ICON = '/assets/icons/TON.webp';
 const TON_STORE_ADDRESS = 'UQCQGCCgdpWaXoSSEp6F49I-pQ2KDDiQPeBzdM7bSRV86GtH';
 const TON_PRICE_MIN = 0.1;
 const TON_PRICE_MAX = 5;
+const TON_API_BASE_URL = 'https://tonapi.io/v2';
+const TON_TX_POLL_INTERVAL_MS = 3500;
+const TON_TX_POLL_ATTEMPTS = 12;
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -1337,6 +1340,64 @@ export default function Store() {
     return Math.round(numeric * 1e9).toString();
   };
 
+  const extractTxHash = (tx) => tx?.hash || tx?.transaction_id?.hash || '';
+
+  const extractMessages = (tx) => {
+    if (Array.isArray(tx?.out_msgs)) return tx.out_msgs;
+    if (Array.isArray(tx?.outMessages)) return tx.outMessages;
+    if (Array.isArray(tx?.out_messages)) return tx.out_messages;
+    return [];
+  };
+
+  const findMatchingTonTransaction = async ({ wallet, amountNano, startTime }) => {
+    try {
+      const response = await fetch(
+        `${TON_API_BASE_URL}/accounts/${wallet}/transactions?limit=20`
+      );
+      if (!response.ok) return '';
+      const data = await response.json();
+      const transactions = Array.isArray(data?.transactions)
+        ? data.transactions
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.items)
+            ? data.items
+            : [];
+      const targetValue = BigInt(amountNano);
+      for (const tx of transactions) {
+        const timestamp = Number(tx?.utime || tx?.now || 0);
+        if (startTime && timestamp && timestamp + 5 < startTime) continue;
+        const messages = extractMessages(tx);
+        for (const msg of messages) {
+          const destination =
+            msg?.destination?.address || msg?.destination || msg?.dest || msg?.to || '';
+          if (!destination || destination !== TON_STORE_ADDRESS) continue;
+          const rawValue = msg?.value ?? msg?.amount ?? msg?.value_coins ?? msg?.valueCoins ?? '0';
+          let value;
+          try {
+            value = BigInt(rawValue);
+          } catch (err) {
+            continue;
+          }
+          if (value !== targetValue) continue;
+          return extractTxHash(tx);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to query TON API for payment confirmation', err);
+    }
+    return '';
+  };
+
+  const pollForTonPaymentHash = async ({ wallet, amountNano, startTime }) => {
+    for (let attempt = 0; attempt < TON_TX_POLL_ATTEMPTS; attempt += 1) {
+      const hash = await findMatchingTonTransaction({ wallet, amountNano, startTime });
+      if (hash) return hash;
+      await new Promise((resolve) => setTimeout(resolve, TON_TX_POLL_INTERVAL_MS));
+    }
+    return '';
+  };
+
   const initiateTonPayment = async (items) => {
     const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
     if (!payload.length) return;
@@ -1360,7 +1421,9 @@ export default function Store() {
     }
     setIsPaying(true);
     resetStatus();
+    setPaymentHash('');
     try {
+      const startTime = Math.floor(Date.now() / 1000);
       const result = await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300,
         messages: [
@@ -1370,13 +1433,20 @@ export default function Store() {
           }
         ]
       });
-      const txHash = result?.boc || result?.transaction?.hash || '';
-      if (!txHash) {
+      setInfo('Waiting for on-chain confirmation...');
+      const immediateHash = result?.transaction?.hash || '';
+      const amountNano = toNanoTon(totalPrice);
+      const txHash =
+        immediateHash ||
+        (walletAddress
+          ? await pollForTonPaymentHash({ wallet: walletAddress, amountNano, startTime })
+          : '');
+      if (txHash) {
+        setPaymentHash(txHash);
+        await handlePurchase(purchasable, txHash);
+      } else {
         setInfo('Payment sent. Paste the transaction hash to verify delivery.');
-        return;
       }
-      setPaymentHash(txHash);
-      await handlePurchase(purchasable, txHash);
     } catch (err) {
       console.error('Payment failed', err);
       setInfo('TON payment was not completed.');
@@ -1583,7 +1653,7 @@ export default function Store() {
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash (optional if auto-captured)</span>
+              <span className="text-white/60">TON transaction hash (auto-captured after confirmation)</span>
               <input
                 type="text"
                 value={paymentHash}
@@ -1689,7 +1759,7 @@ export default function Store() {
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
-              <span className="text-white/60">TON transaction hash (optional if auto-captured)</span>
+              <span className="text-white/60">TON transaction hash (auto-captured after confirmation)</span>
               <input
                 type="text"
                 value={paymentHash}
