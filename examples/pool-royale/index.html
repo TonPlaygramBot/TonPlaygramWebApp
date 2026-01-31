@@ -346,8 +346,13 @@
         const cy = r.height / 2;
         const dx = e.clientX - r.left - cx;
         const dy = e.clientY - r.top - cy;
-        const nx = Math.max(Math.min(dx / cx, 1), -1);
-        const ny = Math.max(Math.min(dy / cy, 1), -1);
+        const radius = Math.min(cx, cy);
+        const distance = Math.hypot(dx, dy);
+        const clamped = distance > radius && distance > 0 ? radius / distance : 1;
+        const clampedDx = dx * clamped;
+        const clampedDy = dy * clamped;
+        const nx = clampedDx / radius;
+        const ny = clampedDy / radius;
         // invert the vertical component so positive y is top spin
         const rawSpin = { x: nx, y: -ny };
         // ease the response so tiny adjustments near centre produce gentle spin
