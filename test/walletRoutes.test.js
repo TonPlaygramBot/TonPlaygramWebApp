@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
 import crypto from 'crypto';
+import { signRewardReceipt } from '../bot/utils/rewardReceipt.js';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
+process.env.REWARD_SIGNING_SECRET = 'test-reward-secret';
 
 function createInitData(id, token) {
   const params = new URLSearchParams();
@@ -40,14 +42,20 @@ async function startServer(env) {
   return server;
 }
 
-async function deposit(port, token, telegramId, amount) {
+async function deposit(port, token, apiToken, telegramId, amount) {
+  const ts = Date.now();
+  const nonce = crypto.randomUUID();
+  const receipt = signRewardReceipt(
+    { purpose: 'wallet_deposit', telegramId, amount, nonce, ts },
+    process.env.REWARD_SIGNING_SECRET
+  );
   const res = await fetch(`http://localhost:${port}/api/wallet/deposit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-telegram-init-data': createInitData(telegramId, token),
+      Authorization: `Bearer ${apiToken}`,
     },
-    body: JSON.stringify({ telegramId, amount }),
+    body: JSON.stringify({ telegramId, amount, receipt, nonce, ts }),
   });
   assert.equal(res.status, 200);
   await res.json();
@@ -63,12 +71,14 @@ test('withdraw route reverts balance on claim failure', { concurrency: false }, 
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     WITHDRAW_ENABLED: 'true',
+    API_AUTH_TOKEN: 'test-admin',
+    REWARD_SIGNING_SECRET: 'test-reward-secret',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',
   };
   const server = await startServer(env);
   try {
-    await deposit(3211, 'dummy', 1111, 100);
+    await deposit(3211, 'dummy', 'test-admin', 1111, 100);
     const res = await fetch('http://localhost:3211/api/wallet/withdraw', {
       method: 'POST',
       headers: {
@@ -106,12 +116,14 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
     WITHDRAW_ENABLED: 'true',
+    API_AUTH_TOKEN: 'test-admin',
+    REWARD_SIGNING_SECRET: 'test-reward-secret',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',
   };
   const server = await startServer(env);
   try {
-    await deposit(3212, 'dummy', 2222, 100);
+    await deposit(3212, 'dummy', 'test-admin', 2222, 100);
     const res = await fetch('http://localhost:3212/api/wallet/claim-external', {
       method: 'POST',
       headers: {

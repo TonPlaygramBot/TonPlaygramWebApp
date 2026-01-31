@@ -33,21 +33,19 @@
   }
   window.grApi = {
     async depositAccount(accountId, amount, extra = {}) {
-      const res = await post('/api/account/deposit', { accountId, amount, ...extra });
-      if (res && res.error) {
-        return post('/api/profile/addTransaction', {
-          amount,
-          type: 'deposit',
-          accountId,
-          ...extra,
-        });
-      }
-      return res;
+      const receipt = await post('/api/account/receipt', { accountId, amount, ...extra });
+      if (receipt && receipt.error) return receipt;
+      return post('/api/account/claim-reward', {
+        accountId,
+        amount,
+        ...extra,
+        receipt: receipt.receipt,
+        nonce: receipt.nonce,
+        ts: receipt.ts
+      });
     },
     addTransaction(telegramId, amount, type, extra = {}) {
-      const body = { amount, type, ...extra };
-      if (telegramId != null) body.telegramId = telegramId;
-      return post('/api/profile/addTransaction', body);
+      return Promise.resolve({ error: 'admin token missing' });
     }
   };
 })();

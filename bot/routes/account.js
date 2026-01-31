@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import User from '../models/User.js';
-import authenticate from '../middleware/auth.js';
+import authenticate, { requireApiToken } from '../middleware/auth.js';
 import {
   ensureTransactionArray,
   calculateBalance
@@ -24,10 +25,28 @@ import {
   shouldUseMemoryUserStore,
   deleteMemoryUser
 } from '../utils/memoryUserStore.js';
+import { verifyRewardReceipt, signRewardReceipt } from '../utils/rewardReceipt.js';
 
 const router = Router();
 function isPrivileged(req) {
   return req.auth?.apiToken === true;
+}
+
+function getOwnerToken(req) {
+  return req.get('x-account-owner-token') || req.body?.ownerToken || '';
+}
+
+function canAccessAccount(req, user) {
+  if (isPrivileged(req)) return true;
+  if (user?.telegramId) {
+    return user.telegramId === req.auth?.telegramId;
+  }
+  return user?.ownerToken && getOwnerToken(req) === user.ownerToken;
+}
+
+function enforceRewardLimit(amount) {
+  const maxReward = Number(process.env.REWARD_MAX_AMOUNT) || 1000;
+  return Number.isFinite(amount) && amount > 0 && amount <= maxReward;
 }
 
 // Create or fetch account for a user
@@ -62,6 +81,15 @@ router.post('/create', authenticate, async (req, res) => {
     const existingByGoogle = googleId ? await findUser({ googleId }) : null;
 
     const primaryExisting = existingByAccountId || existingByTelegram || existingByGoogle;
+
+    if (
+      accountId &&
+      existingByAccountId &&
+      !existingByAccountId.telegramId &&
+      !canAccessAccount(req, existingByAccountId)
+    ) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
 
     if (telegramId) {
       try {
@@ -220,7 +248,8 @@ router.post('/create', authenticate, async (req, res) => {
       walletAddress: user.walletAddress,
       firstName: user.firstName,
       lastName: user.lastName,
-      photo: user.photo
+      photo: user.photo,
+      ...(user.telegramId ? {} : { ownerToken: user.ownerToken })
     });
   } catch (err) {
     console.error('Failed to create account:', err);
@@ -235,7 +264,7 @@ router.post('/balance', authenticate, async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
+  if (!canAccessAccount(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
   const balance = calculateBalance(user);
@@ -257,7 +286,7 @@ router.post('/info', authenticate, async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
+  if (!canAccessAccount(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -300,7 +329,7 @@ router.post('/send', authenticate, async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (!isPrivileged(req) && sender.telegramId && sender.telegramId !== req.auth?.telegramId) {
+  if (!canAccessAccount(req, sender)) {
     return res.status(403).json({ error: 'forbidden' });
   }
   const feeSender = Math.round(amount * 0.02);
@@ -452,7 +481,7 @@ router.post('/gift', authenticate, async (req, res) => {
   if (!sender || sender.balance < g.price) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
-  if (!isPrivileged(req) && sender.telegramId && sender.telegramId !== req.auth?.telegramId) {
+  if (!canAccessAccount(req, sender)) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -541,7 +570,7 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
+  if (!canAccessAccount(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -668,7 +697,7 @@ router.post('/transactions', authenticate, async (req, res) => {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
+  if (!canAccessAccount(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
   ensureTransactionArray(user);
@@ -685,7 +714,6 @@ router.get('/transactions/public', async (req, res) => {
     {
       $project: {
         _id: 0,
-        accountId: '$accountId',
         amount: '$transactions.amount',
         type: '$transactions.type',
         game: '$transactions.game',
@@ -697,8 +725,7 @@ router.get('/transactions/public', async (req, res) => {
             '$transactions.fromName',
             { $ifNull: ['$nickname', '$firstName'] }
           ]
-        },
-        fromPhoto: { $ifNull: ['$transactions.fromPhoto', '$photo'] }
+        }
       }
     },
     { $sort: { date: -1 } },
@@ -708,8 +735,8 @@ router.get('/transactions/public', async (req, res) => {
 });
 
 // Deposit rewards into account
-router.post('/deposit', authenticate, async (req, res) => {
-  const { accountId, amount, game } = req.body;
+router.post('/deposit', authenticate, requireApiToken, async (req, res) => {
+  const { accountId, amount, game, receipt, nonce, ts } = req.body;
   const authId = req.auth?.telegramId;
   const devIds = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
@@ -720,6 +747,24 @@ router.post('/deposit', authenticate, async (req, res) => {
     return res
       .status(400)
       .json({ error: 'accountId and positive amount required' });
+  }
+  if (!enforceRewardLimit(amount)) {
+    return res.status(400).json({ error: 'amount exceeds limit' });
+  }
+  if (!receipt || !nonce || !ts) {
+    if (!isPrivileged(req)) {
+      return res.status(400).json({ error: 'receipt, nonce and ts required' });
+    }
+  } else {
+    const check = verifyRewardReceipt(
+      { purpose: 'account_deposit', accountId, amount, game, nonce, ts },
+      receipt,
+      process.env.REWARD_SIGNING_SECRET
+    );
+    if (!check.ok) {
+      const status = check.error === 'missing_secret' ? 503 : 403;
+      return res.status(status).json({ error: 'invalid receipt' });
+    }
   }
   let user = await User.findOne({ accountId });
   if (!user) {
@@ -758,6 +803,73 @@ router.post('/deposit', authenticate, async (req, res) => {
       console.error('Failed to send Telegram notification:', err.message);
     }
   }
+  res.json({ balance: user.balance, transaction: tx });
+});
+
+router.post('/receipt', authenticate, async (req, res) => {
+  const { accountId, amount, game } = req.body;
+  if (!accountId || typeof amount !== 'number') {
+    return res.status(400).json({ error: 'accountId and amount required' });
+  }
+  if (!enforceRewardLimit(amount)) {
+    return res.status(400).json({ error: 'amount exceeds limit' });
+  }
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!canAccessAccount(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  const secret = process.env.REWARD_SIGNING_SECRET;
+  if (!secret) return res.status(503).json({ error: 'receipt unavailable' });
+  const nonce = randomUUID();
+  const ts = Date.now();
+  const receipt = signRewardReceipt(
+    { purpose: 'account_deposit', accountId, amount, game, nonce, ts },
+    secret
+  );
+  res.json({ receipt, nonce, ts });
+});
+
+router.post('/claim-reward', authenticate, async (req, res) => {
+  const { accountId, amount, game, receipt, nonce, ts } = req.body;
+  if (!accountId || typeof amount !== 'number' || amount <= 0) {
+    return res
+      .status(400)
+      .json({ error: 'accountId and positive amount required' });
+  }
+  if (!enforceRewardLimit(amount)) {
+    return res.status(400).json({ error: 'amount exceeds limit' });
+  }
+  if (!receipt || !nonce || !ts) {
+    return res.status(400).json({ error: 'receipt, nonce and ts required' });
+  }
+  const check = verifyRewardReceipt(
+    { purpose: 'account_deposit', accountId, amount, game, nonce, ts },
+    receipt,
+    process.env.REWARD_SIGNING_SECRET
+  );
+  if (!check.ok) {
+    const status = check.error === 'missing_secret' ? 503 : 403;
+    return res.status(status).json({ error: 'invalid receipt' });
+  }
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+  if (!canAccessAccount(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  ensureTransactionArray(user);
+  user.balance += amount;
+  const tx = {
+    amount,
+    type: 'deposit',
+    token: 'TPC',
+    status: 'delivered',
+    date: new Date()
+  };
+  if (game) tx.game = game;
+  user.transactions.push(tx);
+  await user.save();
   res.json({ balance: user.balance, transaction: tx });
 });
 
