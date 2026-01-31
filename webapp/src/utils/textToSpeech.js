@@ -12,6 +12,7 @@ let audioContext;
 let audioContextUnlocked = false;
 let speechUnlockInstalled = false;
 let speechUnlockHandler;
+let speechUnlockVisibilityHandler;
 
 const ensureAudioContext = () => {
   if (typeof window === 'undefined') return null;
@@ -67,11 +68,22 @@ export const installSpeechSynthesisUnlock = () => {
   if (!getSpeechSynthesis()) return;
   speechUnlockInstalled = true;
   const handler = createSpeechUnlockHandler();
-  const options = { once: true, passive: true };
+  const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
+  const options = { once: !isTelegram, passive: true };
   window.addEventListener('pointerdown', handler, options);
+  window.addEventListener('touchstart', handler, options);
   window.addEventListener('touchend', handler, options);
   window.addEventListener('click', handler, options);
   window.addEventListener('keydown', handler, options);
+  if (isTelegram) {
+    speechUnlockVisibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        handler();
+      }
+    };
+    window.addEventListener('focus', handler, { passive: true });
+    document.addEventListener('visibilitychange', speechUnlockVisibilityHandler, { passive: true });
+  }
 };
 
 export const getSpeechSynthesis = () => {
