@@ -6,6 +6,7 @@ import './index.css';
 import { registerTelegramServiceWorker } from './pwa/registerServiceWorker.js';
 import { warmGameCaches } from './pwa/preloadGames.js';
 import { initNativeBridge } from './utils/nativeBridge.ts';
+import { registerSpeechSynthesisUnlock } from './utils/textToSpeech.js';
 
 async function bootstrap() {
   const isNative = Capacitor.isNativePlatform();
@@ -23,6 +24,8 @@ async function bootstrap() {
     // Register a Telegram-friendly service worker for instant updates
     void registerTelegramServiceWorker().finally(warmGameCaches);
   }
+
+  registerSpeechSynthesisUnlock();
 
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
