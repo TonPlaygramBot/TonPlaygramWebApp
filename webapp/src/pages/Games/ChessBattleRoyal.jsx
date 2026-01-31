@@ -29,7 +29,13 @@ import {
   CHESS_BATTLE_SPEAKERS,
   createChessMatchCommentaryScript
 } from '../../utils/chessBattleCommentary.js';
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
@@ -6011,7 +6017,7 @@ function Chess3D({
   });
   const [isMuted, setIsMuted] = useState(() => isGameMuted());
   const effectiveSoundEnabled = soundEnabled && !isMuted;
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
@@ -6065,6 +6071,15 @@ function Chess3D({
       CHESS_BATTLE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);

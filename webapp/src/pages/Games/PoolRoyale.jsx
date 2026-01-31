@@ -38,7 +38,13 @@ import {
   buildCommentaryLine,
   POOL_ROYALE_SPEAKERS
 } from '../../utils/poolRoyaleCommentary.js';
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -11636,7 +11642,7 @@ function PoolRoyaleGame({
       POOL_ROYALE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -11756,6 +11762,15 @@ function PoolRoyaleGame({
       POCKET_LINER_OPTIONS[0],
     [availablePocketLiners, pocketLinerId]
   );
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);

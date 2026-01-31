@@ -63,7 +63,13 @@ import {
   buildCommentaryLine,
   createMatchCommentaryScript
 } from '../../utils/ludoBattleRoyaleCommentary.js';
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -2784,7 +2790,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const activeCommentaryPreset = useMemo(
     () =>
       LUDO_BATTLE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
@@ -2816,6 +2822,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
   }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);

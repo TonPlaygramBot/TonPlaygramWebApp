@@ -39,7 +39,13 @@ import {
   buildTexasHoldemCommentaryLine,
   TEXAS_HOLDEM_SPEAKERS
 } from '../../utils/texasHoldemCommentary.js';
-import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
 import { chatBeep } from '../../assets/soundData.js';
@@ -2856,7 +2862,7 @@ function TexasHoldemArena({ search }) {
       TEXAS_HOLDEM_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentarySpeakers = useMemo(
     () => [TEXAS_HOLDEM_SPEAKERS.lead, TEXAS_HOLDEM_SPEAKERS.analyst],
     []
@@ -2866,6 +2872,15 @@ function TexasHoldemArena({ search }) {
     commentarySpeakerIndexRef.current = index + 1;
     return commentarySpeakers[index % commentarySpeakers.length] || TEXAS_HOLDEM_SPEAKERS.analyst;
   }, [commentarySpeakers]);
+
+  useEffect(() => {
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+    updateSupport();
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;
