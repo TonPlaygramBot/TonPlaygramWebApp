@@ -10,6 +10,7 @@ const DEFAULT_SPEAKER_SETTINGS = {
 
 let audioContext;
 let audioContextUnlocked = false;
+let speechUnlockRegistered = false;
 
 const ensureAudioContext = () => {
   if (typeof window === 'undefined') return null;
@@ -93,6 +94,23 @@ export const primeSpeechSynthesis = () => {
   };
   utterance.onerror = utterance.onend;
   synth.speak(utterance);
+};
+
+export const registerSpeechSynthesisUnlock = () => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return () => {};
+  }
+  if (speechUnlockRegistered) return () => {};
+  speechUnlockRegistered = true;
+  const handler = () => {
+    primeSpeechSynthesis();
+  };
+  const options = { once: true, passive: true, capture: true };
+  const events = ['pointerdown', 'touchstart', 'mousedown', 'keydown'];
+  events.forEach((event) => document.addEventListener(event, handler, options));
+  return () => {
+    events.forEach((event) => document.removeEventListener(event, handler, options));
+  };
 };
 
 const loadVoices = (synth, timeoutMs = 3500) =>
