@@ -13176,6 +13176,9 @@ const powerRef = useRef(hud.power);
   }, [timer]);
   const spinRef = useRef({ x: 0, y: 0 });
   const spinRequestRef = useRef({ x: 0, y: 0 });
+  const spinTargetRef = useRef({ x: 0, y: 0 });
+  const spinMotionRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, t: 0 });
+  const spinRafRef = useRef(null);
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
@@ -27057,6 +27060,12 @@ const powerRef = useRef(hud.power);
       spinDotElRef.current = null;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
+      spinTargetRef.current = { x: 0, y: 0 };
+      spinMotionRef.current = { x: 0, y: 0, vx: 0, vy: 0, t: 0 };
+      if (spinRafRef.current) {
+        cancelAnimationFrame(spinRafRef.current);
+        spinRafRef.current = null;
+      }
       spinLegalityRef.current = { blocked: false, reason: '' };
       return;
     }
@@ -27082,10 +27091,20 @@ const powerRef = useRef(hud.power);
       };
     };
 
+    const applyRadialDeadzone = (nx, ny, deadzone = 0.08) => {
+      const mag = Math.hypot(nx, ny);
+      if (mag <= deadzone) return { x: 0, y: 0 };
+      const scaled = (mag - deadzone) / (1 - deadzone);
+      const curved = Math.pow(clamp(scaled, 0, 1), 1.2);
+      const factor = curved / (mag || 1);
+      return { x: nx * factor, y: ny * factor };
+    };
+
     const setSpin = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
-      spinRequestRef.current = raw;
-      const limited = clampToLimits(raw.x, raw.y);
+      const tuned = applyRadialDeadzone(raw.x, raw.y);
+      spinRequestRef.current = tuned;
+      const limited = clampToLimits(tuned.x, tuned.y);
       const clamped = clampToUnitCircle(limited.x, limited.y);
       const normalized = normalizeSpinInput(clamped);
       spinRef.current = normalized;
@@ -27111,7 +27130,20 @@ const powerRef = useRef(hud.power);
       spinLegalityRef.current = legality;
       updateSpinDotPosition(clamped, legality.blocked);
     };
-    const resetSpin = () => setSpin(0, 0);
+
+    const syncSpinState = (nx, ny) => {
+      spinMotionRef.current = {
+        x: nx,
+        y: ny,
+        vx: 0,
+        vy: 0,
+        t: 0
+      };
+      spinTargetRef.current = { x: nx, y: ny };
+      setSpin(nx, ny);
+    };
+
+    const resetSpin = () => syncSpinState(0, 0);
     resetSpin();
     resetSpinRef.current = resetSpin;
 
@@ -27121,7 +27153,9 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      setSpin(nx, ny);
+      const raw = clampToUnitCircle(nx, ny);
+      const tuned = applyRadialDeadzone(raw.x, raw.y);
+      spinTargetRef.current = tuned;
     };
 
     const scaleBox = (value) => {
@@ -27152,6 +27186,7 @@ const powerRef = useRef(hud.power);
       clearTimer();
       scaleBox(1.35);
       updateSpin(e.clientX, e.clientY);
+      syncSpinState(spinTargetRef.current.x, spinTargetRef.current.y);
       box.setPointerCapture(activePointer);
       revertTimer = window.setTimeout(() => {
         if (!moved) scaleBox(1);
@@ -27183,6 +27218,30 @@ const powerRef = useRef(hud.power);
       scaleBox(1);
     };
 
+    const animateSpin = (time) => {
+      const state = spinMotionRef.current;
+      const target = spinTargetRef.current || { x: 0, y: 0 };
+      const last = state.t || time;
+      const dt = Math.min(0.05, (time - last) / 1000);
+      state.t = time;
+      const stiffness = 38;
+      const damping = 10.5;
+      const ax = (target.x - state.x) * stiffness - state.vx * damping;
+      const ay = (target.y - state.y) * stiffness - state.vy * damping;
+      state.vx += ax * dt;
+      state.vy += ay * dt;
+      state.x += state.vx * dt;
+      state.y += state.vy * dt;
+      const limited = clampToUnitCircle(state.x, state.y);
+      state.x = limited.x;
+      state.y = limited.y;
+      setSpin(state.x, state.y);
+      spinRafRef.current = requestAnimationFrame(animateSpin);
+    };
+
+    if (spinRafRef.current) cancelAnimationFrame(spinRafRef.current);
+    spinRafRef.current = requestAnimationFrame(animateSpin);
+
     if (showPlayerControls) {
       box.addEventListener('pointerdown', handlePointerDown);
       box.addEventListener('pointermove', handlePointerMove);
@@ -27192,10 +27251,16 @@ const powerRef = useRef(hud.power);
 
     return () => {
       spinDotElRef.current = null;
+      if (spinRafRef.current) {
+        cancelAnimationFrame(spinRafRef.current);
+        spinRafRef.current = null;
+      }
       releasePointer();
       clearTimer();
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
+      spinTargetRef.current = { x: 0, y: 0 };
+      spinMotionRef.current = { x: 0, y: 0, vx: 0, vy: 0, t: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
