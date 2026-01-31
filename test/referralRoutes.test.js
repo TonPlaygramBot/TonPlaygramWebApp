@@ -2,27 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
-import crypto from 'crypto';
 
 const distDir = new URL('../webapp/dist/', import.meta.url);
-
-function createInitData(id, token) {
-  const params = new URLSearchParams();
-  params.set('user', JSON.stringify({ id }));
-  const dataCheckString = [...params.entries()]
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join('\n');
-  const secret = crypto
-    .createHmac('sha256', 'WebAppData')
-    .update(token)
-    .digest();
-  const hash = crypto.createHmac('sha256', secret)
-    .update(dataCheckString)
-    .digest('hex');
-  params.set('hash', hash);
-  return params.toString();
-}
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -42,7 +23,7 @@ async function startServer(env) {
   return server;
 }
 
-test('claiming a referral updates inviter stats', { concurrency: false, timeout: 20000 }, async () => {
+test('claiming a referral updates inviter stats', { concurrency: false }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
@@ -92,20 +73,14 @@ test('claiming a referral updates inviter stats', { concurrency: false, timeout:
 
     const inviterAccRes = await fetch('http://localhost:3210/api/account/create', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(inviterId, 'dummy')
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegramId: inviterId })
     });
     const inviterAcc = await inviterAccRes.json();
     assert.ok(inviterAcc.walletAddress);
     const inviterInfoRes = await fetch('http://localhost:3210/api/account/info', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(inviterId, 'dummy')
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accountId: inviterAcc.accountId })
     });
     const inviterAccount = await inviterInfoRes.json();
@@ -115,20 +90,14 @@ test('claiming a referral updates inviter stats', { concurrency: false, timeout:
 
     const userAccRes = await fetch('http://localhost:3210/api/account/create', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(userId, 'dummy')
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegramId: userId })
     });
     const userAcc = await userAccRes.json();
     assert.ok(userAcc.walletAddress);
     const userInfoRes = await fetch('http://localhost:3210/api/account/info', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(userId, 'dummy')
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accountId: userAcc.accountId })
     });
     const userAccount = await userInfoRes.json();

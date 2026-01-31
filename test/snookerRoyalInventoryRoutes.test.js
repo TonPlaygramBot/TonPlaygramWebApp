@@ -3,27 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
 import path from 'node:path';
-import crypto from 'crypto';
 
 const distDir = path.resolve(process.cwd(), 'webapp', 'dist');
-
-function createInitData(id, token) {
-  const params = new URLSearchParams();
-  params.set('user', JSON.stringify({ id }));
-  const dataCheckString = [...params.entries()]
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join('\n');
-  const secret = crypto
-    .createHmac('sha256', 'WebAppData')
-    .update(token)
-    .digest();
-  const hash = crypto.createHmac('sha256', secret)
-    .update(dataCheckString)
-    .digest('hex');
-  params.set('hash', hash);
-  return params.toString();
-}
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -42,13 +23,9 @@ async function startServer(env) {
 }
 
 async function createAccount(port, telegramId) {
-  const initData = createInitData(telegramId, 'dummy');
   const res = await fetch(`http://localhost:${port}/api/account/create`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-telegram-init-data': initData
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ telegramId })
   });
   assert.equal(res.status, 200);
@@ -58,12 +35,7 @@ async function createAccount(port, telegramId) {
 }
 
 async function getInventory(port, accountId) {
-  const initData = createInitData(999991, 'dummy');
-  const res = await fetch(`http://localhost:${port}/api/snooker-royale/inventory/${accountId}`, {
-    headers: {
-      'x-telegram-init-data': initData
-    }
-  });
+  const res = await fetch(`http://localhost:${port}/api/snooker-royale/inventory/${accountId}`);
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.ok(data.inventory);
@@ -71,13 +43,9 @@ async function getInventory(port, accountId) {
 }
 
 async function saveInventory(port, accountId, inventory) {
-  const initData = createInitData(999991, 'dummy');
   const res = await fetch(`http://localhost:${port}/api/snooker-royale/inventory/${accountId}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-telegram-init-data': initData
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inventory })
   });
   assert.equal(res.status, 200);
@@ -130,4 +98,4 @@ test('Snooker Royal inventory persists across reloads and devices', async () => 
     } finally {
       server.kill();
     }
-  }, 20000);
+  });

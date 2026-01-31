@@ -53,7 +53,7 @@ async function deposit(port, token, telegramId, amount) {
   await res.json();
 }
 
-test('withdraw route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
+test('withdraw route reverts balance on claim failure', { concurrency: false }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
@@ -62,7 +62,6 @@ test('withdraw route reverts balance on claim failure', { concurrency: false, ti
     PORT: '3211',
     MONGO_URI: 'memory',
     BOT_TOKEN: 'dummy',
-    WITHDRAW_ENABLED: 'true',
     SKIP_WEBAPP_BUILD: '1',
     SKIP_BOT_LAUNCH: '1',
   };
@@ -96,7 +95,7 @@ test('withdraw route reverts balance on claim failure', { concurrency: false, ti
   }
 });
 
-test('claim-external route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
+test('claim-external route reverts balance on claim failure', { concurrency: false }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 

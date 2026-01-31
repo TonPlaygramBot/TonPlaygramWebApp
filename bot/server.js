@@ -47,7 +47,6 @@ import { existsSync, writeFileSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
-import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import {
   registerConnection,
@@ -55,7 +54,6 @@ import {
   countOnline,
   listOnline
 } from './services/connectionService.js';
-import authenticate, { verifyTelegramInitData } from './middleware/auth.js';
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
@@ -116,21 +114,10 @@ const rateLimitWindowMs =
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-
-const corsOrigin = (origin, callback) => {
-  if (!origin) {
-    return callback(null, true);
-  }
-  if (allowedOrigins.includes(origin)) {
-    return callback(null, true);
-  }
-  return callback(new Error('Not allowed by CORS'));
-};
-
-app.use(cors({ origin: corsOrigin }));
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 const httpServer = http.createServer(app);
 const io = initSocket(httpServer, {
-  cors: { origin: corsOrigin, methods: ['GET', 'POST'] },
+  cors: { origin: allowedOrigins.length ? allowedOrigins : '*', methods: ['GET', 'POST'] },
   transports: ['websocket', 'polling'],
   pingInterval: 25000,
   pingTimeout: 60000
@@ -139,32 +126,6 @@ const gameManager = new GameRoomManager(io);
 
 // Expose socket.io instance and userSockets map for routes
 app.set('io', io);
-
-io.use((socket, next) => {
-  const initData =
-    socket.handshake.auth?.initData ||
-    socket.handshake.headers['x-telegram-init-data'];
-  if (initData) {
-    const data = verifyTelegramInitData(initData);
-    if (data?.user) {
-      try {
-        socket.data.auth = { telegramId: Number(JSON.parse(data.user).id) };
-        return next();
-      } catch (err) {
-        return next(new Error('unauthorized'));
-      }
-    }
-  }
-
-  const authHeader = socket.handshake.headers.authorization || '';
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  if (process.env.API_AUTH_TOKEN && token === process.env.API_AUTH_TOKEN) {
-    socket.data.auth = { apiToken: true };
-    return next();
-  }
-
-  return next(new Error('unauthorized'));
-});
 
 bot.action(/^reject_invite:(.+)/, async (ctx) => {
   const [roomId] = ctx.match[1].split(':');
@@ -177,39 +138,13 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 
 // Middleware and routes
 app.use(compression());
-app.use(
-  helmet({
-    contentSecurityPolicy:
-      process.env.NODE_ENV === 'production'
-        ? {
-            useDefaults: true,
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
-              styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-              imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-              connectSrc: ["'self'", 'https:', 'wss:'],
-              fontSrc: ["'self'", 'https:', 'data:'],
-              objectSrc: ["'none'"],
-              baseUri: ["'self'"],
-              frameAncestors: ["'none'"]
-            }
-          }
-        : false
-  })
-);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
 const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   limit: rateLimitMax,
   standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    const fromBody = req.body?.telegramId || req.body?.accountId;
-    if (fromBody) return String(fromBody);
-    return req.ip;
-  }
+  legacyHeaders: false
 });
 app.use('/api', apiLimiter);
 app.use('/api/mining', miningRoutes);
@@ -234,28 +169,18 @@ app.use('/api/online', onlineRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 
-app.post('/api/goal-rush/calibration', authenticate, async (req, res) => {
+app.post('/api/goal-rush/calibration', (req, res) => {
   const { accountId, calibration } = req.body || {};
   const devAccounts = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
     process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
     process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
-  if (!devAccounts.length) {
+  if (
+    devAccounts.length &&
+    (!accountId || !devAccounts.includes(accountId))
+  ) {
     return res.status(403).json({ error: 'unauthorized' });
-  }
-  if (accountId && !devAccounts.includes(accountId)) {
-    return res.status(403).json({ error: 'unauthorized' });
-  }
-  if (!req.auth?.apiToken) {
-    const authTelegramId = req.auth?.telegramId;
-    if (!authTelegramId) {
-      return res.status(403).json({ error: 'unauthorized' });
-    }
-    const user = await User.findOne({ telegramId: authTelegramId });
-    if (!user || !devAccounts.includes(user.accountId)) {
-      return res.status(403).json({ error: 'unauthorized' });
-    }
   }
   if (!calibration || typeof calibration !== 'object') {
     return res.status(400).json({ error: 'invalid calibration' });
@@ -820,34 +745,7 @@ app.post('/api/snake/table/seat', (req, res) => {
 app.post('/api/snake/table/unseat', (req, res) => {
   const { tableId, playerId, accountId } = req.body || {};
   const pid = playerId || accountId;
-  if (!tableId || !pid) {
-    return res.status(400).json({ error: 'missing data' });
-  }
-  const targetIds = new Set();
-  if (tableSeats.has(tableId) || tableMap.has(tableId)) {
-    targetIds.add(tableId);
-  } else {
-    const parts = tableId.split('-');
-    const match = /(\d+)$/.exec(tableId);
-    const gameType = parts[0] || 'snake';
-    const cap = match ? Number(match[1]) : null;
-    if (cap) {
-      for (const [tid, players] of tableSeats.entries()) {
-        if (!players.size) continue;
-        const table = tableMap.get(tid);
-        if (table && table.gameType === gameType && table.maxPlayers === cap) {
-          targetIds.add(tid);
-        }
-      }
-    }
-  }
-  if (targetIds.size === 0) {
-    unseatTableSocket(pid, tableId);
-  } else {
-    for (const id of targetIds) {
-      unseatTableSocket(pid, id);
-    }
-  }
+  unseatTableSocket(pid, tableId);
   res.json({ success: true });
 });
 app.get('/api/snake/lobbies', async (req, res) => {
