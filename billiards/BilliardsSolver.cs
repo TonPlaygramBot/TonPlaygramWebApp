@@ -547,8 +547,11 @@ public class BilliardsSolver
         if (!airborne)
         {
             Vec2 dir = b.Velocity.Normalized();
-            var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin;
-            b.Velocity += dir * forwardAccel * dt;
+            if (b.ForwardSpin > 0)
+            {
+                var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin;
+                b.Velocity += dir * forwardAccel * dt;
+            }
 
             var lateral = new Vec2(-dir.Y, dir.X);
             double speedFactor = 1.0;
