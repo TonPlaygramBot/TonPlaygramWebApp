@@ -2,6 +2,7 @@ import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
+import { polyHavenThumb } from './storeThumbnails.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
@@ -26,6 +27,7 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
     description: 'Weathered peeling paint wood rails with a reclaimed finish.',
     price: 980,
     swatches: ['#a89f95', '#b8b3aa'],
+    thumbnail: polyHavenThumb('wood_peeling_paint_weathered'),
     woodOption: {
       id: 'peelingPaintWeathered',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
@@ -39,6 +41,7 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
     description: 'Warm oak veneer rails with smooth satin polish.',
     price: 990,
     swatches: ['#b9854e', '#c89a64'],
+    thumbnail: polyHavenThumb('oak_veneer_01'),
     woodOption: {
       id: 'oakVeneer01',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
@@ -52,6 +55,7 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
     description: 'Balanced walnut-brown rails inspired by classic table slabs.',
     price: 1000,
     swatches: ['#8f6243', '#a4724f'],
+    thumbnail: polyHavenThumb('wood_table_001'),
     woodOption: {
       id: 'woodTable001',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
@@ -65,6 +69,7 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
     description: 'Deep espresso rails with strong grain contrast.',
     price: 1010,
     swatches: ['#2f241f', '#3d2f2a'],
+    thumbnail: polyHavenThumb('dark_wood'),
     woodOption: {
       id: 'darkWood',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
@@ -78,6 +83,7 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     price: 1020,
     swatches: ['#5b2f26', '#6f3a2f'],
+    thumbnail: polyHavenThumb('rosewood_veneer_01'),
     woodOption: {
       id: 'rosewoodVeneer01',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
@@ -126,7 +132,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     name: `${option.label} Finish`,
     price: option.price,
     description: option.description,
-    swatches: option.swatches
+    swatches: option.swatches,
+    thumbnail: option.thumbnail
   })),
   ...TABLE_WOOD_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-wood-${option.id}`,
@@ -134,7 +141,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 540 + idx * 40,
-    description: "Unlock an alternate wood finish for your Hold'em arena table."
+    description: "Unlock an alternate wood finish for your Hold'em arena table.",
+    thumbnail: option.thumbnail
   })),
   ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-cloth-${option.id}`,
@@ -142,7 +150,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 360 + idx * 35,
-    description: "Swap in a premium felt tone for your poker table."
+    description: "Swap in a premium felt tone for your poker table.",
+    thumbnail: option.thumbnail
   })),
   ...TABLE_BASE_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-base-${option.id}`,
@@ -150,7 +159,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 420 + idx * 35,
-    description: 'Upgrade the pedestal finish beneath your Hold\'em surface.'
+    description: 'Upgrade the pedestal finish beneath your Hold\'em surface.',
+    thumbnail: option.thumbnail
   })),
   ...TEXAS_CHAIR_THEME_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-chair-${option.id}`,
@@ -176,7 +186,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     name: variant.label,
     price: variant.price ?? 1400 + idx * 25,
     description: variant.description || 'Poly Haven HDRI environment used in Murlan Royale.',
-    swatches: variant.swatches
+    swatches: variant.swatches,
+    thumbnail: variant.thumbnail
   })),
   ...TABLE_SHAPE_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-shape-${option.id}`,
@@ -184,7 +195,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 680 + idx * 80,
-    description: 'Change the poker table silhouette.'
+    description: 'Change the poker table silhouette.',
+    thumbnail: option.thumbnail
   })),
   ...CARD_THEMES.slice(1).map((option, idx) => ({
     id: `texas-card-${option.id}`,
@@ -192,7 +204,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     optionId: option.id,
     name: `${option.label} Cards`,
     price: 460 + idx * 35,
-    description: 'Add a fresh premium deck style to the arena.'
+    description: 'Add a fresh premium deck style to the arena.',
+    thumbnail: option.thumbnail
   }))
 ];
 

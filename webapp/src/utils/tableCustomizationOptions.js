@@ -1,5 +1,6 @@
 import { WOOD_FINISH_PRESETS, WOOD_GRAIN_OPTIONS, WOOD_GRAIN_OPTIONS_BY_ID } from './woodMaterials.js';
 import { CARD_THEMES } from './cardThemes.js';
+import { polyHavenThumb, swatchThumbnail } from '../config/storeThumbnails.js';
 
 const numberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 const normalizeHex = (value) => (typeof value === 'number' ? numberToHex(value) : value);
@@ -67,20 +68,89 @@ export const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 
 export const TABLE_WOOD_OPTIONS = [
-  { id: 'lightNatural', label: 'Light Natural', presetId: 'birch', grainId: 'ph_wood_floor_01' },
-  { id: 'warmBrown', label: 'Warm Brown', presetId: 'walnut', grainId: 'ph_wood_floor_02' },
-  { id: 'cleanStrips', label: 'Clean Strips', presetId: 'oak', grainId: 'ph_wood_floor_03' },
-  { id: 'oldWoodFloor', label: 'Old Wood Floor', presetId: 'smokedOak', grainId: 'ph_old_wood_floor' }
+  {
+    id: 'lightNatural',
+    label: 'Light Natural',
+    presetId: 'birch',
+    grainId: 'ph_wood_floor_01',
+    thumbnail: polyHavenThumb('oak_veneer_01')
+  },
+  {
+    id: 'warmBrown',
+    label: 'Warm Brown',
+    presetId: 'walnut',
+    grainId: 'ph_wood_floor_02',
+    thumbnail: polyHavenThumb('wood_table_001')
+  },
+  {
+    id: 'cleanStrips',
+    label: 'Clean Strips',
+    presetId: 'oak',
+    grainId: 'ph_wood_floor_03',
+    thumbnail: polyHavenThumb('wood_peeling_paint_weathered')
+  },
+  {
+    id: 'oldWoodFloor',
+    label: 'Old Wood Floor',
+    presetId: 'smokedOak',
+    grainId: 'ph_old_wood_floor',
+    thumbnail: polyHavenThumb('old_wood_floor')
+  }
 ];
 
 export const TABLE_CLOTH_OPTIONS = [
-  { id: 'crimson', label: 'Crimson Cloth', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
-  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
-  { id: 'arctic', label: 'Arctic Cloth', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
-  { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
-  { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
-  { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' },
-  ...POLY_HAVEN_CLOTHS.map((option) => buildClothOption(option.id, option.label, option.base))
+  {
+    id: 'crimson',
+    label: 'Crimson Cloth',
+    feltTop: '#960019',
+    feltBottom: '#4a0012',
+    emissive: '#210308',
+    thumbnail: swatchThumbnail(['#960019', '#4a0012', '#fecaca'])
+  },
+  {
+    id: 'emerald',
+    label: 'Emerald Cloth',
+    feltTop: '#0f6a2f',
+    feltBottom: '#054d24',
+    emissive: '#021a0b',
+    thumbnail: swatchThumbnail(['#0f6a2f', '#054d24', '#bbf7d0'])
+  },
+  {
+    id: 'arctic',
+    label: 'Arctic Cloth',
+    feltTop: '#2563eb',
+    feltBottom: '#1d4ed8',
+    emissive: '#071a42',
+    thumbnail: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe'])
+  },
+  {
+    id: 'sunset',
+    label: 'Sunset Cloth',
+    feltTop: '#ea580c',
+    feltBottom: '#c2410c',
+    emissive: '#320e03',
+    thumbnail: swatchThumbnail(['#ea580c', '#c2410c', '#fed7aa'])
+  },
+  {
+    id: 'violet',
+    label: 'Violet Cloth',
+    feltTop: '#7c3aed',
+    feltBottom: '#5b21b6',
+    emissive: '#1f0a47',
+    thumbnail: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe'])
+  },
+  {
+    id: 'amber',
+    label: 'Amber Cloth',
+    feltTop: '#b7791f',
+    feltBottom: '#92571a',
+    emissive: '#2b1402',
+    thumbnail: swatchThumbnail(['#b7791f', '#92571a', '#fde68a'])
+  },
+  ...POLY_HAVEN_CLOTHS.map((option) => ({
+    ...buildClothOption(option.id, option.label, option.base),
+    thumbnail: polyHavenThumb(option.id)
+  }))
 ];
 
 export const TABLE_BASE_OPTIONS = [
@@ -91,7 +161,8 @@ export const TABLE_BASE_OPTIONS = [
     columnColor: '#0b0d10',
     trimColor: '#1f232a',
     metalness: 0.75,
-    roughness: 0.35
+    roughness: 0.35,
+    thumbnail: swatchThumbnail(['#141414', '#1f232a', '#94a3b8'])
   },
   {
     id: 'forestBronze',
@@ -100,7 +171,8 @@ export const TABLE_BASE_OPTIONS = [
     columnColor: '#0a0f0c',
     trimColor: '#1f2d24',
     metalness: 0.7,
-    roughness: 0.38
+    roughness: 0.38,
+    thumbnail: swatchThumbnail(['#101714', '#1f2d24', '#4ade80'])
   },
   {
     id: 'midnightChrome',
@@ -109,7 +181,8 @@ export const TABLE_BASE_OPTIONS = [
     columnColor: '#0a1020',
     trimColor: '#1e2f4a',
     metalness: 0.78,
-    roughness: 0.32
+    roughness: 0.32,
+    thumbnail: swatchThumbnail(['#0f172a', '#1e2f4a', '#93c5fd'])
   },
   {
     id: 'emberCopper',
@@ -118,7 +191,8 @@ export const TABLE_BASE_OPTIONS = [
     columnColor: '#140707',
     trimColor: '#5c2d1b',
     metalness: 0.68,
-    roughness: 0.4
+    roughness: 0.4,
+    thumbnail: swatchThumbnail(['#231312', '#5c2d1b', '#fdba74'])
   },
   {
     id: 'violetShadow',
@@ -127,7 +201,8 @@ export const TABLE_BASE_OPTIONS = [
     columnColor: '#130622',
     trimColor: '#3f1b5b',
     metalness: 0.74,
-    roughness: 0.36
+    roughness: 0.36,
+    thumbnail: swatchThumbnail(['#1f1130', '#3f1b5b', '#c4b5fd'])
   },
   {
     id: 'desertGold',
@@ -136,7 +211,8 @@ export const TABLE_BASE_OPTIONS = [
     columnColor: '#0f0d06',
     trimColor: '#5a4524',
     metalness: 0.72,
-    roughness: 0.39
+    roughness: 0.39,
+    thumbnail: swatchThumbnail(['#1c1a12', '#5a4524', '#fcd34d'])
   }
 ];
 

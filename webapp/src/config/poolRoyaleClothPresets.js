@@ -1,3 +1,5 @@
+import { polyHavenThumb } from './storeThumbnails.js';
+
 const normalizeHex = (value) => {
   const asString = typeof value === 'number' ? value.toString(16).padStart(6, '0') : String(value || '').replace('#', '');
   return `#${asString.slice(0, 6)}`;
@@ -168,6 +170,7 @@ const createVariantsForMaterial = (material) => {
         sparkle: material.sparkle,
         stray: material.stray,
         detail: material.detail,
+        thumbnail: polyHavenThumb(material.sourceId),
         price,
         swatches: createSwatches(hex),
         description: `${material.label} cloth with a ${toneLabel.toLowerCase()} ${name.toLowerCase()} tint and detailed scan from ${material.sourceId}.`

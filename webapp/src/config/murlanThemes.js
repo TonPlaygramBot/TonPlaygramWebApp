@@ -1,10 +1,54 @@
+import { swatchThumbnail } from './storeThumbnails.js';
+
 export const MURLAN_OUTFIT_THEMES = [
-  { id: 'midnight', label: 'Royal Blue', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
-  { id: 'ember', label: 'Neon Red', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
-  { id: 'glacier', label: 'Ice', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
-  { id: 'forest', label: 'Forest', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
-  { id: 'royal', label: 'Violet', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
-  { id: 'onyx', label: 'Onyx', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
+  {
+    id: 'midnight',
+    label: 'Royal Blue',
+    baseColor: '#1f3c88',
+    accentColor: '#f5d547',
+    glow: '#0f172a',
+    thumbnail: swatchThumbnail(['#1f3c88', '#0f172a', '#f5d547'])
+  },
+  {
+    id: 'ember',
+    label: 'Neon Red',
+    baseColor: '#a31621',
+    accentColor: '#ff8e3c',
+    glow: '#22080b',
+    thumbnail: swatchThumbnail(['#a31621', '#22080b', '#ff8e3c'])
+  },
+  {
+    id: 'glacier',
+    label: 'Ice',
+    baseColor: '#1b8dbf',
+    accentColor: '#9ff0ff',
+    glow: '#082433',
+    thumbnail: swatchThumbnail(['#1b8dbf', '#082433', '#9ff0ff'])
+  },
+  {
+    id: 'forest',
+    label: 'Forest',
+    baseColor: '#1b7f4a',
+    accentColor: '#b5f44a',
+    glow: '#071f11',
+    thumbnail: swatchThumbnail(['#1b7f4a', '#071f11', '#b5f44a'])
+  },
+  {
+    id: 'royal',
+    label: 'Violet',
+    baseColor: '#6b21a8',
+    accentColor: '#f0abfc',
+    glow: '#220a35',
+    thumbnail: swatchThumbnail(['#6b21a8', '#220a35', '#f0abfc'])
+  },
+  {
+    id: 'onyx',
+    label: 'Onyx',
+    baseColor: '#1f2937',
+    accentColor: '#9ca3af',
+    glow: '#090b10',
+    thumbnail: swatchThumbnail(['#1f2937', '#090b10', '#9ca3af'])
+  }
 ];
 
 const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;

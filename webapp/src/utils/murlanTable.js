@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
+import { swatchThumbnail } from '../config/storeThumbnails.js';
 import {
   applyWoodTextures,
   WOOD_FINISH_PRESETS,
@@ -150,6 +151,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
       clipPath:
         'polygon(50% 0%, 80% 10%, 100% 40%, 100% 60%, 80% 90%, 50% 100%, 20% 90%, 0% 60%, 0% 40%, 20% 10%)'
     },
+    thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8']),
     createShapes: ({ radius }) => {
       const topShape = createRegularPolygonShape(8, radius);
       const feltShape = createRegularPolygonShape(8, radius * 0.8);
@@ -163,6 +165,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     preview: {
       borderRadius: '50% / 35%'
     },
+    thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316']),
     createShapes: ({ radius }) => {
       const width = radius * 2.1;
       const height = radius * 1.45;
@@ -178,6 +181,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     preview: {
       borderRadius: '18%'
     },
+    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#a855f7']),
     createShapes: ({ radius, scaleFactor }) => {
       const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : radius / 0.9 || 1;
       const outerHalf = 0.95 * factor;

@@ -43,6 +43,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     price: finish.price ?? 980 + idx * 40,
     description: finish.description,
     swatches: finish.swatches,
+    thumbnail: finish.thumbnail,
     previewShape: 'table'
   })),
   {
@@ -51,7 +52,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: 'solstice',
     name: 'Solstice Deck',
     price: 260,
-    description: 'Sun-baked backs with warm metallic edgework.'
+    description: 'Sun-baked backs with warm metallic edgework.',
+    thumbnail: CARD_THEMES.find((theme) => theme.id === 'solstice')?.thumbnail
   },
   {
     id: 'cards-nebula',
@@ -59,7 +61,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: 'nebula',
     name: 'Nebula Deck',
     price: 300,
-    description: 'Cosmic purples with glowing starlit accents.'
+    description: 'Cosmic purples with glowing starlit accents.',
+    thumbnail: CARD_THEMES.find((theme) => theme.id === 'nebula')?.thumbnail
   },
   {
     id: 'cards-jade',
@@ -67,7 +70,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: 'jade',
     name: 'Jade Deck',
     price: 280,
-    description: 'Emerald gradients with luminous jade borders.'
+    description: 'Emerald gradients with luminous jade borders.',
+    thumbnail: CARD_THEMES.find((theme) => theme.id === 'jade')?.thumbnail
   },
   {
     id: 'cards-ember',
@@ -75,7 +79,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: 'ember',
     name: 'Ember Deck',
     price: 320,
-    description: 'Fiery orange backs with charcoal cores.'
+    description: 'Fiery orange backs with charcoal cores.',
+    thumbnail: CARD_THEMES.find((theme) => theme.id === 'ember')?.thumbnail
   },
   {
     id: 'cards-onyx',
@@ -83,7 +88,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: 'onyx',
     name: 'Onyx Deck',
     price: 340,
-    description: 'Monochrome slate backs with steel edging.'
+    description: 'Monochrome slate backs with steel edging.',
+    thumbnail: CARD_THEMES.find((theme) => theme.id === 'onyx')?.thumbnail
   }
 ].concat(
   MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
@@ -111,6 +117,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     price: variant.price ?? 1400 + idx * 25,
     description: variant.description || 'Pool Royale HDRI environment tuned for Murlan promos.',
     swatches: variant.swatches,
+    thumbnail: variant.thumbnail,
     previewShape: 'table'
   }))
 );

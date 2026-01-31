@@ -1,5 +1,6 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: [
@@ -51,6 +52,45 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   }))
 });
 
+const DOMINO_TABLE_WOOD_THUMBNAILS = Object.freeze({
+  oakEstate: polyHavenThumb('oak_veneer_01'),
+  teakStudio: polyHavenThumb('kitchen_wood')
+});
+
+const DOMINO_TABLE_CLOTH_THUMBNAILS = Object.freeze({
+  crimson: swatchThumbnail(['#960019', '#4a0012', '#fecaca']),
+  emerald: swatchThumbnail(['#0f6a2f', '#054d24', '#bbf7d0']),
+  arctic: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe']),
+  sunset: swatchThumbnail(['#ea580c', '#c2410c', '#fed7aa']),
+  violet: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe']),
+  amber: swatchThumbnail(['#b7791f', '#92571a', '#fde68a'])
+});
+
+const DOMINO_TABLE_BASE_THUMBNAILS = Object.freeze({
+  obsidian: swatchThumbnail(['#141414', '#1f232a', '#94a3b8']),
+  forestBronze: swatchThumbnail(['#101714', '#1f2d24', '#4ade80']),
+  midnightChrome: swatchThumbnail(['#0f172a', '#1e2f4a', '#93c5fd']),
+  emberCopper: swatchThumbnail(['#231312', '#5c2d1b', '#fdba74']),
+  violetShadow: swatchThumbnail(['#1f1130', '#3f1b5b', '#c4b5fd']),
+  desertGold: swatchThumbnail(['#1c1a12', '#5a4524', '#fcd34d'])
+});
+
+const DOMINO_STYLE_THUMBNAILS = Object.freeze({
+  imperialIvory: swatchThumbnail(['#f8fafc', '#cbd5f5', '#e2e8f0']),
+  obsidianPlatinum: swatchThumbnail(['#1f2937', '#6b7280', '#e5e7eb']),
+  midnightRose: swatchThumbnail(['#881337', '#1f2937', '#fecdd3']),
+  auroraJade: swatchThumbnail(['#047857', '#0f172a', '#86efac']),
+  frostedOpal: swatchThumbnail(['#f8fafc', '#c7d2fe', '#e2e8f0']),
+  carbonVolt: swatchThumbnail(['#0f172a', '#111827', '#fde047']),
+  sandstoneAurora: swatchThumbnail(['#d6c7a1', '#7c2d12', '#fcd34d'])
+});
+
+const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
+  marksmanAmber: swatchThumbnail(['#f59e0b', '#92400e', '#fde68a']),
+  iceTracer: swatchThumbnail(['#e0f2fe', '#0ea5e9', '#bae6fd']),
+  violetPulse: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe'])
+});
+
 export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze(
   Object.entries(DOMINO_ROYAL_OPTION_SETS).reduce((acc, [type, options]) => {
     acc[type] = options.length ? [options[0].id] : [];
@@ -77,7 +117,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 780,
-    description: 'Alternate premium wood finish for your Domino Royal arena.'
+    description: 'Alternate premium wood finish for your Domino Royal arena.',
+    thumbnail: DOMINO_TABLE_WOOD_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableCloth.slice(1).map((option, idx) => ({
     id: `domino-cloth-${option.id}`,
@@ -85,7 +126,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 340 + idx * 30,
-    description: 'Unlock a new felt tone for the Domino Royal table surface.'
+    description: 'Unlock a new felt tone for the Domino Royal table surface.',
+    thumbnail: DOMINO_TABLE_CLOTH_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableBase.slice(1).map((option, idx) => ({
     id: `domino-base-${option.id}`,
@@ -93,7 +135,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 520 + idx * 40,
-    description: 'Swap in a different pedestal finish beneath the table.'
+    description: 'Swap in a different pedestal finish beneath the table.',
+    thumbnail: DOMINO_TABLE_BASE_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableTheme.slice(1).map((option, idx) => ({
     id: `domino-table-theme-${option.id}`,
@@ -101,7 +144,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price || 900 + idx * 45,
-    description: option.description || 'Apply the Murlan Royale table collection to Domino.'
+    description: option.description || 'Apply the Murlan Royale table collection to Domino.',
+    thumbnail: MURLAN_TABLE_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.environmentHdri.slice(1).map((option, idx) => ({
     id: `domino-hdri-${option.id}`,
@@ -109,7 +153,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: POOL_ROYALE_HDRI_VARIANTS[idx + 1]?.price || 1200 + idx * 80,
-    description: 'HDRI environment from the Pool/Murlan Royale library.'
+    description: 'HDRI environment from the Pool/Murlan Royale library.',
+    thumbnail: POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === option.id)?.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.dominoStyle.slice(1).map((option, idx) => ({
     id: `domino-style-${option.id}`,
@@ -117,7 +162,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 820 + idx * 40,
-    description: 'Premium domino material set for tiles and pips.'
+    description: 'Premium domino material set for tiles and pips.',
+    thumbnail: DOMINO_STYLE_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.highlightStyle.slice(1).map((option, idx) => ({
     id: `domino-highlight-${option.id}`,
@@ -125,7 +171,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 260 + idx * 40,
-    description: 'Unlocks a new tracer highlight for the table setup.'
+    description: 'Unlocks a new tracer highlight for the table setup.',
+    thumbnail: DOMINO_HIGHLIGHT_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.chairTheme.slice(1).map((option, idx) => ({
     id: `domino-chair-${option.id}`,
@@ -133,7 +180,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price || 300 + idx * 25,
-    description: option.description || 'Murlan Royale seating set for Domino Royal.'
+    description: option.description || 'Murlan Royale seating set for Domino Royal.',
+    thumbnail: MURLAN_STOOL_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   }))
 ];
 

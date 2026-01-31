@@ -1,4 +1,5 @@
 import { POOL_ROYALE_OPTION_LABELS } from './poolRoyaleInventoryConfig.js';
+import { polyHavenThumb } from './storeThumbnails.js';
 
 export const MURLAN_TABLE_FINISHES = Object.freeze([
   Object.freeze({
@@ -7,6 +8,7 @@ export const MURLAN_TABLE_FINISHES = Object.freeze([
     description: 'Weathered peeling paint wood rails with a reclaimed finish.',
     price: 980,
     swatches: ['#a89f95', '#b8b3aa'],
+    thumbnail: polyHavenThumb('wood_peeling_paint_weathered'),
     woodOption: Object.freeze({
       id: 'peelingPaintWeathered',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
@@ -20,6 +22,7 @@ export const MURLAN_TABLE_FINISHES = Object.freeze([
     description: 'Warm oak veneer rails with smooth satin polish.',
     price: 990,
     swatches: ['#b9854e', '#c89a64'],
+    thumbnail: polyHavenThumb('oak_veneer_01'),
     woodOption: Object.freeze({
       id: 'oakVeneer01',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
@@ -33,6 +36,7 @@ export const MURLAN_TABLE_FINISHES = Object.freeze([
     description: 'Balanced walnut-brown rails inspired by classic table slabs.',
     price: 1000,
     swatches: ['#8f6243', '#a4724f'],
+    thumbnail: polyHavenThumb('wood_table_001'),
     woodOption: Object.freeze({
       id: 'woodTable001',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
@@ -46,6 +50,7 @@ export const MURLAN_TABLE_FINISHES = Object.freeze([
     description: 'Deep espresso rails with strong grain contrast.',
     price: 1010,
     swatches: ['#2f241f', '#3d2f2a'],
+    thumbnail: polyHavenThumb('dark_wood'),
     woodOption: Object.freeze({
       id: 'darkWood',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
@@ -59,6 +64,7 @@ export const MURLAN_TABLE_FINISHES = Object.freeze([
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     price: 1020,
     swatches: ['#5b2f26', '#6f3a2f'],
+    thumbnail: polyHavenThumb('rosewood_veneer_01'),
     woodOption: Object.freeze({
       id: 'rosewoodVeneer01',
       label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,

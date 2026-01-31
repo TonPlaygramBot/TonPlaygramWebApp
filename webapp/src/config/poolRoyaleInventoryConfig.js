@@ -1,4 +1,5 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
@@ -284,9 +285,46 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
   RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
     ...variant,
     preferredResolutions: HDRI_RESOLUTION_STACK,
+    thumbnail: polyHavenThumb(variant.assetId),
     ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
   }))
 );
+
+const TABLE_FINISH_THUMBNAILS = Object.freeze({
+  peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
+  oakVeneer01: polyHavenThumb('oak_veneer_01'),
+  woodTable001: polyHavenThumb('wood_table_001'),
+  darkWood: polyHavenThumb('dark_wood'),
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+});
+
+const POCKET_LINER_THUMBNAILS = Object.freeze({
+  fabric_leather_02: polyHavenThumb('fabric_leather_02'),
+  fabric_leather_01: polyHavenThumb('fabric_leather_01'),
+  brown_leather: polyHavenThumb('brown_leather'),
+  leather_red_02: polyHavenThumb('leather_red_02'),
+  leather_red_03: polyHavenThumb('leather_red_03'),
+  leather_white: polyHavenThumb('leather_white')
+});
+
+const CUE_STYLE_THUMBNAILS = Object.freeze({
+  'redwood-ember': swatchThumbnail(['#7f1d1d', '#b91c1c', '#fde68a']),
+  'birch-frost': swatchThumbnail(['#f8fafc', '#e2e8f0', '#bae6fd']),
+  'wenge-nightfall': swatchThumbnail(['#0f172a', '#1f2937', '#64748b']),
+  'mahogany-heritage': swatchThumbnail(['#7c2d12', '#b45309', '#fbbf24']),
+  'walnut-satin': swatchThumbnail(['#5b3a29', '#8b5e34', '#f3d9b1']),
+  'carbon-matrix': swatchThumbnail(['#0b0f16', '#111827', '#94a3b8']),
+  'maple-horizon': swatchThumbnail(['#f5e6c8', '#d4b790', '#fde68a']),
+  'graphite-aurora': swatchThumbnail(['#1f2937', '#4b5563', '#c7d2fe'])
+});
+
+const BASE_VARIANT_THUMBNAILS = Object.freeze({
+  classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
+  openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
+  coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
+  gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
+  woodenTable02Alt: polyHavenThumb('WoodenTable_02')
+});
 
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
   POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
@@ -403,7 +441,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'peelingPaintWeathered',
     name: 'Wood Peeling Paint Weathered Finish',
     price: 980,
-    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.peelingPaintWeathered
   },
   {
     id: 'finish-oakVeneer01',
@@ -411,7 +450,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'oakVeneer01',
     name: 'Oak Veneer 01 Finish',
     price: 990,
-    description: 'Warm oak veneer rails with smooth satin polish.'
+    description: 'Warm oak veneer rails with smooth satin polish.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01
   },
   {
     id: 'finish-woodTable001',
@@ -419,7 +459,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'woodTable001',
     name: 'Wood Table 001 Finish',
     price: 1000,
-    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
+    description: 'Balanced walnut-brown rails inspired by classic table slabs.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.woodTable001
   },
   {
     id: 'finish-darkWood',
@@ -427,7 +468,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'darkWood',
     name: 'Dark Wood Finish',
     price: 1010,
-    description: 'Deep espresso rails with strong grain contrast.'
+    description: 'Deep espresso rails with strong grain contrast.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.darkWood
   },
   {
     id: 'finish-rosewoodVeneer01',
@@ -435,7 +477,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'rosewoodVeneer01',
     name: 'Rosewood Veneer 01 Finish',
     price: 1020,
-    description: 'Rosewood veneer rails with rich, reddish undertones.'
+    description: 'Rosewood veneer rails with rich, reddish undertones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
   },
   {
     id: 'chrome-chrome',
@@ -443,7 +486,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'chrome',
     name: 'Mirror Chrome Fascias',
     price: 360,
-    description: 'Polished chrome plates to swap in for the fascia set.'
+    description: 'Polished chrome plates to swap in for the fascia set.',
+    thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
   {
     id: 'railMarkers-pearl',
@@ -451,7 +495,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'pearl',
     name: 'Pearl Diamonds',
     price: 280,
-    description: 'Pearlescent diamond markers with soft sheen.'
+    description: 'Pearlescent diamond markers with soft sheen.',
+    thumbnail: swatchThumbnail(['#f8fafc', '#cbd5f5', '#e2e8f0'])
   },
   {
     id: 'railMarkers-chrome',
@@ -459,7 +504,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'chrome',
     name: 'Chrome Diamonds',
     price: 240,
-    description: 'Chrome-lined diamond markers that match fascia shine.'
+    description: 'Chrome-lined diamond markers that match fascia shine.',
+    thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
   ...POOL_ROYALE_CLOTH_VARIANTS.map((variant) => ({
     id: `cloth-${variant.id}`,
@@ -467,7 +513,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: variant.id,
     name: variant.name,
     price: variant.price,
-    description: variant.description
+    description: variant.description,
+    thumbnail: variant.thumbnail
   })),
   {
     id: 'pocket-fabric-leather-02',
@@ -475,7 +522,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'fabric_leather_02',
     name: 'Fabric Leather 02 Pocket Jaws',
     price: 520,
-    description: 'Warm stitched leather weave liners for the classic Pool Royale look.'
+    description: 'Warm stitched leather weave liners for the classic Pool Royale look.',
+    thumbnail: POCKET_LINER_THUMBNAILS.fabric_leather_02
   },
   {
     id: 'pocket-fabric-leather-01',
@@ -483,7 +531,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'fabric_leather_01',
     name: 'Fabric Leather 01 Pocket Jaws',
     price: 530,
-    description: 'Soft-grain leather weave liners with a mellow brown finish.'
+    description: 'Soft-grain leather weave liners with a mellow brown finish.',
+    thumbnail: POCKET_LINER_THUMBNAILS.fabric_leather_01
   },
   {
     id: 'pocket-brown-leather',
@@ -491,7 +540,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'brown_leather',
     name: 'Brown Leather Pocket Jaws',
     price: 540,
-    description: 'Deep brown leather pockets with natural creases and aged texture.'
+    description: 'Deep brown leather pockets with natural creases and aged texture.',
+    thumbnail: POCKET_LINER_THUMBNAILS.brown_leather
   },
   {
     id: 'pocket-leather-red-02',
@@ -499,7 +549,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'leather_red_02',
     name: 'Leather Red 02 Pocket Jaws',
     price: 560,
-    description: 'Bold red leather liners with pronounced seams and worn highlights.'
+    description: 'Bold red leather liners with pronounced seams and worn highlights.',
+    thumbnail: POCKET_LINER_THUMBNAILS.leather_red_02
   },
   {
     id: 'pocket-leather-red-03',
@@ -507,7 +558,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'leather_red_03',
     name: 'Leather Red 03 Pocket Jaws',
     price: 570,
-    description: 'Deep crimson leather pocket liners with subtle stitch detailing.'
+    description: 'Deep crimson leather pocket liners with subtle stitch detailing.',
+    thumbnail: POCKET_LINER_THUMBNAILS.leather_red_03
   },
   {
     id: 'pocket-leather-white',
@@ -515,7 +567,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'leather_white',
     name: 'Leather White Pocket Jaws',
     price: 590,
-    description: 'Bright white leather pockets with crisp seam definition and clean grain.'
+    description: 'Bright white leather pockets with crisp seam definition and clean grain.',
+    thumbnail: POCKET_LINER_THUMBNAILS.leather_white
   },
   {
     id: 'cue-redwood',
@@ -523,7 +576,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'redwood-ember',
     name: 'Redwood Ember Cue',
     price: 310,
-    description: 'Rich redwood cue butt with ember accents.'
+    description: 'Rich redwood cue butt with ember accents.',
+    thumbnail: CUE_STYLE_THUMBNAILS['redwood-ember']
   },
   {
     id: 'cue-wenge',
@@ -531,7 +585,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'wenge-nightfall',
     name: 'Wenge Nightfall Cue',
     price: 340,
-    description: 'Deep wenge finish with high-contrast stripes.'
+    description: 'Deep wenge finish with high-contrast stripes.',
+    thumbnail: CUE_STYLE_THUMBNAILS['wenge-nightfall']
   },
   {
     id: 'cue-mahogany',
@@ -539,7 +594,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'mahogany-heritage',
     name: 'Mahogany Heritage Cue',
     price: 325,
-    description: 'Classic mahogany cue with heritage grain highlights.'
+    description: 'Classic mahogany cue with heritage grain highlights.',
+    thumbnail: CUE_STYLE_THUMBNAILS['mahogany-heritage']
   },
   {
     id: 'cue-walnut',
@@ -547,7 +603,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'walnut-satin',
     name: 'Walnut Satin Cue',
     price: 295,
-    description: 'Satin walnut cue butt with balanced contrast.'
+    description: 'Satin walnut cue butt with balanced contrast.',
+    thumbnail: CUE_STYLE_THUMBNAILS['walnut-satin']
   },
   {
     id: 'cue-carbon',
@@ -555,7 +612,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbon-matrix',
     name: 'Carbon Matrix Cue',
     price: 380,
-    description: 'Carbon fiber cue with metallic weave highlights.'
+    description: 'Carbon fiber cue with metallic weave highlights.',
+    thumbnail: CUE_STYLE_THUMBNAILS['carbon-matrix']
   },
   {
     id: 'cue-maple',
@@ -563,7 +621,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'maple-horizon',
     name: 'Maple Horizon Cue',
     price: 300,
-    description: 'Bright maple cue with horizon banding.'
+    description: 'Bright maple cue with horizon banding.',
+    thumbnail: CUE_STYLE_THUMBNAILS['maple-horizon']
   },
   {
     id: 'cue-graphite',
@@ -571,7 +630,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'graphite-aurora',
     name: 'Graphite Aurora Cue',
     price: 360,
-    description: 'Graphite weave cue with aurora-inspired tint.'
+    description: 'Graphite weave cue with aurora-inspired tint.',
+    thumbnail: CUE_STYLE_THUMBNAILS['graphite-aurora']
   },
   ...POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
     id: `base-${variant.id}`,
@@ -579,7 +639,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: variant.id,
     name: `${variant.name} Base`,
     price: 0,
-    description: variant.description
+    description: variant.description,
+    thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
   })),
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
     id: `hdri-${variant.id}`,
@@ -587,7 +648,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: variant.id,
     name: `${variant.name} HDRI`,
     price: variant.price,
-    description: variant.description
+    description: variant.description,
+    thumbnail: variant.thumbnail
   }))
 ];
 
