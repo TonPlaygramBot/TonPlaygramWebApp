@@ -119,7 +119,7 @@ import {
 } from '../utils/texasHoldemInventory.js';
 import { claimPurchase, getTonBalance } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
-import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+import { useTonAddress } from '@tonconnect/ui-react';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -618,7 +618,6 @@ const formatShortDate = (date) =>
 const storeMeta = {
   poolroyale: {
     name: 'Pool Royale',
-    thumbnail: '/assets/icons/Pool Royal game logo.png',
     items: POOL_ROYALE_STORE_ITEMS,
     defaults: POOL_ROYALE_DEFAULT_LOADOUT,
     labels: POOL_ROYALE_OPTION_LABELS,
@@ -627,7 +626,6 @@ const storeMeta = {
   },
   snookerroyale: {
     name: 'Snooker Royal',
-    thumbnail: '/assets/icons/snooker-royale.svg',
     items: SNOOKER_ROYALE_STORE_ITEMS,
     defaults: SNOOKER_ROYALE_DEFAULT_LOADOUT,
     labels: SNOOKER_ROYALE_OPTION_LABELS,
@@ -636,7 +634,6 @@ const storeMeta = {
   },
   airhockey: {
     name: 'Air Hockey',
-    thumbnail: '/assets/icons/Air hockey game logo.png',
     items: AIR_HOCKEY_STORE_ITEMS,
     defaults: AIR_HOCKEY_DEFAULT_LOADOUT,
     labels: AIR_HOCKEY_OPTION_LABELS,
@@ -645,7 +642,6 @@ const storeMeta = {
   },
   chessbattleroyal: {
     name: 'Chess Battle Royal',
-    thumbnail: '/assets/icons/Chess battle Royal logo.png',
     items: CHESS_BATTLE_STORE_ITEMS,
     defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
     labels: CHESS_BATTLE_OPTION_LABELS,
@@ -654,7 +650,6 @@ const storeMeta = {
   },
   ludobattleroyal: {
     name: 'Ludo Battle Royal',
-    thumbnail: '/assets/icons/Ludo battle Royal game logo.png',
     items: LUDO_BATTLE_STORE_ITEMS,
     defaults: LUDO_BATTLE_DEFAULT_LOADOUT,
     labels: LUDO_BATTLE_OPTION_LABELS,
@@ -663,7 +658,6 @@ const storeMeta = {
   },
   murlanroyale: {
     name: 'Murlan Royale',
-    thumbnail: '/assets/icons/Murlan Royal logo.png',
     items: MURLAN_ROYALE_STORE_ITEMS,
     defaults: MURLAN_ROYALE_DEFAULT_LOADOUT,
     labels: MURLAN_ROYALE_OPTION_LABELS,
@@ -672,7 +666,6 @@ const storeMeta = {
   },
   'domino-royal': {
     name: 'Domino Royal',
-    thumbnail: '/assets/icons/Domino battle Royal logo.png',
     items: DOMINO_ROYAL_STORE_ITEMS,
     defaults: DOMINO_ROYAL_DEFAULT_LOADOUT,
     labels: DOMINO_ROYAL_OPTION_LABELS,
@@ -681,7 +674,6 @@ const storeMeta = {
   },
   snake: {
     name: 'Snake & Ladder',
-    thumbnail: '/assets/icons/Snake and ladder game logo.png',
     items: SNAKE_STORE_ITEMS,
     defaults: SNAKE_DEFAULT_LOADOUT,
     labels: SNAKE_OPTION_LABELS,
@@ -690,7 +682,6 @@ const storeMeta = {
   },
   texasholdem: {
     name: "Texas Hold'em",
-    thumbnail: '/assets/icons/Texas holdem poker game logo.png',
     items: TEXAS_HOLDEM_STORE_ITEMS,
     defaults: TEXAS_HOLDEM_DEFAULT_LOADOUT,
     labels: TEXAS_HOLDEM_OPTION_LABELS,
@@ -730,9 +721,7 @@ export default function Store() {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
   const [paymentHash, setPaymentHash] = useState('');
-  const [walletPaying, setWalletPaying] = useState(false);
   const walletAddress = useTonAddress(true);
-  const [tonConnectUI] = useTonConnectUI();
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -844,32 +833,6 @@ export default function Store() {
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' }))
     }),
     []
-  );
-
-  const storefrontFrames = useMemo(
-    () =>
-      Object.entries(storeMeta).map(([slug, meta]) => {
-        const items = storeItemsBySlug[slug] || [];
-        const categories = Object.entries(meta.typeLabels || {})
-          .map(([type, label]) => {
-            const typeItems = items.filter((item) => item.type === type);
-            if (!typeItems.length) return null;
-            return {
-              type,
-              label,
-              previewItem: typeItems[0],
-              count: typeItems.length
-            };
-          })
-          .filter(Boolean);
-        return {
-          slug,
-          name: meta.name,
-          thumbnail: meta.thumbnail,
-          categories
-        };
-      }),
-    [storeItemsBySlug]
   );
 
   const ownedCheckers = useMemo(
@@ -1258,9 +1221,13 @@ export default function Store() {
     setInfo('Your NFT listing has been added to the marketplace.');
   };
 
-  const resolvePurchasableItems = useCallback((items) => {
+  const handlePurchase = async (items, txHash) => {
     const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
-    if (!payload.length) return [];
+    if (!payload.length) return;
+    if (!walletAddress) {
+      setInfo('Connect your TON wallet before submitting a payment.');
+      return;
+    }
     const seen = new Set();
     const unique = payload.filter((item) => {
       const key = selectionKey(item);
@@ -1268,62 +1235,9 @@ export default function Store() {
       seen.add(key);
       return true;
     });
-    return unique.filter((item) => !item.owned);
-  }, []);
-
-  const toNano = useCallback((value) => {
-    const numeric = Number.parseFloat(value);
-    if (!Number.isFinite(numeric)) return '0';
-    return Math.max(Math.round(numeric * 1e9), 0).toString();
-  }, []);
-
-  const handleWalletPay = useCallback(
-    async (items) => {
-      const purchasable = resolvePurchasableItems(items);
-      if (!purchasable.length) {
-        setInfo('No new items selected for purchase.');
-        return;
-      }
-      if (!walletAddress) {
-        setInfo('Connect your TON wallet before paying.');
-        return;
-      }
-      if (!accountId || accountId === 'guest') {
-        setInfo('Link your TPC account in the wallet first.');
-        return;
-      }
-      setWalletPaying(true);
-      setInfo('');
-      try {
-        const total = purchasable.reduce((sum, item) => sum + item.price, 0);
-        await tonConnectUI.sendTransaction({
-          validUntil: Math.floor(Date.now() / 1000) + 600,
-          messages: [
-            {
-              address: TON_STORE_ADDRESS,
-              amount: toNano(total)
-            }
-          ]
-        });
-        setInfo('Payment sent. Paste the transaction hash to confirm and deliver the NFT immediately.');
-      } catch (err) {
-        console.error('TON payment failed', err);
-        setInfo('Payment was cancelled or failed.');
-      } finally {
-        setWalletPaying(false);
-      }
-    },
-    [accountId, resolvePurchasableItems, toNano, tonConnectUI, walletAddress]
-  );
-
-  const handlePurchase = async (items, txHash) => {
-    const purchasable = resolvePurchasableItems(items);
+    const purchasable = unique.filter((item) => !item.owned);
     if (!purchasable.length) {
       setInfo('No new items selected for purchase.');
-      return;
-    }
-    if (!walletAddress) {
-      setInfo('Connect your TON wallet before submitting a payment.');
       return;
     }
     if (!accountId || accountId === 'guest') {
@@ -1563,7 +1477,7 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Pay with your connected wallet, then confirm the transaction hash so we can verify on-chain and deliver the NFT instantly.
+              Send the TON amount from your connected wallet, then paste the transaction hash so we can verify it on-chain.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1596,7 +1510,7 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFT delivered to linked TPC account immediately after confirmation</span>
+                <span className="font-semibold text-white">NFT sent to linked TPC account after confirmation</span>
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
@@ -1619,19 +1533,11 @@ export default function Store() {
               </button>
               <button
                 type="button"
-                onClick={() => handleWalletPay(confirmItem)}
-                className="w-full rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/20 sm:w-auto"
-                disabled={walletPaying || Boolean(processing)}
-              >
-                {walletPaying ? 'Opening wallet…' : 'Pay with TON'}
-              </button>
-              <button
-                type="button"
                 onClick={() => handlePurchase(confirmItem, paymentHash)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={Boolean(processing) || !paymentHash.trim()}
+                disabled={Boolean(processing)}
               >
-                {processing ? 'Processing…' : 'Confirm & Deliver'}
+                {processing ? 'Processing…' : 'Confirm & Buy'}
               </button>
             </div>
           </div>
@@ -1693,7 +1599,7 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Pay once with your wallet, then add the transaction hash to verify on-chain.</p>
+              <p className="mt-1">Send a single TON payment, then add the transaction hash to verify on-chain.</p>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1702,7 +1608,7 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFTs delivered to linked TPC account immediately after confirmation</span>
+                <span className="font-semibold text-white">NFTs sent to linked TPC account after confirmation</span>
               </div>
             </div>
             <label className="grid gap-1 text-xs text-white/70">
@@ -1726,19 +1632,11 @@ export default function Store() {
               </button>
               <button
                 type="button"
-                onClick={() => handleWalletPay(confirmItems)}
-                className="w-full rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/20 sm:w-auto"
-                disabled={walletPaying || Boolean(processing)}
-              >
-                {walletPaying ? 'Opening wallet…' : 'Pay with TON'}
-              </button>
-              <button
-                type="button"
                 onClick={() => handlePurchase(confirmItems, paymentHash)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={Boolean(processing) || !paymentHash.trim()}
+                disabled={Boolean(processing)}
               >
-                {processing ? 'Processing…' : 'Confirm & Deliver'}
+                {processing ? 'Processing…' : 'Confirm & Buy All'}
               </button>
             </div>
           </div>
@@ -1884,14 +1782,14 @@ export default function Store() {
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmItems([]);
-                    setConfirmItem(detailItem);
-                    setDetailItem(null);
-                  }}
-                  className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmItems([]);
+                      setConfirmItem(detailItem);
+                      setDetailItem(null);
+                    }}
+                    className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
                   disabled={processing === detailItem.id || detailItem.owned}
                 >
                   {detailItem.owned ? 'Already owned' : 'Buy now'}
@@ -1903,7 +1801,7 @@ export default function Store() {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                 <p className="font-semibold text-white">What you get</p>
-                <p className="mt-1">Once your TON payment is verified, the NFT unlocks on your linked TPC account immediately.</p>
+                <p className="mt-1">Once your TON payment is verified, the NFT unlocks on your linked TPC account.</p>
               </div>
             </div>
           </div>
@@ -2535,52 +2433,8 @@ export default function Store() {
                 </section>
               ))
             ) : (
-              <div className="space-y-4">
-                {storefrontFrames.map((game) => (
-                  <section key={game.slug} className="relative rounded-3xl border border-white/10 bg-white/5 p-4 shadow-sm">
-                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-zinc-950 px-4 py-2 shadow-[0_16px_30px_-20px_rgba(0,0,0,0.9)]">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                        {game.thumbnail ? (
-                          <img src={game.thumbnail} alt={game.name} className="h-6 w-6 rounded-md border border-white/10 bg-white/5 object-cover" />
-                        ) : (
-                          <span className="grid h-6 w-6 place-items-center rounded-md bg-white/10 text-xs">🎮</span>
-                        )}
-                        <span>{game.name}</span>
-                      </div>
-                    </div>
-                    <div className="mt-6 space-y-3">
-                      <div className="flex items-center justify-between text-xs text-white/60">
-                        <span>Categories</span>
-                        <button
-                          type="button"
-                          onClick={() => handleGameChange(game.slug)}
-                          className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs font-semibold text-white/70 hover:bg-white/10"
-                        >
-                          View {game.name}
-                        </button>
-                      </div>
-                      <div className="flex gap-3 overflow-x-auto pb-2">
-                        {game.categories.map((category) => (
-                          <button
-                            key={`${game.slug}-${category.type}`}
-                            type="button"
-                            onClick={() => {
-                              handleGameChange(game.slug);
-                              setActiveType(category.type);
-                            }}
-                            className="min-w-[180px] flex-1 rounded-2xl border border-white/10 bg-black/30 p-3 text-left transition hover:border-white/20 hover:bg-white/10"
-                          >
-                            {renderStoreThumbnail(category.previewItem, 'compact')}
-                            <div className="mt-2">
-                              <div className="text-sm font-semibold text-white">{category.label}</div>
-                              <div className="text-xs text-white/60">{category.count} items</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-                ))}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {visibleItems.map((item) => renderStoreCard(item))}
               </div>
             )}
           </div>
