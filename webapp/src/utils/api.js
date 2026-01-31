@@ -39,7 +39,10 @@ if (preferredBase && !/^https:\/\//i.test(preferredBase)) {
 }
 
 export const API_BASE_URL = preferredBase;
-export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
+export const API_AUTH_TOKEN =
+  (typeof window !== 'undefined' && window.__API_AUTH_TOKEN) ||
+  resolvedEnv.VITE_API_AUTH_TOKEN ||
+  '';
 
 export async function ping() {
   const data = await get('/api/ping');
@@ -349,17 +352,23 @@ export function updateProfile(data) {
 }
 
 export function updateBalance(telegramId, balance) {
-  return post('/api/profile/updateBalance', { telegramId, balance });
+  if (!API_AUTH_TOKEN) {
+    return Promise.resolve({ skipped: true });
+  }
+  return post('/api/profile/updateBalance', { telegramId, balance }, API_AUTH_TOKEN);
 }
 
 export function addTransaction(telegramId, amount, type, extra = {}) {
+  if (!API_AUTH_TOKEN) {
+    return Promise.resolve({ skipped: true });
+  }
   const body = {
     amount,
     type,
     ...extra
   };
   if (telegramId != null) body.telegramId = telegramId;
-  return post('/api/profile/addTransaction', body);
+  return post('/api/profile/addTransaction', body, API_AUTH_TOKEN);
 }
 
 export function getProfileByAccount(accountId) {
@@ -399,8 +408,16 @@ export function getDepositAddress() {
   return get('/api/wallet/deposit-address');
 }
 
-export function deposit(telegramId, amount) {
-  return post('/api/wallet/deposit', { telegramId, amount });
+export async function deposit(telegramId, amount) {
+  const receipt = await post('/api/wallet/receipt', { telegramId, amount });
+  if (receipt?.error) return receipt;
+  return post('/api/wallet/claim-reward', {
+    telegramId,
+    amount,
+    receipt: receipt.receipt,
+    nonce: receipt.nonce,
+    ts: receipt.ts
+  });
 }
 
 export function withdraw(telegramId, address, amount) {
@@ -652,10 +669,18 @@ export function getMiningTransactions(limit = 1000) {
 }
 
 export function depositAccount(accountId, amount, extra = {}) {
-  return post(
-    '/api/account/deposit',
-    { accountId, amount, ...extra },
-    API_AUTH_TOKEN || undefined
+  return post('/api/account/receipt', { accountId, amount, ...extra }).then(
+    (receipt) => {
+      if (receipt?.error) return receipt;
+      return post('/api/account/claim-reward', {
+        accountId,
+        amount,
+        ...extra,
+        receipt: receipt.receipt,
+        nonce: receipt.nonce,
+        ts: receipt.ts
+      });
+    }
   );
 }
 
@@ -668,7 +693,10 @@ export function claimPurchase(accountId, txHash) {
 }
 
 export function sendBroadcast(data) {
-  return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
+  if (!API_AUTH_TOKEN) {
+    return Promise.resolve({ error: 'admin token missing' });
+  }
+  return post('/api/broadcast/send', data, API_AUTH_TOKEN);
 }
 
 export function getWatchCount(tableId) {

@@ -45,7 +45,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, writeFileSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
@@ -177,12 +177,16 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 });
 
 // Middleware and routes
+app.use((req, res, next) => {
+  res.locals.cspNonce = randomBytes(16).toString('base64');
+  next();
+});
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, 'https:'],
+      styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, 'https:'],
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'", 'https:', 'wss:'],
       fontSrc: ["'self'", 'data:', 'https:'],
@@ -1067,6 +1071,17 @@ mongoose.connection.once('open', async () => {
 io.on('connection', (socket) => {
   socket.on('register', async ({ playerId }) => {
     if (!playerId) return;
+    if (!socket.data?.auth) {
+      socket.emit('errorMessage', 'unauthorized');
+      return;
+    }
+    if (!socket.data.auth.apiToken && socket.data.auth.telegramId) {
+      const user = await User.findOne({ telegramId: socket.data.auth.telegramId });
+      if (!user || String(user.accountId) !== String(playerId)) {
+        socket.emit('errorMessage', 'identity_mismatch');
+        return;
+      }
+    }
     let set = userSockets.get(String(playerId));
     if (!set) {
       set = new Set();
@@ -1582,6 +1597,22 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+function shutdown() {
+  if (httpServer.listening) {
+    httpServer.close(() => {
+      mongoose.connection.close(false).finally(() => {
+        process.exit(0);
+      });
+    });
+    setTimeout(() => process.exit(0), 1500).unref();
+  } else {
+    process.exit(0);
+  }
+}
+
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);
 
 // Start the server
 httpServer.listen(PORT, async () => {
