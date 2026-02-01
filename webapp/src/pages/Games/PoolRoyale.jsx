@@ -1312,6 +1312,8 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
+const POCKET_EDGE_CAPTURE_MARGIN = BALL_R * 0.22; // allow slow rollers on the jaw to fall in instead of hovering on the rim
+const POCKET_EDGE_DROP_SPEED = 0.18; // capture slow edge spinners before they drift out of play
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
@@ -5335,7 +5337,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = 0;
+const SPIN_VIEW_BLOCK_THRESHOLD = -0.35;
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -5378,7 +5380,7 @@ const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
   if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
   TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
   const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
-  if (viewDot >= 0) return spinInput;
+  if (viewDot >= SPIN_VIEW_BLOCK_THRESHOLD) return spinInput;
   TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot);
   return {
     x: TMP_VEC2_SPIN.dot(axes.perp),
@@ -26292,8 +26294,17 @@ const powerRef = useRef(hud.power);
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
             const c = captureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
-            if (b.pos.distanceTo(c) < captureRadius) {
-              const entrySpeed = b.vel.length();
+            const distToPocket = b.pos.distanceTo(c);
+            const jawBaseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+            const jawRadius = jawBaseRadius * POCKET_VISUAL_EXPANSION;
+            const edgeCaptureRadius =
+              Math.max(captureRadius, jawRadius) + POCKET_EDGE_CAPTURE_MARGIN;
+            const entrySpeed = b.vel.length();
+            if (
+              distToPocket < captureRadius ||
+              (distToPocket < edgeCaptureRadius &&
+                entrySpeed <= POCKET_EDGE_DROP_SPEED)
+            ) {
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
                 0,
