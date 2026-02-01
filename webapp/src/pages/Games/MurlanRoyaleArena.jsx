@@ -2127,17 +2127,13 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('pointerdown', unlockCommentary);
-    window.addEventListener('pointerup', unlockCommentary);
     window.addEventListener('click', unlockCommentary);
     window.addEventListener('touchstart', unlockCommentary);
-    window.addEventListener('touchend', unlockCommentary);
     window.addEventListener('keydown', unlockCommentary);
     return () => {
       window.removeEventListener('pointerdown', unlockCommentary);
-      window.removeEventListener('pointerup', unlockCommentary);
       window.removeEventListener('click', unlockCommentary);
       window.removeEventListener('touchstart', unlockCommentary);
-      window.removeEventListener('touchend', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
     };
   }, [unlockCommentary]);
