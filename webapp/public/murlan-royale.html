@@ -722,16 +722,8 @@
       id="sndTurn"
       src="/assets/sounds/wooden-door-knock-102902.mp3"
     ></audio>
-    <audio
-      id="sndWin"
-      src="/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3"
-    ></audio>
 
     <div id="quickActions" aria-label="Quick actions">
-      <button class="quick-action" type="button" data-action="voice">
-        <span class="icon" id="voiceIcon" aria-hidden="true">🗣️</span>
-        <span id="voiceLabel">Voice</span>
-      </button>
       <button class="quick-action" type="button" data-action="chat">
         <span class="icon" aria-hidden="true">💬</span>
         <span>Chat</span>
@@ -859,15 +851,12 @@
         const sndCard = el('#sndCard');
         const sndTimer = el('#sndTimer');
         const sndTurn = el('#sndTurn');
-        const sndWin = el('#sndWin');
         const winnerOverlay = el('#winnerOverlay');
         const settingsBtn = el('#settingsBtn');
         const settingsPanel = el('#settingsPanel');
         const quickActions = el('#quickActions');
         const muteIcon = el('#muteIcon');
         const muteLabel = el('#muteLabel');
-        const voiceIcon = el('#voiceIcon');
-        const voiceLabel = el('#voiceLabel');
         const audioEls = Array.from(document.querySelectorAll('audio'));
         const styleSelect = el('#playerFrameStyle');
         const colorSelect = el('#playerColor');
@@ -876,18 +865,6 @@
         let lobbyBtn;
         let arrangeVariant = 0;
         let audioEnabled = true;
-        let audioUnlocked = false;
-        const speechSynth =
-          typeof window !== 'undefined' && 'speechSynthesis' in window
-            ? window.speechSynthesis
-            : null;
-        let commentaryEnabled = true;
-        let commentaryUnlocked = false;
-        let commentarySpeaking = false;
-        let commentaryQueue = [];
-        let commentaryVoices = [];
-        let commentaryLastAt = 0;
-        let commentaryRetryTimer = null;
 
         function coinConfetti(
           count = 50,
@@ -978,7 +955,6 @@
           toastEl.textContent = msg;
           toastEl.style.display = 'block';
           setTimeout(() => (toastEl.style.display = 'none'), 1400);
-          queueCommentary(msg);
         }
 
         function updateMuteLabel() {
@@ -986,13 +962,6 @@
           const muted = !audioEnabled;
           muteIcon.textContent = muted ? '🔇' : '🔊';
           muteLabel.textContent = muted ? 'Unmute' : 'Mute';
-        }
-
-        function updateVoiceLabel() {
-          if (!voiceIcon || !voiceLabel) return;
-          const muted = !commentaryEnabled;
-          voiceIcon.textContent = muted ? '🔇' : '🗣️';
-          voiceLabel.textContent = muted ? 'Voice off' : 'Voice on';
         }
 
         function setAudioEnabled(enabled) {
@@ -1003,138 +972,10 @@
           updateMuteLabel();
         }
 
-        function setCommentaryEnabled(enabled) {
-          commentaryEnabled = enabled;
-          updateVoiceLabel();
-          if (!commentaryEnabled && speechSynth) {
-            speechSynth.cancel();
-            commentaryQueue = [];
-            commentarySpeaking = false;
-          }
-          window.localStorage?.setItem(
-            'murlanCommentaryMuted',
-            commentaryEnabled ? '0' : '1'
-          );
-        }
-
-        function refreshCommentaryVoices() {
-          if (!speechSynth) return;
-          try {
-            commentaryVoices = speechSynth.getVoices() || [];
-          } catch (error) {
-            commentaryVoices = [];
-            console.warn('Failed to refresh commentary voices', error);
-          }
-        }
-
-        function findVoiceMatch(voices, languageHint) {
-          if (!voices.length) return null;
-          if (languageHint) {
-            const match = voices.find((voice) =>
-              voice.lang.toLowerCase().includes(languageHint.toLowerCase())
-            );
-            if (match) return match;
-          }
-          return voices[0];
-        }
-
-        function ensureCommentaryVoices() {
-          if (!speechSynth) return;
-          refreshCommentaryVoices();
-          if (commentaryVoices.length || commentaryRetryTimer) return;
-          commentaryRetryTimer = window.setTimeout(() => {
-            commentaryRetryTimer = null;
-            refreshCommentaryVoices();
-          }, 750);
-        }
-
-        function speakNow(text) {
-          if (!speechSynth || !commentaryEnabled || !text) return;
-          ensureCommentaryVoices();
-          const utterance = new SpeechSynthesisUtterance(text);
-          const langHint = navigator.language || 'en';
-          const voice = findVoiceMatch(commentaryVoices, langHint);
-          if (voice) utterance.voice = voice;
-          utterance.lang = voice?.lang || langHint;
-          utterance.rate = 1;
-          utterance.pitch = 1;
-          utterance.onend = () => {
-            commentarySpeaking = false;
-            const next = commentaryQueue.shift();
-            if (next) speakNow(next);
-          };
-          utterance.onerror = () => {
-            commentarySpeaking = false;
-            const next = commentaryQueue.shift();
-            if (next) speakNow(next);
-          };
-          commentarySpeaking = true;
-          speechSynth.speak(utterance);
-        }
-
-        function queueCommentary(text, { priority = false } = {}) {
-          if (!speechSynth || !commentaryEnabled || !text) return;
-          const now = Date.now();
-          if (!priority && now - commentaryLastAt < 2500) return;
-          if (!commentaryUnlocked) {
-            commentaryQueue.push(text);
-            return;
-          }
-          commentaryLastAt = now;
-          if (commentarySpeaking) {
-            commentaryQueue.push(text);
-            return;
-          }
-          speakNow(text);
-        }
-
-        function unlockInteractiveAudio() {
-          if (audioUnlocked) return;
-          audioUnlocked = true;
-          commentaryUnlocked = true;
-          audioEls.forEach((audio) => {
-            try {
-              audio.muted = false;
-              const prevVolume = audio.volume;
-              audio.volume = 0;
-              const playPromise = audio.play();
-              if (playPromise && typeof playPromise.catch === 'function') {
-                playPromise.catch(() => {});
-              }
-              audio.pause();
-              audio.currentTime = 0;
-              audio.volume = prevVolume;
-              audio.muted = !audioEnabled;
-            } catch (error) {
-              console.warn('Audio unlock failed', error);
-            }
-          });
-          if (speechSynth) {
-            try {
-              speechSynth.resume();
-            } catch (error) {
-              console.warn('Speech resume failed', error);
-            }
-          }
-          if (commentaryQueue.length && !commentarySpeaking) {
-            const next = commentaryQueue.shift();
-            if (next) speakNow(next);
-          }
-        }
-
         function handleQuickAction(action) {
           if (action === 'mute') {
             setAudioEnabled(!audioEnabled);
             toast(audioEnabled ? 'Sound on' : 'Sound muted');
-            return;
-          }
-          if (action === 'voice') {
-            if (!speechSynth) {
-              toast('Voice commentary needs Web Speech support');
-              return;
-            }
-            setCommentaryEnabled(!commentaryEnabled);
-            toast(commentaryEnabled ? 'Voice on' : 'Voice muted');
             return;
           }
           const label = action.charAt(0).toUpperCase() + action.slice(1);
@@ -1149,26 +990,6 @@
           });
         }
         setAudioEnabled(true);
-        updateVoiceLabel();
-        if (speechSynth) {
-          speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
-          refreshCommentaryVoices();
-        }
-        const storedCommentaryMuted = window.localStorage?.getItem('murlanCommentaryMuted');
-        if (storedCommentaryMuted === '1') {
-          commentaryEnabled = false;
-          updateVoiceLabel();
-        }
-        if (!speechSynth && voiceLabel) {
-          voiceLabel.textContent = 'Voice N/A';
-          if (voiceIcon) voiceIcon.textContent = '🚫';
-        }
-        ['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
-          window.addEventListener(eventName, unlockInteractiveAudio, {
-            once: true,
-            passive: true
-          });
-        });
 
         function applyFrameSettings() {
           document.body.className = document.body.className.replace(/frame-style-\d+/g, '');
@@ -2253,7 +2074,6 @@
             state.turn = next;
             renderAll();
             toast('New round');
-            queueCommentary('New round', { priority: true });
             newRound = true;
           }
           if (!newRound) {
@@ -2272,10 +2092,6 @@
               toast((lp.isHuman ? 'You' : lp.name) + ' won!');
               clearInterval(timerInterval);
               coinConfetti();
-              if (sndWin) {
-                sndWin.currentTime = 0;
-                sndWin.play();
-              }
               showWinnerOverlay(state.lastPlayerToPlay === 0 ? '🃏' : '🐾');
               if (lobbyBtn) lobbyBtn.style.display = 'block';
               return;
@@ -2306,10 +2122,6 @@
               const winnerIdx = state.players.findIndex((p) => p.points === maxPts);
               toast((state.players[winnerIdx].isHuman ? 'You' : state.players[winnerIdx].name) + ' win the match!');
               coinConfetti();
-              if (sndWin) {
-                sndWin.currentTime = 0;
-                sndWin.play();
-              }
               showWinnerOverlay(winnerIdx === 0 ? '🃏' : '🐾');
               if (lobbyBtn) lobbyBtn.style.display = 'block';
               return;
@@ -2456,7 +2268,6 @@
 
         function startGame() {
           state.turn = state.startPlayer;
-          queueCommentary('Game on. Good luck!', { priority: true });
           playTurn(state.turn);
         }
 
@@ -2468,7 +2279,6 @@
           renderAll();
           highlightCombos();
           toast('Arrange your cards');
-          queueCommentary('Arrange your cards', { priority: true });
           arrangeInterval = setInterval(() => {
             t--;
             state.turnTime = t;
