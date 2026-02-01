@@ -1410,7 +1410,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.65; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1561,7 +1561,7 @@ const POCKET_SOUND_TAIL = 1;
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 4.5;
-const BASE_TABLE_LIFT = 4.0;
+const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.82;
 const TABLE_HEIGHT_SCALE = 1.56;
