@@ -1271,7 +1271,7 @@ const PHYSICS_PROFILE = Object.freeze({
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
-  maxTipOffsetRatio: 0.9
+  maxTipOffsetRatio: 0.65
 });
 const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.991;
