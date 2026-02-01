@@ -1675,6 +1675,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 2.6;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
+const CUE_BALL_RENDER_OFFSET_Y = BALL_R * 0.06; // restore cue-ball visual height without moving the cue stick
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
@@ -1682,6 +1683,8 @@ const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
+const SPIN_CONTROLLER_BOTTOM_OFFSET_PX = 10;
+const SPIN_CONTROLLER_RIGHT_OFFSET_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
@@ -25872,7 +25875,12 @@ const powerRef = useRef(hud.power);
               }
             }
             const liftAmount = b.lift ?? 0;
-            b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
+            const cueBallOffset = b.id === 'cue' ? CUE_BALL_RENDER_OFFSET_Y : 0;
+            b.mesh.position.set(
+              b.pos.x,
+              BALL_CENTER_Y + liftAmount + cueBallOffset,
+              b.pos.y
+            );
             if (scaledSpeed > 0) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
@@ -28909,9 +28917,10 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${6 + chromeUiLiftPx}px`,
+            right: `${SPIN_CONTROLLER_RIGHT_OFFSET_PX}px`,
+            bottom: `${SPIN_CONTROLLER_BOTTOM_OFFSET_PX + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
