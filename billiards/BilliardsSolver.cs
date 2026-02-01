@@ -610,9 +610,13 @@ public class BilliardsSolver
         if (!airborne)
         {
             Vec2 dir = b.Velocity.Normalized();
+            double spinEffectScale = Smoothstep(
+                PhysicsConstants.SpinEffectSpeedThreshold,
+                PhysicsConstants.SpinEffectSpeedThreshold + PhysicsConstants.SpinEffectSpeedFadeRange,
+                speed);
             if (b.ForwardSpin > 0)
             {
-                var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin;
+                var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin * spinEffectScale;
                 b.Velocity += dir * forwardAccel * dt;
             }
 
@@ -623,7 +627,7 @@ public class BilliardsSolver
                 double excess = speed - PhysicsConstants.SwerveSpeedCutoff;
                 speedFactor = Math.Max(0.0, 1.0 - excess / PhysicsConstants.SwerveSpeedFadeRange);
             }
-            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor;
+            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor * spinEffectScale;
             b.Velocity += lateral * swerveAccel * dt;
 
             double decay = Math.Exp(-PhysicsConstants.SpinDecay * dt);
