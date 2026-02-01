@@ -1312,6 +1312,8 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
+const POCKET_SOFT_CAPTURE_MARGIN = BALL_R * 0.32; // pull slow-spinning balls off the jaw edge before they stall
+const POCKET_SOFT_CAPTURE_SPEED = STOP_EPS * 4.2; // only auto-drop when the ball is nearly stopped
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
@@ -5379,7 +5381,19 @@ const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
   TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
   const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
   if (viewDot >= 0) return spinInput;
-  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot);
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
   return {
     x: TMP_VEC2_SPIN.dot(axes.perp),
     y: TMP_VEC2_SPIN.dot(axes.axis)
@@ -6031,6 +6045,13 @@ function reflectRails(ball) {
     const pocketGuardClearance =
       nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
     const inGuardZone = nearestPocketDist < pocketGuardClearance;
+    const speed = ball.vel.length();
+    const softCaptureRadius = nearestCaptureRadius + POCKET_SOFT_CAPTURE_MARGIN;
+    const allowSoftCapture =
+      speed <= POCKET_SOFT_CAPTURE_SPEED && nearestPocketDist <= softCaptureRadius;
+    if (allowSoftCapture) {
+      return null;
+    }
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
@@ -6111,7 +6132,7 @@ function reflectRails(ball) {
       ball.pos.x > railLimitX ||
       ball.pos.y < -railLimitY ||
       ball.pos.y > railLimitY;
-    if (outsideRails && nearestPocketDist >= nearestCaptureRadius) {
+    if (outsideRails && nearestPocketDist >= softCaptureRadius) {
       preImpactVel = ball.vel.clone();
       const clampedX = THREE.MathUtils.clamp(ball.pos.x, -railLimitX, railLimitX);
       const clampedY = THREE.MathUtils.clamp(ball.pos.y, -railLimitY, railLimitY);
@@ -26292,8 +26313,13 @@ const powerRef = useRef(hud.power);
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
             const c = captureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
-            if (b.pos.distanceTo(c) < captureRadius) {
-              const entrySpeed = b.vel.length();
+            const entrySpeed = b.vel.length();
+            const distToPocket = b.pos.distanceTo(c);
+            const softCaptureRadius = captureRadius + POCKET_SOFT_CAPTURE_MARGIN;
+            const shouldCapture =
+              distToPocket < captureRadius ||
+              (entrySpeed <= POCKET_SOFT_CAPTURE_SPEED && distToPocket < softCaptureRadius);
+            if (shouldCapture) {
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
                 0,
