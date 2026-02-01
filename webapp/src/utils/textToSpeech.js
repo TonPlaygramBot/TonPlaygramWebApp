@@ -19,22 +19,6 @@ let speechSupportState = false;
 
 const SPEECH_SUPPORT_EVENT = 'tonplaygram:speech-support';
 
-const getSpeechUtteranceClass = () => {
-  if (typeof SpeechSynthesisUtterance !== 'undefined') return SpeechSynthesisUtterance;
-  if (typeof window !== 'undefined') {
-    if (window.SpeechSynthesisUtterance) {
-      return window.SpeechSynthesisUtterance;
-    }
-    if (window.webkitSpeechSynthesisUtterance) {
-      return window.webkitSpeechSynthesisUtterance;
-    }
-  }
-  if (typeof webkitSpeechSynthesisUtterance !== 'undefined') {
-    return webkitSpeechSynthesisUtterance;
-  }
-  return null;
-};
-
 const emitSpeechSupport = (supported) => {
   if (typeof window === 'undefined') return;
   if (speechSupportState === supported) return;
@@ -98,8 +82,7 @@ const createSpeechUnlockHandler = () => {
 
 const evaluateSpeechSupport = () => {
   const synth = getSpeechSynthesis();
-  const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
-  const supported = Boolean(synth && (getSpeechUtteranceClass() || isTelegram));
+  const supported = Boolean(synth && typeof SpeechSynthesisUtterance !== 'undefined');
   if (supported && !speechSupportListenerAttached) {
     speechSupportListenerAttached = true;
     const handler = () => evaluateSpeechSupport();
@@ -165,9 +148,7 @@ export const getSpeechSynthesis = () => {
 
 export const getSpeechSupport = () => {
   if (speechSupportState) return true;
-  const synth = getSpeechSynthesis();
-  const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
-  return Boolean(synth && (getSpeechUtteranceClass() || isTelegram));
+  return Boolean(getSpeechSynthesis() && typeof SpeechSynthesisUtterance !== 'undefined');
 };
 
 export const onSpeechSupportChange = (callback) => {
@@ -200,10 +181,9 @@ const ensureSpeechUnlocked = (synth) => {
 
 export const primeSpeechSynthesis = () => {
   const synth = getSpeechSynthesis();
-  const UtteranceClass = getSpeechUtteranceClass();
-  if (!synth || synth.speaking || synth.pending || !UtteranceClass) return;
+  if (!synth || synth.speaking || synth.pending || typeof SpeechSynthesisUtterance === 'undefined') return;
   ensureSpeechUnlocked(synth);
-  const utterance = new UtteranceClass('.');
+  const utterance = new SpeechSynthesisUtterance('.');
   utterance.volume = 0.01;
   utterance.rate = 1;
   utterance.pitch = 1;
@@ -309,8 +289,7 @@ export const speakCommentaryLines = async (
   { speakerSettings = DEFAULT_SPEAKER_SETTINGS, voiceHints = DEFAULT_VOICE_HINTS } = {}
 ) => {
   const synth = getSpeechSynthesis();
-  const UtteranceClass = getSpeechUtteranceClass();
-  if (!synth || !UtteranceClass || !Array.isArray(lines) || lines.length === 0) return;
+  if (!synth || !Array.isArray(lines) || lines.length === 0) return;
 
   const voices = await loadVoices(synth);
   const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Mason'))];
@@ -329,7 +308,7 @@ export const speakCommentaryLines = async (
   for (const line of lines) {
     const speaker = line.speaker || 'Mason';
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
-    const utterance = new UtteranceClass(line.text);
+    const utterance = new SpeechSynthesisUtterance(line.text);
     const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
     const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
 
