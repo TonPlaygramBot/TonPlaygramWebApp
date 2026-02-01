@@ -25873,7 +25873,7 @@ const powerRef = useRef(hud.power);
             }
             const liftAmount = b.lift ?? 0;
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
-            if (scaledSpeed > 0 && !hasLift) {
+            if (scaledSpeed > 0) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
