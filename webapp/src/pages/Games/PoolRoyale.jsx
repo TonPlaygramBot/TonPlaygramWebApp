@@ -1038,7 +1038,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = false;
+const ENABLE_TABLE_MAPPING_LINES = true;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -10600,9 +10600,9 @@ export function Table3D(
     const mappingGroup = new THREE.Group();
     mappingGroup.name = 'tableMappingOverlay';
     const fieldLineMaterial = new THREE.LineBasicMaterial({
-      color: 0xf5d547,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.6,
       depthTest: false,
       depthWrite: false
     });
@@ -10614,6 +10614,13 @@ export function Table3D(
       depthWrite: false
     });
     const pocketLineMaterial = new THREE.LineBasicMaterial({
+      color: 0xf5d547,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false
+    });
+    const jawLineMaterial = new THREE.LineBasicMaterial({
       color: 0x2f7bff,
       transparent: true,
       opacity: 0.9,
@@ -10681,6 +10688,36 @@ export function Table3D(
           pushPoint(outerX, box.max.z);
           registerMappingLine(makeLine(points, cushionLineMaterial));
         }
+      });
+    }
+    if (Array.isArray(table.userData?.pocketJaws)) {
+      table.userData.pocketJaws.forEach((jaw) => {
+        if (!jaw?.center) return;
+        const { center, jawAngle, orientationAngle, outerRadius } = jaw;
+        if (
+          !Number.isFinite(jawAngle) ||
+          !Number.isFinite(orientationAngle) ||
+          !Number.isFinite(outerRadius)
+        ) {
+          return;
+        }
+        const halfAngle = jawAngle / 2;
+        const startAngle = orientationAngle - halfAngle;
+        const endAngle = orientationAngle + halfAngle;
+        const arcSegments = Math.max(32, Math.ceil((jawAngle / (Math.PI * 2)) * 96));
+        const points = [];
+        for (let i = 0; i <= arcSegments; i += 1) {
+          const t = i / arcSegments;
+          const theta = startAngle + (endAngle - startAngle) * t;
+          points.push(
+            new THREE.Vector3(
+              center.x + Math.cos(theta) * outerRadius,
+              mappingLineY,
+              center.y + Math.sin(theta) * outerRadius
+            )
+          );
+        }
+        registerMappingLine(makeLine(points, jawLineMaterial));
       });
     }
     table.userData.pockets.forEach((marker) => {
