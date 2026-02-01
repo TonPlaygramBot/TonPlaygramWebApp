@@ -10,6 +10,8 @@ public static class PhysicsConstants
     public const double ConnectorRestitution = CushionRestitution * 0.25;
     // pocket edges fully absorb balls (no bounce)
     public const double PocketRestitution = 0.0;
+    public const double PocketJawTangentDamping = 0.35; // tangential speed retained on pocket jaw hits
+    public const double PocketJawSpinDamping = 0.2;     // spin retained on pocket jaw hits
     public const double Mu = 0.2;                      // linear damping (m/s^2)
     public const double Gravity = 9.81;                // m/s^2
     public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)

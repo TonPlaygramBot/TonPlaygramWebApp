@@ -383,6 +383,7 @@ public class BilliardsSolver
                     double restitution = PhysicsConstants.Restitution;
                     bool hit = false;
                     bool pocket = false;
+                    bool pocketJawHit = false;
                     Vec2 contactPoint = new Vec2();
 
                     bool allowPocketing = !airborne;
@@ -419,6 +420,7 @@ public class BilliardsSolver
                             restitution = allowPocketing ? PhysicsConstants.PocketRestitution : PhysicsConstants.CushionRestitution;
                             hit = true;
                             pocket = allowPocketing;
+                            pocketJawHit = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
                     }
@@ -457,6 +459,12 @@ public class BilliardsSolver
                             break;
                         }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
+                        if (pocketJawHit)
+                        {
+                            b.Velocity = ApplyPocketJawFriction(b.Velocity, normal);
+                            b.SideSpin *= PhysicsConstants.PocketJawSpinDamping;
+                            b.ForwardSpin *= PhysicsConstants.PocketJawSpinDamping;
+                        }
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
                         StepVertical(b, travel);
@@ -638,6 +646,16 @@ public class BilliardsSolver
         }
     }
 
+    private static Vec2 ApplyPocketJawFriction(Vec2 velocity, Vec2 normal)
+    {
+        if (velocity.Length <= PhysicsConstants.Epsilon)
+            return velocity;
+        var n = normal.Normalized();
+        var normalComponent = n * Vec2.Dot(velocity, n);
+        var tangential = velocity - normalComponent;
+        return normalComponent + tangential * PhysicsConstants.PocketJawTangentDamping;
+    }
+
     private static void IntegrateCueBall(Ball b, double dt, bool airborne)
     {
         b.Position += b.Velocity * dt;
@@ -728,6 +746,10 @@ public class BilliardsSolver
                 cue.Position += cue.Velocity * te;
                 var restitution = airborne ? PhysicsConstants.CushionRestitution : PhysicsConstants.PocketRestitution;
                 var post = Collision.Reflect(cue.Velocity, e.Normal, restitution);
+                if (!airborne)
+                {
+                    post = ApplyPocketJawFriction(post, e.Normal);
+                }
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
