@@ -6,12 +6,14 @@ import {
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js';
+import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0]?.id],
   stools: [MURLAN_STOOL_THEMES[0]?.id],
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
+  tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
   tokenPalette: [TOKEN_PALETTE_OPTIONS[0]?.id],
   tokenStyle: [TOKEN_STYLE_OPTIONS[0]?.id],
   tokenPiece: [TOKEN_PIECE_OPTIONS[0]?.id]
@@ -34,6 +36,7 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
       }))
     )
   ),
+  tableFinish: Object.freeze(reduceLabels(MURLAN_TABLE_FINISHES)),
   tokenPalette: Object.freeze(reduceLabels(TOKEN_PALETTE_OPTIONS)),
   tokenStyle: Object.freeze(reduceLabels(TOKEN_STYLE_OPTIONS)),
   tokenPiece: Object.freeze(reduceLabels(TOKEN_PIECE_OPTIONS)),
@@ -42,6 +45,17 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
 });
 
 export const LUDO_BATTLE_STORE_ITEMS = [
+  ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
+    id: `ludo-table-finish-${finish.id}`,
+    type: 'tableFinish',
+    optionId: finish.id,
+    name: finish.label,
+    price: finish.price ?? 980 + idx * 40,
+    description: finish.description,
+    swatches: finish.swatches,
+    thumbnail: finish.thumbnail,
+    previewShape: 'table'
+  })),
   ...MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `ludo-table-${theme.id}`,
     type: 'tables',
@@ -107,6 +121,11 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
     type: 'environmentHdri',
     optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
     label: LUDO_BATTLE_OPTION_LABELS.environmentHdri[POOL_ROYALE_DEFAULT_HDRI_ID] || 'HDR Environment'
+  },
+  {
+    type: 'tableFinish',
+    optionId: MURLAN_TABLE_FINISHES[0]?.id,
+    label: MURLAN_TABLE_FINISHES[0]?.label
   },
   { type: 'tokenPalette', optionId: TOKEN_PALETTE_OPTIONS[0]?.id, label: `${TOKEN_PALETTE_OPTIONS[0]?.label} Palette` },
   { type: 'tokenStyle', optionId: TOKEN_STYLE_OPTIONS[0]?.id, label: TOKEN_STYLE_OPTIONS[0]?.label },
