@@ -101,7 +101,7 @@ function detectLowRefreshDisplay() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
-  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  const queries = ['(max-refresh-rate: 59hz)', '(prefers-reduced-motion: reduce)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -237,12 +237,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -498,15 +498,6 @@ const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'e
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
-  {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
-  },
   {
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
@@ -2575,7 +2566,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
       const legacyMap = {
-        mobile50: 'hd50',
+        mobile50: 'fhd60',
         balanced60: 'fhd60',
         smooth90: 'qhd90',
         fast120: 'uhd120',
