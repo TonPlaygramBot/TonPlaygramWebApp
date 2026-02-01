@@ -255,6 +255,39 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
+const safeLocalStorage = (() => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const testKey = '__domino_storage_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  } catch (error) {
+    console.warn('Domino Royal: localStorage unavailable, using memory fallback', error);
+    return null;
+  }
+})();
+const memoryStorage = new Map();
+const storage = {
+  get(key) {
+    if (safeLocalStorage) return safeLocalStorage.getItem(key);
+    return memoryStorage.has(key) ? memoryStorage.get(key) : null;
+  },
+  set(key, value) {
+    if (safeLocalStorage) {
+      safeLocalStorage.setItem(key, value);
+      return;
+    }
+    memoryStorage.set(key, value);
+  },
+  remove(key) {
+    if (safeLocalStorage) {
+      safeLocalStorage.removeItem(key);
+      return;
+    }
+    memoryStorage.delete(key);
+  }
+};
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -467,7 +500,7 @@ function resolveInitialFrameRateId() {
   }
   if (typeof window !== 'undefined') {
     try {
-      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      const stored = storage.get(FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS_BY_ID[stored]) {
         return stored;
       }
@@ -499,7 +532,7 @@ let lastFailsafeTimestamp = 0;
 function persistFrameRateSelection(id) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, id);
+    storage.set(FRAME_RATE_STORAGE_KEY, id);
   } catch (error) {
     console.warn('Failed to persist Domino graphics option', error);
   }
@@ -542,7 +575,7 @@ function normalizeFeedbackSettings(raw = {}) {
 function readFeedbackSettings() {
   if (typeof window === 'undefined') return buildDefaultFeedbackSettings();
   try {
-    const raw = window.localStorage?.getItem(FEEDBACK_STORAGE_KEY);
+    const raw = storage.get(FEEDBACK_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     return normalizeFeedbackSettings(parsed);
   } catch {
@@ -553,7 +586,7 @@ function readFeedbackSettings() {
 function persistFeedbackSettings(settings) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage?.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(settings));
+    storage.set(FEEDBACK_STORAGE_KEY, JSON.stringify(settings));
   } catch {}
 }
 
@@ -809,11 +842,11 @@ const COMMENTARY_VOICE_BY_KIND = {
 function readCommentaryPrefs() {
   if (typeof window === 'undefined') return;
   try {
-    const storedPreset = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
+    const storedPreset = storage.get(COMMENTARY_STORAGE_KEY);
     if (storedPreset && COMMENTARY_PRESETS.some((preset) => preset.id === storedPreset)) {
       commentaryPresetId = storedPreset;
     }
-    const storedMute = window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+    const storedMute = storage.get(COMMENTARY_MUTE_STORAGE_KEY);
     if (storedMute === '1') commentaryMuted = true;
     if (storedMute === '0') commentaryMuted = false;
   } catch {}
@@ -822,8 +855,8 @@ function readCommentaryPrefs() {
 function persistCommentaryPrefs() {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, commentaryPresetId);
-    window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    storage.set(COMMENTARY_STORAGE_KEY, commentaryPresetId);
+    storage.set(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
   } catch {}
 }
 
@@ -1448,7 +1481,7 @@ if (!seatAvatarUsername && telegramUser) {
 }
 const lobbyAvatarFallback = (() => {
   try {
-    return normalizeAvatarSource(localStorage.getItem('profilePhoto') || '');
+    return normalizeAvatarSource(storage.get('profilePhoto') || '');
   } catch (error) {
     console.warn('Unable to read lobby avatar fallback', error);
     return '';
@@ -2922,7 +2955,7 @@ const resolveDominoAccountId = (accountId) => {
   if (accountId) return accountId;
   if (typeof window !== "undefined") {
     try {
-      const stored = window.localStorage.getItem("accountId");
+      const stored = storage.get("accountId");
       if (stored) return stored;
     } catch (error) {
       console.warn("Failed to read Domino account id, using guest", error);
@@ -2934,7 +2967,7 @@ const resolveDominoAccountId = (accountId) => {
 const readDominoInventories = () => {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(DOMINO_INVENTORY_STORAGE_KEY);
+    const raw = storage.get(DOMINO_INVENTORY_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch (error) {
     console.warn("Failed to read domino inventory, resetting", error);
@@ -2945,7 +2978,7 @@ const readDominoInventories = () => {
 const writeDominoInventories = (payload) => {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(DOMINO_INVENTORY_STORAGE_KEY, JSON.stringify(payload));
+    storage.set(DOMINO_INVENTORY_STORAGE_KEY, JSON.stringify(payload));
   } catch (error) {
     console.warn("Failed to persist domino inventory", error);
   }
@@ -3119,13 +3152,13 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
 try {
   const keysToCheck = [APPEARANCE_STORAGE_KEY, ...LEGACY_APPEARANCE_KEYS];
   for (const key of keysToCheck) {
-    const stored = window.localStorage?.getItem(key);
+    const stored = storage.get(key);
     if (!stored) continue;
     const parsed = JSON.parse(stored);
     if (parsed && typeof parsed === "object") {
       appearance = sanitizeAppearance({ ...appearance, ...parsed });
       if (key !== APPEARANCE_STORAGE_KEY) {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+        storage.set(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
       }
       break;
     }
@@ -4902,7 +4935,7 @@ function saveAppearance() {
   try {
     const normalized = sanitizeAppearance(appearance);
     appearance = normalized;
-    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(normalized));
+    storage.set(APPEARANCE_STORAGE_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.warn('Failed to persist Domino appearance', error);
   }
