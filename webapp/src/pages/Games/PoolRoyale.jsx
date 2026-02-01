@@ -1038,7 +1038,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = true;
+const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1610,8 +1610,8 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.12 + CUE_TIP_CLEARANCE; // pull the blue tip farther back so it stays visible
+const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_GAP = BALL_R * 1.16 + CUE_TIP_CLEARANCE; // pull the blue tip farther back so it stays visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1624,8 +1624,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.4; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 2.6; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.7; // ensure the forward push is visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 3.1; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -1639,7 +1639,7 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.13; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
@@ -5335,7 +5335,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = -0.18;
+const SPIN_VIEW_BLOCK_THRESHOLD = 0;
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -13127,6 +13127,8 @@ const powerRef = useRef(hud.power);
   const spinRef = useRef({ x: 0, y: 0 });
   const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
+  const spinAxesRef = useRef(null);
+  const spinViewRef = useRef(null);
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
   const spinRangeRef = useRef({
@@ -18674,8 +18676,11 @@ const powerRef = useRef(hud.power);
               cueStick.quaternion.set(quatA.x, quatA.y, quatA.z, quatA.w);
             }
             const visible = cueStateB?.visible ?? cueStateA?.visible;
+            const forceReplayVisible = Boolean(replayPlaybackRef.current);
             if (visible != null) {
-              cueStick.visible = Boolean(visible);
+              cueStick.visible = Boolean(visible) || forceReplayVisible;
+            } else if (forceReplayVisible) {
+              cueStick.visible = true;
             }
             cueAnimating = cueStick.visible;
             syncCueShadow();
@@ -18712,7 +18717,11 @@ const powerRef = useRef(hud.power);
             if (quat) {
               cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
             }
-            cueStick.visible = cueSnapshot.visible ?? true;
+            const forceReplayVisible = Boolean(replayPlaybackRef.current);
+            cueStick.visible =
+              cueSnapshot.visible == null
+                ? true
+                : Boolean(cueSnapshot.visible) || forceReplayVisible;
             cueAnimating = cueStick.visible;
             syncCueShadow();
             return true;
@@ -18751,7 +18760,7 @@ const powerRef = useRef(hud.power);
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = CUE_PULL_BASE * 0.18;
+            const fallbackForward = CUE_PULL_BASE * 0.28;
             const pullbackTime = 160;
             const forwardTime = 210;
             const settleTime = 120;
@@ -19410,6 +19419,10 @@ const powerRef = useRef(hud.power);
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
+            spinAxesRef.current = axes;
+            spinViewRef.current = viewVec
+              ? { x: viewVec.x, y: viewVec.y }
+              : null;
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
@@ -27040,10 +27053,30 @@ const powerRef = useRef(hud.power);
       };
     };
 
+    const clampToViewHalfPlane = (nx, ny) => {
+      const axes = spinAxesRef.current;
+      const view = spinViewRef.current;
+      if (!axes?.axis || !axes?.perp || !view) return { x: nx, y: ny };
+      TMP_VEC2_VIEW.set(view.x ?? 0, view.y ?? 0);
+      if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return { x: nx, y: ny };
+      TMP_VEC2_VIEW.normalize();
+      const viewX = TMP_VEC2_VIEW.dot(axes.perp);
+      const viewY = TMP_VEC2_VIEW.dot(axes.axis);
+      const denom = viewX * viewX + viewY * viewY;
+      if (denom < 1e-8) return { x: nx, y: ny };
+      const dot = viewX * nx + viewY * ny;
+      if (dot >= SPIN_VIEW_BLOCK_THRESHOLD) return { x: nx, y: ny };
+      const shift = (SPIN_VIEW_BLOCK_THRESHOLD - dot) / denom;
+      return { x: nx + viewX * shift, y: ny + viewY * shift };
+    };
+
     const clampToPlayable = (nx, ny) => {
-      const raw = clampToUnitCircle(nx, ny);
-      const limited = clampToLimits(raw.x, raw.y);
-      return clampToUnitCircle(limited.x, limited.y);
+      let raw = clampToUnitCircle(nx, ny);
+      raw = clampToLimits(raw.x, raw.y);
+      raw = clampToViewHalfPlane(raw.x, raw.y);
+      raw = clampToLimits(raw.x, raw.y);
+      raw = clampToViewHalfPlane(raw.x, raw.y);
+      return clampToUnitCircle(raw.x, raw.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
