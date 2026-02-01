@@ -73,6 +73,7 @@ public class BilliardsSolver
         double sideJawInset = PhysicsConstants.SideJawInset;
         double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8) * PhysicsConstants.SideJawDepthScale;
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
+        double mouthGuardInset = Math.Max(0.0, PhysicsConstants.PocketMouthGuardInset);
 
         // Straight cushion spans (long rails)
         AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
@@ -163,6 +164,48 @@ public class BilliardsSolver
             new Vec2(width, height / 2 + sideCut),
             new Vec2(width - sideJawInset, height / 2 + sideCut),
             new Vec2(-1, 0));
+
+        AddPocketMouthGuard(
+            new Vec2(cornerCut, 0),
+            new Vec2(0, cornerCut),
+            new Vec2(1, 1),
+            mouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(width - cornerCut, 0),
+            new Vec2(width, cornerCut),
+            new Vec2(-1, 1),
+            mouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(width, height - cornerCut),
+            new Vec2(width - cornerCut, height),
+            new Vec2(-1, -1),
+            mouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(0, height - cornerCut),
+            new Vec2(cornerCut, height),
+            new Vec2(1, -1),
+            mouthGuardInset);
+
+        AddPocketMouthGuard(
+            new Vec2(width / 2 - sideCut, 0),
+            new Vec2(width / 2 + sideCut, 0),
+            new Vec2(0, 1),
+            mouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(width / 2 - sideCut, height),
+            new Vec2(width / 2 + sideCut, height),
+            new Vec2(0, -1),
+            mouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(0, height / 2 - sideCut),
+            new Vec2(0, height / 2 + sideCut),
+            new Vec2(1, 0),
+            mouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(width, height / 2 - sideCut),
+            new Vec2(width, height / 2 + sideCut),
+            new Vec2(-1, 0),
+            mouthGuardInset);
 
         double capture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
         Pockets.Add(new Pocket { Center = new Vec2(0, 0), Radius = capture });
@@ -274,6 +317,25 @@ public class BilliardsSolver
         if (Vec2.Dot(normal, interiorHint) < 0)
             normal = -normal;
         ConnectorEdges.Add(new Edge { A = a, B = b, Normal = normal.Normalized() });
+    }
+
+    private void AddPocketMouthGuard(Vec2 a, Vec2 b, Vec2 interiorHint, double inset)
+    {
+        if ((b - a).Length < PhysicsConstants.Epsilon)
+            return;
+        Vec2 dir = (b - a).Normalized();
+        Vec2 normal = new Vec2(-dir.Y, dir.X);
+        if (Vec2.Dot(normal, interiorHint) < 0)
+            normal = -normal;
+        if (normal.Length > PhysicsConstants.Epsilon)
+            normal = normal.Normalized();
+        if (inset > PhysicsConstants.Epsilon)
+        {
+            Vec2 offset = -normal * inset;
+            a += offset;
+            b += offset;
+        }
+        PocketEdges.Add(new Edge { A = a, B = b, Normal = normal });
     }
 
     private static Vec2 PointOnCircle(Vec2 center, double radius, double angle)
