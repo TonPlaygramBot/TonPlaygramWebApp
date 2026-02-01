@@ -18,6 +18,7 @@ let speechSupportListenerAttached = false;
 let speechSupportState = false;
 
 const SPEECH_SUPPORT_EVENT = 'tonplaygram:speech-support';
+const isTelegramWebApp = () => typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
 
 const getSpeechUtteranceClass = () => {
   if (typeof SpeechSynthesisUtterance !== 'undefined') return SpeechSynthesisUtterance;
@@ -121,9 +122,10 @@ export const installSpeechSynthesisUnlock = () => {
   speechUnlockInstalled = true;
   installSpeechSupportMonitor();
   const handler = createSpeechUnlockHandler();
-  const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
+  const isTelegram = isTelegramWebApp();
   const options = { once: !isTelegram, passive: true };
   window.addEventListener('pointerdown', handler, options);
+  window.addEventListener('pointerup', handler, options);
   window.addEventListener('touchstart', handler, options);
   window.addEventListener('touchend', handler, options);
   window.addEventListener('click', handler, options);
@@ -227,7 +229,11 @@ const loadVoices = (synth, timeoutMs = 3500) =>
       resolve([]);
       return;
     }
+    const effectiveTimeout = isTelegramWebApp() ? Math.max(timeoutMs, 6000) : timeoutMs;
     ensureSpeechUnlocked(synth);
+    if (isTelegramWebApp()) {
+      primeSpeechSynthesis();
+    }
     const existing = synth.getVoices();
     if (existing.length) {
       resolve(existing);
@@ -251,7 +257,7 @@ const loadVoices = (synth, timeoutMs = 3500) =>
       synth.onvoiceschanged = handleVoices;
     }
     intervalId = setInterval(handleVoices, 250);
-    setTimeout(() => finalize(synth.getVoices()), timeoutMs);
+    setTimeout(() => finalize(synth.getVoices()), effectiveTimeout);
   });
 
 const findVoiceMatch = (voices, hints = []) => {
