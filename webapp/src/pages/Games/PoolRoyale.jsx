@@ -10600,9 +10600,9 @@ export function Table3D(
     const mappingGroup = new THREE.Group();
     mappingGroup.name = 'tableMappingOverlay';
     const fieldLineMaterial = new THREE.LineBasicMaterial({
-      color: 0xffffff,
+      color: 0xf5d547,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.9,
       depthTest: false,
       depthWrite: false
     });
@@ -10614,13 +10614,6 @@ export function Table3D(
       depthWrite: false
     });
     const pocketLineMaterial = new THREE.LineBasicMaterial({
-      color: 0xf5d547,
-      transparent: true,
-      opacity: 0.9,
-      depthTest: false,
-      depthWrite: false
-    });
-    const jawLineMaterial = new THREE.LineBasicMaterial({
       color: 0x2f7bff,
       transparent: true,
       opacity: 0.9,
@@ -10707,30 +10700,6 @@ export function Table3D(
       }
       registerMappingLine(makeLine(points, pocketLineMaterial, true));
     });
-    if (Array.isArray(table.userData?.pocketJaws)) {
-      table.userData.pocketJaws.forEach((jaw) => {
-        if (!(jaw?.center instanceof THREE.Vector2)) return;
-        if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
-        if (!Number.isFinite(jaw?.jawAngle) || jaw.jawAngle <= MICRO_EPS) return;
-        if (!Number.isFinite(jaw?.orientationAngle)) return;
-        const steps = Math.max(18, Math.ceil((jaw.jawAngle / Math.PI) * 48));
-        const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
-        const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
-        const points = [];
-        for (let i = 0; i <= steps; i += 1) {
-          const t = i / steps;
-          const theta = THREE.MathUtils.lerp(startAngle, endAngle, t);
-          points.push(
-            new THREE.Vector3(
-              jaw.center.x + Math.cos(theta) * jaw.outerRadius,
-              mappingLineY,
-              jaw.center.y + Math.sin(theta) * jaw.outerRadius
-            )
-          );
-        }
-        registerMappingLine(makeLine(points, jawLineMaterial));
-      });
-    }
     table.add(mappingGroup);
   }
 
