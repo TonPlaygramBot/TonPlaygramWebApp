@@ -43,12 +43,7 @@ import {
   TABLE_CLOTH_OPTIONS,
   TABLE_BASE_OPTIONS
 } from '../../utils/tableCustomizationOptions.js';
-import {
-  HEAD_PRESET_OPTIONS,
-  TOKEN_PALETTE_OPTIONS,
-  TOKEN_PIECE_OPTIONS,
-  TOKEN_STYLE_OPTIONS
-} from '../../config/ludoBattleOptions.js';
+import { TOKEN_PALETTE_OPTIONS, TOKEN_PIECE_OPTIONS, TOKEN_STYLE_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
@@ -292,12 +287,6 @@ const ABG_TYPE_ALIASES = Object.freeze([
 ]);
 const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
-const ABG_PLAYER_COLOR_KEYS = Object.freeze(['w', 'b', 'w', 'b']);
-const CHESS_TOKEN_TINTS = Object.freeze({
-  0: 0xef4444, // Rose Mist (red player)
-  1: 0x3b82f6, // Royal Wave (blue player)
-  3: 0x10b981 // Mint Vale (green player)
-});
 let proceduralTokenHeight = null;
 
 const ARENA_SCALE = 0.85;
@@ -391,7 +380,12 @@ const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_UNITS_PER_METER = 1;
-const LUDO_HDRI_OPTIONS = Object.freeze(POOL_ROYALE_HDRI_VARIANTS);
+const LUDO_HDRI_OPTIONS = Object.freeze(
+  POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+    ...variant,
+    label: `${variant.name} HDRI`
+  }))
+);
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
   LUDO_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -651,21 +645,7 @@ function abgBbox(obj) {
 
 function measureProceduralTokenHeight() {
   if (proceduralTokenHeight) return proceduralTokenHeight;
-  const tempMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-  const token = makeRook(tempMaterial);
-  const { size } = abgBbox(token);
-  const height = size.y || 0.09;
-  token.traverse((node) => {
-    if (node.isMesh) {
-      node.geometry?.dispose?.();
-      if (Array.isArray(node.material)) {
-        node.material.forEach((mat) => mat?.dispose?.());
-      } else {
-        node.material?.dispose?.();
-      }
-    }
-  });
-  proceduralTokenHeight = height;
+  proceduralTokenHeight = 0.09;
   return proceduralTokenHeight;
 }
 
@@ -710,8 +690,8 @@ function tintGltfToken(node, tint) {
   });
 }
 
-function resolveAbgColorKey(playerIdx) {
-  return ABG_PLAYER_COLOR_KEYS[playerIdx % ABG_PLAYER_COLOR_KEYS.length] ?? 'w';
+function resolveAbgColorKey() {
+  return 'w';
 }
 
 function resolveAbgPrototype(proto, colorKey, type) {
@@ -2331,8 +2311,6 @@ function spinDice(
   });
 }
 
-const tokenTextureCache = new Map();
-
 function createTokenCountLabel() {
   if (typeof document === 'undefined') return null;
   const size = 128;
@@ -2398,179 +2376,6 @@ function updateTokenCountLabel(sprite, count, baseColor) {
 
   texture.needsUpdate = true;
   data.value = count;
-}
-
-function createTokenTexture(color) {
-  if (typeof document === 'undefined') return null;
-  const key = typeof color === 'number' ? color.toString(16) : color.getHexString?.() ?? `${color}`;
-  if (tokenTextureCache.has(key)) return tokenTextureCache.get(key);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  const base = new THREE.Color(color);
-  const highlight = base.clone().lerp(new THREE.Color(0xffffff), 0.35);
-  const mid = base.clone().lerp(new THREE.Color(0xffffff), 0.08);
-  const shadow = base.clone().lerp(new THREE.Color(0x000000), 0.32);
-  const rim = base.clone().lerp(new THREE.Color(0x000000), 0.55);
-
-  ctx.fillStyle = `#${rim.getHexString()}`;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const gradient = ctx.createRadialGradient(
-    canvas.width * 0.32,
-    canvas.height * 0.3,
-    canvas.width * 0.1,
-    canvas.width * 0.55,
-    canvas.height * 0.55,
-    canvas.width * 0.55
-  );
-  gradient.addColorStop(0, `#${highlight.getHexString()}`);
-  gradient.addColorStop(0.45, `#${mid.getHexString()}`);
-  gradient.addColorStop(1, `#${shadow.getHexString()}`);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.save();
-  ctx.globalAlpha = 0.28;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.ellipse(canvas.width * 0.34, canvas.height * 0.3, canvas.width * 0.12, canvas.height * 0.18, -0.55, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 4;
-  texture.needsUpdate = true;
-  if ('colorSpace' in texture) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  }
-
-  tokenTextureCache.set(key, texture);
-  return texture;
-}
-
-function makeTokenMaterial(color) {
-  const tone = new THREE.Color(color);
-  const texture = createTokenTexture(tone);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: tone,
-    map: texture ?? null,
-    roughness: 0.32,
-    metalness: 0.18,
-    clearcoat: 0.65,
-    clearcoatRoughness: 0.18,
-    sheen: 0.35,
-    sheenColor: tone.clone().lerp(new THREE.Color(0xffffff), 0.18),
-    envMapIntensity: 0.9
-  });
-  if (texture) {
-    material.map = texture;
-  }
-  return material;
-}
-
-function makeRook(mat) {
-  const g = new THREE.Group();
-  const accent = mat.clone();
-  if (accent.color) {
-    accent.color = accent.color.clone().lerp(new THREE.Color(0xffffff), 0.28);
-  }
-  accent.metalness = Math.min(0.55, (accent.metalness ?? 0) + 0.2);
-  accent.roughness = Math.max(0.18, (accent.roughness ?? 0.32) - 0.12);
-  accent.clearcoat = Math.min(0.95, (accent.clearcoat ?? 0.65) + 0.1);
-  accent.clearcoatRoughness = Math.max(0.12, (accent.clearcoatRoughness ?? 0.18) * 0.65);
-
-  const baseHeight = 0.018;
-  const bodyHeight = 0.034;
-  const crownHeight = 0.015;
-  const crownRadius = 0.013;
-  const finialRadius = 0.0065;
-
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.032, baseHeight, 48), mat);
-  base.position.y = baseHeight / 2;
-  base.castShadow = true;
-  base.receiveShadow = true;
-
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, bodyHeight, 48), mat);
-  body.position.y = baseHeight + bodyHeight / 2;
-  body.castShadow = true;
-  body.receiveShadow = true;
-
-  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0032, 18, 48), accent);
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = baseHeight + bodyHeight;
-  collar.castShadow = true;
-  collar.receiveShadow = true;
-
-  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.02, crownHeight, 48), accent);
-  crownBase.position.y = baseHeight + bodyHeight + crownHeight / 2;
-  crownBase.castShadow = true;
-  crownBase.receiveShadow = true;
-
-  const crownTop = new THREE.Mesh(new THREE.SphereGeometry(crownRadius, 32, 24), accent);
-  crownTop.position.y = baseHeight + bodyHeight + crownHeight + crownRadius;
-  crownTop.castShadow = true;
-  crownTop.receiveShadow = true;
-
-  const finialMaterial = accent.clone();
-  finialMaterial.metalness = Math.min(0.7, finialMaterial.metalness + 0.1);
-  finialMaterial.roughness = Math.max(0.12, finialMaterial.roughness - 0.08);
-  const finial = new THREE.Mesh(new THREE.SphereGeometry(finialRadius, 24, 18), finialMaterial);
-  finial.position.y = crownTop.position.y + crownRadius * 0.7;
-  finial.castShadow = true;
-  finial.receiveShadow = true;
-
-  const label = createTokenCountLabel();
-  if (label) {
-    g.add(label);
-    g.userData.countLabel = label;
-  }
-
-  const tokenColorHex = mat?.color?.getHexString?.();
-  if (tokenColorHex) {
-    g.userData.tokenColor = `#${tokenColorHex}`;
-  }
-
-  g.add(base, body, collar, crownBase, crownTop, finial);
-  return g;
-}
-
-function makeHeadMaterial(preset) {
-  const color = preset?.color ?? '#ffffff';
-  return new THREE.MeshPhysicalMaterial({
-    color,
-    metalness: preset?.metalness ?? 0.05,
-    roughness: preset?.roughness ?? 0.15,
-    transmission: preset?.transmission ?? 0.4,
-    ior: preset?.ior ?? 1.4,
-    thickness: preset?.thickness ?? 0.4,
-    envMapIntensity: 1.15,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.18
-  });
-}
-
-function applyHeadPresetToToken(token, preset) {
-  if (!token || !preset) return;
-  const mat = makeHeadMaterial(preset);
-  token.traverse((node) => {
-    if (!node?.isMesh) return;
-    const name = (node.name || '').toLowerCase();
-    const tagged = node.userData?.tokenHead === true;
-    const looksLikeHead = tagged || /(head|top|finial|crown|cap|ball)/.test(name);
-    if (!looksLikeHead) return;
-    if (Array.isArray(node.material)) {
-      node.material = node.material.map(() => mat.clone());
-    } else {
-      node.material = mat.clone();
-    }
-    node.castShadow = true;
-    node.receiveShadow = true;
-  });
 }
 
 function ease(t) {
@@ -4101,7 +3906,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const envVariant = resolveHdriVariant(safe.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
     const tokenPieceOption = TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
-    const headOption = HEAD_PRESET_OPTIONS[0] ?? null;
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
@@ -4126,9 +3930,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         activePlayerCount,
         nextColors,
         tokenStyleOption,
-        headOption,
-        tokenPieceOption,
-        players.filter((player) => player.isAI).map((player) => player.index)
+        tokenPieceOption
       );
       if (arenaState.boardGroup) {
         arenaState.tableInfo.group.remove(arenaState.boardGroup);
@@ -4340,7 +4142,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const envVariant = resolveHdriVariant(initialAppearance.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
     const tokenPieceOption = TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
-    const headOption = HEAD_PRESET_OPTIONS[0] ?? null;
     const initialPlayerColors = resolvePlayerColors(initialAppearance);
     appearanceRef.current = initialAppearance;
     playerColorsRef.current = initialPlayerColors;
@@ -4515,9 +4316,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       activePlayerCount,
       initialPlayerColors,
       tokenStyleOption,
-      headOption,
-      tokenPieceOption,
-      players.filter((player) => player.isAI).map((player) => player.index)
+      tokenPieceOption
     );
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
@@ -5925,9 +5724,7 @@ async function buildLudoBoard(
   playerCount = DEFAULT_PLAYER_COUNT,
   playerColors = DEFAULT_PLAYER_COLORS,
   tokenStyleOption = TOKEN_STYLE_OPTIONS[0],
-  headPresetOption = HEAD_PRESET_OPTIONS[0],
-  tokenPieceOption = TOKEN_PIECE_OPTIONS[0],
-  aiPlayerIndices = []
+  tokenPieceOption = TOKEN_PIECE_OPTIONS[0]
 ) {
   const scene = boardGroup;
 
@@ -5938,12 +5735,10 @@ async function buildLudoBoard(
   if (tokenPieceOption?.type) {
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
-  const useAbgTokens = Boolean(tokenStyleOption?.prefersAbg) || aiPlayerIndices.length > 0;
+  const useAbgTokens = true;
   const abgAssets = useAbgTokens ? await getAbgAssets() : null;
   const abgPrototypes = abgAssets?.proto ?? null;
   const shouldUseAbgTokens = Boolean(abgPrototypes);
-  const headPreset = shouldUseAbgTokens ? null : headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
-  const aiPlayerSet = new Set(aiPlayerIndices);
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -6050,8 +5845,8 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const useAbgForPlayer = shouldUseAbgTokens || aiPlayerSet.has(playerIdx);
-      const tokenTint = aiPlayerSet.has(playerIdx) ? CHESS_TOKEN_TINTS[playerIdx] : null;
+      const useAbgForPlayer = shouldUseAbgTokens;
+      const tokenTint = color;
       let token = null;
       if (useAbgForPlayer && abgPrototypes) {
         const colorKey = resolveAbgColorKey(playerIdx);
@@ -6062,9 +5857,11 @@ async function buildLudoBoard(
         }
       }
       if (!token) {
-        token = makeRook(makeTokenMaterial(color));
-        if (headPreset) {
-          applyHeadPresetToToken(token, headPreset);
+        const fallbackProto =
+          resolveAbgPrototype(abgPrototypes, 'w', type) ?? resolveAbgPrototype(abgPrototypes, 'w', 'p');
+        token = cloneAbgToken(fallbackProto) || new THREE.Group();
+        if (tokenTint) {
+          tintGltfToken(token, tokenTint);
         }
       }
       const label = createTokenCountLabel();
