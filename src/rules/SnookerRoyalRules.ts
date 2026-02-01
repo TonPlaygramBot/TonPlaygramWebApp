@@ -340,7 +340,7 @@ export class SnookerRoyalRules {
       nextActivePlayer = opponent;
       nextBreak = 0;
       nextFreeBall = Boolean(context.snookered);
-      nextBallInHand = true;
+      nextBallInHand = cuePotted;
       if (state.phase === 'REDS_AND_COLORS') {
         colorOnAfterRed = false;
         if (redsRemaining === 0) {

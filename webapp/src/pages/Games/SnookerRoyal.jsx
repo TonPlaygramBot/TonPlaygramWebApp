@@ -969,7 +969,7 @@ const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% wi
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 1.06; // shrink the table footprint slightly less so the playfield reads larger
-const CAMERA_DISPLAY_SCALE = 1;
+const CAMERA_DISPLAY_SCALE = 0.712; // pull cameras closer to match Pool Royale ball size on the larger snooker table
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1436,8 +1436,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 1,
-  heightScale: 1,
+  distanceScale: CAMERA_DISPLAY_SCALE,
+  heightScale: CAMERA_DISPLAY_SCALE,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -17268,23 +17268,17 @@ const powerRef = useRef(hud.power);
                   ? Math.max(activeShotView.holdUntil, extendTo)
                   : extendTo;
             }
-            const lastUpdate = activeShotView.lastUpdate ?? now;
-            const dt = Math.min(0.2, Math.max(0, (now - lastUpdate) / 1000));
-            activeShotView.lastUpdate = now;
-            const smooth =
-              POCKET_VIEW_SMOOTH_TIME > 0
-                ? 1 - Math.exp(-dt / POCKET_VIEW_SMOOTH_TIME)
-                : 1;
-            const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
+            const leveledTarget = focusTarget.clone();
+            leveledTarget.y = desiredPosition.y;
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
-              activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
+              activeShotView.smoothedPos.copy(desiredPosition);
             }
             if (!activeShotView.smoothedTarget) {
-              activeShotView.smoothedTarget = focusTarget.clone();
+              activeShotView.smoothedTarget = leveledTarget.clone();
             } else {
-              activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
+              activeShotView.smoothedTarget.copy(leveledTarget);
             }
             if (pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
