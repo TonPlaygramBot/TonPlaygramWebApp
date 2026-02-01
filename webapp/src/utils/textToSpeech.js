@@ -319,6 +319,7 @@ export const speakCommentaryLines = async (
   ensureSpeechUnlocked(synth);
 
   for (const line of lines) {
+    ensureSpeechUnlocked(synth);
     const speaker = line.speaker || 'Mason';
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
     const utterance = new UtteranceClass(line.text);

@@ -1985,6 +1985,32 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, []);
 
+  const playImmediateCommentary = useCallback(
+    (entry) => {
+      if (!entry?.lines?.length) return;
+      const synth = getSpeechSynthesis();
+      if (!synth) return;
+      commentarySpeakingRef.current = true;
+      try {
+        synth.cancel();
+      } catch {}
+      const startedAt = performance.now();
+      Promise.resolve(
+        speakCommentaryLines(entry.lines, {
+          speakerSettings: entry.preset?.speakerSettings,
+          voiceHints: entry.preset?.voiceHints
+        })
+      ).finally(() => {
+        commentarySpeakingRef.current = false;
+        if (commentaryQueueRef.current.length) {
+          playNextCommentary();
+        }
+        commentaryLastEventAtRef.current = startedAt;
+      });
+    },
+    [playNextCommentary]
+  );
+
   const enqueueMurlanCommentary = useCallback(
     (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
       if (!Array.isArray(lines) || lines.length === 0) return;
@@ -2057,9 +2083,13 @@ export default function MurlanRoyaleArena({ search }) {
     const pending = pendingCommentaryLinesRef.current;
     if (pending) {
       pendingCommentaryLinesRef.current = null;
-      enqueueMurlanCommentary(pending.lines, pending);
+      playImmediateCommentary(pending);
+      return;
     }
-  }, [enqueueMurlanCommentary]);
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, [playImmediateCommentary, playNextCommentary]);
 
   const handleToggleCommentary = useCallback(() => {
     if (commentaryMuted) {
