@@ -385,45 +385,46 @@ public class BilliardsSolver
                     bool pocket = false;
                     Vec2 contactPoint = new Vec2();
 
-                    if (!airborne)
+                    bool allowPocketing = !airborne;
+                    foreach (var e in CushionEdges)
                     {
-                        foreach (var e in CushionEdges)
+                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
                         {
-                            if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
-                            {
-                                tHit = tEdge;
-                                normal = e.Normal;
-                                restitution = PhysicsConstants.CushionRestitution;
-                                hit = true;
-                                contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
-                            }
+                            tHit = tEdge;
+                            normal = e.Normal;
+                            restitution = PhysicsConstants.CushionRestitution;
+                            hit = true;
+                            contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
+                    }
 
-                        foreach (var e in ConnectorEdges)
+                    foreach (var e in ConnectorEdges)
+                    {
+                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
                         {
-                            if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
-                            {
-                                tHit = tEdge;
-                                normal = e.Normal;
-                                restitution = PhysicsConstants.ConnectorRestitution;
-                                hit = true;
-                                contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
-                            }
+                            tHit = tEdge;
+                            normal = e.Normal;
+                            restitution = PhysicsConstants.ConnectorRestitution;
+                            hit = true;
+                            contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
+                    }
 
-                        foreach (var e in PocketEdges)
+                    foreach (var e in PocketEdges)
+                    {
+                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
                         {
-                            if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
-                            {
-                                tHit = tEdge;
-                                normal = e.Normal;
-                                restitution = PhysicsConstants.PocketRestitution;
-                                hit = true;
-                                pocket = true;
-                                contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
-                            }
+                            tHit = tEdge;
+                            normal = e.Normal;
+                            restitution = allowPocketing ? PhysicsConstants.PocketRestitution : PhysicsConstants.CushionRestitution;
+                            hit = true;
+                            pocket = allowPocketing;
+                            contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
+                    }
 
+                    if (allowPocketing)
+                    {
                         foreach (var pocketZone in Pockets)
                         {
                             double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
@@ -513,7 +514,7 @@ public class BilliardsSolver
         {
             bool airborne = cue.Height > PhysicsConstants.AirborneHeightThreshold;
             ApplySpinForces(cue, PhysicsConstants.FixedDt, airborne);
-            if (!airborne && TryFindImpact(cue, others, PhysicsConstants.FixedDt, out var impact))
+            if (TryFindImpact(cue, others, PhysicsConstants.FixedDt, airborne, out var impact))
             {
                 contact = impact.Point;
                 cuePost = impact.CueVelocity;
@@ -544,7 +545,7 @@ public class BilliardsSolver
         {
             bool airborne = cue.Height > PhysicsConstants.AirborneHeightThreshold;
             ApplySpinForces(cue, PhysicsConstants.FixedDt, airborne);
-            if (!airborne && TryFindImpact(cue, others, PhysicsConstants.FixedDt, out var impact))
+            if (TryFindImpact(cue, others, PhysicsConstants.FixedDt, airborne, out var impact))
             {
                 return impact;
             }
@@ -679,19 +680,22 @@ public class BilliardsSolver
         return airborne ? PhysicsConstants.AirDrag : PhysicsConstants.Mu;
     }
 
-    private bool TryFindImpact(Ball cue, List<Ball> others, double dt, out Impact impact)
+    private bool TryFindImpact(Ball cue, List<Ball> others, double dt, bool airborne, out Impact impact)
     {
         // check collisions using CCD for the next dt
-        foreach (var b in others)
+        if (!airborne)
         {
-            if (Ccd.CircleCircle(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, b.Position, PhysicsConstants.BallRadius, out double t))
+            foreach (var b in others)
             {
-                if (t <= dt)
+                if (Ccd.CircleCircle(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, b.Position, PhysicsConstants.BallRadius, out double t))
                 {
-                    cue.Position += cue.Velocity * t;
-                    Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
-                    impact = new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
-                    return true;
+                    if (t <= dt)
+                    {
+                        cue.Position += cue.Velocity * t;
+                        Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
+                        impact = new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
+                        return true;
+                    }
                 }
             }
         }
@@ -722,21 +726,26 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                impact = new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
+                var restitution = airborne ? PhysicsConstants.CushionRestitution : PhysicsConstants.PocketRestitution;
+                var post = Collision.Reflect(cue.Velocity, e.Normal, restitution);
+                impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
         }
 
-        foreach (var pocketZone in Pockets)
+        if (!airborne)
         {
-            double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
-            if (captureRadius <= PhysicsConstants.Epsilon)
-                continue;
-            if (Ccd.CircleCircle(cue.Position, cue.Velocity, 0, pocketZone.Center, captureRadius, out double tPocket) && tPocket <= dt)
+            foreach (var pocketZone in Pockets)
             {
-                cue.Position += cue.Velocity * tPocket;
-                impact = new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
-                return true;
+                double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
+                if (captureRadius <= PhysicsConstants.Epsilon)
+                    continue;
+                if (Ccd.CircleCircle(cue.Position, cue.Velocity, 0, pocketZone.Center, captureRadius, out double tPocket) && tPocket <= dt)
+                {
+                    cue.Position += cue.Velocity * tPocket;
+                    impact = new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
+                    return true;
+                }
             }
         }
 
