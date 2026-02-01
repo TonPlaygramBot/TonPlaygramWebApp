@@ -60,7 +60,7 @@ export default function App() {
 
   const baseUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
   const manifestUrl = new URL('tonconnect-manifest.json', baseUrl).toString();
-  const walletsListSource = 'https://raw.githubusercontent.com/ton-connect/wallets-list/main/wallets.json';
+  const walletsListSource = new URL('tonconnect-wallets.json', baseUrl).toString();
   const returnUrl = window.location.href;
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
   const actionsConfiguration = {
