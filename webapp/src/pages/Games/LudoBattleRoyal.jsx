@@ -223,7 +223,7 @@ function resolveDefaultPixelRatioCap() {
 
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'fhd60';
+    return DEFAULT_FRAME_RATE_ID;
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -237,12 +237,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'fhd60';
+    return 'hd50';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -254,11 +254,7 @@ function detectPreferredFrameRateId() {
     ) {
       return 'qhd90';
     }
-    return 'fhd60';
-  }
-
-  if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return DEFAULT_FRAME_RATE_ID;
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -269,7 +265,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'fhd60';
+  return DEFAULT_FRAME_RATE_ID;
 }
 
 const ABG_MODEL_URLS = Object.freeze([
@@ -503,52 +499,43 @@ const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'e
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'mobile50',
-    label: 'Battery Saver (50 Hz)',
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 0.88,
-    pixelRatioCap: 1.15,
-    resolution: '0.88x render • DPR 1.15 cap',
-    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
-    id: 'balanced60',
-    label: 'Snooker Match (60 Hz)',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 0.95,
-    pixelRatioCap: 1.3,
-    resolution: '0.95x render • DPR 1.3 cap',
-    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
   },
   {
-    id: 'smooth90',
-    label: 'Smooth Motion (90 Hz)',
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 0.92,
-    pixelRatioCap: 1.35,
-    resolution: '0.92x render • DPR 1.35 cap',
-    description: 'High-refresh option for capable 90 Hz mobile panels.'
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
-    id: 'fast120',
-    label: 'Performance (120 Hz)',
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 0.9,
-    pixelRatioCap: 1.25,
-    resolution: '0.90x render • DPR 1.25 cap',
-    description: 'Adaptive quality for 120 Hz flagships and desktops.'
-  },
-  {
-    id: 'esports144',
-    label: 'Tournament (144 Hz)',
-    fps: 144,
-    renderScale: 0.86,
-    pixelRatioCap: 1.2,
-    resolution: '0.86x render • DPR 1.2 cap',
-    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fast120';
+const DEFAULT_FRAME_RATE_ID = 'uhd120';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -2587,8 +2574,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
-      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
+      const legacyMap = {
+        mobile50: 'hd50',
+        balanced60: 'fhd60',
+        smooth90: 'qhd90',
+        fast120: 'uhd120',
+        esports144: 'uhd120'
+      };
+      const normalized = legacyMap[stored] ?? stored;
+      if (normalized && FRAME_RATE_OPTIONS.some((opt) => opt.id === normalized)) {
+        return normalized;
       }
       const detected = detectPreferredFrameRateId();
       if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
@@ -2619,7 +2614,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         : 60;
     const renderScale =
       typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
-        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
+        ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
         : 1;
     const pixelRatioCap =
       typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
@@ -2967,7 +2962,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
     const renderScale =
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
-        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
+        ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
         : 1;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
     renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
@@ -4073,6 +4068,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       renderer.localClippingEnabled = true;
       renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
@@ -4460,7 +4456,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
-    let lastFrameTime = performance.now();
+    let lastRenderTime = performance.now();
     const animTemp = new THREE.Vector3();
     const animDir = new THREE.Vector3();
     const animLook = new THREE.Vector3();
@@ -4478,9 +4474,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         frameTiming && Number.isFinite(frameTiming.maxMs)
           ? frameTiming.maxMs
           : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
-      const deltaMs = Math.min(Math.max(now - lastFrameTime, 0), maxFrameTime);
-      const delta = deltaMs / 1000;
-      lastFrameTime = now;
+      const deltaMs = now - lastRenderTime;
+      if (deltaMs < targetFrameTime - 0.5) {
+        animationId = requestAnimationFrame(step);
+        return;
+      }
+      const appliedDeltaMs = Math.min(deltaMs, maxFrameTime);
+      lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
+      const delta = appliedDeltaMs / 1000;
 
       const state = stateRef.current;
       if (state?.animation?.active) {
