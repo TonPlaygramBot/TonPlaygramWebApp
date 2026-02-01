@@ -1274,19 +1274,19 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.993;
+const FRICTION = 0.991;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
-const SPIN_SLIDE_EPS = 0.02;
-const SPIN_KINETIC_FRICTION = 0.22;
-const SPIN_ROLL_DAMPING = 0.1;
-const SPIN_ANGULAR_DAMPING = 0.04;
+const SPIN_SLIDE_EPS = 0.035;
+const SPIN_KINETIC_FRICTION = 0.26;
+const SPIN_ROLL_DAMPING = 0.14;
+const SPIN_ANGULAR_DAMPING = 0.05;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
-const RAIL_FRICTION = 0.16;
+const RAIL_FRICTION = 0.19;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
@@ -25820,6 +25820,8 @@ const powerRef = useRef(hud.power);
                 b.vel.y = TMP_VEC3_A.z;
                 b.omega.copy(TMP_VEC3_C);
               }
+              const clothDrag = Math.pow(FRICTION, stepScale);
+              b.vel.multiplyScalar(clothDrag);
             }
             if (
               isCue &&
