@@ -5335,7 +5335,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = -0.2;
+const SPIN_VIEW_BLOCK_THRESHOLD = 0;
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
