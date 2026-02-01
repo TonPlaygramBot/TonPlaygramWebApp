@@ -1038,7 +1038,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = true;
+const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1610,8 +1610,8 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.12 + CUE_TIP_CLEARANCE; // pull the blue tip farther back so it stays visible
+const CUE_TIP_CLEARANCE = BALL_R * 0.28; // widen the visible air gap so the blue tip reads clearly against the cue ball
+const CUE_TIP_GAP = BALL_R * 1.22 + CUE_TIP_CLEARANCE; // pull the blue tip farther back so it stays visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1624,8 +1624,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.4; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 2.6; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.7; // ensure the forward push is visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 3.4; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -1639,7 +1639,7 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.14; // rest the cue lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
@@ -5335,7 +5335,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = -0.18;
+const SPIN_VIEW_BLOCK_THRESHOLD = 0.04;
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -5481,6 +5481,39 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     }
   }
   return { blocked: false, reason: '' };
+}
+
+function clampSpinToLegal(cueBall, spinVec, balls = [], options = {}) {
+  const requested = {
+    x: spinVec?.x ?? 0,
+    y: spinVec?.y ?? 0
+  };
+  const magnitude = Math.hypot(requested.x, requested.y);
+  if (!cueBall || magnitude <= 1e-6) return requested;
+  const legality = checkSpinLegality2D(cueBall, requested, balls, options);
+  if (!legality.blocked) return requested;
+  const dirX = requested.x / magnitude;
+  const dirY = requested.y / magnitude;
+  let low = 0;
+  let high = magnitude;
+  let best = 0;
+  for (let i = 0; i < 10; i += 1) {
+    const mid = (low + high) * 0.5;
+    const candidate = { x: dirX * mid, y: dirY * mid };
+    const candidateLegality = checkSpinLegality2D(
+      cueBall,
+      candidate,
+      balls,
+      options
+    );
+    if (candidateLegality.blocked) {
+      high = mid;
+    } else {
+      best = mid;
+      low = mid;
+    }
+  }
+  return { x: dirX * best, y: dirY * best };
 }
 
 function distanceToTableEdge(pos, dir) {
@@ -18712,7 +18745,7 @@ const powerRef = useRef(hud.power);
             if (quat) {
               cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
             }
-            cueStick.visible = cueSnapshot.visible ?? true;
+            cueStick.visible = true;
             cueAnimating = cueStick.visible;
             syncCueShadow();
             return true;
@@ -19188,7 +19221,7 @@ const powerRef = useRef(hud.power);
               if (quat) {
                 cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
               }
-              cueStick.visible = cueSnapshot.visible ?? true;
+              cueStick.visible = true;
               cueAnimating = cueStick.visible;
               syncCueShadow();
               return;
@@ -19404,40 +19437,39 @@ const powerRef = useRef(hud.power);
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
           const cueBall = cueRef.current || cue;
-          let legality = spinLegalityRef.current || { blocked: false, reason: '' };
           const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
+          let axes = null;
+          let viewVec = null;
           if (cueBall && aimVec) {
-            const axes = prepareSpinAxes(aimVec);
+            axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
-            const viewVec = computeCueViewVector(cueBall, activeCamera);
+            viewVec = computeCueViewVector(cueBall, activeCamera);
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
-            const requested = spinRequestRef.current || spinRef.current || {
-              x: 0,
-              y: 0
-            };
-            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
-              axes,
-              view: viewVec
-                ? { x: viewVec.x, y: viewVec.y }
-                : null
-            });
-            spinLegalityRef.current = legality;
           }
           const clampedRequest = clampSpinToLimits();
-          spinRequestRef.current = clampedRequest;
-          const normalized = normalizeSpinInput(clampedRequest);
+          const legalRequest = clampSpinToLegal(cueBall, clampedRequest, ballsList, {
+            axes,
+            view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+          });
+          const legalLegality = checkSpinLegality2D(cueBall, legalRequest, ballsList, {
+            axes,
+            view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+          });
+          spinLegalityRef.current = legalLegality;
+          spinRequestRef.current = legalRequest;
+          const normalized = normalizeSpinInput(legalRequest);
           if (
-            normalized.x !== clampedRequest.x ||
-            normalized.y !== clampedRequest.y
+            normalized.x !== legalRequest.x ||
+            normalized.y !== legalRequest.y
           ) {
             spinRef.current = normalized;
           } else {
-            spinRef.current = clampedRequest;
+            spinRef.current = legalRequest;
           }
           if (updateUi) {
-            updateSpinDotPosition(clampedRequest, legality.blocked);
+            updateSpinDotPosition(legalRequest, false);
           }
-          const result = legality.blocked ? { x: 0, y: 0 } : normalized;
+          const result = legalLegality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           spinAppliedRef.current = { ...result, magnitude, mode: 'standard' };
           return result;
@@ -27043,7 +27075,19 @@ const powerRef = useRef(hud.power);
     const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
-      return clampToUnitCircle(limited.x, limited.y);
+      const cueBall = cueRef.current;
+      const ballsList = ballsRef.current?.length ? ballsRef.current : [];
+      const aimVec = aimDirRef.current;
+      const axes = aimVec ? prepareSpinAxes(aimVec) : null;
+      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const viewVec = cueBall && activeCamera
+        ? computeCueViewVector(cueBall, activeCamera)
+        : null;
+      const legal = clampSpinToLegal(cueBall, limited, ballsList, {
+        axes,
+        view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+      });
+      return clampToUnitCircle(legal.x, legal.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -27073,7 +27117,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(clamped, legality.blocked);
+      updateSpinDotPosition(clamped, false);
     };
 
     const applySnapTarget = () => {
