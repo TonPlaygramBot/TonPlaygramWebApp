@@ -165,6 +165,7 @@ const BLACKJACK_TYPE_LABELS = {
 const LUDO_TYPE_LABELS = {
   tables: 'Table Models',
   stools: 'Stools & Chairs',
+  tableFinish: 'Table Finish',
   environmentHdri: 'HDR Environments',
   tokenPalette: 'Token Palette',
   tokenStyle: 'Token Style',
