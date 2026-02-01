@@ -391,10 +391,7 @@ const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_UNITS_PER_METER = 1;
-const LUDO_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
+const LUDO_HDRI_OPTIONS = Object.freeze(POOL_ROYALE_HDRI_VARIANTS);
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
   LUDO_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -425,7 +422,7 @@ const DEFAULT_APPEARANCE = {
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: MURLAN_TABLE_THEMES },
   { key: 'stools', label: 'Chairs', options: MURLAN_STOOL_THEMES },
-  { key: 'environmentHdri', label: 'HDR Environment', options: LUDO_HDRI_OPTIONS },
+  { key: 'environmentHdri', label: 'HDR Environments', options: LUDO_HDRI_OPTIONS },
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS }
@@ -512,43 +509,52 @@ const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'e
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'fhd60',
-    label: 'Balanced (60 Hz)',
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
     fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
     renderScale: 0.9,
     pixelRatioCap: 1.25,
-    resolution: 'HD+ render • DPR 1.25 cap',
-    description: 'Balanced profile tuned for smooth play on mid-range devices.'
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
   },
   {
-    id: 'qhd90',
-    label: 'Enhanced (90 Hz)',
-    fps: 90,
-    renderScale: 0.95,
-    pixelRatioCap: 1.4,
-    resolution: 'QHD render • DPR 1.4 cap',
-    description: 'Sharper output with tighter GPU load for 90 Hz displays.'
-  },
-  {
-    id: 'uhd120',
-    label: 'Ultra (120 Hz)',
-    fps: 120,
-    renderScale: 1,
-    pixelRatioCap: 1.6,
-    resolution: 'UHD render • DPR 1.6 cap',
-    description: 'High refresh preset with moderated clarity for fast devices.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra+ (144 Hz)',
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
     fps: 144,
-    renderScale: 1,
-    pixelRatioCap: 1.8,
-    resolution: 'UHD+ render • DPR 1.8 cap',
-    description: 'Highest detail preset for strong GPUs at 144 Hz.'
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'fast120';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
