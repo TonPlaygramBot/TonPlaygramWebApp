@@ -1078,6 +1078,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.982; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1405,7 +1406,10 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.2;
+const POCKET_CAM_EDGE_SCALE = 0.28;
+const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
+const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1415,20 +1419,25 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
     POCKET_VIS_R * 1.95 +
     BALL_R * 1.05) *
-  POCKET_CAM_EDGE_SCALE;
+  POCKET_CAM_EDGE_SCALE *
+  POCKET_CAM_OUTWARD_MULTIPLIER;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 18,
   dotThreshold: 0.15,
-  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 0.98,
+  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE * POCKET_CAM_INWARD_SCALE,
+  minOutsideShort:
+    POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
+    BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 0.9,
   heightOffsetShortMultiplier: 0.9,
-  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
+  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
+  outwardOffsetShort:
+    POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
+    BALL_DIAMETER * 2.5,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.82,
-  heightScale: 0.98,
+  distanceScale: 1,
+  heightScale: 1,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -5056,7 +5065,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = Math.max(38, STANDING_VIEW_FOV * 0.88);
+const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -5086,6 +5095,8 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
+const REPLAY_CUE_STICK_HOLD_MS = 620;
 const REPLAY_CUE_RETURN_WINDOW_MS = 260;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
@@ -5617,8 +5628,8 @@ const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
-  BL: new THREE.Vector2(-0.72, 1).normalize(),
-  BR: new THREE.Vector2(0.72, 1).normalize(),
+  BL: new THREE.Vector2(-1, 1).normalize(),
+  BR: new THREE.Vector2(1, 1).normalize(),
   TM: new THREE.Vector2(-1, 0).normalize(),
   BM: new THREE.Vector2(1, 0).normalize()
 });
@@ -6613,6 +6624,15 @@ function updateCushionSegmentsFromTable(table) {
     if (dir.lengthSq() < 1e-6) return;
     segments.push({ start, end, type });
   };
+  const resolveAngle = (angles, key, fallback) =>
+    typeof angles?.[key] === 'number' ? angles[key] : fallback;
+  const computeCutOffset = (depth, cutLength, angleDeg) => {
+    if (!Number.isFinite(depth) || depth <= 0) return Math.max(0, cutLength);
+    const rad = THREE.MathUtils.degToRad(angleDeg);
+    const tan = Math.tan(rad);
+    const angleOffset = tan > MICRO_EPS ? depth / tan : cutLength;
+    return Math.max(0, Math.min(cutLength, angleOffset));
+  };
   table.userData.cushions.forEach((cushion) => {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) return;
@@ -6620,16 +6640,25 @@ function updateCushionSegmentsFromTable(table) {
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
     const maxCut = Math.max(0, cutEnds.max || 0);
-    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.18;
-    const minInset = Math.min(minCut, cutInsetBase);
-    const maxInset = Math.min(maxCut, cutInsetBase);
-    const minInner = minCut + minInset;
-    const maxInner = maxCut + maxInset;
+    const cutTypes = data.cutTypes || {};
+    const minTypeScale = cutTypes.min === 'side' ? 0.2 : 1;
+    const maxTypeScale = cutTypes.max === 'side' ? 0.2 : 1;
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
+    const minInset = Math.min(minCut, cutInsetBase * minTypeScale);
+    const maxInset = Math.min(maxCut, cutInsetBase * maxTypeScale);
+    const cutAngles = data.cutAngles || {};
+    const cutAnglesByEnd = data.cutAnglesByEnd || {};
+    const defaultAngle = resolveAngle(cutAngles, 'cutAngle', CUSHION_CUT_ANGLE);
+    const minAngle = resolveAngle(cutAnglesByEnd, 'min', defaultAngle);
+    const maxAngle = resolveAngle(cutAnglesByEnd, 'max', defaultAngle);
     if (data.horizontal) {
       const innerZ = data.side < 0 ? box.max.z : box.min.z;
       const outerZ = data.side < 0 ? box.min.z : box.max.z;
-      const leftInner = new THREE.Vector2(box.min.x + minInner, innerZ);
-      const rightInner = new THREE.Vector2(box.max.x - maxInner, innerZ);
+      const depth = Math.abs(innerZ - outerZ);
+      const leftCut = computeCutOffset(depth, minCut + minInset, minAngle);
+      const rightCut = computeCutOffset(depth, maxCut + maxInset, maxAngle);
+      const leftInner = new THREE.Vector2(box.min.x + leftCut, innerZ);
+      const rightInner = new THREE.Vector2(box.max.x - rightCut, innerZ);
       const leftOuter = new THREE.Vector2(box.min.x, outerZ);
       const rightOuter = new THREE.Vector2(box.max.x, outerZ);
       if (rightInner.x - leftInner.x > MICRO_EPS) {
@@ -6640,8 +6669,11 @@ function updateCushionSegmentsFromTable(table) {
     } else {
       const innerX = data.side < 0 ? box.max.x : box.min.x;
       const outerX = data.side < 0 ? box.min.x : box.max.x;
-      const bottomInner = new THREE.Vector2(innerX, box.min.z + minInner);
-      const topInner = new THREE.Vector2(innerX, box.max.z - maxInner);
+      const depth = Math.abs(innerX - outerX);
+      const bottomCut = computeCutOffset(depth, minCut + minInset, minAngle);
+      const topCut = computeCutOffset(depth, maxCut + maxInset, maxAngle);
+      const bottomInner = new THREE.Vector2(innerX, box.min.z + bottomCut);
+      const topInner = new THREE.Vector2(innerX, box.max.z - topCut);
       const bottomOuter = new THREE.Vector2(outerX, box.min.z);
       const topOuter = new THREE.Vector2(outerX, box.max.z);
       if (topInner.y - bottomInner.y > MICRO_EPS) {
@@ -6649,6 +6681,46 @@ function updateCushionSegmentsFromTable(table) {
       }
       addSegment(bottomOuter, bottomInner, 'cut');
       addSegment(topOuter, topInner, 'cut');
+    }
+  });
+  const jawEntries = Array.isArray(table.userData.pocketJaws)
+    ? table.userData.pocketJaws
+    : [];
+  jawEntries.forEach((jaw) => {
+    if (!(jaw?.center instanceof THREE.Vector2)) return;
+    if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
+    if (!Number.isFinite(jaw?.jawAngle) || jaw.jawAngle <= MICRO_EPS) return;
+    const mappingOuterRadius = Math.max(
+      MICRO_EPS,
+      jaw.outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE
+    );
+    const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
+    const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
+    const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
+    let prev = null;
+    for (let i = 0; i <= steps; i += 1) {
+      const t = steps === 0 ? 0 : i / steps;
+      const theta = startAngle + (endAngle - startAngle) * t;
+      const point = new THREE.Vector2(
+        jaw.center.x + Math.cos(theta) * mappingOuterRadius,
+        jaw.center.y + Math.sin(theta) * mappingOuterRadius
+      );
+      if (prev) {
+        const mid = prev.clone().add(point).multiplyScalar(0.5);
+        const normal = mid.clone().sub(jaw.center);
+        if (normal.lengthSq() > 1e-8) {
+          normal.normalize();
+        }
+        segments.push({
+          start: prev.clone(),
+          end: point.clone(),
+          type: 'jaw',
+          normal,
+          center: jaw.center.clone(),
+          captureRadius: jaw.captureRadius
+        });
+      }
+      prev = point;
     }
   });
   const jawSegments = Array.isArray(table.userData?.pocketJawSegments)
@@ -6667,6 +6739,7 @@ function updateCushionSegmentsFromTable(table) {
   });
   const tableCenter = new THREE.Vector2(0, 0);
   segments.forEach((segment) => {
+    if (segment.normal) return;
     const dir = TMP_VEC2_A.copy(segment.end).sub(segment.start);
     const normal = TMP_VEC2_B.set(-dir.y, dir.x);
     if (normal.lengthSq() < 1e-8) return;
@@ -12750,6 +12823,7 @@ function SnookerRoyalGame({
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
+  const [replayFoul, setReplayFoul] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
@@ -13126,7 +13200,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('replay');
+  const overheadBroadcastVariantRef = useRef('top');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -13987,6 +14061,11 @@ const powerRef = useRef(hud.power);
           (captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
         recording.startState =
           recording.startState || recording.frames?.[0]?.balls || null;
+        if (hasState && payload.state?.foul) {
+          recording.replayFoul = { ...payload.state.foul };
+        } else if (hasState) {
+          recording.replayFoul = null;
+        }
         pendingRemoteReplayRef.current = { ...recording };
         incomingRemoteShotRef.current = null;
         remoteShotActiveRef.current = false;
@@ -14451,6 +14530,8 @@ const powerRef = useRef(hud.power);
       const tmpReplayQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
+      const tmpReplayCueQuat = new THREE.Quaternion();
+      const tmpReplayCueQuatB = new THREE.Quaternion();
       const tmpReplayCueA = new THREE.Vector3();
       const tmpReplayCueB = new THREE.Vector3();
       const setShootingState = (value) => {
@@ -17101,6 +17182,7 @@ const powerRef = useRef(hud.power);
               pocketIdFromCenter(pocketCenter);
             if (anchorId !== activeShotView.anchorId) {
               activeShotView.anchorId = anchorId;
+              activeShotView.fixedPos = null;
               const latestOutward = getPocketCameraOutward(anchorId);
               if (latestOutward) {
                 activeShotView.anchorOutward = latestOutward;
@@ -17128,130 +17210,55 @@ const powerRef = useRef(hud.power);
             if (!activeShotView.anchorOutward) {
               activeShotView.anchorOutward = outward.clone();
             }
-            const cameraBounds = cameraBoundsRef.current ?? null;
-            const cueBounds = cameraBounds?.cueShot ?? null;
-            const standingBounds = cameraBounds?.standing ?? null;
-            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
-            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
-            if (cueBallForPocket && focusBall?.active) {
-              focusTarget.set(
-                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
-                focusHeightLocal,
-                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
-              );
-            }
-            focusTarget.multiplyScalar(worldScaleFactor);
-            if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
-              const focusBlend = THREE.MathUtils.clamp(
-                POCKET_CAM.focusBlend,
-                0,
-                1
-              );
-              if (focusBlend > 0) {
-                const pocketFocus = new THREE.Vector3(
-                  pocketCenter2D.x * worldScaleFactor,
-                  focusHeightLocal,
-                  pocketCenter2D.y * worldScaleFactor
-                );
-                focusTarget.lerp(pocketFocus, focusBlend);
-              }
-            }
-            if (POCKET_CAM.lateralFocusShift) {
-              const lateral2D = new THREE.Vector2(-outward.y, outward.x);
-              if (lateral2D.lengthSq() > 1e-6) {
-                lateral2D.normalize().multiplyScalar(
-                  POCKET_CAM.lateralFocusShift * worldScaleFactor
-                );
-                focusTarget.add(
-                  new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
-                );
-              }
-            }
-            if (
-              anchorType === 'short' &&
-              (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
-            ) {
-              const signX =
-                pocketCenter2D.x !== 0
-                  ? Math.sign(pocketCenter2D.x)
-                  : Math.sign(outward.x);
-              const signZ =
-                pocketCenter2D.y !== 0
-                  ? Math.sign(pocketCenter2D.y)
-                  : Math.sign(outward.y);
-              const offsetX =
-                (POCKET_CAM.railFocusLong ?? 0) * (signX ? -signX : 0);
-              const offsetZ =
-                (POCKET_CAM.railFocusShort ?? 0) * (signZ ? -signZ : 0);
-              if (offsetX || offsetZ) {
-                TMP_VEC3_A.set(
-                  offsetX * worldScaleFactor,
-                  0,
-                  offsetZ * worldScaleFactor
-                );
-                focusTarget.add(TMP_VEC3_A);
-              }
-            }
-            const pocketDirection2D = pocketCenter2D.clone();
-            if (pocketDirection2D.lengthSq() < 1e-6) {
-              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
-            }
-            const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
-            const preferredRadius =
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.6;
+            const focusBallPos2D = focusBall?.active
+              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
+              : null;
+            const focusPoint2D =
+              focusBallPos2D ??
+              activeShotView.fixedTarget2D?.clone?.() ??
+              activeShotView.lastBallPos?.clone?.() ??
+              pocketCenter2D;
+            const focusTarget = new THREE.Vector3(
+              focusPoint2D.x * worldScaleFactor,
+              focusHeightLocal,
+              focusPoint2D.y * worldScaleFactor
+            );
+            const baseDistance =
               Number.isFinite(activeShotView.cameraDistance) &&
               activeShotView.cameraDistance > 0
                 ? activeShotView.cameraDistance
-                : null;
-            const baseRadius = (() => {
-              const fallback = clamp(
-                fitRadius(camera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
-                CAMERA.minR,
-                CAMERA.maxR
-              );
-              const standingRadius = standingBounds?.radius ?? fallback;
-              const pocketRadius = pocketDirection2D.length();
-              const minOutside =
-                anchorType === 'short'
+                : anchorType === 'short'
                   ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
                   : POCKET_CAM.minOutside;
-              const defaultRadius = Math.max(
-                standingRadius,
-                pocketRadius + minOutside
-              );
-              if (preferredRadius == null) return defaultRadius;
-              return Math.max(preferredRadius, pocketRadius + minOutside);
-            })();
-            const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
-            const spherical = new THREE.Spherical(
-              baseRadius * worldScaleFactor,
-              cuePhi,
-              azimuth
-            );
-            const desiredPosition = focusTarget
-              .clone()
-              .add(new THREE.Vector3().setFromSpherical(spherical));
             const outwardOffsetMagnitude =
               anchorType === 'short'
                 ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
                 : POCKET_CAM.outwardOffset;
-            if (outwardOffsetMagnitude) {
-              const outwardOffset = new THREE.Vector3(outward.x, 0, outward.y);
-              if (outwardOffset.lengthSq() > 1e-6) {
-                outwardOffset
-                  .normalize()
-                  .multiplyScalar(outwardOffsetMagnitude * worldScaleFactor);
-                desiredPosition.add(outwardOffset);
-              }
+            const distanceScale =
+              activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
+            const cameraDistance =
+              (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) * distanceScale;
+            const sideEdgeShift =
+              anchorType === 'side'
+                ? POCKET_CAM_SIDE_EDGE_SHIFT *
+                  signed(
+                    focusPoint2D.y - pocketCenter2D.y,
+                    approachDir.y || 1
+                  )
+                : 0;
+            const desiredPosition =
+              activeShotView.fixedPos ??
+              new THREE.Vector3(
+                (pocketCenter2D.x + outward.x * cameraDistance) * worldScaleFactor,
+                (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
+                  worldScaleFactor,
+                (pocketCenter2D.y + outward.y * cameraDistance + sideEdgeShift) *
+                  worldScaleFactor
+              );
+            if (!activeShotView.fixedPos) {
+              activeShotView.fixedPos = desiredPosition.clone();
             }
-            const minHeightWorld =
-              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
-              worldScaleFactor;
-            const loweredY =
-              desiredPosition.y -
-              (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
-            desiredPosition.y =
-              loweredY < minHeightWorld ? minHeightWorld : loweredY;
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -18168,10 +18175,18 @@ const powerRef = useRef(hud.power);
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
           const cameraSnapshot = captureReplayCameraSnapshot();
+          const cueSnapshot = cueStick
+            ? {
+                position: serializeVector3Snapshot(cueStick.position),
+                rotation: serializeQuaternionSnapshot(cueStick.quaternion),
+                visible: cueStick.visible
+              }
+            : null;
           shotRecording.frames.push({
             t: relative,
             balls: snapshot,
-            camera: cameraSnapshot
+            camera: cameraSnapshot,
+            cue: cueSnapshot
           });
           const cueBall = balls.find((b) => b.id === 'cue');
           if (cueBall?.mesh) {
@@ -18258,13 +18273,167 @@ const powerRef = useRef(hud.power);
               }
             }
           });
+          const cueStateA = frameA.cue ?? null;
+          const cueStateB = frameB?.cue ?? cueStateA;
+          if (cueStick && (cueStateA || cueStateB)) {
+            const posA = normalizeVector3Snapshot(cueStateA?.position);
+            const posB = normalizeVector3Snapshot(cueStateB?.position, posA);
+            if (posA && posB) {
+              tmpReplayPos.set(
+                THREE.MathUtils.lerp(posA.x, posB.x, alpha),
+                THREE.MathUtils.lerp(posA.y, posB.y, alpha),
+                THREE.MathUtils.lerp(posA.z, posB.z, alpha)
+              );
+              cueStick.position.copy(tmpReplayPos);
+            }
+            const quatA = normalizeQuaternionSnapshot(cueStateA?.rotation);
+            const quatB = normalizeQuaternionSnapshot(
+              cueStateB?.rotation ?? cueStateA?.rotation,
+              quatA
+            );
+            if (quatA && quatB) {
+              tmpReplayCueQuat.set(quatA.x, quatA.y, quatA.z, quatA.w);
+              tmpReplayCueQuatB.set(quatB.x, quatB.y, quatB.z, quatB.w);
+              tmpReplayCueQuat.slerp(tmpReplayCueQuatB, alpha);
+              cueStick.quaternion.copy(tmpReplayCueQuat);
+            } else if (quatA) {
+              cueStick.quaternion.set(quatA.x, quatA.y, quatA.z, quatA.w);
+            }
+            const visible = cueStateB?.visible ?? cueStateA?.visible;
+            if (visible != null) {
+              cueStick.visible = Boolean(visible);
+            }
+            cueAnimating = cueStick.visible;
+            return;
+          }
         };
 
         const applyReplayCueStroke = (playback, targetTime) => {
           const stroke = playback?.cueStroke;
-          if (!stroke || !cueStick) {
-            if (cueStick) cueStick.visible = false;
+          if (!cueStick) {
             cueAnimating = false;
+            return;
+          }
+          if (!ENABLE_CUE_STROKE_ANIMATION) {
+            cueStick.visible = false;
+            cueAnimating = false;
+            return;
+          }
+          const applyCueSnapshot = () => {
+            const frames = playback?.frames ?? [];
+            if (!frames.length) return false;
+            let frameIndex = 0;
+            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+              frameIndex += 1;
+            }
+            const cueSnapshot = frames[frameIndex]?.cue ?? frames[0]?.cue ?? null;
+            if (!cueSnapshot?.position) return false;
+            const pos = normalizeVector3Snapshot(cueSnapshot.position);
+            if (!pos) return false;
+            cueStick.position.set(pos.x, pos.y, pos.z);
+            const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
+            if (quat) {
+              cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+            }
+            cueStick.visible = cueSnapshot.visible ?? true;
+            cueAnimating = cueStick.visible;
+            return true;
+          };
+          if (!stroke) {
+            if (applyCueSnapshot()) return;
+            const cuePath = playback?.cuePath ?? [];
+            const cueBall = cueRef.current || cue;
+            const cueBallPos = cueBall?.mesh?.position ?? null;
+            const cuePos = cueBallPos
+              ? TMP_VEC3_A.copy(cueBallPos)
+              : cuePath[0]?.pos?.clone?.() ?? null;
+            if (!cuePos) {
+              cueStick.visible = false;
+              cueAnimating = false;
+              return;
+            }
+            const first = cuePath[0]?.pos ?? null;
+            const second = cuePath[1]?.pos ?? null;
+            if (first && second) {
+              TMP_VEC3_CUE_DIR.copy(second).sub(first);
+            } else if (cueBall?.vel) {
+              TMP_VEC3_CUE_DIR.set(cueBall.vel.x, 0, cueBall.vel.y);
+            } else {
+              TMP_VEC3_CUE_DIR.set(0, 0, 1);
+            }
+            TMP_VEC3_CUE_DIR.y = 0;
+            if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_CUE_DIR.normalize();
+            } else {
+              TMP_VEC3_CUE_DIR.set(0, 0, 1);
+            }
+            cuePos.y = CUE_Y;
+            cueStick.rotation.y = Math.atan2(TMP_VEC3_CUE_DIR.x, TMP_VEC3_CUE_DIR.z) + Math.PI;
+            cueStick.rotation.x = 0;
+            const replayHoldWindow = Number.isFinite(playback?.duration)
+              ? playback.duration
+              : REPLAY_CUE_STICK_HOLD_MS;
+            const fallbackPullback = CUE_PULL_BASE * 0.35;
+            const fallbackForward = CUE_PULL_BASE * 0.18;
+            const pullbackTime = 160;
+            const forwardTime = 210;
+            const settleTime = 120;
+            const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
+            const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
+            const holdWindow = Math.max(replayHoldWindow, totalStroke);
+            const showCue = targetTime <= holdWindow;
+            cueStick.visible = showCue;
+            cueAnimating = showCue;
+            if (showCue) {
+              const idlePos = TMP_VEC3_A.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
+              );
+              const pullPos = TMP_VEC3_B.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * (CUE_TIP_GAP + fallbackPullback),
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP + fallbackPullback)
+              );
+              const impactPos = TMP_VEC3_C.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * Math.max(CUE_TIP_GAP - fallbackForward, 0),
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * Math.max(CUE_TIP_GAP - fallbackForward, 0)
+              );
+              const settlePos = tmpReplayCueA.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * Math.max(CUE_TIP_GAP - fallbackForward * 0.45, 0),
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * Math.max(CUE_TIP_GAP - fallbackForward * 0.45, 0)
+              );
+              if (targetTime <= pullbackTime && pullbackTime > 0) {
+                const t = THREE.MathUtils.clamp(targetTime / pullbackTime, 0, 1);
+                cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(t));
+              } else if (targetTime <= pullbackTime + forwardTime) {
+                const t = THREE.MathUtils.clamp(
+                  (targetTime - pullbackTime) / Math.max(forwardTime, 1e-6),
+                  0,
+                  1
+                );
+                cueStick.position.lerpVectors(pullPos, impactPos, easeOutQuad(t));
+              } else if (targetTime <= pullbackTime + forwardTime + settleTime) {
+                const t = THREE.MathUtils.clamp(
+                  (targetTime - pullbackTime - forwardTime) / Math.max(settleTime, 1e-6),
+                  0,
+                  1
+                );
+                cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(t));
+              } else if (targetTime <= totalStroke) {
+                const t = THREE.MathUtils.clamp(
+                  (targetTime - pullbackTime - forwardTime - settleTime) /
+                    Math.max(returnTime, 1e-6),
+                  0,
+                  1
+                );
+                cueStick.position.lerpVectors(impactPos, idlePos, easeInOutQuad(t));
+              } else {
+                cueStick.position.copy(idlePos);
+              }
+            }
             return;
           }
           const warmupSnap =
@@ -18273,29 +18442,44 @@ const powerRef = useRef(hud.power);
           const startSnap = normalizeVector3Snapshot(stroke.start, warmupSnap);
           const impactSnap = normalizeVector3Snapshot(stroke.impact, startSnap);
           const settleSnap = normalizeVector3Snapshot(stroke.settle, impactSnap);
-          if (!warmupSnap || !startSnap || !impactSnap || !settleSnap) {
-            cueStick.visible = false;
-            cueAnimating = false;
+          const idleSnap = normalizeVector3Snapshot(
+            stroke.idle ?? stroke.settle,
+            settleSnap
+          );
+          if (!warmupSnap || !startSnap || !impactSnap || !settleSnap || !idleSnap) {
+            if (!applyCueSnapshot()) {
+              cueStick.visible = false;
+              cueAnimating = false;
+            }
             return;
           }
-          const pullback = Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0);
-          const forward = Math.max(1e-6, stroke.forward ?? stroke.forwardDuration ?? 0);
-          const settleTime = Math.max(0, stroke.settleTime ?? stroke.settleDuration ?? 0);
+          const replayScale = REPLAY_CUE_STROKE_SLOWDOWN;
+          const pullback =
+            Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale;
+          const forward =
+            Math.max(1e-6, stroke.forward ?? stroke.forwardDuration ?? 0) * replayScale;
+          const settleTime =
+            Math.max(0, stroke.settleTime ?? stroke.settleDuration ?? 0) * replayScale;
+          const returnTime =
+            Math.max(0, stroke.returnTime ?? stroke.returnDuration ?? 0) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
           const localTime = targetTime - startOffset;
           const pullEnd = pullback;
           const impactEnd = pullEnd + forward;
           const settleEnd = impactEnd + settleTime;
-          tmpReplayCueA.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
-          tmpReplayCueB.set(startSnap.x, startSnap.y, startSnap.z);
+          const returnEnd = settleEnd + returnTime;
+          const showCue = localTime <= returnEnd + REPLAY_CUE_RETURN_WINDOW_MS;
           cueStick.rotation.y = Number.isFinite(stroke.rotationY)
             ? stroke.rotationY
             : cueStick.rotation.y;
           cueStick.rotation.x = Number.isFinite(stroke.rotationX)
             ? stroke.rotationX
             : cueStick.rotation.x;
-          cueStick.visible = true;
-          cueAnimating = true;
+          cueStick.visible = showCue;
+          cueAnimating = showCue;
+          if (!showCue) return;
+          tmpReplayCueA.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
+          tmpReplayCueB.set(startSnap.x, startSnap.y, startSnap.z);
           if (localTime <= 0) {
             cueStick.position.copy(tmpReplayCueA);
             return;
@@ -18324,12 +18508,21 @@ const powerRef = useRef(hud.power);
             );
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
             tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
-            cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             return;
           }
-          cueStick.visible = false;
-          cueAnimating = false;
+          if (localTime <= returnEnd && returnTime > 0) {
+            const t = THREE.MathUtils.clamp(
+              (localTime - settleEnd) / Math.max(returnTime, 1e-6),
+              0,
+              1
+            );
+            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            return;
+          }
+          cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
         };
 
         const updateReplayTrail = (cuePath, targetTime) => {
@@ -18426,6 +18619,59 @@ const powerRef = useRef(hud.power);
           updateCamera();
         };
 
+        const primeReplayCueStick = (playback) => {
+          if (!cueStick) return;
+          const stroke = playback?.cueStroke ?? null;
+          if (stroke) {
+            const warmupSnap =
+              normalizeVector3Snapshot(stroke.warmup, stroke.start) ??
+              normalizeVector3Snapshot(stroke.start);
+            if (warmupSnap) {
+              cueStick.position.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
+              if (Number.isFinite(stroke.rotationY)) {
+                cueStick.rotation.y = stroke.rotationY;
+              }
+              if (Number.isFinite(stroke.rotationX)) {
+                cueStick.rotation.x = stroke.rotationX;
+              }
+              cueStick.visible = true;
+              cueAnimating = true;
+              return;
+            }
+          }
+          const cueSnapshot = playback?.frames?.[0]?.cue ?? null;
+          if (cueSnapshot?.position) {
+            const pos = normalizeVector3Snapshot(cueSnapshot.position);
+            if (pos) {
+              cueStick.position.set(pos.x, pos.y, pos.z);
+              const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
+              if (quat) {
+                cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+              }
+              cueStick.visible = cueSnapshot.visible ?? true;
+              cueAnimating = cueStick.visible;
+              return;
+            }
+          }
+          const cuePath = playback?.cuePath ?? [];
+          if (cuePath.length > 0) {
+            const cuePos = cuePath[0].pos?.clone?.();
+            if (cuePos) {
+              cuePos.y = CUE_Y;
+              cueStick.position.copy(cuePos);
+              cueStick.visible = true;
+              cueAnimating = true;
+              return;
+            }
+          }
+          const cueBall = cueRef.current || cue;
+          if (cueBall?.pos) {
+            cueStick.position.set(cueBall.pos.x, CUE_Y, cueBall.pos.y - CUE_TIP_GAP);
+            cueStick.visible = true;
+            cueAnimating = true;
+          }
+        };
+
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
@@ -18433,6 +18679,8 @@ const powerRef = useRef(hud.power);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           setReplayActive(true);
+          setReplayFoul(shotRecording?.replayFoul ?? null);
+          overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
@@ -18452,6 +18700,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
+          primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
           if (!LOCK_REPLAY_CAMERA && path.length > 0) {
             const start = path[0]?.pos ?? null;
@@ -18530,7 +18779,9 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
+          overheadBroadcastVariantRef.current = 'top';
           setReplayActive(false);
+          setReplayFoul(null);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -23162,7 +23413,6 @@ const powerRef = useRef(hud.power);
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
-          if (tags.size === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
@@ -23252,6 +23502,11 @@ const powerRef = useRef(hud.power);
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
+        }
+        if (shotRecording) {
+          shotRecording.replayFoul = safeState?.foul
+            ? { ...safeState.foul }
+            : null;
         }
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
@@ -24006,15 +24261,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
-          const cueFollowDirSpinAdjusted = cueFollowDir
-            .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence))
-            .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
-          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-            cueFollowDirSpinAdjusted.normalize();
-          }
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
@@ -24031,6 +24279,8 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
+          const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
+          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
@@ -24268,12 +24518,26 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * 0.68;
+          const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = baseDir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
+          const cueFollowLength =
+            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
-            .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
+          const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
+          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
@@ -26297,6 +26561,11 @@ const powerRef = useRef(hud.power);
             <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
               Replay
             </div>
+            {replayFoul && (
+              <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
+                Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
+              </div>
+            )}
           </div>
           <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
             <button
