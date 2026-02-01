@@ -166,7 +166,6 @@ const LUDO_TYPE_LABELS = {
   tables: 'Table Models',
   stools: 'Stools & Chairs',
   environmentHdri: 'HDR Environments',
-  tableFinish: 'Table Finish',
   tokenPalette: 'Token Palette',
   tokenStyle: 'Token Style',
   tokenPiece: 'Token Piece',
