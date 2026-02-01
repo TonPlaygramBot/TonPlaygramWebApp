@@ -279,12 +279,13 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
   },
 ];
 
-const HDRI_RESOLUTION_STACK = Object.freeze(['4k', '2k']);
+const HDRI_RESOLUTION_STACK = Object.freeze(['2k']);
 
 export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
   RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
     ...variant,
     preferredResolutions: HDRI_RESOLUTION_STACK,
+    fallbackResolution: HDRI_RESOLUTION_STACK[0],
     thumbnail: polyHavenThumb(variant.assetId),
     ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
   }))
