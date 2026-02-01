@@ -93,6 +93,7 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
+  clampToMaxOffset,
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
@@ -1685,6 +1686,7 @@ const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
+const SPIN_CONTROL_MAX_OFFSET = 0.82;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
@@ -27141,7 +27143,12 @@ const powerRef = useRef(hud.power);
 
     const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
-      const limited = clampToLimits(raw.x, raw.y);
+      const trimmed = clampToMaxOffset(
+        raw.x,
+        raw.y,
+        SPIN_CONTROL_MAX_OFFSET
+      );
+      const limited = clampToLimits(trimmed.x, trimmed.y);
       const aimVec = aimDirRef.current;
       const cueBall = cueRef.current;
       const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
@@ -27152,7 +27159,12 @@ const powerRef = useRef(hud.power);
         activeCamera
       );
       const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
-      return clampToUnitCircle(reclamped.x, reclamped.y);
+      const capped = clampToMaxOffset(
+        reclamped.x,
+        reclamped.y,
+        SPIN_CONTROL_MAX_OFFSET
+      );
+      return clampToUnitCircle(capped.x, capped.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -27188,7 +27200,12 @@ const powerRef = useRef(hud.power);
     const applySnapTarget = () => {
       const snapped = computeQuantizedOffsetScaled(
         spinState.target.x,
-        spinState.target.y
+        spinState.target.y,
+        {
+          maxOffset: SPIN_CONTROL_MAX_OFFSET,
+          ring3Radius: SPIN_CONTROL_MAX_OFFSET,
+          level3Mag: SPIN_CONTROL_MAX_OFFSET
+        }
       );
       spinState.target = clampToPlayable(snapped.x, snapped.y);
       spinRequestRef.current = { ...spinState.target };
