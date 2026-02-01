@@ -1525,7 +1525,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.6; // reduce overall spin impact by 25%
+const SPIN_GLOBAL_SCALE = 0.66; // increase overall spin impact by 10%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -5369,37 +5369,6 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
-const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
-  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
-  const viewVec = computeCueViewVector(cueBall, camera);
-  if (!viewVec) return spinInput;
-  const axes = prepareSpinAxes(aimDir);
-  TMP_VEC2_SPIN.set(0, 0);
-  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
-  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
-  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
-  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
-  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
-  if (viewDot >= 0) return spinInput;
-  const dx = camera.position.x - cueBall.pos.x;
-  const dz = camera.position.z - cueBall.pos.y;
-  const planarDistance = Math.hypot(dx, dz);
-  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
-  const relax =
-    elevation <= 0
-      ? 0
-      : THREE.MathUtils.clamp(
-          (elevation - 0.35) / (0.75 - 0.35),
-          0,
-          1
-        );
-  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
-  return {
-    x: TMP_VEC2_SPIN.dot(axes.perp),
-    y: TMP_VEC2_SPIN.dot(axes.axis)
-  };
-};
-
 const resolveCameraBasis = (camera) => {
   if (!camera) return null;
   TMP_VEC3_A.set(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
@@ -6353,7 +6322,6 @@ function applySpinController(ball, stepScale, airborne = false) {
   }
   return decaySpin(ball, stepScale, airborne);
 }
-
 function applyRailSpinResponse(ball, impact) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
   const normal = impact.normal.clone().normalize();
@@ -19485,19 +19453,7 @@ const powerRef = useRef(hud.power);
               x: 0,
               y: 0
             };
-            const viewClamped = clampSpinToVisibleHemisphere(
-              requested,
-              aimVec,
-              cueBall,
-              activeCamera
-            );
-            if (
-              viewClamped.x !== requested.x ||
-              viewClamped.y !== requested.y
-            ) {
-              spinRequestRef.current = { ...viewClamped };
-            }
-            legality = checkSpinLegality2D(cueBall, viewClamped, ballsList, {
+            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
               axes,
               view: viewVec
                 ? { x: viewVec.x, y: viewVec.y }
@@ -27130,17 +27086,7 @@ const powerRef = useRef(hud.power);
     const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
-      const aimVec = aimDirRef.current;
-      const cueBall = cueRef.current;
-      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
-      const viewLimited = clampSpinToVisibleHemisphere(
-        limited,
-        aimVec,
-        cueBall,
-        activeCamera
-      );
-      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
-      return clampToUnitCircle(reclamped.x, reclamped.y);
+      return clampToUnitCircle(limited.x, limited.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
