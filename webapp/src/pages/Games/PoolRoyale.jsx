@@ -1541,9 +1541,6 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const POCKET_JAW_SPIN_THROW_SCALE = 0.12; // heavily damp spin throw on pocket jaws to avoid edge riding
-const POCKET_JAW_SPIN_DECAY_SCALE = 1.35; // decay spin faster when grazing pocket jaws
-const POCKET_JAW_FRICTION_SCALE = 2.1; // add extra grip at pocket jaws so balls roll instead of slide
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 30% reduction to soften every strike and keep mobile play comfortable.
@@ -6365,21 +6362,17 @@ function applyRailSpinResponse(ball, impact) {
   const preImpactSpin = ball.spin.clone();
   const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
   if (!worldSpin) return;
-  const isJawImpact = impact.type === 'jaw';
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
   );
   const spinAlongTangent = worldSpin.dot(tangent);
   if (Math.abs(spinAlongTangent) > 1e-6) {
-    const jawScale = isJawImpact ? POCKET_JAW_SPIN_THROW_SCALE : 1;
-    const throwStrength =
-      spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor) * jawScale;
+    const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  const decayScale = isJawImpact ? POCKET_JAW_SPIN_DECAY_SCALE : 0.6;
-  decaySpin(ball, decayScale, false);
+  decaySpin(ball, 0.6, false);
 }
 
 function applyRailImpulse(ball, impact) {
@@ -6392,7 +6385,6 @@ function applyRailImpulse(ball, impact) {
   const relNormal = TMP_VEC3_D.dot(TMP_VEC3_A);
   if (relNormal >= 0) return;
   const isCutImpact = impact.type === 'corner' || impact.type === 'cut';
-  const isJawImpact = impact.type === 'jaw';
   const impactSpeed = TMP_VEC3_D.length();
   const impactFactor =
     impactSpeed > 1e-6 ? clamp(Math.abs(relNormal) / impactSpeed, 0, 1) : 0;
@@ -6419,11 +6411,7 @@ function applyRailImpulse(ball, impact) {
     const rCrossT = TMP_VEC3_E.copy(TMP_VEC3_B).cross(TMP_VEC3_D).lengthSq();
     const denom = 1 / BALL_MASS + rCrossT / BALL_INERTIA;
     const jt = -tangentialSpeed / Math.max(denom, 1e-6);
-    const frictionScale = isCutImpact
-      ? CUSHION_CUT_FRICTION_SCALE
-      : isJawImpact
-        ? POCKET_JAW_FRICTION_SCALE
-        : 1;
+    const frictionScale = isCutImpact ? CUSHION_CUT_FRICTION_SCALE : 1;
     const maxFriction = RAIL_FRICTION * frictionScale * Math.abs(normalImpulseMag);
     const clampedJt = clamp(jt, -maxFriction, maxFriction);
     const impulseT = TMP_VEC3_D.multiplyScalar(clampedJt);
@@ -25885,7 +25873,7 @@ const powerRef = useRef(hud.power);
             }
             const liftAmount = b.lift ?? 0;
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
-            if (scaledSpeed > 0) {
+            if (scaledSpeed > 0 && !hasLift) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
