@@ -92,10 +92,9 @@ import {
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
-  clampToMaxOffset,
+  clampToUnitCircle,
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
-  MAX_SPIN_OFFSET,
   normalizeSpinInput,
   smoothDamp,
   SPIN_STUN_RADIUS
@@ -5334,10 +5333,10 @@ const lerpAngle = (start = 0, end = 0, t = 0.5) => {
 // Utilities
 // --------------------------------------------------
 const DEFAULT_SPIN_LIMITS = Object.freeze({
-  minX: -MAX_SPIN_OFFSET,
-  maxX: MAX_SPIN_OFFSET,
-  minY: -MAX_SPIN_OFFSET,
-  maxY: MAX_SPIN_OFFSET
+  minX: -1,
+  maxX: 1,
+  minY: -1,
+  maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
@@ -27141,7 +27140,7 @@ const powerRef = useRef(hud.power);
     };
 
     const clampToPlayable = (nx, ny) => {
-      const raw = clampToMaxOffset(nx, ny, MAX_SPIN_OFFSET);
+      const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
       const aimVec = aimDirRef.current;
       const cueBall = cueRef.current;
@@ -27153,7 +27152,7 @@ const powerRef = useRef(hud.power);
         activeCamera
       );
       const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
-      return clampToMaxOffset(reclamped.x, reclamped.y, MAX_SPIN_OFFSET);
+      return clampToUnitCircle(reclamped.x, reclamped.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
