@@ -1098,7 +1098,6 @@ const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snook
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.986; // slightly tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -6721,10 +6720,6 @@ function updateCushionSegmentsFromTable(table) {
     if (!(jaw?.center instanceof THREE.Vector2)) return;
     if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
     if (!Number.isFinite(jaw?.jawAngle) || jaw.jawAngle <= MICRO_EPS) return;
-    const mappingOuterRadius = Math.max(
-      MICRO_EPS,
-      jaw.outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE
-    );
     const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
     const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
     const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
@@ -6733,8 +6728,8 @@ function updateCushionSegmentsFromTable(table) {
       const t = steps === 0 ? 0 : i / steps;
       const theta = startAngle + (endAngle - startAngle) * t;
       const point = new THREE.Vector2(
-        jaw.center.x + Math.cos(theta) * mappingOuterRadius,
-        jaw.center.y + Math.sin(theta) * mappingOuterRadius
+        jaw.center.x + Math.cos(theta) * jaw.outerRadius,
+        jaw.center.y + Math.sin(theta) * jaw.outerRadius
       );
       if (prev) {
         const mid = prev.clone().add(point).multiplyScalar(0.5);
@@ -10706,10 +10701,6 @@ export function Table3D(
         ) {
           return;
         }
-        const mappingOuterRadius = Math.max(
-          MICRO_EPS,
-          outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE
-        );
         const halfAngle = jawAngle / 2;
         const startAngle = orientationAngle - halfAngle;
         const endAngle = orientationAngle + halfAngle;
@@ -10720,9 +10711,9 @@ export function Table3D(
           const theta = startAngle + (endAngle - startAngle) * t;
           points.push(
             new THREE.Vector3(
-              center.x + Math.cos(theta) * mappingOuterRadius,
+              center.x + Math.cos(theta) * outerRadius,
               mappingLineY,
-              center.y + Math.sin(theta) * mappingOuterRadius
+              center.y + Math.sin(theta) * outerRadius
             )
           );
         }
