@@ -17,6 +17,8 @@ public static class PhysicsConstants
     public const double AirSpinDecay = 0.6;            // per-second decay while airborne
     public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
     public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
+    public const double SpinEffectSpeedThreshold = 0.3; // m/s below which spin has no steering/roll effect
+    public const double SpinEffectSpeedFadeRange = 0.4; // m/s range to fade in spin effects
     public const double JumpRestitution = 0.1;         // vertical energy retained on landing
     public const double JumpStopVelocity = 0.2;        // m/s below which vertical motion stops
     public const double AirborneHeightThreshold = BallRadius * 0.25; // height before ignoring cushions/balls
