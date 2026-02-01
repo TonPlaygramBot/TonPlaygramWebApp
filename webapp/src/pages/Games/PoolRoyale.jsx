@@ -1525,7 +1525,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.66; // increase overall spin impact by 10%
+const SPIN_GLOBAL_SCALE = 0.6; // reduce overall spin impact by 25%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -25792,8 +25792,47 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
+            if (!hasLift) {
+              const dt = SPIN_FIXED_DT * stepScale;
+              if (b.omega) {
+                TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
+                TMP_VEC3_B.set(0, -BALL_R, 0);
+                TMP_VEC3_C.copy(b.omega);
+                TMP_VEC3_D.copy(TMP_VEC3_C).cross(TMP_VEC3_B);
+                TMP_VEC3_D.add(TMP_VEC3_A);
+                const relSpeed = TMP_VEC3_D.length();
+                if (relSpeed > SPIN_SLIDE_EPS) {
+                  TMP_VEC3_E.copy(TMP_VEC3_D).multiplyScalar(
+                    (-SPIN_KINETIC_FRICTION * BALL_MASS * SPIN_GRAVITY) / relSpeed
+                  );
+                  TMP_VEC3_A.addScaledVector(TMP_VEC3_E, dt / BALL_MASS);
+                  TMP_VEC3_C.addScaledVector(
+                    TMP_VEC3_D.copy(TMP_VEC3_B).cross(TMP_VEC3_E),
+                    dt / BALL_INERTIA
+                  );
+                } else {
+                  const rollFactor = Math.max(0, 1 - SPIN_ROLL_DAMPING * dt);
+                  const spinFactor = Math.max(0, 1 - SPIN_ANGULAR_DAMPING * dt);
+                  TMP_VEC3_A.multiplyScalar(rollFactor);
+                  TMP_VEC3_C.multiplyScalar(spinFactor);
+                }
+                b.vel.x = TMP_VEC3_A.x;
+                b.vel.y = TMP_VEC3_A.z;
+                b.omega.copy(TMP_VEC3_C);
+              }
+            }
+            if (
+              isCue &&
+              !b.impacted &&
+              b.launchDir &&
+              (b.spin?.y ?? 0) < -1e-4
+            ) {
+              const forwardDot = b.vel.dot(b.launchDir);
+              if (forwardDot < 0) {
+                b.vel.addScaledVector(b.launchDir, -forwardDot);
+              }
+            }
             b.pos.addScaledVector(b.vel, stepScale);
-            b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
             if (scaledSpeed < STOP_EPS) {
@@ -25801,8 +25840,7 @@ const powerRef = useRef(hud.power);
               speed = b.vel.length();
               scaledSpeed = speed * stepScale;
             }
-            const hasSpinAfter =
-              (b.spin?.lengthSq() ?? 0) > 1e-6 || (b.omega?.lengthSq() ?? 0) > 1e-6;
+            const hasSpinAfter = b.omega?.lengthSq() > 1e-6;
             if (scaledSpeed < STOP_FINAL_EPS) {
               b.vel.set(0, 0);
               if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
