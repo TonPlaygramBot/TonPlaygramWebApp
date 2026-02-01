@@ -18,6 +18,7 @@ let speechSupportListenerAttached = false;
 let speechSupportState = false;
 
 const SPEECH_SUPPORT_EVENT = 'tonplaygram:speech-support';
+const TELEGRAM_EVENT_OPTIONS = { passive: true };
 
 const getSpeechUtteranceClass = () => {
   if (typeof SpeechSynthesisUtterance !== 'undefined') return SpeechSynthesisUtterance;
@@ -124,18 +125,22 @@ export const installSpeechSynthesisUnlock = () => {
   const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
   const options = { once: !isTelegram, passive: true };
   window.addEventListener('pointerdown', handler, options);
+  window.addEventListener('pointerup', handler, options);
   window.addEventListener('touchstart', handler, options);
   window.addEventListener('touchend', handler, options);
   window.addEventListener('click', handler, options);
   window.addEventListener('keydown', handler, options);
+  if (typeof document !== 'undefined') {
+    document.addEventListener('touchend', handler, options);
+  }
   if (isTelegram) {
     speechUnlockVisibilityHandler = () => {
       if (document.visibilityState === 'visible') {
         handler();
       }
     };
-    window.addEventListener('focus', handler, { passive: true });
-    document.addEventListener('visibilitychange', speechUnlockVisibilityHandler, { passive: true });
+    window.addEventListener('focus', handler, TELEGRAM_EVENT_OPTIONS);
+    document.addEventListener('visibilitychange', speechUnlockVisibilityHandler, TELEGRAM_EVENT_OPTIONS);
   }
 };
 
