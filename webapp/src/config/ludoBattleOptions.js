@@ -86,8 +86,9 @@ export const TOKEN_STYLE_OPTIONS = Object.freeze([
   {
     id: 'towerRooks',
     label: 'Minimal Rook Set',
-    description: 'Swap every pawn with sleek rooks for a clean read.',
-    typeSequence: ['r']
+    description: 'Swap every pawn with sleek GLTF rooks for a clean read.',
+    typeSequence: ['r'],
+    prefersAbg: true
   }
 ]);
 
