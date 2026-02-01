@@ -778,6 +778,8 @@ const speechSynth = (() => {
     return null;
   }
 })();
+const speechUtteranceCtor =
+  typeof SpeechSynthesisUtterance === 'function' ? SpeechSynthesisUtterance : null;
 let commentaryVoices = [];
 let commentaryPresetId = COMMENTARY_PRESETS[0]?.id || 'atlas';
 let commentaryMuted = false;
@@ -981,7 +983,7 @@ function scheduleCommentaryVoicesRetry() {
 }
 
 function speakCommentary(text, { interrupt = false, priority = false, kind = '' } = {}) {
-  if (!speechSynth || commentaryMuted || !text) return;
+  if (!speechSynth || !speechUtteranceCtor || commentaryMuted || !text) return;
   if (!commentaryReady) {
     refreshCommentaryVoices();
   }
@@ -998,7 +1000,7 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
   if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
   if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
   const profile = getVoiceProfileForKind(kind);
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utterance = new speechUtteranceCtor(text);
   const primaryVoice = resolveCommentaryVoice(profile);
   const secondaryVoice = resolveCommentaryVoice(
     getCommentaryVoiceProfiles().find((voiceProfile) => voiceProfile !== profile),
@@ -1041,7 +1043,7 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
 }
 
 function announceCommentary(kind, context = {}, options = {}) {
-  if (commentaryMuted || !speechSynth) return;
+  if (commentaryMuted || !speechSynth || !speechUtteranceCtor) return;
   const line = buildCommentaryLine(kind, context);
   if (!line) return;
   speakCommentary(line, { ...options, kind });
@@ -5116,7 +5118,7 @@ function refreshConfigUI() {
   commentaryWrapper.appendChild(commentaryLabel);
   const commentaryGrid = document.createElement('div');
   commentaryGrid.className = 'config-options';
-  const commentarySupported = Boolean(speechSynth);
+  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor);
   COMMENTARY_PRESETS.forEach((preset) => {
     const presetButton = document.createElement('button');
     presetButton.type = 'button';
