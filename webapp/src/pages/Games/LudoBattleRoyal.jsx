@@ -369,7 +369,8 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const HDRI_RESOLUTION_STACK = Object.freeze(['2k', '1k']);
+const DEFAULT_HDRI_RESOLUTIONS = HDRI_RESOLUTION_STACK;
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
@@ -379,6 +380,8 @@ const HDRI_UNITS_PER_METER = 1;
 const LUDO_HDRI_OPTIONS = Object.freeze(
   POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
     ...variant,
+    preferredResolutions: HDRI_RESOLUTION_STACK,
+    fallbackResolution: HDRI_RESOLUTION_STACK[0],
     label: `${variant.name} HDRI`
   }))
 );
@@ -1404,7 +1407,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '4k';
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '2k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
