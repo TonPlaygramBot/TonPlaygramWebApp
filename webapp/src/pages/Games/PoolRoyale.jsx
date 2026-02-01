@@ -1639,7 +1639,7 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.32; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.2; // rest the cue lower so the tip centers on the cue-ball in portrait
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
@@ -6103,38 +6103,6 @@ function reflectRails(ball) {
         type: 'jaw',
         normal: TMP_VEC2_A.clone(),
         tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
-      };
-    }
-    const outsideRails =
-      ball.pos.x < -railLimitX ||
-      ball.pos.x > railLimitX ||
-      ball.pos.y < -railLimitY ||
-      ball.pos.y > railLimitY;
-    if (outsideRails && nearestPocketDist >= nearestCaptureRadius) {
-      preImpactVel = ball.vel.clone();
-      const clampedX = THREE.MathUtils.clamp(ball.pos.x, -railLimitX, railLimitX);
-      const clampedY = THREE.MathUtils.clamp(ball.pos.y, -railLimitY, railLimitY);
-      const delta = TMP_VEC2_A.set(ball.pos.x - clampedX, ball.pos.y - clampedY);
-      if (delta.lengthSq() > 1e-8) {
-        delta.normalize();
-      } else {
-        delta.set(
-          ball.pos.x < 0 ? -1 : 1,
-          ball.pos.y < 0 ? -1 : 1
-        );
-      }
-      ball.pos.set(clampedX, clampedY);
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'rail';
-      return {
-        type: 'rail',
-        normal: delta.clone(),
-        tangent: new THREE.Vector2(-delta.y, delta.x),
         preImpactVel
       };
     }
