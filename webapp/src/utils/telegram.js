@@ -6,6 +6,33 @@ export function isTelegramWebView() {
   return Boolean(window.Telegram?.WebApp || ua.includes('Telegram'));
 }
 
+const storage = {
+  get(key) {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage?.getItem(key) ?? null;
+    } catch {
+      return null;
+    }
+  },
+  set(key, value) {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(key, value);
+    } catch {
+      // ignore storage failures (private mode, blocked storage)
+    }
+  },
+  remove(key) {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.removeItem(key);
+    } catch {
+      // ignore storage failures (private mode, blocked storage)
+    }
+  }
+};
+
 function parseTelegramId(value) {
   if (value == null) return null;
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -17,7 +44,7 @@ export function getTelegramId() {
     const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const telegramId = parseTelegramId(tgId);
     if (telegramId != null) {
-      localStorage.setItem('telegramId', telegramId);
+      storage.set('telegramId', telegramId);
       return telegramId;
     }
     const params = new URLSearchParams(window.location.search);
@@ -25,16 +52,16 @@ export function getTelegramId() {
     if (urlId) {
       const parsed = parseTelegramId(urlId);
       if (parsed != null) {
-        localStorage.setItem('telegramId', parsed);
+        storage.set('telegramId', parsed);
         return parsed;
       }
-      localStorage.removeItem('telegramId');
+      storage.remove('telegramId');
     }
-    const stored = localStorage.getItem('telegramId');
+    const stored = storage.get('telegramId');
     if (stored) {
       const parsed = parseTelegramId(stored);
       if (parsed != null) return parsed;
-      localStorage.removeItem('telegramId');
+      storage.remove('telegramId');
     }
   }
   return null;
@@ -52,10 +79,10 @@ function generateAccountId() {
 
 export function getPlayerId() {
   if (typeof window === 'undefined') return null;
-  let id = localStorage.getItem('accountId');
+  let id = storage.get('accountId');
   if (!id) {
     id = generateAccountId();
-    if (id) localStorage.setItem('accountId', id);
+    if (id) storage.set('accountId', id);
   }
   return id;
 }
@@ -69,7 +96,7 @@ export function getTelegramUsername() {
   if (typeof window !== 'undefined') {
     const name = window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
     if (name) return name;
-    const stored = localStorage.getItem('telegramUsername');
+    const stored = storage.get('telegramUsername');
     if (stored) return stored;
   }
   return '';
@@ -79,7 +106,7 @@ export function getTelegramFirstName() {
   if (typeof window !== 'undefined') {
     const first = window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
     if (first) return first;
-    const stored = localStorage.getItem('telegramFirstName');
+    const stored = storage.get('telegramFirstName');
     if (stored) return stored;
   }
   return '';
@@ -89,7 +116,7 @@ export function getTelegramLastName() {
   if (typeof window !== 'undefined') {
     const last = window?.Telegram?.WebApp?.initDataUnsafe?.user?.last_name;
     if (last) return last;
-    const stored = localStorage.getItem('telegramLastName');
+    const stored = storage.get('telegramLastName');
     if (stored) return stored;
   }
   return '';
@@ -99,7 +126,7 @@ export function getTelegramUserData() {
   if (typeof window !== 'undefined') {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
     if (user) return user;
-    const stored = localStorage.getItem('telegramUserData');
+    const stored = storage.get('telegramUserData');
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -115,17 +142,17 @@ export function getTelegramPhotoUrl() {
   if (typeof window !== 'undefined') {
     const photo = window?.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
     if (photo) {
-      localStorage.setItem('telegramPhotoUrl', photo);
+      storage.set('telegramPhotoUrl', photo);
       return photo;
     }
-    const stored = localStorage.getItem('telegramPhotoUrl');
+    const stored = storage.get('telegramPhotoUrl');
     if (stored) return stored;
     const id = getTelegramId();
     if (id) {
       fetchTelegramInfo(id)
         .then((info) => {
           if (info?.photoUrl) {
-            localStorage.setItem('telegramPhotoUrl', info.photoUrl);
+            storage.set('telegramPhotoUrl', info.photoUrl);
             window.dispatchEvent(new Event('profilePhotoUpdated'));
           }
         })
@@ -153,7 +180,7 @@ export function clearTelegramCache() {
       'telegramLastName',
       'telegramUserData',
       'telegramPhotoUrl'
-    ].forEach((key) => localStorage.removeItem(key));
+    ].forEach((key) => storage.remove(key));
   } catch {
     // ignore
   }
