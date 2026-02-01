@@ -1405,10 +1405,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.28;
-const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
+const POCKET_CAM_EDGE_SCALE = 0.2;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1418,32 +1415,27 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
     POCKET_VIS_R * 1.95 +
     BALL_R * 1.05) *
-  POCKET_CAM_EDGE_SCALE *
-  POCKET_CAM_OUTWARD_MULTIPLIER;
+  POCKET_CAM_EDGE_SCALE;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 18,
   dotThreshold: 0.15,
-  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE * POCKET_CAM_INWARD_SCALE,
-  minOutsideShort:
-    POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
-    BALL_DIAMETER * 2.5,
+  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 0.98,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 0.9,
   heightOffsetShortMultiplier: 0.9,
-  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
-  outwardOffsetShort:
-    POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
-    BALL_DIAMETER * 2.5,
+  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 1,
-  heightScale: 1,
+  distanceScale: 0.82,
+  heightScale: 0.98,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.85;
+const POCKET_GUARANTEED_ALIGNMENT = 0.95;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -5064,7 +5056,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
+const POCKET_CAMERA_FOV = Math.max(38, STANDING_VIEW_FOV * 0.88);
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -5094,7 +5086,6 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
-const REPLAY_CUE_STICK_HOLD_MS = 620;
 const REPLAY_CUE_RETURN_WINDOW_MS = 260;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
@@ -5225,10 +5216,6 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
-const TMP_VEC3_B = new THREE.Vector3();
-const TMP_VEC3_C = new THREE.Vector3();
-const TMP_VEC3_D = new THREE.Vector3();
-const TMP_VEC3_E = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
@@ -5630,8 +5617,8 @@ const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
-  BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize(),
+  BL: new THREE.Vector2(-0.72, 1).normalize(),
+  BR: new THREE.Vector2(0.72, 1).normalize(),
   TM: new THREE.Vector2(-1, 0).normalize(),
   BM: new THREE.Vector2(1, 0).normalize()
 });
@@ -5890,7 +5877,6 @@ function reflectRails(ball) {
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
-  let preImpactVel = null;
   const hasCushionSegments =
     Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
   const jawContactRadius = railRadius * 0.96;
@@ -5900,29 +5886,21 @@ function reflectRails(ball) {
     const centers = pocketCenters();
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
-    let nearestPocketIndex = 0;
     centers.forEach((center, index) => {
       const dist = ball.pos.distanceTo(center);
       if (dist < nearestPocketDist) {
         nearestPocketDist = dist;
         nearestCaptureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
-        nearestPocketIndex = index;
       }
     });
     const nearPocket = nearestPocketDist < nearPocketRadius;
     const inCaptureZone = nearestPocketDist < nearestCaptureRadius;
-    const pocketGuardClearance =
-      nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
-    const inGuardZone = nearestPocketDist < pocketGuardClearance;
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
       if (nearPocket && segment.type === 'rail') continue;
-      if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
-      if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
-        if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
-      }
+      if (inCaptureZone && (segment.type === 'cut' || segment.type === 'jaw')) continue;
       const velocityToward = ball.vel.dot(segment.normal);
       if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
@@ -5959,7 +5937,27 @@ function reflectRails(ball) {
     }
     if (bestImpact) {
       ball.pos.addScaledVector(bestImpact.normal, bestPenetration);
-      preImpactVel = ball.vel.clone();
+      const vn = ball.vel.dot(bestImpact.normal);
+      if (vn < 0) {
+        const isCutImpact = bestImpact.type === 'cut';
+        const restitution =
+          bestImpact.type === 'jaw'
+            ? CUSHION_RESTITUTION * 0.55
+            : CUSHION_RESTITUTION * (isCutImpact ? CUSHION_CUT_RESTITUTION_SCALE : 1);
+        ball.vel.addScaledVector(bestImpact.normal, -(1 + restitution) * vn);
+        const vt = bestImpact.tangent
+          .clone()
+          .multiplyScalar(ball.vel.dot(bestImpact.tangent));
+        const tangentDamping =
+          bestImpact.type === 'jaw'
+            ? 0.9
+            : isCutImpact
+              ? 0.96 / CUSHION_CUT_FRICTION_SCALE
+              : 0.96;
+        ball.vel
+          .sub(vt)
+          .add(vt.multiplyScalar(tangentDamping));
+      }
       const stamp =
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
@@ -5969,39 +5967,7 @@ function reflectRails(ball) {
       return {
         type: bestImpact.type,
         normal: bestImpact.normal.clone(),
-        tangent: bestImpact.tangent.clone(),
-        preImpactVel
-      };
-    }
-    for (let i = 0; i < centers.length; i++) {
-      const center = centers[i];
-      if (!center) continue;
-      const captureRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
-      const jawBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-      const jawRadius = jawBaseRadius * POCKET_VISUAL_EXPANSION;
-      TMP_VEC2_A.copy(ball.pos).sub(center);
-      const distSq = TMP_VEC2_A.lengthSq();
-      if (distSq <= 1e-10) continue;
-      const dist = Math.sqrt(distSq);
-      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
-      TMP_VEC2_A.multiplyScalar(1 / dist);
-      const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      if (velocityToward <= 0) continue;
-      const penetration = jawRadius + railRadius - dist;
-      if (penetration <= 0) continue;
-      ball.pos.addScaledVector(TMP_VEC2_A, penetration);
-      preImpactVel = ball.vel.clone();
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'jaw';
-      return {
-        type: 'jaw',
-        normal: TMP_VEC2_A.clone(),
-        tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
+        tangent: bestImpact.tangent.clone()
       };
     }
   }
@@ -6018,7 +5984,18 @@ function reflectRails(ball) {
       if (distNormal < -cornerDepthLimit) continue;
       const push = railRadius - distNormal;
       ball.pos.addScaledVector(TMP_VEC2_B, push);
-      preImpactVel = ball.vel.clone();
+      const vn = ball.vel.dot(TMP_VEC2_B);
+      if (vn < 0) {
+        const restitution = CUSHION_RESTITUTION * CUSHION_CUT_RESTITUTION_SCALE;
+        ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+        const vt = TMP_VEC2_D.copy(ball.vel).sub(
+          TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+        );
+        const tangentDamping = 0.96 / CUSHION_CUT_FRICTION_SCALE;
+        ball.vel
+          .sub(vt)
+          .add(vt.multiplyScalar(tangentDamping));
+      }
       const stamp =
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
@@ -6028,8 +6005,7 @@ function reflectRails(ball) {
       return {
         type: 'corner',
         normal: TMP_VEC2_B.clone(),
-        tangent: TMP_VEC2_D.clone(),
-        preImpactVel
+        tangent: TMP_VEC2_D.clone()
       };
     }
 
@@ -6059,7 +6035,17 @@ function reflectRails(ball) {
         if (lateral < sideGuardClearance) continue;
         const push = railRadius - distNormal;
         ball.pos.addScaledVector(TMP_VEC2_B, push);
-        preImpactVel = ball.vel.clone();
+        const vn = ball.vel.dot(TMP_VEC2_B);
+        if (vn < 0) {
+          const restitution = CUSHION_RESTITUTION * CUSHION_CUT_RESTITUTION_SCALE;
+          ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+          TMP_VEC2_LIMIT.copy(TMP_VEC2_B).multiplyScalar(ball.vel.dot(TMP_VEC2_B));
+          const vt = TMP_VEC2_D.copy(ball.vel).sub(TMP_VEC2_LIMIT);
+          const tangentDamping = 0.96 / CUSHION_CUT_FRICTION_SCALE;
+          ball.vel
+            .sub(vt)
+            .add(vt.multiplyScalar(tangentDamping));
+        }
         const stamp =
           typeof performance !== 'undefined' && performance.now
             ? performance.now()
@@ -6069,8 +6055,7 @@ function reflectRails(ball) {
         return {
           type: 'cut',
           normal: TMP_VEC2_B.clone(),
-          tangent: TMP_VEC2_D.clone(),
-          preImpactVel
+          tangent: TMP_VEC2_D.clone()
         };
       }
     }
@@ -6085,30 +6070,30 @@ function reflectRails(ball) {
     let collided = null;
     let collisionNormal = null;
     if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
-      preImpactVel = ball.vel.clone();
       const overshoot = -railLimitX - ball.pos.x;
       ball.pos.x = -railLimitX + overshoot;
+      ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
       collided = 'rail';
       collisionNormal = new THREE.Vector2(1, 0);
     }
     if (ball.pos.x > railLimitX && ball.vel.x > 0) {
-      preImpactVel = ball.vel.clone();
       const overshoot = ball.pos.x - railLimitX;
       ball.pos.x = railLimitX - overshoot;
+      ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
       collided = 'rail';
       collisionNormal = new THREE.Vector2(-1, 0);
     }
     if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
-      preImpactVel = ball.vel.clone();
       const overshoot = -railLimitY - ball.pos.y;
       ball.pos.y = -railLimitY + overshoot;
+      ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
       collided = 'rail';
       collisionNormal = new THREE.Vector2(0, 1);
     }
     if (ball.pos.y > railLimitY && ball.vel.y > 0) {
-      preImpactVel = ball.vel.clone();
       const overshoot = ball.pos.y - railLimitY;
       ball.pos.y = railLimitY - overshoot;
+      ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
       collided = 'rail';
       collisionNormal = new THREE.Vector2(0, -1);
     }
@@ -6123,7 +6108,7 @@ function reflectRails(ball) {
     if (collided) {
       const normal = collisionNormal ?? new THREE.Vector2(0, 1);
       const tangent = new THREE.Vector2(-normal.y, normal.x);
-      return { type: collided, normal, tangent, preImpactVel };
+      return { type: collided, normal, tangent };
     }
   }
   return null;
@@ -12765,7 +12750,6 @@ function SnookerRoyalGame({
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
-  const [replayFoul, setReplayFoul] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
@@ -12861,15 +12845,11 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-  const clampPower = useCallback((value, fallback = 0) => {
-    if (!Number.isFinite(value)) return fallback;
-    return THREE.MathUtils.clamp(value, 0, 1);
-  }, []);
   const applyPower = useCallback((nextPower) => {
-    const clampedPower = clampPower(nextPower, 0);
+    const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
     setHud((prev) => ({ ...prev, power: clampedPower }));
-  }, [clampPower]);
+  }, []);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
@@ -13146,7 +13126,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('top');
+  const overheadBroadcastVariantRef = useRef('replay');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -14469,8 +14449,6 @@ const powerRef = useRef(hud.power);
       let pausedPocketDrops = null;
       const tmpReplayQuat = new THREE.Quaternion();
       const tmpReplayQuatB = new THREE.Quaternion();
-      const tmpReplayCueQuat = new THREE.Quaternion();
-      const tmpReplayCueQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
       const tmpReplayCueA = new THREE.Vector3();
@@ -17123,7 +17101,6 @@ const powerRef = useRef(hud.power);
               pocketIdFromCenter(pocketCenter);
             if (anchorId !== activeShotView.anchorId) {
               activeShotView.anchorId = anchorId;
-              activeShotView.fixedPos = null;
               const latestOutward = getPocketCameraOutward(anchorId);
               if (latestOutward) {
                 activeShotView.anchorOutward = latestOutward;
@@ -17151,54 +17128,130 @@ const powerRef = useRef(hud.power);
             if (!activeShotView.anchorOutward) {
               activeShotView.anchorOutward = outward.clone();
             }
-            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.6;
-            const focusBallPos2D = focusBall?.active
-              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
-              : null;
-            const focusPoint2D =
-              focusBallPos2D ??
-              activeShotView.lastBallPos?.clone?.() ??
-              pocketCenter2D;
-            const focusTarget = new THREE.Vector3(
-              focusPoint2D.x * worldScaleFactor,
-              focusHeightLocal,
-              focusPoint2D.y * worldScaleFactor
-            );
-            const baseDistance =
+            const cameraBounds = cameraBoundsRef.current ?? null;
+            const cueBounds = cameraBounds?.cueShot ?? null;
+            const standingBounds = cameraBounds?.standing ?? null;
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
+            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
+            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
+            if (cueBallForPocket && focusBall?.active) {
+              focusTarget.set(
+                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
+                focusHeightLocal,
+                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
+              );
+            }
+            focusTarget.multiplyScalar(worldScaleFactor);
+            if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
+              const focusBlend = THREE.MathUtils.clamp(
+                POCKET_CAM.focusBlend,
+                0,
+                1
+              );
+              if (focusBlend > 0) {
+                const pocketFocus = new THREE.Vector3(
+                  pocketCenter2D.x * worldScaleFactor,
+                  focusHeightLocal,
+                  pocketCenter2D.y * worldScaleFactor
+                );
+                focusTarget.lerp(pocketFocus, focusBlend);
+              }
+            }
+            if (POCKET_CAM.lateralFocusShift) {
+              const lateral2D = new THREE.Vector2(-outward.y, outward.x);
+              if (lateral2D.lengthSq() > 1e-6) {
+                lateral2D.normalize().multiplyScalar(
+                  POCKET_CAM.lateralFocusShift * worldScaleFactor
+                );
+                focusTarget.add(
+                  new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
+                );
+              }
+            }
+            if (
+              anchorType === 'short' &&
+              (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
+            ) {
+              const signX =
+                pocketCenter2D.x !== 0
+                  ? Math.sign(pocketCenter2D.x)
+                  : Math.sign(outward.x);
+              const signZ =
+                pocketCenter2D.y !== 0
+                  ? Math.sign(pocketCenter2D.y)
+                  : Math.sign(outward.y);
+              const offsetX =
+                (POCKET_CAM.railFocusLong ?? 0) * (signX ? -signX : 0);
+              const offsetZ =
+                (POCKET_CAM.railFocusShort ?? 0) * (signZ ? -signZ : 0);
+              if (offsetX || offsetZ) {
+                TMP_VEC3_A.set(
+                  offsetX * worldScaleFactor,
+                  0,
+                  offsetZ * worldScaleFactor
+                );
+                focusTarget.add(TMP_VEC3_A);
+              }
+            }
+            const pocketDirection2D = pocketCenter2D.clone();
+            if (pocketDirection2D.lengthSq() < 1e-6) {
+              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
+            }
+            const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
+            const preferredRadius =
               Number.isFinite(activeShotView.cameraDistance) &&
               activeShotView.cameraDistance > 0
                 ? activeShotView.cameraDistance
-                : anchorType === 'short'
+                : null;
+            const baseRadius = (() => {
+              const fallback = clamp(
+                fitRadius(camera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
+                CAMERA.minR,
+                CAMERA.maxR
+              );
+              const standingRadius = standingBounds?.radius ?? fallback;
+              const pocketRadius = pocketDirection2D.length();
+              const minOutside =
+                anchorType === 'short'
                   ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
                   : POCKET_CAM.minOutside;
+              const defaultRadius = Math.max(
+                standingRadius,
+                pocketRadius + minOutside
+              );
+              if (preferredRadius == null) return defaultRadius;
+              return Math.max(preferredRadius, pocketRadius + minOutside);
+            })();
+            const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
+            const spherical = new THREE.Spherical(
+              baseRadius * worldScaleFactor,
+              cuePhi,
+              azimuth
+            );
+            const desiredPosition = focusTarget
+              .clone()
+              .add(new THREE.Vector3().setFromSpherical(spherical));
             const outwardOffsetMagnitude =
               anchorType === 'short'
                 ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
                 : POCKET_CAM.outwardOffset;
-            const distanceScale =
-              activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
-            const cameraDistance =
-              (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) * distanceScale;
-            const sideEdgeShift =
-              anchorType === 'side'
-                ? POCKET_CAM_SIDE_EDGE_SHIFT *
-                  signed(
-                    focusPoint2D.y - pocketCenter2D.y,
-                    approachDir.y || 1
-                  )
-                : 0;
-            const desiredPosition =
-              activeShotView.fixedPos ??
-              new THREE.Vector3(
-                (pocketCenter2D.x + outward.x * cameraDistance) * worldScaleFactor,
-                (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
-                  worldScaleFactor,
-                (pocketCenter2D.y + outward.y * cameraDistance + sideEdgeShift) *
-                  worldScaleFactor
-              );
-            if (!activeShotView.fixedPos) {
-              activeShotView.fixedPos = desiredPosition.clone();
+            if (outwardOffsetMagnitude) {
+              const outwardOffset = new THREE.Vector3(outward.x, 0, outward.y);
+              if (outwardOffset.lengthSq() > 1e-6) {
+                outwardOffset
+                  .normalize()
+                  .multiplyScalar(outwardOffsetMagnitude * worldScaleFactor);
+                desiredPosition.add(outwardOffset);
+              }
             }
+            const minHeightWorld =
+              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
+              worldScaleFactor;
+            const loweredY =
+              desiredPosition.y -
+              (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
+            desiredPosition.y =
+              loweredY < minHeightWorld ? minHeightWorld : loweredY;
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -17216,17 +17269,15 @@ const powerRef = useRef(hud.power);
                 ? 1 - Math.exp(-dt / POCKET_VIEW_SMOOTH_TIME)
                 : 1;
             const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
-            const leveledTarget = focusTarget.clone();
-            leveledTarget.y = desiredPosition.y;
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
-              activeShotView.smoothedPos.copy(desiredPosition);
+              activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
             }
             if (!activeShotView.smoothedTarget) {
-              activeShotView.smoothedTarget = leveledTarget.clone();
+              activeShotView.smoothedTarget = focusTarget.clone();
             } else {
-              activeShotView.smoothedTarget.copy(leveledTarget);
+              activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
             }
             if (pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
@@ -18117,18 +18168,10 @@ const powerRef = useRef(hud.power);
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
           const cameraSnapshot = captureReplayCameraSnapshot();
-          const cueSnapshot = cueStick
-            ? {
-                position: serializeVector3Snapshot(cueStick.position),
-                rotation: serializeQuaternionSnapshot(cueStick.quaternion),
-                visible: cueStick.visible
-              }
-            : null;
           shotRecording.frames.push({
             t: relative,
             balls: snapshot,
-            camera: cameraSnapshot,
-            cue: cueSnapshot
+            camera: cameraSnapshot
           });
           const cueBall = balls.find((b) => b.id === 'cue');
           if (cueBall?.mesh) {
@@ -18142,7 +18185,7 @@ const powerRef = useRef(hud.power);
         };
 
         const applyReplayFrame = (frameA, frameB, alpha) => {
-          if (!frameA) return false;
+          if (!frameA) return;
           const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
           const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
           balls.forEach((ball) => {
@@ -18156,7 +18199,6 @@ const powerRef = useRef(hud.power);
             ball.pos.set(posX, posY);
             if (ball.vel) ball.vel.set(0, 0);
             if (ball.spin) ball.spin.set(0, 0);
-            if (ball.omega) ball.omega.set(0, 0, 0);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
@@ -18216,162 +18258,12 @@ const powerRef = useRef(hud.power);
               }
             }
           });
-          const cueStateA = frameA.cue ?? null;
-          const cueStateB = frameB?.cue ?? cueStateA;
-          if (cueStick && (cueStateA || cueStateB)) {
-            const posA = normalizeVector3Snapshot(cueStateA?.position);
-            const posB = normalizeVector3Snapshot(cueStateB?.position, posA);
-            if (posA && posB) {
-              tmpReplayPos.set(
-                THREE.MathUtils.lerp(posA.x, posB.x, alpha),
-                THREE.MathUtils.lerp(posA.y, posB.y, alpha),
-                THREE.MathUtils.lerp(posA.z, posB.z, alpha)
-              );
-              cueStick.position.copy(tmpReplayPos);
-            }
-            const quatA = normalizeQuaternionSnapshot(cueStateA?.rotation);
-            const quatB = normalizeQuaternionSnapshot(
-              cueStateB?.rotation ?? cueStateA?.rotation,
-              quatA
-            );
-            if (quatA && quatB) {
-              tmpReplayCueQuat.set(quatA.x, quatA.y, quatA.z, quatA.w);
-              tmpReplayCueQuatB.set(quatB.x, quatB.y, quatB.z, quatB.w);
-              tmpReplayCueQuat.slerp(tmpReplayCueQuatB, alpha);
-              cueStick.quaternion.copy(tmpReplayCueQuat);
-            } else if (quatA) {
-              cueStick.quaternion.set(quatA.x, quatA.y, quatA.z, quatA.w);
-            }
-            const visible = cueStateB?.visible ?? cueStateA?.visible;
-            if (visible != null) {
-              cueStick.visible = Boolean(visible);
-            }
-            cueAnimating = cueStick.visible;
-            return true;
-          }
-          return false;
         };
 
         const applyReplayCueStroke = (playback, targetTime) => {
           const stroke = playback?.cueStroke;
-          if (!cueStick) {
-            cueAnimating = false;
-            return;
-          }
-          if (!ENABLE_CUE_STROKE_ANIMATION) {
-            cueStick.visible = false;
-            cueAnimating = false;
-            return;
-          }
-          const applyCueSnapshot = () => {
-            const frames = playback?.frames ?? [];
-            if (!frames.length) return false;
-            let frameIndex = 0;
-            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-              frameIndex += 1;
-            }
-            const cueSnapshot = frames[frameIndex]?.cue ?? frames[0]?.cue ?? null;
-            if (!cueSnapshot?.position) return false;
-            const pos = normalizeVector3Snapshot(cueSnapshot.position);
-            if (!pos) return false;
-            cueStick.position.set(pos.x, pos.y, pos.z);
-            const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
-            if (quat) {
-              cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
-            }
-            cueStick.visible = cueSnapshot.visible ?? true;
-            cueAnimating = cueStick.visible;
-            return true;
-          };
-          if (!stroke) {
-            if (applyCueSnapshot()) return;
-            const cuePath = playback?.cuePath ?? [];
-            const cueBall = cueRef.current || cue;
-            const cueBallPos = cueBall?.mesh?.position ?? null;
-            const cuePos = cueBallPos ? TMP_VEC3_A.copy(cueBallPos) : cuePath[0]?.pos?.clone?.() ?? null;
-            if (!cuePos) {
-              cueStick.visible = false;
-              cueAnimating = false;
-              return;
-            }
-            const first = cuePath[0]?.pos ?? null;
-            const second = cuePath[1]?.pos ?? null;
-            if (first && second) {
-              TMP_VEC3_CUE_DIR.copy(second).sub(first);
-            } else if (cueBall?.vel) {
-              TMP_VEC3_CUE_DIR.set(cueBall.vel.x, 0, cueBall.vel.y);
-            } else {
-              TMP_VEC3_CUE_DIR.set(0, 0, 1);
-            }
-            TMP_VEC3_CUE_DIR.y = 0;
-            if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
-              TMP_VEC3_CUE_DIR.normalize();
-            } else {
-              TMP_VEC3_CUE_DIR.set(0, 0, 1);
-            }
-            cuePos.y = CUE_Y;
-            cueStick.rotation.y = Math.atan2(TMP_VEC3_CUE_DIR.x, TMP_VEC3_CUE_DIR.z) + Math.PI;
-            cueStick.rotation.x = 0;
-            const replayHoldWindow = Number.isFinite(playback?.duration)
-              ? playback.duration
-              : REPLAY_CUE_STICK_HOLD_MS;
-            const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = CUE_PULL_BASE * 0.18;
-            const pullbackTime = 160;
-            const forwardTime = 210;
-            const settleTime = 120;
-            const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
-            const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
-            const holdWindow = Math.max(replayHoldWindow, totalStroke);
-            const localTime = targetTime;
-            const pullEnd = pullbackTime;
-            const impactEnd = pullEnd + forwardTime;
-            const settleEnd = impactEnd + settleTime;
-            const returnEnd = settleEnd + returnTime;
-            const strokeEnd = Math.min(holdWindow, returnEnd);
-            tmpReplayCueA.copy(cuePos);
-            tmpReplayCueB.copy(cuePos).addScaledVector(TMP_VEC3_CUE_DIR, fallbackPullback);
-            cueStick.visible = true;
-            cueAnimating = true;
-            if (localTime <= pullEnd) {
-              const t = THREE.MathUtils.clamp(localTime / Math.max(pullEnd, 1e-6), 0, 1);
-              cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
-              return;
-            }
-            if (localTime <= impactEnd) {
-              const t = THREE.MathUtils.clamp(
-                (localTime - pullEnd) / Math.max(forwardTime, 1e-6),
-                0,
-                1
-              );
-              tmpReplayCueA.copy(tmpReplayCueB);
-              tmpReplayCueB.copy(cuePos).addScaledVector(TMP_VEC3_CUE_DIR, -fallbackForward);
-              cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
-              return;
-            }
-            if (localTime <= settleEnd) {
-              const t = THREE.MathUtils.clamp(
-                (localTime - impactEnd) / Math.max(settleTime, 1e-6),
-                0,
-                1
-              );
-              tmpReplayCueA.copy(cuePos).addScaledVector(TMP_VEC3_CUE_DIR, -fallbackForward);
-              tmpReplayCueB.copy(cuePos).addScaledVector(TMP_VEC3_CUE_DIR, -fallbackForward * 0.6);
-              cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
-              return;
-            }
-            if (localTime <= strokeEnd) {
-              const t = THREE.MathUtils.clamp(
-                (localTime - settleEnd) / Math.max(returnTime, 1e-6),
-                0,
-                1
-              );
-              tmpReplayCueA.copy(cuePos).addScaledVector(TMP_VEC3_CUE_DIR, -fallbackForward * 0.6);
-              tmpReplayCueB.copy(cuePos);
-              cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
-              return;
-            }
-            cueStick.visible = false;
+          if (!stroke || !cueStick) {
+            if (cueStick) cueStick.visible = false;
             cueAnimating = false;
             return;
           }
@@ -18438,46 +18330,6 @@ const powerRef = useRef(hud.power);
           }
           cueStick.visible = false;
           cueAnimating = false;
-        };
-
-        const primeReplayCueStick = (playback) => {
-          if (!cueStick) return;
-          if (!ENABLE_CUE_STROKE_ANIMATION) {
-            cueStick.visible = false;
-            cueAnimating = false;
-            return;
-          }
-          const cueSnapshot = playback?.frames?.[0]?.cue ?? null;
-          if (cueSnapshot?.position) {
-            const pos = normalizeVector3Snapshot(cueSnapshot.position);
-            if (pos) {
-              cueStick.position.set(pos.x, pos.y, pos.z);
-              const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
-              if (quat) {
-                cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
-              }
-              cueStick.visible = cueSnapshot.visible ?? true;
-              cueAnimating = cueStick.visible;
-              return;
-            }
-          }
-          const cuePath = playback?.cuePath ?? [];
-          if (cuePath.length > 0) {
-            const cuePos = cuePath[0].pos?.clone?.();
-            if (cuePos) {
-              cuePos.y = CUE_Y;
-              cueStick.position.copy(cuePos);
-              cueStick.visible = true;
-              cueAnimating = true;
-              return;
-            }
-          }
-          const cueBall = cueRef.current || cue;
-          if (cueBall?.pos) {
-            cueStick.position.set(cueBall.pos.x, CUE_Y, cueBall.pos.y - CUE_TIP_GAP);
-            cueStick.visible = true;
-            cueAnimating = true;
-          }
         };
 
         const updateReplayTrail = (cuePath, targetTime) => {
@@ -18581,8 +18433,6 @@ const powerRef = useRef(hud.power);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           setReplayActive(true);
-          setReplayFoul(shotRecording?.replayFoul ?? null);
-          overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
@@ -18602,7 +18452,6 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
-          primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
           if (!LOCK_REPLAY_CAMERA && path.length > 0) {
             const start = path[0]?.pos ?? null;
@@ -18681,9 +18530,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          overheadBroadcastVariantRef.current = 'top';
           setReplayActive(false);
-          setReplayFoul(null);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -18702,10 +18549,10 @@ const powerRef = useRef(hud.power);
         };
         skipReplayRef.current = skipReplay;
 
-        const enterTopView = (immediate = false, { variant = 'top' } = {}) => {
+        const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = variant;
+          overheadBroadcastVariantRef.current = 'replay';
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
@@ -21145,29 +20992,7 @@ const powerRef = useRef(hud.power);
         firstHit = null;
         clearInterval(timerRef.current);
         const aimDir = aimDirRef.current.clone();
-        if (aimDir.lengthSq() < 1e-6) {
-          aimDir.set(0, 1);
-        } else {
-          aimDir.normalize();
-        }
-        const clampedPower = clampPower(powerRef.current, 0);
-        const appliedSpin = applySpinConstraints(aimDir, true);
-        const liftAngle = resolveUserCueLift();
-        const liftStrength = normalizeCueLift(liftAngle);
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
-        const swerveActive = false;
-        const guideAimDir2D = resolveSwerveAimDir(
-          aimDir.clone(),
-          physicsSpin,
-          clampedPower,
-          swerveActive,
-          liftStrength
-        );
-        const shotAimDir =
-          guideAimDir2D && guideAimDir2D.lengthSq() > 1e-8
-            ? guideAimDir2D.clone().normalize()
-            : aimDir.clone();
-        const prediction = calcTarget(cue, shotAimDir.clone(), balls);
+        const prediction = calcTarget(cue, aimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
           : prediction.tHit;
@@ -21210,6 +21035,7 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           powerImpactHoldRef.current = isMaxPowerShot
@@ -21235,25 +21061,18 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = shotAimDir
+          const base = aimDir
             .clone()
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
-            const frameTiming = frameTimingRef.current;
-            const frameTimeMs =
-              frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
-                ? frameTiming.targetMs
-                : 1000 / 60;
             shotRecording = {
               longShot: replayTags.has('long'),
-              targetBallId: shotPrediction.ballId ?? null,
               startTime: performance.now(),
               startState: captureBallSnapshot(),
               frames: [],
               cuePath: [],
-              frameTimeMs,
               replayTags: Array.from(replayTags),
               zoomOnly: preferZoomReplay
             };
@@ -21375,36 +21194,23 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
+          const appliedSpin = applySpinConstraints(aimDir, true);
+          const liftAngle = resolveUserCueLift();
+          const liftStrength = normalizeCueLift(liftAngle);
+          const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const scaledSpin = {
-            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
-            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
-          };
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledSpin.y < 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledSpin.y > 0) {
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
           if (cue.spin) {
             cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode = 'standard';
@@ -21414,7 +21220,7 @@ const powerRef = useRef(hud.power);
           cueLiftRef.current.lift = 0;
           cueLiftRef.current.startLift = 0;
           cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
+          cue.launchDir = aimDir.clone().normalize();
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
@@ -23447,11 +23253,6 @@ const powerRef = useRef(hud.power);
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
-        if (shotRecording) {
-          shotRecording.replayFoul = safeState?.foul
-            ? { ...safeState.foul }
-            : null;
-        }
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -23854,12 +23655,8 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
-            if (playback?.cueStroke) {
-              applyReplayCueStroke(playback, targetTime);
-            } else if (!hasCueSnapshot) {
-              applyReplayCueStroke(playback, targetTime);
-            }
+            applyReplayFrame(frameA, frameB, alpha);
+            applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
               const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
@@ -26500,11 +26297,6 @@ const powerRef = useRef(hud.power);
             <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
               Replay
             </div>
-            {replayFoul && (
-              <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
-                Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
-              </div>
-            )}
           </div>
           <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
             <button
