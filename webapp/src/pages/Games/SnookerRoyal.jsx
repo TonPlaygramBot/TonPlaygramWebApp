@@ -677,7 +677,7 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia 
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the Pool Royale fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // open the rounded chrome cut slightly wider on the middle pockets only
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.08; // open the rounded chrome cut a touch wider on the middle pockets only
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1528,7 +1528,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligne
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
-const SHOT_POWER_REDUCTION = 0.85;
+const SHOT_POWER_REDUCTION = 0.425; // reduce shot power by 50% to match the requested pacing
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1557,7 +1557,7 @@ const POCKET_SOUND_TAIL = 1;
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 4.5;
-const BASE_TABLE_LIFT = 3.6;
+const BASE_TABLE_LIFT = 4.0;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.82;
 const TABLE_HEIGHT_SCALE = 1.56;
@@ -22877,10 +22877,14 @@ const powerRef = useRef(hud.power);
           }
         };
         const normalizeAiPlanAim = (plan) => {
-          if (!plan?.aimDir || !cue?.active) return plan;
+          if (!plan || !cue?.active) return plan;
           const cueBall = cue;
           const activeBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          if (!plan.aimDir || !Number.isFinite(plan.aimDir.x) || !Number.isFinite(plan.aimDir.y)) {
+            plan.aimDir = null;
+            return plan;
+          }
           const aimDir = plan.aimDir.clone();
           if (aimDir.lengthSq() < 1e-6) return plan;
           aimDir.normalize();
@@ -22923,6 +22927,42 @@ const powerRef = useRef(hud.power);
           }
           return plan;
         };
+        const resolveAiFallbackAim = () => {
+          let fallbackDir = resolveAutoAimDirection();
+          if (!fallbackDir && cue?.pos) {
+            const ballsList =
+              ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            const nearestBall = ballsList
+              .filter((b) => b?.active && String(b.id) !== 'cue')
+              .reduce((best, ball) => {
+                if (!ball?.pos) return best;
+                if (!best) return ball;
+                const bestDist = cue.pos.distanceToSquared(best.pos);
+                const dist = cue.pos.distanceToSquared(ball.pos);
+                return dist < bestDist ? ball : best;
+              }, null);
+            if (nearestBall?.pos) {
+              fallbackDir = new THREE.Vector2(
+                nearestBall.pos.x - cue.pos.x,
+                nearestBall.pos.y - cue.pos.y
+              );
+            }
+          }
+          if (!fallbackDir && cue?.pos) {
+            fallbackDir = new THREE.Vector2(-cue.pos.x, -cue.pos.y);
+          }
+          if (!fallbackDir || fallbackDir.lengthSq() < 1e-6) {
+            fallbackDir = new THREE.Vector2(0, 1);
+          }
+          return fallbackDir.normalize();
+        };
+        const buildAiFallbackPlan = () => ({
+          type: 'safety',
+          aimDir: resolveAiFallbackAim(),
+          power: computePowerFromDistance(BALL_R * 18),
+          target: 'fallback',
+          spin: { x: 0, y: 0 }
+        });
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
           const potSummary = summarizePlan(options?.bestPot ?? null);
@@ -23283,23 +23323,13 @@ const powerRef = useRef(hud.power);
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
             let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
-            if (!plan) {
-              const cuePos = cue?.pos ? cue.pos.clone() : null;
-              if (!cuePos) return;
-              let fallbackDir = resolveAutoAimDirection();
-              if (!fallbackDir) {
-                fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
-                if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
-                fallbackDir.normalize();
-              }
-              plan = {
-                type: 'safety',
-                aimDir: fallbackDir,
-                power: computePowerFromDistance(BALL_R * 18),
-                target: 'fallback',
-                spin: { x: 0, y: 0 }
-              };
+            if (!plan || !plan.aimDir || plan.aimDir.lengthSq() < 1e-6) {
+              plan = buildAiFallbackPlan();
             }
+            if (!Number.isFinite(plan.power)) {
+              plan.power = computePowerFromDistance(BALL_R * 18);
+            }
+            plan.power = THREE.MathUtils.clamp(plan.power, 0.25, 0.95);
             aiPlanRef.current = plan;
             clearEarlyAiShot();
             stopAiThinking();
