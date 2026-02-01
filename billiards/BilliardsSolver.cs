@@ -48,10 +48,17 @@ public class BilliardsSolver
         public double Radius;
     }
 
+    public struct GuardPoint
+    {
+        public Vec2 Position;
+        public double Restitution;
+    }
+
     public List<Edge> CushionEdges { get; } = new List<Edge>();
     public List<Edge> ConnectorEdges { get; } = new List<Edge>();
     public List<Edge> PocketEdges { get; } = new List<Edge>();
     public List<Pocket> Pockets { get; } = new List<Pocket>();
+    public List<GuardPoint> GuardPoints { get; } = new List<GuardPoint>();
 
     /// <summary>Generates watertight cushion and pocket proxy geometry using table specs.</summary>
     public void InitStandardTable()
@@ -60,6 +67,7 @@ public class BilliardsSolver
         ConnectorEdges.Clear();
         PocketEdges.Clear();
         Pockets.Clear();
+        GuardPoints.Clear();
 
         double width = PhysicsConstants.TableWidth;
         double height = PhysicsConstants.TableHeight;
@@ -184,6 +192,8 @@ public class BilliardsSolver
         if (Vec2.Dot(normal, interiorHint) < 0)
             normal = -normal;
         CushionEdges.Add(new Edge { A = a, B = b, Normal = normal.Normalized() });
+        AddGuardPoint(a, PhysicsConstants.CushionRestitution);
+        AddGuardPoint(b, PhysicsConstants.CushionRestitution);
     }
 
     private void AddCornerJaw(Vec2 center, double radius, double startAngle, double endAngle, int segments)
@@ -204,7 +214,11 @@ public class BilliardsSolver
                 blended = normal;
             var edge = new Edge { A = prev, B = next, Normal = blended };
             if (i <= cushionBands || i > segments - cushionBands)
+            {
                 ConnectorEdges.Add(edge);
+                AddGuardPoint(edge.A, PhysicsConstants.ConnectorRestitution);
+                AddGuardPoint(edge.B, PhysicsConstants.ConnectorRestitution);
+            }
             else
                 PocketEdges.Add(edge);
             prev = next;
@@ -259,7 +273,11 @@ public class BilliardsSolver
             var edge = new Edge { A = a, B = b, Normal = normal };
             bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
             if (nearMouth)
+            {
                 ConnectorEdges.Add(edge);
+                AddGuardPoint(edge.A, PhysicsConstants.ConnectorRestitution);
+                AddGuardPoint(edge.B, PhysicsConstants.ConnectorRestitution);
+            }
             else
                 PocketEdges.Add(edge);
         }
@@ -274,6 +292,13 @@ public class BilliardsSolver
         if (Vec2.Dot(normal, interiorHint) < 0)
             normal = -normal;
         ConnectorEdges.Add(new Edge { A = a, B = b, Normal = normal.Normalized() });
+        AddGuardPoint(a, PhysicsConstants.ConnectorRestitution);
+        AddGuardPoint(b, PhysicsConstants.ConnectorRestitution);
+    }
+
+    private void AddGuardPoint(Vec2 point, double restitution)
+    {
+        GuardPoints.Add(new GuardPoint { Position = point, Restitution = restitution });
     }
 
     private static Vec2 PointOnCircle(Vec2 center, double radius, double angle)
@@ -359,6 +384,22 @@ public class BilliardsSolver
                                 hit = true;
                                 pocket = true;
                                 contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            }
+                        }
+
+                        foreach (var guard in GuardPoints)
+                        {
+                            if (Ccd.CircleCircle(b.Position, b.Velocity, PhysicsConstants.BallRadius, guard.Position, 0, out double tGuard) && tGuard <= remaining && tGuard < tHit)
+                            {
+                                tHit = tGuard;
+                                Vec2 contact = b.Position + b.Velocity * tGuard;
+                                Vec2 dir = (contact - guard.Position).Normalized();
+                                if (dir.Length < PhysicsConstants.Epsilon)
+                                    dir = (-b.Velocity).Normalized();
+                                normal = dir;
+                                restitution = guard.Restitution;
+                                hit = true;
+                                contactPoint = guard.Position;
                             }
                         }
 
@@ -639,6 +680,20 @@ public class BilliardsSolver
             {
                 cue.Position += cue.Velocity * te;
                 var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
+                impact = new Impact { Point = cue.Position, CueVelocity = post };
+                return true;
+            }
+        }
+
+        foreach (var guard in GuardPoints)
+        {
+            if (Ccd.CircleCircle(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, guard.Position, 0, out double tg) && tg <= dt)
+            {
+                cue.Position += cue.Velocity * tg;
+                Vec2 dir = (cue.Position - guard.Position).Normalized();
+                if (dir.Length < PhysicsConstants.Epsilon)
+                    dir = (-cue.Velocity).Normalized();
+                var post = Collision.Reflect(cue.Velocity, dir, guard.Restitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
