@@ -677,7 +677,7 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia 
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the Pool Royale fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.08; // open the rounded chrome cut a touch wider on the middle pockets only
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1076,6 +1076,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
+const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.97; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
@@ -1117,6 +1118,7 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1408,7 +1410,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.55; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -7688,11 +7690,14 @@ function Table3D(
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
   const frameExpansion = TABLE.WALL * 0.12 + TABLE_OUTER_EXPANSION;
-  const frameWidthEnd =
+  const frameWidthEndBase =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
+  const frameWidthEnd = frameWidthEndBase * FRAME_RAIL_OUTWARD_SCALE;
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
+  const chromeOuterHalfW = halfW + 2 * longRailW + frameWidthEndBase;
+  const chromeOuterHalfH = halfH + 2 * endRailW + frameWidthEndBase;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
@@ -7828,12 +7833,12 @@ function Table3D(
   );
   const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
+    chromeOuterHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
   const chromePlateBaseHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
+    chromeOuterHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
   );
   const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
@@ -9022,6 +9027,15 @@ function Table3D(
     return new THREE.Vector2(fallbackX, fallbackZ);
   };
 
+  const pullPocketJawInward = (center, amount) => {
+    if (!(center instanceof THREE.Vector2)) return center;
+    if (!Number.isFinite(amount) || amount <= MICRO_EPS) return center;
+    const len = center.length();
+    if (!Number.isFinite(len) || len <= MICRO_EPS) return center;
+    center.add(center.clone().multiplyScalar(-amount / len));
+    return center;
+  };
+
   if (cornerBaseRadius && cornerBaseRadius > MICRO_EPS) {
     [
       { sx: 1, sz: 1 },
@@ -9035,6 +9049,7 @@ function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
+      pullPocketJawInward(center, POCKET_JAW_INWARD_PULL);
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
@@ -9055,6 +9070,7 @@ function Table3D(
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
+      pullPocketJawInward(center, POCKET_JAW_INWARD_PULL);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
