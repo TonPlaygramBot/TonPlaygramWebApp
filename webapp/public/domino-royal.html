@@ -5629,6 +5629,14 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
 const statusEl = document.getElementById('status');
 const btnDraw = document.getElementById('draw');
 const btnPass = document.getElementById('pass');
+const setControlEnabled = (enabled) => {
+  [btnDraw, btnPass].forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  });
+};
+setControlEnabled(false);
 const btnRules = document.getElementById('btnRules');
 const viewToggle = document.getElementById('viewToggle');
 const panelRules = document.getElementById('rules');
@@ -6610,11 +6618,22 @@ btnPass.addEventListener('click',()=>{
 });
 
 async function bootstrapDominoRoyal() {
-  await loadHumanProfileFromApi();
-  startGame();
+  try {
+    await loadHumanProfileFromApi();
+    startGame();
+    setControlEnabled(true);
+  } catch (error) {
+    console.error('Domino Royal failed to start', error);
+    setStatus('Unable to start match. Please reload.');
+    setControlEnabled(false);
+  }
 }
 
-bootstrapDominoRoyal();
+bootstrapDominoRoyal().catch((error) => {
+  console.error('Domino Royal bootstrap failed', error);
+  setStatus('Unable to start match. Please reload.');
+  setControlEnabled(false);
+});
 
 function blockedAndWinner(){
   if(!ends) return null;
