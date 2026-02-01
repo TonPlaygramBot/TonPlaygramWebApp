@@ -44,7 +44,6 @@ import {
   TABLE_BASE_OPTIONS
 } from '../../utils/tableCustomizationOptions.js';
 import { TOKEN_PALETTE_OPTIONS, TOKEN_PIECE_OPTIONS, TOKEN_STYLE_OPTIONS } from '../../config/ludoBattleOptions.js';
-import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
@@ -388,7 +387,6 @@ const DEFAULT_HDRI_INDEX = Math.max(
   LUDO_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
 );
 const DEFAULT_HDRI_VARIANT = LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0] ?? null;
-const DEFAULT_TABLE_FINISH_INDEX = 0;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -400,17 +398,11 @@ const resolveHdriVariant = (index) => {
   const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
   return LUDO_HDRI_OPTIONS[idx] ?? LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0];
 };
-const resolveTableFinish = (index) => {
-  const max = MURLAN_TABLE_FINISHES.length - 1;
-  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_FINISH_INDEX;
-  return MURLAN_TABLE_FINISHES[idx] ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] ?? null;
-};
 
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   tables: 0,
   stools: 0,
-  tableFinish: DEFAULT_TABLE_FINISH_INDEX,
   environmentHdri: DEFAULT_HDRI_INDEX,
   tokenPalette: 0,
   tokenStyle: 0,
@@ -420,7 +412,6 @@ const DEFAULT_APPEARANCE = {
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: MURLAN_TABLE_THEMES },
   { key: 'stools', label: 'Chairs', options: MURLAN_STOOL_THEMES },
-  { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
   { key: 'environmentHdri', label: 'HDR Environments', options: LUDO_HDRI_OPTIONS },
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
@@ -553,7 +544,6 @@ function normalizeAppearance(value = {}) {
   const entries = [
     ['tables', MURLAN_TABLE_THEMES.length],
     ['stools', MURLAN_STOOL_THEMES.length],
-    ['tableFinish', MURLAN_TABLE_FINISHES.length],
     ['environmentHdri', LUDO_HDRI_OPTIONS.length],
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
     ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
@@ -2703,7 +2693,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const map = {
         tables: MURLAN_TABLE_THEMES,
         stools: MURLAN_STOOL_THEMES,
-        tableFinish: MURLAN_TABLE_FINISHES,
         environmentHdri: LUDO_HDRI_OPTIONS,
         tokenPalette: TOKEN_PALETTE_OPTIONS,
         tokenStyle: TOKEN_STYLE_OPTIONS,
@@ -3108,7 +3097,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   const rebuildTable = useCallback(
-    async (tableTheme, tableFinish) => {
+    async (tableTheme) => {
       const arena = arenaRef.current;
       const renderer = rendererRef.current;
       if (!arena?.arenaGroup || !renderer) return null;
@@ -3168,9 +3157,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
-      const finish = tableFinish || MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] || null;
       if (!tableInfo) {
-        const woodOption = finish?.woodOption || TABLE_WOOD_OPTIONS[0];
+        const woodOption = TABLE_WOOD_OPTIONS[0];
         const clothOption = TABLE_CLOTH_OPTIONS[0];
         const baseOption = TABLE_BASE_OPTIONS[0];
         const procedural = createMurlanStyleTable({
@@ -3194,7 +3182,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       arena.tableInfo = tableInfo;
       arena.tableThemeId = tableTheme?.id || 'murlan-default';
-      arena.tableFinishId = finish?.id ?? null;
 
       if (boardGroup) {
         boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
@@ -3424,34 +3411,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="absolute bottom-1 left-1 rounded-md bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
               {(option?.label || 'Table').slice(0, 22)}
             </div>
-          </div>
-        );
-      }
-      case 'tableFinish': {
-        const swatches = option?.swatches ?? ['#b8b3aa', '#d6d0c7'];
-        const thumb = option?.thumbnail;
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10">
-            {thumb ? (
-              <img
-                src={thumb}
-                alt={option?.label || 'Table finish'}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="absolute inset-0 flex">
-                {swatches.map((swatch, idx) => (
-                  // eslint-disable-next-line react/no-array-index-key
-                  <div
-                    key={`${option?.id || 'finish'}-swatch-${idx}`}
-                    className="h-full flex-1"
-                    style={{ backgroundColor: swatch }}
-                  />
-                ))}
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/30 via-transparent to-black/50" />
           </div>
         );
       }
@@ -3939,9 +3898,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const safe = ensureAppearanceUnlocked(normalized);
     const tableTheme = MURLAN_TABLE_THEMES[safe.tables] ?? MURLAN_TABLE_THEMES[0];
     const stoolTheme = MURLAN_STOOL_THEMES[safe.stools] ?? MURLAN_STOOL_THEMES[0];
-    const tableFinish = resolveTableFinish(safe.tableFinish);
-    const tableFinishId =
-      tableFinish?.id ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX]?.id ?? null;
     const envVariant = resolveHdriVariant(safe.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
     const tokenPieceOption = TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
@@ -3951,10 +3907,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
     const tokenStyleChanged = previousAppearance.tokenStyle !== safe.tokenStyle;
     const tokenPieceChanged = previousAppearance.tokenPiece !== safe.tokenPiece;
-    const tableChanged =
-      arena.tableThemeId !== tableTheme.id ||
-      !arena.tableInfo ||
-      (tableTheme?.source !== 'polyhaven' && arena.tableFinishId !== tableFinishId);
+    const tableChanged = arena.tableThemeId !== tableTheme.id || !arena.tableInfo;
     const stoolChanged = arena.chairThemeId !== stoolTheme.id || !arena.chairs?.length;
     const hdriChanged = (hdriVariantRef.current?.id || hdriVariantRef.current?.name) !== envVariant?.id;
 
@@ -4013,13 +3966,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     appearanceRef.current = safe;
     hdriVariantRef.current = envVariant || hdriVariantRef.current;
 
-    const woodOption = tableFinish?.woodOption || TABLE_WOOD_OPTIONS[0];
+    const woodOption = TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[0];
 
     (async () => {
       if (tableChanged) {
-        await rebuildTable(tableTheme, tableFinish);
+        await rebuildTable(tableTheme);
         if (arena.tableInfo) {
           if (!arena.boardLookTarget) {
             arena.boardLookTarget = new THREE.Vector3();
@@ -4036,7 +3989,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       } else if (arena.tableInfo?.materials) {
         applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, rendererRef.current);
-        arena.tableFinishId = tableFinishId;
       }
 
       if (stoolChanged) {
@@ -4183,7 +4135,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const initialAppearance = ensureAppearanceUnlocked(initialAppearanceRaw);
     const tableTheme = MURLAN_TABLE_THEMES[initialAppearance.tables] ?? MURLAN_TABLE_THEMES[0];
     const stoolTheme = MURLAN_STOOL_THEMES[initialAppearance.stools] ?? MURLAN_STOOL_THEMES[0];
-    const tableFinish = resolveTableFinish(initialAppearance.tableFinish);
     const envVariant = resolveHdriVariant(initialAppearance.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
     const tokenPieceOption = TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
@@ -4235,7 +4186,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
 
     if (!tableInfo) {
-      const woodOption = tableFinish?.woodOption || TABLE_WOOD_OPTIONS[0];
+      const woodOption = TABLE_WOOD_OPTIONS[0];
       const clothOption = TABLE_CLOTH_OPTIONS[0];
       const baseOption = TABLE_BASE_OPTIONS[0];
       const procedural = createMurlanStyleTable({
@@ -4398,7 +4349,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arenaGroup,
       tableInfo,
       tableThemeId: tableInfo.themeId,
-      tableFinishId: tableFinish?.id ?? null,
       boardGroup,
       boardLookTarget,
       defaultLookTarget: boardLookTarget.clone(),
