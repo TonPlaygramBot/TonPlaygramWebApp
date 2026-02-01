@@ -85,8 +85,11 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import { chatBeep } from '../../assets/soundData.js';
 import {
+  clampToUnitCircle,
+  computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
+  smoothDamp,
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 
@@ -4988,10 +4991,9 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // match the Pool Royale 2D framing
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.04; // match the Pool Royale 2D framing
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
-const TOP_VIEW_SCREEN_OFFSET_SCALE = 0.8 / TABLE_DISPLAY_SCALE;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045 * TOP_VIEW_SCREEN_OFFSET_SCALE,
-  z: PLAY_H * -0.078 * TOP_VIEW_SCREEN_OFFSET_SCALE
+  x: PLAY_W * -0.045,
+  z: PLAY_H * -0.078
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
@@ -5116,6 +5118,7 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 76;
+const PORTRAIT_HUD_CHAT_BUTTON_SHIFT_PX = 50.4;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -25684,7 +25687,10 @@ const powerRef = useRef(hud.power);
         const desiredCenter = (leftCenter + spinCenter) / 2;
         const screenCenter = viewportWidth / 2;
         setBottomHudOffset(
-          desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX
+          desiredCenter -
+            screenCenter -
+            PORTRAIT_HUD_HORIZONTAL_NUDGE_PX +
+            PORTRAIT_HUD_CHAT_BUTTON_SHIFT_PX
         );
       } else {
         setBottomHudOffset(0);
@@ -25782,6 +25788,18 @@ const powerRef = useRef(hud.power);
     let revertTimer = null;
     let activePointer = null;
     let moved = false;
+    let rafId = null;
+    let lastTime = null;
+    const spinState = {
+      current: { x: 0, y: 0 },
+      target: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 }
+    };
+
+    const SMOOTH_TIME = 0.085;
+    const MAX_SPEED = 6;
+    const MAX_STEP_SECONDS = 0.04;
+    const SETTLE_EPS = 0.0015;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -25791,12 +25809,19 @@ const powerRef = useRef(hud.power);
       };
     };
 
-    const setSpin = (nx, ny) => {
-      const normalized = normalizeSpinInput({ x: nx, y: ny });
-      spinRequestRef.current = normalized;
-      const limited = clampToLimits(normalized.x, normalized.y);
-      const limitedNormalized = normalizeSpinInput(limited);
-      spinRef.current = limitedNormalized;
+    const clampToPlayable = (nx, ny) => {
+      const raw = clampToUnitCircle(nx, ny);
+      const limited = clampToLimits(raw.x, raw.y);
+      return clampToUnitCircle(limited.x, limited.y);
+    };
+
+    const applySpin = (nx, ny, { updateRequest = true } = {}) => {
+      const clamped = clampToPlayable(nx, ny);
+      if (updateRequest) {
+        spinRequestRef.current = { x: clamped.x, y: clamped.y };
+      }
+      const normalized = normalizeSpinInput(clamped);
+      spinRef.current = normalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -25807,14 +25832,35 @@ const powerRef = useRef(hud.power);
       const viewVec = cueBall && activeCamera
         ? computeCueViewVector(cueBall, activeCamera)
         : null;
-      const legality = checkSpinLegality2D(cueBall, normalized, ballsList || [], {
-        axes,
-        view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
-      });
+      const legality = checkSpinLegality2D(
+        cueBall,
+        clamped,
+        ballsList || [],
+        {
+          axes,
+          view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+        }
+      );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limitedNormalized, legality.blocked);
+      updateSpinDotPosition(clamped, legality.blocked);
     };
-    const resetSpin = () => setSpin(0, 0);
+
+    const applySnapTarget = () => {
+      const snapped = computeQuantizedOffsetScaled(
+        spinState.target.x,
+        spinState.target.y
+      );
+      spinState.target = clampToPlayable(snapped.x, snapped.y);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
+    };
+
+    const resetSpin = () => {
+      spinState.current = { x: 0, y: 0 };
+      spinState.target = { x: 0, y: 0 };
+      spinState.velocity = { x: 0, y: 0 };
+      applySpin(0, 0);
+    };
     resetSpin();
     resetSpinRef.current = resetSpin;
 
@@ -25824,7 +25870,9 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      setSpin(nx, ny);
+      spinState.target = clampToPlayable(nx, ny);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const scaleBox = (value) => {
@@ -25845,6 +25893,60 @@ const powerRef = useRef(hud.power);
           box.releasePointerCapture(activePointer);
         } catch {}
         activePointer = null;
+      }
+    };
+
+    const startSpring = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(stepSpring);
+    };
+
+    const stepSpring = (timestamp) => {
+      if (!showSpinController) {
+        rafId = null;
+        return;
+      }
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
+      lastTime = timestamp;
+      const { current, target, velocity } = spinState;
+      const nextX = smoothDamp(
+        current.x,
+        target.x,
+        velocity.x,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      const nextY = smoothDamp(
+        current.y,
+        target.y,
+        velocity.y,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      current.x = nextX.value;
+      current.y = nextY.value;
+      velocity.x = nextX.velocity;
+      velocity.y = nextY.velocity;
+      applySpin(current.x, current.y, { updateRequest: false });
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const settled =
+        Math.abs(dx) < SETTLE_EPS &&
+        Math.abs(dy) < SETTLE_EPS &&
+        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
+      if (settled) {
+        spinState.current = { ...target };
+        spinState.velocity = { x: 0, y: 0 };
+      }
+      const shouldContinue = activePointer !== null || !settled;
+      if (shouldContinue) {
+        rafId = requestAnimationFrame(stepSpring);
+      } else {
+        rafId = null;
+        lastTime = null;
       }
     };
 
@@ -25877,6 +25979,7 @@ const powerRef = useRef(hud.power);
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
       finishInteraction(50);
+      applySnapTarget();
     };
 
     const handlePointerCancel = (e) => {
@@ -25884,6 +25987,7 @@ const powerRef = useRef(hud.power);
       releasePointer();
       clearTimer();
       scaleBox(1);
+      applySnapTarget();
     };
 
     if (showPlayerControls) {
@@ -25897,6 +26001,10 @@ const powerRef = useRef(hud.power);
       spinDotElRef.current = null;
       releasePointer();
       clearTimer();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
