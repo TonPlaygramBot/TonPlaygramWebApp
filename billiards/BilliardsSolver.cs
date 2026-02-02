@@ -383,7 +383,6 @@ public class BilliardsSolver
                     double restitution = PhysicsConstants.Restitution;
                     bool hit = false;
                     bool pocket = false;
-                    bool cushionContact = false;
                     Vec2 contactPoint = new Vec2();
 
                     bool allowPocketing = !airborne;
@@ -395,7 +394,6 @@ public class BilliardsSolver
                             normal = e.Normal;
                             restitution = PhysicsConstants.CushionRestitution;
                             hit = true;
-                            cushionContact = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
                     }
@@ -408,7 +406,6 @@ public class BilliardsSolver
                             normal = e.Normal;
                             restitution = PhysicsConstants.ConnectorRestitution;
                             hit = true;
-                            cushionContact = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
                     }
@@ -460,10 +457,6 @@ public class BilliardsSolver
                             break;
                         }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
-                        if (cushionContact && !airborne)
-                        {
-                            ApplyCushionResponse(b, normal);
-                        }
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
                         StepVertical(b, travel);
@@ -680,27 +673,6 @@ public class BilliardsSolver
                 b.ForwardSpin *= PhysicsConstants.LandingSpinDamping;
             }
         }
-    }
-
-    private static void ApplyCushionResponse(Ball b, Vec2 normal)
-    {
-        var n = normal.Normalized();
-        var tangent = new Vec2(-n.Y, n.X);
-        double normalSpeed = Vec2.Dot(b.Velocity, n);
-        double tangentialSpeed = Vec2.Dot(b.Velocity, tangent);
-        double spinImpulse = b.SideSpin * PhysicsConstants.CushionSpinInfluence;
-        double adjustedTangential = tangentialSpeed * (1.0 - PhysicsConstants.CushionTangentialLoss) + spinImpulse;
-
-        if (Math.Abs(adjustedTangential) < PhysicsConstants.CushionStopSpeed &&
-            Math.Abs(normalSpeed) < PhysicsConstants.CushionStopSpeed)
-        {
-            b.Velocity = new Vec2(0, 0);
-        }
-        else
-        {
-            b.Velocity = n * normalSpeed + tangent * adjustedTangential;
-        }
-        b.SideSpin *= PhysicsConstants.CushionSpinDamping;
     }
 
     private static double LinearDrag(bool airborne)
