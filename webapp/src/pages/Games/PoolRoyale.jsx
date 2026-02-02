@@ -6374,7 +6374,6 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
-  const preImpactSpin = ball.spin.clone();
   const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
   if (!worldSpin) return;
   const throwFactor = Math.max(
@@ -6386,7 +6385,16 @@ function applyRailSpinResponse(ball, impact) {
     const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
     ball.vel.addScaledVector(tangent, throwStrength);
   }
-  ball.spin.copy(preImpactSpin);
+  const spinAlongNormal = worldSpin.dot(normal);
+  TMP_VEC2_A
+    .copy(tangent)
+    .multiplyScalar(spinAlongTangent)
+    .addScaledVector(normal, -spinAlongNormal * RAIL_SPIN_NORMAL_FLIP);
+  const spinFrame = resolveSpinFrame(ball);
+  ball.spin.set(
+    TMP_VEC2_A.dot(spinFrame.lateral),
+    TMP_VEC2_A.dot(spinFrame.forward)
+  );
   decaySpin(ball, 0.6, false);
 }
 
