@@ -1539,9 +1539,9 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.22; // soften cushion throw so rebounds follow cleaner angles
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
-const RAIL_SPIN_NORMAL_FLIP = 0.45; // reduce spin inversion on rails for more natural rebounds
+const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
 const AIR_SPIN_ROLL_SCALE = 0.22; // reduce forward/back spin acceleration while airborne
 const AIR_SPIN_SWERVE_SCALE = BALL_R * 0.55; // gentle Magnus-style drift for airborne side spin
@@ -5335,6 +5335,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
+const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0;
@@ -19527,9 +19528,10 @@ const powerRef = useRef(hud.power);
         const clampSpinToLimits = (input) => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = input || spinRequestRef.current || spinRef.current || { x: 0, y: 0 };
+          const maxTopspin = Math.min(limits.maxY, MAX_TOPSPIN_INPUT);
           return {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
-            y: clamp(current.y ?? 0, limits.minY, limits.maxY)
+            y: clamp(current.y ?? 0, limits.minY, maxTopspin)
           };
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
