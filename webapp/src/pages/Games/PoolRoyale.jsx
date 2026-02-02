@@ -1270,20 +1270,20 @@ const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 0.6,
-  maxTipOffsetRatio: 0.65
+  airSpinDecay: 4.0,
+  maxTipOffsetRatio: 0.5
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.991;
+const FRICTION = 0.987;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
 const SPIN_SLIDE_EPS = 0.035;
-const SPIN_KINETIC_FRICTION = 0.26;
-const SPIN_ROLL_DAMPING = 0.14;
-const SPIN_ANGULAR_DAMPING = 0.05;
+const SPIN_KINETIC_FRICTION = 0.32;
+const SPIN_ROLL_DAMPING = 0.2;
+const SPIN_ANGULAR_DAMPING = 0.07;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.19;
