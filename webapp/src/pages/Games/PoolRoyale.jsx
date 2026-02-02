@@ -1271,7 +1271,7 @@ const PHYSICS_PROFILE = Object.freeze({
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 4.0,
-  maxTipOffsetRatio: 0.5
+  maxTipOffsetRatio: 0.42
 });
 const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.993;
@@ -1287,7 +1287,7 @@ const SPIN_ANGULAR_DAMPING = 0.07;
 const SPIN_NEUTRAL_EPS = 1e-4;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
-const RAIL_FRICTION = 0.19;
+const RAIL_FRICTION = 0.26;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
@@ -1526,7 +1526,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.6; // reduce overall spin impact by 25%
+const SPIN_GLOBAL_SCALE = 0.5; // reduce overall spin impact by 50%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1539,9 +1539,9 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.22; // soften cushion throw so rebounds follow cleaner angles
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
-const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
+const RAIL_SPIN_NORMAL_FLIP = 0.45; // reduce spin inversion on rails for more natural rebounds
 const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
 const AIR_SPIN_ROLL_SCALE = 0.22; // reduce forward/back spin acceleration while airborne
 const AIR_SPIN_SWERVE_SCALE = BALL_R * 0.55; // gentle Magnus-style drift for airborne side spin
@@ -1683,7 +1683,7 @@ const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
-const SPIN_UI_MAX_OFFSET = 0.75;
+const SPIN_UI_MAX_OFFSET = 0.6;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
