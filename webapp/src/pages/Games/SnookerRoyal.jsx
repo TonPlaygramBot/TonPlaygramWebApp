@@ -1410,7 +1410,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.65; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.5; // pull pocket cameras further inward so they sit closer to the table edge
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -4929,7 +4929,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.5; // pull the standing camera slightly closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -23704,7 +23704,7 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false
         };
-        let nextInHand = cueBallPotted || Boolean(safeState.foul);
+        let nextInHand = cueBallPotted;
         try {
           if (shotResolved) {
             if (safeState.foul) {
@@ -23805,6 +23805,8 @@ const powerRef = useRef(hud.power);
                 nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
                 nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+              } else if (nextMeta.variant === 'snooker' && nextMeta.state) {
+                nextInHand = Boolean(nextMeta.state.ballInHand);
               }
             }
           }
