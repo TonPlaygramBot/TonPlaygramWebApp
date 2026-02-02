@@ -1539,12 +1539,9 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.22; // soften cushion throw so rebounds follow cleaner angles
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal cushion throw for consistent rebounds
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
-const RAIL_SPIN_NORMAL_FLIP = 0.45; // reduce spin inversion on rails for more natural rebounds
-const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
-const AIR_SPIN_ROLL_SCALE = 0.22; // reduce forward/back spin acceleration while airborne
-const AIR_SPIN_SWERVE_SCALE = BALL_R * 0.55; // gentle Magnus-style drift for airborne side spin
+const MAX_TOPSPIN_RATIO = 0.85; // cap topspin so Pool Royale matches Snooker Royal max follow
 const BALL_SPIN_THROW_SCALE = BALL_R * 0.34; // small tangential throw from ball-to-ball spin contact
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while matching Snooker Royal pacing.
@@ -6336,27 +6333,22 @@ function decaySpin(ball, stepScale, airborne = false) {
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
-  const { forward, lateral, speed } = resolveSpinFrame(ball);
-  let forwardSpin = ball.spin.y || 0;
-  const sideSpin = ball.spin.x || 0;
-  if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
-    forwardSpin = 0;
-  }
-  if (Math.abs(forwardSpin) > 1e-8) {
+  const { forward, speed } = resolveSpinFrame(ball);
+  if (!airborne && speed > 1e-6) {
+    let forwardSpin = ball.spin.y || 0;
+    if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
+      forwardSpin = 0;
+    }
     const powerScale = resolveSpinPowerScale(speed);
-    const restScale = speed > 1e-6 ? 1 : SPIN_REST_ACCEL_SCALE;
-    const airScale = airborne ? AIR_SPIN_ROLL_SCALE : 1;
-    let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale * restScale * airScale;
-    if (!airborne && forwardSpin < 0) {
+    let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale;
+    if (forwardSpin < 0) {
       const backspinBoost =
         ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
       rollAccel *= backspinBoost;
     }
-    ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
-  }
-  if (airborne && Math.abs(sideSpin) > 1e-8 && speed > 1e-6) {
-    const swerveAccel = sideSpin * speed * AIR_SPIN_SWERVE_SCALE * stepScale;
-    ball.vel.addScaledVector(lateral, swerveAccel);
+    if (Math.abs(forwardSpin) > 1e-8) {
+      ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
+    }
   }
   return decaySpin(ball, stepScale, airborne);
 }
@@ -6381,6 +6373,7 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
+  const preImpactSpin = ball.spin.clone();
   const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
   if (!worldSpin) return;
   const throwFactor = Math.max(
@@ -6392,16 +6385,7 @@ function applyRailSpinResponse(ball, impact) {
     const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
     ball.vel.addScaledVector(tangent, throwStrength);
   }
-  const spinAlongNormal = worldSpin.dot(normal);
-  TMP_VEC2_A
-    .copy(tangent)
-    .multiplyScalar(spinAlongTangent)
-    .addScaledVector(normal, -spinAlongNormal * RAIL_SPIN_NORMAL_FLIP);
-  const spinFrame = resolveSpinFrame(ball);
-  ball.spin.set(
-    TMP_VEC2_A.dot(spinFrame.lateral),
-    TMP_VEC2_A.dot(spinFrame.forward)
-  );
+  ball.spin.copy(preImpactSpin);
   decaySpin(ball, 0.6, false);
 }
 
@@ -22260,6 +22244,9 @@ const powerRef = useRef(hud.power);
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (scaledSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
+            const topSpinCap =
+              (ranges.forward ?? 0) * powerSpinScale * TOPSPIN_MULTIPLIER * MAX_TOPSPIN_RATIO;
+            if (spinTop > topSpinCap) spinTop = topSpinCap;
           }
           cue.vel.copy(base);
           if (cue.spin) {
