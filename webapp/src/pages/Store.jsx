@@ -225,8 +225,8 @@ const TEXAS_TYPE_LABELS = {
 };
 
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
-const TON_PRICE_MIN = 0.1;
-const TON_PRICE_MAX = 5;
+const TON_PRICE_MIN = 100;
+const TON_PRICE_MAX = 5000;
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -1579,7 +1579,7 @@ export default function Store() {
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+        <div className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">Confirm bulk purchase</p>

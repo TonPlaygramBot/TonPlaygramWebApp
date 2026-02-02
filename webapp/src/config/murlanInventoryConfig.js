@@ -121,7 +121,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: theme.id,
     name: theme.label,
     price: theme.price ?? 300 + idx * 20,
-    description: theme.description || `Premium ${theme.label} seating with original finish.`
+    description: theme.description || `Premium ${theme.label} seating with original finish.`,
+    thumbnail: theme.thumbnail
   })),
   POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `hdri-${variant.id}`,
