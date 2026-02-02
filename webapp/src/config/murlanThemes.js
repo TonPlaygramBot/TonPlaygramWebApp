@@ -54,13 +54,69 @@ export const MURLAN_OUTFIT_THEMES = [
 const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
 
 const BASE_STOOL_THEMES = [
-  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f', price: 0, description: 'Default ruby cushions with noir legs.' },
-  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a', price: 210, description: 'Slate seats with midnight legs.' },
-  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a', price: 230, description: 'Teal cushions with deep green support.' },
-  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410', price: 250, description: 'Amber seats with rich brown legs.' },
-  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059', price: 270, description: 'Violet cushions with twilight framing.' },
-  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a', price: 290, description: 'Frosted charcoal seats with dark legs.' },
-  { id: 'leather', label: 'Leather', seatColor: '#6a4a32', legColor: '#1a1410', price: 320, description: 'Leather-wrapped seats with dark studio legs.' }
+  {
+    id: 'ruby',
+    label: 'Ruby',
+    seatColor: '#8b0000',
+    legColor: '#1f1f1f',
+    price: 0,
+    description: 'Default ruby cushions with noir legs.',
+    thumbnail: swatchThumbnail(['#8b0000', '#1f1f1f', '#f8fafc'])
+  },
+  {
+    id: 'slate',
+    label: 'Slate',
+    seatColor: '#374151',
+    legColor: '#0f172a',
+    price: 210,
+    description: 'Slate seats with midnight legs.',
+    thumbnail: swatchThumbnail(['#374151', '#0f172a', '#e2e8f0'])
+  },
+  {
+    id: 'teal',
+    label: 'Teal',
+    seatColor: '#0f766e',
+    legColor: '#082f2a',
+    price: 230,
+    description: 'Teal cushions with deep green support.',
+    thumbnail: swatchThumbnail(['#0f766e', '#082f2a', '#5eead4'])
+  },
+  {
+    id: 'amber',
+    label: 'Amber',
+    seatColor: '#b45309',
+    legColor: '#2f2410',
+    price: 250,
+    description: 'Amber seats with rich brown legs.',
+    thumbnail: swatchThumbnail(['#b45309', '#2f2410', '#fde68a'])
+  },
+  {
+    id: 'violet',
+    label: 'Violet',
+    seatColor: '#7c3aed',
+    legColor: '#2b1059',
+    price: 270,
+    description: 'Violet cushions with twilight framing.',
+    thumbnail: swatchThumbnail(['#7c3aed', '#2b1059', '#ddd6fe'])
+  },
+  {
+    id: 'frost',
+    label: 'Ice',
+    seatColor: '#1f2937',
+    legColor: '#0f172a',
+    price: 290,
+    description: 'Frosted charcoal seats with dark legs.',
+    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#e2e8f0'])
+  },
+  {
+    id: 'leather',
+    label: 'Leather',
+    seatColor: '#6a4a32',
+    legColor: '#1a1410',
+    price: 320,
+    description: 'Leather-wrapped seats with dark studio legs.',
+    thumbnail: swatchThumbnail(['#6a4a32', '#1a1410', '#fcd34d'])
+  }
 ];
 
 const POLYHAVEN_CHAIR_THEMES = [

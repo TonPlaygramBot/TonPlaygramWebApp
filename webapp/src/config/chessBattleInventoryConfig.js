@@ -15,7 +15,8 @@ const BASE_CHAIR_OPTIONS = [
     primary: '#8b1538',
     accent: '#5c0f26',
     highlight: '#d35a7a',
-    legColor: '#1f1f1f'
+    legColor: '#1f1f1f',
+    thumbnail: swatchThumbnail(['#8b1538', '#5c0f26', '#d35a7a'])
   },
   {
     id: 'midnightNavy',
@@ -23,7 +24,8 @@ const BASE_CHAIR_OPTIONS = [
     primary: '#153a8b',
     accent: '#0c214f',
     highlight: '#4d74d8',
-    legColor: '#10131c'
+    legColor: '#10131c',
+    thumbnail: swatchThumbnail(['#153a8b', '#0c214f', '#4d74d8'])
   },
   {
     id: 'emeraldWave',
@@ -31,7 +33,8 @@ const BASE_CHAIR_OPTIONS = [
     primary: '#0f6a2f',
     accent: '#063d1b',
     highlight: '#48b26a',
-    legColor: '#142318'
+    legColor: '#142318',
+    thumbnail: swatchThumbnail(['#0f6a2f', '#063d1b', '#48b26a'])
   },
   {
     id: 'onyxShadow',
@@ -39,7 +42,8 @@ const BASE_CHAIR_OPTIONS = [
     primary: '#202020',
     accent: '#101010',
     highlight: '#6f6f6f',
-    legColor: '#080808'
+    legColor: '#080808',
+    thumbnail: swatchThumbnail(['#202020', '#101010', '#6f6f6f'])
   },
   {
     id: 'royalPlum',
@@ -47,7 +51,8 @@ const BASE_CHAIR_OPTIONS = [
     primary: '#3f1f5b',
     accent: '#2c1340',
     highlight: '#7c4ae0',
-    legColor: '#140a24'
+    legColor: '#140a24',
+    thumbnail: swatchThumbnail(['#3f1f5b', '#2c1340', '#7c4ae0'])
   }
 ];
 

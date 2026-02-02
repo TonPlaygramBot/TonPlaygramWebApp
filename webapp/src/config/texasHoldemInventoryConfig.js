@@ -168,7 +168,8 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price ?? 340 + idx * 30,
-    description: option.description || 'Unlock a premium lounge chair model from Murlan Royale.'
+    description: option.description || 'Unlock a premium lounge chair model from Murlan Royale.',
+    thumbnail: option.thumbnail
   })),
   ...TEXAS_TABLE_THEME_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-table-${option.id}`,
