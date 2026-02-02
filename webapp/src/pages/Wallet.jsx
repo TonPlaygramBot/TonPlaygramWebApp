@@ -18,6 +18,7 @@ import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { loadGoogleProfile } from '../utils/google.js';
 import LoginOptions from '../components/LoginOptions.jsx';
+import { mergeStoreTransactions } from '../utils/storeTransactions.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DEV_ACCOUNT_ID =
@@ -102,6 +103,15 @@ export default function Wallet({ hideClaim = false }) {
     )
   ).filter(Boolean);
 
+  const refreshTransactions = async (id) => {
+    if (!id) return;
+    const txRes = await getAccountTransactions(id);
+    const list = txRes.transactions || [];
+    const merged = mergeStoreTransactions(list, id);
+    setTransactions(merged);
+    return list;
+  };
+
 
   const loadBalances = async () => {
     const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
@@ -138,14 +148,12 @@ export default function Wallet({ hideClaim = false }) {
     if (requiresAuth) return;
     loadBalances().then(async (id) => {
       if (id) {
-        const txRes = await getAccountTransactions(id);
-        const list = txRes.transactions || [];
-        setTransactions(list);
+        const list = await refreshTransactions(id);
         if (DEV_ACCOUNTS.includes(id)) {
-          const gameSum = list
+          const gameSum = (list || [])
             .filter((t) => t.type === 'deposit' && t.game)
             .reduce((s, t) => s + (t.amount || 0), 0);
-          const feeSum = list
+          const feeSum = (list || [])
             .filter((t) => t.type === 'fee')
             .reduce((s, t) => s + (t.amount || 0), 0);
           setDevShare(gameSum);
@@ -198,14 +206,12 @@ export default function Wallet({ hideClaim = false }) {
       setAmount('');
       setNote('');
       const id = await loadBalances();
-      const txRes = await getAccountTransactions(id || accountId);
-      const list = txRes.transactions || [];
-      setTransactions(list);
+      const list = await refreshTransactions(id || accountId);
       if (DEV_ACCOUNTS.includes(id || accountId)) {
-        const gameSum = list
+        const gameSum = (list || [])
           .filter((t) => t.type === 'deposit' && t.game)
           .reduce((s, t) => s + (t.amount || 0), 0);
-        const feeSum = list
+        const feeSum = (list || [])
           .filter((t) => t.type === 'fee')
           .reduce((s, t) => s + (t.amount || 0), 0);
         setDevShare(gameSum);
@@ -231,14 +237,12 @@ export default function Wallet({ hideClaim = false }) {
       }
       setTopupAmount('');
       const id = await loadBalances();
-      const txRes = await getAccountTransactions(id || accountId);
-      const list = txRes.transactions || [];
-      setTransactions(list);
+      const list = await refreshTransactions(id || accountId);
       if (DEV_ACCOUNTS.includes(id || accountId)) {
-        const gameSum = list
+        const gameSum = (list || [])
           .filter((t) => t.type === 'deposit' && t.game)
           .reduce((s, t) => s + (t.amount || 0), 0);
-        const feeSum = list
+        const feeSum = (list || [])
           .filter((t) => t.type === 'fee')
           .reduce((s, t) => s + (t.amount || 0), 0);
         setDevShare(gameSum);

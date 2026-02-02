@@ -118,6 +118,7 @@ import {
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
+import { recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 
 const TYPE_LABELS = {
@@ -1294,6 +1295,9 @@ export default function Store() {
           if (slug === 'poolroyale') {
             const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, accountId);
             setPoolOwned(updated);
+          } else if (slug === 'snookerroyale') {
+            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, accountId);
+            setSnookerOwned(updated);
           } else if (slug === 'airhockey') {
             setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, accountId));
           } else if (slug === 'chessbattleroyal') {
@@ -1316,8 +1320,23 @@ export default function Store() {
       const groupedCount = groupedEntries.length;
       const successLabel =
         purchasable.length === 1
-          ? `${resolver(purchasable[0])} delivered instantly — now owned in ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}.`
-          : `${purchasable.length} cosmetics delivered across ${groupedCount} game${groupedCount === 1 ? '' : 's'}.`;
+          ? `Payment confirmed — ${resolver(purchasable[0])} delivered instantly in ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}.`
+          : `Payment confirmed — ${purchasable.length} cosmetics delivered across ${groupedCount} game${groupedCount === 1 ? '' : 's'}.`;
+      const detailLabel =
+        purchasable.length === 1
+          ? `${resolver(purchasable[0])} • ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}`
+          : `${purchasable.length} store items across ${groupedCount} game${groupedCount === 1 ? '' : 's'}`;
+      recordStorePurchase(accountId, {
+        totalPrice,
+        detail: detailLabel,
+        items: purchasable.map((item) => ({
+          slug: item.slug,
+          type: item.type,
+          optionId: item.optionId,
+          label: resolver(item),
+          price: item.price
+        }))
+      });
       const purchasedKeys = new Set(purchasable.map((item) => selectionKey(item)));
       setSelectedKeys((prev) => prev.filter((key) => !purchasedKeys.has(key)));
       setPurchaseStatus(successLabel);
@@ -1491,7 +1510,7 @@ export default function Store() {
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+        <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">Confirm purchase</p>
