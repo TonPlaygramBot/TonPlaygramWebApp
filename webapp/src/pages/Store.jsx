@@ -1318,12 +1318,10 @@ export default function Store() {
 
       const resolver = (item) => labelResolver(item.slug, item);
       const groupedCount = groupedEntries.length;
-      const reference = purchase?.txHash || purchase?.reference || purchase?.id;
       const successLabel =
         purchasable.length === 1
           ? `Payment confirmed — ${resolver(purchasable[0])} delivered instantly in ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}.`
           : `Payment confirmed — ${purchasable.length} cosmetics delivered across ${groupedCount} game${groupedCount === 1 ? '' : 's'}.`;
-      const confirmationNote = reference ? `Payment confirmed • Ref ${String(reference).slice(0, 10)}…` : 'Payment confirmed';
       const detailLabel =
         purchasable.length === 1
           ? `${resolver(purchasable[0])} • ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}`
@@ -1331,19 +1329,17 @@ export default function Store() {
       recordStorePurchase(accountId, {
         totalPrice,
         detail: detailLabel,
-        reference,
         items: purchasable.map((item) => ({
           slug: item.slug,
           type: item.type,
           optionId: item.optionId,
           label: resolver(item),
-          typeLabel: item.typeLabel,
           price: item.price
         }))
       });
       const purchasedKeys = new Set(purchasable.map((item) => selectionKey(item)));
       setSelectedKeys((prev) => prev.filter((key) => !purchasedKeys.has(key)));
-      setPurchaseStatus(`${confirmationNote} ${successLabel}`);
+      setPurchaseStatus(successLabel);
       setInfo('');
       await loadAccountBalance();
     } catch (err) {

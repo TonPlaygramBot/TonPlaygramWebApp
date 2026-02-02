@@ -1,5 +1,4 @@
 const STORAGE_KEY = 'storeTransactionsByAccount';
-const LEGACY_STORAGE_KEY = 'storePurchaseTransactionsByAccount';
 const MAX_ENTRIES = 200;
 
 const resolveAccountId = (accountId) => {
@@ -11,34 +10,11 @@ const resolveAccountId = (accountId) => {
   return 'guest';
 };
 
-const normalizeDateKey = (value) => {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return '';
-  return date.toISOString().slice(0, 16);
-};
-
-const buildTransactionKey = (tx) =>
-  `${tx.type}|${tx.amount}|${tx.detail || ''}|${normalizeDateKey(tx.date)}`;
-
 const readAllTransactions = () => {
   if (typeof window === 'undefined') return {};
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    const current = raw ? JSON.parse(raw) : {};
-    const legacy = legacyRaw ? JSON.parse(legacyRaw) : {};
-    const merged = { ...legacy, ...current };
-    Object.keys(legacy).forEach((accountId) => {
-      const legacyEntries = Array.isArray(legacy[accountId]) ? legacy[accountId] : [];
-      const currentEntries = Array.isArray(current[accountId]) ? current[accountId] : [];
-      if (!legacyEntries.length) return;
-      const seen = new Set(currentEntries.map((tx) => tx?.id || buildTransactionKey(tx)));
-      merged[accountId] = [
-        ...currentEntries,
-        ...legacyEntries.filter((tx) => !seen.has(tx?.id || buildTransactionKey(tx)))
-      ];
-    });
-    return merged;
+    return raw ? JSON.parse(raw) : {};
   } catch (err) {
     console.warn('Failed to read store transactions', err);
     return {};
@@ -48,8 +24,16 @@ const readAllTransactions = () => {
 const writeAllTransactions = (payload) => {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(payload));
 };
+
+const normalizeDateKey = (value) => {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toISOString().slice(0, 16);
+};
+
+const buildTransactionKey = (tx) =>
+  `${tx.type}|${tx.amount}|${tx.detail || ''}|${normalizeDateKey(tx.date)}`;
 
 export const readStoreTransactions = (accountId) => {
   const resolvedAccountId = resolveAccountId(accountId);
@@ -61,13 +45,7 @@ export const readStoreTransactions = (accountId) => {
 export const recordStorePurchase = (accountId, payload = {}) => {
   const resolvedAccountId = resolveAccountId(accountId);
   if (resolvedAccountId === 'guest') return null;
-  const {
-    totalPrice = 0,
-    detail = 'Store purchase',
-    items = [],
-    status = 'delivered',
-    reference
-  } = payload;
+  const { totalPrice = 0, detail = 'Store purchase', items = [], status = 'delivered' } = payload;
   const now = new Date();
   const tx = {
     id: `store-${now.getTime()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -77,13 +55,7 @@ export const recordStorePurchase = (accountId, payload = {}) => {
     status,
     token: 'TPC',
     detail,
-    reference,
-    items: items.map((item) => ({
-      label: item.label || item.displayLabel || item.name || item.optionId || 'Store item',
-      slug: item.slug,
-      typeLabel: item.typeLabel || item.type,
-      price: item.price
-    }))
+    items
   };
   const all = readAllTransactions();
   const existing = Array.isArray(all[resolvedAccountId]) ? all[resolvedAccountId] : [];
@@ -92,13 +64,6 @@ export const recordStorePurchase = (accountId, payload = {}) => {
     ...all,
     [resolvedAccountId]: next
   });
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('storeTransactionsUpdate', {
-        detail: { accountId: resolvedAccountId, transactions: next }
-      })
-    );
-  }
   return tx;
 };
 
