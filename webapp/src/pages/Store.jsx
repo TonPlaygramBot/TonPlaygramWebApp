@@ -1416,7 +1416,7 @@ export default function Store() {
     if (!showListModal) return null;
     const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pt-6 pb-24 sm:items-center sm:pt-0 sm:pb-0">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
         <div className="flex w-full max-w-xl max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
@@ -1553,7 +1553,7 @@ export default function Store() {
     if (!confirmItem) return null;
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pt-6 pb-24 sm:items-center sm:pt-0 sm:pb-0">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
         <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
@@ -1641,7 +1641,7 @@ export default function Store() {
       .join(' • ');
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pt-6 pb-24 sm:items-center sm:pt-0 sm:pb-0">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
         <div className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
