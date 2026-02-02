@@ -384,7 +384,6 @@ public class BilliardsSolver
                     bool hit = false;
                     bool pocket = false;
                     Vec2 contactPoint = new Vec2();
-                    bool cushionResponse = false;
 
                     bool allowPocketing = !airborne;
                     foreach (var e in CushionEdges)
@@ -396,7 +395,6 @@ public class BilliardsSolver
                             restitution = PhysicsConstants.CushionRestitution;
                             hit = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
-                            cushionResponse = true;
                         }
                     }
 
@@ -409,7 +407,6 @@ public class BilliardsSolver
                             restitution = PhysicsConstants.ConnectorRestitution;
                             hit = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
-                            cushionResponse = true;
                         }
                     }
 
@@ -423,7 +420,6 @@ public class BilliardsSolver
                             hit = true;
                             pocket = allowPocketing;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
-                            cushionResponse = !pocket;
                         }
                     }
 
@@ -455,17 +451,12 @@ public class BilliardsSolver
                         var speed = b.Velocity.Length;
                         var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * travel);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
-                        var preImpactVelocity = b.Velocity;
                         if (pocket)
                         {
                             b.Pocketed = true;
                             break;
                         }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
-                        if (cushionResponse && !airborne)
-                        {
-                            ApplyCushionSpinResponse(b, normal, preImpactVelocity);
-                        }
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
                         StepVertical(b, travel);
@@ -599,9 +590,6 @@ public class BilliardsSolver
         double side = Math.Clamp(spin.Side, -PhysicsConstants.MaxTipOffsetRatio, PhysicsConstants.MaxTipOffsetRatio);
         double top = Math.Clamp(spin.Top, 0, PhysicsConstants.MaxTipOffsetRatio);
         double back = Math.Clamp(spin.Back, 0, PhysicsConstants.MaxTipOffsetRatio);
-        double deadzone = PhysicsConstants.SpinDeadzoneRatio * PhysicsConstants.MaxTipOffsetRatio;
-        if (Math.Abs(side) < deadzone)
-            side = 0;
         double magnitude = Math.Max(Math.Abs(side), Math.Abs(top - back));
         if (magnitude > PhysicsConstants.MaxTipOffsetRatio && magnitude > PhysicsConstants.Epsilon)
         {
@@ -648,23 +636,6 @@ public class BilliardsSolver
             b.SideSpin *= decay;
             b.ForwardSpin *= decay;
         }
-    }
-
-    private static void ApplyCushionSpinResponse(Ball b, Vec2 normal, Vec2 incomingVelocity)
-    {
-        if (incomingVelocity.Length < PhysicsConstants.Epsilon)
-            return;
-
-        var tangent = new Vec2(-normal.Y, normal.X);
-        double tangentialSpeed = Vec2.Dot(incomingVelocity, tangent);
-        double tangentialFactor = Math.Clamp(Math.Abs(tangentialSpeed) / incomingVelocity.Length, 0.0, 1.0);
-        double retention = PhysicsConstants.CushionSpinRetention * (0.5 + 0.5 * tangentialFactor);
-        b.SideSpin = -b.SideSpin * retention;
-        b.ForwardSpin *= PhysicsConstants.CushionForwardSpinRetention;
-
-        double deadzone = PhysicsConstants.SpinDeadzoneRatio * PhysicsConstants.MaxTipOffsetRatio;
-        if (Math.Abs(b.SideSpin) < deadzone)
-            b.SideSpin = 0;
     }
 
     private static void IntegrateCueBall(Ball b, double dt, bool airborne)
