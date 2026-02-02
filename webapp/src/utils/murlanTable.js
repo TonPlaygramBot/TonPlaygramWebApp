@@ -35,6 +35,161 @@ export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
   emissive: '#021a0b'
 });
 
+const POLYHAVEN_PREFERRED_SIZES = ['4k', '2k', '1k'];
+const CLOTH_TEXTURE_CACHE = new Map();
+const SHARED_TEXTURE_LOADER = new THREE.TextureLoader();
+SHARED_TEXTURE_LOADER.setCrossOrigin?.('anonymous');
+
+function pickBestTextureUrls(apiJson, preferredSizes = POLYHAVEN_PREFERRED_SIZES) {
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { diffuse: null, normal: null, roughness: null };
+  }
+
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+
+  const pick = (keywords) =>
+    urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.url;
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
+async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1) {
+  if (!assetId || !textureLoader) return null;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  if (CLOTH_TEXTURE_CACHE.has(key)) {
+    return CLOTH_TEXTURE_CACHE.get(key);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response.ok) return null;
+      const json = await response.json();
+      const urls = pickBestTextureUrls(json, POLYHAVEN_PREFERRED_SIZES);
+      if (!urls.diffuse) return null;
+      const load = (url, isColor) =>
+        new Promise((resolve, reject) => {
+          textureLoader.load(
+            url,
+            (texture) => {
+              if (isColor) applySRGBColorSpace(texture);
+              texture.flipY = false;
+              texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+              texture.needsUpdate = true;
+              resolve(texture);
+            },
+            undefined,
+            () => reject(new Error('texture load failed'))
+          );
+        });
+
+      const [diffuse, normal, roughness] = await Promise.all([
+        load(urls.diffuse, true),
+        urls.normal ? load(urls.normal, false) : null,
+        urls.roughness ? load(urls.roughness, false) : null
+      ]);
+
+      const normalize = (texture) => {
+        if (!texture) return;
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+        texture.needsUpdate = true;
+      };
+      [diffuse, normal, roughness].forEach(normalize);
+
+      return { diffuse, normal, roughness };
+    } catch (error) {
+      return null;
+    }
+  })();
+
+  CLOTH_TEXTURE_CACHE.set(key, promise);
+  promise.catch(() => CLOTH_TEXTURE_CACHE.delete(key));
+  return promise;
+}
+
+async function applyPolyhavenClothTexture(parts, clothOption, renderer) {
+  const clothMat = parts?.surfaceMat;
+  if (!clothMat || !clothOption?.sourceId) return;
+  const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+  const requestId = `${clothOption.sourceId}-${Date.now()}`;
+  clothMat.userData = { ...(clothMat.userData || {}), polyhavenRequestId: requestId, sourceId: clothOption.sourceId };
+
+  const textures = await loadPolyhavenTextureSet(
+    clothOption.sourceId,
+    SHARED_TEXTURE_LOADER,
+    maxAnisotropy
+  );
+  if (!textures) return;
+  if (clothMat.userData?.polyhavenRequestId !== requestId) return;
+
+  const repeat = Number.isFinite(clothOption.repeat) ? clothOption.repeat : 2.2;
+  const applyRepeat = (tex) => {
+    if (!tex) return;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeat, repeat);
+    tex.needsUpdate = true;
+  };
+
+  if (textures.diffuse) {
+    clothMat.map = textures.diffuse;
+    applyRepeat(textures.diffuse);
+  }
+  if (textures.normal) {
+    clothMat.normalMap = textures.normal;
+    applyRepeat(textures.normal);
+  }
+  if (textures.roughness) {
+    clothMat.roughnessMap = textures.roughness;
+    applyRepeat(textures.roughness);
+  }
+
+  if (clothMat.color && clothOption.baseColor) {
+    clothMat.color.set(clothOption.baseColor);
+  } else if (clothMat.color) {
+    clothMat.color.set('#ffffff');
+  }
+  clothMat.needsUpdate = true;
+}
+
 export function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
   for (let i = 0; i < sides; i += 1) {
@@ -355,6 +510,10 @@ export function applyTableMaterials(parts, { woodOption, clothOption, baseOption
     }
     parts.surfaceMat.needsUpdate = true;
     parts.velvetTexture = tex;
+
+    if (clothOption.sourceId) {
+      void applyPolyhavenClothTexture(parts, clothOption, renderer);
+    }
   }
 }
 

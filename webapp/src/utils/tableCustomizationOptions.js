@@ -35,7 +35,7 @@ const buildClothOption = (
   };
 };
 
-const POLY_HAVEN_CLOTHS = [
+export const POLY_HAVEN_CLOTHS = [
   { id: 'denim_fabric_03', label: 'Denim Fabric 03 Cloth', base: 0x2b4a7a },
   { id: 'hessian_230', label: 'Hessian 230 Cloth', base: 0x9b7a45 },
   { id: 'polar_fleece', label: 'Polar Fleece Cloth', base: 0x5ead73 },
@@ -149,6 +149,8 @@ export const TABLE_CLOTH_OPTIONS = [
   },
   ...POLY_HAVEN_CLOTHS.map((option) => ({
     ...buildClothOption(option.id, option.label, option.base),
+    sourceId: option.id,
+    baseColor: numberToHex(option.base),
     thumbnail: polyHavenThumb(option.id)
   }))
 ];

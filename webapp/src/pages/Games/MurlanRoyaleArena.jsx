@@ -15,7 +15,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import { createMurlanStyleTable } from '../../utils/murlanTable.js';
+import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
@@ -43,6 +43,7 @@ import {
   MURLAN_STOOL_THEMES as STOOL_THEMES,
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
+import { MURLAN_TABLE_CLOTHS } from '../../config/murlanTableCloths.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
@@ -77,10 +78,16 @@ const resolveHdriVariant = (index) => {
 };
 
 const DEFAULT_TABLE_FINISH_INDEX = 0;
+const DEFAULT_TABLE_CLOTH_INDEX = 0;
 const resolveTableFinish = (index) => {
   const max = MURLAN_TABLE_FINISHES.length - 1;
   const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_FINISH_INDEX;
   return MURLAN_TABLE_FINISHES[idx] ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] ?? null;
+};
+const resolveTableCloth = (index) => {
+  const max = MURLAN_TABLE_CLOTHS.length - 1;
+  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_CLOTH_INDEX;
+  return MURLAN_TABLE_CLOTHS[idx] ?? MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] ?? null;
 };
 
 const DEFAULT_FRAME_RATE_ID = 'uhd120';
@@ -635,6 +642,7 @@ const DEFAULT_APPEARANCE = {
   cards: 0,
   stools: 0,
   tables: 0,
+  tableCloth: DEFAULT_TABLE_CLOTH_INDEX,
   tableFinish: DEFAULT_TABLE_FINISH_INDEX,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
@@ -949,6 +957,7 @@ const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({
 });
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
+  { key: 'tableCloth', label: 'Table Cloth', options: MURLAN_TABLE_CLOTHS },
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
@@ -975,6 +984,7 @@ function normalizeAppearance(value = {}) {
     ['cards', CARD_THEMES.length],
     ['stools', STOOL_THEMES.length],
     ['tables', TABLE_THEMES.length],
+    ['tableCloth', MURLAN_TABLE_CLOTHS.length],
     ['tableFinish', MURLAN_TABLE_FINISHES.length],
     ['environmentHdri', MURLAN_HDRI_OPTIONS.length]
   ];
@@ -1756,7 +1766,9 @@ export default function MurlanRoyaleArena({ search }) {
         .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
     }))
       .filter((section) => section.options.length > 0)
-      .filter((section) => (section.key === 'tableFinish' ? allowTableFinish : true));
+      .filter((section) =>
+        section.key === 'tableFinish' || section.key === 'tableCloth' ? allowTableFinish : true
+      );
   }, [appearance.tables, murlanInventory]);
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -1837,6 +1849,7 @@ export default function MurlanRoyaleArena({ search }) {
         cards: CARD_THEMES,
         stools: STOOL_THEMES,
         tables: TABLE_THEMES,
+        tableCloth: MURLAN_TABLE_CLOTHS,
         tableFinish: MURLAN_TABLE_FINISHES,
         environmentHdri: MURLAN_HDRI_OPTIONS
       };
@@ -2335,6 +2348,7 @@ export default function MurlanRoyaleArena({ search }) {
     scoreboard: null,
     tableInfo: null,
     tableThemeId: null,
+    tableClothId: null,
     tableFinishId: null,
     chairMaterials: null,
     chairTemplate: null,
@@ -2633,7 +2647,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const rebuildTable = useCallback(
-    async (tableTheme, tableFinish) => {
+    async (tableTheme, tableFinish, tableCloth) => {
       const three = threeStateRef.current;
       if (!three?.arena || !three.renderer) return null;
       const token = ++tableBuildTokenRef.current;
@@ -2644,6 +2658,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       const theme = tableTheme || TABLE_THEMES[0];
       const finish = tableFinish || MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] || null;
+      const cloth = tableCloth || MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] || null;
       let tableInfo = null;
 
       if (theme?.source === 'polyhaven' && theme?.assetId) {
@@ -2692,7 +2707,8 @@ export default function MurlanRoyaleArena({ search }) {
           tableRadius: TABLE_RADIUS,
           tableHeight: TABLE_HEIGHT,
           includeBase: false,
-          woodOption: finish?.woodOption || undefined
+          woodOption: finish?.woodOption || undefined,
+          clothOption: cloth || undefined
         });
         tableInfo = { ...procedural, themeId: theme?.id || 'murlan-default' };
       }
@@ -2704,6 +2720,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
+      three.tableClothId = cloth?.id ?? null;
       three.tableFinishId = finish?.id ?? null;
       three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
       three.discardAnchor = new THREE.Vector3(
@@ -2822,6 +2839,9 @@ export default function MurlanRoyaleArena({ search }) {
       const tableFinish = resolveTableFinish(safe.tableFinish);
       const tableFinishId =
         tableFinish?.id ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX]?.id ?? null;
+      const tableCloth = resolveTableCloth(safe.tableCloth);
+      const tableClothId =
+        tableCloth?.id ?? MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX]?.id ?? null;
       const environmentVariant = resolveHdriVariant(safe.environmentHdri);
       hdriVariantRef.current = environmentVariant;
 
@@ -2833,7 +2853,14 @@ export default function MurlanRoyaleArena({ search }) {
           !three.tableInfo ||
           (tableTheme?.source === 'procedural' && three.tableFinishId !== tableFinishId);
         if (tableChanged) {
-          await rebuildTable(tableTheme, tableFinish);
+          await rebuildTable(tableTheme, tableFinish, tableCloth);
+        } else if (
+          tableTheme?.source === 'procedural' &&
+          three.tableInfo?.materials &&
+          three.tableClothId !== tableClothId
+        ) {
+          applyTableMaterials(three.tableInfo.materials, { woodOption: tableFinish?.woodOption, clothOption: tableCloth }, three.renderer);
+          three.tableClothId = tableClothId;
         }
 
         const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
@@ -2858,7 +2885,15 @@ export default function MurlanRoyaleArena({ search }) {
         applyStateToScene(gameStateRef.current, selectedRef.current, true);
       })();
     },
-    [applyHdriEnvironment, applyStateToScene, ensureCardMeshes, rebuildChairs, rebuildTable, threeReady]
+    [
+      applyHdriEnvironment,
+      applyStateToScene,
+      ensureCardMeshes,
+      rebuildChairs,
+      rebuildTable,
+      applyTableMaterials,
+      threeReady
+    ]
   );
 
   const renderPreview = useCallback((type, option) => {
@@ -2890,6 +2925,30 @@ export default function MurlanRoyaleArena({ search }) {
               <img
                 src={thumb}
                 alt={option?.label || 'Table finish'}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1] ?? swatches[0]})`
+                }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/50" />
+          </div>
+        );
+      }
+      case 'tableCloth': {
+        const swatches = option?.swatches ?? ['#1f7a4a', '#0f4f2d'];
+        const thumb = option?.thumbnail;
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10">
+            {thumb ? (
+              <img
+                src={thumb}
+                alt={option?.label || 'Table cloth'}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
@@ -3221,6 +3280,8 @@ export default function MurlanRoyaleArena({ search }) {
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
+      const tableFinish = resolveTableFinish(currentAppearance.tableFinish);
+      const tableCloth = resolveTableCloth(currentAppearance.tableCloth);
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
       const environmentVariant = resolveHdriVariant(currentAppearance.environmentHdri);
       hdriVariantRef.current = environmentVariant;
@@ -3277,7 +3338,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-      await rebuildTable(tableTheme);
+      await rebuildTable(tableTheme, tableFinish, tableCloth);
       if (disposed) return;
 
       const chairBuild = await buildChairTemplate(stoolTheme, renderer, {
