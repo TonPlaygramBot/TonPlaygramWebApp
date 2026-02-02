@@ -1,6 +1,17 @@
 const POLYHAVEN_THUMB_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs';
 const POLYHAVEN_ASSET_ALIASES = {
-  rosewood_veneer_01: 'rosewood_veneer1'
+  rosewood_veneer_01: 'rosewood_veneer1',
+  WoodenTable_02: 'wooden_table_02',
+  polar_fleece_ocean_crest: 'polar_fleece',
+  polar_fleece_ocean_current: 'polar_fleece',
+  polar_fleece_ocean_lagoon: 'polar_fleece',
+  polar_fleece_ocean_reef: 'polar_fleece',
+  polar_fleece_ocean_abyss: 'polar_fleece',
+  polar_fleece_nature_fern: 'polar_fleece',
+  polar_fleece_nature_grove: 'polar_fleece',
+  polar_fleece_nature_canopy: 'polar_fleece',
+  polar_fleece_nature_meadow: 'polar_fleece',
+  polar_fleece_nature_wildwood: 'polar_fleece'
 };
 
 const resolvePolyHavenId = (id) => POLYHAVEN_ASSET_ALIASES[id] ?? id;

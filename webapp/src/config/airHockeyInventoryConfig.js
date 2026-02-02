@@ -303,7 +303,7 @@ const TABLE_BASE_THUMBNAILS = Object.freeze({
   openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
   coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
   gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
-  woodenTable02Alt: polyHavenThumb('WoodenTable_02')
+  woodenTable02Alt: polyHavenThumb('wooden_table_02')
 });
 
 const FIELD_THUMBNAILS = Object.freeze({
