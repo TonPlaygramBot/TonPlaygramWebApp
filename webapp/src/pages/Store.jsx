@@ -118,7 +118,6 @@ import {
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
-import { recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 
 const TYPE_LABELS = {
@@ -1315,22 +1314,13 @@ export default function Store() {
 
       const resolver = (item) => labelResolver(item.slug, item);
       const groupedCount = groupedEntries.length;
-      recordStorePurchase(accountId, {
-        items: purchasable,
-        totalPrice,
-        reference: purchase?.txHash || purchase?.reference || purchase?.id,
-        status: 'delivered'
-      });
-      const confirmationNote = purchase?.txHash
-        ? `Payment confirmed • Ref ${purchase.txHash.slice(0, 10)}…`
-        : 'Payment confirmed';
       const successLabel =
         purchasable.length === 1
           ? `${resolver(purchasable[0])} delivered instantly — now owned in ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}.`
           : `${purchasable.length} cosmetics delivered across ${groupedCount} game${groupedCount === 1 ? '' : 's'}.`;
       const purchasedKeys = new Set(purchasable.map((item) => selectionKey(item)));
       setSelectedKeys((prev) => prev.filter((key) => !purchasedKeys.has(key)));
-      setPurchaseStatus(`${confirmationNote} ${successLabel}`);
+      setPurchaseStatus(successLabel);
       setInfo('');
       await loadAccountBalance();
     } catch (err) {
@@ -1501,7 +1491,7 @@ export default function Store() {
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">Confirm purchase</p>

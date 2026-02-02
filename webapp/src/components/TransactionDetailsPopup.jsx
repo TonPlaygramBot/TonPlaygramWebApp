@@ -78,8 +78,6 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const isGiftReceive = tx.type === 'gift-receive';
 
-  const isStorePurchase = tx.type === 'store';
-
   const isSend = tx.type === 'send' || isGiftSend;
 
   const isReceive = tx.type === 'receive' || isGiftReceive;
@@ -253,30 +251,6 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
             <div className="text-sm text-subtext">Fee: {giftFee} TPC</div>
 
-          )}
-
-          {isStorePurchase && (
-            <div className="text-sm text-subtext">
-              {tx.reference && (
-                <div className="text-xs">
-                  Confirmation: <span className="text-white">{tx.reference}</span>
-                </div>
-              )}
-              {Array.isArray(tx.items) && tx.items.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-xs font-semibold text-white">NFTs delivered</div>
-                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {tx.items.map((item, index) => (
-                      <li key={`${item.slug || 'item'}-${index}`}>
-                        {item.label}
-                        {item.typeLabel ? ` • ${item.typeLabel}` : ''}
-                        {item.slug ? ` • ${getGameName(item.slug)}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
           )}
 
           {tx.game && (
