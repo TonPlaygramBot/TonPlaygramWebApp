@@ -1284,6 +1284,7 @@ const SPIN_SLIDE_EPS = 0.035;
 const SPIN_KINETIC_FRICTION = 0.32;
 const SPIN_ROLL_DAMPING = 0.2;
 const SPIN_ANGULAR_DAMPING = 0.07;
+const SPIN_NEUTRAL_EPS = 1e-4;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.19;
@@ -6351,6 +6352,21 @@ function applySpinController(ball, stepScale, airborne = false) {
     }
   }
   return decaySpin(ball, stepScale, airborne);
+}
+
+function alignOmegaToRolling(ball) {
+  if (!ball?.omega || !ball?.vel) return;
+  const speed = ball.vel.length();
+  if (speed < 1e-6) {
+    ball.omega.set(0, 0, 0);
+    return;
+  }
+  TMP_VEC3_A.set(ball.vel.y, 0, -ball.vel.x);
+  if (TMP_VEC3_A.lengthSq() > 1e-8) {
+    TMP_VEC3_A.normalize();
+  }
+  const omegaMag = speed / Math.max(BALL_R, 1e-6);
+  ball.omega.copy(TMP_VEC3_A.multiplyScalar(omegaMag));
 }
 
 function applyRailSpinResponse(ball, impact) {
@@ -21894,6 +21910,9 @@ const powerRef = useRef(hud.power);
         if (cue.omega) {
           cue.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
         }
+        if (Math.hypot(offsetScaled.x, offsetScaled.y) <= SPIN_NEUTRAL_EPS) {
+          alignOmegaToRolling(cue);
+        }
         resetSpinRef.current?.();
         cueLiftRef.current.lift = 0;
         cueLiftRef.current.startLift = 0;
@@ -22215,6 +22234,9 @@ const powerRef = useRef(hud.power);
             TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
             TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
             cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+            if (Math.hypot(scaledSpin.x ?? 0, scaledSpin.y ?? 0) <= SPIN_NEUTRAL_EPS) {
+              alignOmegaToRolling(cue);
+            }
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode = 'standard';
@@ -25865,6 +25887,14 @@ const powerRef = useRef(hud.power);
             if (railImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
+            }
+            if (railImpact) {
+              const hasUserSpin =
+                (b.spin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS ||
+                (b.pendingSpin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS;
+              if (!hasUserSpin && !hasLift) {
+                alignOmegaToRolling(b);
+              }
             }
             if (railImpact) {
               const nowRail = performance.now();
