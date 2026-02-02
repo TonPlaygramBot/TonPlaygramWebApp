@@ -714,6 +714,7 @@ export default function Store() {
   const [activeType, setActiveType] = useState('all');
   const [confirmItem, setConfirmItem] = useState(null);
   const [purchaseStatus, setPurchaseStatus] = useState('');
+  const [showPurchaseToast, setShowPurchaseToast] = useState(false);
   const [userListings, setUserListings] = useState([]);
   const [showListModal, setShowListModal] = useState(false);
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
@@ -734,6 +735,16 @@ export default function Store() {
       setActiveGame(resolvedGameSlug);
     }
   }, [activeGame, resolvedGameSlug]);
+
+  useEffect(() => {
+    if (!purchaseStatus) {
+      setShowPurchaseToast(false);
+      return;
+    }
+    setShowPurchaseToast(true);
+    const timeout = window.setTimeout(() => setShowPurchaseToast(false), 9000);
+    return () => window.clearTimeout(timeout);
+  }, [purchaseStatus]);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -797,12 +808,13 @@ export default function Store() {
   }, [accountId]);
 
   const loadAccountBalance = useCallback(async () => {
-    if (!accountId || accountId === 'guest') {
+    const resolvedAccountId = poolRoyalAccountId(accountId === 'guest' ? '' : accountId);
+    if (!resolvedAccountId || resolvedAccountId === 'guest') {
       setAccountBalance(null);
       return;
     }
     try {
-      const res = await getAccountBalance(accountId);
+      const res = await getAccountBalance(resolvedAccountId);
       if (typeof res?.balance === 'number') {
         setAccountBalance(res.balance);
       }
@@ -1232,6 +1244,7 @@ export default function Store() {
   const handlePurchase = async (items) => {
     const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
     if (!payload.length) return;
+    const resolvedAccountId = poolRoyalAccountId(accountId === 'guest' ? '' : accountId);
     const seen = new Set();
     const unique = payload.filter((item) => {
       const key = selectionKey(item);
@@ -1244,7 +1257,7 @@ export default function Store() {
       setInfo('No new items selected for purchase.');
       return;
     }
-    if (!accountId || accountId === 'guest') {
+    if (!resolvedAccountId || resolvedAccountId === 'guest') {
       setInfo('Link your TPC account before completing a purchase.');
       return;
     }
@@ -1284,7 +1297,7 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await buyBundle(accountId, bundle);
+      const purchase = await buyBundle(resolvedAccountId, bundle);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         return;
@@ -1293,25 +1306,25 @@ export default function Store() {
       for (const [slug, group] of Object.entries(groupedBySlug)) {
         for (const entry of group.items) {
           if (slug === 'poolroyale') {
-            const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, accountId);
+            const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
             setPoolOwned(updated);
           } else if (slug === 'snookerroyale') {
-            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, accountId);
+            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
             setSnookerOwned(updated);
           } else if (slug === 'airhockey') {
-            setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, accountId));
+            setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'chessbattleroyal') {
-            setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, accountId));
+            setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'ludobattleroyal') {
-            setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, accountId));
+            setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'murlanroyale') {
-            setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, accountId));
+            setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'domino-royal') {
-            setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, accountId));
+            setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'snake') {
-            setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, accountId));
+            setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'texasholdem') {
-            setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, accountId));
+            setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
           }
         }
       }
@@ -1326,7 +1339,7 @@ export default function Store() {
         purchasable.length === 1
           ? `${resolver(purchasable[0])} • ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}`
           : `${purchasable.length} store items across ${groupedCount} game${groupedCount === 1 ? '' : 's'}`;
-      recordStorePurchase(accountId, {
+      recordStorePurchase(resolvedAccountId, {
         totalPrice,
         detail: detailLabel,
         items: purchasable.map((item) => ({
@@ -2173,6 +2186,24 @@ export default function Store() {
           </div>
         </div>
       </header>
+
+      {purchaseStatus && showPurchaseToast ? (
+        <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
+          <div className="flex w-full max-w-3xl items-start justify-between gap-3 rounded-2xl border border-emerald-300/40 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100 shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-base">✅</span>
+              <span className="font-semibold">{purchaseStatus}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPurchaseToast(false)}
+              className="rounded-full border border-emerald-200/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-50/90 hover:bg-emerald-200/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
