@@ -13,6 +13,8 @@ export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = 0;
 export const SPIN_EDGE_AXIS_LOCK_MAG = 0.7;
 export const SPIN_EDGE_AXIS_LOCK_RATIO = 0.3;
+export const SPIN_TOP_HALF_SCALE = 0.4;
+export const SPIN_BOTTOM_HALF_SCALE = 1.25;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -198,10 +200,18 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     y: clamp(spin?.y ?? 0, -1, 1)
   };
   const quantized = normalizeSpinInput(adjusted);
+  let scaledY = quantized.y;
+  if (scaledY > 0) {
+    scaledY *= SPIN_TOP_HALF_SCALE;
+  } else if (scaledY < 0) {
+    scaledY *= SPIN_BOTTOM_HALF_SCALE;
+  }
+  scaledY = clamp(scaledY, -1, 1);
+  const scaled = { x: quantized.x, y: scaledY };
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    -quantized.x,
-    quantized.y,
+    -scaled.x,
+    scaled.y,
     cameraRight,
     cameraUp,
     cueForward
