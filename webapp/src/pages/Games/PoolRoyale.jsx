@@ -1270,8 +1270,8 @@ const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 0.1,
-  maxTipOffsetRatio: 0.22
+  airSpinDecay: 1.0,
+  maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.993;
@@ -1281,9 +1281,9 @@ const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
 const SPIN_SLIDE_EPS = 0.035;
-const SPIN_KINETIC_FRICTION = 0.24;
+const SPIN_KINETIC_FRICTION = 0.32;
 const SPIN_ROLL_DAMPING = 0.2;
-const SPIN_ANGULAR_DAMPING = 0.15;
+const SPIN_ANGULAR_DAMPING = 0.07;
 const SPIN_NEUTRAL_EPS = 1e-4;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
@@ -25884,7 +25884,7 @@ const powerRef = useRef(hud.power);
                   );
                 } else {
                   const rollFactor = Math.max(0, 1 - SPIN_ROLL_DAMPING * dt);
-                  const spinFactor = Math.exp(-SPIN_ANGULAR_DAMPING * dt);
+                  const spinFactor = Math.max(0, 1 - SPIN_ANGULAR_DAMPING * dt);
                   TMP_VEC3_A.multiplyScalar(rollFactor);
                   TMP_VEC3_C.multiplyScalar(spinFactor);
                 }
@@ -25892,6 +25892,8 @@ const powerRef = useRef(hud.power);
                 b.vel.y = TMP_VEC3_A.z;
                 b.omega.copy(TMP_VEC3_C);
               }
+              const clothDrag = Math.pow(FRICTION, stepScale);
+              b.vel.multiplyScalar(clothDrag);
             }
             if (
               isCue &&
