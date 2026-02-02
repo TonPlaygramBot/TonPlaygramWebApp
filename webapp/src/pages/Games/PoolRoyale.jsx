@@ -6337,12 +6337,12 @@ function decaySpin(ball, stepScale, airborne = false) {
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
-  if (ball.id === 'cue' && !ball.impacted) {
-    return decaySpin(ball, stepScale, airborne);
-  }
   const { forward, lateral, speed } = resolveSpinFrame(ball);
   let forwardSpin = ball.spin.y || 0;
   const sideSpin = ball.spin.x || 0;
+  if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
+    forwardSpin = 0;
+  }
   if (Math.abs(forwardSpin) > 1e-8) {
     const powerScale = resolveSpinPowerScale(speed);
     const restScale = speed > 1e-6 ? 1 : SPIN_REST_ACCEL_SCALE;
