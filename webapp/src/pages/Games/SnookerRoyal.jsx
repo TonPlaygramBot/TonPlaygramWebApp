@@ -1520,12 +1520,16 @@ const SPIN_TABLE_SCALE = Math.max(
 const SPIN_ROLL_ACCELERATION = 1.2 * SPIN_TABLE_SCALE;
 const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
+const SPIN_AIR_ANGULAR_DAMPING = 0.18;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
+const BALL_SPIN_THROW_SCALE = BALL_R * 0.24; // let side spin deflect naturally on ball contact
+const BALL_SPIN_THROW_REF_IMPULSE = BALL_MASS * SHOT_BASE_SPEED;
+const BALL_SPIN_IMPACT_DAMPING = 0.78;
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -6216,6 +6220,36 @@ function applyRailSpinResponse(ball, impact) {
   }
   ball.spin.copy(preImpactSpin);
   decaySpin(ball, 0.6, false);
+}
+
+function applyBallSpinImpact(a, b, normal, normalImpulseMag) {
+  if (!normal) return;
+  if ((a?.lift ?? 0) > 1e-4 || (b?.lift ?? 0) > 1e-4) return;
+  const hasSpinA = a?.spin && a.spin.lengthSq() > 1e-6;
+  const hasSpinB = b?.spin && b.spin.lengthSq() > 1e-6;
+  if (!hasSpinA && !hasSpinB) return;
+  TMP_VEC2_AXIS.copy(normal).normalize();
+  const tangent = TMP_VEC2_LIMIT.set(-TMP_VEC2_AXIS.y, TMP_VEC2_AXIS.x);
+  const spinWorldA = hasSpinA ? resolveSpinWorldVector(a, TMP_VEC2_A) : null;
+  const spinWorldB = hasSpinB ? resolveSpinWorldVector(b, TMP_VEC2_B) : null;
+  const spinAlongA = spinWorldA ? spinWorldA.dot(tangent) : 0;
+  const spinAlongB = spinWorldB ? spinWorldB.dot(tangent) : 0;
+  const relSpin = spinAlongA - spinAlongB;
+  if (Math.abs(relSpin) < 1e-6) return;
+  const impulseScale = clamp(
+    Math.abs(normalImpulseMag) / Math.max(BALL_SPIN_THROW_REF_IMPULSE, 1e-6),
+    0,
+    1
+  );
+  const throwStrength = relSpin * BALL_SPIN_THROW_SCALE * (0.35 + 0.65 * impulseScale);
+  a.vel.addScaledVector(tangent, -throwStrength);
+  b.vel.addScaledVector(tangent, throwStrength);
+  if (hasSpinA) {
+    a.spin.multiplyScalar(BALL_SPIN_IMPACT_DAMPING);
+  }
+  if (hasSpinB) {
+    b.spin.multiplyScalar(BALL_SPIN_IMPACT_DAMPING);
+  }
 }
 
 function applyRailImpulse(ball, impact) {
@@ -24805,6 +24839,13 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
+            if (hasLift && b.omega) {
+              const angularDecay = Math.exp(-SPIN_AIR_ANGULAR_DAMPING * stepScale);
+              b.omega.multiplyScalar(angularDecay);
+              if (b.omega.lengthSq() < 1e-8) {
+                b.omega.set(0, 0, 0);
+              }
+            }
             b.pos.addScaledVector(b.vel, stepScale);
             b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
             let speed = b.vel.length();
@@ -24906,6 +24947,7 @@ const powerRef = useRef(hud.power);
                 const avn = a.vel.x * nx + a.vel.y * ny;
                 const bvn = b.vel.x * nx + b.vel.y * ny;
                 const impulse = Math.abs(bvn - avn);
+                const normalImpulseMag = (bvn - avn) * BALL_MASS;
                 const at = a.vel
                   .clone()
                   .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
@@ -24914,6 +24956,8 @@ const powerRef = useRef(hud.power);
                   .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
                 a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
                 b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+                TMP_VEC2_C.set(nx, ny);
+                applyBallSpinImpact(a, b, TMP_VEC2_C, normalImpulseMag);
                 if (isNewImpact) {
                   const shotScale = 0.4 + 0.6 * lastShotPower;
                   const volume = clamp(
