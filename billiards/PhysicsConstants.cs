@@ -29,11 +29,6 @@ public static class PhysicsConstants
     public const double MasseSwerveBoost = 2.0;        // multiplier for swerve at max masse
     public const double SwerveSpeedCutoff = 2.5;       // m/s after which swerve fades out
     public const double SwerveSpeedFadeRange = 4.0;    // fade distance for swerve cutoff
-    public const double CushionFriction = 0.22;       // tangential velocity loss per cushion impact
-    public const double CushionSlowFriction = 0.5;    // stronger tangential loss for slow cushion hits
-    public const double CushionSpinDamping = 0.6;     // spin retained after cushion impact
-    public const double CushionSlowSpinDamping = 0.25; // extra spin damping on slow cushion hits
-    public const double CushionSlowSpeed = 0.6;       // m/s threshold for slow cushion behavior
     public const double MaxCueElevationDegrees = 85.0; // clamp to UI upper bound
     public const double MaxTipOffsetRatio = 0.9;       // max cue tip offset as a fraction of radius
     public const double PreviewPointSpacing = BallRadius * 0.85; // spacing for curved aim preview

@@ -383,7 +383,6 @@ public class BilliardsSolver
                     double restitution = PhysicsConstants.Restitution;
                     bool hit = false;
                     bool pocket = false;
-                    bool cushionContact = false;
                     Vec2 contactPoint = new Vec2();
 
                     bool allowPocketing = !airborne;
@@ -395,7 +394,6 @@ public class BilliardsSolver
                             normal = e.Normal;
                             restitution = PhysicsConstants.CushionRestitution;
                             hit = true;
-                            cushionContact = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
                     }
@@ -408,7 +406,6 @@ public class BilliardsSolver
                             normal = e.Normal;
                             restitution = PhysicsConstants.ConnectorRestitution;
                             hit = true;
-                            cushionContact = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
                     }
@@ -422,7 +419,6 @@ public class BilliardsSolver
                             restitution = allowPocketing ? PhysicsConstants.PocketRestitution : PhysicsConstants.CushionRestitution;
                             hit = true;
                             pocket = allowPocketing;
-                            cushionContact = !allowPocketing;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
                         }
                     }
@@ -461,10 +457,6 @@ public class BilliardsSolver
                             break;
                         }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
-                        if (cushionContact)
-                        {
-                            ApplyCushionContact(b, normal);
-                        }
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
                         StepVertical(b, travel);
@@ -644,27 +636,6 @@ public class BilliardsSolver
             b.SideSpin *= decay;
             b.ForwardSpin *= decay;
         }
-    }
-
-    private static void ApplyCushionContact(Ball b, Vec2 normal)
-    {
-        var speed = b.Velocity.Length;
-        if (speed < PhysicsConstants.Epsilon)
-            return;
-
-        var tangent = new Vec2(-normal.Y, normal.X);
-        var tangentialSpeed = Vec2.Dot(b.Velocity, tangent);
-        var friction = speed <= PhysicsConstants.CushionSlowSpeed
-            ? PhysicsConstants.CushionSlowFriction
-            : PhysicsConstants.CushionFriction;
-        var tangentialScale = Math.Max(0.0, 1.0 - friction);
-        b.Velocity -= tangent * (tangentialSpeed * (1.0 - tangentialScale));
-
-        var spinDamping = speed <= PhysicsConstants.CushionSlowSpeed
-            ? PhysicsConstants.CushionSlowSpinDamping
-            : PhysicsConstants.CushionSpinDamping;
-        b.SideSpin *= spinDamping;
-        b.ForwardSpin *= spinDamping;
     }
 
     private static void IntegrateCueBall(Ball b, double dt, bool airborne)
