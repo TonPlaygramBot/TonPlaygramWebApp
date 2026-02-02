@@ -176,6 +176,15 @@ export default function Wallet({ hideClaim = false }) {
     }
   }, [transactions, accountId]);
 
+  useEffect(() => {
+    const handler = (event) => {
+      if (event?.detail?.accountId && event.detail.accountId !== accountId) return;
+      setTransactions((prev) => mergeStoreTransactions(prev, accountId));
+    };
+    window.addEventListener('storeTransactionsUpdate', handler);
+    return () => window.removeEventListener('storeTransactionsUpdate', handler);
+  }, [accountId]);
+
   const handleSendClick = () => {
     const to = receiver.trim();
     const amt = Number(amount);
@@ -487,6 +496,7 @@ export default function Wallet({ hideClaim = false }) {
               if (tx.type === 'gift') return 'gift sent';
               if (tx.type === 'gift-receive') return 'gift received';
               if (tx.type === 'gift-fee') return 'gift fee';
+              if (tx.type === 'store') return 'store purchase';
               return tx.game ? 'game' : tx.type;
             })();
             const categoryLabel = tx.category ? ` (Tier ${tx.category})` : '';
