@@ -3049,7 +3049,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.62; // emphasize Poly Haven cloth patterns for clearer weave detail
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -3058,9 +3058,7 @@ const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.7, 1.7);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
-const CLOTH_PATTERN_OVERRIDES = Object.freeze({
-  polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
-});
+const CLOTH_PATTERN_OVERRIDES = Object.freeze({});
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -7117,7 +7115,9 @@ export function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
+  const clothPatternUpscale = isPolyHavenCloth
+    ? 1
+    : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const patternOverride =
     clothMapSource === 'polyhaven'
       ? null
