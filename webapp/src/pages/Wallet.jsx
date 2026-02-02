@@ -18,6 +18,7 @@ import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { loadGoogleProfile } from '../utils/google.js';
 import LoginOptions from '../components/LoginOptions.jsx';
+import { mergeStoreTransactions } from '../utils/storeTransactions.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DEV_ACCOUNT_ID =
@@ -102,6 +103,9 @@ export default function Wallet({ hideClaim = false }) {
     )
   ).filter(Boolean);
 
+  const mergeWithStoreTransactions = (list, id) =>
+    mergeStoreTransactions(id || accountId, list);
+
 
   const loadBalances = async () => {
     const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
@@ -140,7 +144,7 @@ export default function Wallet({ hideClaim = false }) {
       if (id) {
         const txRes = await getAccountTransactions(id);
         const list = txRes.transactions || [];
-        setTransactions(list);
+        setTransactions(mergeWithStoreTransactions(list, id));
         if (DEV_ACCOUNTS.includes(id)) {
           const gameSum = list
             .filter((t) => t.type === 'deposit' && t.game)
@@ -167,6 +171,15 @@ export default function Wallet({ hideClaim = false }) {
       setFeeShare(feeSum);
     }
   }, [transactions, accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (event?.detail?.accountId && event.detail.accountId !== accountId) return;
+      setTransactions((prev) => mergeStoreTransactions(accountId, prev));
+    };
+    window.addEventListener('storeTransactionsUpdate', handler);
+    return () => window.removeEventListener('storeTransactionsUpdate', handler);
+  }, [accountId]);
 
   const handleSendClick = () => {
     const to = receiver.trim();
@@ -200,7 +213,7 @@ export default function Wallet({ hideClaim = false }) {
       const id = await loadBalances();
       const txRes = await getAccountTransactions(id || accountId);
       const list = txRes.transactions || [];
-      setTransactions(list);
+      setTransactions(mergeWithStoreTransactions(list, id || accountId));
       if (DEV_ACCOUNTS.includes(id || accountId)) {
         const gameSum = list
           .filter((t) => t.type === 'deposit' && t.game)
@@ -233,7 +246,7 @@ export default function Wallet({ hideClaim = false }) {
       const id = await loadBalances();
       const txRes = await getAccountTransactions(id || accountId);
       const list = txRes.transactions || [];
-      setTransactions(list);
+      setTransactions(mergeWithStoreTransactions(list, id || accountId));
       if (DEV_ACCOUNTS.includes(id || accountId)) {
         const gameSum = list
           .filter((t) => t.type === 'deposit' && t.game)
@@ -483,6 +496,7 @@ export default function Wallet({ hideClaim = false }) {
               if (tx.type === 'gift') return 'gift sent';
               if (tx.type === 'gift-receive') return 'gift received';
               if (tx.type === 'gift-fee') return 'gift fee';
+              if (tx.type === 'store') return 'store purchase';
               return tx.game ? 'game' : tx.type;
             })();
             const categoryLabel = tx.category ? ` (Tier ${tx.category})` : '';
