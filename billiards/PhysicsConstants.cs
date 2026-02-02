@@ -17,6 +17,10 @@ public static class PhysicsConstants
     public const double AirSpinDecay = 0.6;            // per-second decay while airborne
     public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
     public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
+    public const double CushionTangentialLoss = 0.35;  // tangential speed lost on cushion contact
+    public const double CushionSpinInfluence = 0.45;   // tangential m/s per unit side spin on cushion
+    public const double CushionSpinDamping = 0.65;     // side spin retained after cushion contact
+    public const double CushionStopSpeed = 0.08;       // m/s threshold to stop on cushion
     public const double JumpRestitution = 0.1;         // vertical energy retained on landing
     public const double JumpStopVelocity = 0.2;        // m/s below which vertical motion stops
     public const double AirborneHeightThreshold = BallRadius * 0.25; // height before ignoring cushions/balls

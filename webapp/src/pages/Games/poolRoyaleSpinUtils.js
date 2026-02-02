@@ -198,10 +198,17 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     y: clamp(spin?.y ?? 0, -1, 1)
   };
   const quantized = normalizeSpinInput(adjusted);
+  const tuned = {
+    x: quantized.x,
+    y:
+      quantized.y > 0
+        ? clamp(quantized.y * 1.25, -1, 1)
+        : clamp(quantized.y * 0.4, -1, 1)
+  };
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    -quantized.x,
-    quantized.y,
+    -tuned.x,
+    tuned.y,
     cameraRight,
     cameraUp,
     cueForward
