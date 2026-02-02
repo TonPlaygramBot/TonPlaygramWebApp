@@ -3,6 +3,17 @@ import { getGameThumbnail } from '../config/gameAssets.js';
 
 export default function ProjectAchievementsCard() {
   const completionThreshold = 90;
+  const calculateAverageProgress = (items) => {
+    if (!items.length) {
+      return 0;
+    }
+
+    const totalProgress = items.reduce(
+      (sum, item) => sum + Math.min(Math.max(item.progress ?? 0, 0), 100),
+      0,
+    );
+    return Math.round(totalProgress / items.length);
+  };
   const deliveredAchievements = [
     { label: '🧾 Wallet transaction history works', progress: 100 },
     { label: '💬 In-chat TPC transfers enabled', progress: 100 },
@@ -79,16 +90,22 @@ export default function ProjectAchievementsCard() {
         'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
     },
   ];
-  const promotedRoadmapAchievements = roadmapSteps
-    .filter((step) => (step.progress ?? 0) >= completionThreshold)
+  const normalizedRoadmapSteps = roadmapSteps.map((step) => ({
+    ...step,
+    progress: step.progress ?? 0,
+  }));
+  const promotedRoadmapAchievements = normalizedRoadmapSteps
+    .filter((step) => step.progress >= completionThreshold)
     .map((step) => ({
       label: `✅ ${step.title}`,
-      progress: step.progress ?? 100,
+      progress: step.progress,
     }));
   const achievements = [...deliveredAchievements, ...promotedRoadmapAchievements];
-  const roadmap = roadmapSteps.filter(
-    (step) => (step.progress ?? 0) < completionThreshold,
+  const roadmap = normalizedRoadmapSteps.filter(
+    (step) => step.progress < completionThreshold,
   );
+  const achievementsProgress = calculateAverageProgress(achievements);
+  const roadmapProgress = calculateAverageProgress(normalizedRoadmapSteps);
 
   const poolVariants = [
     {
@@ -129,9 +146,16 @@ export default function ProjectAchievementsCard() {
       <div className="rounded-xl border border-border/60 bg-surface/80 p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Delivered Achievements</h4>
-          <span className="text-[10px] uppercase tracking-[0.2em] text-muted/70">
-            live now
-          </span>
+          <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-400">
+            <span className="uppercase tracking-[0.2em] text-muted/70">live now</span>
+            <span>{achievementsProgress}%</span>
+          </div>
+        </div>
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
+          <div
+            className="h-1.5 rounded-full bg-emerald-500"
+            style={{ width: `${achievementsProgress}%` }}
+          />
         </div>
         <ul className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2">
           {achievements.map((item) => (
@@ -184,9 +208,16 @@ export default function ProjectAchievementsCard() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Roadmap (Next)</h4>
-          <span className="text-[10px] uppercase tracking-[0.2em] text-muted/70">
-            in progress
-          </span>
+          <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-400">
+            <span className="uppercase tracking-[0.2em] text-muted/70">in progress</span>
+            <span>{roadmapProgress}%</span>
+          </div>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
+          <div
+            className="h-1.5 rounded-full bg-emerald-500"
+            style={{ width: `${roadmapProgress}%` }}
+          />
         </div>
         <ol className="space-y-3 text-xs text-muted">
           {roadmap.map((step, index) => (
@@ -199,19 +230,17 @@ export default function ProjectAchievementsCard() {
                   upcoming
                 </span>
               </div>
-              {step.progress !== undefined && (
-                <div className="mt-2 space-y-1">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
-                    <div
-                      className="h-1.5 rounded-full bg-emerald-500"
-                      style={{ width: `${step.progress}%` }}
-                    />
-                  </div>
-                  <div className="text-[10px] font-semibold text-emerald-400">
-                    {step.progress}% complete ✔️
-                  </div>
+              <div className="mt-2 space-y-1">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
+                  <div
+                    className="h-1.5 rounded-full bg-emerald-500"
+                    style={{ width: `${step.progress}%` }}
+                  />
                 </div>
-              )}
+                <div className="text-[10px] font-semibold text-emerald-400">
+                  {step.progress}% complete ✔️
+                </div>
+              </div>
               <p className="mt-1 text-sm font-semibold text-foreground">{step.title}</p>
               <p className="text-xs text-muted">{step.description}</p>
             </li>
