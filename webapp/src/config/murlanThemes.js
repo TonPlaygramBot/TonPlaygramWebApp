@@ -1,4 +1,4 @@
-import { swatchThumbnail } from './storeThumbnails.js';
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 export const MURLAN_OUTFIT_THEMES = [
   {
@@ -50,8 +50,6 @@ export const MURLAN_OUTFIT_THEMES = [
     thumbnail: swatchThumbnail(['#1f2937', '#090b10', '#9ca3af'])
   }
 ];
-
-const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
 
 const BASE_STOOL_THEMES = [
   {
@@ -134,7 +132,7 @@ const POLYHAVEN_CHAIR_THEMES = [
   { id: 'wheelchair_01', label: 'Wheelchair 01', source: 'polyhaven', assetId: 'wheelchair_01' }
 ].map((option, index) => ({
   ...option,
-  thumbnail: POLYHAVEN_THUMB(option.assetId),
+  thumbnail: polyHavenThumb(option.assetId),
   price: 520 + index * 35,
   description: `${option.label} with preserved original materials.`,
   preserveMaterials: true
@@ -158,7 +156,7 @@ const POLYHAVEN_TABLE_THEMES = [
   ...option,
   assetId: option.id,
   source: 'polyhaven',
-  thumbnail: POLYHAVEN_THUMB(option.id),
+  thumbnail: polyHavenThumb(option.id),
   price: 980 + index * 40,
   preserveMaterials: true,
   description: option.description || `${option.label} with preserved Poly Haven materials.`
@@ -170,7 +168,7 @@ export const MURLAN_TABLE_THEMES = [
     label: 'Murlan Default Table',
     source: 'procedural',
     price: 0,
-    thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
+    thumbnail: polyHavenThumb('CoffeeTable_01'),
     description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
   },
   ...POLYHAVEN_TABLE_THEMES
