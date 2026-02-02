@@ -1548,8 +1548,8 @@ const RAIL_SPIN_ROLL_ACCELERATION = SPIN_ROLL_ACCELERATION * 0.45;
 const RAIL_CONTACT_SLIDE_DAMPING = 0.55;
 const RAIL_CONTACT_SPIN_DAMPING = 0.35;
 const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
-const AIR_SPIN_ROLL_SCALE = 0.22; // reduce forward/back spin acceleration while airborne
-const AIR_SPIN_SWERVE_SCALE = BALL_R * 0.55; // gentle Magnus-style drift for airborne side spin
+const AIR_SPIN_ROLL_SCALE = 0; // disable forward/back spin acceleration while airborne
+const AIR_SPIN_SWERVE_SCALE = 0; // disable Magnus-style drift for airborne side spin
 const BALL_SPIN_THROW_SCALE = BALL_R * 0.34; // small tangential throw from ball-to-ball spin contact
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while matching Snooker Royal pacing.
