@@ -6362,6 +6362,15 @@ function applySpinController(ball, stepScale, airborne = false) {
   return decaySpin(ball, stepScale, airborne);
 }
 
+function applyPendingSpinOnImpact(ball) {
+  if (!ball?.pendingSpin || !ball?.spin) return false;
+  if (ball.pendingSpin.lengthSq() < 1e-6) return false;
+  ball.spin.set(ball.pendingSpin.x, ball.pendingSpin.y);
+  ball.pendingSpin.set(0, 0);
+  ball.impacted = true;
+  return true;
+}
+
 function alignOmegaToRolling(ball) {
   if (!ball?.omega || !ball?.vel) return;
   const speed = ball.vel.length();
@@ -21932,12 +21941,12 @@ const powerRef = useRef(hud.power);
         };
         cue.vel.copy(base);
         if (cue.spin) {
-          cue.spin.set(offsetScaled.x, offsetScaled.y);
+          cue.spin.set(0, 0);
         }
         if (cue.omega) {
           cue.omega.set(0, 0, 0);
         }
-        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+        if (cue.pendingSpin) cue.pendingSpin.set(offsetScaled.x, offsetScaled.y);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
@@ -22265,7 +22274,7 @@ const powerRef = useRef(hud.power);
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
+            cue.spin.set(0, 0);
           }
           if (cue.omega) {
             cue.omega.set(0, 0, 0);
@@ -22283,7 +22292,7 @@ const powerRef = useRef(hud.power);
               alignOmegaToRolling(cue);
             }
           }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          if (cue.pendingSpin) cue.pendingSpin.set(spinSide, spinTop);
           cue.spinMode = 'standard';
           cue.swerveStrength = 0;
           cue.swervePowerStrength = 0;
@@ -25830,6 +25839,10 @@ const powerRef = useRef(hud.power);
             const isCue = b.id === 'cue';
             const hasSpin = b.spin?.lengthSq() > 1e-6;
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
+            const deferSpinPhysics =
+              isCue &&
+              !b.impacted &&
+              (b.pendingSpin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS;
             const speedNow = b.vel.length();
             if (speedNow > 1e-4 && b.lastDir) {
               b.lastDir.set(b.vel.x, b.vel.y).normalize();
@@ -25866,7 +25879,7 @@ const powerRef = useRef(hud.power);
             }
             if (!hasLift) {
               const dt = SPIN_FIXED_DT * stepScale;
-              if (b.omega) {
+              if (b.omega && !deferSpinPhysics) {
                 TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
                 TMP_VEC3_B.set(0, -BALL_R, 0);
                 TMP_VEC3_C.copy(b.omega);
@@ -25929,7 +25942,9 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
+            if (railImpact && b.id === 'cue') {
+              if (!applyPendingSpinOnImpact(b)) b.impacted = true;
+            }
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
@@ -26060,6 +26075,10 @@ const powerRef = useRef(hud.power);
                   }
                   a.vel.set(TMP_VEC3_D.x, TMP_VEC3_D.z);
                   b.vel.set(TMP_VEC3_E.x, TMP_VEC3_E.z);
+                  if (isNewImpact) {
+                    if (a.id === 'cue') applyPendingSpinOnImpact(a);
+                    if (b.id === 'cue') applyPendingSpinOnImpact(b);
+                  }
                   applyBallSpinThrow(a, b, TMP_VEC2_A.set(nx, ny));
                 }
                 if (isNewImpact) {
