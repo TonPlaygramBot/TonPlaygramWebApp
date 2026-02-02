@@ -1544,6 +1544,9 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
+const RAIL_SPIN_ROLL_ACCELERATION = SPIN_ROLL_ACCELERATION * 0.45;
+const RAIL_CONTACT_SLIDE_DAMPING = 0.55;
+const RAIL_CONTACT_SPIN_DAMPING = 0.35;
 const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
 const AIR_SPIN_ROLL_SCALE = 0.22; // reduce forward/back spin acceleration while airborne
 const AIR_SPIN_SWERVE_SCALE = BALL_R * 0.55; // gentle Magnus-style drift for airborne side spin
@@ -6482,6 +6485,40 @@ function applyRailImpulse(ball, impact) {
     );
   }
   ball.vel.set(TMP_VEC3_C.x, TMP_VEC3_C.z);
+}
+
+function applyRailContactRoll(ball, impact, stepScale) {
+  if (!ball?.vel || !impact?.normal) return;
+  TMP_VEC2_A.copy(impact.normal);
+  if (TMP_VEC2_A.lengthSq() < 1e-8) return;
+  TMP_VEC2_A.normalize();
+  TMP_VEC2_B.copy(impact.tangent ?? TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x));
+  if (TMP_VEC2_B.lengthSq() < 1e-8) {
+    TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x);
+  }
+  TMP_VEC2_B.normalize();
+  const speed = ball.vel.length();
+  const tangentSpeed = ball.vel.dot(TMP_VEC2_B);
+  const slowFactor = clamp(
+    1 - speed / Math.max(RAIL_SLOW_ROLL_SPEED, 1e-6),
+    0,
+    1
+  );
+  if (slowFactor > 0) {
+    const damping = Math.pow(1 - RAIL_CONTACT_SLIDE_DAMPING * slowFactor, stepScale);
+    ball.vel.addScaledVector(TMP_VEC2_B, tangentSpeed * (damping - 1));
+  }
+  if (!ball.spin || ball.spin.lengthSq() < 1e-6) return;
+  const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
+  if (!worldSpin) return;
+  const spinAlongTangent = worldSpin.dot(TMP_VEC2_B);
+  if (Math.abs(spinAlongTangent) > 1e-6) {
+    const rollAccel = RAIL_SPIN_ROLL_ACCELERATION * Math.max(stepScale, 0);
+    ball.vel.addScaledVector(TMP_VEC2_B, spinAlongTangent * rollAccel);
+    const spinDamp = Math.exp(-RAIL_CONTACT_SPIN_DAMPING * slowFactor * stepScale);
+    if (ball.spin) ball.spin.multiplyScalar(spinDamp);
+    if (ball.pendingSpin) ball.pendingSpin.multiplyScalar(spinDamp);
+  }
 }
 
 
@@ -25938,6 +25975,7 @@ const powerRef = useRef(hud.power);
             if (railImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
+              applyRailContactRoll(b, railImpact, stepScale);
             }
             if (railImpact) {
               const hasUserSpin =
