@@ -962,13 +962,13 @@ function addPocketCuts(
 // --------------------------------------------------
 // separate scales for table and balls
 // Dimensions tuned for the Pool Royale footprint for identical table sizing and layout.
-const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
-const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
-const SIZE_REDUCTION = 0.7;
+const TABLE_SIZE_SHRINK = 0.9; // tighten the table footprint slightly while keeping the layout aligned
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the lighter shrink so the arena stays compact without distorting proportions
+const TABLE_FOOTPRINT_SCALE = 0.88; // reduce the table footprint ~12% while keeping the table height unchanged
+const BASE_FOOTPRINT_SHRINK = 0.88; // shrink the table base footprint by 12% without changing overall height
+const SIZE_REDUCTION = 0.78; // enlarge the playfield/balls to better match Pool Royale sizing
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 1.06; // shrink the table footprint slightly less so the playfield reads larger
+const TABLE_DISPLAY_SCALE = 1.06; // keep the playfield slightly enlarged without altering layout proportions
 const CAMERA_DISPLAY_SCALE = 0.712; // pull cameras closer to match Pool Royale ball size on the larger snooker table
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
