@@ -1141,6 +1141,8 @@ export default function Store() {
     () => new Set(selectedPurchasable.map((item) => item.slug)).size,
     [selectedPurchasable]
   );
+  const hasSelection = selectedKeys.length > 0;
+  const hasPurchasableSelection = selectedPurchasable.length > 0;
 
   useEffect(() => {
     if (!selectedPurchasable.length) {
@@ -1406,7 +1408,7 @@ export default function Store() {
   const featuredCount = allMarketplaceItems.length;
   const ownedCount = allMarketplaceItems.filter((item) => item.owned).length;
   const walletLabel = accountId && accountId !== 'guest' ? 'Account linked' : 'Guest mode';
-  const mainPaddingClass = selectedPurchasable.length
+  const mainPaddingClass = hasSelection
     ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]'
     : 'pb-24';
 
@@ -2400,9 +2402,11 @@ export default function Store() {
                     Multi-select checkout
                   </span>
                   <span className="font-semibold text-white">
-                    {selectedPurchasable.length
+                    {hasPurchasableSelection
                       ? `${selectedPurchasable.length} item${selectedPurchasable.length === 1 ? '' : 's'} • ${selectedGameCount || 0} game${selectedGameCount === 1 ? '' : 's'}`
-                      : 'Select items to bundle a purchase'}
+                      : hasSelection
+                        ? 'Selected items are already owned.'
+                        : 'Select items to bundle a purchase'}
                   </span>
                   {selectedOwnedCount > 0 ? (
                     <span className="text-xs text-amber-200">
@@ -2426,7 +2430,7 @@ export default function Store() {
                       setConfirmItems(selectedPurchasable);
                     }}
                     className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!selectedPurchasable.length || Boolean(processing)}
+                    disabled={!hasPurchasableSelection || Boolean(processing)}
                   >
                     Buy selected ({selectedTotalPrice.toLocaleString()} TPC)
                   </button>
@@ -2582,14 +2586,16 @@ export default function Store() {
         </div>
       </main>
 
-      {selectedPurchasable.length ? (
+      {hasSelection ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-zinc-950/90 px-4 py-3 backdrop-blur md:hidden">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-2">
             <div className="flex items-center justify-between text-xs text-white/70">
               <span>
-                {selectedPurchasable.length} item{selectedPurchasable.length === 1 ? '' : 's'} • {selectedTotalPrice.toLocaleString()} TPC
+                {hasPurchasableSelection
+                  ? `${selectedPurchasable.length} item${selectedPurchasable.length === 1 ? '' : 's'} • ${selectedTotalPrice.toLocaleString()} TPC`
+                  : 'No purchasable items in your selection.'}
               </span>
-              {selectedGameCount ? (
+              {selectedGameCount && hasPurchasableSelection ? (
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
                   {selectedGameCount} game{selectedGameCount === 1 ? '' : 's'}
                 </span>
@@ -2610,7 +2616,7 @@ export default function Store() {
                   setConfirmItems(selectedPurchasable);
                 }}
                 className="flex-[2] rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950"
-                disabled={!selectedPurchasable.length || Boolean(processing)}
+                disabled={!hasPurchasableSelection || Boolean(processing)}
               >
                 Buy now ({selectedTotalPrice.toLocaleString()} TPC)
               </button>
