@@ -1284,7 +1284,6 @@ const SPIN_SLIDE_EPS = 0.035;
 const SPIN_KINETIC_FRICTION = 0.32;
 const SPIN_ROLL_DAMPING = 0.2;
 const SPIN_ANGULAR_DAMPING = 0.07;
-const SPIN_AIR_ANGULAR_DAMPING = 0.18;
 const SPIN_NEUTRAL_EPS = 1e-4;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
@@ -1544,9 +1543,6 @@ const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit not
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
-const BALL_SPIN_THROW_SCALE = BALL_R * 0.24; // let side spin deflect naturally on ball contact
-const BALL_SPIN_THROW_REF_IMPULSE = BALL_MASS * SHOT_BASE_SPEED;
-const BALL_SPIN_IMPACT_DAMPING = 0.78;
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while matching Snooker Royal pacing.
 // Increase overall Pool Royale power by 33% on top of the Snooker Royal baseline.
 const SHOT_POWER_REDUCTION = 0.425;
@@ -6396,36 +6392,6 @@ function applyRailSpinResponse(ball, impact) {
     TMP_VEC2_A.dot(spinFrame.forward)
   );
   decaySpin(ball, 0.6, false);
-}
-
-function applyBallSpinImpact(a, b, normal, normalImpulseMag) {
-  if (!normal) return;
-  if ((a?.lift ?? 0) > 1e-4 || (b?.lift ?? 0) > 1e-4) return;
-  const hasSpinA = a?.spin && a.spin.lengthSq() > 1e-6;
-  const hasSpinB = b?.spin && b.spin.lengthSq() > 1e-6;
-  if (!hasSpinA && !hasSpinB) return;
-  TMP_VEC2_AXIS.copy(normal).normalize();
-  const tangent = TMP_VEC2_LIMIT.set(-TMP_VEC2_AXIS.y, TMP_VEC2_AXIS.x);
-  const spinWorldA = hasSpinA ? resolveSpinWorldVector(a, TMP_VEC2_A) : null;
-  const spinWorldB = hasSpinB ? resolveSpinWorldVector(b, TMP_VEC2_B) : null;
-  const spinAlongA = spinWorldA ? spinWorldA.dot(tangent) : 0;
-  const spinAlongB = spinWorldB ? spinWorldB.dot(tangent) : 0;
-  const relSpin = spinAlongA - spinAlongB;
-  if (Math.abs(relSpin) < 1e-6) return;
-  const impulseScale = clamp(
-    Math.abs(normalImpulseMag) / Math.max(BALL_SPIN_THROW_REF_IMPULSE, 1e-6),
-    0,
-    1
-  );
-  const throwStrength = relSpin * BALL_SPIN_THROW_SCALE * (0.35 + 0.65 * impulseScale);
-  a.vel.addScaledVector(tangent, -throwStrength);
-  b.vel.addScaledVector(tangent, throwStrength);
-  if (hasSpinA) {
-    a.spin.multiplyScalar(BALL_SPIN_IMPACT_DAMPING);
-  }
-  if (hasSpinB) {
-    b.spin.multiplyScalar(BALL_SPIN_IMPACT_DAMPING);
-  }
 }
 
 function applyRailImpulse(ball, impact) {
@@ -25853,13 +25819,6 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
-            if (hasLift && b.omega) {
-              const angularDecay = Math.exp(-SPIN_AIR_ANGULAR_DAMPING * stepScale);
-              b.omega.multiplyScalar(angularDecay);
-              if (b.omega.lengthSq() < 1e-8) {
-                b.omega.set(0, 0, 0);
-              }
-            }
             if (!hasLift) {
               const dt = SPIN_FIXED_DT * stepScale;
               if (b.omega) {
@@ -26056,8 +26015,6 @@ const powerRef = useRef(hud.power);
                   }
                   a.vel.set(TMP_VEC3_D.x, TMP_VEC3_D.z);
                   b.vel.set(TMP_VEC3_E.x, TMP_VEC3_E.z);
-                  TMP_VEC2_C.set(nx, ny);
-                  applyBallSpinImpact(a, b, TMP_VEC2_C, normalImpulseMag);
                 }
                 if (isNewImpact) {
                   const shotScale = 0.4 + 0.6 * lastShotPower;
