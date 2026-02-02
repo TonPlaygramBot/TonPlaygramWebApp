@@ -2,49 +2,61 @@ import gamesCatalog from '../config/gamesCatalog.js';
 import { getGameThumbnail } from '../config/gameAssets.js';
 
 export default function ProjectAchievementsCard() {
-  const achievements = [
-    '🧾 Wallet transaction history works',
-    '💬 In-chat TPC transfers enabled',
-    '🧑‍🤝‍🤝 Friends and inbox chat',
-    '🎰 Roulette spin live',
-    '🤝 Game invites for 1v1 or group play with Telegram notifications (Android/iOS push notifications after migration)',
-    '💬 In-game chat enabled',
-    '🕹️ Telegram bot and web app integration',
-    '🔄 Daily Check-In rewards',
-    '⛏️ Mining system active',
-    '📺 Ad watch rewards',
-    '🎯 Social tasks for X, Telegram, TikTok',
-    '📹 Intro video view rewards',
-    '🎡 Spin & Win wheel',
-    '🍀 Lucky Card prizes',
-    '🎁 NFT gifts',
-    '🚀 Referral boost: invite more friends to earn more TPC',
-    '🛒 NFT marketplace for user listings',
-    '🏆 Game tournaments live',
-    '🎁 Tournament winner gifts',
-    '🏦 Game transactions are public',
-    '⛏️ Mining transactions are public',
+  const completionThreshold = 90;
+  const deliveredAchievements = [
+    { label: '🧾 Wallet transaction history works', progress: 100 },
+    { label: '💬 In-chat TPC transfers enabled', progress: 100 },
+    { label: '🧑‍🤝‍🤝 Friends and inbox chat', progress: 100 },
+    { label: '🎰 Roulette spin live', progress: 100 },
+    {
+      label:
+        '🤝 Game invites for 1v1 or group play with Telegram notifications (Android/iOS push notifications after migration)',
+      progress: 100,
+    },
+    { label: '💬 In-game chat enabled', progress: 100 },
+    { label: '🕹️ Telegram bot and web app integration', progress: 100 },
+    { label: '🔄 Daily Check-In rewards', progress: 100 },
+    { label: '⛏️ Mining system active', progress: 100 },
+    { label: '📺 Ad watch rewards', progress: 100 },
+    { label: '🎯 Social tasks for X, Telegram, TikTok', progress: 100 },
+    { label: '📹 Intro video view rewards', progress: 100 },
+    { label: '🎡 Spin & Win wheel', progress: 100 },
+    { label: '🍀 Lucky Card prizes', progress: 100 },
+    { label: '🎁 NFT gifts', progress: 100 },
+    {
+      label: '🚀 Referral boost: invite more friends to earn more TPC',
+      progress: 100,
+    },
+    { label: '🛒 NFT marketplace for user listings', progress: 100 },
+    { label: '🏆 Game tournaments live', progress: 100 },
+    { label: '🎁 Tournament winner gifts', progress: 100 },
+    { label: '🏦 Game transactions are public', progress: 100 },
+    { label: '⛏️ Mining transactions are public', progress: 100 },
   ];
 
-  const roadmap = [
+  const roadmapSteps = [
     {
       title: 'Online Connection Fix',
       description:
         'Fixing the online connection is almost done, partly completed with a bit left to finalize.',
+      progress: 85,
     },
     {
       title: 'Store Item Photos',
       description: 'Upload all necessary photos for the store items.',
+      progress: 55,
     },
     {
       title: 'Mobile Launch',
       description:
         'Release the Playgram app on Android and iOS with the current 3D game lineup.',
+      progress: 70,
     },
     {
       title: 'Growth & Community',
       description:
         'Gather Telegram group feedback to identify glitches, errors, and malfunctions, then take new feature requests to community votes so every voice is heard.',
+      progress: 40,
     },
     {
       title: 'TPC Tokenization',
@@ -67,6 +79,16 @@ export default function ProjectAchievementsCard() {
         'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
     },
   ];
+  const promotedRoadmapAchievements = roadmapSteps
+    .filter((step) => (step.progress ?? 0) >= completionThreshold)
+    .map((step) => ({
+      label: `✅ ${step.title}`,
+      progress: step.progress ?? 100,
+    }));
+  const achievements = [...deliveredAchievements, ...promotedRoadmapAchievements];
+  const roadmap = roadmapSteps.filter(
+    (step) => (step.progress ?? 0) < completionThreshold,
+  );
 
   const poolVariants = [
     {
@@ -113,8 +135,12 @@ export default function ProjectAchievementsCard() {
         </div>
         <ul className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2">
           {achievements.map((item) => (
-            <li key={item} className="rounded-lg border border-border/40 bg-surface/90 px-3 py-2">
-              {item}
+            <li
+              key={item.label}
+              className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-surface/90 px-3 py-2"
+            >
+              <span>{item.label}</span>
+              <span className="text-[10px] font-semibold text-emerald-400">{item.progress}%</span>
             </li>
           ))}
         </ul>
@@ -173,6 +199,19 @@ export default function ProjectAchievementsCard() {
                   upcoming
                 </span>
               </div>
+              {step.progress !== undefined && (
+                <div className="mt-2 space-y-1">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
+                    <div
+                      className="h-1.5 rounded-full bg-emerald-500"
+                      style={{ width: `${step.progress}%` }}
+                    />
+                  </div>
+                  <div className="text-[10px] font-semibold text-emerald-400">
+                    {step.progress}% complete ✔️
+                  </div>
+                </div>
+              )}
               <p className="mt-1 text-sm font-semibold text-foreground">{step.title}</p>
               <p className="text-xs text-muted">{step.description}</p>
             </li>
