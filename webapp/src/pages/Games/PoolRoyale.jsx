@@ -1544,8 +1544,8 @@ const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to ke
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply a +50% boost to the current baseline so Pool Royale shots travel farther with the same slider input.
-// Pool Royale pace now mirrors Snooker Royale, then gets a +50% boost for this mode.
 const SHOT_POWER_REDUCTION = 1.05;
+const SHOT_POWER_BOOST = 1.5;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1555,7 +1555,8 @@ const SHOT_FORCE_BOOST =
   1.3 *
   0.85 *
   SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER;
+  SHOT_POWER_MULTIPLIER *
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
