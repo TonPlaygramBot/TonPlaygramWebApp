@@ -715,6 +715,9 @@ export default function Store() {
   const [confirmItem, setConfirmItem] = useState(null);
   const [purchaseStatus, setPurchaseStatus] = useState('');
   const [showPurchaseToast, setShowPurchaseToast] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState('');
+  const [transactionState, setTransactionState] = useState('idle');
+  const [showTransactionToast, setShowTransactionToast] = useState(false);
   const [userListings, setUserListings] = useState([]);
   const [showListModal, setShowListModal] = useState(false);
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
@@ -745,6 +748,17 @@ export default function Store() {
     const timeout = window.setTimeout(() => setShowPurchaseToast(false), 9000);
     return () => window.clearTimeout(timeout);
   }, [purchaseStatus]);
+
+  useEffect(() => {
+    if (!transactionStatus) {
+      setShowTransactionToast(false);
+      return;
+    }
+    setShowTransactionToast(true);
+    if (transactionState === 'processing') return undefined;
+    const timeout = window.setTimeout(() => setShowTransactionToast(false), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [transactionState, transactionStatus]);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -1179,6 +1193,8 @@ export default function Store() {
   const resetStatus = () => {
     setPurchaseStatus('');
     setInfo('');
+    setTransactionStatus('');
+    setTransactionState('idle');
   };
 
   const handleGameChange = useCallback(
@@ -1287,6 +1303,8 @@ export default function Store() {
       labelResolvers[slug] ? labelResolvers[slug](item) : item.name || item.displayLabel;
     setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
     resetStatus();
+    setTransactionState('processing');
+    setTransactionStatus('Starting TPC transfer…');
 
     try {
       const bundle = {
@@ -1300,8 +1318,11 @@ export default function Store() {
       const purchase = await buyBundle(resolvedAccountId, bundle);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
+        setTransactionState('error');
+        setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
         return;
       }
+      setTransactionStatus('Payment approved. Unlocking items…');
 
       for (const [slug, group] of Object.entries(groupedBySlug)) {
         for (const entry of group.items) {
@@ -1328,6 +1349,7 @@ export default function Store() {
           }
         }
       }
+      setTransactionStatus('Inventory updated. Finalizing receipt…');
 
       const resolver = (item) => labelResolver(item.slug, item);
       const groupedCount = groupedEntries.length;
@@ -1354,10 +1376,14 @@ export default function Store() {
       setSelectedKeys((prev) => prev.filter((key) => !purchasedKeys.has(key)));
       setPurchaseStatus(successLabel);
       setInfo('');
+      setTransactionState('success');
+      setTransactionStatus('Purchase confirmed and added to your inventory.');
       await loadAccountBalance();
     } catch (err) {
       console.error('Purchase failed', err);
       setInfo('Failed to process purchase.');
+      setTransactionState('error');
+      setTransactionStatus('Purchase failed. Please try again.');
     } finally {
       setProcessing('');
       setConfirmItem(null);
@@ -1380,6 +1406,9 @@ export default function Store() {
   const featuredCount = allMarketplaceItems.length;
   const ownedCount = allMarketplaceItems.filter((item) => item.owned).length;
   const walletLabel = accountId && accountId !== 'guest' ? 'Account linked' : 'Guest mode';
+  const mainPaddingClass = selectedPurchasable.length
+    ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]'
+    : 'pb-24';
 
   const renderListModal = () => {
     if (!showListModal) return null;
@@ -2205,7 +2234,37 @@ export default function Store() {
         </div>
       ) : null}
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">
+      {transactionStatus && showTransactionToast ? (
+        <div className="fixed inset-x-0 top-28 z-40 flex justify-center px-4">
+          <div
+            className={`flex w-full max-w-3xl items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(15,23,42,0.35)] ${
+              transactionState === 'error'
+                ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
+                : transactionState === 'success'
+                  ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
+                  : 'border-white/20 bg-white/10 text-white/90'
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-base">
+                {transactionState === 'error' ? '⚠️' : transactionState === 'success' ? '✅' : '⏳'}
+              </span>
+              <span className="font-semibold">{transactionStatus}</span>
+            </div>
+            {transactionState !== 'processing' ? (
+              <button
+                type="button"
+                onClick={() => setShowTransactionToast(false)}
+                className="rounded-full border border-white/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 hover:bg-white/10"
+              >
+                Close
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <main className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}>
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
           <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
           <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-2xl" />
@@ -2522,6 +2581,43 @@ export default function Store() {
           ) : null}
         </div>
       </main>
+
+      {selectedPurchasable.length ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-zinc-950/90 px-4 py-3 backdrop-blur md:hidden">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-white/70">
+              <span>
+                {selectedPurchasable.length} item{selectedPurchasable.length === 1 ? '' : 's'} • {selectedTotalPrice.toLocaleString()} TPC
+              </span>
+              {selectedGameCount ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                  {selectedGameCount} game{selectedGameCount === 1 ? '' : 's'}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="flex-1 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmItem(null);
+                  setConfirmItems(selectedPurchasable);
+                }}
+                className="flex-[2] rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950"
+                disabled={!selectedPurchasable.length || Boolean(processing)}
+              >
+                Buy now ({selectedTotalPrice.toLocaleString()} TPC)
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {renderListModal()}
       {renderDetailModal()}
