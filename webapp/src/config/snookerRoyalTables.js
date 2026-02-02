@@ -1,6 +1,6 @@
-const BASE_TABLE_SCALE = 1.46;
-const BASE_TABLE_MOBILE_SCALE = 1.52;
-const BASE_TABLE_COMPACT_SCALE = 1.36;
+const BASE_TABLE_SCALE = 1.58;
+const BASE_TABLE_MOBILE_SCALE = 1.66;
+const BASE_TABLE_COMPACT_SCALE = 1.5;
 const BASE_PLAYFIELD_WIDTH_MM = 3569; // official 12ft snooker playfield width
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
@@ -17,9 +17,9 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     sideCushionCutAngleDeg: 27,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     scaleOverrides: Object.freeze({
-      scale: 1.56,
-      mobileScale: 1.68,
-      compactScale: 1.48
+      scale: 1.68,
+      mobileScale: 1.82,
+      compactScale: 1.6
     })
   },
   '10ft': {
