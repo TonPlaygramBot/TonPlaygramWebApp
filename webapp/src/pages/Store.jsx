@@ -1553,8 +1553,8 @@ export default function Store() {
     if (!confirmItem) return null;
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pb-4 pt-8 sm:pt-12">
+        <div className="w-full max-w-lg max-h-[calc(100vh-6rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">Confirm purchase</p>
@@ -1641,8 +1641,8 @@ export default function Store() {
       .join(' • ');
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pb-4 pt-8 sm:pt-12">
+        <div className="w-full max-w-2xl max-h-[calc(100vh-6rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">Confirm bulk purchase</p>
