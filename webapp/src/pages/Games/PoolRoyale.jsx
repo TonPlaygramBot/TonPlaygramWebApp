@@ -92,7 +92,7 @@ import {
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
-  clampToUnitCircle,
+  clampToMaxOffset,
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
@@ -1679,11 +1679,7 @@ const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
-const SPIN_RING_THICKNESS_PX = 14;
-const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
-const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
-const SPIN_DECORATION_DOT_SIZE_PX = 12;
-const SPIN_DECORATION_OFFSET_PERCENT = 58;
+const SPIN_UI_MAX_OFFSET = 0.82;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
@@ -27086,19 +27082,6 @@ const powerRef = useRef(hud.power);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
-  const spinDecorationPoints = useMemo(
-    () =>
-      SPIN_DECORATION_ANGLES.flatMap((angle) => {
-        const radians = (angle * Math.PI) / 180;
-        const x = Math.cos(radians);
-        const y = Math.sin(radians);
-        return SPIN_DECORATION_RADII.map((radius) => ({
-          x: x * radius,
-          y: y * radius
-        }));
-      }),
-    []
-  );
   const spinRingLabels = useMemo(
     () => {
       const radius = 72;
@@ -27169,7 +27152,7 @@ const powerRef = useRef(hud.power);
     };
 
     const clampToPlayable = (nx, ny) => {
-      const raw = clampToUnitCircle(nx, ny);
+      const raw = clampToMaxOffset(nx, ny, SPIN_UI_MAX_OFFSET);
       const limited = clampToLimits(raw.x, raw.y);
       const aimVec = aimDirRef.current;
       const cueBall = cueRef.current;
@@ -27181,7 +27164,7 @@ const powerRef = useRef(hud.power);
         activeCamera
       );
       const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
-      return clampToUnitCircle(reclamped.x, reclamped.y);
+      return clampToMaxOffset(reclamped.x, reclamped.y, SPIN_UI_MAX_OFFSET);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -27217,7 +27200,8 @@ const powerRef = useRef(hud.power);
     const applySnapTarget = () => {
       const snapped = computeQuantizedOffsetScaled(
         spinState.target.x,
-        spinState.target.y
+        spinState.target.y,
+        { maxOffset: SPIN_UI_MAX_OFFSET }
       );
       spinState.target = clampToPlayable(snapped.x, snapped.y);
       spinRequestRef.current = { ...spinState.target };
@@ -28959,76 +28943,23 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
-            className={`relative rounded-full border border-white/40 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full border border-white/70 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
+              background: '#ffffff'
             }}
           >
-            <div className="absolute inset-0 rounded-full overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  inset: `${SPIN_RING_THICKNESS_PX}px`,
-                  background: '#fef6df',
-                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
-                style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
-              />
-              <div
-                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
-                style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-              />
-              <div
-                className="absolute rounded-full border-2 border-rose-500/70"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  pointerEvents: 'none'
-                }}
-              />
-              {spinDecorationPoints.map((point, index) => (
-                <span
-                  key={`spin-deco-${index}`}
-                  className="absolute rounded-full border-2 border-black/75"
-                  style={{
-                    width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                    height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                    left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                    top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                    transform: 'translate(-50%, -50%)',
-                    background: 'rgba(156,163,175,0.65)',
-                    pointerEvents: 'none'
-                  }}
-                />
-              ))}
-              <div
-                id="spinDot"
-                className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX}px`,
-                  left: '50%',
-                  top: '50%'
-                }}
-              ></div>
-            </div>
+            <div
+              id="spinDot"
+              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX}px`,
+                height: `${SPIN_DOT_DIAMETER_PX}px`,
+                left: '50%',
+                top: '50%'
+              }}
+            ></div>
           </div>
         </div>
       )}
