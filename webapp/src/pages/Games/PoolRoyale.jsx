@@ -1291,6 +1291,8 @@ const RAIL_FRICTION = 0.26;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
+const RAIL_SLOW_ROLL_SPEED = STOP_EPS * 3;
+const RAIL_SLOW_SPIN_DAMPING = 0.7;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -25941,7 +25943,18 @@ const powerRef = useRef(hud.power);
               const hasUserSpin =
                 (b.spin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS ||
                 (b.pendingSpin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS;
-              if (!hasUserSpin && !hasLift) {
+              if (!hasLift && !hasUserSpin) {
+                const speedAfterRail = b.vel.length();
+                if (speedAfterRail < RAIL_SLOW_ROLL_SPEED) {
+                  const slowFactor = clamp(
+                    1 - speedAfterRail / Math.max(RAIL_SLOW_ROLL_SPEED, 1e-6),
+                    0,
+                    1
+                  );
+                  const spinDamp = 1 - RAIL_SLOW_SPIN_DAMPING * slowFactor;
+                  if (b.spin) b.spin.multiplyScalar(spinDamp);
+                  if (b.pendingSpin) b.pendingSpin.multiplyScalar(spinDamp);
+                }
                 alignOmegaToRolling(b);
               }
             }
