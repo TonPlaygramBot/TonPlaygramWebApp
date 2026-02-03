@@ -173,6 +173,11 @@ export default function ProjectAchievementsCard() {
       progress: 85,
       info:
         'Done: stability patches for session joins, improved lobby handshakes, and timeout tuning. Sessions are more stable in high-latency cases with fewer mid-match drops. Next: finalize reconnection flow, resolve edge-case disconnects, and complete QA sign-off with load testing.',
+      nextActions: [
+        'Finalize reconnection flow for dropped sessions.',
+        'Resolve edge-case disconnects across high-latency tests.',
+        'Complete QA sign-off with load testing coverage.',
+      ],
     },
     {
       title: 'Store Item Photos',
@@ -180,6 +185,11 @@ export default function ProjectAchievementsCard() {
       progress: 55,
       info:
         'Done: capture pipeline, size requirements, and initial batches uploaded. Items already have baseline thumbnails and metadata. Next: finish remaining catalog, validate thumbnails, and add high-res zoom previews with consistent lighting.',
+      nextActions: [
+        'Finish the remaining product catalog photo set.',
+        'Validate thumbnail sizing and metadata consistency.',
+        'Add high-res zoom previews with matched lighting.',
+      ],
     },
     {
       title: 'Mobile Launch',
@@ -188,6 +198,11 @@ export default function ProjectAchievementsCard() {
       progress: 70,
       info:
         'Done: Android/iOS builds with core 3D titles and onboarding flow stabilized. Initial crash fixes are in place and device coverage is expanding. Next: store compliance checks, performance tuning, and final release submission with staged rollout.',
+      nextActions: [
+        'Finish store compliance checks and policy requirements.',
+        'Tune performance for mid-range devices.',
+        'Submit release builds with staged rollout plan.',
+      ],
     },
     {
       title: 'Growth & Community',
@@ -196,6 +211,11 @@ export default function ProjectAchievementsCard() {
       progress: 40,
       info:
         'Done: feedback channels organized and initial bug triage underway. Top issues are tagged and routed to owners. Next: formal community voting, monthly roadmap reviews, and public issue status updates with resolution targets.',
+      nextActions: [
+        'Launch formal community voting for feature requests.',
+        'Run monthly roadmap review cadence.',
+        'Publish public issue status with resolution targets.',
+      ],
     },
     {
       title: 'TPC Tokenization',
@@ -203,6 +223,11 @@ export default function ProjectAchievementsCard() {
         'Mint the official TPC token and finalize token utility across the ecosystem.',
       info:
         'Done: token utility requirements drafted and reward flows scoped. Utility includes rewards, purchases, and marketplace use cases with compliance checks. Next: finalize token economics, minting plan, and in-app utility rollout timeline.',
+      nextActions: [
+        'Finalize token economics and minting plan.',
+        'Lock the in-app utility rollout timeline.',
+        'Confirm compliance checks for rewards and purchases.',
+      ],
     },
     {
       title: 'Exchange Readiness',
@@ -210,6 +235,11 @@ export default function ProjectAchievementsCard() {
         'Begin CEX outreach and prepare DEX liquidity provisioning.',
       info:
         'Done: exchange target list and readiness checklist drafted. Initial compliance requirements are outlined and owners assigned. Next: compliance docs, liquidity provisioning plan, and outreach cadence.',
+      nextActions: [
+        'Complete compliance documentation package.',
+        'Define DEX liquidity provisioning plan.',
+        'Set outreach cadence for CEX partners.',
+      ],
     },
     {
       title: 'CEX + DEX Listings',
@@ -217,6 +247,11 @@ export default function ProjectAchievementsCard() {
         'List on decentralized exchanges and finalize listings on major CEX partners.',
       info:
         'Done: listing requirements compiled and partner shortlist created. Pre-listing timelines are being estimated with dependency mapping. Next: finalize DEX deployment, complete CEX negotiations, and announce timelines.',
+      nextActions: [
+        'Finalize DEX deployment and liquidity launch.',
+        'Complete CEX negotiations and agreements.',
+        'Announce public listing timelines.',
+      ],
     },
     {
       title: 'Next Phases',
@@ -224,6 +259,11 @@ export default function ProjectAchievementsCard() {
         'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
       info:
         'Done: post-listing initiative backlog defined. Items include new game features, partnerships, and platform enhancements with owners. Next: unveil full roadmap after listings are complete.',
+      nextActions: [
+        'Finalize post-listing initiative owners.',
+        'Prepare full roadmap announcement package.',
+        'Sequence new game features and partnerships.',
+      ],
     },
   ];
   const normalizedRoadmapSteps = roadmapSteps.map((step) => ({
@@ -428,6 +468,21 @@ export default function ProjectAchievementsCard() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">{step.title}</p>
                   <p className="mt-1 text-xs text-muted">{step.description}</p>
+                  {step.nextActions?.length ? (
+                    <div className="mt-2 rounded-lg border border-border/50 bg-surface/80 px-2 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted/70">
+                        Next actions
+                      </p>
+                      <ul className="mt-1 space-y-1 text-[11px] text-muted">
+                        {step.nextActions.map((action) => (
+                          <li key={action} className="flex gap-2">
+                            <span className="text-emerald-400">•</span>
+                            <span>{action}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
                 <InfoIcon
                   infoType="roadmap"
