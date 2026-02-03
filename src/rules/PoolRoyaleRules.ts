@@ -355,7 +355,7 @@ export class PoolRoyaleRules {
       noCushionAfterContact: Boolean(context.noCushionAfterContact),
       placedFromHand: Boolean(context.placedFromHand)
     });
-    const pottedCount = potted.filter((colour) => colour !== 'cue').length;
+    const pottedCount = shotResult?.rerack ? 0 : potted.filter((colour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
     const totals = previous ? previous.totals : { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR };
     const playerScores = this.computeUkScores(snapshot, totals);
