@@ -13056,10 +13056,9 @@ const powerRef = useRef(hud.power);
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
     }
-    const placing = Boolean(
-      hud.inHand && playerTurn && !cueBallPlacedFromHandRef.current
-    );
-    setInHandPlacementMode(placing);
+    if (!hud.inHand || !playerTurn) {
+      setInHandPlacementMode(false);
+    }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
@@ -25195,7 +25194,6 @@ const powerRef = useRef(hud.power);
           cue?.active &&
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
-          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
           (isPlayerTurn || previewingAiShot || aiCueViewActive);
         if (
@@ -29092,19 +29090,6 @@ const powerRef = useRef(hud.power);
             <span className="text-red-200">Init issue:</span>
             <span className="text-white/90">{String(err)}</span>
           </div>
-        </div>
-      )}
-      {hud?.inHand && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
-          <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
-            <span className="text-left leading-tight">
-              Place the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle behind the white line'}
-            </span>
-          </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Tap to place · drag to fine-tune · release to lock
-          </span>
         </div>
       )}
       {canUseInHandIcon && (
