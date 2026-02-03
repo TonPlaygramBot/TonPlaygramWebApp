@@ -1274,6 +1274,26 @@ export default function SnakeAndLadder() {
   const normalizedAppearance = useMemo(() => normalizeAppearance(appearance), [appearance]);
   const appearanceKey = useMemo(() => buildAppearanceKey(appearance), [appearance]);
   const resolvedAppearance = useMemo(() => resolveAppearance(appearance), [appearance]);
+  const customizationSections = useMemo(
+    () =>
+      SNAKE_CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isSnakeOptionUnlocked(section.key, id, snakeInventory))
+      })).filter((section) => section.options.length > 0),
+    [snakeInventory]
+  );
+  const [activeCustomizationKey, setActiveCustomizationKey] = useState(
+    SNAKE_CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableFinish'
+  );
+  useEffect(() => {
+    if (!customizationSections.some((section) => section.key === activeCustomizationKey)) {
+      setActiveCustomizationKey(customizationSections[0]?.key ?? 'tableFinish');
+    }
+  }, [activeCustomizationKey, customizationSections]);
+  const activeCustomizationSection =
+    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
@@ -3536,38 +3556,67 @@ export default function SnakeAndLadder() {
                 </button>
               </div>
               <div className="mt-4 space-y-4 pr-1">
-                {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const unlocked = isSnakeOptionUnlocked(key, option.id, snakeInventory);
-                        if (!unlocked) return null;
-                        const selected = normalizedAppearance[key] === idx;
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and board details.</p>
+                  </div>
+                  <div className="mt-3 max-h-72 space-y-3">
+                    <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
+                      {customizationSections.map(({ key, label }) => {
+                        const selectedSection = key === activeCustomizationKey;
                         return (
                           <button
-                            key={option.id ?? idx}
+                            key={key}
                             type="button"
-                            onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
-                            }
-                            aria-pressed={selected}
-                            className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_18px_rgba(56,189,248,0.45)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
+                            onClick={() => setActiveCustomizationKey(key)}
+                            className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              selectedSection
+                                ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
                             }`}
                           >
-                            {renderPreview(key, option)}
-                            <span className="block w-full text-center text-[0.6rem] font-semibold text-gray-200">
-                              {option.label}
-                            </span>
+                            {label}
                           </button>
                         );
                       })}
                     </div>
+                    {activeCustomizationSection && (
+                      <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
+                          {activeCustomizationSection.label}
+                        </p>
+                        <div className="space-y-1.5">
+                          {activeCustomizationSection.options.map((option) => {
+                            const selected = normalizedAppearance[activeCustomizationSection.key] === option.idx;
+                            return (
+                              <button
+                                key={option.id ?? option.idx}
+                                type="button"
+                                onClick={() =>
+                                  setAppearance((prev) =>
+                                    normalizeAppearance({ ...prev, [activeCustomizationSection.key]: option.idx })
+                                  )
+                                }
+                                aria-pressed={selected}
+                                className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_18px_rgba(56,189,248,0.45)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }`}
+                              >
+                                <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
+                                <span className="w-24 shrink-0">
+                                  {renderPreview(activeCustomizationSection.key, option)}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                </div>
               </div>
               <div className="mt-4 space-y-3">
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
