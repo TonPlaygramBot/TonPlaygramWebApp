@@ -96,7 +96,6 @@ const PYRAMID_LEVELS = [11, 9, 6, 3];
 const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4 - 4));
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
-export const FINAL_TILE = TOTAL_BOARD_TILES;
 const RAW_BOARD_SIZE = 1.125;
 const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 0.8; // shrink board footprint by 20%
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;

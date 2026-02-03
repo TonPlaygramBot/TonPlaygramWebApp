@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
-import SnakeBoard3D, { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard3D.jsx";
+import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
+import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
   dropSound,
   snakeSound,
@@ -1177,7 +1178,7 @@ export default function SnakeAndLadder() {
   const [diceVisible, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
-  const [pot, setPot] = useState(BOARD_FINAL_TILE);
+  const [pot, setPot] = useState(101);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
@@ -2524,8 +2525,10 @@ export default function SnakeAndLadder() {
     let preview = pos;
     if (preview === 0) {
       if (rolledSix) preview = 1;
-    } else if (preview + value <= FINAL_TILE) {
-      preview = preview + value;
+    } else if (preview === 100 && diceCount === 1) {
+      if (value === 1) preview = FINAL_TILE;
+    } else if (preview !== 100 || diceCount !== 2) {
+      if (preview + value <= FINAL_TILE) preview = preview + value;
     }
     if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
     else if (ladders[preview] != null) {
@@ -2555,7 +2558,40 @@ export default function SnakeAndLadder() {
       let current = pos;
       let target = current;
 
-      if (current === 0) {
+      if (current === 100 && diceCount === 2) {
+        if (rolledSix) {
+          setDiceCount(1);
+          setPlayerDiceCounts((arr) => {
+            const copy = [...arr];
+            copy[currentTurn] = 1;
+            return copy;
+          });
+          setMessage("Six rolled! One die removed.");
+        } else {
+          setMessage("");
+          enqueueSnakeCommentaryEvent('needSix', { player: playerLabel });
+        }
+        setTurnMessage("Your turn");
+        setDiceVisible(true);
+        setMoving(false);
+        return;
+      } else if (current === 100 && diceCount === 1) {
+        if (value === 1) {
+          target = FINAL_TILE;
+        } else {
+          setMessage("Need a 1 to win!");
+          enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
+          setTurnMessage("");
+          setDiceVisible(false);
+          const next = getPreviousTurn(currentTurn);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
+          setTimeout(() => setMoving(false), 2000);
+          return;
+        }
+      } else if (current === 0) {
         if (rolledSix) {
           target = 1;
           if (!muted) cheerSoundRef.current?.play().catch(() => {});
@@ -2756,6 +2792,8 @@ export default function SnakeAndLadder() {
     let preview = aiPositions[index - 1];
     if (preview === 0) {
       if (rolledSix) preview = 1;
+    } else if (preview === 100) {
+      if (value === 1) preview = FINAL_TILE;
     } else if (preview + value <= FINAL_TILE) {
       preview = preview + value;
     }
@@ -2790,6 +2828,44 @@ export default function SnakeAndLadder() {
         if (!muted) cheerSoundRef.current?.play().catch(() => {});
       } else {
         enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
+      }
+    } else if (current === 100 && playerDiceCounts[index] === 2) {
+      if (rolledSix) {
+        setPlayerDiceCounts(arr => {
+          const copy = [...arr];
+          copy[index] = 1;
+          return copy;
+        });
+        if (currentTurn === index) setDiceCount(1);
+        setTurnMessage(`${getPlayerName(index)}'s turn`);
+        setDiceVisible(true);
+        setMoving(false);
+        return;
+      } else {
+        setTurnMessage(`${getPlayerName(index)} needs a 6`);
+        enqueueSnakeCommentaryEvent('needSix', { player: playerLabel });
+        setDiceVisible(false);
+        const next = getPreviousTurn(currentTurn);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
+        return;
+      }
+    } else if (current === 100 && playerDiceCounts[index] === 1) {
+      if (value === 1) target = FINAL_TILE;
+      else {
+        enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
+        setTurnMessage('');
+        setDiceVisible(false);
+        const next = getPreviousTurn(currentTurn);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
+        return;
       }
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
