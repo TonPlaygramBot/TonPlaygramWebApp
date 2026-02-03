@@ -13056,13 +13056,17 @@ const powerRef = useRef(hud.power);
     });
   }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel]);
   const cueBallPlacedFromHandRef = useRef(false);
+  const lastInHandRef = useRef(hud.inHand);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
-    const placing = Boolean(hud.inHand && playerTurn);
-    setInHandPlacementMode(placing);
-    if (hud.inHand) {
+    if (hud.inHand && !lastInHandRef.current) {
       cueBallPlacedFromHandRef.current = false;
     }
+    const placing = Boolean(
+      hud.inHand && playerTurn && !cueBallPlacedFromHandRef.current
+    );
+    setInHandPlacementMode(placing);
+    lastInHandRef.current = hud.inHand;
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
@@ -14746,7 +14750,7 @@ const powerRef = useRef(hud.power);
     const sph = sphRef.current;
     if (!sph || !cameraRef.current) return;
     const restore = inHandCameraRestoreRef.current;
-    if (hud.inHand) {
+    if (inHandPlacementMode) {
       if (!restore) {
         inHandCameraRestoreRef.current = {
           radius: sph.radius,
@@ -14769,7 +14773,7 @@ const powerRef = useRef(hud.power);
       inHandCameraRestoreRef.current = null;
       cameraUpdateRef.current?.();
     }
-  }, [hud.inHand]);
+  }, [inHandPlacementMode]);
 
   useEffect(() => {
     if (replayActive) return;
@@ -14779,16 +14783,16 @@ const powerRef = useRef(hud.power);
     const allowFullTable =
       variant === 'uk' ||
       ((variant === 'american' || variant === '9ball') && !meta?.breakInProgress);
-    if (hud.inHand && allowFullTable && controls?.enter) {
+    if (inHandPlacementMode && allowFullTable && controls?.enter) {
       controls.enter(true, { variant: 'top' });
       inHandTopViewRef.current = true;
       return;
     }
-    if (!hud.inHand && inHandTopViewRef.current && controls?.exit) {
+    if (!inHandPlacementMode && inHandTopViewRef.current && controls?.exit) {
       controls.exit(true);
       inHandTopViewRef.current = false;
     }
-  }, [frameState, hud.inHand, replayActive]);
+  }, [frameState, inHandPlacementMode, replayActive]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -19706,7 +19710,13 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_GALLERY && attemptCueGalleryPress(e)) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          if (
+            currentHud?.turn === 1 ||
+            (currentHud?.inHand && inHandPlacementModeRef.current) ||
+            shooting
+          ) {
+            return;
+          }
           if (e.touches?.length === 2) return;
           if (attemptCueLiftPress(e)) return;
           if (topViewRef.current && !topViewLockedRef.current)
@@ -19868,7 +19878,7 @@ const powerRef = useRef(hud.power);
           if (
             !moved &&
             !topViewRef.current &&
-            !(hudRef.current?.inHand ?? false) &&
+            !(hudRef.current?.inHand && inHandPlacementModeRef.current) &&
             !shooting
           ) {
             if (e?.button !== undefined && e.button !== 0) return;
@@ -19887,7 +19897,13 @@ const powerRef = useRef(hud.power);
             return;
           }
           const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          if (
+            currentHud?.turn === 1 ||
+            (currentHud?.inHand && inHandPlacementModeRef.current) ||
+            shooting
+          ) {
+            return;
+          }
           const baseStep = e.shiftKey ? 0.08 : 0.035;
           const slowScale =
             chalkAssistEnabledRef.current && chalkAssistTargetRef.current
@@ -21227,7 +21243,9 @@ const powerRef = useRef(hud.power);
         if (!ENABLE_CUE_GALLERY) return false;
         if (cueGalleryStateRef.current.active) return false;
         const currentHud = hudRef.current;
-        if (currentHud?.inHand || shooting) return false;
+        if ((currentHud?.inHand && inHandPlacementModeRef.current) || shooting) {
+          return false;
+        }
         if (ev.touches?.length && ev.touches.length > 1) return false;
         const racks = cueRackGroupsRef.current;
         if (!Array.isArray(racks) || racks.length === 0) return false;
@@ -21363,7 +21381,9 @@ const powerRef = useRef(hud.power);
 
       const pickOrbitFocus = (ev) => {
         const currentHud = hudRef.current;
-        if ((currentHud?.inHand ?? false) || shooting) return;
+        if ((currentHud?.inHand && inHandPlacementModeRef.current) || shooting) {
+          return;
+        }
         const rect = dom.getBoundingClientRect();
         const clientX =
           ev?.clientX ?? ev?.changedTouches?.[0]?.clientX ?? drag.x;
@@ -21519,6 +21539,11 @@ const powerRef = useRef(hud.power);
         cue.vel.set(0, 0);
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
+        cue.omega?.set(0, 0, 0);
+        cue.lift = 0;
+        cue.liftVel = 0;
+        cue.impacted = false;
+        cue.launchDir = null;
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
@@ -21534,11 +21559,6 @@ const powerRef = useRef(hud.power);
         if (commit) {
           inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
         }
         return true;
       };
@@ -21724,8 +21744,6 @@ const powerRef = useRef(hud.power);
         cue.active = true;
         cue.mesh.visible = true;
         cueBallPlacedFromHandRef.current = true;
-        hudRef.current = { ...currentHud, inHand: false };
-        setHud((prev) => ({ ...prev, inHand: false }));
         return true;
       };
       const handleInHandDown = (e) => {
@@ -24384,10 +24402,10 @@ const powerRef = useRef(hud.power);
             return;
           }
           let currentHud = hudRef.current;
-          if (currentHud?.turn === 1 && currentHud?.inHand) {
+          if (currentHud?.turn === 1 && currentHud?.inHand && !cueBallPlacedFromHandRef.current) {
             autoPlaceAiCueBall();
             currentHud = hudRef.current;
-            if (currentHud?.inHand) {
+            if (currentHud?.inHand && !cueBallPlacedFromHandRef.current) {
               aiRetryTimeoutRef.current = window.setTimeout(() => {
                 aiRetryTimeoutRef.current = null;
                 aiShoot.current();
@@ -24402,7 +24420,13 @@ const powerRef = useRef(hud.power);
             }, 200);
             return;
           }
-          if (currentHud?.over || currentHud?.inHand || shooting) return;
+          if (
+            currentHud?.over ||
+            (currentHud?.inHand && !cueBallPlacedFromHandRef.current) ||
+            shooting
+          ) {
+            return;
+          }
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -29132,7 +29156,7 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
-      {hud?.inHand && (
+      {hud?.inHand && inHandPlacementMode && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
@@ -29213,11 +29237,11 @@ const powerRef = useRef(hud.power);
             <button
               type="button"
               onClick={handleCueBallReposition}
-              disabled={hud.inHand}
+              disabled={inHandPlacementMode}
               aria-label="Reposition cue ball"
               title="Reposition cue ball"
               className={`absolute -left-11 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-slate-900/80 text-lg shadow-lg transition ${
-                hud.inHand ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'
+                inHandPlacementMode ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'
               }`}
             >
               <span aria-hidden="true">✋️</span>
