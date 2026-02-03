@@ -120,6 +120,7 @@ import {
 import { buyBundle, getAccountBalance } from '../utils/api.js';
 import { recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
+import { swatchThumbnail } from '../config/storeThumbnails.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -228,6 +229,9 @@ const TEXAS_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
+const THUMBNAIL_SIZE = 256;
+const ZOOM_PREVIEW_SIZE = 1024;
+const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -258,6 +262,18 @@ const resolvePreviewShape = (slug, type, preferredShape) => {
 };
 
 const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
+
+const normalizePolyHavenImage = (url, size) => {
+  if (typeof url !== 'string' || !url.startsWith(POLYHAVEN_THUMBNAIL_BASE)) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('width', size);
+    parsed.searchParams.set('height', size);
+    return parsed.toString();
+  } catch (error) {
+    return url;
+  }
+};
 
 const DEFAULT_LIST_FORM = {
   itemId: '',
@@ -723,6 +739,7 @@ export default function Store() {
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
   const [showMyListings, setShowMyListings] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+  const [zoomPreview, setZoomPreview] = useState(null);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
   const [isPaying, setIsPaying] = useState(false);
@@ -738,6 +755,12 @@ export default function Store() {
       setActiveGame(resolvedGameSlug);
     }
   }, [activeGame, resolvedGameSlug]);
+
+  useEffect(() => {
+    if (!detailItem) {
+      setZoomPreview(null);
+    }
+  }, [detailItem]);
 
   useEffect(() => {
     if (!purchaseStatus) {
@@ -1007,8 +1030,39 @@ export default function Store() {
       item.preview?.thumbnail,
       item.preview?.image
     ];
-    return candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+    const resolved =
+      candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+    if (resolved) return normalizePolyHavenImage(resolved, THUMBNAIL_SIZE);
+    if (item.swatches?.length) {
+      return swatchThumbnail(item.swatches);
+    }
+    return '';
   }, []);
+
+  const resolveItemMedia = useCallback(
+    (item) => {
+      if (!item) return { thumbnail: '', zoom: '', alt: '' };
+      const thumbnail = resolveItemThumbnail(item);
+      const zoomCandidates = [
+        item.zoomImage,
+        item.previewImage,
+        item.preview?.image,
+        item.media?.zoom,
+        item.media?.image
+      ];
+      const zoomFallback = normalizePolyHavenImage(thumbnail, ZOOM_PREVIEW_SIZE);
+      const zoom =
+        zoomCandidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) ||
+        zoomFallback ||
+        thumbnail;
+      return {
+        thumbnail,
+        zoom,
+        alt: item.displayLabel || item.name || 'Store item preview'
+      };
+    },
+    [resolveItemThumbnail]
+  );
 
   const decorateMarketplaceItem = (item, options = {}) => {
     const resolvedPrice = options.scalePrice
@@ -1740,6 +1794,7 @@ export default function Store() {
     if (!detailItem) return null;
     const gameName = storeMeta[detailItem.slug]?.name || detailItem.slug;
     const usageDetails = resolveUsageDetails(detailItem, gameName);
+    const detailMedia = resolveItemMedia(detailItem);
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -1895,12 +1950,78 @@ export default function Store() {
 
               <div className="space-y-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-white">Zoom preview</p>
+                    <button
+                      type="button"
+                      onClick={() => setZoomPreview(detailMedia)}
+                      className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 hover:bg-white/10"
+                    >
+                      Open
+                    </button>
+                  </div>
+                  {detailMedia.zoom ? (
+                    <button
+                      type="button"
+                      className="group relative w-full overflow-hidden rounded-xl border border-white/10 bg-black/30"
+                      onClick={() => setZoomPreview(detailMedia)}
+                    >
+                      <img
+                        src={detailMedia.zoom}
+                        alt={`${detailMedia.alt} zoom preview`}
+                        className="h-40 w-full object-cover transition duration-300 ease-out group-hover:scale-[1.03]"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/70" />
+                      <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                        High-res lighting match
+                      </div>
+                    </button>
+                  ) : (
+                    <p className="text-xs text-white/50">Zoom previews are processing for this item.</p>
+                  )}
+                </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                   <p className="font-semibold text-white">What you get</p>
                   <p className="mt-1">After the TPC payment is confirmed, the NFT unlocks immediately on your linked TPC account.</p>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderZoomModal = () => {
+    if (!zoomPreview?.zoom) return null;
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 px-4 py-6">
+        <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 p-4">
+            <div>
+              <p className="text-xs text-white/60">High-res zoom preview</p>
+              <h3 className="text-sm font-semibold text-white">{zoomPreview.alt}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setZoomPreview(null)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70 hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+          <div className="bg-black/50 p-4">
+            <img
+              src={zoomPreview.zoom}
+              alt={`${zoomPreview.alt} zoom preview`}
+              className="h-[60vh] w-full rounded-2xl object-contain"
+            />
+            <p className="mt-3 text-xs text-white/60">
+              Captured with the same lighting profile as the store thumbnail for consistent finish checks.
+            </p>
           </div>
         </div>
       </div>
@@ -2111,7 +2232,8 @@ export default function Store() {
   const renderStoreThumbnail = (item, variant = 'card') => {
     if (!item) return null;
     const label = (item.displayLabel || item.name || '').slice(0, 18);
-    const resolvedThumbnail = resolveItemThumbnail(item);
+    const media = resolveItemMedia(item);
+    const resolvedThumbnail = media.thumbnail;
     const isCompact = variant === 'compact';
     const wrapperClass = isCompact
       ? 'relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]'
@@ -2121,7 +2243,12 @@ export default function Store() {
     if (resolvedThumbnail) {
       return (
         <div className={wrapperClass}>
-          <img src={resolvedThumbnail} alt={item.displayLabel || item.name} className={imageClass} loading="lazy" />
+          <img
+            src={resolvedThumbnail}
+            alt={media.alt}
+            className={imageClass}
+            loading="lazy"
+          />
           <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
           <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
             {label}
@@ -2653,6 +2780,7 @@ export default function Store() {
 
       {renderListModal()}
       {renderDetailModal()}
+      {renderZoomModal()}
       {renderBulkConfirmModal()}
       {renderConfirmModal()}
     </div>
