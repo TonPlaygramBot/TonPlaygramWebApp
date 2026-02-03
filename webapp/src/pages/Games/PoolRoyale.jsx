@@ -1293,6 +1293,7 @@ const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const RAIL_SLOW_ROLL_SPEED = STOP_EPS * 3;
 const RAIL_SLOW_SPIN_DAMPING = 0.7;
+const RAIL_SLOW_SPIN_THROW_SCALE = 0.2; // keep a hint of spin at very low rail speeds without air-spinning
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -6388,6 +6389,12 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
+  const slowFactor = clamp(
+    1 - speed / Math.max(RAIL_SLOW_ROLL_SPEED, 1e-6),
+    0,
+    1
+  );
+  const slowSpinScale = THREE.MathUtils.lerp(1, RAIL_SLOW_SPIN_THROW_SCALE, slowFactor);
   const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
   if (!worldSpin) return;
   const throwFactor = Math.max(
@@ -6396,7 +6403,8 @@ function applyRailSpinResponse(ball, impact) {
   );
   const spinAlongTangent = worldSpin.dot(tangent);
   if (Math.abs(spinAlongTangent) > 1e-6) {
-    const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
+    const throwStrength =
+      spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor) * slowSpinScale;
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   const spinAlongNormal = worldSpin.dot(normal);
@@ -6409,6 +6417,11 @@ function applyRailSpinResponse(ball, impact) {
     TMP_VEC2_A.dot(spinFrame.lateral),
     TMP_VEC2_A.dot(spinFrame.forward)
   );
+  if (slowFactor > 0) {
+    const spinDamp = 1 - RAIL_SLOW_SPIN_DAMPING * slowFactor;
+    ball.spin.multiplyScalar(spinDamp);
+    if (ball.pendingSpin) ball.pendingSpin.multiplyScalar(spinDamp);
+  }
   decaySpin(ball, 0.6, false);
 }
 
@@ -6514,7 +6527,8 @@ function applyRailContactRoll(ball, impact, stepScale) {
   if (!worldSpin) return;
   const spinAlongTangent = worldSpin.dot(TMP_VEC2_B);
   if (Math.abs(spinAlongTangent) > 1e-6) {
-    const rollAccel = RAIL_SPIN_ROLL_ACCELERATION * Math.max(stepScale, 0);
+    const rollAccel =
+      RAIL_SPIN_ROLL_ACCELERATION * Math.max(stepScale, 0) * (1 - slowFactor);
     ball.vel.addScaledVector(TMP_VEC2_B, spinAlongTangent * rollAccel);
     const spinDamp = Math.exp(-RAIL_CONTACT_SPIN_DAMPING * slowFactor * stepScale);
     if (ball.spin) ball.spin.multiplyScalar(spinDamp);
