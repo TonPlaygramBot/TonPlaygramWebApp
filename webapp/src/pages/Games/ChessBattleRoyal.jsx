@@ -1673,11 +1673,11 @@ const CAMERA_DEFAULT_PHI = clamp(
 const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAMERA_SAFE_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.2;
 const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
-const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.65;
+const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.9;
 const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
 const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
-const CAMERA_2D_MIN_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 0.75;
-const CAMERA_2D_MAX_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.15;
+const CAMERA_2D_MIN_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS;
+const CAMERA_2D_MAX_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS;
 const CAM = {
   fov: ARENA_CAMERA_DEFAULTS.fov,
   near: ARENA_CAMERA_DEFAULTS.near,
@@ -7600,6 +7600,8 @@ function Chess3D({
       if (mode === '2d') {
         cameraMemory.last3d = current;
         controls.enableRotate = false;
+        controls.enablePan = false;
+        controls.enableZoom = false;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.minDistance = CAMERA_2D_MIN_RADIUS;
@@ -7609,6 +7611,8 @@ function Chess3D({
         animateCameraTo(target, 360);
       } else {
         controls.enableRotate = true;
+        controls.enablePan = true;
+        controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
