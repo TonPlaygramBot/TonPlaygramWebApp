@@ -424,3 +424,7 @@ Run `npm run reset-db` to drop the existing MongoDB database and start with a cl
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## Third-party licenses
+
+See [docs/third-party-licenses.md](docs/third-party-licenses.md) for third-party license notices.

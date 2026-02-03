@@ -942,7 +942,7 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Mirë se vini në {arena}. {speaker} me ju për {variantName}.',
         'Përshëndetje nga {arena}—{speaker} në komentim.',
         'Tungjatjeta, {arena} është gati për {player} kundër {opponent}.',
-        'Mirëmbrëma nga {arena}. Sot {player} kundër {opponent}.'
+        'Mirëmbrëma nga {arena}. Sonte {player} kundër {opponent}.'
       ],
       intro: [
         'Mirë se vini në {arena}. {speaker} me ju. {player} përballë {opponent}; {scoreline} në {variantName}.',
@@ -951,11 +951,11 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ],
       introReply: [
         'Faleminderit, {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.',
-        'Kënaqësi të jem këtu, {speaker}. Fiton ai që menaxhon këndet.',
-        'Saktë, {speaker}. Qetësia dhe ritmi janë vendimtarë.'
+        'Kënaqësi të jem këtu, {speaker}. Fiton ai që menaxhon këndet dhe ritmin.',
+        'Saktë, {speaker}. Qetësia dhe rrjedha e lojës janë vendimtare.'
       ],
       breakShot: [
-        '{player} gati për thyerjen; shpërndarje e pastër dhe top i bardhë i qetë.',
+        '{player} gati për thyerjen; shpërndarje e pastër dhe top i bardhë i kontrolluar.',
         '{player} hyn për thyerje—shpejtësia dhe kontrolli janë kyç.',
         'Ja thyerja nga {player}; të shohim si hapen topat.'
       ],
@@ -973,17 +973,17 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       safety: [
         'Siguri e mençur; {player} fsheh topin e bardhë.',
         'Zgjedhje taktike, e lë {opponent} në pozicion të vështirë.',
-        'S’më bind plotësisht kjo siguri—ka rrezik të mbetet hapur.',
+        'Nuk më bind plotësisht kjo siguri—ka rrezik të mbetet hapur.',
         'Siguri e pastër; i prish ritmin kundërshtarit.'
       ],
       pressure: [
         'Moment me presion; {player} duhet të jetë i saktë.',
         'Goditje e madhe—mënyra si e prek topin vendos gjithçka.',
         'Tension i lartë; një gabim këtu kushton.',
-        'Kjo është goditje që ndan fituesin.'
+        'Kjo është goditja që ndan fituesin.'
       ],
       pot: [
-        'Çfarë goditje! {player} fut {targetBall} në {pocket}.',
+        'Çfarë goditjeje! {player} fut {targetBall} në {pocket}.',
         'E pabesueshme—{player} e fut dhe mban pozicion.',
         '{player} fut {targetBall} në {pocket}, topi i bardhë qëndron bukur.',
         'Goditje e pastër; {player} lë kënd të mirë për tjetrin.',
