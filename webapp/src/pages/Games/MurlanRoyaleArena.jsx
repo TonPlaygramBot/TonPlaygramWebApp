@@ -2968,14 +2968,14 @@ export default function MurlanRoyaleArena({ search }) {
         return (
           <div className="flex items-center justify-center gap-2">
             <div
-              className="h-12 w-8 rounded-md border"
+              className="h-14 w-9 rounded-md border"
               style={{
                 background: option.frontBackground,
                 borderColor: option.frontBorder || '#e5e7eb'
               }}
             />
             <div
-              className="h-12 w-8 rounded-md border border-white/10"
+              className="h-14 w-9 rounded-md border border-white/10"
               style={{
                 backgroundImage: `linear-gradient(135deg, ${
                   option.backGradient?.[0] ?? option.backColor
@@ -2987,7 +2987,7 @@ export default function MurlanRoyaleArena({ search }) {
         );
       case 'stools':
         return (
-          <div className="relative flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-950/50 overflow-hidden">
+          <div className="relative flex h-14 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-950/50 overflow-hidden">
             {option.thumbnail ? (
               <img
                 src={option.thumbnail}
@@ -3028,8 +3028,8 @@ export default function MurlanRoyaleArena({ search }) {
       case 'outfit':
       default:
         return (
-          <div className="relative flex h-12 w-full items-center justify-center">
-            <div className="relative h-12 w-12 rounded-full" style={{ background: option.baseColor }}>
+          <div className="relative flex h-14 w-full items-center justify-center">
+            <div className="relative h-14 w-14 rounded-full" style={{ background: option.baseColor }}>
               <div
                 className="absolute inset-1 rounded-full border-2"
                 style={{ borderColor: option.accentColor }}
@@ -3841,9 +3841,14 @@ export default function MurlanRoyaleArena({ search }) {
               <span className="sr-only">Open table customization</span>
             </button>
             {configOpen && (
-              <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+              <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
+                    <p className="mt-1 text-[0.7rem] text-white/70">
+                      Personalize the Murlan Royale table, chairs, and cards.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setConfigOpen(false)}
@@ -3862,35 +3867,43 @@ export default function MurlanRoyaleArena({ search }) {
                     </svg>
                   </button>
                 </div>
-                <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {customizationSections.map(({ key, label, options }) => (
-                    <div key={key} className="space-y-2">
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {options.map((option, idx) => {
-                          const selected = appearance[key] === idx;
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
-                              aria-pressed={selected}
-                              className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                selected
-                                  ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                  : 'border-white/10 bg-white/5 hover:border-white/20'
-                              }`}
-                            >
-                              {renderPreview(key, option)}
-                              <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table surface, chairs, and cards.</p>
                     </div>
-                  ))}
-                  <div className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
+                    <div className="mt-3 space-y-4">
+                      {customizationSections.map(({ key, label, options }) => (
+                        <div key={key} className="space-y-2">
+                          <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {options.map((option, idx) => {
+                              const selected = appearance[key] === idx;
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                                  aria-pressed={selected}
+                                  className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                    selected
+                                      ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                                  }`}
+                                >
+                                  {renderPreview(key, option)}
+                                  <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                     <div className="grid gap-2">
                       {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
@@ -3922,8 +3935,8 @@ export default function MurlanRoyaleArena({ search }) {
                       })}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary</p>
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
                     <div className="grid gap-2">
                       {MURLAN_ROYALE_COMMENTARY_PRESETS.map((preset) => {
                         const active = preset.id === commentaryPresetId;

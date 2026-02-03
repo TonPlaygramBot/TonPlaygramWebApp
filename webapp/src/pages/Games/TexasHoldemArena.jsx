@@ -5191,151 +5191,166 @@ function TexasHoldemArena({ search }) {
           </button>
         </div>
       {configOpen && (
-        <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+        <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
+              <p className="mt-1 text-[0.7rem] text-white/70">
+                Tune the felt, rails, and chair finishes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfigOpen(false)}
+              className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              aria-label="Mbyll personalizimin"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">Table finishes, cloth, and chair styling.</p>
+              </div>
+              <div className="mt-3 space-y-4">
+                {customizationSections.map(({ key, label, options }) => (
+                  <div key={key} className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {options.map((option) => {
+                        const selected = appearance[key] === option.idx;
+                        const disabled =
+                          key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              if (disabled) return;
+                              setAppearance((prev) => ({ ...prev, [key]: option.idx }));
+                            }}
+                            aria-pressed={selected}
+                            disabled={disabled}
+                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              selected ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]' : 'border-white/10 bg-white/5 hover:border-white/20'
+                            } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
+                          >
+                            {renderPreview(key, option)}
+                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+              <div className="grid gap-2">
+                {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
+                  const active = preset.id === commentaryPresetId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setCommentaryPresetId(preset.id)}
+                      aria-pressed={active}
+                      disabled={!commentarySupported}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                        {active && (
+                          <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                            Active
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                        {preset.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 type="button"
-                onClick={() => setConfigOpen(false)}
-                className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                aria-label="Mbyll personalizimin"
+                onClick={() => setCommentaryMuted((prev) => !prev)}
+                aria-pressed={commentaryMuted}
+                disabled={!commentarySupported}
+                className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                  commentaryMuted
+                    ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              {customizationSections.map(({ key, label, options }) => (
-                <div key={key} className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {options.map((option) => {
-                      const selected = appearance[key] === option.idx;
-                      const disabled =
-                        key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => {
-                            if (disabled) return;
-                            setAppearance((prev) => ({ ...prev, [key]: option.idx }));
-                          }}
-                          aria-pressed={selected}
-                          disabled={disabled}
-                          className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            selected ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]' : 'border-white/10 bg-white/5 hover:border-white/20'
-                          } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
-                        >
-                          {renderPreview(key, option)}
-                          <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary</p>
-                <div className="grid gap-2">
-                  {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          active
-                            ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                          {active && (
-                            <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                              Active
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCommentaryMuted((prev) => !prev)}
-                  aria-pressed={commentaryMuted}
-                  disabled={!commentarySupported}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                <span>Mute commentary</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
                     commentaryMuted
-                      ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      ? 'border-black/30 text-black/70'
+                      : 'border-white/30 text-white/70'
+                  }`}
                 >
-                  <span>Mute commentary</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      commentaryMuted
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {commentaryMuted ? 'On' : 'Off'}
-                  </span>
-                </button>
-                {!commentarySupported && (
-                  <p className="text-[0.65rem] text-white/50">
-                    Voice commentary needs Web Speech support.
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
+                  {commentaryMuted ? 'On' : 'Off'}
+                </span>
+              </button>
+              {!commentarySupported && (
+                <p className="text-[0.65rem] text-white/50">
+                  Voice commentary needs Web Speech support.
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
                   Match the Murlan Royale presets for identical FPS and clarity options.
                 </p>
-                <div className="grid gap-2">
-                  {FRAME_RATE_OPTIONS.map((option) => {
-                    const active = option.id === frameRateId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setFrameRateId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          active
-                            ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
-                          <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                            {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
-                          </span>
+              </div>
+              <div className="grid gap-2">
+                {FRAME_RATE_OPTIONS.map((option) => {
+                  const active = option.id === frameRateId;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setFrameRateId(option.id)}
+                      aria-pressed={active}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
+                        <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                          {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
                         </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                      </span>
+                      {option.description ? (
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          {option.description}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
       </div>
       <div className="absolute inset-0 pointer-events-none">
         {seatAnchors.map((anchor, index) => (
