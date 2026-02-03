@@ -12925,10 +12925,6 @@ const handleSkipReplayClick = useCallback(() => {
   const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
   const [bottomHudOffset, setBottomHudOffset] = useState(0);
   const inHandTopViewRef = useRef(false);
-  const inHandIconRef = useRef(null);
-  const startInHandDragRef = useRef(null);
-  const endInHandDragRef = useRef(null);
-  const inHandIconFrameRef = useRef(null);
 const leftControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
@@ -12963,64 +12959,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
-  useEffect(() => {
-    const icon = inHandIconRef.current;
-    if (!icon) return undefined;
-    let disposed = false;
-    const tmp = new THREE.Vector3();
-    const update = () => {
-      if (disposed) return;
-      const currentHud = hudRef.current;
-      if (!currentHud?.inHand) {
-        icon.style.opacity = '0';
-        icon.style.pointerEvents = 'none';
-        inHandIconFrameRef.current = requestAnimationFrame(update);
-        return;
-      }
-      const cueBall = cueRef.current;
-      const camera = activeRenderCameraRef.current ?? cameraRef.current;
-      const dom = rendererRef.current?.domElement;
-      if (!cueBall || !camera || !dom) {
-        icon.style.opacity = '0';
-        icon.style.pointerEvents = 'none';
-        inHandIconFrameRef.current = requestAnimationFrame(update);
-        return;
-      }
-      if (cueBall.mesh?.position) {
-        tmp.copy(cueBall.mesh.position);
-      } else if (cueBall.pos) {
-        tmp.set(cueBall.pos.x, BALL_CENTER_Y, cueBall.pos.y);
-      } else {
-        icon.style.opacity = '0';
-        icon.style.pointerEvents = 'none';
-        inHandIconFrameRef.current = requestAnimationFrame(update);
-        return;
-      }
-      tmp.project(camera);
-      if (tmp.z < 0 || tmp.z > 1) {
-        icon.style.opacity = '0';
-        icon.style.pointerEvents = 'none';
-        inHandIconFrameRef.current = requestAnimationFrame(update);
-        return;
-      }
-      const rect = dom.getBoundingClientRect();
-      const screenX = rect.left + (tmp.x * 0.5 + 0.5) * rect.width;
-      const screenY = rect.top + (-tmp.y * 0.5 + 0.5) * rect.height;
-      const offset = 28 * uiScale;
-      const scale = Math.max(0.85, Math.min(1.2, uiScale));
-      icon.style.opacity = '1';
-      icon.style.pointerEvents = 'auto';
-      icon.style.transform = `translate3d(${screenX + offset}px, ${screenY - offset}px, 0) scale(${scale})`;
-      inHandIconFrameRef.current = requestAnimationFrame(update);
-    };
-    inHandIconFrameRef.current = requestAnimationFrame(update);
-    return () => {
-      disposed = true;
-      if (inHandIconFrameRef.current) {
-        cancelAnimationFrame(inHandIconFrameRef.current);
-      }
-    };
-  }, [uiScale]);
   useEffect(
     () => () => {
       if (ruleToastTimeoutRef.current) {
@@ -21557,8 +21495,7 @@ const powerRef = useRef(hud.power);
       const inHandDrag = {
         active: false,
         pointerId: null,
-        lastPos: null,
-        captureTarget: null
+        lastPos: null
       };
       const updateCuePlacement = (pos) => {
         if (!cue || !pos) return;
@@ -21778,7 +21715,7 @@ const powerRef = useRef(hud.power);
         setHud((prev) => ({ ...prev, inHand: false }));
         return true;
       };
-      const beginInHandDrag = (e, captureTarget = dom) => {
+      const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
         if (!inHandPlacementModeRef.current) return;
@@ -21789,16 +21726,12 @@ const powerRef = useRef(hud.power);
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
-        inHandDrag.captureTarget = captureTarget ?? dom;
-        if (e.pointerId != null && inHandDrag.captureTarget?.setPointerCapture) {
+        if (e.pointerId != null && dom.setPointerCapture) {
           try {
-            inHandDrag.captureTarget.setPointerCapture(e.pointerId);
+            dom.setPointerCapture(e.pointerId);
           } catch {}
         }
         e.preventDefault?.();
-      };
-      const handleInHandDown = (e) => {
-        beginInHandDrag(e, dom);
       };
       const handleInHandMove = (e) => {
         if (!inHandDrag.active) return;
@@ -21822,13 +21755,12 @@ const powerRef = useRef(hud.power);
         ) {
           return;
         }
-        if (e.pointerId != null && inHandDrag.captureTarget?.releasePointerCapture) {
+        if (e.pointerId != null && dom.releasePointerCapture) {
           try {
-            inHandDrag.captureTarget.releasePointerCapture(e.pointerId);
+            dom.releasePointerCapture(e.pointerId);
           } catch {}
         }
         inHandDrag.active = false;
-        inHandDrag.captureTarget = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -21837,11 +21769,8 @@ const powerRef = useRef(hud.power);
         }
         e.preventDefault?.();
       };
-      startInHandDragRef.current = beginInHandDrag;
-      endInHandDragRef.current = endInHandDrag;
       dom.addEventListener('pointerdown', handleInHandDown);
       dom.addEventListener('pointermove', handleInHandMove);
-      window.addEventListener('pointermove', handleInHandMove);
       window.addEventListener('pointerup', endInHandDrag);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
@@ -27048,12 +26977,9 @@ const powerRef = useRef(hud.power);
         window.removeEventListener('keydown', keyRot);
         dom.removeEventListener('pointerdown', handleInHandDown);
         dom.removeEventListener('pointermove', handleInHandMove);
-        window.removeEventListener('pointermove', handleInHandMove);
         window.removeEventListener('pointerup', endInHandDrag);
         dom.removeEventListener('pointercancel', endInHandDrag);
         window.removeEventListener('pointercancel', endInHandDrag);
-        startInHandDragRef.current = null;
-        endInHandDragRef.current = null;
         applyBaseRef.current = () => {};
         applyFinishRef.current = () => {};
         applyTableSlotRef.current = () => {};
@@ -27263,16 +27189,6 @@ const powerRef = useRef(hud.power);
     setHud((prev) => ({ ...prev, inHand: true }));
     setInHandPlacementMode(true);
   }, [canRepositionCueBall]);
-  const handleInHandIconPointerDown = useCallback((event) => {
-    if (!hudRef.current?.inHand) return;
-    event.preventDefault?.();
-    setInHandPlacementMode(true);
-    startInHandDragRef.current?.(event, event.currentTarget);
-  }, []);
-  const handleInHandIconPointerUp = useCallback((event) => {
-    event.preventDefault?.();
-    endInHandDragRef.current?.(event);
-  }, []);
   const spinRingLabels = useMemo(
     () => {
       const radius = 72;
@@ -29092,21 +29008,6 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {hud?.inHand && (
-        <button
-          ref={inHandIconRef}
-          type="button"
-          onPointerDown={handleInHandIconPointerDown}
-          onPointerUp={handleInHandIconPointerUp}
-          onPointerCancel={handleInHandIconPointerUp}
-          aria-label="Drag cue ball"
-          title="Hold to drag the cue ball"
-          className="pointer-events-auto absolute left-0 top-0 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-slate-900/80 text-lg shadow-[0_10px_22px_rgba(0,0,0,0.45)] backdrop-blur-sm"
-          style={{ transform: 'translate3d(-9999px, -9999px, 0)', touchAction: 'none' }}
-        >
-          <span aria-hidden="true">✋️</span>
-        </button>
-      )}
-      {hud?.inHand && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
@@ -29115,7 +29016,7 @@ const powerRef = useRef(hud.power);
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Hold the hand icon · drag to fine-tune · release to lock
+            Tap to place · drag to fine-tune · release to lock
           </span>
         </div>
       )}
