@@ -13,6 +13,18 @@ public static class Collision
         return v - n * (1 + restitution) * dot;
     }
 
+    /// <summary>Reflect velocity with tangential damping to simulate cushion grip.</summary>
+    public static Vec2 ReflectWithFriction(Vec2 v, Vec2 normal, double restitution, double friction)
+    {
+        var n = normal.Normalized();
+        var alongNormal = Vec2.Dot(v, n);
+        var tangent = v - n * alongNormal;
+        var clampedFriction = Math.Clamp(friction, 0.0, 0.95);
+        var dampedTangent = tangent * (1.0 - clampedFriction);
+        var reflectedNormal = n * (-alongNormal * restitution);
+        return dampedTangent + reflectedNormal;
+    }
+
     /// <summary>Reflect velocity on a surface with default table restitution.</summary>
     public static Vec2 Reflect(Vec2 v, Vec2 normal)
     {

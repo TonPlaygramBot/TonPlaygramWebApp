@@ -14,7 +14,7 @@ public static class PhysicsConstants
     public const double Gravity = 9.81;                // m/s^2
     public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)
     public const double SpinDecay = 2.0;               // per-second decay for on-table spin
-    public const double AirSpinDecay = 0.6;            // per-second decay while airborne
+    public const double AirSpinDecay = 3.5;            // per-second decay while airborne
     public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
     public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
     public const double JumpRestitution = 0.1;         // vertical energy retained on landing
@@ -53,6 +53,12 @@ public static class PhysicsConstants
     public const double SidePocketOutset = 0.006;
     // Offset pocket mouth guards to stop balls slipping between jaws and cushions.
     public const double PocketMouthGuardInset = BallRadius * 0.35;
+
+    // Cushion response tuning to reduce slow sliding and improve grip.
+    public const double CushionFriction = 0.22;        // tangential damping on cushion contact
+    public const double CushionFrictionLowSpeedBoost = 0.28; // extra damping for slow impacts
+    public const double CushionFrictionSpeedThreshold = 1.1; // m/s threshold for low-speed boost
+    public const double CushionSpinLoss = 0.35;        // spin retained after cushion contact
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
