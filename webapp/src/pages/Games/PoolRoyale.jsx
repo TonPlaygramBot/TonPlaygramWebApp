@@ -6295,6 +6295,14 @@ function decaySpin(ball, stepScale, airborne = false) {
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
+  if (airborne && ball.id === 'cue') {
+    ball.spin.set(0, 0);
+    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+    ball.spinMode = 'standard';
+    ball.swerveStrength = 0;
+    ball.swervePowerStrength = 0;
+    return false;
+  }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
@@ -21931,45 +21939,6 @@ const powerRef = useRef(hud.power);
         maxPowerLiftTriggered = false;
         cue.lift = 0;
         cue.liftVel = 0;
-        const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
-        if (
-          clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-          liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-          topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-        ) {
-          const powerRatio = THREE.MathUtils.clamp(
-            (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-              Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-            0,
-            1
-          );
-          const liftRatio = THREE.MathUtils.clamp(
-            (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-              Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-            0,
-            1
-          );
-          const spinRatio = THREE.MathUtils.clamp(
-            (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-              Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-            0,
-            1
-          );
-          const jumpStrength =
-            (0.25 + 0.75 * powerRatio) *
-            (0.4 + 0.6 * liftRatio) *
-            (0.55 + 0.45 * spinRatio);
-          const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-          const physicsHeight =
-            (jumpVelocity * jumpVelocity) /
-            (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-          const jumpHeight = Math.min(
-            MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-            physicsHeight
-          );
-          cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-          cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-        }
         playCueHit(clampedPower * 0.6);
       };
 
@@ -22267,45 +22236,6 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, scaledSpin.y || 0);
-          if (
-            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-          ) {
-            const powerRatio = THREE.MathUtils.clamp(
-              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const liftRatio = THREE.MathUtils.clamp(
-              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const spinRatio = THREE.MathUtils.clamp(
-              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const jumpStrength =
-              (0.25 + 0.75 * powerRatio) *
-              (0.4 + 0.6 * liftRatio) *
-              (0.55 + 0.45 * spinRatio);
-            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-            const physicsHeight =
-              (jumpVelocity * jumpVelocity) /
-              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-            const jumpHeight = Math.min(
-              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-              physicsHeight
-            );
-            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-          }
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
@@ -26049,41 +25979,6 @@ const powerRef = useRef(hud.power);
                 const targetImpactId = shotPrediction?.ballId ?? null;
                 const isTargetImpact =
                   !targetImpactId || (hitBallId && String(hitBallId) === String(targetImpactId));
-                if (
-                  cueBall &&
-                  hitBallId &&
-                  isTargetImpact &&
-                  isNewImpact &&
-                  lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
-                  !maxPowerLiftTriggered
-                ) {
-                  const topspinActive = (shotContextRef.current?.spin?.y ?? 0) > 1e-4;
-                  if (topspinActive) {
-                    maxPowerLiftTriggered = true;
-                  } else {
-                    const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
-                    const liftBoost = 1.2;
-                    maxPowerLiftTriggered = true;
-                    const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
-                    playCueHit(liftSoundVol);
-                    const liftCeiling = Math.min(
-                      MAX_POWER_LIFT_HEIGHT * liftBoost,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.9
-                    );
-                    cueBall.lift = Math.max(
-                      cueBall.lift ?? 0,
-                      liftCeiling
-                    );
-                    const launchCeiling = Math.min(
-                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.95
-                    );
-                    cueBall.liftVel = Math.max(
-                      cueBall.liftVel ?? 0,
-                      launchCeiling
-                    );
-                  }
-                }
                 if (
                   hitBallId &&
                   activeShotView?.mode === 'action' &&
