@@ -5289,7 +5289,6 @@ const TMP_VEC3_E = new THREE.Vector3();
 const TMP_VEC3_F = new THREE.Vector3();
 const TMP_VEC3_G = new THREE.Vector3();
 const TMP_VEC3_H = new THREE.Vector3();
-const TMP_VEC3_IN_HAND_ICON = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
@@ -12879,9 +12878,6 @@ function PoolRoyaleGame({
     []
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
-  const inHandIconRef = useRef(null);
-  const inHandDragRef = useRef({ active: false, pointerId: null, lastPos: null });
-  const inHandPlacementApiRef = useRef({ begin: null, move: null, end: null });
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
@@ -21496,7 +21492,11 @@ const powerRef = useRef(hud.power);
         clampInHandPosition(
           new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
         );
-      const inHandDrag = inHandDragRef.current;
+      const inHandDrag = {
+        active: false,
+        pointerId: null,
+        lastPos: null
+      };
       const updateCuePlacement = (pos) => {
         if (!cue || !pos) return;
         cue.mesh.visible = true;
@@ -21768,51 +21768,6 @@ const powerRef = useRef(hud.power);
           autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
-      };
-      inHandPlacementApiRef.current = {
-        begin: (e) => {
-          const currentHud = hudRef.current;
-          if (!(currentHud?.inHand)) return false;
-          if (!inHandPlacementModeRef.current) return false;
-          if (shooting) return false;
-          const p = project(e);
-          if (!p) return false;
-          if (!tryUpdatePlacement(p, false)) return false;
-          inHandDrag.active = true;
-          inHandDrag.pointerId = e.pointerId ?? 'icon';
-          return true;
-        },
-        move: (e) => {
-          if (!inHandDrag.active) return false;
-          if (
-            inHandDrag.pointerId != null &&
-            e.pointerId != null &&
-            e.pointerId !== inHandDrag.pointerId
-          ) {
-            return false;
-          }
-          const p = project(e);
-          if (p) tryUpdatePlacement(p, false);
-          return true;
-        },
-        end: (e) => {
-          if (!inHandDrag.active) return false;
-          if (
-            inHandDrag.pointerId != null &&
-            e.pointerId != null &&
-            e.pointerId !== inHandDrag.pointerId
-          ) {
-            return false;
-          }
-          inHandDrag.active = false;
-          const pos = inHandDrag.lastPos;
-          if (pos) {
-            tryUpdatePlacement(pos, true);
-            setInHandPlacementMode(false);
-            autoAimRequestRef.current = true;
-          }
-          return true;
-        }
       };
       dom.addEventListener('pointerdown', handleInHandDown);
       dom.addEventListener('pointermove', handleInHandMove);
@@ -26883,44 +26838,6 @@ const powerRef = useRef(hud.power);
           }
           syncCueShadow();
           const frameCamera = updateCamera();
-          const handIconEl = inHandIconRef.current;
-          if (handIconEl) {
-            const currentHud = hudRef.current;
-            const shouldShow =
-              Boolean(currentHud?.inHand) &&
-              currentHud?.turn === 0 &&
-              cue?.mesh &&
-              cue?.active &&
-              !replayPlaybackRef.current;
-            if (!shouldShow) {
-              handIconEl.style.opacity = '0';
-              handIconEl.style.pointerEvents = 'none';
-            } else {
-              const rect = renderer.domElement.getBoundingClientRect();
-              cue.mesh.getWorldPosition(TMP_VEC3_IN_HAND_ICON);
-              const cameraForUi = frameCamera ?? camera;
-              TMP_VEC3_IN_HAND_ICON.project(cameraForUi);
-              const screenX =
-                (TMP_VEC3_IN_HAND_ICON.x * 0.5 + 0.5) * rect.width + rect.left;
-              const screenY =
-                (-TMP_VEC3_IN_HAND_ICON.y * 0.5 + 0.5) * rect.height + rect.top;
-              const offsetX = 30;
-              const offsetY = -28;
-              const clampedX = clamp(
-                screenX + offsetX,
-                rect.left + 16,
-                rect.right - 16
-              );
-              const clampedY = clamp(
-                screenY + offsetY,
-                rect.top + 16,
-                rect.bottom - 16
-              );
-              handIconEl.style.opacity = '1';
-              handIconEl.style.pointerEvents = 'auto';
-              handIconEl.style.transform = `translate(${clampedX}px, ${clampedY}px) translate(-50%, -50%)`;
-            }
-          }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
             isOnlineMatch &&
@@ -27272,36 +27189,6 @@ const powerRef = useRef(hud.power);
     setHud((prev) => ({ ...prev, inHand: true }));
     setInHandPlacementMode(true);
   }, [canRepositionCueBall]);
-  const canUseInHandIcon = showPlayerControls && hud.inHand;
-  const handleInHandIconPointerDown = useCallback(
-    (event) => {
-      if (!canUseInHandIcon || shootingRef.current) return;
-      cueBallPlacedFromHandRef.current = false;
-      inHandPlacementModeRef.current = true;
-      setInHandPlacementMode(true);
-      inHandPlacementApiRef.current?.begin?.(event);
-      if (event.pointerId != null) {
-        try {
-          event.currentTarget?.setPointerCapture?.(event.pointerId);
-        } catch {}
-      }
-      event.preventDefault?.();
-    },
-    [canUseInHandIcon]
-  );
-  const handleInHandIconPointerMove = useCallback((event) => {
-    inHandPlacementApiRef.current?.move?.(event);
-    event.preventDefault?.();
-  }, []);
-  const handleInHandIconPointerUp = useCallback((event) => {
-    inHandPlacementApiRef.current?.end?.(event);
-    if (event.pointerId != null) {
-      try {
-        event.currentTarget?.releasePointerCapture?.(event.pointerId);
-      } catch {}
-    }
-    event.preventDefault?.();
-  }, []);
   const spinRingLabels = useMemo(
     () => {
       const radius = 72;
@@ -29132,22 +29019,6 @@ const powerRef = useRef(hud.power);
             Tap to place · drag to fine-tune · release to lock
           </span>
         </div>
-      )}
-      {canUseInHandIcon && (
-        <button
-          ref={inHandIconRef}
-          type="button"
-          aria-label="Hold and drag to place the cue ball"
-          title="Hold and drag to place the cue ball"
-          onPointerDown={handleInHandIconPointerDown}
-          onPointerMove={handleInHandIconPointerMove}
-          onPointerUp={handleInHandIconPointerUp}
-          onPointerCancel={handleInHandIconPointerUp}
-          className="fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition"
-          style={{ opacity: 0, pointerEvents: 'none', transform: 'translate(-9999px, -9999px)' }}
-        >
-          <span aria-hidden="true">✋️</span>
-        </button>
       )}
       {/* Power Slider */}
       {showPowerSlider && !replayActive && (
