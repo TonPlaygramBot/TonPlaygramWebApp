@@ -14,7 +14,7 @@ public static class PhysicsConstants
     public const double Gravity = 9.81;                // m/s^2
     public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)
     public const double SpinDecay = 2.0;               // per-second decay for on-table spin
-    public const double AirSpinDecay = 3.0;            // per-second decay while airborne
+    public const double AirSpinDecay = 0.6;            // per-second decay while airborne
     public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
     public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
     public const double JumpRestitution = 0.1;         // vertical energy retained on landing
@@ -40,12 +40,6 @@ public static class PhysicsConstants
     public const double MinCollisionTime = 1e-4;       // guard to prevent zero-time loops
     public const double ContactOffset = 1e-5;          // small push to keep balls off geometry
     public const int MaxSubSteps = 64;                 // hard cap per integration step
-    public const double CushionFriction = 0.18;        // base tangential damping at cushion contact
-    public const double CushionLowSpeedFriction = 0.7; // extra damping when sliding slowly
-    public const double CushionLowSpeed = 0.35;        // m/s below which cushion grip increases
-    public const double CushionSpinDamping = 0.25;     // spin lost on cushion contact
-    public const double CushionLowSpeedSpinDamping = 0.45; // extra spin loss for slow hits
-    public const double CushionForwardSpinDamping = 0.6;   // forward spin fraction vs side spin
 
     // Pocket geometry derived from WPA spec (metres)
     public const double CornerPocketMouth = 0.1014984; // scaled with table reduction
