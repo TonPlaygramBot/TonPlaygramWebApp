@@ -5328,6 +5328,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
+const MAX_POWER_TOPSPIN_DAMPEN_START = 0.8;
+const MAX_POWER_TOPSPIN_DAMPEN_END = 1;
+const MAX_POWER_TOPSPIN_DAMPEN_SCALE = 0.7;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0;
@@ -5335,6 +5338,22 @@ const SPIN_VIEW_BLOCK_THRESHOLD = 0;
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
+};
+
+const resolveTopspinPowerDampen = (power) => {
+  if (!Number.isFinite(power)) return 1;
+  const range = Math.max(
+    MAX_POWER_TOPSPIN_DAMPEN_END - MAX_POWER_TOPSPIN_DAMPEN_START,
+    1e-4
+  );
+  const t = THREE.MathUtils.clamp(
+    (power - MAX_POWER_TOPSPIN_DAMPEN_START) / range,
+    0,
+    1
+  );
+  if (t <= 0) return 1;
+  const eased = t * t * (3 - 2 * t);
+  return THREE.MathUtils.lerp(1, MAX_POWER_TOPSPIN_DAMPEN_SCALE, eased);
 };
 
 const prepareSpinAxes = (aimDir) => {
@@ -22193,10 +22212,12 @@ const powerRef = useRef(hud.power);
           const baseSide = scaledSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          const topspinDampen =
+            scaledSpin.y > 0 ? resolveTopspinPowerDampen(clampedPower) : 1;
           if (scaledSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (scaledSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
+            spinTop *= TOPSPIN_MULTIPLIER * topspinDampen;
           }
           cue.vel.copy(base);
           if (cue.spin) {
