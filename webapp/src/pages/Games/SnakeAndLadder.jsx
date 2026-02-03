@@ -343,21 +343,6 @@ const FALLBACK_SEAT_POSITIONS = [
 
 const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
 
-const mapDiceTotalToValues = (total, count) => {
-  const safeCount = Math.max(1, Number.isFinite(count) ? count : 1);
-  const minTotal = safeCount;
-  const maxTotal = safeCount * 6;
-  const sanitizedTotal = clampValue(Math.round(total || minTotal), minTotal, maxTotal);
-  const values = Array(safeCount).fill(1);
-  let remaining = sanitizedTotal - safeCount;
-  for (let i = 0; i < safeCount && remaining > 0; i += 1) {
-    const add = Math.min(5, remaining);
-    values[i] += add;
-    remaining -= add;
-  }
-  return values;
-};
-
 function parseHexColor(hex) {
   if (typeof hex !== 'string') return null;
   const trimmed = hex.trim();
@@ -1434,7 +1419,6 @@ export default function SnakeAndLadder() {
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
   const diceRollIdRef = useRef(0);
-  const diceRollStartRef = useRef({ id: null, seatIndex: null });
   const [diceBoardEvent, setDiceBoardEvent] = useState(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [diceAnchor, setDiceAnchor] = useState(null);
@@ -1501,37 +1485,6 @@ export default function SnakeAndLadder() {
   const startDiceBoardAnimation = useCallback((phase) => {
     setDiceBoardEvent(phase);
   }, []);
-
-  const finalizeDiceBoardRoll = useCallback(
-    ({ total, values, seatIndex, count }) => {
-      const resolvedCount = Math.max(1, count ?? diceCount + bonusDice);
-      const resolvedValues = Array.isArray(values) && values.length
-        ? values
-        : mapDiceTotalToValues(total, resolvedCount);
-      let rollId = diceRollIdRef.current;
-      const started =
-        diceRollStartRef.current.id === rollId &&
-        diceRollStartRef.current.seatIndex === seatIndex;
-      if (!started) {
-        rollId += 1;
-        diceRollIdRef.current = rollId;
-        startDiceBoardAnimation({
-          id: rollId,
-          phase: 'start',
-          count: resolvedCount,
-          seatIndex
-        });
-      }
-      startDiceBoardAnimation({
-        id: rollId,
-        phase: 'end',
-        values: resolvedValues,
-        seatIndex
-      });
-      diceRollStartRef.current = { id: rollId, seatIndex };
-    },
-    [bonusDice, diceCount, startDiceBoardAnimation]
-  );
 
 
   // Preload token and avatar images so board icons and AI photos display
@@ -2221,29 +2174,9 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = ({ value, values, seatIndex, playerId }) => {
-      const total = Array.isArray(values)
-        ? values.reduce((sum, val) => sum + Number(val || 0), 0)
-        : Number(value ?? 0);
-      setRollResult(total);
+    const onRolled = ({ value }) => {
+      setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
-      if (!isMultiplayer) return;
-      const resolvedSeatIndex = Number.isInteger(seatIndex)
-        ? seatIndex
-        : Number.isInteger(playerId)
-        ? playerId
-        : currentTurn;
-      const count = diceCount + bonusDice;
-      finalizeDiceBoardRoll({
-        total,
-        values,
-        seatIndex: resolvedSeatIndex,
-        count
-      });
-      const playerLabel = getPlayerName(resolvedSeatIndex);
-      if (playerLabel) {
-        enqueueSnakeCommentaryEvent('roll', { player: playerLabel, roll: total });
-      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
