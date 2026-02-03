@@ -1270,7 +1270,7 @@ const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 6.0,
+  airSpinDecay: 1.0,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
@@ -1528,7 +1528,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.66; // match Snooker Royal spin strength for identical roll response
+const SPIN_GLOBAL_SCALE = 0.35; // reduce overall spin impact by 65%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1552,13 +1552,11 @@ const AIR_SPIN_ROLL_SCALE = 0; // disable forward/back spin acceleration while a
 const AIR_SPIN_SWERVE_SCALE = 0; // disable Magnus-style drift for airborne side spin
 const BALL_SPIN_THROW_SCALE = BALL_R * 0.34; // small tangential throw from ball-to-ball spin contact
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Snooker Royal power pass: lift overall shot strength by another 25%.
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while matching Snooker Royal pacing.
+// Increase overall Pool Royale power by 33% on top of the Snooker Royal baseline.
 const SHOT_POWER_REDUCTION = 0.425;
+const SHOT_POWER_BOOST = 1.995;
 const SHOT_POWER_MULTIPLIER = 2.109375;
-const SHOT_POWER_INCREASE = 1.5;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1568,7 +1566,7 @@ const SHOT_FORCE_BOOST =
   0.85 *
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_INCREASE;
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
