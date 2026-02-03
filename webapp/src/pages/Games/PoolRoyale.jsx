@@ -13056,10 +13056,13 @@ const powerRef = useRef(hud.power);
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
     }
-    const placing = Boolean(
-      hud.inHand && playerTurn && !cueBallPlacedFromHandRef.current
-    );
-    setInHandPlacementMode(placing);
+    if (!hud.inHand || !playerTurn) {
+      setInHandPlacementMode(false);
+      return;
+    }
+    if (enteringInHand || cueBallPlacedFromHandRef.current) {
+      setInHandPlacementMode(false);
+    }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
@@ -19703,7 +19706,9 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_GALLERY && attemptCueGalleryPress(e)) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          const inHandPlacementActive =
+            Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
+          if (currentHud?.turn === 1 || inHandPlacementActive || shooting) return;
           if (e.touches?.length === 2) return;
           if (attemptCueLiftPress(e)) return;
           if (topViewRef.current && !topViewLockedRef.current)
@@ -19862,12 +19867,7 @@ const powerRef = useRef(hud.power);
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
-          if (
-            !moved &&
-            !topViewRef.current &&
-            !(hudRef.current?.inHand ?? false) &&
-            !shooting
-          ) {
+          if (!moved && !topViewRef.current && !shooting) {
             if (e?.button !== undefined && e.button !== 0) return;
             pickOrbitFocus(e);
           }
@@ -19884,7 +19884,9 @@ const powerRef = useRef(hud.power);
             return;
           }
           const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          const inHandPlacementActive =
+            Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
+          if (currentHud?.turn === 1 || inHandPlacementActive || shooting) return;
           const baseStep = e.shiftKey ? 0.08 : 0.035;
           const slowScale =
             chalkAssistEnabledRef.current && chalkAssistTargetRef.current
@@ -21819,8 +21821,6 @@ const powerRef = useRef(hud.power);
           return true;
         }
       };
-      dom.addEventListener('pointerdown', handleInHandDown);
-      dom.addEventListener('pointermove', handleInHandMove);
       window.addEventListener('pointerup', endInHandDrag);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
@@ -27051,8 +27051,6 @@ const powerRef = useRef(hud.power);
         dom.removeEventListener('touchmove', move);
         window.removeEventListener('touchend', up);
         window.removeEventListener('keydown', keyRot);
-        dom.removeEventListener('pointerdown', handleInHandDown);
-        dom.removeEventListener('pointermove', handleInHandMove);
         window.removeEventListener('pointerup', endInHandDrag);
         dom.removeEventListener('pointercancel', endInHandDrag);
         window.removeEventListener('pointercancel', endInHandDrag);
@@ -29092,19 +29090,6 @@ const powerRef = useRef(hud.power);
             <span className="text-red-200">Init issue:</span>
             <span className="text-white/90">{String(err)}</span>
           </div>
-        </div>
-      )}
-      {hud?.inHand && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
-          <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
-            <span className="text-left leading-tight">
-              Place the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle behind the white line'}
-            </span>
-          </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Tap to place · drag to fine-tune · release to lock
-          </span>
         </div>
       )}
       {canUseInHandIcon && (
