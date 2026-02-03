@@ -140,6 +140,12 @@ export default function ProjectAchievementsCard() {
         'Completed: NFT marketplace listings, browsing, and purchases with ownership updates. Listings show price, owner, and availability with clear ownership changes. Next: seller analytics, floor price view, and listing history.',
     },
     {
+      label: '🖼️ Store catalog photo set finalized',
+      progress: 100,
+      info:
+        'Completed: finished the remaining product catalog photo set with consistent thumbnail sizing, unified metadata, and high-res zoom previews that match lighting setups. Next: seasonal drops and limited-run studio captures.',
+    },
+    {
       label: '🏆 Game tournaments live',
       progress: 100,
       info:
@@ -181,14 +187,14 @@ export default function ProjectAchievementsCard() {
     },
     {
       title: 'Store Item Photos',
-      description: 'Upload all necessary photos for the store items.',
-      progress: 55,
+      description: 'Finalize the full store catalog photo set and keep image metadata aligned.',
+      progress: 100,
       info:
-        'Done: capture pipeline, size requirements, and initial batches uploaded. Items already have baseline thumbnails and metadata. Next: finish remaining catalog, validate thumbnails, and add high-res zoom previews with consistent lighting.',
+        'Completed: full catalog photos uploaded with validated thumbnail sizing and metadata consistency. High-res zoom previews now use matched lighting for accurate material checks.',
       nextActions: [
-        'Finish the remaining product catalog photo set.',
-        'Validate thumbnail sizing and metadata consistency.',
-        'Add high-res zoom previews with matched lighting.',
+        'Schedule seasonal photo refreshes for new drops.',
+        'Capture limited-edition highlight reels.',
+        'Maintain lighting parity across future releases.',
       ],
     },
     {
