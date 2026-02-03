@@ -1055,6 +1055,42 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
       [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary tuned for eSpeak voices',
+    language: 'sq-AL',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_LEAD]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Arben',
+        'Besnik',
+        'Luan'
+      ],
+      [COMMENTARY_SPEAKER_ANALYST]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'female',
+        'Elira',
+        'Arta',
+        'Besa'
+      ]
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = SNOOKER_ROYAL_COMMENTARY_PRESETS[0]?.id || 'english';
