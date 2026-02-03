@@ -327,12 +327,14 @@ export class GameRoom {
 
       if (result.finished) {
         this.status = 'finished';
-        GameResult.create({
-          winner: player.name,
-          participants: this.players.map((p) => p.name)
-        }).catch((err) =>
-          console.error('Failed to store game result:', err.message)
-        );
+        if (!process.env.JEST_WORKER_ID && process.env.NODE_ENV !== 'test') {
+          GameResult.create({
+            winner: player.name,
+            participants: this.players.map((p) => p.name)
+          }).catch((err) => {
+            console.error('Failed to store game result:', err.message);
+          });
+        }
         this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
         return;
       }

@@ -255,6 +255,42 @@ const SNAKE_COMMENTARY_PRESETS = Object.freeze([
       [SNAKE_LADDER_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary tuned for eSpeak voices',
+    language: 'sq-AL',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Arben',
+        'Besnik',
+        'Luan'
+      ],
+      [SNAKE_LADDER_SPEAKERS.analyst]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'female',
+        'Elira',
+        'Arta',
+        'Besa'
+      ]
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = SNAKE_COMMENTARY_PRESETS[0]?.id || 'english';

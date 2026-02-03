@@ -500,6 +500,42 @@ const LUDO_BATTLE_COMMENTARY_PRESETS = Object.freeze([
       [LUDO_BATTLE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary tuned for eSpeak voices',
+    language: 'sq-AL',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Arben',
+        'Besnik',
+        'Luan'
+      ],
+      [LUDO_BATTLE_SPEAKERS.analyst]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'female',
+        'Elira',
+        'Arta',
+        'Besa'
+      ]
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';

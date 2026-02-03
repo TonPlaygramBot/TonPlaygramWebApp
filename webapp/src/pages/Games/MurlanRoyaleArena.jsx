@@ -949,6 +949,81 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.95, pitch: 0.94, volume: 1 }
     }
   },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary tuned for eSpeak voices',
+    language: 'sq-AL',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Arben',
+        'Besnik',
+        'Luan'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'female',
+        'Elira',
+        'Arta',
+        'Besa'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Gent',
+        'Blerim',
+        'Erion'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'female',
+        'Sara',
+        'Flora',
+        'Jona'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.veteran]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Ilir',
+        'Dritan',
+        'Agim'
+      ]
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.08, pitch: 1.1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.99, pitch: 1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.96, pitch: 0.94, volume: 1 }
+    }
+  },
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = MURLAN_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({

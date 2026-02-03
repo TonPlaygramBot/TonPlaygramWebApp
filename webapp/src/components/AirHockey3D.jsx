@@ -176,6 +176,42 @@ const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
       [AIR_HOCKEY_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary tuned for eSpeak voices',
+    language: 'sq-AL',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'male',
+        'Arben',
+        'Besnik',
+        'Luan'
+      ],
+      [AIR_HOCKEY_SPEAKERS.analyst]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'eSpeak',
+        'eSpeak NG',
+        'espeak',
+        'female',
+        'Elira',
+        'Arta',
+        'Besa'
+      ]
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'english';
