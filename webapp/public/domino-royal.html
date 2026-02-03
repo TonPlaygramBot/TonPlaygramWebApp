@@ -769,15 +769,21 @@ const COMMENTARY_LINES = {
   ]
 };
 
-const speechSynth = (() => {
+let speechSynth = null;
+let speechSynthResolved = false;
+let commentarySpeechInitialized = false;
+function getSpeechSynth() {
+  if (speechSynthResolved) return speechSynth;
+  speechSynthResolved = true;
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   try {
-    return window.speechSynthesis;
+    speechSynth = window.speechSynthesis;
   } catch (error) {
     console.warn('Speech synthesis unavailable', error);
-    return null;
+    speechSynth = null;
   }
-})();
+  return speechSynth;
+}
 const speechUtteranceCtor =
   typeof SpeechSynthesisUtterance === 'function' ? SpeechSynthesisUtterance : null;
 let commentaryVoices = [];
@@ -792,9 +798,6 @@ let lastAnnouncedTurn = null;
 let commentaryVoiceCycleIndex = 0;
 let commentaryUnlocked = false;
 let commentaryVoicesRetryTimer = null;
-let commentaryVoiceAttempts = 0;
-let commentaryDisabled = false;
-const COMMENTARY_MAX_VOICE_ATTEMPTS = 6;
 const lastCommentaryLineByKind = new Map();
 const COMMENTARY_VOICE_BY_KIND = {
   greeting: 'color',
@@ -833,26 +836,14 @@ function persistCommentaryPrefs() {
 }
 
 function refreshCommentaryVoices() {
-  if (!speechSynth || commentaryDisabled) return;
+  const synth = getSpeechSynth();
+  if (!synth) return;
   try {
-    commentaryVoices = speechSynth.getVoices() || [];
-    if (commentaryVoices.length) {
-      commentaryReady = true;
-      commentaryVoiceAttempts = 0;
-    } else {
-      commentaryReady = false;
-      commentaryVoiceAttempts += 1;
-      if (commentaryVoiceAttempts >= COMMENTARY_MAX_VOICE_ATTEMPTS) {
-        disableCommentary('No speech synthesis voices available.');
-      }
-    }
+    commentaryVoices = synth.getVoices() || [];
+    commentaryReady = true;
   } catch (error) {
     commentaryVoices = [];
     commentaryReady = false;
-    commentaryVoiceAttempts += 1;
-    if (commentaryVoiceAttempts >= COMMENTARY_MAX_VOICE_ATTEMPTS) {
-      disableCommentary('Speech synthesis failed to load voices.');
-    }
     console.warn('Failed to refresh commentary voices', error);
   }
 }
@@ -907,18 +898,10 @@ function getVoiceProfileForKind(kind) {
 function clearCommentaryQueue() {
   commentaryQueue = [];
   commentarySpeaking = false;
-  if (speechSynth) {
-    speechSynth.cancel();
+  const synth = getSpeechSynth();
+  if (synth) {
+    synth.cancel();
   }
-}
-
-function disableCommentary(reason) {
-  if (commentaryDisabled) return;
-  commentaryDisabled = true;
-  commentaryMuted = true;
-  clearCommentaryQueue();
-  persistCommentaryPrefs();
-  console.warn('Commentary disabled', reason);
 }
 
 function setCommentaryMuted(next) {
@@ -988,16 +971,18 @@ function buildCommentaryLine(kind, context = {}) {
 }
 
 function ensureSpeechUnlocked() {
-  if (!speechSynth) return;
+  const synth = getSpeechSynth();
+  if (!synth) return;
   try {
-    speechSynth.resume();
+    synth.resume();
   } catch (error) {
     console.warn('Failed to resume speech synthesis', error);
   }
 }
 
 function scheduleCommentaryVoicesRetry() {
-  if (!speechSynth || commentaryVoicesRetryTimer || commentaryDisabled) return;
+  const synth = getSpeechSynth();
+  if (!synth || commentaryVoicesRetryTimer) return;
   commentaryVoicesRetryTimer = window.setTimeout(() => {
     commentaryVoicesRetryTimer = null;
     refreshCommentaryVoices();
@@ -1008,13 +993,13 @@ function scheduleCommentaryVoicesRetry() {
 }
 
 function speakCommentary(text, { interrupt = false, priority = false, kind = '' } = {}) {
-  if (!speechSynth || !speechUtteranceCtor || commentaryMuted || commentaryDisabled || !text) return;
+  const synth = getSpeechSynth();
+  if (!synth || !speechUtteranceCtor || commentaryMuted || !text) return;
   if (!commentaryReady) {
     refreshCommentaryVoices();
   }
   if (!commentaryVoices.length) {
     scheduleCommentaryVoicesRetry();
-    return;
   }
   if (!commentaryUnlocked) {
     if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
@@ -1051,9 +1036,9 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
     }
   };
   commentaryLastEventAt = now;
-  if (speechSynth.speaking || commentarySpeaking) {
+  if (synth.speaking || commentarySpeaking) {
     if (interrupt) {
-      speechSynth.cancel();
+      synth.cancel();
     } else {
       commentaryQueue.push({ text, options: { interrupt, priority, kind } });
       return;
@@ -1061,32 +1046,37 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
   }
   commentarySpeaking = true;
   try {
-    speechSynth.speak(utterance);
+    synth.speak(utterance);
   } catch (error) {
     commentarySpeaking = false;
-    disableCommentary(error?.message || 'Speech synthesis crashed.');
     console.warn('Commentary failed to speak', error);
   }
 }
 
 function announceCommentary(kind, context = {}, options = {}) {
-  if (commentaryMuted || commentaryDisabled || !speechSynth || !speechUtteranceCtor) return;
+  const synth = getSpeechSynth();
+  if (commentaryMuted || !synth || !speechUtteranceCtor) return;
   const line = buildCommentaryLine(kind, context);
   if (!line) return;
   speakCommentary(line, { ...options, kind });
 }
 
-if (speechSynth) {
-  readCommentaryPrefs();
+function initCommentarySpeech() {
+  if (commentarySpeechInitialized) return getSpeechSynth();
+  const synth = getSpeechSynth();
+  if (!synth || !speechUtteranceCtor) return null;
+  commentarySpeechInitialized = true;
   refreshCommentaryVoices();
-  speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
+  synth.onvoiceschanged = () => refreshCommentaryVoices();
   scheduleCommentaryVoicesRetry();
-} else {
-  readCommentaryPrefs();
+  return synth;
 }
+
+readCommentaryPrefs();
 
 function unlockInteractiveAudio() {
   ensureAudioContext();
+  initCommentarySpeech();
   ensureSpeechUnlocked();
   if (!commentaryUnlocked) {
     commentaryUnlocked = true;
@@ -5145,7 +5135,7 @@ function refreshConfigUI() {
   commentaryWrapper.appendChild(commentaryLabel);
   const commentaryGrid = document.createElement('div');
   commentaryGrid.className = 'config-options';
-  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor && !commentaryDisabled);
+  const commentarySupported = Boolean(getSpeechSynth() && speechUtteranceCtor);
   COMMENTARY_PRESETS.forEach((preset) => {
     const presetButton = document.createElement('button');
     presetButton.type = 'button';
@@ -5417,10 +5407,8 @@ function disposeChairResources(root) {
   });
 }
 
-const CHAIR_MODEL_TIMEOUT_MS = 2500;
-
 function placeChairsWithOption(option, chairData, token) {
-  if (token !== chairBuildToken || !chairData) return;
+  if (token !== chairBuildToken) return;
 
   disposeSeatLabel({ persistPreference: false });
   disposeSeatAvatars();
@@ -5431,6 +5419,8 @@ function placeChairsWithOption(option, chairData, token) {
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
+
+  if (!chairData) return;
 
   const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
   const seatBottomOffset = -chairTemplateBounds.min.y;
@@ -5467,25 +5457,13 @@ function placeChairsWithOption(option, chairData, token) {
 
 async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
   const token = ++chairBuildToken;
-  const chairDataPromise = ensureChairTemplateForTheme(option).catch((error) => {
-    console.warn("Failed to load chair GLTF for Domino", error);
-    return null;
-  });
-
-  const chairData = await Promise.race([
-    chairDataPromise,
-    new Promise((resolve) => setTimeout(() => resolve(null), CHAIR_MODEL_TIMEOUT_MS))
-  ]);
-
-  if (chairData) {
-    placeChairsWithOption(option, chairData, token);
-    return;
+  let chairData = null;
+  try {
+    chairData = await ensureChairTemplateForTheme(option);
+  } catch (error) {
+    console.warn("Failed to load Domino chair glTF", error);
   }
-
-  chairDataPromise.then((resolved) => {
-    if (!resolved || token !== chairBuildToken) return;
-    placeChairsWithOption(option, resolved, token);
-  });
+  placeChairsWithOption(option, chairData, token);
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
