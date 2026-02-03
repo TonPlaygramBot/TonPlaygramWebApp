@@ -2635,16 +2635,11 @@ const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
   }
 ]);
 
-const DOMINO_STYLE_THUMB_BASE = window?.DOMINO_STYLE_THUMB_BASE || '';
-const buildDominoStyleThumb = (name) =>
-  DOMINO_STYLE_THUMB_BASE ? `${DOMINO_STYLE_THUMB_BASE.replace(/\\/$/, '')}/${name}` : '';
-
 const DOMINO_STYLE_OPTIONS = Object.freeze([
   {
     id: 'imperialIvory',
     label: 'Imperial Ivory',
     preview: ['#f7f1e4', '#d8af37'],
-    thumbnail: buildDominoStyleThumb('domino-style-imperial-ivory.png'),
     body: {
       color: '#f7f1e4',
       roughness: 0.16,
@@ -2680,7 +2675,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     id: 'obsidianPlatinum',
     label: 'Obsidian Platinum',
     preview: ['#090909', '#c5ccd9'],
-    thumbnail: buildDominoStyleThumb('domino-style-obsidian-platinum.png'),
     body: {
       color: '#0b0c10',
       roughness: 0.24,
@@ -2716,7 +2710,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     id: 'midnightRose',
     label: 'Midnight Rose',
     preview: ['#0d1533', '#c27c6a'],
-    thumbnail: buildDominoStyleThumb('domino-style-midnight-rose.png'),
     body: {
       color: '#101b38',
       roughness: 0.2,
@@ -2752,7 +2745,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     id: 'auroraJade',
     label: 'Aurora Jade',
     preview: ['#0e3b2c', '#d0b58f'],
-    thumbnail: buildDominoStyleThumb('domino-style-aurora-jade.png'),
     body: {
       color: '#0e3b2c',
       roughness: 0.22,
@@ -2788,7 +2780,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     id: 'frostedOpal',
     label: 'Frosted Opal',
     preview: ['#e8eef4', '#7a93d2'],
-    thumbnail: buildDominoStyleThumb('domino-style-frosted-opal.png'),
     body: {
       color: '#e8eef4',
       roughness: 0.18,
@@ -2824,7 +2815,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     id: 'carbonVolt',
     label: 'Carbon Volt',
     preview: ['#0b1020', '#22d3ee'],
-    thumbnail: buildDominoStyleThumb('domino-style-carbon-volt.png'),
     body: {
       color: '#0c1428',
       roughness: 0.28,
@@ -2860,7 +2850,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     id: 'sandstoneAurora',
     label: 'Sandstone Aurora',
     preview: ['#f1d8b0', '#f97316'],
-    thumbnail: buildDominoStyleThumb('domino-style-sandstone-aurora.png'),
     body: {
       color: '#f1d8b0',
       roughness: 0.34,
@@ -5056,15 +5045,13 @@ function createOptionPreview(key, option) {
     case 'dominoStyle':
       swatch.style.position = 'relative';
       swatch.style.overflow = 'hidden';
-      if (option?.thumbnail) {
-        swatch.style.backgroundImage = `url('${option.thumbnail}')`;
-        swatch.style.backgroundSize = 'cover';
-        swatch.style.backgroundPosition = 'center';
-      } else {
+      {
         const [topColor, bottomColor] = Array.isArray(option.preview) && option.preview.length >= 2
           ? option.preview
           : ['#1f2937', '#0f172a'];
         swatch.style.background = `linear-gradient(135deg, ${topColor}, ${bottomColor})`;
+      }
+      {
         const pip = document.createElement('div');
         pip.style.position = 'absolute';
         pip.style.width = '0.58rem';
@@ -5077,6 +5064,8 @@ function createOptionPreview(key, option) {
         pip.style.opacity = '0.95';
         pip.style.pointerEvents = 'none';
         swatch.appendChild(pip);
+      }
+      {
         const inset = document.createElement('div');
         inset.style.position = 'absolute';
         inset.style.inset = 'auto 0.4rem 0.3rem 0.4rem';
