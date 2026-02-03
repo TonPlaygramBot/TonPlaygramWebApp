@@ -5328,15 +5328,19 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_POWER_SOFT_CAP = 0.9;
+const TOPSPIN_POWER_SOFT_CAP = 0.8;
+const TOPSPIN_POWER_MAX_SCALE = 0.7;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0;
 
 const resolveTopspinPowerScale = (power) => {
-  if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
-  const cappedPower = Math.min(power, TOPSPIN_POWER_SOFT_CAP);
-  return 0.55 + cappedPower * 0.45;
+  if (!Number.isFinite(power)) return 1;
+  if (power <= TOPSPIN_POWER_SOFT_CAP) return 1;
+  const t =
+    (power - TOPSPIN_POWER_SOFT_CAP) /
+    Math.max(1 - TOPSPIN_POWER_SOFT_CAP, 1e-6);
+  return THREE.MathUtils.lerp(1, TOPSPIN_POWER_MAX_SCALE, t);
 };
 
 const normalizeCueLift = (liftAngle = 0) => {
@@ -12742,14 +12746,7 @@ function PoolRoyaleGame({
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const inHandIconRef = useRef(null);
-  const inHandDragRef = useRef({
-    active: false,
-    pointerId: null,
-    lastPos: null,
-    deferred: false,
-    source: null
-  });
-  const inHandIconDragActiveRef = useRef(false);
+  const inHandDragRef = useRef({ active: false, pointerId: null, lastPos: null });
   const inHandPlacementApiRef = useRef({ begin: null, move: null, end: null });
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
@@ -14637,18 +14634,21 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (replayActive) return;
     const controls = topViewControlsRef.current;
-    if (hud.inHand) {
-      if (controls?.exit && (inHandTopViewRef.current || topViewRef.current)) {
-        controls.exit(true);
-      }
-      inHandTopViewRef.current = false;
+    const meta = frameState?.meta;
+    const variant = meta?.variant ?? activeVariantRef.current?.id ?? null;
+    const allowFullTable =
+      variant === 'uk' ||
+      ((variant === 'american' || variant === '9ball') && !meta?.breakInProgress);
+    if (hud.inHand && allowFullTable && controls?.enter) {
+      controls.enter(true, { variant: 'top' });
+      inHandTopViewRef.current = true;
       return;
     }
     if (!hud.inHand && inHandTopViewRef.current && controls?.exit) {
       controls.exit(true);
       inHandTopViewRef.current = false;
     }
-  }, [hud.inHand, replayActive]);
+  }, [frameState, hud.inHand, replayActive]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -21593,8 +21593,6 @@ const powerRef = useRef(hud.power);
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
-        inHandDrag.deferred = false;
-        inHandDrag.source = 'table';
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -21630,8 +21628,6 @@ const powerRef = useRef(hud.power);
           } catch {}
         }
         inHandDrag.active = false;
-        inHandDrag.deferred = false;
-        inHandDrag.source = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -21641,22 +21637,16 @@ const powerRef = useRef(hud.power);
         e.preventDefault?.();
       };
       inHandPlacementApiRef.current = {
-        begin: (e, options = {}) => {
+        begin: (e) => {
           const currentHud = hudRef.current;
           if (!(currentHud?.inHand)) return false;
           if (!inHandPlacementModeRef.current) return false;
           if (shooting) return false;
           const p = project(e);
           if (!p) return false;
-          const deferredPlacement = Boolean(options?.deferPlacement);
-          if (!deferredPlacement && !tryUpdatePlacement(p, false)) return false;
+          if (!tryUpdatePlacement(p, false)) return false;
           inHandDrag.active = true;
           inHandDrag.pointerId = e.pointerId ?? 'icon';
-          inHandDrag.deferred = deferredPlacement;
-          inHandDrag.source = 'icon';
-          if (deferredPlacement) {
-            inHandDrag.lastPos = p;
-          }
           return true;
         },
         move: (e) => {
@@ -21669,14 +21659,7 @@ const powerRef = useRef(hud.power);
             return false;
           }
           const p = project(e);
-          if (p) {
-            if (inHandDrag.deferred) {
-              inHandDrag.lastPos = p;
-              tryUpdatePlacement(p, false);
-            } else {
-              tryUpdatePlacement(p, false);
-            }
-          }
+          if (p) tryUpdatePlacement(p, false);
           return true;
         },
         end: (e) => {
@@ -21689,8 +21672,6 @@ const powerRef = useRef(hud.power);
             return false;
           }
           inHandDrag.active = false;
-          inHandDrag.deferred = false;
-          inHandDrag.source = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
@@ -22020,15 +22001,10 @@ const powerRef = useRef(hud.power);
             placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
         }
-        const appliedSpinSnapshot = spinAppliedRef.current || { x: 0, y: 0 };
         shotContextRef.current = {
           placedFromHand,
           contactMade: false,
-          cushionAfterContact: false,
-          spin: {
-            x: appliedSpinSnapshot.x ?? 0,
-            y: appliedSpinSnapshot.y ?? 0
-          }
+          cushionAfterContact: false
         };
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
@@ -22232,11 +22208,7 @@ const powerRef = useRef(hud.power);
           if (scaledSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (scaledSpin.y > 0) {
-            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
-            spinTop *= TOPSPIN_MULTIPLIER;
-            if (Math.abs(baseSide) > 1e-6) {
-              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
-            }
+            spinTop *= TOPSPIN_MULTIPLIER * topspinPowerScale;
           }
           cue.vel.copy(base);
           if (cue.spin) {
@@ -24640,8 +24612,7 @@ const powerRef = useRef(hud.power);
         shotContextRef.current = {
           placedFromHand: false,
           contactMade: false,
-          cushionAfterContact: false,
-          spin: { x: 0, y: 0 }
+          cushionAfterContact: false
         };
         let nextInHand = cueBallPotted;
         try {
@@ -26057,32 +26028,27 @@ const powerRef = useRef(hud.power);
                   lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
                   !maxPowerLiftTriggered
                 ) {
-                  const topspinActive = (shotContextRef.current?.spin?.y ?? 0) > 1e-4;
-                  if (topspinActive) {
-                    maxPowerLiftTriggered = true;
-                  } else {
-                    const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
-                    const liftBoost = 1.2;
-                    maxPowerLiftTriggered = true;
-                    const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
-                    playCueHit(liftSoundVol);
-                    const liftCeiling = Math.min(
-                      MAX_POWER_LIFT_HEIGHT * liftBoost,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.9
-                    );
-                    cueBall.lift = Math.max(
-                      cueBall.lift ?? 0,
-                      liftCeiling
-                    );
-                    const launchCeiling = Math.min(
-                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.95
-                    );
-                    cueBall.liftVel = Math.max(
-                      cueBall.liftVel ?? 0,
-                      launchCeiling
-                    );
-                  }
+                  const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
+                  const liftBoost = 1.2;
+                  maxPowerLiftTriggered = true;
+                  const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
+                  playCueHit(liftSoundVol);
+                  const liftCeiling = Math.min(
+                    MAX_POWER_LIFT_HEIGHT * liftBoost,
+                    MAX_POWER_BOUNCE_IMPULSE * 0.9
+                  );
+                  cueBall.lift = Math.max(
+                    cueBall.lift ?? 0,
+                    liftCeiling
+                  );
+                  const launchCeiling = Math.min(
+                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost,
+                    MAX_POWER_BOUNCE_IMPULSE * 0.95
+                  );
+                  cueBall.liftVel = Math.max(
+                    cueBall.liftVel ?? 0,
+                    launchCeiling
+                  );
                 }
                 if (
                   hitBallId &&
@@ -27132,6 +27098,22 @@ const powerRef = useRef(hud.power);
     setInHandPlacementMode(true);
   }, [canRepositionCueBall]);
   const canUseInHandIcon = showPlayerControls && hud.inHand;
+  const handleInHandIconPointerDown = useCallback(
+    (event) => {
+      if (!canUseInHandIcon || shootingRef.current) return;
+      cueBallPlacedFromHandRef.current = false;
+      inHandPlacementModeRef.current = true;
+      setInHandPlacementMode(true);
+      inHandPlacementApiRef.current?.begin?.(event);
+      if (event.pointerId != null) {
+        try {
+          event.currentTarget?.setPointerCapture?.(event.pointerId);
+        } catch {}
+      }
+      event.preventDefault?.();
+    },
+    [canUseInHandIcon]
+  );
   const handleInHandIconPointerMove = useCallback((event) => {
     inHandPlacementApiRef.current?.move?.(event);
     event.preventDefault?.();
@@ -27143,34 +27125,8 @@ const powerRef = useRef(hud.power);
         event.currentTarget?.releasePointerCapture?.(event.pointerId);
       } catch {}
     }
-    if (inHandIconDragActiveRef.current) {
-      inHandIconDragActiveRef.current = false;
-      window.removeEventListener('pointermove', handleInHandIconPointerMove);
-      window.removeEventListener('pointerup', handleInHandIconPointerUp);
-      window.removeEventListener('pointercancel', handleInHandIconPointerUp);
-    }
     event.preventDefault?.();
   }, []);
-  const handleInHandIconPointerDown = useCallback(
-    (event) => {
-      if (!canUseInHandIcon || shootingRef.current) return;
-      cueBallPlacedFromHandRef.current = false;
-      inHandPlacementModeRef.current = true;
-      setInHandPlacementMode(true);
-      inHandPlacementApiRef.current?.begin?.(event, { deferPlacement: true });
-      if (event.pointerId != null) {
-        try {
-          event.currentTarget?.setPointerCapture?.(event.pointerId);
-        } catch {}
-      }
-      inHandIconDragActiveRef.current = true;
-      window.addEventListener('pointermove', handleInHandIconPointerMove);
-      window.addEventListener('pointerup', handleInHandIconPointerUp);
-      window.addEventListener('pointercancel', handleInHandIconPointerUp);
-      event.preventDefault?.();
-    },
-    [canUseInHandIcon, handleInHandIconPointerMove, handleInHandIconPointerUp]
-  );
   const spinRingLabels = useMemo(
     () => {
       const radius = 72;
@@ -28992,59 +28948,15 @@ const powerRef = useRef(hud.power);
         <button
           ref={inHandIconRef}
           type="button"
-          aria-label="Hold and drag, release to place the cue ball"
-          title="Hold and drag, release to place the cue ball"
+          aria-label="Hold and drag to place the cue ball"
+          title="Hold and drag to place the cue ball"
           onPointerDown={handleInHandIconPointerDown}
           onPointerMove={handleInHandIconPointerMove}
           onPointerUp={handleInHandIconPointerUp}
           onPointerCancel={handleInHandIconPointerUp}
-          className="fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition relative"
+          className="fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition"
           style={{ opacity: 0, pointerEvents: 'none', transform: 'translate(-9999px, -9999px)' }}
         >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2"
-            style={{
-              width: 0,
-              height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderBottom: '8px solid rgba(255,255,255,0.85)'
-            }}
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -bottom-3 left-1/2 -translate-x-1/2"
-            style={{
-              width: 0,
-              height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderTop: '8px solid rgba(255,255,255,0.85)'
-            }}
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -left-3 top-1/2 -translate-y-1/2"
-            style={{
-              width: 0,
-              height: 0,
-              borderTop: '6px solid transparent',
-              borderBottom: '6px solid transparent',
-              borderRight: '8px solid rgba(255,255,255,0.85)'
-            }}
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-3 top-1/2 -translate-y-1/2"
-            style={{
-              width: 0,
-              height: 0,
-              borderTop: '6px solid transparent',
-              borderBottom: '6px solid transparent',
-              borderLeft: '8px solid rgba(255,255,255,0.85)'
-            }}
-          />
           <span aria-hidden="true">✋️</span>
         </button>
       )}
