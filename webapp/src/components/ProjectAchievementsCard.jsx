@@ -2,6 +2,17 @@ import gamesCatalog from '../config/gamesCatalog.js';
 import { getGameThumbnail } from '../config/gameAssets.js';
 
 export default function ProjectAchievementsCard() {
+  const InfoIcon = ({ info, label }) => (
+    <span
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/70 bg-surface/80 text-[10px] font-bold text-muted shadow-sm"
+      title={info}
+      aria-label={`Info about ${label}`}
+      role="img"
+    >
+      i
+    </span>
+  );
+
   const completionThreshold = 90;
   const calculateAverageProgress = (items) => {
     if (!items.length) {
@@ -15,34 +26,133 @@ export default function ProjectAchievementsCard() {
     return Math.round(totalProgress / items.length);
   };
   const deliveredAchievements = [
-    { label: '🧾 Wallet transaction history works', progress: 100 },
-    { label: '💬 In-chat TPC transfers enabled', progress: 100 },
-    { label: '🧑‍🤝‍🤝 Friends and inbox chat', progress: 100 },
-    { label: '🎰 Roulette spin live', progress: 100 },
+    {
+      label: '🧾 Wallet transaction history works',
+      progress: 100,
+      info:
+        'Users can view a complete, chronological ledger of wallet activity including deposits, withdrawals, rewards, and gameplay transfers with timestamps for auditability.',
+    },
+    {
+      label: '💬 In-chat TPC transfers enabled',
+      progress: 100,
+      info:
+        'TPC can be sent directly inside chats, allowing frictionless peer-to-peer transfers with confirmations and balance updates in real time.',
+    },
+    {
+      label: '🧑‍🤝‍🤝 Friends and inbox chat',
+      progress: 100,
+      info:
+        'Friend lists, direct messages, and notifications are active so players can connect, coordinate matches, and receive system updates.',
+    },
+    {
+      label: '🎰 Roulette spin live',
+      progress: 100,
+      info:
+        'The roulette minigame is deployed with live spin animations, prize resolution, and reward payout tracking.',
+    },
     {
       label:
         '🤝 Game invites for 1v1 or group play with Telegram notifications (Android/iOS push notifications after migration)',
       progress: 100,
+      info:
+        'Players can invite friends to 1v1 or group sessions; Telegram alerts already work and mobile push notifications are planned post-migration.',
     },
-    { label: '💬 In-game chat enabled', progress: 100 },
-    { label: '🕹️ Telegram bot and web app integration', progress: 100 },
-    { label: '🔄 Daily Check-In rewards', progress: 100 },
-    { label: '⛏️ Mining system active', progress: 100 },
-    { label: '📺 Ad watch rewards', progress: 100 },
-    { label: '🎯 Social tasks for X, Telegram, TikTok', progress: 100 },
-    { label: '📹 Intro video view rewards', progress: 100 },
-    { label: '🎡 Spin & Win wheel', progress: 100 },
-    { label: '🍀 Lucky Card prizes', progress: 100 },
-    { label: '🎁 NFT gifts', progress: 100 },
+    {
+      label: '💬 In-game chat enabled',
+      progress: 100,
+      info:
+        'Live chat works inside gameplay sessions so teams can coordinate and players can share quick updates without leaving the game.',
+    },
+    {
+      label: '🕹️ Telegram bot and web app integration',
+      progress: 100,
+      info:
+        'The Telegram bot is connected to the web app, enabling seamless login, deep links, and shared account state.',
+    },
+    {
+      label: '🔄 Daily Check-In rewards',
+      progress: 100,
+      info:
+        'Daily streak check-ins deliver rewards with tracking for consecutive days and instant balance updates.',
+    },
+    {
+      label: '⛏️ Mining system active',
+      progress: 100,
+      info:
+        'Mining mechanics are live with accrual timers and claim flows so users can generate rewards over time.',
+    },
+    {
+      label: '📺 Ad watch rewards',
+      progress: 100,
+      info:
+        'Users can watch rewarded ads to earn TPC, with completion verification and crediting.',
+    },
+    {
+      label: '🎯 Social tasks for X, Telegram, TikTok',
+      progress: 100,
+      info:
+        'Social engagement quests are active across X, Telegram, and TikTok with task completion tracking and reward payouts.',
+    },
+    {
+      label: '📹 Intro video view rewards',
+      progress: 100,
+      info:
+        'Intro video rewards are enabled to educate new users and pay out incentives for completion.',
+    },
+    {
+      label: '🎡 Spin & Win wheel',
+      progress: 100,
+      info:
+        'Spin & Win is live with randomized prize selection, animations, and prize delivery.',
+    },
+    {
+      label: '🍀 Lucky Card prizes',
+      progress: 100,
+      info:
+        'Lucky Card reward draws are deployed with revealed prizes and automatic wallet crediting.',
+    },
+    {
+      label: '🎁 NFT gifts',
+      progress: 100,
+      info:
+        'NFT gift distribution is supported for campaigns, rewards, and partner drops.',
+    },
     {
       label: '🚀 Referral boost: invite more friends to earn more TPC',
       progress: 100,
+      info:
+        'Referral boosts multiply rewards based on invited friends, tracking conversions and issuing bonus TPC.',
     },
-    { label: '🛒 NFT marketplace for user listings', progress: 100 },
-    { label: '🏆 Game tournaments live', progress: 100 },
-    { label: '🎁 Tournament winner gifts', progress: 100 },
-    { label: '🏦 Game transactions are public', progress: 100 },
-    { label: '⛏️ Mining transactions are public', progress: 100 },
+    {
+      label: '🛒 NFT marketplace for user listings',
+      progress: 100,
+      info:
+        'The NFT marketplace allows user listings, browsing, and purchases with transparent ownership updates.',
+    },
+    {
+      label: '🏆 Game tournaments live',
+      progress: 100,
+      info:
+        'Tournament brackets and matchmaking are available, allowing competitive play with leaderboard updates.',
+    },
+    {
+      label: '🎁 Tournament winner gifts',
+      progress: 100,
+      info:
+        'Winners receive automated gifts and rewards upon tournament completion.',
+    },
+    {
+      label: '🏦 Game transactions are public',
+      progress: 100,
+      info:
+        'Game-related transactions are visible in the public ledger for transparency and verification.',
+    },
+    {
+      label: '⛏️ Mining transactions are public',
+      progress: 100,
+      info:
+        'Mining activity is recorded on the public ledger so rewards and claims are auditable.',
+    },
   ];
 
   const roadmapSteps = [
@@ -51,43 +161,59 @@ export default function ProjectAchievementsCard() {
       description:
         'Fixing the online connection is almost done, partly completed with a bit left to finalize.',
       progress: 85,
+      info:
+        'Networking reliability fixes are nearing completion; remaining work focuses on edge cases, reconnection flow, and final QA.',
     },
     {
       title: 'Store Item Photos',
       description: 'Upload all necessary photos for the store items.',
       progress: 55,
+      info:
+        'Asset photography is being uploaded for every store listing, including thumbnails and high-res previews.',
     },
     {
       title: 'Mobile Launch',
       description:
         'Release the Playgram app on Android and iOS with the current 3D game lineup.',
       progress: 70,
+      info:
+        'Mobile builds are being finalized for Android and iOS with the existing 3D titles and onboarding flow.',
     },
     {
       title: 'Growth & Community',
       description:
         'Gather Telegram group feedback to identify glitches, errors, and malfunctions, then take new feature requests to community votes so every voice is heard.',
       progress: 40,
+      info:
+        'Community feedback loops are active, with issue triage and feature voting planned to prioritize the roadmap.',
     },
     {
       title: 'TPC Tokenization',
       description:
         'Mint the official TPC token and finalize token utility across the ecosystem.',
+      info:
+        'Token minting and utility alignment are in planning to define issuance, rewards, and in-app use cases.',
     },
     {
       title: 'Exchange Readiness',
       description:
         'Begin CEX outreach and prepare DEX liquidity provisioning.',
+      info:
+        'Exchange preparation includes outreach, compliance readiness, and DEX liquidity planning.',
     },
     {
       title: 'CEX + DEX Listings',
       description:
         'List on decentralized exchanges and finalize listings on major CEX partners.',
+      info:
+        'Listing execution covers final DEX deployment and CEX partnerships once readiness milestones are met.',
     },
     {
       title: 'Next Phases',
       description:
         'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
+      info:
+        'Future initiatives are queued for announcement after exchange milestones, including new game features and partnerships.',
     },
   ];
   const normalizedRoadmapSteps = roadmapSteps.map((step) => ({
@@ -99,6 +225,7 @@ export default function ProjectAchievementsCard() {
     .map((step) => ({
       label: `✅ ${step.title}`,
       progress: step.progress,
+      info: `${step.info ?? step.description} Current progress: ${step.progress}%.`,
     }));
   const achievements = [...deliveredAchievements, ...promotedRoadmapAchievements];
   const roadmap = normalizedRoadmapSteps.filter(
@@ -163,7 +290,10 @@ export default function ProjectAchievementsCard() {
               key={item.label}
               className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-surface/90 px-3 py-2"
             >
-              <span>{item.label}</span>
+              <div className="flex items-center gap-2">
+                <span>{item.label}</span>
+                <InfoIcon info={item.info} label={item.label} />
+              </div>
               <span className="text-[10px] font-semibold text-emerald-400">{item.progress}%</span>
             </li>
           ))}
@@ -241,7 +371,13 @@ export default function ProjectAchievementsCard() {
                   {step.progress}% complete ✔️
                 </div>
               </div>
-              <p className="mt-1 text-sm font-semibold text-foreground">{step.title}</p>
+              <div className="mt-1 flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                <InfoIcon
+                  info={`${step.info ?? step.description} Current progress: ${step.progress}%.`}
+                  label={step.title}
+                />
+              </div>
               <p className="text-xs text-muted">{step.description}</p>
             </li>
           ))}
