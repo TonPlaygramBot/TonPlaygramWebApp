@@ -94,75 +94,6 @@ const ENGLISH_TEMPLATES = Object.freeze({
   }
 });
 
-const LOCALIZED_TEMPLATES = Object.freeze({
-  en: ENGLISH_TEMPLATES,
-  sq: {
-    ...ENGLISH_TEMPLATES,
-    common: {
-      intro: [
-        'Mirë se vini në {arena}. {speaker} me ju ndërsa {player} përballet me {opponent}.',
-        'Drejt nga {arena}, {speaker} në komentim. {player} kundër {opponent} ka nisur.',
-        'Mirëmbrëma nga {arena}. {speaker} me ju për {player} kundër {opponent}.'
-      ],
-      introReply: [
-        'Faleminderit {speaker}. Prisni llogaritje të sakta dhe manovrim të duruar nga të dyja palët.',
-        'Kënaqësi të jem këtu, {speaker}. Qendra dhe siguria e mbretit do ta vendosin.',
-        'Absolutisht, {speaker}. Është betejë planesh—struktura, tempo dhe taktika.'
-      ],
-      opening: [
-        '{player} kërkon kontroll të qendrës, {piece} në {toSquare}.',
-        'Faza e hapjes—{player} zhvillon {piece} në {toSquare}.',
-        '{player} luan në mënyrë klasike, {piece} në {toSquare}.'
-      ],
-      move: [
-        'Lëvizje e qetë përmirësuese: {player} vendos {piece} në {toSquare}.',
-        '{player} ripozicionon {piece} në {toSquare}, duke ruajtur strukturën.',
-        '{player} zgjedh {piece} në {toSquare}, një hap pozicional i matur.'
-      ],
-      capture: [
-        '{player} kap në {toSquare}, merr {capturedPiece}.',
-        'Shkëmbim në {toSquare}—{player} heq {capturedPiece}.',
-        '{player} kalon në taktikë, {piece} kap {capturedPiece} në {toSquare}.'
-      ],
-      check: [
-        'Shah në tabelë—{player} detyron mbretin të përgjigjet.',
-        '{player} jep shah, duke ngushtuar rrjetën.',
-        'Është shah; {opponent} duhet të gjejë përgjigje të saktë.'
-      ],
-      checkmate: [
-        'Shah-mat. {winner} vulos rezultatin.',
-        'Mat—{winner} e mbyll me qetësi.',
-        'Shah-mat në tabelë. {winner} merr lojën.'
-      ],
-      stalemate: [
-        'Pat. Nuk ka lëvizje të ligjshme dhe ndeshja barazohet.',
-        'Është pat—nuk ka lëvizje për palën në radhë.',
-        'Barazim me pat. Pozicioni është i bllokuar.'
-      ],
-      promotion: [
-        'Promovim në {toSquare}; {player} merr një mbretëreshë të re.',
-        '{player} promovon në {toSquare}, një përforcim vendimtar.',
-        'Promovim pioni për {player} në {toSquare}.'
-      ],
-      castle: [
-        '{player} rokon {castleSide}, mbreti në siguri.',
-        'Rokim {castleSide} për {player}; siguria e mbretit para së gjithash.',
-        '{player} përfundon rokimin {castleSide}, duke aktivizuar toren.'
-      ],
-      endgame: [
-        'Tani jemi në fundlojë—çdo tempo ka rëndësi.',
-        'Faza e fundlojës: aktiviteti i figurave dhe pozicioni i mbretit janë kritikë.',
-        'Fundloja ka ardhur; precizioni do ta vendosë.'
-      ],
-      outro: [
-        'Kaq nga {arena}. Faleminderit që ishit me ne.',
-        'Nga {arena}, kjo ishte e gjitha. Ju falënderojmë për shoqërinë.',
-        'Një përfundim i bukur këtu në {arena}. Faleminderit për ndjekjen.'
-      ]
-    }
-  }
-});
-
 const EVENT_POOLS = Object.freeze({
   intro: 'intro',
   introReply: 'introReply',
@@ -185,7 +116,6 @@ const applyTemplate = (template, context) =>
 
 const resolveLanguageKey = (language = 'en') => {
   const normalized = String(language || '').toLowerCase();
-  if (normalized.startsWith('sq')) return 'sq';
   if (normalized.startsWith('en')) return 'en';
   return 'en';
 };
@@ -196,7 +126,7 @@ export const buildChessCommentaryLine = ({
   language = 'en',
   context = {}
 }) => {
-  const templates = LOCALIZED_TEMPLATES[resolveLanguageKey(language)] || ENGLISH_TEMPLATES;
+  const templates = resolveLanguageKey(language) === 'en' ? ENGLISH_TEMPLATES : ENGLISH_TEMPLATES;
   const mergedContext = {
     ...DEFAULT_CONTEXT,
     ...context,
