@@ -769,21 +769,15 @@ const COMMENTARY_LINES = {
   ]
 };
 
-let speechSynth = null;
-let speechSynthResolved = false;
-let commentarySpeechInitialized = false;
-function getSpeechSynth() {
-  if (speechSynthResolved) return speechSynth;
-  speechSynthResolved = true;
+const speechSynth = (() => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   try {
-    speechSynth = window.speechSynthesis;
+    return window.speechSynthesis;
   } catch (error) {
     console.warn('Speech synthesis unavailable', error);
-    speechSynth = null;
+    return null;
   }
-  return speechSynth;
-}
+})();
 const speechUtteranceCtor =
   typeof SpeechSynthesisUtterance === 'function' ? SpeechSynthesisUtterance : null;
 let commentaryVoices = [];
@@ -836,10 +830,9 @@ function persistCommentaryPrefs() {
 }
 
 function refreshCommentaryVoices() {
-  const synth = getSpeechSynth();
-  if (!synth) return;
+  if (!speechSynth) return;
   try {
-    commentaryVoices = synth.getVoices() || [];
+    commentaryVoices = speechSynth.getVoices() || [];
     commentaryReady = true;
   } catch (error) {
     commentaryVoices = [];
@@ -898,9 +891,8 @@ function getVoiceProfileForKind(kind) {
 function clearCommentaryQueue() {
   commentaryQueue = [];
   commentarySpeaking = false;
-  const synth = getSpeechSynth();
-  if (synth) {
-    synth.cancel();
+  if (speechSynth) {
+    speechSynth.cancel();
   }
 }
 
@@ -971,18 +963,16 @@ function buildCommentaryLine(kind, context = {}) {
 }
 
 function ensureSpeechUnlocked() {
-  const synth = getSpeechSynth();
-  if (!synth) return;
+  if (!speechSynth) return;
   try {
-    synth.resume();
+    speechSynth.resume();
   } catch (error) {
     console.warn('Failed to resume speech synthesis', error);
   }
 }
 
 function scheduleCommentaryVoicesRetry() {
-  const synth = getSpeechSynth();
-  if (!synth || commentaryVoicesRetryTimer) return;
+  if (!speechSynth || commentaryVoicesRetryTimer) return;
   commentaryVoicesRetryTimer = window.setTimeout(() => {
     commentaryVoicesRetryTimer = null;
     refreshCommentaryVoices();
@@ -993,8 +983,7 @@ function scheduleCommentaryVoicesRetry() {
 }
 
 function speakCommentary(text, { interrupt = false, priority = false, kind = '' } = {}) {
-  const synth = getSpeechSynth();
-  if (!synth || !speechUtteranceCtor || commentaryMuted || !text) return;
+  if (!speechSynth || !speechUtteranceCtor || commentaryMuted || !text) return;
   if (!commentaryReady) {
     refreshCommentaryVoices();
   }
@@ -1036,9 +1025,9 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
     }
   };
   commentaryLastEventAt = now;
-  if (synth.speaking || commentarySpeaking) {
+  if (speechSynth.speaking || commentarySpeaking) {
     if (interrupt) {
-      synth.cancel();
+      speechSynth.cancel();
     } else {
       commentaryQueue.push({ text, options: { interrupt, priority, kind } });
       return;
@@ -1046,7 +1035,7 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
   }
   commentarySpeaking = true;
   try {
-    synth.speak(utterance);
+    speechSynth.speak(utterance);
   } catch (error) {
     commentarySpeaking = false;
     console.warn('Commentary failed to speak', error);
@@ -1054,29 +1043,23 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
 }
 
 function announceCommentary(kind, context = {}, options = {}) {
-  const synth = getSpeechSynth();
-  if (commentaryMuted || !synth || !speechUtteranceCtor) return;
+  if (commentaryMuted || !speechSynth || !speechUtteranceCtor) return;
   const line = buildCommentaryLine(kind, context);
   if (!line) return;
   speakCommentary(line, { ...options, kind });
 }
 
-function initCommentarySpeech() {
-  if (commentarySpeechInitialized) return getSpeechSynth();
-  const synth = getSpeechSynth();
-  if (!synth || !speechUtteranceCtor) return null;
-  commentarySpeechInitialized = true;
+if (speechSynth) {
+  readCommentaryPrefs();
   refreshCommentaryVoices();
-  synth.onvoiceschanged = () => refreshCommentaryVoices();
+  speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
   scheduleCommentaryVoicesRetry();
-  return synth;
+} else {
+  readCommentaryPrefs();
 }
-
-readCommentaryPrefs();
 
 function unlockInteractiveAudio() {
   ensureAudioContext();
-  initCommentarySpeech();
   ensureSpeechUnlocked();
   if (!commentaryUnlocked) {
     commentaryUnlocked = true;
@@ -5135,7 +5118,7 @@ function refreshConfigUI() {
   commentaryWrapper.appendChild(commentaryLabel);
   const commentaryGrid = document.createElement('div');
   commentaryGrid.className = 'config-options';
-  const commentarySupported = Boolean(getSpeechSynth() && speechUtteranceCtor);
+  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor);
   COMMENTARY_PRESETS.forEach((preset) => {
     const presetButton = document.createElement('button');
     presetButton.type = 'button';
@@ -5407,6 +5390,8 @@ function disposeChairResources(root) {
   });
 }
 
+const CHAIR_MODEL_TIMEOUT_MS = 2500;
+
 function placeChairsWithOption(option, chairData, token) {
   if (token !== chairBuildToken) return;
 
@@ -5420,12 +5405,32 @@ function placeChairsWithOption(option, chairData, token) {
     disposeChairResources(chair);
   }
 
-  if (!chairData) return;
-
   const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
-  const seatBottomOffset = -chairTemplateBounds.min.y;
-  const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
-  const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
+  const seatBottomOffset = chairData
+    ? -chairTemplateBounds.min.y
+    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
+  const labelHeight = chairData
+    ? seatBottomOffset + chairTemplateBounds.max.y + 0.12
+    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness + 0.72;
+  const labelDepth = chairData
+    ? -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35
+    : -CHAIR_DIMENSIONS.seatDepth * 0.35;
+
+  const sharedMaterials = chairData
+    ? null
+    : {
+        fabric: createChairFabricMaterial(option, renderer),
+        leg: new THREE.MeshStandardMaterial({
+          color: new THREE.Color(option.legColor ?? "#1f1f1f"),
+          metalness: 0.6,
+          roughness: 0.35
+        }),
+        accent: new THREE.MeshStandardMaterial({
+          color: new THREE.Color(adjustHexColor(option.legColor ?? "#1f1f1f", 0.15)),
+          metalness: 0.75,
+          roughness: 0.32
+        })
+      };
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
@@ -5436,7 +5441,9 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
     wrapper.lookAt(lookTarget);
 
-    const chair = cloneChairWithTheme(chairData, option);
+    const chair = chairData
+      ? cloneChairWithTheme(chairData, option)
+      : createDominoChair(option, renderer, sharedMaterials);
     chair.position.y = -seatBottomOffset;
     wrapper.add(chair);
 
@@ -5457,13 +5464,24 @@ function placeChairsWithOption(option, chairData, token) {
 
 async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
   const token = ++chairBuildToken;
-  let chairData = null;
-  try {
-    chairData = await ensureChairTemplateForTheme(option);
-  } catch (error) {
-    console.warn("Failed to load Domino chair glTF", error);
-  }
+  const chairDataPromise = ensureChairTemplateForTheme(option).catch((error) => {
+    console.warn("Falling back to procedural chair for Domino", error);
+    return null;
+  });
+
+  const chairData = await Promise.race([
+    chairDataPromise,
+    new Promise((resolve) => setTimeout(() => resolve(null), CHAIR_MODEL_TIMEOUT_MS))
+  ]);
+
   placeChairsWithOption(option, chairData, token);
+
+  if (!chairData) {
+    chairDataPromise.then((resolved) => {
+      if (!resolved || token !== chairBuildToken) return;
+      placeChairsWithOption(option, resolved, token);
+    });
+  }
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
