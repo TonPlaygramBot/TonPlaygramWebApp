@@ -6373,23 +6373,12 @@ function Chess3D({
       if (option.thumbnail) {
         return (
           <span
-            className="relative h-14 w-24 overflow-hidden rounded-xl border border-white/15 bg-white/10"
-          >
-            <span
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${option.thumbnail})` }}
-            />
-            <span className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
-          </span>
+            className={`${swatchClass} bg-cover bg-center`}
+            style={{ backgroundImage: `url(${option.thumbnail})` }}
+          />
         );
       }
-      return (
-        <span className="relative h-14 w-24 overflow-hidden rounded-xl border border-white/15 bg-slate-800/70">
-          <span className="absolute inset-0 flex items-center justify-center text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/80">
-            {option?.label || 'Table'}
-          </span>
-        </span>
-      );
+      return <span className={swatchClass} style={{ background: '#4b5563' }} />;
     }
     if (key === 'tableFinish') {
       const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2

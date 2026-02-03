@@ -11486,24 +11486,6 @@ function SnookerRoyalGame({
       ),
     [snookerInventory]
   );
-  const tableCustomizationSections = useMemo(
-    () => [
-      { key: 'tableFinish', label: 'Table Finish', options: availableTableFinishes },
-      { key: 'tableBase', label: 'Table Base', options: availableTableBases }
-    ],
-    [availableTableBases, availableTableFinishes]
-  );
-  const [activeCustomizationKey, setActiveCustomizationKey] = useState(
-    tableCustomizationSections[0]?.key ?? 'tableFinish'
-  );
-  useEffect(() => {
-    if (!tableCustomizationSections.some((section) => section.key === activeCustomizationKey)) {
-      setActiveCustomizationKey(tableCustomizationSections[0]?.key ?? 'tableFinish');
-    }
-  }, [activeCustomizationKey, tableCustomizationSections]);
-  const activeCustomizationSection =
-    tableCustomizationSections.find(({ key }) => key === activeCustomizationKey) ??
-    tableCustomizationSections[0];
   const availableChromeOptions = useMemo(
     () =>
       CHROME_COLOR_OPTIONS.filter((option) =>
@@ -26828,92 +26810,82 @@ const powerRef = useRef(hud.power);
                   </p>
                 )}
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Personalize Arena
-                  </p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">
-                    Table finish and base details.
-                  </p>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Finish
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableFinishes.map((option) => {
+                    const active = option.id === tableFinishId;
+                    const thumb = option.thumbnail;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableFinishId(option.id)}
+                        aria-pressed={active}
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="truncate">{option.label}</span>
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={option.label}
+                            className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                            loading="lazy"
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="mt-3 max-h-72 space-y-3">
-                  <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
-                    {tableCustomizationSections.map(({ key, label }) => {
-                      const selectedSection = key === activeCustomizationKey;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setActiveCustomizationKey(key)}
-                          className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            selectedSection
-                              ? 'border-emerald-300/80 bg-emerald-300/15 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                              : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {activeCustomizationSection && (
-                    <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
-                        {activeCustomizationSection.label}
-                      </p>
-                      <div className="space-y-1.5">
-                        {activeCustomizationSection.options.map((option) => {
-                          const isFinish = activeCustomizationSection.key === 'tableFinish';
-                          const selected = isFinish
-                            ? option.id === tableFinishId
-                            : option.id === tableBaseId;
-                          const swatchA = option.swatches?.[0] ?? '#0f172a';
-                          const swatchB = option.swatches?.[1] ?? '#1f2937';
-                          const thumb = option.thumbnail;
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() =>
-                                isFinish ? setTableFinishId(option.id) : setTableBaseId(option.id)
-                              }
-                              aria-pressed={selected}
-                              className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                                selected
-                                  ? 'border-emerald-300 bg-emerald-300/20 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                                  : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
-                              }`}
-                            >
-                              <span className="text-[0.7rem] font-semibold text-gray-100">
-                                {option.label || option.name}
-                              </span>
-                              <span className="w-24 shrink-0">
-                                {thumb ? (
-                                  <span className="relative h-14 w-full overflow-hidden rounded-xl border border-white/15 bg-white/10">
-                                    <img
-                                      src={thumb}
-                                      alt={option.label || option.name}
-                                      className="absolute inset-0 h-full w-full object-cover"
-                                      loading="lazy"
-                                    />
-                                    <span className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
-                                  </span>
-                                ) : (
-                                  <span
-                                    className="block h-14 w-full rounded-xl border border-white/15"
-                                    style={{
-                                      background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                                    }}
-                                  />
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Base
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableBases.map((option) => {
+                    const active = option.id === tableBaseId;
+                    const swatchA = option.swatches?.[0] ?? '#0f172a';
+                    const swatchB = option.swatches?.[1] ?? '#1f2937';
+                    const thumb = option.thumbnail;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableBaseId(option.id)}
+                        aria-pressed={active}
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="truncate">{option.name}</span>
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={option.name}
+                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            className="h-5 w-8 rounded-lg border border-white/25"
+                            aria-hidden="true"
+                            style={{
+                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                            }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div>

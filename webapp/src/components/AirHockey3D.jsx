@@ -2447,70 +2447,48 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     }
   }, [selections]);
 
-  const customizationSections = useMemo(
-    () =>
-      [
-        { key: 'field', label: 'Field Surface', options: AIR_HOCKEY_CUSTOMIZATION.field },
-        { key: 'cushionCloth', label: 'Cushion Cloth', options: AIR_HOCKEY_CUSTOMIZATION.cushionCloth },
-        { key: 'table', label: 'Table Finish', options: AIR_HOCKEY_CUSTOMIZATION.table },
-        { key: 'tableBase', label: 'Table Base', options: AIR_HOCKEY_CUSTOMIZATION.tableBase },
-        { key: 'environmentHdri', label: 'HDRI Environment', options: AIR_HOCKEY_CUSTOMIZATION.environmentHdri },
-        { key: 'puck', label: 'Puck', options: AIR_HOCKEY_CUSTOMIZATION.puck },
-        { key: 'mallet', label: 'Mallets', options: AIR_HOCKEY_CUSTOMIZATION.mallet },
-        { key: 'goals', label: 'Goals', options: AIR_HOCKEY_CUSTOMIZATION.goals }
-      ]
-        .map((section) => ({
-          ...section,
-          options: (section.options || []).filter((option) =>
-            isAirHockeyOptionUnlocked(section.key, option.id, airInventory)
-          )
-        }))
-        .filter((section) => section.options.length > 0),
-    [airInventory]
-  );
-  const [activeCustomizationKey, setActiveCustomizationKey] = useState(
-    customizationSections[0]?.key ?? 'field'
-  );
-  useEffect(() => {
-    if (!customizationSections.some((section) => section.key === activeCustomizationKey)) {
-      setActiveCustomizationKey(customizationSections[0]?.key ?? 'field');
-    }
-  }, [activeCustomizationKey, customizationSections]);
-  const activeCustomizationSection =
-    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
-
-  const renderOptionPreview = useCallback((key, option) => {
-    const thumb = option?.thumbnail;
-    if (thumb) {
-      return (
-        <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-          <img src={thumb} alt={option?.name || option?.label || key} className="h-full w-full object-cover" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
-        </div>
-      );
-    }
-    const swatches = option?.swatches;
-    const base =
-      option?.surface ||
-      option?.wood ||
-      option?.color ||
-      option?.base ||
-      option?.rim ||
-      option?.emissive ||
-      swatches?.[0] ||
-      '#1f2937';
-    const accent = Array.isArray(swatches) && swatches.length > 1 ? swatches[1] : undefined;
+  const renderOptionRow = (label, key) => {
+    const options = (AIR_HOCKEY_CUSTOMIZATION[key] || []).filter((option) =>
+      isAirHockeyOptionUnlocked(key, option.id, airInventory)
+    );
+    if (!options.length) return null;
     return (
-      <div
-        className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40"
-        style={{
-          background: accent ? `linear-gradient(135deg, ${base}, ${accent})` : base
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
+      <div className="space-y-1">
+        <div className="text-[11px] uppercase tracking-wide text-white/70">{label}</div>
+        <div className="grid grid-cols-2 gap-2">
+          {options.map((option, idx) => {
+            const swatch =
+              option.surface ||
+              option.wood ||
+              option.color ||
+              option.base ||
+              option.swatches?.[0];
+            const active = selections[key] === option.id;
+            return (
+              <button
+                key={`${key}-${option.name}`}
+                onClick={() =>
+                  setSelections((prev) => ({
+                    ...prev,
+                    [key]: option.id
+                  }))
+                }
+                className={`flex items-center justify-between rounded px-2 py-1 text-left text-[11px] font-semibold transition ${
+                  active ? 'bg-white/20 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="truncate">{option.name}</span>
+                <span
+                  className="ml-2 w-5 h-5 rounded-full border border-white/30"
+                  style={{ background: swatch }}
+                />
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
-  }, []);
+  };
 
   return (
     <div
@@ -2753,70 +2731,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 </p>
               )}
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, arena details, and equipment.</p>
-              </div>
-              <div className="mt-3 max-h-72 space-y-3">
-                <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
-                  {customizationSections.map(({ key, label }) => {
-                    const selectedSection = key === activeCustomizationKey;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setActiveCustomizationKey(key)}
-                        className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          selectedSection
-                            ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                            : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {activeCustomizationSection && (
-                  <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
-                      {activeCustomizationSection.label}
-                    </p>
-                    <div className="space-y-1.5">
-                      {activeCustomizationSection.options.map((option) => {
-                        const selected = selections[activeCustomizationSection.key] === option.id;
-                        return (
-                          <button
-                            key={`${activeCustomizationSection.key}-${option.id}`}
-                            type="button"
-                            onClick={() =>
-                              setSelections((prev) => ({
-                                ...prev,
-                                [activeCustomizationSection.key]: option.id
-                              }))
-                            }
-                            aria-pressed={selected}
-                            className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            }`}
-                          >
-                            <span className="text-[0.7rem] font-semibold text-gray-100">
-                              {option.name || option.label}
-                            </span>
-                            <span className="w-24 shrink-0">
-                              {renderOptionPreview(activeCustomizationSection.key, option)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            {renderOptionRow('Field Surface', 'field')}
+            {renderOptionRow('Cushion Cloth', 'cushionCloth')}
+            {renderOptionRow('Table Finish', 'table')}
+            {renderOptionRow('Table Base', 'tableBase')}
+            {renderOptionRow('HDRI Environment', 'environmentHdri')}
+            {renderOptionRow('Puck', 'puck')}
+            {renderOptionRow('Mallets', 'mallet')}
+            {renderOptionRow('Goals', 'goals')}
           </div>
         )}
       </div>
