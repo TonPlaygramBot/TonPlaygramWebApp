@@ -456,13 +456,7 @@ public class BilliardsSolver
                             b.Pocketed = true;
                             break;
                         }
-                        var cushionFriction = CushionFrictionForSpeed(b.Velocity.Length);
-                        b.Velocity = Collision.ReflectWithFriction(b.Velocity, normal, restitution, cushionFriction);
-                        if (!airborne)
-                        {
-                            b.SideSpin *= (1.0 - PhysicsConstants.CushionSpinLoss);
-                            b.ForwardSpin *= (1.0 - PhysicsConstants.CushionSpinLoss);
-                        }
+                        b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
                         StepVertical(b, travel);
@@ -686,17 +680,6 @@ public class BilliardsSolver
         return airborne ? PhysicsConstants.AirDrag : PhysicsConstants.Mu;
     }
 
-    private static double CushionFrictionForSpeed(double speed)
-    {
-        if (speed <= PhysicsConstants.Epsilon)
-            return PhysicsConstants.CushionFriction + PhysicsConstants.CushionFrictionLowSpeedBoost;
-        double t = Math.Clamp(speed / PhysicsConstants.CushionFrictionSpeedThreshold, 0.0, 1.0);
-        return Math.Clamp(
-            PhysicsConstants.CushionFriction + PhysicsConstants.CushionFrictionLowSpeedBoost * (1.0 - t),
-            0.0,
-            0.95);
-    }
-
     private bool TryFindImpact(Ball cue, List<Ball> others, double dt, bool airborne, out Impact impact)
     {
         // check collisions using CCD for the next dt
@@ -721,11 +704,7 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                var post = Collision.ReflectWithFriction(
-                    cue.Velocity,
-                    e.Normal,
-                    PhysicsConstants.ConnectorRestitution,
-                    CushionFrictionForSpeed(cue.Velocity.Length));
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
@@ -736,11 +715,7 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                var post = Collision.ReflectWithFriction(
-                    cue.Velocity,
-                    e.Normal,
-                    PhysicsConstants.CushionRestitution,
-                    CushionFrictionForSpeed(cue.Velocity.Length));
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.CushionRestitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
@@ -752,11 +727,7 @@ public class BilliardsSolver
             {
                 cue.Position += cue.Velocity * te;
                 var restitution = airborne ? PhysicsConstants.CushionRestitution : PhysicsConstants.PocketRestitution;
-                var post = Collision.ReflectWithFriction(
-                    cue.Velocity,
-                    e.Normal,
-                    restitution,
-                    CushionFrictionForSpeed(cue.Velocity.Length));
+                var post = Collision.Reflect(cue.Velocity, e.Normal, restitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
