@@ -85,7 +85,7 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import { chatBeep } from '../../assets/soundData.js';
 import {
-  clampToUnitCircle,
+  clampToMaxOffset,
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
@@ -1654,6 +1654,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 2.6;
 const TOPSPIN_MULTIPLIER = 1.5;
+const SPIN_UI_MAX_OFFSET = 0.6;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5301,6 +5302,37 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
+};
+
+const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
+  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
+  const viewVec = computeCueViewVector(cueBall, camera);
+  if (!viewVec) return spinInput;
+  const axes = prepareSpinAxes(aimDir);
+  TMP_VEC2_SPIN.set(0, 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
+  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
+  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
+  if (viewDot >= 0) return spinInput;
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
+  return {
+    x: TMP_VEC2_SPIN.dot(axes.perp),
+    y: TMP_VEC2_SPIN.dot(axes.axis)
+  };
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -25931,9 +25963,19 @@ const powerRef = useRef(hud.power);
     };
 
     const clampToPlayable = (nx, ny) => {
-      const raw = clampToUnitCircle(nx, ny);
+      const raw = clampToMaxOffset(nx, ny, SPIN_UI_MAX_OFFSET);
       const limited = clampToLimits(raw.x, raw.y);
-      return clampToUnitCircle(limited.x, limited.y);
+      const aimVec = aimDirRef.current;
+      const cueBall = cueRef.current;
+      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const viewLimited = clampSpinToVisibleHemisphere(
+        limited,
+        aimVec,
+        cueBall,
+        activeCamera
+      );
+      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
+      return clampToMaxOffset(reclamped.x, reclamped.y, SPIN_UI_MAX_OFFSET);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -25969,7 +26011,8 @@ const powerRef = useRef(hud.power);
     const applySnapTarget = () => {
       const snapped = computeQuantizedOffsetScaled(
         spinState.target.x,
-        spinState.target.y
+        spinState.target.y,
+        { maxOffset: SPIN_UI_MAX_OFFSET }
       );
       spinState.target = clampToPlayable(snapped.x, snapped.y);
       spinRequestRef.current = { ...spinState.target };
