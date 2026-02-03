@@ -3236,7 +3236,7 @@ export default function SnakeAndLadder() {
         const carpetPrimary = option.carpet?.primary ?? '#0f172a';
         const carpetAccent = option.carpet?.accent ?? carpetPrimary;
         return (
-          <div className="w-full h-12 rounded-xl overflow-hidden border border-white/10 shadow-inner flex">
+          <div className="w-full h-14 rounded-xl overflow-hidden border border-white/10 shadow-inner flex">
             <div
               className="w-1/2 h-full"
               style={{
@@ -3255,7 +3255,7 @@ export default function SnakeAndLadder() {
         const dark = option.dark ?? '#9c7b5a';
         return (
           <div
-            className="w-full h-12 rounded-xl border border-white/10"
+            className="w-full h-14 rounded-xl border border-white/10"
             style={{
               backgroundColor: dark,
               backgroundImage: `linear-gradient(45deg, ${light} 25%, transparent 25%), linear-gradient(-45deg, ${light} 25%, transparent 25%), linear-gradient(45deg, transparent 75%, ${light} 75%), linear-gradient(-45deg, transparent 75%, ${light} 75%)`,
@@ -3271,7 +3271,7 @@ export default function SnakeAndLadder() {
         const stroke = option.stroke ?? 'rgba(255,255,255,0.08)';
         return (
           <div
-            className="w-full h-12 rounded-xl border border-white/10"
+            className="w-full h-14 rounded-xl border border-white/10"
             style={{
               backgroundColor: base,
               backgroundImage: `radial-gradient(circle at 25% 25%, ${diamond} 30%, transparent 31%), radial-gradient(circle at 75% 75%, ${diamond} 30%, transparent 31%), linear-gradient(${stroke}, ${stroke})`,
