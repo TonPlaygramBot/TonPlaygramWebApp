@@ -1270,7 +1270,7 @@ const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 1.0,
+  airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
@@ -1280,20 +1280,16 @@ let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
-const SPIN_SLIDE_EPS = 0.035;
-const SPIN_KINETIC_FRICTION = 0.32;
-const SPIN_ROLL_DAMPING = 0.2;
-const SPIN_ANGULAR_DAMPING = 0.07;
-const SPIN_NEUTRAL_EPS = 1e-4;
+const SPIN_SLIDE_EPS = 0.02;
+const SPIN_KINETIC_FRICTION = 0.22;
+const SPIN_ROLL_DAMPING = 0.1;
+const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const BALL_BALL_FRICTION = 0.18;
-const RAIL_FRICTION = 0.26;
+const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
-const RAIL_SLOW_ROLL_SPEED = STOP_EPS * 3;
-const RAIL_SLOW_SPIN_DAMPING = 0.7;
-const RAIL_SLOW_SPIN_THROW_SCALE = 0.2; // keep a hint of spin at very low rail speeds without air-spinning
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -1316,8 +1312,6 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
-const POCKET_SOFT_CAPTURE_MARGIN = BALL_R * 0.32; // pull slow-spinning balls off the jaw edge before they stall
-const POCKET_SOFT_CAPTURE_SPEED = STOP_EPS * 4.2; // only auto-drop when the ball is nearly stopped
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
@@ -1541,21 +1535,15 @@ const SPIN_ROLL_ACCELERATION = 1.2 * SPIN_TABLE_SCALE;
 const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
+const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const RAIL_SPIN_ROLL_ACCELERATION = SPIN_ROLL_ACCELERATION * 0.45;
-const RAIL_CONTACT_SLIDE_DAMPING = 0.55;
-const RAIL_CONTACT_SPIN_DAMPING = 0.35;
-const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
-const AIR_SPIN_ROLL_SCALE = 0; // disable forward/back spin acceleration while airborne
-const AIR_SPIN_SWERVE_SCALE = 0; // disable Magnus-style drift for airborne side spin
-const BALL_SPIN_THROW_SCALE = BALL_R * 0.34; // small tangential throw from ball-to-ball spin contact
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while matching Snooker Royal pacing.
-// Increase overall Pool Royale power by 33% on top of the Snooker Royal baseline.
-const SHOT_POWER_REDUCTION = 0.425;
-const SHOT_POWER_BOOST = 1.995;
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
+// Apply an additional 30% reduction to soften every strike and keep mobile play comfortable.
+// Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
+const SHOT_POWER_REDUCTION = 0.7;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1565,8 +1553,7 @@ const SHOT_FORCE_BOOST =
   1.3 *
   0.85 *
   SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_BOOST;
+  SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -6052,13 +6039,6 @@ function reflectRails(ball) {
     const pocketGuardClearance =
       nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
     const inGuardZone = nearestPocketDist < pocketGuardClearance;
-    const speed = ball.vel.length();
-    const softCaptureRadius = nearestCaptureRadius + POCKET_SOFT_CAPTURE_MARGIN;
-    const allowSoftCapture =
-      speed <= POCKET_SOFT_CAPTURE_SPEED && nearestPocketDist <= softCaptureRadius;
-    if (allowSoftCapture) {
-      return null;
-    }
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
@@ -6131,38 +6111,6 @@ function reflectRails(ball) {
         type: 'jaw',
         normal: TMP_VEC2_A.clone(),
         tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
-      };
-    }
-    const outsideRails =
-      ball.pos.x < -railLimitX ||
-      ball.pos.x > railLimitX ||
-      ball.pos.y < -railLimitY ||
-      ball.pos.y > railLimitY;
-    if (outsideRails && nearestPocketDist >= softCaptureRadius) {
-      preImpactVel = ball.vel.clone();
-      const clampedX = THREE.MathUtils.clamp(ball.pos.x, -railLimitX, railLimitX);
-      const clampedY = THREE.MathUtils.clamp(ball.pos.y, -railLimitY, railLimitY);
-      const delta = TMP_VEC2_A.set(ball.pos.x - clampedX, ball.pos.y - clampedY);
-      if (delta.lengthSq() > 1e-8) {
-        delta.normalize();
-      } else {
-        delta.set(
-          ball.pos.x < 0 ? -1 : 1,
-          ball.pos.y < 0 ? -1 : 1
-        );
-      }
-      ball.pos.set(clampedX, clampedY);
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'rail';
-      return {
-        type: 'rail',
-        normal: delta.clone(),
-        tangent: new THREE.Vector2(-delta.y, delta.x),
         preImpactVel
       };
     }
@@ -6295,8 +6243,6 @@ function resolveSpinFrame(ball) {
   const forward =
     speed > 1e-6
       ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
-      : ball?.lastDir && ball.lastDir.lengthSq() > 1e-6
-        ? TMP_VEC2_FORWARD.copy(ball.lastDir).normalize()
       : ball?.launchDir
         ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
         : TMP_VEC2_FORWARD.set(0, 1);
@@ -6332,48 +6278,35 @@ function decaySpin(ball, stepScale, airborne = false) {
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
-    ball.spinMode = 'standard';
-    ball.swerveStrength = 0;
-    ball.swervePowerStrength = 0;
+    if (ball.id === 'cue') {
+      ball.spinMode = 'standard';
+      ball.swerveStrength = 0;
+      ball.swervePowerStrength = 0;
+    }
   }
   return true;
 }
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
-  const { forward, lateral, speed } = resolveSpinFrame(ball);
-  let forwardSpin = ball.spin.y || 0;
-  const sideSpin = ball.spin.x || 0;
-  if (Math.abs(forwardSpin) > 1e-8) {
-    const powerScale = resolveSpinPowerScale(speed);
-    const restScale = speed > 1e-6 ? 1 : SPIN_REST_ACCEL_SCALE;
-    const airScale = airborne ? AIR_SPIN_ROLL_SCALE : 1;
-    let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale * restScale * airScale;
-    if (!airborne && forwardSpin < 0) {
-      rollAccel *= BACKSPIN_ROLL_BOOST;
+  const { forward, speed } = resolveSpinFrame(ball);
+  if (!airborne && speed > 1e-6) {
+    let forwardSpin = ball.spin.y || 0;
+    if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
+      forwardSpin = 0;
     }
-    ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
-  }
-  if (airborne && Math.abs(sideSpin) > 1e-8 && speed > 1e-6) {
-    const swerveAccel = sideSpin * speed * AIR_SPIN_SWERVE_SCALE * stepScale;
-    ball.vel.addScaledVector(lateral, swerveAccel);
+    const powerScale = resolveSpinPowerScale(speed);
+    let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale;
+    if (forwardSpin < 0) {
+      const backspinBoost =
+        ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
+      rollAccel *= backspinBoost;
+    }
+    if (Math.abs(forwardSpin) > 1e-8) {
+      ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
+    }
   }
   return decaySpin(ball, stepScale, airborne);
-}
-
-function alignOmegaToRolling(ball) {
-  if (!ball?.omega || !ball?.vel) return;
-  const speed = ball.vel.length();
-  if (speed < 1e-6) {
-    ball.omega.set(0, 0, 0);
-    return;
-  }
-  TMP_VEC3_A.set(ball.vel.y, 0, -ball.vel.x);
-  if (TMP_VEC3_A.lengthSq() > 1e-8) {
-    TMP_VEC3_A.normalize();
-  }
-  const omegaMag = speed / Math.max(BALL_R, 1e-6);
-  ball.omega.copy(TMP_VEC3_A.multiplyScalar(omegaMag));
 }
 
 function applyRailSpinResponse(ball, impact) {
@@ -6381,12 +6314,7 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
-  const slowFactor = clamp(
-    1 - speed / Math.max(RAIL_SLOW_ROLL_SPEED, 1e-6),
-    0,
-    1
-  );
-  const slowSpinScale = THREE.MathUtils.lerp(1, RAIL_SLOW_SPIN_THROW_SCALE, slowFactor);
+  const preImpactSpin = ball.spin.clone();
   const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
   if (!worldSpin) return;
   const throwFactor = Math.max(
@@ -6395,53 +6323,11 @@ function applyRailSpinResponse(ball, impact) {
   );
   const spinAlongTangent = worldSpin.dot(tangent);
   if (Math.abs(spinAlongTangent) > 1e-6) {
-    const throwStrength =
-      spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor) * slowSpinScale;
+    const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
     ball.vel.addScaledVector(tangent, throwStrength);
   }
-  const spinAlongNormal = worldSpin.dot(normal);
-  TMP_VEC2_A
-    .copy(tangent)
-    .multiplyScalar(spinAlongTangent)
-    .addScaledVector(normal, -spinAlongNormal * RAIL_SPIN_NORMAL_FLIP);
-  const spinFrame = resolveSpinFrame(ball);
-  ball.spin.set(
-    TMP_VEC2_A.dot(spinFrame.lateral),
-    TMP_VEC2_A.dot(spinFrame.forward)
-  );
-  if (slowFactor > 0) {
-    const spinDamp = 1 - RAIL_SLOW_SPIN_DAMPING * slowFactor;
-    ball.spin.multiplyScalar(spinDamp);
-    if (ball.pendingSpin) ball.pendingSpin.multiplyScalar(spinDamp);
-  }
+  ball.spin.copy(preImpactSpin);
   decaySpin(ball, 0.6, false);
-}
-
-function applyBallSpinThrow(ballA, ballB, normal) {
-  if (!normal) return;
-  if ((!ballA?.spin || ballA.spin.lengthSq() < 1e-6) &&
-      (!ballB?.spin || ballB.spin.lengthSq() < 1e-6)) {
-    return;
-  }
-  TMP_VEC2_A.copy(normal);
-  if (TMP_VEC2_A.lengthSq() < 1e-8) return;
-  TMP_VEC2_A.normalize();
-  TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x);
-  if (TMP_VEC2_B.lengthSq() < 1e-8) return;
-  TMP_VEC2_B.normalize();
-  const spinA = resolveSpinWorldVector(ballA, TMP_VEC2_C);
-  const spinB = resolveSpinWorldVector(ballB, TMP_VEC2_D);
-  const spinAlongA = spinA ? spinA.dot(TMP_VEC2_B) : 0;
-  const spinAlongB = spinB ? spinB.dot(TMP_VEC2_B) : 0;
-  const relativeSpin = spinAlongA - spinAlongB;
-  if (Math.abs(relativeSpin) < 1e-6) return;
-  const speedScale = Math.min(
-    1,
-    (ballA.vel.length() + ballB.vel.length()) / Math.max(BALL_R * 18, 1e-6)
-  );
-  const throwStrength = relativeSpin * BALL_SPIN_THROW_SCALE * (0.35 + speedScale);
-  ballA.vel.addScaledVector(TMP_VEC2_B, -throwStrength * 0.5);
-  ballB.vel.addScaledVector(TMP_VEC2_B, throwStrength * 0.5);
 }
 
 function applyRailImpulse(ball, impact) {
@@ -6492,42 +6378,6 @@ function applyRailImpulse(ball, impact) {
   }
   ball.vel.set(TMP_VEC3_C.x, TMP_VEC3_C.z);
 }
-
-function applyRailContactRoll(ball, impact, stepScale) {
-  if (!ball?.vel || !impact?.normal) return;
-  TMP_VEC2_A.copy(impact.normal);
-  if (TMP_VEC2_A.lengthSq() < 1e-8) return;
-  TMP_VEC2_A.normalize();
-  TMP_VEC2_B.copy(impact.tangent ?? TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x));
-  if (TMP_VEC2_B.lengthSq() < 1e-8) {
-    TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x);
-  }
-  TMP_VEC2_B.normalize();
-  const speed = ball.vel.length();
-  const tangentSpeed = ball.vel.dot(TMP_VEC2_B);
-  const slowFactor = clamp(
-    1 - speed / Math.max(RAIL_SLOW_ROLL_SPEED, 1e-6),
-    0,
-    1
-  );
-  if (slowFactor > 0) {
-    const damping = Math.pow(1 - RAIL_CONTACT_SLIDE_DAMPING * slowFactor, stepScale);
-    ball.vel.addScaledVector(TMP_VEC2_B, tangentSpeed * (damping - 1));
-  }
-  if (!ball.spin || ball.spin.lengthSq() < 1e-6) return;
-  const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
-  if (!worldSpin) return;
-  const spinAlongTangent = worldSpin.dot(TMP_VEC2_B);
-  if (Math.abs(spinAlongTangent) > 1e-6) {
-    const rollAccel =
-      RAIL_SPIN_ROLL_ACCELERATION * Math.max(stepScale, 0) * (1 - slowFactor);
-    ball.vel.addScaledVector(TMP_VEC2_B, spinAlongTangent * rollAccel);
-    const spinDamp = Math.exp(-RAIL_CONTACT_SPIN_DAMPING * slowFactor * stepScale);
-    if (ball.spin) ball.spin.multiplyScalar(spinDamp);
-    if (ball.pendingSpin) ball.pendingSpin.multiplyScalar(spinDamp);
-  }
-}
-
 
 function resolveSwerveAimDir(
   aimDir,
@@ -22044,9 +21894,6 @@ const powerRef = useRef(hud.power);
         if (cue.omega) {
           cue.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
         }
-        if (Math.hypot(offsetScaled.x, offsetScaled.y) <= SPIN_NEUTRAL_EPS) {
-          alignOmegaToRolling(cue);
-        }
         resetSpinRef.current?.();
         cueLiftRef.current.lift = 0;
         cueLiftRef.current.startLift = 0;
@@ -22368,9 +22215,6 @@ const powerRef = useRef(hud.power);
             TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
             TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
             cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-            if (Math.hypot(scaledSpin.x ?? 0, scaledSpin.y ?? 0) <= SPIN_NEUTRAL_EPS) {
-              alignOmegaToRolling(cue);
-            }
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode = 'standard';
@@ -25919,10 +25763,6 @@ const powerRef = useRef(hud.power);
             const isCue = b.id === 'cue';
             const hasSpin = b.spin?.lengthSq() > 1e-6;
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
-            const speedNow = b.vel.length();
-            if (speedNow > 1e-4 && b.lastDir) {
-              b.lastDir.set(b.vel.x, b.vel.y).normalize();
-            }
             if (hasLift) {
               const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
               const nextLift = Math.max(0, (b.lift ?? 0) + dampedVel * stepScale);
@@ -25981,8 +25821,17 @@ const powerRef = useRef(hud.power);
                 b.vel.y = TMP_VEC3_A.z;
                 b.omega.copy(TMP_VEC3_C);
               }
-              const clothDrag = Math.pow(FRICTION, stepScale);
-              b.vel.multiplyScalar(clothDrag);
+            }
+            if (
+              isCue &&
+              !b.impacted &&
+              b.launchDir &&
+              (b.spin?.y ?? 0) < -1e-4
+            ) {
+              const forwardDot = b.vel.dot(b.launchDir);
+              if (forwardDot < 0) {
+                b.vel.addScaledVector(b.launchDir, -forwardDot);
+              }
             }
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
@@ -26014,26 +25863,6 @@ const powerRef = useRef(hud.power);
             if (railImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
-              applyRailContactRoll(b, railImpact, stepScale);
-            }
-            if (railImpact) {
-              const hasUserSpin =
-                (b.spin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS ||
-                (b.pendingSpin?.lengthSq() ?? 0) > SPIN_NEUTRAL_EPS;
-              if (!hasLift && !hasUserSpin) {
-                const speedAfterRail = b.vel.length();
-                if (speedAfterRail < RAIL_SLOW_ROLL_SPEED) {
-                  const slowFactor = clamp(
-                    1 - speedAfterRail / Math.max(RAIL_SLOW_ROLL_SPEED, 1e-6),
-                    0,
-                    1
-                  );
-                  const spinDamp = 1 - RAIL_SLOW_SPIN_DAMPING * slowFactor;
-                  if (b.spin) b.spin.multiplyScalar(spinDamp);
-                  if (b.pendingSpin) b.pendingSpin.multiplyScalar(spinDamp);
-                }
-                alignOmegaToRolling(b);
-              }
             }
             if (railImpact) {
               const nowRail = performance.now();
@@ -26045,7 +25874,7 @@ const powerRef = useRef(hud.power);
             }
             const liftAmount = b.lift ?? 0;
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
-            if (scaledSpeed > 0 && !hasLift) {
+            if (scaledSpeed > 0) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
@@ -26150,7 +25979,6 @@ const powerRef = useRef(hud.power);
                   }
                   a.vel.set(TMP_VEC3_D.x, TMP_VEC3_D.z);
                   b.vel.set(TMP_VEC3_E.x, TMP_VEC3_E.z);
-                  applyBallSpinThrow(a, b, TMP_VEC2_A.set(nx, ny));
                 }
                 if (isNewImpact) {
                   const shotScale = 0.4 + 0.6 * lastShotPower;
@@ -26486,13 +26314,8 @@ const powerRef = useRef(hud.power);
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
             const c = captureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
-            const entrySpeed = b.vel.length();
-            const distToPocket = b.pos.distanceTo(c);
-            const softCaptureRadius = captureRadius + POCKET_SOFT_CAPTURE_MARGIN;
-            const shouldCapture =
-              distToPocket < captureRadius ||
-              (entrySpeed <= POCKET_SOFT_CAPTURE_SPEED && distToPocket < softCaptureRadius);
-            if (shouldCapture) {
+            if (b.pos.distanceTo(c) < captureRadius) {
+              const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
                 0,
