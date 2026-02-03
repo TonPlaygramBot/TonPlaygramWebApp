@@ -1306,6 +1306,7 @@ const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
 const JUMP_SHOT_LAUNCH_SCALE = 0.55;
 const JUMP_SHOT_HEIGHT_SCALE = 0.48;
+const CUEBALL_JUMP_LIFT_ENABLED = false;
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -6278,6 +6279,14 @@ function resolveSpinWorldVector(ball, output) {
 function decaySpin(ball, stepScale, airborne = false) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
+  if (airborne && ball.id === 'cue') {
+    ball.spin.set(0, 0);
+    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+    ball.spinMode = 'standard';
+    ball.swerveStrength = 0;
+    ball.swervePowerStrength = 0;
+    return true;
+  }
   const decayRate = airborne ? SPIN_AIR_DECAY_RATE : SPIN_DECAY_RATE;
   const decayFactor = Math.exp(-decayRate * Math.max(stepScale, 0));
   ball.spin.multiplyScalar(decayFactor);
@@ -21933,6 +21942,7 @@ const powerRef = useRef(hud.power);
         cue.liftVel = 0;
         const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
         if (
+          CUEBALL_JUMP_LIFT_ENABLED &&
           clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
           liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
           topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
@@ -22269,6 +22279,7 @@ const powerRef = useRef(hud.power);
           cue.liftVel = 0;
           const topSpinWeight = Math.max(0, scaledSpin.y || 0);
           if (
+            CUEBALL_JUMP_LIFT_ENABLED &&
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
             topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
@@ -26055,7 +26066,8 @@ const powerRef = useRef(hud.power);
                   isTargetImpact &&
                   isNewImpact &&
                   lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
-                  !maxPowerLiftTriggered
+                  !maxPowerLiftTriggered &&
+                  CUEBALL_JUMP_LIFT_ENABLED
                 ) {
                   const topspinActive = (shotContextRef.current?.spin?.y ?? 0) > 1e-4;
                   if (topspinActive) {
