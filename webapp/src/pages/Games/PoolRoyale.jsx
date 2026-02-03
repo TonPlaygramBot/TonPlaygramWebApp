@@ -1541,7 +1541,6 @@ const SPIN_ROLL_ACCELERATION = 1.2 * SPIN_TABLE_SCALE;
 const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
-const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
@@ -6333,11 +6332,9 @@ function decaySpin(ball, stepScale, airborne = false) {
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
-    if (ball.id === 'cue') {
-      ball.spinMode = 'standard';
-      ball.swerveStrength = 0;
-      ball.swervePowerStrength = 0;
-    }
+    ball.spinMode = 'standard';
+    ball.swerveStrength = 0;
+    ball.swervePowerStrength = 0;
   }
   return true;
 }
@@ -6347,18 +6344,13 @@ function applySpinController(ball, stepScale, airborne = false) {
   const { forward, lateral, speed } = resolveSpinFrame(ball);
   let forwardSpin = ball.spin.y || 0;
   const sideSpin = ball.spin.x || 0;
-  if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
-    forwardSpin = 0;
-  }
   if (Math.abs(forwardSpin) > 1e-8) {
     const powerScale = resolveSpinPowerScale(speed);
     const restScale = speed > 1e-6 ? 1 : SPIN_REST_ACCEL_SCALE;
     const airScale = airborne ? AIR_SPIN_ROLL_SCALE : 1;
     let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale * restScale * airScale;
     if (!airborne && forwardSpin < 0) {
-      const backspinBoost =
-        ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
-      rollAccel *= backspinBoost;
+      rollAccel *= BACKSPIN_ROLL_BOOST;
     }
     ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
   }
@@ -13056,13 +13048,18 @@ const powerRef = useRef(hud.power);
     });
   }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel]);
   const cueBallPlacedFromHandRef = useRef(false);
+  const wasInHandRef = useRef(false);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
-    const placing = Boolean(hud.inHand && playerTurn);
-    setInHandPlacementMode(placing);
-    if (hud.inHand) {
+    const enteringInHand = Boolean(hud.inHand && !wasInHandRef.current);
+    wasInHandRef.current = Boolean(hud.inHand);
+    if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
     }
+    const placing = Boolean(
+      hud.inHand && playerTurn && !cueBallPlacedFromHandRef.current
+    );
+    setInHandPlacementMode(placing);
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
@@ -21534,11 +21531,6 @@ const powerRef = useRef(hud.power);
         if (commit) {
           inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
         }
         return true;
       };
@@ -25991,17 +25983,6 @@ const powerRef = useRef(hud.power);
               }
               const clothDrag = Math.pow(FRICTION, stepScale);
               b.vel.multiplyScalar(clothDrag);
-            }
-            if (
-              isCue &&
-              !b.impacted &&
-              b.launchDir &&
-              (b.spin?.y ?? 0) < -1e-4
-            ) {
-              const forwardDot = b.vel.dot(b.launchDir);
-              if (forwardDot < 0) {
-                b.vel.addScaledVector(b.launchDir, -forwardDot);
-              }
             }
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
