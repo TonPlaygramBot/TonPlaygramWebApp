@@ -1721,7 +1721,7 @@ const UK_POOL_BLACK = 0x000000;
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
   uk: {
     id: 'uk',
-    label: '8-Ball UK',
+    label: '8Ball',
     cueColor: 0xffffff,
     rackLayout: 'triangle',
     disableSnookerMarkings: true,
@@ -11366,7 +11366,7 @@ function PoolRoyaleGame({
   );
   const infoText = useMemo(() => {
     if (activeVariant?.id === 'uk') {
-      return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent two shots.';
+      return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
     }
     return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
   }, [activeVariant]);
@@ -21409,7 +21409,7 @@ const powerRef = useRef(hud.power);
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return true;
+        if (id === 'uk') return false;
         if (id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
@@ -27179,6 +27179,16 @@ const powerRef = useRef(hud.power);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
+  const canRepositionCueBall = useMemo(
+    () => showPlayerControls && deriveInHandFromFrame(frameState),
+    [frameState, showPlayerControls]
+  );
+  const handleCueBallReposition = useCallback(() => {
+    if (!canRepositionCueBall || shootingRef.current) return;
+    cueBallPlacedFromHandRef.current = false;
+    setHud((prev) => ({ ...prev, inHand: true }));
+    setInHandPlacementMode(true);
+  }, [canRepositionCueBall]);
   const spinRingLabels = useMemo(
     () => {
       const radius = 72;
@@ -29002,7 +29012,7 @@ const powerRef = useRef(hud.power);
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
-              Place the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
+              Place the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle behind the white line'}
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
@@ -29058,6 +29068,20 @@ const powerRef = useRef(hud.power);
               }}
             ></div>
           </div>
+          {canRepositionCueBall && (
+            <button
+              type="button"
+              onClick={handleCueBallReposition}
+              disabled={hud.inHand}
+              aria-label="Reposition cue ball"
+              title="Reposition cue ball"
+              className={`absolute -left-11 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-slate-900/80 text-lg shadow-lg transition ${
+                hud.inHand ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'
+              }`}
+            >
+              <span aria-hidden="true">✋️</span>
+            </button>
+          )}
         </div>
       )}
     </div>

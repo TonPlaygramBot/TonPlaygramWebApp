@@ -4,18 +4,20 @@ import { UkPool } from '../lib/poolUk8Ball.js';
 import { selectShot, recordShotOutcome, __resetShotMemory } from '../lib/poolUkAdvancedAi.js';
 import planShot from '../lib/poolAi.js';
 
-test('scratch on break gives opponent two visits without free ball', () => {
+test('scratch on break gives opponent ball in hand', () => {
   const game = new UkPool();
+  game.startBreak();
   const res = game.shotTaken({
     contactOrder: ['red'],
     potted: ['cue'],
     cueOffTable: false,
     noCushionAfterContact: false,
-    placedFromHand: false
+    placedFromHand: true
   });
   assert.equal(res.foul, true);
   assert.equal(res.nextPlayer, 'B');
-  assert.equal(res.shotsRemainingNext, 2);
+  assert.equal(res.shotsRemainingNext, 1);
+  assert.equal(game.state.mustPlayFromBaulk, true);
 });
 
 test('after foul player must hit a valid colour first', () => {
@@ -90,9 +92,9 @@ test('potting 8-ball before clearing group loses the frame', () => {
   assert.equal(res.winner, 'B');
 });
 
-test('two visits behaviour', () => {
+test('foul grants ball in hand without extra visits', () => {
   const game = new UkPool();
-  // foul to give B two visits
+  // foul gives ball in hand for B with a single visit
   game.shotTaken({
     contactOrder: ['blue'],
     potted: ['cue'],
@@ -126,7 +128,7 @@ test('two visits behaviour', () => {
     placedFromHand: true
   });
   assert.equal(res2.nextPlayer, 'B');
-  assert.equal(res2.shotsRemainingNext, 2);
+  assert.equal(res2.shotsRemainingNext, 1);
 });
 
 test('potting both colours on break requires choice', () => {

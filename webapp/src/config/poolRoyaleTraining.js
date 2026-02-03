@@ -12,7 +12,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Side pocket control',
-    discipline: 'UK 8-Ball',
+    discipline: '8Ball',
     objective: 'Slide the ball into the side pocket while keeping the cue ball out of the scratch lanes.',
     cue: { x: -0.48, z: -0.32 },
     balls: [{ rackIndex: 2, x: -0.02, z: 0.24 }],
@@ -30,7 +30,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Back-cut to corner',
-    discipline: 'UK 8-Ball',
+    discipline: '8Ball',
     objective: 'Cut the ball back to the near corner and check the cue ball off the short rail.',
     cue: { x: -0.58, z: -0.12 },
     balls: [{ rackIndex: 4, x: 0.54, z: 0.18 }],
@@ -75,7 +75,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Ladder drill',
-    discipline: 'UK 8-Ball',
+    discipline: '8Ball',
     objective: 'Work up the long rail through three balls without losing angle.',
     cue: { x: -0.28, z: -0.48 },
     balls: [
@@ -115,7 +115,7 @@ const TRAINING_BLUEPRINTS = [
 const clamp = (value) => Math.max(-0.94, Math.min(0.94, value));
 
 const DISCIPLINE_TO_VARIANT = {
-  'UK 8-Ball': 'uk',
+  '8Ball': 'uk',
   '9-Ball': '9ball',
   'American Billiards': 'american'
 };

@@ -1,6 +1,6 @@
 # 3D Billiards Mode Specifications
 
-These notes capture the shared expectations for the upcoming 3D billiards experiences so every build of the table (mobile portrait first) stays aligned. The same baseline applies whether we ship Pool Royal, UK 8 Ball, 9 Ball, or American Billiards.
+These notes capture the shared expectations for the upcoming 3D billiards experiences so every build of the table (mobile portrait first) stays aligned. The same baseline applies whether we ship Pool Royal, 8Ball, 9 Ball, or American Billiards.
 
 ## Shared 3D Table Requirements
 
@@ -22,7 +22,7 @@ Exactly **four** chalk blocks are visible at all times—one centred on each woo
 - Match the skirt underlay: melamine and wooden rails must share the same grain direction, pattern scale, and plank widths as the skirts beneath them so the table reads as one uniform shell and stops cleanly above the legs.
 - Pocket jaws and rims must match the chrome plate cutouts **100%**—never size them from the wooden rail arches.
 
-### 3D UK 8 Ball
+### 3D 8Ball
 - 7 ft pub-style table with rounded corners and smaller pockets.
 - Use red/yellow object balls plus the black. Update ball material presets accordingly.
 
@@ -42,4 +42,4 @@ Exactly **four** chalk blocks are visible at all times—one centred on each woo
 - ✅ Rule-card UI snippets for each mode.
 - ✅ QA pass ensuring the chalk objects never clip through cue animations or player avatars.
 
-These guidelines ensure every 3D billiards variant feels consistent while still highlighting the differences players expect between Pool Royal, UK 8 Ball, 9 Ball, and American Billiards.
+These guidelines ensure every 3D billiards variant feels consistent while still highlighting the differences players expect between Pool Royal, 8Ball, 9 Ball, and American Billiards.

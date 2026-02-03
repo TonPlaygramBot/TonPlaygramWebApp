@@ -486,7 +486,7 @@ export default function PoolRoyaleLobby() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { id: 'uk', label: '8 Pool UK' },
+              { id: 'uk', label: '8Ball' },
               { id: 'american', label: 'American' },
               { id: '9ball', label: '9-Ball' }
             ].map(({ id, label }) => {
@@ -526,7 +526,7 @@ export default function PoolRoyaleLobby() {
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Visuals</span>
             </div>
             <p className="text-xs text-white/60">
-              Keep UK yellow/red sets or switch to solids &amp; stripes visuals while retaining 8 Pool UK rules.
+              Keep UK yellow/red sets or switch to solids &amp; stripes visuals while retaining 8Ball rules.
             </p>
             <div className="grid grid-cols-3 gap-3">
               {[

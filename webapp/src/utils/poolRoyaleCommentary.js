@@ -275,16 +275,16 @@ const ENGLISH_TEMPLATES = Object.freeze({
     ]
   },
   eightBallUk: {
-    variantName: '8-ball UK',
+    variantName: '8Ball',
     groupCall: [
       'Open table between {groupPrimary} and {groupSecondary}; {player} will claim a set soon.',
-      '{groupPrimary} versus {groupSecondary} in UK rules; the first clean pot sets the route.',
-      'UK rules in play. {groupPrimary} and {groupSecondary} are both available.'
+      '{groupPrimary} versus {groupSecondary} in 8Ball; the first clean pot sets the route.',
+      '8Ball rules in play. {groupPrimary} and {groupSecondary} are both available.'
     ],
     freeBall: [
-      'Foul gives {player} a free ball—huge advantage in UK rules.',
-      'That is a free ball for {player}; they can use it tactically.',
-      'UK rules apply: free ball and two visits for {player}.'
+      'Foul gives {player} ball in hand—huge advantage in 8Ball.',
+      'Ball in hand for {player}; they can use it tactically.',
+      '8Ball rules apply: ball in hand for {player}.'
     ],
     blackBall: [
       'The black is in play now. This is the money ball.',
@@ -453,16 +453,16 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ]
     },
     eightBallUk: {
-      variantName: '8 palle UK',
+      variantName: '8Ball',
       groupCall: [
-        'Regole UK: {groupPrimary} e {groupSecondary} sono aperte.',
+        'Regole 8Ball: {groupPrimary} e {groupSecondary} sono aperte.',
         '{player} deve scegliere tra {groupPrimary} e {groupSecondary}.',
-        'Tavolo aperto in UK 8-ball.'
+        'Tavolo aperto in 8Ball.'
       ],
       freeBall: [
-        'Fallo: {player} ha free ball e due visite.',
-        'Free ball per {player}; grande vantaggio.',
-        '{player} ha free ball: può impostare tattica.'
+        'Fallo: {player} ha palla in mano.',
+        'Palla in mano per {player}; grande vantaggio.',
+        '{player} con palla in mano: può impostare la tattica.'
       ],
       blackBall: [
         'Ora la nera è in gioco.',
@@ -558,9 +558,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       eightBall: ['现在进入8号球阶段，走位决定胜负。']
     },
     eightBallUk: {
-      variantName: '英式8球',
-      groupCall: ['英式规则，{groupPrimary}与{groupSecondary}等待归属。'],
-      freeBall: ['{player}获得自由球与两次击球机会。'],
+      variantName: '8Ball',
+      groupCall: ['8Ball规则，{groupPrimary}与{groupSecondary}等待归属。'],
+      freeBall: ['{player}获得自由球，拥有球权优势。'],
       blackBall: ['黑球上台，角度要求很高。']
     }
   },
@@ -651,9 +651,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       eightBall: ['अब 8-बॉल का खेल, पोजिशन निर्णायक है।']
     },
     eightBallUk: {
-      variantName: 'यूके 8-बॉल',
-      groupCall: ['यूके नियमों में {groupPrimary} और {groupSecondary} खुले हैं।'],
-      freeBall: ['{player} को फ्री बॉल और दो विज़िट मिलती हैं।'],
+      variantName: '8Ball',
+      groupCall: ['8Ball नियमों में {groupPrimary} और {groupSecondary} खुले हैं।'],
+      freeBall: ['{player} को बॉल इन हैंड मिलती है।'],
       blackBall: ['ब्लैक बॉल आ गई, एंगल बहुत जरूरी है।']
     }
   },
@@ -744,9 +744,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       eightBall: ['Ahora la 8 está en juego; la posición manda.']
     },
     eightBallUk: {
-      variantName: '8 bolas británico',
-      groupCall: ['Reglas UK: {groupPrimary} y {groupSecondary} aún abiertos.'],
-      freeBall: ['{player} tiene bola libre y dos visitas.'],
+      variantName: '8Ball',
+      groupCall: ['Reglas 8Ball: {groupPrimary} y {groupSecondary} aún abiertos.'],
+      freeBall: ['{player} tiene bola en mano.'],
       blackBall: ['La negra está en juego; el ángulo es clave.']
     }
   },
@@ -837,9 +837,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       eightBall: ['La 8 est en jeu; la position est cruciale.']
     },
     eightBallUk: {
-      variantName: '8-ball UK',
-      groupCall: ['Règles UK: {groupPrimary} et {groupSecondary} sont ouverts.'],
-      freeBall: ['{player} a une bille libre et deux visites.'],
+      variantName: '8Ball',
+      groupCall: ['Règles 8Ball: {groupPrimary} et {groupSecondary} sont ouverts.'],
+      freeBall: ['{player} a une bille en main.'],
       blackBall: ['La noire est en jeu; l’angle compte.']
     }
   },
@@ -930,9 +930,9 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       eightBall: ['الآن الكرة 8 في اللعب؛ الوضعية هي الفاصل.']
     },
     eightBallUk: {
-      variantName: '8 بول بريطاني',
-      groupCall: ['قواعد UK: {groupPrimary} و{groupSecondary} مفتوحة.'],
-      freeBall: ['{player} يحصل على كرة حرة وزيارتين.'],
+      variantName: '8Ball',
+      groupCall: ['قواعد 8Ball: {groupPrimary} و{groupSecondary} مفتوحة.'],
+      freeBall: ['{player} يحصل على كرة في اليد.'],
       blackBall: ['الكرة السوداء في اللعب؛ الزاوية مهمة جدًا.']
     }
   },
@@ -1102,16 +1102,16 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ]
     },
     eightBallUk: {
-      variantName: '8-boll britanik',
+      variantName: '8Ball',
       groupCall: [
-        'Rregullat UK: {groupPrimary} dhe {groupSecondary} janë të hapura.',
-        'Rregullat UK—grupet janë të lira për momentin.',
+        'Rregullat 8Ball: {groupPrimary} dhe {groupSecondary} janë të hapura.',
+        'Rregullat 8Ball—grupet janë të lira për momentin.',
         '{groupPrimary} ose {groupSecondary}; poti i parë e vendos.'
       ],
       freeBall: [
-        'Top i lirë dhe dy vizita për {player}.',
-        '{player} merr top të lirë—avantazh i madh.',
-        'Dy vizita në UK; {player} ka shans të artë.'
+        'Top në dorë për {player}.',
+        '{player} merr top në dorë—avantazh i madh.',
+        'Top në dorë; {player} ka shans të artë.'
       ],
       blackBall: [
         'Topi i zi në lojë; kërkohet kënd i përsosur.',
