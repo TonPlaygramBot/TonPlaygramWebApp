@@ -32,128 +32,128 @@ export default function ProjectAchievementsCard() {
       label: '🧾 Wallet transaction history works',
       progress: 100,
       info:
-        'Completed: full wallet ledger with timestamped deposits, withdrawals, rewards, and gameplay transfers. Balance changes are shown per entry with clear transaction types and sources. Next: exportable statements (CSV/PDF), searchable transaction IDs, and advanced filters (date range, amount, source).',
+        'Users can view a complete, chronological ledger of wallet activity including deposits, withdrawals, rewards, and gameplay transfers with timestamps for auditability.',
     },
     {
       label: '💬 In-chat TPC transfers enabled',
       progress: 100,
       info:
-        'Completed: peer-to-peer TPC transfers directly in chat with confirmations, balance updates, and receipts for each send. Transfer status updates appear in the conversation thread. Next: optional transfer limits, scheduled sends, and scam-prevention alerts with receiver verification.',
+        'TPC can be sent directly inside chats, allowing frictionless peer-to-peer transfers with confirmations and balance updates in real time.',
     },
     {
       label: '🧑‍🤝‍🤝 Friends and inbox chat',
       progress: 100,
       info:
-        'Completed: friend list management, direct messaging, and system notifications. Players can add/remove friends, view online status, and receive delivery receipts. Next: group inboxes, mute controls, and moderation tools (report, block, admin roles).',
+        'Friend lists, direct messages, and notifications are active so players can connect, coordinate matches, and receive system updates.',
     },
     {
       label: '🎰 Roulette spin live',
       progress: 100,
       info:
-        'Completed: roulette minigame with live spin animation, prize resolution, and automated payout tracking. Spin results and rewards are logged for transparency. Next: daily limits, history view, and jackpot events with capped exposure.',
+        'The roulette minigame is deployed with live spin animations, prize resolution, and reward payout tracking.',
     },
     {
       label:
         '🤝 Game invites for 1v1 or group play with Telegram notifications (Android/iOS push notifications after migration)',
       progress: 100,
       info:
-        'Completed: 1v1 and group invites with Telegram notifications, match lobby deep links, and invite acceptance tracking. Invites show sender, mode, and time. Next: Android/iOS push notifications post-migration, invite expiry rules, and anti-spam throttling.',
+        'Players can invite friends to 1v1 or group sessions; Telegram alerts already work and mobile push notifications are planned post-migration.',
     },
     {
       label: '💬 In-game chat enabled',
       progress: 100,
       info:
-        'Completed: real-time in-match chat with message delivery, basic emoji, and session persistence. Chat state remains visible during gameplay. Next: quick chat presets, anti-spam rate limits, and mute/report actions.',
+        'Live chat works inside gameplay sessions so teams can coordinate and players can share quick updates without leaving the game.',
     },
     {
       label: '🕹️ Telegram bot and web app integration',
       progress: 100,
       info:
-        'Completed: Telegram bot connected to the web app for login, deep links, and shared account state. The bot can route users into specific screens. Next: richer bot commands, account linking prompts, and maintenance alerts.',
+        'The Telegram bot is connected to the web app, enabling seamless login, deep links, and shared account state.',
     },
     {
       label: '🔄 Daily Check-In rewards',
       progress: 100,
       info:
-        'Completed: daily check-in streaks with consecutive-day tracking and immediate rewards. Reward claims update balances instantly. Next: streak recovery items, calendar view, and milestone bonuses with tiered payouts.',
+        'Daily streak check-ins deliver rewards with tracking for consecutive days and instant balance updates.',
     },
     {
       label: '⛏️ Mining system active',
       progress: 100,
       info:
-        'Completed: mining accrual timers, claim flows, and reward calculations. Users can start, wait, and claim with clear countdowns. Next: tiered mining boosts, cooldown indicators, and anti-abuse monitoring.',
+        'Mining mechanics are live with accrual timers and claim flows so users can generate rewards over time.',
     },
     {
       label: '📺 Ad watch rewards',
       progress: 100,
       info:
-        'Completed: rewarded ad flow with completion verification and automatic crediting. Failed or interrupted ads do not pay out. Next: ad frequency caps, per-region fill controls, and opt-out settings.',
+        'Users can watch rewarded ads to earn TPC, with completion verification and crediting.',
     },
     {
       label: '🎯 Social tasks for X, Telegram, TikTok',
       progress: 100,
       info:
-        'Completed: social quests for X, Telegram, and TikTok with task completion tracking and payouts. Each task logs completion and reward status. Next: proof-of-completion checks, campaign scheduling, and anti-fraud validation.',
+        'Social engagement quests are active across X, Telegram, and TikTok with task completion tracking and reward payouts.',
     },
     {
       label: '📹 Intro video view rewards',
       progress: 100,
       info:
-        'Completed: intro video reward flow with completion detection and payout. Users see clear progress and completion status. Next: multi-language video variants and rewatch limits.',
+        'Intro video rewards are enabled to educate new users and pay out incentives for completion.',
     },
     {
       label: '🎡 Spin & Win wheel',
       progress: 100,
       info:
-        'Completed: Spin & Win wheel with randomized prizes, animations, and reward delivery. Reward outcomes are logged per spin. Next: seasonal prize pools and rarity odds transparency.',
+        'Spin & Win is live with randomized prize selection, animations, and prize delivery.',
     },
     {
       label: '🍀 Lucky Card prizes',
       progress: 100,
       info:
-        'Completed: Lucky Card draws with reveal animation, prize validation, and auto-crediting. Prize history is tracked per user. Next: limited-time card sets and streak bonuses.',
+        'Lucky Card reward draws are deployed with revealed prizes and automatic wallet crediting.',
     },
     {
       label: '🎁 NFT gifts',
       progress: 100,
       info:
-        'Completed: NFT gift distribution for campaigns, rewards, and partner drops with claim tracking. Users can see claim status and ownership. Next: gift previews, rarity labels, and transfer history.',
+        'NFT gift distribution is supported for campaigns, rewards, and partner drops.',
     },
     {
       label: '🚀 Referral boost: invite more friends to earn more TPC',
       progress: 100,
       info:
-        'Completed: referral boosts tied to invited friends, conversion tracking, and bonus payouts. Each referral shows status and reward value. Next: referral tiers, invite analytics, and anti-fraud checks.',
+        'Referral boosts multiply rewards based on invited friends, tracking conversions and issuing bonus TPC.',
     },
     {
       label: '🛒 NFT marketplace for user listings',
       progress: 100,
       info:
-        'Completed: NFT marketplace listings, browsing, and purchases with ownership updates. Listings show price, owner, and availability. Next: seller analytics, floor price view, and listing history.',
+        'The NFT marketplace allows user listings, browsing, and purchases with transparent ownership updates.',
     },
     {
       label: '🏆 Game tournaments live',
       progress: 100,
       info:
-        'Completed: tournament brackets, matchmaking, and leaderboard updates. Players can join, play, and see standings. Next: tournament seasons, entry fees, and anti-cheat enforcement.',
+        'Tournament brackets and matchmaking are available, allowing competitive play with leaderboard updates.',
     },
     {
       label: '🎁 Tournament winner gifts',
       progress: 100,
       info:
-        'Completed: automated gift delivery to winners with audit logs. Winners receive confirmations and reward receipts. Next: tiered prize pools and on-chain proof of rewards.',
+        'Winners receive automated gifts and rewards upon tournament completion.',
     },
     {
       label: '🏦 Game transactions are public',
       progress: 100,
       info:
-        'Completed: public ledger entries for game transactions with verification visibility. Users can confirm IDs and timestamps. Next: explorer links and advanced filters.',
+        'Game-related transactions are visible in the public ledger for transparency and verification.',
     },
     {
       label: '⛏️ Mining transactions are public',
       progress: 100,
       info:
-        'Completed: public mining transaction records for auditable rewards and claims. Claim history stays visible. Next: explorer deep links and export tools.',
+        'Mining activity is recorded on the public ledger so rewards and claims are auditable.',
     },
   ];
 
@@ -164,14 +164,14 @@ export default function ProjectAchievementsCard() {
         'Fixing the online connection is almost done, partly completed with a bit left to finalize.',
       progress: 85,
       info:
-        'Done: stability patches for session joins, improved lobby handshakes, and timeout tuning. Sessions are more stable in high-latency cases. Next: finalize reconnection flow, resolve edge-case disconnects, and complete QA sign-off.',
+        'Networking reliability fixes are nearing completion; remaining work focuses on edge cases, reconnection flow, and final QA.',
     },
     {
       title: 'Store Item Photos',
       description: 'Upload all necessary photos for the store items.',
       progress: 55,
       info:
-        'Done: capture pipeline, size requirements, and initial batches uploaded. Items already have baseline thumbnails. Next: finish remaining catalog, validate thumbnails, and add high-res zoom previews.',
+        'Asset photography is being uploaded for every store listing, including thumbnails and high-res previews.',
     },
     {
       title: 'Mobile Launch',
@@ -179,7 +179,7 @@ export default function ProjectAchievementsCard() {
         'Release the Playgram app on Android and iOS with the current 3D game lineup.',
       progress: 70,
       info:
-        'Done: Android/iOS builds with core 3D titles and onboarding flow stabilized. Initial crash fixes are in place. Next: store compliance checks, performance tuning, and final release submission.',
+        'Mobile builds are being finalized for Android and iOS with the existing 3D titles and onboarding flow.',
     },
     {
       title: 'Growth & Community',
@@ -187,35 +187,35 @@ export default function ProjectAchievementsCard() {
         'Gather Telegram group feedback to identify glitches, errors, and malfunctions, then take new feature requests to community votes so every voice is heard.',
       progress: 40,
       info:
-        'Done: feedback channels organized and initial bug triage underway. Top issues are being tagged for fixes. Next: formal community voting, monthly roadmap reviews, and public issue status updates.',
+        'Community feedback loops are active, with issue triage and feature voting planned to prioritize the roadmap.',
     },
     {
       title: 'TPC Tokenization',
       description:
         'Mint the official TPC token and finalize token utility across the ecosystem.',
       info:
-        'Done: token utility requirements drafted and reward flows scoped. Utility includes rewards, purchases, and marketplace use cases. Next: finalize token economics, minting plan, and in-app utility rollout timeline.',
+        'Token minting and utility alignment are in planning to define issuance, rewards, and in-app use cases.',
     },
     {
       title: 'Exchange Readiness',
       description:
         'Begin CEX outreach and prepare DEX liquidity provisioning.',
       info:
-        'Done: exchange target list and readiness checklist drafted. Initial compliance requirements are outlined. Next: compliance docs, liquidity provisioning plan, and outreach cadence.',
+        'Exchange preparation includes outreach, compliance readiness, and DEX liquidity planning.',
     },
     {
       title: 'CEX + DEX Listings',
       description:
         'List on decentralized exchanges and finalize listings on major CEX partners.',
       info:
-        'Done: listing requirements compiled and partner shortlist created. Pre-listing timelines are being estimated. Next: finalize DEX deployment, complete CEX negotiations, and announce timelines.',
+        'Listing execution covers final DEX deployment and CEX partnerships once readiness milestones are met.',
     },
     {
       title: 'Next Phases',
       description:
         'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
       info:
-        'Done: post-listing initiative backlog defined. Items include new game features, partnerships, and platform enhancements. Next: unveil full roadmap after listings are complete.',
+        'Future initiatives are queued for announcement after exchange milestones, including new game features and partnerships.',
     },
   ];
   const normalizedRoadmapSteps = roadmapSteps.map((step) => ({
@@ -319,17 +319,13 @@ export default function ProjectAchievementsCard() {
           {achievements.map((item) => (
             <li
               key={item.label}
-              className="rounded-lg border border-border/40 bg-surface/90 px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-surface/90 px-3 py-2"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">{item.label}</span>
-                  <InfoIcon info={item.info} label={item.label} />
-                </div>
-                <span className="text-[10px] font-semibold text-emerald-400">
-                  {item.progress}%
-                </span>
+              <div className="flex items-center gap-2">
+                <span>{item.label}</span>
+                <InfoIcon info={item.info} label={item.label} />
               </div>
+              <span className="text-[10px] font-semibold text-emerald-400">{item.progress}%</span>
             </li>
           ))}
         </ul>
@@ -410,15 +406,13 @@ export default function ProjectAchievementsCard() {
                 </div>
               </div>
               <div className="mt-1 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                  <p className="mt-1 text-xs text-muted">{step.description}</p>
-                </div>
+                <p className="text-sm font-semibold text-foreground">{step.title}</p>
                 <InfoIcon
                   info={`${step.info ?? step.description} Current progress: ${step.progress}%.`}
                   label={step.title}
                 />
               </div>
+              <p className="text-xs text-muted">{step.description}</p>
             </li>
           ))}
         </ol>
