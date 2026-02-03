@@ -92,7 +92,6 @@ import {
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
-  clampToMaxOffset,
   clampToUnitCircle,
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
@@ -1524,7 +1523,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.35; // reduce overall spin impact by 65%
+const SPIN_GLOBAL_SCALE = 0.6; // reduce overall spin impact by 25%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1670,9 +1669,9 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
-const SIDE_SPIN_MULTIPLIER = 1.15;
+const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 2.6;
-const TOPSPIN_MULTIPLIER = 1.15;
+const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -27188,7 +27187,17 @@ const powerRef = useRef(hud.power);
     const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
-      return clampToUnitCircle(limited.x, limited.y);
+      const aimVec = aimDirRef.current;
+      const cueBall = cueRef.current;
+      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const viewLimited = clampSpinToVisibleHemisphere(
+        limited,
+        aimVec,
+        cueBall,
+        activeCamera
+      );
+      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
+      return clampToUnitCircle(reclamped.x, reclamped.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
