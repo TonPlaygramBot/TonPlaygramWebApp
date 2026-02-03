@@ -141,9 +141,9 @@ export default function ProjectAchievementsCard() {
     },
     {
       label: '🖼️ Store catalog photo set finalized',
-      progress: 100,
+      progress: 85,
       info:
-        'Completed: finished the remaining product catalog photo set with consistent thumbnail sizing, unified metadata, and high-res zoom previews that match lighting setups. Next: seasonal drops and limited-run studio captures.',
+        'In progress: most catalog photos are aligned, but some thumbnails still fall back to placeholders (notably chess pieces and other legacy items). Next: locate original captures for every remaining item, refresh the missing thumbnails, and re-verify lighting parity for the zoom previews.',
     },
     {
       label: '🏆 Game tournaments live',
@@ -188,13 +188,13 @@ export default function ProjectAchievementsCard() {
     {
       title: 'Store Item Photos',
       description: 'Finalize the full store catalog photo set and keep image metadata aligned.',
-      progress: 100,
+      progress: 85,
       info:
-        'Completed: full catalog photos uploaded with validated thumbnail sizing and metadata consistency. High-res zoom previews now use matched lighting for accurate material checks.',
+        'In progress: the photo set is mostly complete, but several thumbnails are still missing originals (chess pieces and other legacy items). We need to locate the source images, update thumbnails, and re-check lighting match across zoom previews.',
       nextActions: [
-        'Schedule seasonal photo refreshes for new drops.',
-        'Capture limited-edition highlight reels.',
-        'Maintain lighting parity across future releases.',
+        'Locate original renders for chess pieces and other missing thumbnails.',
+        'Regenerate thumbnails from the original captures and verify metadata.',
+        'Confirm lighting parity between the zoom preview and store thumbnails.',
       ],
     },
     {

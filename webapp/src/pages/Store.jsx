@@ -1014,39 +1014,55 @@ export default function Store() {
     [priceRange.max, priceRange.min]
   );
 
-  const resolveItemThumbnail = useCallback((item) => {
+  const resolveOriginalImage = useCallback((item) => {
     if (!item) return '';
     const candidates = [
-      item.thumbnail,
-      item.thumbnail?.url,
-      item.thumbnail?.src,
-      item.nftMeta?.thumbnail,
-      item.nftMeta?.image,
-      item.media?.thumbnail,
-      item.media?.image,
       item.image,
       item.imageUrl,
+      item.media?.image,
       item.previewImage,
-      item.preview?.thumbnail,
-      item.preview?.image
+      item.preview?.image,
+      item.nftMeta?.image,
+      item.zoomImage
     ];
-    const resolved =
-      candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
-    if (resolved) return normalizePolyHavenImage(resolved, THUMBNAIL_SIZE);
-    if (item.swatches?.length) {
-      return swatchThumbnail(item.swatches);
-    }
-    return '';
+    return (
+      candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || ''
+    );
   }, []);
+
+  const resolveItemThumbnail = useCallback(
+    (item) => {
+      if (!item) return '';
+      const thumbnailCandidates = [
+        item.thumbnail,
+        item.thumbnail?.url,
+        item.thumbnail?.src,
+        item.nftMeta?.thumbnail,
+        item.media?.thumbnail,
+        item.preview?.thumbnail
+      ];
+      const resolvedThumbnail =
+        thumbnailCandidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+      const originalImage = resolveOriginalImage(item);
+      const usesGeneratedSwatch = resolvedThumbnail.startsWith('data:image/svg+xml');
+      const resolved = (resolvedThumbnail && !usesGeneratedSwatch ? resolvedThumbnail : originalImage) || '';
+      if (resolved) return normalizePolyHavenImage(resolved, THUMBNAIL_SIZE);
+      if (item.swatches?.length) {
+        return swatchThumbnail(item.swatches);
+      }
+      return '';
+    },
+    [resolveOriginalImage]
+  );
 
   const resolveItemMedia = useCallback(
     (item) => {
       if (!item) return { thumbnail: '', zoom: '', alt: '' };
       const thumbnail = resolveItemThumbnail(item);
+      const originalImage = resolveOriginalImage(item);
       const zoomCandidates = [
         item.zoomImage,
-        item.previewImage,
-        item.preview?.image,
+        originalImage,
         item.media?.zoom,
         item.media?.image
       ];
@@ -1061,7 +1077,7 @@ export default function Store() {
         alt: item.displayLabel || item.name || 'Store item preview'
       };
     },
-    [resolveItemThumbnail]
+    [resolveItemThumbnail, resolveOriginalImage]
   );
 
   const decorateMarketplaceItem = (item, options = {}) => {
@@ -1838,7 +1854,26 @@ export default function Store() {
 
           <div className="grid gap-4 p-4">
             <div className="w-full">
-              {renderStoreThumbnail(detailItem, 'detail')}
+              {detailMedia.zoom ? (
+                <button
+                  type="button"
+                  className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30"
+                  onClick={() => setZoomPreview(detailMedia)}
+                >
+                  <img
+                    src={detailMedia.zoom}
+                    alt={`${detailMedia.alt} zoom preview`}
+                    className="h-56 w-full object-cover transition duration-300 ease-out group-hover:scale-[1.02]"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/70" />
+                  <div className="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                    High-res lighting match
+                  </div>
+                </button>
+              ) : (
+                renderStoreThumbnail(detailItem, 'detail')
+              )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -1952,34 +1987,29 @@ export default function Store() {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-white">Zoom preview</p>
-                    <button
-                      type="button"
-                      onClick={() => setZoomPreview(detailMedia)}
-                      className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 hover:bg-white/10"
-                    >
-                      Open
-                    </button>
+                    <p className="font-semibold text-white">Store thumbnail</p>
+                    {detailMedia.zoom ? (
+                      <button
+                        type="button"
+                        onClick={() => setZoomPreview(detailMedia)}
+                        className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 hover:bg-white/10"
+                      >
+                        Open zoom
+                      </button>
+                    ) : null}
                   </div>
-                  {detailMedia.zoom ? (
-                    <button
-                      type="button"
-                      className="group relative w-full overflow-hidden rounded-xl border border-white/10 bg-black/30"
-                      onClick={() => setZoomPreview(detailMedia)}
-                    >
+                  {detailMedia.thumbnail ? (
+                    <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-black/30">
                       <img
-                        src={detailMedia.zoom}
-                        alt={`${detailMedia.alt} zoom preview`}
-                        className="h-40 w-full object-cover transition duration-300 ease-out group-hover:scale-[1.03]"
+                        src={detailMedia.thumbnail}
+                        alt={`${detailMedia.alt} store thumbnail`}
+                        className="h-40 w-full object-contain p-4"
                         loading="lazy"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/70" />
-                      <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">
-                        High-res lighting match
-                      </div>
-                    </button>
+                      <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/70" />
+                    </div>
                   ) : (
-                    <p className="text-xs text-white/50">Zoom previews are processing for this item.</p>
+                    <p className="text-xs text-white/50">Store thumbnails are processing for this item.</p>
                   )}
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
