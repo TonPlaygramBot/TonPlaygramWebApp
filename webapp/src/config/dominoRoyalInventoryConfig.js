@@ -1,6 +1,6 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+import { polyHavenThumb, remoteThumb, swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: [
@@ -85,6 +85,11 @@ const DOMINO_STYLE_THUMBNAILS = Object.freeze({
   sandstoneAurora: swatchThumbnail(['#d6c7a1', '#7c2d12', '#fcd34d'])
 });
 
+const DOMINO_STYLE_THUMB_BASE = import.meta.env.VITE_DOMINO_STYLE_THUMBNAIL_BASE || '';
+
+const resolveDominoStyleThumbnail = (id) =>
+  remoteThumb(DOMINO_STYLE_THUMB_BASE, `domino-style-${id}.png`) || DOMINO_STYLE_THUMBNAILS[id];
+
 const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
   marksmanAmber: swatchThumbnail(['#f59e0b', '#92400e', '#fde68a']),
   iceTracer: swatchThumbnail(['#e0f2fe', '#0ea5e9', '#bae6fd']),
@@ -163,7 +168,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     name: option.label,
     price: 820 + idx * 40,
     description: 'Premium domino material set for tiles and pips.',
-    thumbnail: DOMINO_STYLE_THUMBNAILS[option.id]
+    thumbnail: resolveDominoStyleThumbnail(option.id)
   })),
   ...DOMINO_ROYAL_OPTION_SETS.highlightStyle.slice(1).map((option, idx) => ({
     id: `domino-highlight-${option.id}`,
