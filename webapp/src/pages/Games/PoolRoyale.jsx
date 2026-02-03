@@ -1301,6 +1301,8 @@ const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
+const CUEBALL_JUMP_ENABLED = false;
+const CUEBALL_AIR_SPIN_ENABLED = false;
 const JUMP_SHOT_POWER_THRESHOLD = 0.7;
 const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
@@ -21933,6 +21935,7 @@ const powerRef = useRef(hud.power);
         cue.liftVel = 0;
         const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
         if (
+          CUEBALL_JUMP_ENABLED &&
           clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
           liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
           topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
@@ -22269,6 +22272,7 @@ const powerRef = useRef(hud.power);
           cue.liftVel = 0;
           const topSpinWeight = Math.max(0, scaledSpin.y || 0);
           if (
+            CUEBALL_JUMP_ENABLED &&
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
             topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
@@ -25802,8 +25806,21 @@ const powerRef = useRef(hud.power);
             if (!b.active) return;
             const isCue = b.id === 'cue';
             const hasSpin = b.spin?.lengthSq() > 1e-6;
-            const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
+            let hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
+            if (isCue && !CUEBALL_JUMP_ENABLED && hasLift) {
+              b.lift = 0;
+              b.liftVel = 0;
+              hasLift = false;
+            }
             if (hasLift) {
+              if (isCue && !CUEBALL_AIR_SPIN_ENABLED) {
+                if (b.spin) b.spin.set(0, 0);
+                if (b.pendingSpin) b.pendingSpin.set(0, 0);
+                if (b.omega) b.omega.set(0, 0, 0);
+                b.spinMode = 'standard';
+                b.swerveStrength = 0;
+                b.swervePowerStrength = 0;
+              }
               const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
               const nextLift = Math.max(0, (b.lift ?? 0) + dampedVel * stepScale);
               const nextVel = dampedVel - MAX_POWER_BOUNCE_GRAVITY * stepScale;
@@ -26050,6 +26067,7 @@ const powerRef = useRef(hud.power);
                 const isTargetImpact =
                   !targetImpactId || (hitBallId && String(hitBallId) === String(targetImpactId));
                 if (
+                  CUEBALL_JUMP_ENABLED &&
                   cueBall &&
                   hitBallId &&
                   isTargetImpact &&
