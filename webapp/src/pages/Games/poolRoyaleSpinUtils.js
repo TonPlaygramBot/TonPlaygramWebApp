@@ -1,6 +1,6 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-export const MAX_SPIN_OFFSET = 1;
+export const MAX_SPIN_OFFSET = 0.75;
 export const SPIN_STUN_RADIUS = 0.16;
 export const SPIN_RING1_RADIUS = 0.33;
 export const SPIN_RING2_RADIUS = 0.66;
@@ -11,6 +11,10 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = 0;
+export const SPIN_EDGE_AXIS_LOCK_MAG = 0.7;
+export const SPIN_EDGE_AXIS_LOCK_RATIO = 0.3;
+export const SPIN_TOP_HALF_SCALE = 0.4;
+export const SPIN_BOTTOM_HALF_SCALE = 1.25;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -144,7 +148,19 @@ export const normalizeSpinInput = (spin) => {
   if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
     return { x: 0, y: STUN_TOPSPIN_BIAS };
   }
-  return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+  const clamped = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+  const edgeMagnitude = Math.hypot(clamped.x, clamped.y);
+  if (edgeMagnitude >= SPIN_EDGE_AXIS_LOCK_MAG) {
+    const absX = Math.abs(clamped.x);
+    const absY = Math.abs(clamped.y);
+    if (absX <= absY * SPIN_EDGE_AXIS_LOCK_RATIO) {
+      return { x: 0, y: clamped.y };
+    }
+    if (absY <= absX * SPIN_EDGE_AXIS_LOCK_RATIO) {
+      return { x: clamped.x, y: 0 };
+    }
+  }
+  return clamped;
 };
 
 export const mapUiOffsetToCueFrame = (
@@ -184,10 +200,18 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     y: clamp(spin?.y ?? 0, -1, 1)
   };
   const quantized = normalizeSpinInput(adjusted);
+  let scaledY = quantized.y;
+  if (scaledY > 0) {
+    scaledY *= SPIN_TOP_HALF_SCALE;
+  } else if (scaledY < 0) {
+    scaledY *= SPIN_BOTTOM_HALF_SCALE;
+  }
+  scaledY = clamp(scaledY, -1, 1);
+  const scaled = { x: quantized.x, y: scaledY };
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    -quantized.x,
-    quantized.y,
+    -scaled.x,
+    scaled.y,
     cameraRight,
     cameraUp,
     cueForward
