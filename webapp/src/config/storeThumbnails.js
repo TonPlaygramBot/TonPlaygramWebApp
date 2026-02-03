@@ -24,6 +24,12 @@ export const polyHavenThumb = (id) =>
 export const khronosThumb = (modelId) =>
   `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/${modelId}/screenshot/screenshot.jpg`;
 
+export const remoteThumbnail = (baseUrl, filename) => {
+  if (!baseUrl || !filename) return '';
+  const trimmedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  return `${trimmedBase}/${filename}`;
+};
+
 export const swatchThumbnail = (colors = []) => {
   const [primary = '#1f2937', secondary = '#0f172a', accent = '#ffffff'] = colors;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
