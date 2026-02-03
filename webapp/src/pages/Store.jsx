@@ -991,6 +991,25 @@ export default function Store() {
     [priceRange.max, priceRange.min]
   );
 
+  const resolveItemThumbnail = useCallback((item) => {
+    if (!item) return '';
+    const candidates = [
+      item.thumbnail,
+      item.thumbnail?.url,
+      item.thumbnail?.src,
+      item.nftMeta?.thumbnail,
+      item.nftMeta?.image,
+      item.media?.thumbnail,
+      item.media?.image,
+      item.image,
+      item.imageUrl,
+      item.previewImage,
+      item.preview?.thumbnail,
+      item.preview?.image
+    ];
+    return candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+  }, []);
+
   const decorateMarketplaceItem = (item, options = {}) => {
     const resolvedPrice = options.scalePrice
       ? normalizeTonPrice(item.price)
@@ -1094,7 +1113,7 @@ export default function Store() {
           if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
           const featuredRank = (item) => {
             const label = item.typeLabel?.toLowerCase() || '';
-            const hasThumbnail = Boolean(item.thumbnail);
+            const hasThumbnail = Boolean(resolveItemThumbnail(item));
             const isTableOrChair = label.includes('table') || label.includes('chair') || label.includes('stool');
             if (hasThumbnail && isTableOrChair) return 0;
             if (hasThumbnail) return 1;
@@ -1762,98 +1781,103 @@ export default function Store() {
             </div>
           </div>
 
-          <div className="grid gap-4 p-4 md:grid-cols-2">
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
-                <p className="font-semibold text-white">Item overview</p>
-                <p className="mt-1">{detailItem.description || 'Cosmetic details will appear here.'}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
-                <p className="font-semibold text-white">{usageDetails.title}</p>
-                <p className="text-white/70">{usageDetails.description}</p>
-                <div className="flex flex-wrap gap-2 text-xs text-white/60">
-                  {usageDetails.placements.map((placement) => (
-                    <span
-                      key={`${detailItem.id}-${placement}`}
-                      className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1"
-                    >
-                      {placement}
-                    </span>
-                  ))}
+          <div className="grid gap-4 p-4">
+            <div className="w-full">
+              {renderStoreThumbnail(detailItem, 'detail')}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+                  <p className="font-semibold text-white">Item overview</p>
+                  <p className="mt-1">{detailItem.description || 'Cosmetic details will appear here.'}</p>
                 </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
-                <p className="font-semibold text-white">NFT utility & circulation</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Usable in</span>
-                  <span className="font-semibold">{detailItem.nftMeta?.games?.join(', ') || gameName}</span>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                  <p className="font-semibold text-white">{usageDetails.title}</p>
+                  <p className="text-white/70">{usageDetails.description}</p>
+                  <div className="flex flex-wrap gap-2 text-xs text-white/60">
+                    {usageDetails.placements.map((placement) => (
+                      <span
+                        key={`${detailItem.id}-${placement}`}
+                        className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1"
+                      >
+                        {placement}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Circulation</span>
-                  <span className="font-semibold">{detailItem.nftMeta?.circulation?.toLocaleString() || '—'} minted</span>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                  <p className="font-semibold text-white">NFT utility & circulation</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Usable in</span>
+                    <span className="font-semibold">{detailItem.nftMeta?.games?.join(', ') || gameName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Circulation</span>
+                    <span className="font-semibold">{detailItem.nftMeta?.circulation?.toLocaleString() || '—'} minted</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Burns</span>
+                    <span className="font-semibold">{detailItem.nftMeta?.burns ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Serial</span>
+                    <span className="font-semibold">{detailItem.nftMeta?.serial || 'TPG-XXXXXX'}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Burns</span>
-                  <span className="font-semibold">{detailItem.nftMeta?.burns ?? 0}</span>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Seller</span>
+                    <span className="font-semibold">{detailItem.seller || 'Official store'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Status</span>
+                    <span className="font-semibold text-emerald-200">{detailItem.owned ? 'Unlocked' : 'Available'}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(detailItem.swatches || []).slice(0, 6).map((color, index) => (
+                      <span
+                        key={`${detailItem.id}-detail-${color}-${index}`}
+                        className="h-5 w-5 rounded-full border border-white/20 shadow-sm"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                    {(!detailItem.swatches || detailItem.swatches.length === 0) && (
+                      <span className="text-xs text-white/60">Color samples unavailable</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Serial</span>
-                  <span className="font-semibold">{detailItem.nftMeta?.serial || 'TPG-XXXXXX'}</span>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Seller</span>
-                  <span className="font-semibold">{detailItem.seller || 'Official store'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Status</span>
-                  <span className="font-semibold text-emerald-200">{detailItem.owned ? 'Unlocked' : 'Available'}</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {(detailItem.swatches || []).slice(0, 6).map((color, index) => (
-                    <span
-                      key={`${detailItem.id}-detail-${color}-${index}`}
-                      className="h-5 w-5 rounded-full border border-white/20 shadow-sm"
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                  {(!detailItem.swatches || detailItem.swatches.length === 0) && (
-                    <span className="text-xs text-white/60">Color samples unavailable</span>
-                  )}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
-                <p className="font-semibold text-white">Provenance history</p>
-                <div className="grid gap-2">
-                  {(detailItem.nftMeta?.history || []).map((event, index) => (
-                    <div
-                      key={`${detailItem.id}-history-${index}`}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/70"
-                    >
-                      <div className="font-semibold text-white">{event.label}</div>
-                      <div className="flex items-center gap-2">
-                        {event.date ? <span>{event.date}</span> : null}
-                        {event.price ? (
-                          <span className="flex items-center gap-1 font-semibold text-white">
-                            {event.price}
-                            <img src={TON_ICON} alt="TPC" className="h-3.5 w-3.5" />
-                          </span>
-                        ) : null}
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                  <p className="font-semibold text-white">Provenance history</p>
+                  <div className="grid gap-2">
+                    {(detailItem.nftMeta?.history || []).map((event, index) => (
+                      <div
+                        key={`${detailItem.id}-history-${index}`}
+                        className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/70"
+                      >
+                        <div className="font-semibold text-white">{event.label}</div>
+                        <div className="flex items-center gap-2">
+                          {event.date ? <span>{event.date}</span> : null}
+                          {event.price ? (
+                            <span className="flex items-center gap-1 font-semibold text-white">
+                              {event.price}
+                              <img src={TON_ICON} alt="TPC" className="h-3.5 w-3.5" />
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setDetailItem(null)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
-                >
-                  Close
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDetailItem(null)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+                  >
+                    Close
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -1862,18 +1886,19 @@ export default function Store() {
                       setDetailItem(null);
                     }}
                     className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                  disabled={processing === detailItem.id || detailItem.owned}
-                >
-                  {detailItem.owned ? 'Already owned' : 'Buy now'}
-                </button>
+                    disabled={processing === detailItem.id || detailItem.owned}
+                  >
+                    {detailItem.owned ? 'Already owned' : 'Buy now'}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
-                <p className="font-semibold text-white">What you get</p>
-                <p className="mt-1">After the TPC payment is confirmed, the NFT unlocks immediately on your linked TPC account.</p>
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+                  <p className="font-semibold text-white">What you get</p>
+                  <p className="mt-1">After the TPC payment is confirmed, the NFT unlocks immediately on your linked TPC account.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -2086,16 +2111,17 @@ export default function Store() {
   const renderStoreThumbnail = (item, variant = 'card') => {
     if (!item) return null;
     const label = (item.displayLabel || item.name || '').slice(0, 18);
+    const resolvedThumbnail = resolveItemThumbnail(item);
     const isCompact = variant === 'compact';
     const wrapperClass = isCompact
       ? 'relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]'
       : 'relative h-32 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]';
     const imageClass = isCompact ? 'h-full w-full object-contain p-2' : 'h-full w-full object-contain p-3';
 
-    if (item.thumbnail) {
+    if (resolvedThumbnail) {
       return (
         <div className={wrapperClass}>
-          <img src={item.thumbnail} alt={item.displayLabel || item.name} className={imageClass} loading="lazy" />
+          <img src={resolvedThumbnail} alt={item.displayLabel || item.name} className={imageClass} loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
           <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
             {label}
