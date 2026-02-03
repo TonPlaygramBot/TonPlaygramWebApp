@@ -5328,9 +5328,20 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
+const TOPSPIN_POWER_SOFT_CAP = 0.8;
+const TOPSPIN_POWER_MAX_SCALE = 0.7;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0;
+
+const resolveTopspinPowerScale = (power) => {
+  if (!Number.isFinite(power)) return 1;
+  if (power <= TOPSPIN_POWER_SOFT_CAP) return 1;
+  const t =
+    (power - TOPSPIN_POWER_SOFT_CAP) /
+    Math.max(1 - TOPSPIN_POWER_SOFT_CAP, 1e-6);
+  return THREE.MathUtils.lerp(1, TOPSPIN_POWER_MAX_SCALE, t);
+};
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -22186,6 +22197,7 @@ const powerRef = useRef(hud.power);
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
+          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
           const scaledSpin = {
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
@@ -22196,7 +22208,7 @@ const powerRef = useRef(hud.power);
           if (scaledSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (scaledSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
+            spinTop *= TOPSPIN_MULTIPLIER * topspinPowerScale;
           }
           cue.vel.copy(base);
           if (cue.spin) {
