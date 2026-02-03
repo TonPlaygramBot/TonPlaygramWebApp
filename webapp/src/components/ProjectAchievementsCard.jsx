@@ -238,7 +238,7 @@ export default function ProjectAchievementsCard() {
 
   const poolVariants = [
     {
-      name: 'UK 8 Pool',
+      name: '8Ball',
       image: '/assets/icons/8ballrack.png',
     },
     {
@@ -268,9 +268,9 @@ export default function ProjectAchievementsCard() {
       info:
         'Pool Royale is in progress with core physics and visuals delivered; multiplayer matchmaking and ranked progression are the next gaps to close.',
     },
-    'UK 8 Pool': {
+    '8Ball': {
       info:
-        'UK 8 Ball ruleset is live with polished ball physics, AI opponents, and shot timers. Online PvP is next.',
+        '8Ball ruleset is live with polished ball physics, AI opponents, and shot timers. Online PvP is next.',
     },
     '9 Ball': {
       info:
@@ -339,7 +339,7 @@ export default function ProjectAchievementsCard() {
           </span>
         </div>
         <p className="text-xs text-muted">
-          Pool Royale includes UK 8 Ball, 9 Ball, and American Billiards. All games are fully
+          Pool Royale includes 8Ball, 9 Ball, and American Billiards. All games are fully
           playable (currently local vs AI only).
         </p>
         <div className="grid grid-cols-4 gap-2">

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
 // Pool Royale generates up to 15 numbered + striped textures when players pick the
-// Solids & Stripes skin for UK 8-ball. At 4096px this was exhausting mobile GPUs
+// Solids & Stripes skin for 8Ball. At 4096px this was exhausting mobile GPUs
 // and crashing the session, so dial the texture size back to keep memory in check.
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();

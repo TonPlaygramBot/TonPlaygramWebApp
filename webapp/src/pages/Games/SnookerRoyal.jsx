@@ -1705,7 +1705,7 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
   },
   uk: {
     id: 'uk',
-    label: '8-Ball UK',
+    label: '8Ball',
     cueColor: 0xffffff,
     rackLayout: 'triangle',
     disableSnookerMarkings: true,
