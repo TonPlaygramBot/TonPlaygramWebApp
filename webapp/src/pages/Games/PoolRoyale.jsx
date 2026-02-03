@@ -1010,30 +1010,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Shqip commentary with native cadence',
     language: 'sq-AL',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: [
-        'sq-AL',
-        'sq',
-        'Albanian',
-        'eSpeak',
-        'eSpeak NG',
-        'espeak',
-        'male',
-        'Arben',
-        'Besnik',
-        'Luan'
-      ],
-      [POOL_ROYALE_SPEAKERS.analyst]: [
-        'sq-AL',
-        'sq',
-        'Albanian',
-        'eSpeak',
-        'eSpeak NG',
-        'espeak',
-        'female',
-        'Elira',
-        'Arta',
-        'Besa'
-      ]
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
     },
     speakerSettings: {
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
