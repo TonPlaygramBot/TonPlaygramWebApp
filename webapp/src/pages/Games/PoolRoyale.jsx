@@ -5328,6 +5328,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
+const TOPSPIN_MAX_POWER_EQUIVALENT = 0.9;
 const TOPSPIN_POWER_SOFT_CAP = 0.8;
 const TOPSPIN_POWER_MAX_SCALE = 0.7;
 const clampSpinValue = (value) => clamp(value, -1, 1);
@@ -5336,9 +5337,10 @@ const SPIN_VIEW_BLOCK_THRESHOLD = 0;
 
 const resolveTopspinPowerScale = (power) => {
   if (!Number.isFinite(power)) return 1;
-  if (power <= TOPSPIN_POWER_SOFT_CAP) return 1;
+  const effectivePower = Math.min(power, TOPSPIN_MAX_POWER_EQUIVALENT);
+  if (effectivePower <= TOPSPIN_POWER_SOFT_CAP) return 1;
   const t =
-    (power - TOPSPIN_POWER_SOFT_CAP) /
+    (effectivePower - TOPSPIN_POWER_SOFT_CAP) /
     Math.max(1 - TOPSPIN_POWER_SOFT_CAP, 1e-6);
   return THREE.MathUtils.lerp(1, TOPSPIN_POWER_MAX_SCALE, t);
 };
@@ -12915,6 +12917,9 @@ const powerRef = useRef(hud.power);
     wasInHandRef.current = Boolean(hud.inHand);
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
+      if (playerTurn) {
+        inHandPlacementApiRef.current?.placeDefault?.();
+      }
     }
     if (!hud.inHand || !playerTurn) {
       setInHandPlacementMode(false);
@@ -14634,14 +14639,9 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (replayActive) return;
     const controls = topViewControlsRef.current;
-    const meta = frameState?.meta;
-    const variant = meta?.variant ?? activeVariantRef.current?.id ?? null;
-    const allowFullTable =
-      variant === 'uk' ||
-      ((variant === 'american' || variant === '9ball') && !meta?.breakInProgress);
-    if (hud.inHand && allowFullTable && controls?.enter) {
-      controls.enter(true, { variant: 'top' });
-      inHandTopViewRef.current = true;
+    if (hud.inHand && inHandTopViewRef.current && controls?.exit) {
+      controls.exit(true);
+      inHandTopViewRef.current = false;
       return;
     }
     if (!hud.inHand && inHandTopViewRef.current && controls?.exit) {
@@ -21382,6 +21382,17 @@ const powerRef = useRef(hud.power);
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
       };
+      const placeCueBallFromHand = () => {
+        if (!cue) return false;
+        const startPos = defaultInHandPosition();
+        if (!startPos) return false;
+        cue.active = false;
+        updateCuePlacement(startPos);
+        cue.active = true;
+        cue.mesh.visible = true;
+        cueBallPlacedFromHandRef.current = true;
+        return true;
+      };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
@@ -21679,19 +21690,14 @@ const powerRef = useRef(hud.power);
             autoAimRequestRef.current = true;
           }
           return true;
-        }
+        },
+        placeDefault: () => placeCueBallFromHand()
       };
       window.addEventListener('pointerup', endInHandDrag);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition();
-        if (startPos) {
-          cue.active = false;
-          updateCuePlacement(startPos);
-          cue.active = true;
-          cueBallPlacedFromHandRef.current = true;
-        }
+        placeCueBallFromHand();
         if (allowFullTableInHand()) {
           const focusStore = ensureOrbitFocus();
           focusStore.target.set(0, BALL_CENTER_Y, 0);
@@ -22196,8 +22202,12 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
+          const topspinPower =
+            (physicsSpin?.y ?? 0) > 0
+              ? Math.min(clampedPower, TOPSPIN_MAX_POWER_EQUIVALENT)
+              : clampedPower;
+          const powerSpinScale = 0.55 + topspinPower * 0.45;
+          const topspinPowerScale = resolveTopspinPowerScale(topspinPower);
           const scaledSpin = {
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
@@ -28954,9 +28964,53 @@ const powerRef = useRef(hud.power);
           onPointerMove={handleInHandIconPointerMove}
           onPointerUp={handleInHandIconPointerUp}
           onPointerCancel={handleInHandIconPointerUp}
-          className="fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition"
+          className="fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition relative"
           style={{ opacity: 0, pointerEvents: 'none', transform: 'translate(-9999px, -9999px)' }}
         >
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2"
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderBottom: '7px solid rgba(255,255,255,0.85)'
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2"
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '7px solid rgba(255,255,255,0.85)'
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-2 top-1/2 -translate-y-1/2"
+            style={{
+              width: 0,
+              height: 0,
+              borderTop: '5px solid transparent',
+              borderBottom: '5px solid transparent',
+              borderRight: '7px solid rgba(255,255,255,0.85)'
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-2 top-1/2 -translate-y-1/2"
+            style={{
+              width: 0,
+              height: 0,
+              borderTop: '5px solid transparent',
+              borderBottom: '5px solid transparent',
+              borderLeft: '7px solid rgba(255,255,255,0.85)'
+            }}
+          />
           <span aria-hidden="true">✋️</span>
         </button>
       )}
