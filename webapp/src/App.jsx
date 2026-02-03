@@ -58,7 +58,12 @@ export default function App() {
   useReferralClaim();
   useNativePushNotifications();
 
-  const baseUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
+  const publicOrigin = (() => {
+    const origin = window.location.origin;
+    if (origin.startsWith('http')) return origin;
+    return import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram.com';
+  })();
+  const baseUrl = `${publicOrigin}${import.meta.env.BASE_URL}`;
   const manifestUrl = new URL('tonconnect-manifest.json', baseUrl).toString();
   const walletsListSource = new URL('tonconnect-wallets.json', baseUrl).toString();
   const returnUrl = window.location.href;
