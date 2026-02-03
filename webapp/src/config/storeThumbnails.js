@@ -21,14 +21,6 @@ const encodeSvg = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 export const polyHavenThumb = (id) =>
   `${POLYHAVEN_THUMB_BASE}/${resolvePolyHavenId(id)}.png?width=256&height=256`;
 
-export const remoteThumb = (base, assetPath) => {
-  if (!base) return '';
-  const trimmed = base.replace(/\/+$/, '');
-  const nextPath = String(assetPath || '').replace(/^\/+/, '');
-  if (!trimmed || !nextPath) return '';
-  return `${trimmed}/${nextPath}`;
-};
-
 export const khronosThumb = (modelId) =>
   `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/${modelId}/screenshot/screenshot.jpg`;
 
