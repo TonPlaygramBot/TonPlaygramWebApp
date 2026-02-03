@@ -1647,7 +1647,9 @@ const START_KEY_TO_PLAYER = new Map(
   })
 );
 const SAFE_TRACK_INDEXES = new Set(
-  PLAYER_START_INDEX.flatMap((index) => [index, (index + 8) % RING_STEPS])
+  PLAYER_START_INDEX
+    .map((index) => (index + 8) % RING_STEPS)
+    .filter((index) => !PLAYER_START_INDEX.includes(index))
 );
 const SAFE_TRACK_KEY_SET = new Set(
   [...SAFE_TRACK_INDEXES].map((index) => {
