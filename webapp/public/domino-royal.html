@@ -32,16 +32,6 @@
   #configPanel.active{display:flex;}
   #configPanel h3{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.28rem;color:rgba(148,197,255,.75);}
   #configSections{display:flex;flex-direction:column;gap:.55rem;overflow-y:auto;padding-right:.3rem;margin-right:-.3rem;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;}
-  .config-card{border:1px solid rgba(148,197,255,.18);border-radius:1rem;padding:.75rem;background:rgba(15,23,42,.45);box-shadow:0 10px 24px rgba(0,0,0,.35);}
-  .config-card-title{margin:0;font-size:.7rem;letter-spacing:.34em;text-transform:uppercase;color:rgba(226,232,240,.8);}
-  .config-card-subtitle{margin:.35rem 0 0 0;font-size:.7rem;color:rgba(226,232,240,.6);}
-  .config-tabs{display:flex;gap:.4rem;overflow-x:auto;padding:.2rem .15rem .35rem;margin:0 -.15rem;}
-  .config-tab{border:1px solid rgba(148,197,255,.2);border-radius:999px;padding:.4rem .75rem;background:rgba(255,255,255,.05);color:rgba(226,232,240,.7);font-size:.7rem;font-weight:700;white-space:nowrap;transition:.2s ease;}
-  .config-tab.active{border-color:rgba(125,211,252,.8);color:#fff;background:rgba(56,189,248,.12);box-shadow:0 0 12px rgba(56,189,248,.25);}
-  .config-list{display:flex;flex-direction:column;gap:.4rem;max-height:14rem;overflow-y:auto;padding-right:.2rem;}
-  .config-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;border:1px solid rgba(148,197,255,.18);border-radius:.9rem;padding:.5rem .6rem;background:rgba(255,255,255,.05);font-size:.72rem;font-weight:700;color:rgba(226,232,240,.9);text-align:left;transition:.2s ease;}
-  .config-row.active{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.12);box-shadow:0 0 12px rgba(56,189,248,.2);}
-  .config-preview-wrap{width:6rem;flex-shrink:0;}
   #configSections::-webkit-scrollbar{width:.35rem;}
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
@@ -2903,7 +2893,6 @@ const TABLE_SETUP_SECTIONS = [
   { key: "highlightStyle", label: "Highlights", options: HIGHLIGHT_STYLE_OPTIONS },
   { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
 ];
-let activeTableSetupKey = TABLE_SETUP_SECTIONS[0]?.key;
 
 const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   environmentHdri: ENVIRONMENT_HDRI_OPTIONS,
@@ -4976,7 +4965,7 @@ window.addEventListener('dominoRoyalInventoryUpdate', (event) => {
 function createOptionPreview(key, option) {
   const swatch = document.createElement('div');
   swatch.style.width = '100%';
-  swatch.style.height = '3.5rem';
+  swatch.style.height = '1.5rem';
   swatch.style.borderRadius = '0.75rem';
   swatch.style.border = '1px solid rgba(255,255,255,0.12)';
   switch (key) {
@@ -5187,74 +5176,38 @@ function refreshConfigUI() {
     commentaryWrapper.appendChild(commentaryNote);
   }
   configSectionsEl.appendChild(commentaryWrapper);
-  const personalizeWrapper = document.createElement('div');
-  personalizeWrapper.className = 'config-card';
-  const personalizeTitle = document.createElement('p');
-  personalizeTitle.className = 'config-card-title';
-  personalizeTitle.textContent = 'Personalize Arena';
-  personalizeWrapper.appendChild(personalizeTitle);
-  const personalizeSubtitle = document.createElement('p');
-  personalizeSubtitle.className = 'config-card-subtitle';
-  personalizeSubtitle.textContent = 'Table details, domino skins, and room styling.';
-  personalizeWrapper.appendChild(personalizeSubtitle);
-  const tabsRow = document.createElement('div');
-  tabsRow.className = 'config-tabs';
-  if (!TABLE_SETUP_SECTIONS.some((section) => section.key === activeTableSetupKey)) {
-    activeTableSetupKey = TABLE_SETUP_SECTIONS[0]?.key;
-  }
   TABLE_SETUP_SECTIONS.forEach((section) => {
-    const tab = document.createElement('button');
-    tab.type = 'button';
-    tab.className = 'config-tab';
-    if (section.key === activeTableSetupKey) {
-      tab.classList.add('active');
-    }
-    tab.textContent = section.label;
-    tab.addEventListener('click', () => {
-      activeTableSetupKey = section.key;
-      refreshConfigUI();
-    });
-    tabsRow.appendChild(tab);
-  });
-  personalizeWrapper.appendChild(tabsRow);
-  const activeSection =
-    TABLE_SETUP_SECTIONS.find((section) => section.key === activeTableSetupKey) ||
-    TABLE_SETUP_SECTIONS[0];
-  if (activeSection) {
-    const activeLabel = document.createElement('p');
-    activeLabel.className = 'config-card-subtitle';
-    activeLabel.style.marginTop = '0.35rem';
-    activeLabel.textContent = activeSection.label;
-    personalizeWrapper.appendChild(activeLabel);
-    const optionsList = document.createElement('div');
-    optionsList.className = 'config-list';
-    const availableOptions = getUnlockedOptions(activeSection.key, dominoInventory);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'config-section';
+    const label = document.createElement('h4');
+    label.textContent = section.label;
+    wrapper.appendChild(label);
+    const optionsGrid = document.createElement('div');
+    optionsGrid.className = 'config-options';
+    const availableOptions = getUnlockedOptions(section.key, dominoInventory);
     availableOptions.forEach((option) => {
-      const idx = findDominoOptionIndex(activeSection.key, option.id);
+      const idx = findDominoOptionIndex(section.key, option.id);
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'config-row';
-      if (appearance[activeSection.key] === idx) {
+      button.className = 'config-option';
+      if (appearance[section.key] === idx) {
         button.classList.add('active');
       }
+      button.appendChild(createOptionPreview(section.key, option));
       const name = document.createElement('span');
       name.textContent = option.label ?? option.id;
       button.appendChild(name);
-      const previewWrap = document.createElement('span');
-      previewWrap.className = 'config-preview-wrap';
-      previewWrap.appendChild(createOptionPreview(activeSection.key, option));
-      button.appendChild(previewWrap);
       button.addEventListener('click', () => {
-        if (appearance[activeSection.key] === idx) return;
-        appearance[activeSection.key] = idx;
+        if (appearance[section.key] === idx) return;
+        appearance[section.key] = idx;
         applyAppearanceChange({ refresh: false });
         refreshConfigUI();
       });
-      optionsList.appendChild(button);
+      optionsGrid.appendChild(button);
     });
-    personalizeWrapper.appendChild(optionsList);
-  }
-  configSectionsEl.appendChild(personalizeWrapper);
+    wrapper.appendChild(optionsGrid);
+    configSectionsEl.appendChild(wrapper);
+  });
 
   const feedbackWrapper = document.createElement('div');
   feedbackWrapper.className = 'config-section';

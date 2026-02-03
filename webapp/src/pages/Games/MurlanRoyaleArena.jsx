@@ -1845,16 +1845,6 @@ export default function MurlanRoyaleArena({ search }) {
         section.key === 'tableFinish' || section.key === 'tableCloth' ? allowTableFinish : true
       );
   }, [appearance.tables, murlanInventory]);
-  const [activeCustomizationKey, setActiveCustomizationKey] = useState(
-    CUSTOMIZATION_SECTIONS[0]?.key ?? 'tables'
-  );
-  useEffect(() => {
-    if (!customizationSections.some((section) => section.key === activeCustomizationKey)) {
-      setActiveCustomizationKey(customizationSections[0]?.key ?? 'tables');
-    }
-  }, [activeCustomizationKey, customizationSections]);
-  const activeCustomizationSection =
-    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
@@ -3948,65 +3938,32 @@ export default function MurlanRoyaleArena({ search }) {
                   </button>
                 </div>
                 <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
-                    </div>
-                    <div className="mt-3 max-h-72 space-y-3">
-                      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
-                        {customizationSections.map(({ key, label }) => {
-                          const selectedSection = key === activeCustomizationKey;
+                  {customizationSections.map(({ key, label, options }) => (
+                    <div key={key} className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {options.map((option, idx) => {
+                          const selected = appearance[key] === idx;
                           return (
                             <button
-                              key={key}
+                              key={option.id}
                               type="button"
-                              onClick={() => setActiveCustomizationKey(key)}
-                              className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                selectedSection
-                                  ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                  : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
+                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                              aria-pressed={selected}
+                              className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                selected
+                                  ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                  : 'border-white/10 bg-white/5 hover:border-white/20'
                               }`}
                             >
-                              {label}
+                              {renderPreview(key, option)}
+                              <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
                             </button>
                           );
                         })}
                       </div>
-                      {activeCustomizationSection && (
-                        <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
-                          <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
-                            {activeCustomizationSection.label}
-                          </p>
-                          <div className="space-y-1.5">
-                            {activeCustomizationSection.options.map((option) => {
-                              const selected = appearance[activeCustomizationSection.key] === option.idx;
-                              return (
-                                <button
-                                  key={option.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setAppearance((prev) => ({ ...prev, [activeCustomizationSection.key]: option.idx }))
-                                  }
-                                  aria-pressed={selected}
-                                  className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                    selected
-                                      ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                      : 'border-white/10 bg-white/5 hover:border-white/20'
-                                  }`}
-                                >
-                                  <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
-                                  <span className="w-24 shrink-0">
-                                    {renderPreview(activeCustomizationSection.key, option)}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
+                  ))}
                   <div className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
                     <div className="grid gap-2">
