@@ -1270,7 +1270,7 @@ const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 6.0,
+  airSpinDecay: 1.0,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
@@ -1528,7 +1528,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.66; // increase overall spin impact by 10%
+const SPIN_GLOBAL_SCALE = 0.35; // reduce overall spin impact by 65%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1544,20 +1544,18 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const RAIL_SPIN_ROLL_ACCELERATION = 0;
-const RAIL_CONTACT_SLIDE_DAMPING = 0;
-const RAIL_CONTACT_SPIN_DAMPING = 0;
-const SPIN_REST_ACCEL_SCALE = 1;
+const RAIL_SPIN_ROLL_ACCELERATION = SPIN_ROLL_ACCELERATION * 0.45;
+const RAIL_CONTACT_SLIDE_DAMPING = 0.55;
+const RAIL_CONTACT_SPIN_DAMPING = 0.35;
+const SPIN_REST_ACCEL_SCALE = 0.45; // prevent stationary spin from stalling without over-accelerating
 const AIR_SPIN_ROLL_SCALE = 0; // disable forward/back spin acceleration while airborne
 const AIR_SPIN_SWERVE_SCALE = 0; // disable Magnus-style drift for airborne side spin
-const BALL_SPIN_THROW_SCALE = 0; // align ball-to-ball spin response with Snooker Royal
+const BALL_SPIN_THROW_SCALE = BALL_R * 0.34; // small tangential throw from ball-to-ball spin contact
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Snooker Royal power pass: lift overall shot strength by another 25%.
-const SHOT_POWER_REDUCTION = 0.425; // reduce shot power by 50% to match the requested pacing
-const SHOT_POWER_BOOST = 1.5;
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while matching Snooker Royal pacing.
+// Increase overall Pool Royale power by 33% on top of the Snooker Royal baseline.
+const SHOT_POWER_REDUCTION = 0.425;
+const SHOT_POWER_BOOST = 1.995;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
