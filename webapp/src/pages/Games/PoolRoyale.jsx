@@ -93,6 +93,7 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToMaxOffset,
+  clampToUnitCircle,
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
@@ -1675,7 +1676,6 @@ const TOPSPIN_MULTIPLIER = 1.15;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
-const SPIN_UI_MAX_OFFSET = 0.6;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
@@ -27186,19 +27186,9 @@ const powerRef = useRef(hud.power);
     };
 
     const clampToPlayable = (nx, ny) => {
-      const raw = clampToMaxOffset(nx, ny, SPIN_UI_MAX_OFFSET);
+      const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
-      const aimVec = aimDirRef.current;
-      const cueBall = cueRef.current;
-      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
-      const viewLimited = clampSpinToVisibleHemisphere(
-        limited,
-        aimVec,
-        cueBall,
-        activeCamera
-      );
-      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
-      return clampToMaxOffset(reclamped.x, reclamped.y, SPIN_UI_MAX_OFFSET);
+      return clampToUnitCircle(limited.x, limited.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -27234,8 +27224,7 @@ const powerRef = useRef(hud.power);
     const applySnapTarget = () => {
       const snapped = computeQuantizedOffsetScaled(
         spinState.target.x,
-        spinState.target.y,
-        { maxOffset: SPIN_UI_MAX_OFFSET }
+        spinState.target.y
       );
       spinState.target = clampToPlayable(snapped.x, snapped.y);
       spinRequestRef.current = { ...spinState.target };
