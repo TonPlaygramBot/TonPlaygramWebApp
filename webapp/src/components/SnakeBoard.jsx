@@ -100,7 +100,7 @@ function buildPyramidLayout() {
 
 const BOARD_LAYOUT = buildPyramidLayout();
 export const BOARD_CELL_COUNT = BOARD_LAYOUT.totalCells;
-export const FINAL_TILE = BOARD_CELL_COUNT + 1;
+export const FINAL_TILE = BOARD_CELL_COUNT;
 const BOARD_WIDTH_UNITS = BOARD_LAYOUT.widthUnits;
 const BOARD_HEIGHT_UNITS = BOARD_LAYOUT.heightUnits;
 const CENTER_COLUMN = BOARD_LAYOUT.centerColumn;
