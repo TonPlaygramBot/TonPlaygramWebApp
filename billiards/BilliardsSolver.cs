@@ -456,13 +456,7 @@ public class BilliardsSolver
                             b.Pocketed = true;
                             break;
                         }
-                        var incoming = b.Velocity;
-                        var reflected = Collision.Reflect(incoming, normal, restitution);
-                        if (restitution > 0)
-                        {
-                            reflected = ApplyCushionFriction(b, incoming, reflected, normal);
-                        }
-                        b.Velocity = reflected;
+                        b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
                         StepVertical(b, travel);
@@ -710,12 +704,7 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                var incoming = cue.Velocity;
-                var post = Collision.Reflect(incoming, e.Normal, PhysicsConstants.ConnectorRestitution);
-                if (PhysicsConstants.ConnectorRestitution > 0)
-                {
-                    post = ApplyCushionFriction(cue, incoming, post, e.Normal);
-                }
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
@@ -726,12 +715,7 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                var incoming = cue.Velocity;
-                var post = Collision.Reflect(incoming, e.Normal, PhysicsConstants.CushionRestitution);
-                if (PhysicsConstants.CushionRestitution > 0)
-                {
-                    post = ApplyCushionFriction(cue, incoming, post, e.Normal);
-                }
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.CushionRestitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
@@ -743,12 +727,7 @@ public class BilliardsSolver
             {
                 cue.Position += cue.Velocity * te;
                 var restitution = airborne ? PhysicsConstants.CushionRestitution : PhysicsConstants.PocketRestitution;
-                var incoming = cue.Velocity;
-                var post = Collision.Reflect(incoming, e.Normal, restitution);
-                if (restitution > 0)
-                {
-                    post = ApplyCushionFriction(cue, incoming, post, e.Normal);
-                }
+                var post = Collision.Reflect(cue.Velocity, e.Normal, restitution);
                 impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
@@ -789,27 +768,5 @@ public class BilliardsSolver
             return x >= edge1 ? 1.0 : 0.0;
         double t = Math.Clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
         return t * t * (3.0 - 2.0 * t);
-    }
-
-    private static Vec2 ApplyCushionFriction(Ball ball, Vec2 incoming, Vec2 reflected, Vec2 normal)
-    {
-        var tangent = new Vec2(-normal.Y, normal.X);
-        double tangentSpeed = Vec2.Dot(incoming, tangent);
-        double speedAbs = Math.Abs(tangentSpeed);
-        double lowSpeedBlend = 1.0 - Smoothstep(0.0, PhysicsConstants.CushionLowSpeed, speedAbs);
-        double friction = Lerp(PhysicsConstants.CushionFriction, PhysicsConstants.CushionLowSpeedFriction, lowSpeedBlend);
-        friction = Math.Clamp(friction, 0.0, 1.0);
-        reflected -= tangent * (tangentSpeed * friction);
-
-        double spinDamping = Lerp(PhysicsConstants.CushionSpinDamping, PhysicsConstants.CushionLowSpeedSpinDamping, lowSpeedBlend);
-        spinDamping = Math.Clamp(spinDamping, 0.0, 1.0);
-        ball.SideSpin *= 1.0 - spinDamping;
-        ball.ForwardSpin *= 1.0 - spinDamping * PhysicsConstants.CushionForwardSpinDamping;
-        return reflected;
-    }
-
-    private static double Lerp(double a, double b, double t)
-    {
-        return a + (b - a) * Math.Clamp(t, 0.0, 1.0);
     }
 }
