@@ -5334,9 +5334,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             )}
           </div>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 flex max-h-[80vh] w-72 max-w-[80vw] flex-col rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+            <div className="pointer-events-auto mt-2 flex max-h-[80vh] w-72 max-w-[80vw] flex-col overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+                <div>
+                  <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+                  <p className="mt-1 text-[0.7rem] text-white/70">
+                    Personalize the board, tokens, and arena staging.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setConfigOpen(false)}
@@ -5348,172 +5353,176 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
-                {customizationSections.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option) => {
-                        const selected = appearance[key] === option.idx;
-                        const disabled = false;
-                        return (
-                          <button
-                            key={option.id ?? option.idx}
-                            type="button"
-                            onClick={() => setAppearance((prev) => ({ ...prev, [key]: option.idx }))}
-                            aria-pressed={selected}
-                            disabled={disabled}
-                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
-                          >
-                            {renderPreview(key, option)}
-                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                      Graphics
-                    </h3>
-                    <div className="mt-2 grid gap-2">
-                      {FRAME_RATE_OPTIONS.map((option) => {
-                        const active = option.id === frameRateId;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => setFrameRateId(option.id)}
-                            aria-pressed={active}
-                            className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              active
-                                ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(125,211,252,0.45)]'
-                                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
-                            }`}
-                          >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                                {option.label}
-                              </span>
-                              <span className="text-xs font-semibold tracking-wide">
-                                {option.resolution
-                                  ? `${option.resolution} • ${option.fps} FPS`
-                                  : `${option.fps} FPS`}
-                              </span>
-                            </span>
-                            {option.description ? (
-                              <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                                {option.description}
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                      <span>Sound effects</span>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                        checked={soundEnabled}
-                        onChange={(event) => {
-                          const next = event.target.checked;
-                          setSoundEnabled(next);
-                          setGameMuted(!next);
-                        }}
-                      />
-                    </label>
-                    <div>
-                      <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                        Commentary
-                      </h3>
-                      <div className="mt-2 grid gap-2">
-                        {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
-                          const active = preset.id === commentaryPresetId;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => setCommentaryPresetId(preset.id)}
-                              aria-pressed={active}
-                              disabled={!commentarySupported}
-                              className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                active
-                                  ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                                  : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                              } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                            >
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                                {active && (
-                                  <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                                    Active
-                                  </span>
-                                )}
-                              </span>
-                              <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                                {preset.description}
-                              </span>
-                            </button>
-                          );
-                        })}
+              <div className="mt-4 flex-1 space-y-3 touch-pan-y overscroll-contain">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                  <p className="mt-1 text-[0.7rem] text-white/60">Table surfaces, tokens, and seating.</p>
+                  <div className="mt-3 space-y-4">
+                    {customizationSections.map(({ key, label, options }) => (
+                      <div key={key} className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {options.map((option) => {
+                            const selected = appearance[key] === option.idx;
+                            const disabled = false;
+                            return (
+                              <button
+                                key={option.id ?? option.idx}
+                                type="button"
+                                onClick={() => setAppearance((prev) => ({ ...prev, [key]: option.idx }))}
+                                aria-pressed={selected}
+                                disabled={disabled}
+                                className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
+                              >
+                                {renderPreview(key, option)}
+                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
+                                  {option.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setCommentaryMuted((prev) => !prev)}
-                        aria-pressed={commentaryMuted}
-                        disabled={!commentarySupported}
-                        className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          commentaryMuted
-                            ? 'bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span>Mute commentary</span>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                            commentaryMuted
-                              ? 'border-black/30 text-black/70'
-                              : 'border-white/30 text-white/70'
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
+                    Graphics
+                  </h3>
+                  <div className="mt-2 grid gap-2">
+                    {FRAME_RATE_OPTIONS.map((option) => {
+                      const active = option.id === frameRateId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setFrameRateId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            active
+                              ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(125,211,252,0.45)]'
+                              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
                           }`}
                         >
-                          {commentaryMuted ? 'On' : 'Off'}
-                        </span>
-                      </button>
-                      {!commentarySupported && (
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          Voice commentary needs Web Speech support.
-                        </p>
-                      )}
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                              {option.label}
+                            </span>
+                            <span className="text-xs font-semibold tracking-wide">
+                              {option.resolution
+                                ? `${option.resolution} • ${option.fps} FPS`
+                                : `${option.fps} FPS`}
+                            </span>
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                    <span>Sound effects</span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                      checked={soundEnabled}
+                      onChange={(event) => {
+                        const next = event.target.checked;
+                        setSoundEnabled(next);
+                        setGameMuted(!next);
+                      }}
+                    />
+                  </label>
+                  <div>
+                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
+                      Commentary
+                    </h3>
+                    <div className="mt-2 grid gap-2">
+                      {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
+                        const active = preset.id === commentaryPresetId;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setCommentaryPresetId(preset.id)}
+                            aria-pressed={active}
+                            disabled={!commentarySupported}
+                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                            } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                              {active && (
+                                <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                                  Active
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {preset.description}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        fitRef.current?.();
-                        setConfigOpen(false);
-                      }}
-                      className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
+                      onClick={() => setCommentaryMuted((prev) => !prev)}
+                      aria-pressed={commentaryMuted}
+                      disabled={!commentarySupported}
+                      className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        commentaryMuted
+                          ? 'bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.65)]'
+                          : 'bg-white/10 text-white/80 hover:bg-white/20'
+                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
                     >
-                      Center camera
+                      <span>Mute commentary</span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                          commentaryMuted
+                            ? 'border-black/30 text-black/70'
+                            : 'border-white/30 text-white/70'
+                        }`}
+                      >
+                        {commentaryMuted ? 'On' : 'Off'}
+                      </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => window.location.reload()}
-                      className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                    >
-                      Restart game
-                    </button>
+                    {!commentarySupported && (
+                      <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
+                        Voice commentary needs Web Speech support.
+                      </p>
+                    )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fitRef.current?.();
+                      setConfigOpen(false);
+                    }}
+                    className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
+                  >
+                    Center camera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                  >
+                    Restart game
+                  </button>
                 </div>
               </div>
             </div>

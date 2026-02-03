@@ -3321,9 +3321,9 @@ export default function SnakeAndLadder() {
         const pip = option.pip ?? '#111827';
         const rim = option.rim ?? '#fbbf24';
         return (
-          <div className="w-full h-12 flex items-center justify-center">
+          <div className="w-full h-14 flex items-center justify-center">
             <div
-              className="relative w-9 h-9 rounded-xl shadow-[0_8px_20px_rgba(15,23,42,0.55)]"
+              className="relative h-10 w-10 rounded-xl shadow-[0_8px_20px_rgba(15,23,42,0.55)]"
               style={{ background: body, boxShadow: `0 6px 16px ${rim}44` }}
             >
               <span
@@ -3343,7 +3343,7 @@ export default function SnakeAndLadder() {
         const woodLight = option.woodLight ?? '#d6b68c';
         const woodDark = option.woodDark ?? '#8b5e34';
         return (
-          <div className="w-full h-12 rounded-xl border border-white/10 flex flex-col justify-center gap-2 px-3">
+          <div className="w-full h-14 rounded-xl border border-white/10 flex flex-col justify-center gap-2 px-3">
             <div
               className="h-2 rounded-full"
               style={{ background: `linear-gradient(90deg, ${metal}, ${lightenHex(metal, 0.2)})` }}
@@ -3362,9 +3362,9 @@ export default function SnakeAndLadder() {
       case 'tokenFinish': {
         const accent = option.accentTarget ?? '#f8fafc';
         return (
-          <div className="w-full h-12 flex items-center justify-center">
+          <div className="w-full h-14 flex items-center justify-center">
             <div
-              className="relative h-10 w-10 rounded-full"
+              className="relative h-11 w-11 rounded-full"
               style={{
                 background: `radial-gradient(circle at 30% 30%, ${accent}, ${darkenHex(accent, 0.65)})`,
                 boxShadow: `0 10px 25px ${accent}33`
@@ -3380,7 +3380,7 @@ export default function SnakeAndLadder() {
       }
       case 'tokenShape': {
         return (
-          <div className="flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/70 text-base text-white/80">
+          <div className="flex h-14 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/70 text-base text-white/80">
             ♟️
           </div>
         );
@@ -3389,9 +3389,9 @@ export default function SnakeAndLadder() {
         const color = option.preset?.color ?? '#e2e8f0';
         const accent = option.preset?.color ? lightenHex(option.preset.color, 0.2) : '#f8fafc';
         return (
-          <div className="flex h-12 w-full items-center justify-center">
+          <div className="flex h-14 w-full items-center justify-center">
             <div
-              className="relative h-10 w-10 rounded-full border border-white/10"
+              className="relative h-11 w-11 rounded-full border border-white/10"
               style={{
                 background: `radial-gradient(circle at 30% 30%, ${accent}, ${color})`,
                 boxShadow: `0 10px 20px ${color}44`
@@ -3404,7 +3404,7 @@ export default function SnakeAndLadder() {
         const swatches = option.swatches || ['#cbd5f5', '#475569'];
         return (
           <div
-            className="w-full h-12 rounded-xl border border-white/10"
+            className="w-full h-14 rounded-xl border border-white/10"
             style={{
               backgroundImage: option.thumbnail
                 ? `url(${option.thumbnail})`
@@ -3441,7 +3441,7 @@ export default function SnakeAndLadder() {
         const seat = option.seatColor || option.primary || '#7c3aed';
         const legs = option.legColor || '#111827';
         return (
-          <div className="w-full h-12 rounded-xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-800/60 p-2">
+          <div className="w-full h-14 rounded-xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-800/60 p-2">
             <div className="flex h-full items-end gap-3">
               <div
                 className="h-3 w-full rounded-full"
@@ -3463,7 +3463,7 @@ export default function SnakeAndLadder() {
         const swatches = option.swatches || ['#94a3b8', '#1f2937'];
         return (
           <div
-            className="w-full h-12 rounded-xl border border-white/10"
+            className="w-full h-14 rounded-xl border border-white/10"
             style={{
               backgroundImage: option.thumbnail
                 ? `url(${option.thumbnail})`
@@ -3481,7 +3481,7 @@ export default function SnakeAndLadder() {
           : ['#0ea5e9', '#312e81'];
         return (
           <div
-            className="w-full h-12 rounded-xl border border-white/10"
+            className="w-full h-14 rounded-xl border border-white/10"
             style={{
               backgroundImage: option.thumbnail
                 ? `url(${option.thumbnail})`
@@ -3559,9 +3559,14 @@ export default function SnakeAndLadder() {
           {showConfig && (
             <div className="absolute left-0 mt-2 w-[min(22rem,80vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <span className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-sky-200/80">
-                  Table Setup
-                </span>
+                <div>
+                  <span className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-sky-200/80">
+                    Table Setup
+                  </span>
+                  <p className="mt-1 text-[0.7rem] text-white/70">
+                    Customize the Snake &amp; Ladder arena layout and visuals.
+                  </p>
+                </div>
                 <button
                   type="button"
                   aria-label="Mbyll konfigurimet"
@@ -3571,180 +3576,187 @@ export default function SnakeAndLadder() {
                   ✕
                 </button>
               </div>
-              <div className="mt-4 space-y-4 pr-1">
-                {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const unlocked = isSnakeOptionUnlocked(key, option.id, snakeInventory);
-                        if (!unlocked) return null;
-                        const selected = normalizedAppearance[key] === idx;
-                        return (
-                          <button
-                            key={option.id ?? idx}
-                            type="button"
-                            onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
-                            }
-                            aria-pressed={selected}
-                            className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_18px_rgba(56,189,248,0.45)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            }`}
-                          >
-                            {renderPreview(key, option)}
-                            <span className="block w-full text-center text-[0.6rem] font-semibold text-gray-200">
+              <div className="mt-4 space-y-3 pr-1">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                  <p className="mt-1 text-[0.7rem] text-white/60">Boards, tokens, and table themes.</p>
+                  <div className="mt-3 space-y-4">
+                    {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                      <div key={key} className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {options.map((option, idx) => {
+                            const unlocked = isSnakeOptionUnlocked(key, option.id, snakeInventory);
+                            if (!unlocked) return null;
+                            const selected = normalizedAppearance[key] === idx;
+                            return (
+                              <button
+                                key={option.id ?? idx}
+                                type="button"
+                                onClick={() =>
+                                  setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
+                                }
+                                aria-pressed={selected}
+                                className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_18px_rgba(56,189,248,0.45)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }`}
+                              >
+                                {renderPreview(key, option)}
+                                <span className="block w-full text-center text-[0.6rem] font-semibold text-gray-200">
+                                  {option.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Settings</p>
+                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                    <span>Ndalo tingujt</span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                      checked={muted}
+                      onChange={(event) => {
+                        const next = event.target.checked;
+                        setMuted(next);
+                        setGameMuted(next);
+                      }}
+                    />
+                  </label>
+                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                    <span>Show movement trail</span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                      checked={showTrailEnabled}
+                      onChange={(event) => setShowTrailEnabled(event.target.checked)}
+                    />
+                  </label>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</h3>
+                  <div className="grid gap-2">
+                    {SNAKE_COMMENTARY_PRESETS.map((preset) => {
+                      const active = preset.id === commentaryPresetId;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setCommentaryPresetId(preset.id)}
+                          aria-pressed={active}
+                          disabled={!commentarySupported}
+                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                          } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                            {active && (
+                              <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
+                                Active
+                              </span>
+                            )}
+                          </span>
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {preset.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCommentaryMuted((prev) => !prev)}
+                    aria-pressed={commentaryMuted}
+                    disabled={!commentarySupported}
+                    className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                      commentaryMuted
+                        ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                        : 'bg-white/10 text-white/80 hover:bg-white/20'
+                    } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                  >
+                    <span>Mute commentary</span>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                        commentaryMuted
+                          ? 'border-black/30 text-black/70'
+                          : 'border-white/30 text-white/70'
+                      }`}
+                    >
+                      {commentaryMuted ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                  {!commentarySupported && (
+                    <p className="text-[10px] text-white/50">
+                      Voice commentary requires a browser with Web Speech support.
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</h3>
+                  <div className="grid gap-2">
+                    {FRAME_RATE_OPTIONS.map((option) => {
+                      const active = option.id === frameRateId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setFrameRateId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-4 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
                               {option.label}
                             </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 space-y-3">
-                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Ndalo tingujt</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                    checked={muted}
-                    onChange={(event) => {
-                      const next = event.target.checked;
-                      setMuted(next);
-                      setGameMuted(next);
-                    }}
-                  />
-                </label>
-                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Show movement trail</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                    checked={showTrailEnabled}
-                    onChange={(event) => setShowTrailEnabled(event.target.checked)}
-                  />
-                </label>
-              </div>
-              <div className="mt-4 space-y-2">
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary</h3>
-                <div className="grid gap-2">
-                  {SNAKE_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                          {active && (
-                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
-                              Active
+                            <span className="text-xs font-semibold tracking-wide">
+                              {option.resolution
+                                ? `${option.resolution} • ${option.fps} FPS`
+                                : `${option.fps} FPS`}
                             </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCommentaryMuted((prev) => !prev)}
-                  aria-pressed={commentaryMuted}
-                  disabled={!commentarySupported}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    commentaryMuted
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                >
-                  <span>Mute commentary</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      commentaryMuted
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppearance({ ...DEFAULT_APPEARANCE });
+                      setFrameRateId(DEFAULT_FRAME_RATE_ID);
+                    }}
+                    className="w-full rounded-lg border border-white/10 bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
                   >
-                    {commentaryMuted ? 'On' : 'Off'}
-                  </span>
-                </button>
-                {!commentarySupported && (
-                  <p className="text-[10px] text-white/50">
-                    Voice commentary requires a browser with Web Speech support.
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 space-y-2">
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</h3>
-                <div className="grid gap-2">
-                  {FRAME_RATE_OPTIONS.map((option) => {
-                    const active = option.id === frameRateId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setFrameRateId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                            {option.label}
-                          </span>
-                          <span className="text-xs font-semibold tracking-wide">
-                            {option.resolution
-                              ? `${option.resolution} • ${option.fps} FPS`
-                              : `${option.fps} FPS`}
-                          </span>
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                    Reseto personalizimin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                  >
+                    Restart game
+                  </button>
                 </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAppearance({ ...DEFAULT_APPEARANCE });
-                    setFrameRateId(DEFAULT_FRAME_RATE_ID);
-                  }}
-                  className="w-full rounded-lg border border-white/10 bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
-                >
-                  Reseto personalizimin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                >
-                  Restart game
-                </button>
               </div>
             </div>
           )}

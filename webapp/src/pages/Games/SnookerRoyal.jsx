@@ -26696,12 +26696,17 @@ const powerRef = useRef(hud.power);
           <div
             id="snooker-config-panel"
             ref={configPanelRef}
-            className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
+            className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur pr-1"
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
-                Table Setup
-              </span>
+              <div>
+                <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
+                  Table Setup
+                </span>
+                <p className="mt-1 text-[0.7rem] text-white/70">
+                  Match the Snooker Royal table finish and arena mood.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setConfigOpen(false)}
@@ -26720,8 +26725,8 @@ const powerRef = useRef(hud.power);
                 </svg>
               </button>
             </div>
-            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Replays
                 </h3>
@@ -26747,7 +26752,7 @@ const powerRef = useRef(hud.power);
                   </span>
                 </button>
               </div>
-              <div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Commentary
                 </h3>
@@ -26810,7 +26815,7 @@ const powerRef = useRef(hud.power);
                   </p>
                 )}
               </div>
-              <div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
                 </h3>
@@ -26824,7 +26829,7 @@ const powerRef = useRef(hud.power);
                         type="button"
                         onClick={() => setTableFinishId(option.id)}
                         aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-2xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'
@@ -26835,7 +26840,7 @@ const powerRef = useRef(hud.power);
                           <img
                             src={thumb}
                             alt={option.label}
-                            className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                            className="h-14 w-20 rounded-xl border border-white/20 object-cover"
                             loading="lazy"
                           />
                         ) : null}
@@ -26844,7 +26849,7 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
-              <div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Base
                 </h3>
@@ -26860,7 +26865,7 @@ const powerRef = useRef(hud.power);
                         type="button"
                         onClick={() => setTableBaseId(option.id)}
                         aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-2xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'
@@ -26871,12 +26876,12 @@ const powerRef = useRef(hud.power);
                           <img
                             src={thumb}
                             alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
+                            className="h-14 w-20 rounded-xl border border-white/25 object-cover"
                             loading="lazy"
                           />
                         ) : (
                           <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
+                            className="h-14 w-20 rounded-xl border border-white/25"
                             aria-hidden="true"
                             style={{
                               background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
@@ -26888,7 +26893,7 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
-              <div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
                 </h3>
@@ -26915,12 +26920,12 @@ const powerRef = useRef(hud.power);
                           <img
                             src={thumb}
                             alt={`${variant.name} HDRI`}
-                            className="h-6 w-10 rounded-lg border border-white/30 object-cover"
+                            className="h-14 w-20 rounded-xl border border-white/30 object-cover"
                             loading="lazy"
                           />
                         ) : (
                           <span
-                            className="h-6 w-10 rounded-lg border border-white/30"
+                            className="h-14 w-20 rounded-xl border border-white/30"
                             aria-hidden="true"
                             style={{
                               background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
@@ -26932,7 +26937,7 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
-              <div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plates
                 </h3>
@@ -26964,7 +26969,7 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
-              <div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Cue Styles
                 </h3>
@@ -26988,7 +26993,7 @@ const powerRef = useRef(hud.power);
                           <img
                             src={thumb}
                             alt={preset.label}
-                            className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                            className="h-14 w-20 rounded-xl border border-white/20 object-cover"
                             loading="lazy"
                           />
                         ) : null}
@@ -27031,7 +27036,7 @@ const powerRef = useRef(hud.power);
                             <img
                               src={thumb}
                               alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              className="h-14 w-20 rounded-xl border border-white/20 object-cover"
                               loading="lazy"
                             />
                           ) : null}
@@ -27101,7 +27106,7 @@ const powerRef = useRef(hud.power);
                             <img
                               src={thumb}
                               alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              className="h-14 w-20 rounded-xl border border-white/20 object-cover"
                               loading="lazy"
                             />
                           ) : null}
