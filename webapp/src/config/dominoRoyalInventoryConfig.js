@@ -1,6 +1,8 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+import { polyHavenThumb, remoteThumbnail, swatchThumbnail } from './storeThumbnails.js';
+
+const DOMINO_STYLE_THUMBNAIL_BASE = import.meta.env.VITE_DOMINO_STYLE_THUMBNAIL_BASE || '';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: [
@@ -76,13 +78,27 @@ const DOMINO_TABLE_BASE_THUMBNAILS = Object.freeze({
 });
 
 const DOMINO_STYLE_THUMBNAILS = Object.freeze({
-  imperialIvory: swatchThumbnail(['#f8fafc', '#cbd5f5', '#e2e8f0']),
-  obsidianPlatinum: swatchThumbnail(['#1f2937', '#6b7280', '#e5e7eb']),
-  midnightRose: swatchThumbnail(['#881337', '#1f2937', '#fecdd3']),
-  auroraJade: swatchThumbnail(['#047857', '#0f172a', '#86efac']),
-  frostedOpal: swatchThumbnail(['#f8fafc', '#c7d2fe', '#e2e8f0']),
-  carbonVolt: swatchThumbnail(['#0f172a', '#111827', '#fde047']),
-  sandstoneAurora: swatchThumbnail(['#d6c7a1', '#7c2d12', '#fcd34d'])
+  imperialIvory:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-imperial-ivory.png') ||
+    swatchThumbnail(['#f8fafc', '#cbd5f5', '#e2e8f0']),
+  obsidianPlatinum:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-obsidian-platinum.png') ||
+    swatchThumbnail(['#1f2937', '#6b7280', '#e5e7eb']),
+  midnightRose:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-midnight-rose.png') ||
+    swatchThumbnail(['#881337', '#1f2937', '#fecdd3']),
+  auroraJade:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-aurora-jade.png') ||
+    swatchThumbnail(['#047857', '#0f172a', '#86efac']),
+  frostedOpal:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-frosted-opal.png') ||
+    swatchThumbnail(['#f8fafc', '#c7d2fe', '#e2e8f0']),
+  carbonVolt:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-carbon-volt.png') ||
+    swatchThumbnail(['#0f172a', '#111827', '#fde047']),
+  sandstoneAurora:
+    remoteThumbnail(DOMINO_STYLE_THUMBNAIL_BASE, 'domino-style-sandstone-aurora.png') ||
+    swatchThumbnail(['#d6c7a1', '#7c2d12', '#fcd34d'])
 });
 
 const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
