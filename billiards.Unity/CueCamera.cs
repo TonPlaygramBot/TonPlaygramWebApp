@@ -163,10 +163,14 @@ public class CueCamera : MonoBehaviour
     public float standingCameraDistance = 0.82f;
     // Height offset above the table focus, captured on start.
     public float standingCameraHeight = 0.48f;
+    // Pull the standing camera inward so the framing matches the Pool Royale view.
+    public float standingCameraDistanceInset = 0.08f;
+    // Additional height offset applied after caching the standing camera pose.
+    public float standingCameraHeightOffset = -0.04f;
 
     [Header("Pocket camera framing")]
     // Pull the pocket camera slightly inward for tighter pocket coverage.
-    public float pocketCameraDistanceInset = 0.08f;
+    public float pocketCameraDistanceInset = 0.14f;
     // Nudge the pocket camera look target downward for a slightly steeper angle.
     public float pocketCameraLookDownOffset = 0.03f;
 
@@ -756,7 +760,7 @@ public class CueCamera : MonoBehaviour
         float heightOffset = baseHeight;
         if (useStandingCameraForBroadcast && cachedStandingCamera)
         {
-            heightOffset = Mathf.Max(standingCameraHeight, minimumHeightAboveFocus);
+            heightOffset = Mathf.Max(standingCameraHeight + standingCameraHeightOffset, minimumHeightAboveFocus);
         }
         float heightPadding = useStandingCameraForBroadcast && cachedStandingCamera ? 0f : Mathf.Max(0f, broadcastHeightPadding);
         float height = Mathf.Max(heightOffset + heightPadding, minRailHeight);
@@ -769,7 +773,7 @@ public class CueCamera : MonoBehaviour
         focus.z = broadcastBounds.center.z;
 
         float distance = useStandingCameraForBroadcast && cachedStandingCamera
-            ? standingCameraDistance
+            ? Mathf.Max(standingCameraDistance - Mathf.Max(0f, standingCameraDistanceInset), broadcastMinDistance)
             : ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
         if (isPocketCamera)
         {
