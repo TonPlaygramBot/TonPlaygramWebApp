@@ -634,8 +634,8 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep middle rail rounded cuts aligned to the baseline profile
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wood cutouts centered on the middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1090,11 +1090,11 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.4; // pull the middle jaw reach back to the earlier rounded cut size
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the middle jaw arc radius aligned with the baseline profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // reduce the outward shift so the rounded cut matches the earlier jaw size
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -16983,11 +16983,20 @@ const powerRef = useRef(hud.power);
           };
           const cameraA = replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null;
           const cameraB = replayFrameCamera?.frameB ?? cameraA;
+          const isPocketFrame = (frame) =>
+            typeof frame?.key === 'string' && frame.key.startsWith('pocket:');
+          const useReplayFrame = isPocketFrame(cameraA) || isPocketFrame(cameraB);
+          const resolvedCameraA = useReplayFrame ? cameraA : null;
+          const resolvedCameraB = useReplayFrame ? cameraB : resolvedCameraA;
           const alpha = THREE.MathUtils.clamp(replayFrameCamera?.alpha ?? 0, 0, 1);
-          const position = lerpVector(cameraA?.position, cameraB?.position, alpha) ?? fallbackPosition;
-          const target = lerpVector(cameraA?.target, cameraB?.target, alpha) ?? fallbackTarget;
-          const fovA = Number.isFinite(cameraA?.fov) ? cameraA.fov : null;
-          const fovB = Number.isFinite(cameraB?.fov) ? cameraB.fov : fovA;
+          const position =
+            lerpVector(resolvedCameraA?.position, resolvedCameraB?.position, alpha) ??
+            fallbackPosition;
+          const target =
+            lerpVector(resolvedCameraA?.target, resolvedCameraB?.target, alpha) ??
+            fallbackTarget;
+          const fovA = Number.isFinite(resolvedCameraA?.fov) ? resolvedCameraA.fov : null;
+          const fovB = Number.isFinite(resolvedCameraB?.fov) ? resolvedCameraB.fov : fovA;
           const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
             ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
             : fallbackFov;
@@ -18318,10 +18327,7 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          const allowEarly =
-            forceCornerCapture ||
-            (forceEarly &&
-              bestScore >= POCKET_EARLY_ALIGNMENT);
+          const allowEarly = forceCornerCapture;
           if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
@@ -18346,8 +18352,7 @@ const powerRef = useRef(hud.power);
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
           if (isSidePocket) return null;
-          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
-          if (!forceCornerCapture && best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
+          if (!forceCornerCapture && best.dist > POCKET_CAM.triggerDist) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
@@ -18418,7 +18423,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly
+            forcedEarly: false
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -18911,28 +18916,28 @@ const powerRef = useRef(hud.power);
                 cuePos.y,
                 cuePos.z - TMP_VEC3_CUE_DIR.z * Math.max(CUE_TIP_GAP - fallbackForward, 0)
               );
-              const settlePos = tmpReplayCueA.set(
+              const followPos = tmpReplayCueA.set(
                 cuePos.x - TMP_VEC3_CUE_DIR.x * Math.max(CUE_TIP_GAP - fallbackForward * 0.45, 0),
                 cuePos.y,
                 cuePos.z - TMP_VEC3_CUE_DIR.z * Math.max(CUE_TIP_GAP - fallbackForward * 0.45, 0)
               );
               if (targetTime <= pullbackTime && pullbackTime > 0) {
                 const t = THREE.MathUtils.clamp(targetTime / pullbackTime, 0, 1);
-                cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(t));
+                cueStick.position.lerpVectors(idlePos, pullPos, easeInOutCubic(t));
               } else if (targetTime <= pullbackTime + forwardTime) {
                 const t = THREE.MathUtils.clamp(
                   (targetTime - pullbackTime) / Math.max(forwardTime, 1e-6),
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(pullPos, impactPos, easeOutQuad(t));
+                cueStick.position.lerpVectors(pullPos, impactPos, easeOutCubic(t));
               } else if (targetTime <= pullbackTime + forwardTime + settleTime) {
                 const t = THREE.MathUtils.clamp(
                   (targetTime - pullbackTime - forwardTime) / Math.max(settleTime, 1e-6),
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(t));
+                cueStick.position.lerpVectors(impactPos, followPos, easeOutCubic(t));
               } else if (targetTime <= totalStroke) {
                 const t = THREE.MathUtils.clamp(
                   (targetTime - pullbackTime - forwardTime - settleTime) /
@@ -18940,7 +18945,7 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(impactPos, idlePos, easeInOutQuad(t));
+                cueStick.position.lerpVectors(followPos, idlePos, easeInOutCubic(t));
               } else {
                 cueStick.position.copy(idlePos);
               }
@@ -18948,17 +18953,19 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return;
           }
-          const warmupSnap =
-            normalizeVector3Snapshot(stroke.warmup, stroke.start) ??
-            normalizeVector3Snapshot(stroke.start);
-          const startSnap = normalizeVector3Snapshot(stroke.start, warmupSnap);
-          const impactSnap = normalizeVector3Snapshot(stroke.impact, startSnap);
-          const settleSnap = normalizeVector3Snapshot(stroke.settle, impactSnap);
-          const idleSnap = normalizeVector3Snapshot(
-            stroke.idle ?? stroke.settle,
-            settleSnap
+          const idleSnap =
+            normalizeVector3Snapshot(stroke.idle ?? stroke.warmup ?? stroke.start) ??
+            normalizeVector3Snapshot(stroke.start ?? stroke.warmup);
+          const pullSnap = normalizeVector3Snapshot(
+            stroke.pull ?? stroke.start ?? stroke.warmup,
+            idleSnap
           );
-          if (!warmupSnap || !startSnap || !impactSnap || !settleSnap || !idleSnap) {
+          const impactSnap = normalizeVector3Snapshot(stroke.impact, pullSnap);
+          const followSnap = normalizeVector3Snapshot(
+            stroke.follow ?? stroke.settle ?? stroke.impact,
+            impactSnap
+          );
+          if (!idleSnap || !pullSnap || !impactSnap || !followSnap) {
             if (!applyCueSnapshot()) {
               cueStick.visible = false;
               cueAnimating = false;
@@ -18969,20 +18976,41 @@ const powerRef = useRef(hud.power);
           const replayScale = REPLAY_CUE_STROKE_SLOWDOWN;
           const pullback =
             Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale;
-          const forward =
-            Math.max(1e-6, stroke.forward ?? stroke.forwardDuration ?? 0) * replayScale;
-          const settleTime =
-            Math.max(0, stroke.settleTime ?? stroke.settleDuration ?? 0) * replayScale;
-          const returnTime =
-            Math.max(0, stroke.returnTime ?? stroke.returnDuration ?? 0) * replayScale;
+          const release =
+            Math.max(
+              1e-6,
+              stroke.release ??
+                stroke.releaseDuration ??
+                stroke.forward ??
+                stroke.forwardDuration ??
+                0
+            ) * replayScale;
+          const followTime =
+            Math.max(
+              0,
+              stroke.followTime ??
+                stroke.followDuration ??
+                stroke.settleTime ??
+                stroke.settleDuration ??
+                0
+            ) * replayScale;
+          const recoverTime =
+            Math.max(
+              0,
+              stroke.recoverTime ??
+                stroke.recoverDuration ??
+                stroke.returnTime ??
+                stroke.returnDuration ??
+                0
+            ) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
           const localTime = targetTime - startOffset;
           const pullEnd = pullback;
-          const impactEnd = pullEnd + forward;
-          const settleEnd = impactEnd + settleTime;
-          const returnEnd = settleEnd + returnTime;
-          tmpReplayCueA.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
-          tmpReplayCueB.set(startSnap.x, startSnap.y, startSnap.z);
+          const impactEnd = pullEnd + release;
+          const followEnd = impactEnd + followTime;
+          const recoverEnd = followEnd + recoverTime;
+          tmpReplayCueA.set(idleSnap.x, idleSnap.y, idleSnap.z);
+          tmpReplayCueB.set(pullSnap.x, pullSnap.y, pullSnap.z);
           cueStick.rotation.y = Number.isFinite(stroke.rotationY)
             ? stroke.rotationY
             : cueStick.rotation.y;
@@ -18998,46 +19026,46 @@ const powerRef = useRef(hud.power);
           }
           if (localTime <= pullEnd && pullback > 0) {
             const t = THREE.MathUtils.clamp(localTime / Math.max(pullback, 1e-6), 0, 1);
-            const eased = easeInOutQuad(t);
+            const eased = easeInOutCubic(t);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
           }
           if (localTime <= impactEnd) {
             const t = THREE.MathUtils.clamp(
-              (localTime - pullEnd) / Math.max(forward, 1e-6),
+              (localTime - pullEnd) / Math.max(release, 1e-6),
               0,
               1
             );
-            const eased = easeOutQuad(t);
+            const eased = easeOutCubic(t);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
           }
-          if (localTime <= settleEnd && settleTime > 0) {
+          if (localTime <= followEnd && followTime > 0) {
             const t = THREE.MathUtils.clamp(
-              (localTime - impactEnd) / Math.max(settleTime, 1e-6),
+              (localTime - impactEnd) / Math.max(followTime, 1e-6),
               0,
               1
             );
-            const eased = easeOutQuad(t);
+            const eased = easeOutCubic(t);
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
-            tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
+            tmpReplayCueB.set(followSnap.x, followSnap.y, followSnap.z);
             cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
           }
-          if (localTime <= returnEnd && returnTime > 0) {
+          if (localTime <= recoverEnd && recoverTime > 0) {
             const t = THREE.MathUtils.clamp(
-              (localTime - settleEnd) / Math.max(returnTime, 1e-6),
+              (localTime - followEnd) / Math.max(recoverTime, 1e-6),
               0,
               1
             );
-            const eased = easeInOutQuad(t);
-            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            const eased = easeInOutCubic(t);
+            tmpReplayCueA.set(followSnap.x, followSnap.y, followSnap.z);
             tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
             cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -19046,7 +19074,7 @@ const powerRef = useRef(hud.power);
           }
           const replayHoldWindow = Number.isFinite(playback?.duration)
             ? playback.duration
-            : returnEnd;
+            : recoverEnd;
           if (localTime <= replayHoldWindow) {
             cueStick.visible = true;
             cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
@@ -19088,71 +19116,75 @@ const powerRef = useRef(hud.power);
           }
           const {
             startTime,
-            pullEndTime,
-            impactTime,
-            settleTime,
-            returnTime,
-            warmupPos,
-            startPos,
-            impactPos,
-            settlePos,
             idlePos,
+            pullPos,
+            impactPos,
+            followPos,
             pullbackDuration,
-            forwardDuration,
-            settleDuration,
-            returnDuration
+            releaseDuration,
+            followDuration,
+            recoverDuration
           } = stroke;
+          const pullback = Math.max(0, pullbackDuration ?? 0);
+          const release = Math.max(0, releaseDuration ?? 0);
+          const follow = Math.max(0, followDuration ?? 0);
+          const recover = Math.max(0, recoverDuration ?? 0);
+          const elapsed = Math.max(0, now - startTime);
+          const pullEnd = pullback;
+          const releaseEnd = pullEnd + release;
+          const followEnd = releaseEnd + follow;
+          const recoverEnd = followEnd + recover;
           cueStick.visible = true;
           cueAnimating = true;
-          if (!stroke.shotApplied && now >= impactTime) {
+          if (!stroke.shotApplied && elapsed >= releaseEnd) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
-          if (now <= pullEndTime && pullbackDuration > 0) {
+          if (elapsed <= pullEnd && pullback > 0) {
             const t = THREE.MathUtils.clamp(
-              (now - startTime) / Math.max(pullbackDuration, 1e-6),
+              elapsed / Math.max(pullback, 1e-6),
               0,
               1
             );
-            const eased = easeInOutQuad(t);
-            cueStick.position.lerpVectors(warmupPos, startPos, eased);
+            const eased = easeInOutCubic(t);
+            cueStick.position.lerpVectors(idlePos, pullPos, eased);
             syncCueShadow();
             return true;
           }
-          if (now <= impactTime) {
+          if (elapsed <= releaseEnd && release > 0) {
             const t = THREE.MathUtils.clamp(
-              (now - pullEndTime) / Math.max(forwardDuration, 1e-6),
+              (elapsed - pullEnd) / Math.max(release, 1e-6),
               0,
               1
             );
-            const eased = easeOutQuad(t);
-            cueStick.position.lerpVectors(startPos, impactPos, eased);
+            const eased = easeOutCubic(t);
+            cueStick.position.lerpVectors(pullPos, impactPos, eased);
             syncCueShadow();
             return true;
           }
-          if (now <= settleTime && settleDuration > 0) {
+          if (elapsed <= followEnd && follow > 0) {
             const t = THREE.MathUtils.clamp(
-              (now - impactTime) / Math.max(settleDuration, 1e-6),
+              (elapsed - releaseEnd) / Math.max(follow, 1e-6),
               0,
               1
             );
-            const eased = easeOutQuad(t);
+            const eased = easeOutCubic(t);
             cueStick.position.lerpVectors(
               impactPos,
-              settlePos ?? impactPos,
+              followPos ?? impactPos,
               eased
             );
             syncCueShadow();
             return true;
           }
-          if (now <= returnTime && returnDuration > 0) {
+          if (elapsed <= recoverEnd && recover > 0) {
             const t = THREE.MathUtils.clamp(
-              (now - settleTime) / Math.max(returnDuration, 1e-6),
+              (elapsed - followEnd) / Math.max(recover, 1e-6),
               0,
               1
             );
-            const eased = easeInOutQuad(t);
-            cueStick.position.lerpVectors(impactPos, idlePos, eased);
+            const eased = easeInOutCubic(t);
+            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos, eased);
             syncCueShadow();
             return true;
           }
@@ -19220,24 +19252,41 @@ const powerRef = useRef(hud.power);
             normalizeVector3Snapshot(value, { x: 0, y: BALL_CENTER_Y, z: 0 });
           const cueStroke = cueStrokeRaw
             ? {
-                warmup: normalizeStrokeVec(cueStrokeRaw.warmup),
-                start: normalizeStrokeVec(cueStrokeRaw.start ?? cueStrokeRaw.warmup),
-                impact: normalizeStrokeVec(cueStrokeRaw.impact ?? cueStrokeRaw.start),
-                settle: normalizeStrokeVec(cueStrokeRaw.settle ?? cueStrokeRaw.impact),
                 idle: normalizeStrokeVec(
-                  cueStrokeRaw.idle ?? cueStrokeRaw.settle ?? cueStrokeRaw.impact
+                  cueStrokeRaw.idle ?? cueStrokeRaw.warmup ?? cueStrokeRaw.start
+                ),
+                pull: normalizeStrokeVec(
+                  cueStrokeRaw.pull ?? cueStrokeRaw.start ?? cueStrokeRaw.warmup
+                ),
+                impact: normalizeStrokeVec(
+                  cueStrokeRaw.impact ?? cueStrokeRaw.start ?? cueStrokeRaw.pull
+                ),
+                follow: normalizeStrokeVec(
+                  cueStrokeRaw.follow ?? cueStrokeRaw.settle ?? cueStrokeRaw.impact
                 ),
                 rotationX: Number.isFinite(cueStrokeRaw.rotationX) ? cueStrokeRaw.rotationX : 0,
                 rotationY: Number.isFinite(cueStrokeRaw.rotationY) ? cueStrokeRaw.rotationY : 0,
                 pullback: Math.max(0, cueStrokeRaw.pullbackDuration ?? cueStrokeRaw.pullback ?? 0),
-                forward: Math.max(0, cueStrokeRaw.forwardDuration ?? cueStrokeRaw.forward ?? 0),
-                settleTime: Math.max(
+                release: Math.max(
                   0,
-                  cueStrokeRaw.settleDuration ?? cueStrokeRaw.settleTime ?? 0
+                  cueStrokeRaw.releaseDuration ??
+                    cueStrokeRaw.forwardDuration ??
+                    cueStrokeRaw.forward ??
+                    0
                 ),
-                returnTime: Math.max(
+                followTime: Math.max(
                   0,
-                  cueStrokeRaw.returnDuration ?? cueStrokeRaw.returnTime ?? 0
+                  cueStrokeRaw.followDuration ??
+                    cueStrokeRaw.settleDuration ??
+                    cueStrokeRaw.settleTime ??
+                    0
+                ),
+                recoverTime: Math.max(
+                  0,
+                  cueStrokeRaw.recoverDuration ??
+                    cueStrokeRaw.returnDuration ??
+                    cueStrokeRaw.returnTime ??
+                    0
                 ),
                 startOffset: Math.max(0, cueStrokeRaw.startOffset ?? 0)
               }
@@ -19249,9 +19298,9 @@ const powerRef = useRef(hud.power);
                 0,
                 (cueStroke.startOffset ?? 0) +
                   (cueStroke.pullback ?? 0) +
-                  (cueStroke.forward ?? 0) +
-                  (cueStroke.settleTime ?? 0) +
-                  (cueStroke.returnTime ?? 0)
+                  (cueStroke.release ?? 0) +
+                  (cueStroke.followTime ?? 0) +
+                  (cueStroke.recoverTime ?? 0)
               )
             : 0;
           const duration = Math.max(frameDuration, strokeDuration);
@@ -19266,13 +19315,26 @@ const powerRef = useRef(hud.power);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
-          const storedPosition = activeCamera?.position?.clone?.() ?? null;
+          let storedPosition = activeCamera?.position?.clone?.() ?? null;
+          let storedFov = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
+            : camera.fov;
+          const overheadReplayCamera = resolveRailOverheadReplayCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
+          if (overheadReplayCamera?.position) {
+            storedPosition = overheadReplayCamera.position.clone();
+            if (overheadReplayCamera?.target) {
+              storedTarget.copy(overheadReplayCamera.target);
+            }
+            storedFov = Number.isFinite(overheadReplayCamera?.fov)
+              ? overheadReplayCamera.fov
+              : storedFov;
+          }
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
-          const storedFov = Number.isFinite(activeCamera?.fov)
-            ? activeCamera.fov
-            : camera.fov;
           replayCameraRef.current = {
             position: storedPosition,
             target: storedTarget,
@@ -19296,11 +19358,11 @@ const powerRef = useRef(hud.power);
           if (!cueStick) return;
           const stroke = playback?.cueStroke ?? null;
           if (stroke) {
-            const warmupSnap =
-              normalizeVector3Snapshot(stroke.warmup, stroke.start) ??
-              normalizeVector3Snapshot(stroke.start);
-            if (warmupSnap) {
-              cueStick.position.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
+            const idleSnap =
+              normalizeVector3Snapshot(stroke.idle ?? stroke.pull ?? stroke.start ?? stroke.warmup) ??
+              normalizeVector3Snapshot(stroke.pull ?? stroke.start ?? stroke.warmup);
+            if (idleSnap) {
+              cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
               if (Number.isFinite(stroke.rotationY)) {
                 cueStick.rotation.y = stroke.rotationY;
               }
@@ -21967,10 +22029,10 @@ const powerRef = useRef(hud.power);
         const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
-      // Easing adapted from easings.net (MIT) for a clear pull-back + push-forward stroke.
-      const easeInOutQuad = (t) =>
-        t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
+      // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
+      const easeInOutCubic = (t) =>
+        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -22285,9 +22347,7 @@ const powerRef = useRef(hud.power);
             : null;
           const earlyPocketView =
             !suppressPocketCameras && shotPrediction.ballId && followView
-              ? makePocketCameraView(shotPrediction.ballId, followView, {
-                  forceEarly: true
-                })
+              ? makePocketCameraView(shotPrediction.ballId, followView)
               : null;
           if (actionView && cameraRef.current) {
             actionView.smoothedPos = cameraRef.current.position.clone();
@@ -22453,15 +22513,13 @@ const powerRef = useRef(hud.power);
             ? AI_CUE_PULLBACK_DURATION_MS
             : Math.max(120, forwardDuration * 0.65);
           const startTime = performance.now();
-          const pullEndTime = startTime + pullbackDuration;
-          const impactTime = pullEndTime + forwardDuration;
           const followThrough = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
             CUE_FOLLOW_THROUGH_MAX,
             powerStrength
           );
           const impactPos = buildCuePosition(-followThrough);
-          const settlePos = buildCuePosition(-followThrough * 0.45);
+          const followPos = buildCuePosition(-followThrough * 0.45);
           const followSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
             CUE_FOLLOW_SPEED_MAX,
@@ -22472,14 +22530,13 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
-          const settleDuration = isAiStroke ? 120 : followDuration;
-          const returnDuration = Math.max(120, settleDuration * 0.6);
-          const settleTime = impactTime + settleDuration;
-          const returnTime = settleTime + returnDuration;
+          const followDurationResolved = isAiStroke ? 120 : followDuration;
+          const recoverDuration = Math.max(120, followDurationResolved * 0.6);
+          const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
-              settleDuration,
+              followDurationResolved,
               Math.max(180, forwardDuration * 0.9)
             );
           powerImpactHoldRef.current = Math.max(
@@ -22544,17 +22601,16 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
-              warmup: serializeVector3Snapshot(idlePos),
-              start: serializeVector3Snapshot(pullPos),
-              impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(settlePos),
               idle: serializeVector3Snapshot(idlePos),
+              pull: serializeVector3Snapshot(pullPos),
+              impact: serializeVector3Snapshot(impactPos),
+              follow: serializeVector3Snapshot(followPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
-              forwardDuration,
-              settleDuration,
-              returnDuration,
+              releaseDuration: forwardDuration,
+              followDuration: followDurationResolved,
+              recoverDuration,
               startOffset: strokeStartOffset
             };
           }
@@ -22563,19 +22619,14 @@ const powerRef = useRef(hud.power);
             cueAnimating = true;
             cueStrokeStateRef.current = {
               startTime,
-              pullEndTime,
-              impactTime,
-              settleTime,
-              returnTime,
-              warmupPos: idlePos.clone(),
-              startPos: pullPos.clone(),
-              impactPos: impactPos.clone(),
-              settlePos: settlePos.clone(),
               idlePos: idlePos.clone(),
+              pullPos: pullPos.clone(),
+              impactPos: impactPos.clone(),
+              followPos: followPos.clone(),
               pullbackDuration,
-              forwardDuration,
-              settleDuration,
-              returnDuration
+              releaseDuration: forwardDuration,
+              followDuration: followDurationResolved,
+              recoverDuration
             };
           } else {
             cueStick.visible = false;
@@ -24805,11 +24856,14 @@ const powerRef = useRef(hud.power);
             const nextMeta = safeState.meta;
             if (nextMeta && typeof nextMeta === 'object') {
               if (nextMeta.variant === 'american' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.ballInHand);
+                nextInHand =
+                  cueBallPotted || Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.ballInHand);
+                nextInHand =
+                  cueBallPotted || Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+                nextInHand =
+                  cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
           }
