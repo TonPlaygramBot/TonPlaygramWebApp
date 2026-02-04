@@ -1676,8 +1676,9 @@ const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
 const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.9;
 const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
 const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
-const CAMERA_2D_MIN_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS;
-const CAMERA_2D_MAX_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS;
+const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.08;
+const CAMERA_2D_MIN_RADIUS = CAMERA_2D_RADIUS;
+const CAMERA_2D_MAX_RADIUS = CAMERA_2D_RADIUS;
 const CAM = {
   fov: ARENA_CAMERA_DEFAULTS.fov,
   near: ARENA_CAMERA_DEFAULTS.near,
@@ -6309,71 +6310,87 @@ function Chess3D({
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
-    const swatchClass = 'h-5 w-10 rounded-md border border-white/15 shadow-inner';
-    const dualSwatch = (a, b) => (
-      <span className="flex items-center gap-1.5">
-        <span className={swatchClass} style={{ background: a }} />
-        <span className={swatchClass} style={{ background: b }} />
-      </span>
-    );
-    if (key === 'whitePieceStyle' || key === 'blackPieceStyle') {
-      return dualSwatch(option.white?.color || '#f5f5f7', option.black?.color || '#111827');
-    }
-    if (key === 'headStyle') {
-      const color = option.preset?.color || '#ffffff';
-      return <span className={swatchClass} style={{ background: color }} />;
-    }
-    if (key === 'boardColor') {
-      const light = option.light || '#dcd7c9';
-      const dark = option.dark || '#2d2a32';
-      return (
-        <span
-          className={swatchClass}
-          style={{ background: `linear-gradient(90deg, ${light}, ${dark})` }}
-        />
-      );
-    }
+    const baseClass =
+      'relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60';
+    const overlay =
+      'absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/50';
     if (key === 'tables') {
-      if (option.thumbnail) {
-        return (
-          <span
-            className={`${swatchClass} bg-cover bg-center`}
-            style={{ backgroundImage: `url(${option.thumbnail})` }}
-          />
-        );
-      }
-      return <span className={swatchClass} style={{ background: '#4b5563' }} />;
+      return (
+        <div className={baseClass}>
+          {option.thumbnail ? (
+            <img
+              src={option.thumbnail}
+              alt={option.label || 'Table model'}
+              className="absolute inset-0 h-full w-full object-cover opacity-85"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold text-white/80">
+              {option.label || 'Table'}
+            </div>
+          )}
+          <div className={overlay} />
+        </div>
+      );
     }
     if (key === 'tableFinish') {
       const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
         ? option.swatches
         : [option.swatches?.[0] || '#7c5e45', option.swatches?.[1] || '#3f2e23'];
       return (
-        <span
-          className={swatchClass}
-          style={{ background: `linear-gradient(90deg, ${swatches[0]}, ${swatches[1]})` }}
-        />
+        <div className={baseClass}>
+          <div
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
+          />
+          <div className={overlay} />
+        </div>
       );
     }
     if (key === 'chairColor') {
-      return dualSwatch(option.primary || '#1f2937', option.accent || option.highlight || '#38bdf8');
+      const primary = option.primary || '#1f2937';
+      const accent = option.accent || option.highlight || '#38bdf8';
+      return (
+        <div className={baseClass}>
+          <div
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(135deg, ${primary} 40%, ${accent})` }}
+          />
+          <div className={overlay} />
+        </div>
+      );
     }
     if (key === 'environmentHdri') {
       const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
         ? option.swatches
         : [option.swatches?.[0] || '#0ea5e9', '#0f172a'];
       return (
-        <span
-          className={swatchClass}
-          style={{ background: `linear-gradient(90deg, ${swatches[0]}, ${swatches[1]})` }}
-        />
+        <div className={baseClass}>
+          {option.thumbnail ? (
+            <img
+              src={option.thumbnail}
+              alt={option.label || 'HDR environment'}
+              className="absolute inset-0 h-full w-full object-cover opacity-85"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
+            />
+          )}
+          <div className={overlay} />
+        </div>
       );
     }
-    if (key === 'tableShape') {
-      const previewBackground = option.preview?.background || option.preview?.backgroundColor;
-      return <span className={swatchClass} style={{ background: previewBackground || '#38bdf8' }} />;
-    }
-    return null;
+    return (
+      <div className={baseClass}>
+        <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold text-white/80">
+          {option.label || 'Option'}
+        </div>
+        <div className={overlay} />
+      </div>
+    );
   }, []);
 
   const resetAppearance = useCallback(() => {
@@ -7599,6 +7616,7 @@ function Chess3D({
 
       if (mode === '2d') {
         cameraMemory.last3d = current;
+        controls.enabled = false;
         controls.enableRotate = false;
         controls.enablePan = false;
         controls.enableZoom = false;
@@ -7610,6 +7628,7 @@ function Chess3D({
         const target = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
       } else {
+        controls.enabled = true;
         controls.enableRotate = true;
         controls.enablePan = true;
         controls.enableZoom = true;
@@ -9305,105 +9324,6 @@ function Chess3D({
                   />
                 </label>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
-                  <div className="mt-2 grid gap-2">
-                    {CHESS_BATTLE_COMMENTARY_PRESETS.map((preset) => {
-                      const active = preset.id === commentaryPresetId;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => setCommentaryPresetId(preset.id)}
-                          aria-pressed={active}
-                          disabled={!commentarySupported}
-                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            active
-                              ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                          } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                            {active && (
-                              <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                                Active
-                              </span>
-                            )}
-                          </span>
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {preset.description}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCommentaryMuted((prev) => !prev)}
-                    aria-pressed={commentaryMuted}
-                    disabled={!commentarySupported}
-                    className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                      commentaryMuted
-                        ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                        : 'bg-white/10 text-white/80 hover:bg-white/20'
-                    } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                  >
-                    <span>Mute commentary</span>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                        commentaryMuted
-                          ? 'border-black/30 text-black/70'
-                          : 'border-white/30 text-white/70'
-                      }`}
-                    >
-                      {commentaryMuted ? 'On' : 'Off'}
-                    </span>
-                  </button>
-                  {!commentarySupported && (
-                    <p className="mt-2 text-[0.65rem] text-white/60">
-                      Voice commentary requires Web Speech support.
-                    </p>
-                  )}
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
-                    <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
-                  </div>
-                  <div className="mt-2 grid gap-2">
-                    {GRAPHICS_OPTIONS.map((option) => {
-                      const active = option.id === graphicsId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setGraphicsId(option.id)}
-                          aria-pressed={active}
-                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            active
-                              ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                          }`}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
-                              {option.label}
-                            </span>
-                            <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                              {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
-                            </span>
-                          </span>
-                          {option.description ? (
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {option.description}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
@@ -9438,11 +9358,11 @@ function Chess3D({
                       })}
                     </div>
                     {activeCustomizationSection && (
-                      <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
+                      <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
                         <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
                           {activeCustomizationSection.label}
                         </p>
-                        <div className="space-y-1.5">
+                        <div className="grid grid-cols-2 gap-2">
                           {activeCustomizationSection.options.map((option) => {
                             const selected = appearance[activeCustomizationSection.key] === option.idx;
                             return (
@@ -9458,14 +9378,16 @@ function Chess3D({
                                   )
                                 }
                                 aria-pressed={selected}
-                                className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                className={`flex flex-col items-center rounded-2xl border p-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                   selected
                                     ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
                                     : 'border-white/10 bg-white/5 hover:border-white/20'
                                 }`}
                               >
-                                <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
                                 {renderCustomizationPreview(activeCustomizationSection.key, option)}
+                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-100">
+                                  {option.label}
+                                </span>
                               </button>
                             );
                           })}
@@ -9571,6 +9493,105 @@ function Chess3D({
                       </div>
                     </div>
                   </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
+                  </div>
+                  <div className="mt-2 grid gap-2">
+                    {GRAPHICS_OPTIONS.map((option) => {
+                      const active = option.id === graphicsId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setGraphicsId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            active
+                              ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
+                              {option.label}
+                            </span>
+                            <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                              {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                            </span>
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+                  <div className="mt-2 grid gap-2">
+                    {CHESS_BATTLE_COMMENTARY_PRESETS.map((preset) => {
+                      const active = preset.id === commentaryPresetId;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setCommentaryPresetId(preset.id)}
+                          aria-pressed={active}
+                          disabled={!commentarySupported}
+                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            active
+                              ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                          } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                            {active && (
+                              <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                                Active
+                              </span>
+                            )}
+                          </span>
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {preset.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCommentaryMuted((prev) => !prev)}
+                    aria-pressed={commentaryMuted}
+                    disabled={!commentarySupported}
+                    className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                      commentaryMuted
+                        ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                        : 'bg-white/10 text-white/80 hover:bg-white/20'
+                    } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                  >
+                    <span>Mute commentary</span>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                        commentaryMuted
+                          ? 'border-black/30 text-black/70'
+                          : 'border-white/30 text-white/70'
+                      }`}
+                    >
+                      {commentaryMuted ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                  {!commentarySupported && (
+                    <p className="mt-2 text-[0.65rem] text-white/60">
+                      Voice commentary requires Web Speech support.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
