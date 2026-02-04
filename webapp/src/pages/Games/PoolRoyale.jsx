@@ -1098,7 +1098,7 @@ const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snook
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // match jaw collision arc to the true pocket radius so mapping aligns with the cushion cuts
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.97; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -4999,7 +4999,6 @@ const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.04;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
-let TABLE_FIELD_BOUNDS = null;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -6689,7 +6688,6 @@ function updateRailLimitsFromTable(table) {
 function updateCushionSegmentsFromTable(table) {
   if (!table?.userData?.cushions?.length) {
     CUSHION_SEGMENTS = [];
-    TABLE_FIELD_BOUNDS = null;
     return;
   }
   table.updateMatrixWorld(true);
@@ -6818,10 +6816,6 @@ function updateCushionSegmentsFromTable(table) {
   });
   CUSHION_SEGMENTS = segments;
   table.userData.cushionSegments = segments;
-  TABLE_FIELD_BOUNDS = getFieldBoundsFromSegments(segments, {
-    halfW: PLAY_W / 2,
-    halfH: PLAY_H / 2
-  });
   const cushionBoxes = table.userData.cueObstructionBoxes ?? [];
   cushionBoxes.length = 0;
   table.userData.cushions.forEach((cushion) => {
@@ -6831,68 +6825,6 @@ function updateCushionSegmentsFromTable(table) {
     cushionBoxes.push(box);
   });
   table.userData.cueObstructionBoxes = cushionBoxes;
-}
-
-function getFieldBoundsFromSegments(segments, fallback) {
-  if (!Array.isArray(segments) || segments.length === 0) {
-    if (fallback?.halfW && fallback?.halfH) {
-      return {
-        minX: -fallback.halfW,
-        maxX: fallback.halfW,
-        minY: -fallback.halfH,
-        maxY: fallback.halfH,
-        halfW: fallback.halfW,
-        halfH: fallback.halfH
-      };
-    }
-    return null;
-  }
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  segments.forEach((segment) => {
-    if (!segment?.start || !segment?.end) return;
-    minX = Math.min(minX, segment.start.x, segment.end.x);
-    maxX = Math.max(maxX, segment.start.x, segment.end.x);
-    minY = Math.min(minY, segment.start.y, segment.end.y);
-    maxY = Math.max(maxY, segment.start.y, segment.end.y);
-  });
-  if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null;
-  const halfW = Math.max(Math.abs(minX), Math.abs(maxX));
-  const halfH = Math.max(Math.abs(minY), Math.abs(maxY));
-  return { minX, maxX, minY, maxY, halfW, halfH };
-}
-
-function clampBallToField(ball) {
-  if (!ball?.pos || !TABLE_FIELD_BOUNDS) return;
-  const captureCenters = pocketCenters();
-  const isCaptured = captureCenters.some((center, index) => {
-    const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
-    return ball.pos.distanceTo(center) < captureRadius;
-  });
-  if (isCaptured) return;
-  const guard = Math.max(MICRO_EPS, RAIL_CONTACT_RADIUS * 0.9);
-  const minX = TABLE_FIELD_BOUNDS.minX + guard;
-  const maxX = TABLE_FIELD_BOUNDS.maxX - guard;
-  const minY = TABLE_FIELD_BOUNDS.minY + guard;
-  const maxY = TABLE_FIELD_BOUNDS.maxY - guard;
-  if (ball.pos.x < minX) {
-    ball.pos.x = minX;
-    if (ball.vel.x < 0) ball.vel.x *= -0.5;
-  }
-  if (ball.pos.x > maxX) {
-    ball.pos.x = maxX;
-    if (ball.vel.x > 0) ball.vel.x *= -0.5;
-  }
-  if (ball.pos.y < minY) {
-    ball.pos.y = minY;
-    if (ball.vel.y < 0) ball.vel.y *= -0.5;
-  }
-  if (ball.pos.y > maxY) {
-    ball.pos.y = maxY;
-    if (ball.vel.y > 0) ball.vel.y *= -0.5;
-  }
 }
 
 // --------------------------------------------------
@@ -25904,7 +25836,6 @@ const powerRef = useRef(hud.power);
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
             }
-            clampBallToField(b);
             if (railImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
