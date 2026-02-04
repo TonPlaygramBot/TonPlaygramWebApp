@@ -618,17 +618,16 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.26; // trim the side fascia reach so the middle chrome ends cleanly at the side rail edge
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.22; // expand the middle fascia slightly toward the diamonds on both ends
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.14; // trim fascia span so the middle plates finish at the side rail edge
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.1; // extend the plate ends further toward the corner pockets (toward the chalks)
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
-const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.5; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.14; // open the rounded chrome cut sizing a touch more
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -8116,9 +8115,6 @@ export function Table3D(
   );
   const sideChromeOuterExtension =
     TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE;
-  const sideChromeOuterTrim =
-    sideChromeOuterExtension +
-    TABLE.THICK * CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE;
   const sidePlateHalfHeightLimit = Math.max(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
@@ -8728,12 +8724,12 @@ export function Table3D(
       { id: 'sideLeft', sx: -1 },
       { id: 'sideRight', sx: 1 }
     ].forEach(({ id, sx }) => {
-      let plateWidth = sideChromePlateWidth + sideChromeOuterExtension - sideChromeOuterTrim;
+      let plateWidth = sideChromePlateWidth + sideChromeOuterExtension;
       const baseCenterX =
         sx *
         (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
           (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
-      let centerX = baseCenterX + sx * ((sideChromeOuterExtension - sideChromeOuterTrim) / 2);
+      let centerX = baseCenterX + sx * (sideChromeOuterExtension / 2);
       const baseOuterEdge = Math.abs(centerX) + plateWidth / 2;
       if (baseOuterEdge > sideChromeOuterEdgeLimit) {
         const overrun = baseOuterEdge - sideChromeOuterEdgeLimit;
