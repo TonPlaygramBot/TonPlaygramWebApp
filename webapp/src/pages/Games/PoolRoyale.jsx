@@ -615,11 +615,11 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.38; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.24; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.22; // trim fascia span so the middle plates finish at the side rail edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.01; // trim the outer fascia extension so the outside edge tucks in slightly
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.08; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.86; // trim the outer fascia extension so the outside edge tucks in slightly
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
@@ -1388,18 +1388,18 @@ const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // match Snooker Royal pocket ne
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
-const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
+const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.3, BALL_DIAMETER * 7.2); // shorten the holder run so the strap sits closer to the rail edge
 const POCKET_GUIDE_DROP = BALL_R * 0.06;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = 0; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.04; // keep balls flush without overlap as they settle against the strap
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.3; // pull the resting spot closer to the leather strap
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.7; // pull the resting spot closer to the leather strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1409,6 +1409,8 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
+const POCKET_HOLDER_STRAP_INSET = BALL_R * 0.22; // pull the leather strap slightly inward to match the tightened holder run
+const POCKET_SIDE_HOLDER_STRAP_PUSH = BALL_R * 0.18; // nudge only the outer chrome holders toward the strap
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
@@ -5093,7 +5095,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
-const IN_HAND_DRAG_SPEED = 1.35; // boost in-hand drag responsiveness so screen movement maps cleanly to table placement
+const IN_HAND_DRAG_SPEED = 2.35; // boost in-hand drag responsiveness so screen movement maps cleanly to table placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -7770,6 +7772,10 @@ export function Table3D(
     const outwardDir = resolvePocketHolderDirection(p, pocketId);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
+    const strapPlanarDir = strapDir.clone().setY(0);
+    if (strapPlanarDir.lengthSq() > MICRO_EPS * MICRO_EPS) {
+      strapPlanarDir.normalize();
+    }
     const railStartDistance = Math.max(
       MICRO_EPS,
       pocketGuideRingRadius +
@@ -7803,10 +7809,15 @@ export function Table3D(
       const middleSway = isMiddlePocket ? POCKET_MIDDLE_HOLDER_SWAY * (pocketId === 'TM' ? -1 : 1) : 0;
       const lateralOffset = (i - 1) * POCKET_GUIDE_SPREAD + middleSway * (i - 1);
       const isCenterGuide = i === 1;
+      const sideStrapPush =
+        !isCenterGuide && strapPlanarDir.lengthSq() > MICRO_EPS * MICRO_EPS
+          ? POCKET_SIDE_HOLDER_STRAP_PUSH
+          : 0;
       const start = ringAnchor
         .clone()
         .addScaledVector(outwardDir, railStartOffset)
         .addScaledVector(sideDir, lateralOffset)
+        .addScaledVector(strapPlanarDir, sideStrapPush)
         .add(
           new THREE.Vector3(
             0,
@@ -7839,7 +7850,10 @@ export function Table3D(
       applyPocketLeatherTextureDefaults(strap.material?.map, { isColor: true });
       applyPocketLeatherTextureDefaults(strap.material?.normalMap);
       applyPocketLeatherTextureDefaults(strap.material?.roughnessMap);
-      const strapBase = strapEnd.clone();
+      const strapBase = strapEnd.clone().addScaledVector(
+        strapDir,
+        -POCKET_HOLDER_STRAP_INSET
+      );
       const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
       const strapBaseY = Math.min(
         strapBase.y + POCKET_STRAP_VERTICAL_LIFT,
@@ -12954,6 +12968,7 @@ const powerRef = useRef(hud.power);
     });
   }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel]);
   const cueBallPlacedFromHandRef = useRef(false);
+  const cueBallScratchRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
@@ -12963,6 +12978,9 @@ const powerRef = useRef(hud.power);
       cueBallPlacedFromHandRef.current = false;
     }
     if (!hud.inHand || !playerTurn) {
+      if (!hud.inHand) {
+        cueBallScratchRef.current = false;
+      }
       setInHandPlacementMode(false);
       return;
     }
@@ -18834,8 +18852,9 @@ const powerRef = useRef(hud.power);
             return true;
           };
           if (!stroke) {
-            if (applyCueSnapshot()) return;
             const cuePath = playback?.cuePath ?? [];
+            const preferCuePathStroke = cuePath.length > 1;
+            if (!preferCuePathStroke && applyCueSnapshot()) return;
             const cueBall = cueRef.current || cue;
             const cueBallPos = cueBall?.mesh?.position ?? null;
             const cuePos = cueBallPos ? TMP_VEC3_A.copy(cueBallPos) : cuePath[0]?.pos?.clone?.() ?? null;
@@ -21356,7 +21375,8 @@ const powerRef = useRef(hud.power);
           return Boolean(meta.breakInProgress);
         }
         if (meta.variant === 'uk') {
-          return Boolean(meta.state?.mustPlayFromBaulk);
+          const isOpeningBreak = meta.state?.lastEvent == null;
+          return Boolean(meta.state?.mustPlayFromBaulk) && isOpeningBreak;
         }
         return false;
       };
@@ -21441,9 +21461,12 @@ const powerRef = useRef(hud.power);
         }
         return best;
       };
-      const defaultInHandPosition = () =>
+      const defaultInHandPosition = ({ forceBaulk = false } = {}) =>
         clampInHandPosition(
-          new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
+          new THREE.Vector2(
+            0,
+            forceBaulk ? baulkZ : allowFullTableInHand() ? 0 : baulkZ
+          )
         );
       const inHandDrag = inHandDragRef.current;
       const updateCuePlacement = (pos) => {
@@ -21804,11 +21827,17 @@ const powerRef = useRef(hud.power);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition();
-        if (startPos) {
-          cue.active = false;
-          updateCuePlacement(startPos);
-          cue.active = true;
+        const shouldForceBaulk = cueBallScratchRef.current || isBreakRestrictedInHand();
+        const shouldResetCue = shouldForceBaulk || !cue.active;
+        if (shouldResetCue) {
+          const startPos = defaultInHandPosition({ forceBaulk: shouldForceBaulk });
+          if (startPos) {
+            cue.active = false;
+            updateCuePlacement(startPos);
+            cue.active = true;
+            cueBallPlacedFromHandRef.current = true;
+          }
+        } else {
           cueBallPlacedFromHandRef.current = true;
         }
         if (allowFullTableInHand()) {
@@ -24483,6 +24512,7 @@ const powerRef = useRef(hud.power);
         const currentState = frameRef.current ?? frameState;
         const cueBallPotted =
           potted.some((entry) => entry.color === 'CUE') || !cue.active;
+        cueBallScratchRef.current = cueBallPotted;
         const noCushionAfterContact =
           shotContextRef.current.contactMade &&
           !shotContextRef.current.cushionAfterContact &&
@@ -24768,7 +24798,7 @@ const powerRef = useRef(hud.power);
             if (cueBallPotted) {
               cue.active = false;
               removePocketDropEntry(cue.id);
-              const fallback = defaultInHandPosition();
+              const fallback = defaultInHandPosition({ forceBaulk: true });
               if (fallback) {
                 updateCuePlacement(fallback);
               } else {
