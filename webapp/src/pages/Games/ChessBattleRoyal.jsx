@@ -45,7 +45,8 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   CHESS_CHAIR_OPTIONS,
-  CHESS_TABLE_OPTIONS
+  CHESS_TABLE_OPTIONS,
+  CHESS_BATTLE_OPTION_THUMBNAILS
 } from '../../config/chessBattleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import {
@@ -1490,34 +1491,127 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const QUICK_SIDE_COLORS = [
-  { id: 'marble', hex: 0xffffff, label: 'Marble' },
-  { id: 'darkForest', hex: 0xffffff, label: 'Dark Forest' },
-  { id: 'amberGlow', hex: 0xf59e0b, label: 'Amber Glow' },
-  { id: 'mintVale', hex: 0x10b981, label: 'Mint Vale' },
-  { id: 'royalWave', hex: 0x3b82f6, label: 'Royal Wave' },
-  { id: 'roseMist', hex: 0xef4444, label: 'Rose Mist' },
-  { id: 'amethyst', hex: 0x8b5cf6, label: 'Amethyst' },
-  { id: 'cinderBlaze', hex: 0xff6b35, label: 'Cinder Blaze' },
-  { id: 'arcticDrift', hex: 0xbcd7ff, label: 'Arctic Drift' }
+  { id: 'marble', hex: 0xffffff, label: 'Marble', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble },
+  {
+    id: 'darkForest',
+    hex: 0xffffff,
+    label: 'Dark Forest',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.darkForest
+  },
+  {
+    id: 'amberGlow',
+    hex: 0xf59e0b,
+    label: 'Amber Glow',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amberGlow
+  },
+  {
+    id: 'mintVale',
+    hex: 0x10b981,
+    label: 'Mint Vale',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.mintVale
+  },
+  {
+    id: 'royalWave',
+    hex: 0x3b82f6,
+    label: 'Royal Wave',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.royalWave
+  },
+  {
+    id: 'roseMist',
+    hex: 0xef4444,
+    label: 'Rose Mist',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.roseMist
+  },
+  {
+    id: 'amethyst',
+    hex: 0x8b5cf6,
+    label: 'Amethyst',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amethyst
+  },
+  {
+    id: 'cinderBlaze',
+    hex: 0xff6b35,
+    label: 'Cinder Blaze',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.cinderBlaze
+  },
+  {
+    id: 'arcticDrift',
+    hex: 0xbcd7ff,
+    label: 'Arctic Drift',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.arcticDrift
+  }
 ];
 
 const QUICK_HEAD_PRESETS = [
-  { id: 'current', label: 'Current' },
-  { id: 'headRuby', label: 'Ruby' },
-  { id: 'headSapphire', label: 'Sapphire' },
-  { id: 'headChrome', label: 'Chrome' },
-  { id: 'headGold', label: 'Gold' }
+  { id: 'current', label: 'Current', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.current },
+  { id: 'headRuby', label: 'Ruby', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headRuby },
+  {
+    id: 'headSapphire',
+    label: 'Sapphire',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headSapphire
+  },
+  { id: 'headChrome', label: 'Chrome', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headChrome },
+  { id: 'headGold', label: 'Gold', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold }
 ];
 
 const QUICK_BOARD_THEMES = [
-  { id: 'classic', name: 'Classic', light: 0xeee8d5, dark: 0x2b2f36 },
-  { id: 'ivorySlate', name: 'Ivory/Slate', light: 0xe5e7eb, dark: 0x111827 },
-  { id: 'forest', name: 'Forest', light: 0xa7f3d0, dark: 0x065f46 },
-  { id: 'sand', name: 'Sand/Brown', light: 0xddd0b8, dark: 0x6b4f3a },
-  { id: 'ocean', name: 'Ocean', light: 0xa4c8e1, dark: 0x1e3a5f },
-  { id: 'violet', name: 'Violet', light: 0xddd6fe, dark: 0x3b2a6e },
-  { id: 'chrome', name: 'Chrome', light: 0xb0b0b0, dark: 0x6e6e6e, special: 'chrome' },
-  { id: 'nebulaGlass', name: 'Nebula Glass', light: 0xe0f2fe, dark: 0x0b1024 }
+  {
+    id: 'classic',
+    name: 'Classic',
+    light: 0xeee8d5,
+    dark: 0x2b2f36,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.classic
+  },
+  {
+    id: 'ivorySlate',
+    name: 'Ivory/Slate',
+    light: 0xe5e7eb,
+    dark: 0x111827,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.ivorySlate
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    light: 0xa7f3d0,
+    dark: 0x065f46,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.forest
+  },
+  {
+    id: 'sand',
+    name: 'Sand/Brown',
+    light: 0xddd0b8,
+    dark: 0x6b4f3a,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.sand
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    light: 0xa4c8e1,
+    dark: 0x1e3a5f,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.ocean
+  },
+  {
+    id: 'violet',
+    name: 'Violet',
+    light: 0xddd6fe,
+    dark: 0x3b2a6e,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.violet
+  },
+  {
+    id: 'chrome',
+    name: 'Chrome',
+    light: 0xb0b0b0,
+    dark: 0x6e6e6e,
+    special: 'chrome',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.chrome
+  },
+  {
+    id: 'nebulaGlass',
+    name: 'Nebula Glass',
+    light: 0xe0f2fe,
+    dark: 0x0b1024,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.nebulaGlass
+  }
 ];
 
 const CHESS_ROOM_HALF_SPAN = TABLE_RADIUS + CHAIR_CLEARANCE + SEAT_DEPTH;
@@ -5881,6 +5975,7 @@ function Chess3D({
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
+  const initial2dViewRef = useRef(null);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / DEFAULT_TARGET_FPS,
@@ -6311,7 +6406,7 @@ function Chess3D({
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
     const baseClass =
-      'relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60';
+      'relative h-16 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60';
     const overlay =
       'absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/50';
     if (key === 'tables') {
@@ -7616,6 +7711,7 @@ function Chess3D({
 
       if (mode === '2d') {
         cameraMemory.last3d = current;
+        controls.target.copy(boardLookTarget);
         controls.enabled = false;
         controls.enableRotate = false;
         controls.enablePan = false;
@@ -7625,7 +7721,10 @@ function Chess3D({
         controls.minDistance = CAMERA_2D_MIN_RADIUS;
         controls.maxDistance = CAMERA_2D_MAX_RADIUS;
         const targetRadius = clamp(CAMERA_TOPDOWN_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
-        const target = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
+        if (!initial2dViewRef.current) {
+          initial2dViewRef.current = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
+        }
+        const target = initial2dViewRef.current;
         animateCameraTo(target, 360);
       } else {
         controls.enabled = true;
@@ -7660,6 +7759,9 @@ function Chess3D({
       camera.updateProjectionMatrix();
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
+      if (viewModeRef.current === '2d') {
+        controls.target.copy(boardLookTarget);
+      }
       const currentRadius = camera.position.distanceTo(boardLookTarget);
       const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
@@ -9385,7 +9487,7 @@ function Chess3D({
                                 }`}
                               >
                                 {renderCustomizationPreview(activeCustomizationSection.key, option)}
-                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-100">
+                                <span className="mt-1 text-center text-[0.6rem] font-semibold text-gray-100">
                                   {option.label}
                                 </span>
                               </button>
@@ -9401,93 +9503,143 @@ function Chess3D({
                   <div className="space-y-2">
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
-                      <div className="mt-1 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {quickSideOptions.map((color) => (
                           <button
                             key={`p1-${color.id}`}
                             type="button"
                             onClick={() => setP1QuickIdx(color.idx)}
-                            className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            className={`flex w-20 flex-col items-center gap-1 rounded-xl border p-2 text-[0.6rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                               p1QuickIdx === color.idx
-                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] bg-white/10'
-                                : 'border-white/20 hover:border-white/40 bg-white/5 text-white/80'
+                                ? 'border-white/70 bg-white/10 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] text-white'
+                                : 'border-white/20 bg-white/5 text-white/80 hover:border-white/40'
                             }`}
                             aria-label={`Set player one color ${color.label}`}
                             title={color.label}
                           >
-                            <span
-                              className="h-6 w-6 rounded-md border border-white/30"
-                              style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
-                            />
-                            <span>{color.label}</span>
+                            <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-white/30 bg-white/5">
+                              {color.thumbnail ? (
+                                <img
+                                  src={color.thumbnail}
+                                  alt={`${color.label} pieces thumbnail`}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span
+                                  className="h-full w-full"
+                                  style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
+                                />
+                              )}
+                            </span>
+                            <span className="text-center leading-tight">{color.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P2</p>
-                      <div className="mt-1 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {quickSideOptions.map((color) => (
                           <button
                             key={`p2-${color.id}`}
                             type="button"
                             onClick={() => setP2QuickIdx(color.idx)}
-                            className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            className={`flex w-20 flex-col items-center gap-1 rounded-xl border p-2 text-[0.6rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                               p2QuickIdx === color.idx
-                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] bg-white/10'
-                                : 'border-white/20 hover:border-white/40 bg-white/5 text-white/80'
+                                ? 'border-white/70 bg-white/10 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] text-white'
+                                : 'border-white/20 bg-white/5 text-white/80 hover:border-white/40'
                             }`}
                             aria-label={`Set player two color ${color.label}`}
                             title={color.label}
                           >
-                            <span
-                              className="h-6 w-6 rounded-md border border-white/30"
-                              style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
-                            />
-                            <span>{color.label}</span>
+                            <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-white/30 bg-white/5">
+                              {color.thumbnail ? (
+                                <img
+                                  src={color.thumbnail}
+                                  alt={`${color.label} pieces thumbnail`}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span
+                                  className="h-full w-full"
+                                  style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
+                                />
+                              )}
+                            </span>
+                            <span className="text-center leading-tight">{color.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pawn heads</p>
-                      <div className="mt-1 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {quickHeadOptions.map((preset) => (
                           <button
                             key={preset.id}
                             type="button"
                             onClick={() => setHeadQuickIdx(preset.idx)}
-                            className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            className={`flex w-20 flex-col items-center gap-1 rounded-xl border p-2 text-[0.6rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                               headQuickIdx === preset.idx
                                 ? 'border-white/70 bg-white/10 text-white'
                                 : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40 hover:text-white'
                             }`}
                           >
-                            {preset.label}
+                            <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-white/30 bg-white/5">
+                              {preset.thumbnail ? (
+                                <img
+                                  src={preset.thumbnail}
+                                  alt={`${preset.label} pawn head thumbnail`}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="h-full w-full bg-white/20" />
+                              )}
+                            </span>
+                            <span className="text-center leading-tight">{preset.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                     <div>
                       <p className="text-[0.7rem] text-white/70">Board theme</p>
-                      <div className="mt-1 grid grid-cols-3 gap-2">
+                      <div className="mt-2 grid grid-cols-3 gap-2">
                         {quickBoardOptions.map((theme) => (
                           <button
                             key={theme.id}
                             type="button"
                             onClick={() => setBoardQuickIdx(theme.idx)}
-                            className={`flex items-center justify-center rounded-lg border px-2 py-2 text-[0.65rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-[0.6rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                               boardQuickIdx === theme.idx
                                 ? 'border-white/70 bg-white/10 text-white'
                                 : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
                             }`}
                           >
-                            <span className="mr-2 inline-block h-4 w-4 rounded-full border border-white/40" style={{
-                              background: `linear-gradient(135deg, #${theme.light.toString(16).padStart(6, '0')} 50%, #${theme.dark
-                                .toString(16)
-                                .padStart(6, '0')} 50%)`
-                            }} />
-                            {theme.name}
+                            <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-white/30 bg-white/5">
+                              {theme.thumbnail ? (
+                                <img
+                                  src={theme.thumbnail}
+                                  alt={`${theme.name} board thumbnail`}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span
+                                  className="h-full w-full"
+                                  style={{
+                                    background: `linear-gradient(135deg, #${theme.light
+                                      .toString(16)
+                                      .padStart(6, '0')} 50%, #${theme.dark
+                                      .toString(16)
+                                      .padStart(6, '0')} 50%)`
+                                  }}
+                                />
+                              )}
+                            </span>
+                            <span className="text-center leading-tight">{theme.name}</span>
                           </button>
                         ))}
                       </div>

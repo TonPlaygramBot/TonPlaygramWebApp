@@ -136,6 +136,37 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
   )
 });
 
+export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
+  sideColor: Object.freeze({
+    marble: swatchThumbnail(['#f8fafc', '#e2e8f0', '#cbd5f5']),
+    darkForest: swatchThumbnail(['#14532d', '#0f3d23', '#86efac']),
+    amberGlow: swatchThumbnail(['#fbbf24', '#b45309', '#fde68a']),
+    mintVale: swatchThumbnail(['#10b981', '#065f46', '#bbf7d0']),
+    royalWave: swatchThumbnail(['#3b82f6', '#1d4ed8', '#bfdbfe']),
+    roseMist: swatchThumbnail(['#ef4444', '#be123c', '#fecaca']),
+    amethyst: swatchThumbnail(['#8b5cf6', '#6d28d9', '#ddd6fe']),
+    cinderBlaze: swatchThumbnail(['#ff6b35', '#7f1d1d', '#fed7aa']),
+    arcticDrift: swatchThumbnail(['#bcd7ff', '#7aa2f7', '#e2e8f0'])
+  }),
+  boardTheme: Object.freeze({
+    classic: swatchThumbnail(['#e7e2d3', '#2b2f36', '#f1f5f9']),
+    ivorySlate: swatchThumbnail(['#f8fafc', '#64748b', '#e2e8f0']),
+    forest: swatchThumbnail(['#065f46', '#134e4a', '#bbf7d0']),
+    sand: swatchThumbnail(['#d6c7a1', '#8b6b4f', '#fef3c7']),
+    ocean: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe']),
+    violet: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe']),
+    chrome: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc']),
+    nebulaGlass: swatchThumbnail(['#312e81', '#111827', '#a855f7'])
+  }),
+  headStyle: Object.freeze({
+    current: swatchThumbnail(['#94a3b8', '#475569', '#e2e8f0']),
+    headRuby: swatchThumbnail(['#b91c1c', '#7f1d1d', '#fecaca']),
+    headSapphire: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe']),
+    headChrome: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc']),
+    headGold: swatchThumbnail(['#f59e0b', '#b45309', '#fde68a'])
+  })
+});
+
 export const CHESS_BATTLE_STORE_ITEMS = [
   ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
     id: `chess-table-finish-${finish.id}`,
