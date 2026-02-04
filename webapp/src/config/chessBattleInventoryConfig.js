@@ -138,32 +138,32 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
 
 export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
   sideColor: Object.freeze({
-    marble: swatchThumbnail(['#f8fafc', '#e2e8f0', '#cbd5f5']),
-    darkForest: swatchThumbnail(['#14532d', '#0f3d23', '#86efac']),
-    amberGlow: swatchThumbnail(['#fbbf24', '#b45309', '#fde68a']),
-    mintVale: swatchThumbnail(['#10b981', '#065f46', '#bbf7d0']),
-    royalWave: swatchThumbnail(['#3b82f6', '#1d4ed8', '#bfdbfe']),
-    roseMist: swatchThumbnail(['#ef4444', '#be123c', '#fecaca']),
-    amethyst: swatchThumbnail(['#8b5cf6', '#6d28d9', '#ddd6fe']),
-    cinderBlaze: swatchThumbnail(['#ff6b35', '#7f1d1d', '#fed7aa']),
-    arcticDrift: swatchThumbnail(['#bcd7ff', '#7aa2f7', '#e2e8f0'])
+    marble: '/assets/game-art/chess-battle-royal/pieces/marble.svg',
+    darkForest: '/assets/game-art/chess-battle-royal/pieces/darkForest.svg',
+    amberGlow: '/assets/game-art/chess-battle-royal/pieces/amberGlow.svg',
+    mintVale: '/assets/game-art/chess-battle-royal/pieces/mintVale.svg',
+    royalWave: '/assets/game-art/chess-battle-royal/pieces/royalWave.svg',
+    roseMist: '/assets/game-art/chess-battle-royal/pieces/roseMist.svg',
+    amethyst: '/assets/game-art/chess-battle-royal/pieces/amethyst.svg',
+    cinderBlaze: '/assets/game-art/chess-battle-royal/pieces/cinderBlaze.svg',
+    arcticDrift: '/assets/game-art/chess-battle-royal/pieces/arcticDrift.svg'
   }),
   boardTheme: Object.freeze({
-    classic: swatchThumbnail(['#e7e2d3', '#2b2f36', '#f1f5f9']),
-    ivorySlate: swatchThumbnail(['#f8fafc', '#64748b', '#e2e8f0']),
-    forest: swatchThumbnail(['#065f46', '#134e4a', '#bbf7d0']),
-    sand: swatchThumbnail(['#d6c7a1', '#8b6b4f', '#fef3c7']),
-    ocean: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe']),
-    violet: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe']),
-    chrome: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc']),
-    nebulaGlass: swatchThumbnail(['#312e81', '#111827', '#a855f7'])
+    classic: '/assets/game-art/chess-battle-royal/boards/classic.svg',
+    ivorySlate: '/assets/game-art/chess-battle-royal/boards/ivorySlate.svg',
+    forest: '/assets/game-art/chess-battle-royal/boards/forest.svg',
+    sand: '/assets/game-art/chess-battle-royal/boards/sand.svg',
+    ocean: '/assets/game-art/chess-battle-royal/boards/ocean.svg',
+    violet: '/assets/game-art/chess-battle-royal/boards/violet.svg',
+    chrome: '/assets/game-art/chess-battle-royal/boards/chrome.svg',
+    nebulaGlass: '/assets/game-art/chess-battle-royal/boards/nebulaGlass.svg'
   }),
   headStyle: Object.freeze({
-    current: swatchThumbnail(['#94a3b8', '#475569', '#e2e8f0']),
-    headRuby: swatchThumbnail(['#b91c1c', '#7f1d1d', '#fecaca']),
-    headSapphire: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe']),
-    headChrome: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc']),
-    headGold: swatchThumbnail(['#f59e0b', '#b45309', '#fde68a'])
+    current: '/assets/game-art/chess-battle-royal/heads/current.svg',
+    headRuby: '/assets/game-art/chess-battle-royal/heads/headRuby.svg',
+    headSapphire: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg',
+    headChrome: '/assets/game-art/chess-battle-royal/heads/headChrome.svg',
+    headGold: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
   })
 });
 
@@ -208,7 +208,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Marble Pieces',
     price: 1400,
     description: 'Premium marble-inspired pieces for either side.',
-    thumbnail: swatchThumbnail(['#f8fafc', '#e2e8f0', '#cbd5f5'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble
   },
   {
     id: 'chess-side-forest',
@@ -217,7 +217,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Dark Forest Pieces',
     price: 1300,
     description: 'Deep forest hue pieces with luxe accents.',
-    thumbnail: swatchThumbnail(['#14532d', '#0f3d23', '#86efac'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.darkForest
   },
   {
     id: 'chess-side-royal',
@@ -226,7 +226,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Royal Wave Pieces',
     price: 420,
     description: 'Royal blue quick-select palette.',
-    thumbnail: swatchThumbnail(['#3b82f6', '#1d4ed8', '#bfdbfe'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.royalWave
   },
   {
     id: 'chess-side-rose',
@@ -235,7 +235,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Rose Mist Pieces',
     price: 420,
     description: 'Rosy quick-select palette with soft glow.',
-    thumbnail: swatchThumbnail(['#ef4444', '#be123c', '#fecaca'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.roseMist
   },
   {
     id: 'chess-side-amethyst',
@@ -244,7 +244,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Amethyst Pieces',
     price: 460,
     description: 'Amethyst quick-select palette with sheen.',
-    thumbnail: swatchThumbnail(['#8b5cf6', '#6d28d9', '#ddd6fe'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amethyst
   },
   {
     id: 'chess-side-cinder',
@@ -253,7 +253,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Cinder Blaze Pieces',
     price: 480,
     description: 'Molten orange-on-charcoal palette for fiery showdowns.',
-    thumbnail: swatchThumbnail(['#ff6b35', '#7f1d1d', '#fed7aa'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.cinderBlaze
   },
   {
     id: 'chess-side-arctic',
@@ -262,7 +262,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Arctic Drift Pieces',
     price: 520,
     description: 'Icy stone palette with frosted metallic hints.',
-    thumbnail: swatchThumbnail(['#bcd7ff', '#7aa2f7', '#e2e8f0'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.arcticDrift
   },
   {
     id: 'chess-board-ivorySlate',
@@ -271,7 +271,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Ivory/Slate Board',
     price: 380,
     description: 'Alternate board palette for fast swaps.',
-    thumbnail: swatchThumbnail(['#f8fafc', '#64748b', '#e2e8f0'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.ivorySlate
   },
   {
     id: 'chess-board-forest',
@@ -280,7 +280,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Forest Board',
     price: 410,
     description: 'Alternate board palette for fast swaps.',
-    thumbnail: swatchThumbnail(['#065f46', '#134e4a', '#bbf7d0'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.forest
   },
   {
     id: 'chess-board-sand',
@@ -289,7 +289,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Sand/Brown Board',
     price: 440,
     description: 'Alternate board palette for fast swaps.',
-    thumbnail: swatchThumbnail(['#d6c7a1', '#8b6b4f', '#fef3c7'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.sand
   },
   {
     id: 'chess-board-ocean',
@@ -298,7 +298,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Ocean Board',
     price: 470,
     description: 'Alternate board palette for fast swaps.',
-    thumbnail: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.ocean
   },
   {
     id: 'chess-board-violet',
@@ -307,7 +307,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Violet Board',
     price: 500,
     description: 'Alternate board palette for fast swaps.',
-    thumbnail: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.violet
   },
   {
     id: 'chess-board-chrome',
@@ -316,7 +316,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Chrome Board',
     price: 540,
     description: 'Alternate board palette for fast swaps.',
-    thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.chrome
   },
   {
     id: 'chess-board-nebula',
@@ -325,7 +325,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Nebula Glass Board',
     price: 580,
     description: 'Cosmic glass palette with deep-space contrasts.',
-    thumbnail: swatchThumbnail(['#312e81', '#111827', '#a855f7'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme.nebulaGlass
   },
   {
     id: 'chess-head-ruby',
@@ -334,7 +334,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Ruby Pawn Heads',
     price: 310,
     description: 'Unlocks an additional pawn head glass preset.',
-    thumbnail: swatchThumbnail(['#b91c1c', '#7f1d1d', '#fecaca'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headRuby
   },
   {
     id: 'chess-head-sapphire',
@@ -343,7 +343,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Sapphire Pawn Heads',
     price: 335,
     description: 'Unlocks an additional pawn head glass preset.',
-    thumbnail: swatchThumbnail(['#2563eb', '#1d4ed8', '#bfdbfe'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headSapphire
   },
   {
     id: 'chess-head-chrome',
@@ -352,7 +352,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Chrome Pawn Heads',
     price: 360,
     description: 'Unlocks an additional pawn head glass preset.',
-    thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headChrome
   },
   {
     id: 'chess-head-gold',
@@ -361,7 +361,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: 'Gold Pawn Heads',
     price: 385,
     description: 'Unlocks an additional pawn head glass preset.',
-    thumbnail: swatchThumbnail(['#f59e0b', '#b45309', '#fde68a'])
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `chess-hdri-${variant.id}`,

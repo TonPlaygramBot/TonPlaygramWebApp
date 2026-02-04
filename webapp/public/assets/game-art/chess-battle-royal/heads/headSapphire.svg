@@ -1,0 +1,18 @@
+
+<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>
+  <defs>
+    <radialGradient id='glow' cx='40%' cy='30%' r='70%'>
+      <stop offset='0%' stop-color='#bfdbfe' stop-opacity='0.9'/>
+      <stop offset='100%' stop-color='#bfdbfe' stop-opacity='0'/>
+    </radialGradient>
+    <linearGradient id='glass' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#2563eb' stop-opacity='0.9'/>
+      <stop offset='100%' stop-color='#1f2937' stop-opacity='1'/>
+    </linearGradient>
+  </defs>
+  <rect width='256' height='256' rx='36' fill='#0b1220'/>
+  <circle cx='128' cy='90' r='54' fill='url(#glass)' stroke='#bfdbfe' stroke-width='4'/>
+  <rect x='86' y='150' width='84' height='30' rx='14' fill='#1f2937'/>
+  <rect x='72' y='182' width='112' height='34' rx='16' fill='#1f2937' opacity='0.9'/>
+  <circle cx='108' cy='74' r='48' fill='url(#glow)'/>
+</svg>

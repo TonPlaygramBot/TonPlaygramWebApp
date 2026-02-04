@@ -1,0 +1,38 @@
+
+<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>
+  <rect width='256' height='256' rx='36' fill='#0b1220'/>
+  <rect x='26' y='26' width='204' height='204' rx='18' fill='#111827'/>
+  <rect x='26.00' y='26.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='77.00' y='26.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='128.00' y='26.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='179.00' y='26.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='51.50' y='51.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='102.50' y='51.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='153.50' y='51.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='204.50' y='51.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='26.00' y='77.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='77.00' y='77.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='128.00' y='77.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='179.00' y='77.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='51.50' y='102.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='102.50' y='102.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='153.50' y='102.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='204.50' y='102.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='26.00' y='128.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='77.00' y='128.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='128.00' y='128.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='179.00' y='128.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='51.50' y='153.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='102.50' y='153.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='153.50' y='153.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='204.50' y='153.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='26.00' y='179.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='77.00' y='179.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='128.00' y='179.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='179.00' y='179.00' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='51.50' y='204.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='102.50' y='204.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='153.50' y='204.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='204.50' y='204.50' width='25.50' height='25.50' fill='#e5e7eb'/>
+  <rect x='26' y='26' width='204' height='204' rx='18' fill='none' stroke='#e5e7eb' stroke-width='4' opacity='0.6'/>
+</svg>

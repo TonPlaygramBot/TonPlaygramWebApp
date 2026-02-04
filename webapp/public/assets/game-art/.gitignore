@@ -7,3 +7,5 @@
 !variants/
 !variants/pool-royale/
 !variants/pool-royale/*.svg
+!chess-battle-royal/
+!chess-battle-royal/**
