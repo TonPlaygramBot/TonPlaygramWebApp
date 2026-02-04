@@ -1098,7 +1098,7 @@ const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snook
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.97; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep collision arc true to the jaw outer radius for precise pocket mapping
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -4994,7 +4994,7 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = 0.1;
+const RAIL_LIMIT_PADDING = BALL_R * 0.12;
 const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.04;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
@@ -6657,6 +6657,8 @@ function alignRailsToCushions(table, frame, railMeshes = null) {
 function updateRailLimitsFromTable(table) {
   if (!table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
+  RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
+  RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
   let minAbsX = Infinity;
   let minAbsZ = Infinity;
   for (const cushion of table.userData.cushions) {
@@ -6814,6 +6816,35 @@ function updateCushionSegmentsFromTable(table) {
     }
     segment.normal = normal.clone();
   });
+  const updateRailLimitsFromSegments = (segmentList) => {
+    let minAbsX = Infinity;
+    let minAbsY = Infinity;
+    segmentList.forEach((segment) => {
+      if (!segment || segment.type !== 'rail' || !segment.start || !segment.end) return;
+      TMP_VEC2_A.copy(segment.end).sub(segment.start);
+      if (TMP_VEC2_A.lengthSq() < 1e-8) return;
+      if (Math.abs(TMP_VEC2_A.x) >= Math.abs(TMP_VEC2_A.y)) {
+        const midY = (segment.start.y + segment.end.y) * 0.5;
+        minAbsY = Math.min(minAbsY, Math.abs(midY));
+      } else {
+        const midX = (segment.start.x + segment.end.x) * 0.5;
+        minAbsX = Math.min(minAbsX, Math.abs(midX));
+      }
+    });
+    if (minAbsX !== Infinity) {
+      const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
+      if (computedX > 0) {
+        RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
+      }
+    }
+    if (minAbsY !== Infinity) {
+      const computedY = Math.max(0, minAbsY - BALL_R - RAIL_LIMIT_PADDING);
+      if (computedY > 0) {
+        RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedY);
+      }
+    }
+  };
+  updateRailLimitsFromSegments(segments);
   CUSHION_SEGMENTS = segments;
   table.userData.cushionSegments = segments;
   const cushionBoxes = table.userData.cueObstructionBoxes ?? [];
