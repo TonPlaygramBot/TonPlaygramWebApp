@@ -1306,13 +1306,10 @@ const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
 const JUMP_SHOT_LAUNCH_SCALE = 0.55;
 const JUMP_SHOT_HEIGHT_SCALE = 0.48;
-const POCKET_INTERIOR_CAPTURE_R =
-  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
-const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
-const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
+const POCKET_INTERIOR_CAPTURE_R = POCKET_VIS_R; // match capture radius to the physical pocket diameter
+const SIDE_POCKET_INTERIOR_CAPTURE_R = SIDE_POCKET_RADIUS; // keep middle-pocket capture identical to its physical pocket diameter
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true physical opening
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // keep middle pockets matching the same physical capture size
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
