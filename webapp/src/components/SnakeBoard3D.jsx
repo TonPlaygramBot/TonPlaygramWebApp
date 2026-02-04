@@ -182,7 +182,6 @@ const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 const TOKEN_SCALE = 1.19;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_SCALE;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48 * TOKEN_SCALE;
-const LUDO_TOKEN_HEIGHT = 0.09;
 const CHESS_TOKEN_HEIGHT_SCALE = 2;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
@@ -192,12 +191,10 @@ const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
-const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 1.2;
-const TOKEN_TABLE_EDGE_INSET = TILE_SIZE * 0.45;
-const TABLE_RADIUS_LOCAL = TABLE_RADIUS / BOARD_SCALE;
-// Subtle distance so side-seat tokens rest closer to their players than the board edge.
-const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 0.5;
-const BACK_HOME_EXTRA_DISTANCE = TILE_SIZE * 0.7;
+const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 0.9;
+// Extra distance so side-seat tokens rest closer to their players than the board edge.
+const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 2.4;
+const BACK_HOME_EXTRA_DISTANCE = TILE_SIZE * 2.8;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_SCALE;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -3105,7 +3102,6 @@ function updateTokens(
     const baseY = Number.isFinite(baseLevelTop) ? baseLevelTop : 0;
     const center = new THREE.Vector3(0, baseY, 0);
     const forwardLift = HOME_TOKEN_FORWARD_LIFT + HOME_TOKEN_OUTWARD_EXTRA;
-    const tableEdgeDistance = TABLE_RADIUS_LOCAL - TOKEN_TABLE_EDGE_INSET;
     seatAnchors.forEach((anchor, index) => {
       if (!anchor) {
         seatHomes[index] = null;
@@ -3126,8 +3122,7 @@ function updateTokens(
       let seatBonus = 0;
       if (index === 1 || index === 3) seatBonus = SIDE_HOME_EXTRA_DISTANCE;
       else if (index === 2) seatBonus = BACK_HOME_EXTRA_DISTANCE;
-      const minimumDistance = boardHalf + BOARD_EDGE_BUFFER + forwardLift;
-      const distanceFromBoard = Math.max(minimumDistance, tableEdgeDistance) + seatBonus;
+      const distanceFromBoard = boardHalf + BOARD_EDGE_BUFFER + forwardLift + seatBonus;
       const target = center.clone().addScaledVector(direction, distanceFromBoard);
       target.y = baseY + TOKEN_HEIGHT * 0.02;
       seatHomes[index] = { position: target, direction };
@@ -3187,11 +3182,7 @@ function updateTokens(
       let pieceMaterials = null;
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
-        const targetHeight =
-          playerShape?.source === 'ludoBattleRoyal'
-            ? LUDO_TOKEN_HEIGHT
-            : TOKEN_HEIGHT * CHESS_TOKEN_HEIGHT_SCALE;
-        scaleChessPieceToToken(piece, targetHeight);
+        scaleChessPieceToToken(piece, TOKEN_HEIGHT * CHESS_TOKEN_HEIGHT_SCALE);
         pieceMaterials = [];
         piece.traverse((child) => {
           if (child.isMesh) {
@@ -3771,9 +3762,7 @@ export default function SnakeBoard3D({
 
   useEffect(() => {
     let active = true;
-    const usesChessPrototypes =
-      tokenShape?.source === 'chessBattleRoyal' || tokenShape?.source === 'ludoBattleRoyal';
-    if (!usesChessPrototypes) {
+    if (!tokenShape || tokenShape.source !== 'chessBattleRoyal') {
       if (boardRef.current) {
         boardRef.current.tokenPrototypes = null;
       }
