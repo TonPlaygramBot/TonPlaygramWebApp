@@ -618,8 +618,8 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.01; // trim the outer fascia extension so the outside edge tucks in slightly
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.35; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.92; // trim the outer fascia extension so the outside edge tucks in slightly
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
@@ -1361,7 +1361,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(6.5); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
   x: (0.08 / 27) * 0.7 / 2,
@@ -1398,8 +1398,8 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form t
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.0; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.3; // keep the ball rest point unchanged while the chrome guides extend
 const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1409,7 +1409,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.42; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -5134,6 +5134,7 @@ const REPLAY_BANNER_VARIANTS = {
   multi: ['Double pot!', 'Two for one!', 'What a combo!'],
   power: ['Power drive!', 'Thunder break!', 'Crushed it!'],
   spin: ['Swerve magic!', 'Spin control!', 'Curved in!'],
+  foul: ['Foul!', 'That’s a foul!', 'Costly foul!'],
   final: ['Final ball!', 'Closing shot!', 'Match winner!'],
   default: ['Good shot!', 'Nice pot!', 'Great touch!']
 };
@@ -18643,7 +18644,7 @@ const powerRef = useRef(hud.power);
             ? {
                 position: serializeVector3Snapshot(cueStick.position),
                 rotation: serializeQuaternionSnapshot(cueStick.quaternion),
-                visible: cueStick.visible ?? true
+                visible: true
               }
             : null;
           shotRecording.frames.push({
@@ -21652,8 +21653,17 @@ const powerRef = useRef(hud.power);
         ) {
           return;
         }
-        const p = project(e);
-        if (p) tryUpdatePlacement(p, false);
+        const coalesced =
+          typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
+        if (coalesced && coalesced.length > 0) {
+          coalesced.forEach((evt) => {
+            const p = project(evt);
+            if (p) tryUpdatePlacement(p, false);
+          });
+        } else {
+          const p = project(e);
+          if (p) tryUpdatePlacement(p, false);
+        }
         e.preventDefault?.();
       };
       const endInHandDrag = (e) => {
@@ -21709,15 +21719,20 @@ const powerRef = useRef(hud.power);
           ) {
             return false;
           }
-          const p = project(e);
-          if (p) {
-            if (inHandDrag.deferred) {
-              inHandDrag.lastPos = p;
-              tryUpdatePlacement(p, false);
-            } else {
-              tryUpdatePlacement(p, false);
+          const coalesced =
+            typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
+          const events = coalesced && coalesced.length > 0 ? coalesced : [e];
+          events.forEach((evt) => {
+            const p = project(evt);
+            if (p) {
+              if (inHandDrag.deferred) {
+                inHandDrag.lastPos = p;
+                tryUpdatePlacement(p, false);
+              } else {
+                tryUpdatePlacement(p, false);
+              }
             }
-          }
+          });
           return true;
         },
         end: (e) => {
@@ -24464,6 +24479,32 @@ const powerRef = useRef(hud.power);
             ? { ...safeState.foul }
             : null;
         }
+        const shotWasFoul = Boolean(safeState?.foul);
+        if (shotWasFoul) {
+          if (replayDecision) {
+            const replayTags = new Set(replayDecision.tags ?? []);
+            replayTags.add('foul');
+            replayDecision = {
+              ...replayDecision,
+              tags: Array.from(replayTags),
+              shouldReplay: true,
+              primaryTag: replayDecision.primaryTag ?? 'foul'
+            };
+          } else {
+            replayDecision = {
+              shouldReplay: true,
+              banner: selectReplayBanner('foul'),
+              zoomOnly: false,
+              tags: ['foul'],
+              primaryTag: 'foul'
+            };
+          }
+          replayBannerText = replayDecision.banner ?? selectReplayBanner('foul');
+          replayAccent = replayDecision.primaryTag ?? 'foul';
+          shouldStartReplay =
+            !skipAllReplaysRef.current &&
+            Boolean(shotRecording?.frames?.length);
+        }
         const isFinalShot =
           Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
         if (isFinalShot) {
@@ -24531,7 +24572,6 @@ const powerRef = useRef(hud.power);
         if (safeState?.foul) {
           showRuleToast('Foul');
         }
-        const shotWasFoul = Boolean(safeState?.foul);
         const potCount = potted.filter((entry) => entry.id !== 'cue').length;
         if (potted.length) {
           potted.forEach((entry) => {
