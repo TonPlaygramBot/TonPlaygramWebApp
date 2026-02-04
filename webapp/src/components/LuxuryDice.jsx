@@ -22,8 +22,8 @@ const orientationMap = (() => {
   const map = {};
   map[1] = new THREE.Quaternion();
   map[2] = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
-  map[3] = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2));
-  map[4] = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2));
+  map[3] = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2));
+  map[4] = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2));
   map[5] = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
   map[6] = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI, 0, 0));
   return map;
