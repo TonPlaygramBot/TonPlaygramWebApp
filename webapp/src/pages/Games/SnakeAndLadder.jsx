@@ -806,12 +806,12 @@ const WALL_TEXTURE_OPTIONS = Object.freeze([
 ]);
 
 const TOKEN_SHAPE_OPTIONS = Object.freeze([
-  { id: 'pawn', label: 'Pawn', pieceType: 'pawn', source: 'ludoBattleRoyal' },
-  { id: 'knight', label: 'Knight', pieceType: 'knight', source: 'ludoBattleRoyal' },
-  { id: 'bishop', label: 'Bishop', pieceType: 'bishop', source: 'ludoBattleRoyal' },
-  { id: 'rook', label: 'Rook', pieceType: 'rook', source: 'ludoBattleRoyal' },
-  { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
-  { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
+  { id: 'pawn', label: 'Pawn', pieceType: 'pawn', source: 'chessBattleRoyal' },
+  { id: 'knight', label: 'Knight', pieceType: 'knight', source: 'chessBattleRoyal' },
+  { id: 'bishop', label: 'Bishop', pieceType: 'bishop', source: 'chessBattleRoyal' },
+  { id: 'rook', label: 'Rook', pieceType: 'rook', source: 'chessBattleRoyal' },
+  { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'chessBattleRoyal' },
+  { id: 'king', label: 'King', pieceType: 'king', source: 'chessBattleRoyal' }
 ]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
