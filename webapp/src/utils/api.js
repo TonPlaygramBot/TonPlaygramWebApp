@@ -73,40 +73,6 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   }
 }
 
-async function parseJsonResponse(res) {
-  let text;
-  try {
-    text = await res.text();
-  } catch {
-    return { error: 'Invalid server response' };
-  }
-
-  if (!text) {
-    return { data: {} };
-  }
-
-  const contentType = res.headers?.get('content-type') || '';
-  const looksLikeHtml = /<!doctype|<html/i.test(text);
-  if (contentType && !/application\/json/i.test(contentType)) {
-    if (/text\/html/i.test(contentType) || looksLikeHtml) {
-      return {
-        error: 'Server returned HTML instead of JSON. Check VITE_API_BASE_URL.'
-      };
-    }
-  }
-
-  try {
-    return { data: JSON.parse(text) };
-  } catch {
-    if (looksLikeHtml) {
-      return {
-        error: 'Server returned HTML instead of JSON. Check VITE_API_BASE_URL.'
-      };
-    }
-    return { error: 'Invalid server response' };
-  }
-}
-
 function buildHeaders(base = {}) {
   const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
@@ -133,9 +99,20 @@ async function post(path, body, token) {
     return { error: 'Network request failed' };
   }
 
-  const parsed = await parseJsonResponse(res);
-  if (parsed.error) return { error: parsed.error };
-  const data = parsed.data;
+  // Read response as text first to handle non-JSON replies gracefully
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    // Provide a generic error instead of exposing parse details
+    return { error: 'Invalid server response' };
+  }
   if (!res.ok) {
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
@@ -160,9 +137,18 @@ async function put(path, body, token) {
     return { error: 'Network request failed' };
   }
 
-  const parsed = await parseJsonResponse(res);
-  if (parsed.error) return { error: parsed.error };
-  const data = parsed.data;
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    return { error: 'Invalid server response' };
+  }
   if (!res.ok) {
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
@@ -183,9 +169,18 @@ async function get(path, token) {
     return { error: 'Network request failed' };
   }
 
-  const parsed = await parseJsonResponse(res);
-  if (parsed.error) return { error: parsed.error };
-  const data = parsed.data;
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    return { error: 'Invalid server response' };
+  }
   if (!res.ok) {
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
