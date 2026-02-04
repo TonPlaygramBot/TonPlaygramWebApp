@@ -615,10 +615,10 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.38; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.22; // trim fascia span so the middle plates finish at the side rail edge
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.01; // trim the outer fascia extension so the outside edge tucks in slightly
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
@@ -1389,7 +1389,7 @@ const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.12;
+const POCKET_GUIDE_DROP = BALL_R * 0.06;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
@@ -1398,8 +1398,8 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form t
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.04; // keep balls flush without overlap as they settle against the strap
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.3; // pull the resting spot closer to the leather strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -5093,6 +5093,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
+const IN_HAND_DRAG_SPEED = 1.35; // boost in-hand drag responsiveness so screen movement maps cleanly to table placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -12787,6 +12788,7 @@ function PoolRoyaleGame({
     active: false,
     pointerId: null,
     lastPos: null,
+    lastScreen: null,
     deferred: false,
     source: null
   });
@@ -13249,6 +13251,7 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
+  const replayCameraLockRef = useRef({ key: null, snapshot: null });
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -18560,25 +18563,49 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY
-          });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(overheadCamera?.fov)
-            ? overheadCamera.fov
-            : fovSnapshot;
+          const pocketActive = pocketCameraStateRef.current && activeShotView?.mode === 'pocket';
+          const pocketKey = pocketActive
+            ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
+            : null;
+          const cameraKey = pocketKey ?? 'overhead';
+          const lock = replayCameraLockRef.current;
+          if (lock.key === cameraKey && lock.snapshot) {
+            return lock.snapshot;
+          }
+          let resolvedPosition = null;
+          let resolvedTarget = null;
+          let resolvedFov = fovSnapshot;
+          let resolvedMinTargetY = null;
+          if (pocketActive) {
+            const pocketCamera = activeRenderCameraRef.current ?? null;
+            resolvedPosition = pocketCamera?.position?.clone?.() ?? null;
+            resolvedTarget = targetSnapshot;
+            resolvedFov = Number.isFinite(pocketCamera?.fov) ? pocketCamera.fov : fovSnapshot;
+          } else {
+            const overheadCamera = resolveRailOverheadReplayCamera({
+              focusOverride: targetSnapshot,
+              minTargetY
+            });
+            resolvedPosition = overheadCamera?.position?.clone?.() ??
+              fallbackCamera?.position?.clone?.() ?? null;
+            resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+            resolvedFov = Number.isFinite(overheadCamera?.fov)
+              ? overheadCamera.fov
+              : fovSnapshot;
+            resolvedMinTargetY = overheadCamera?.minTargetY ?? null;
+          }
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
-            fov: resolvedFov
+            fov: resolvedFov,
+            key: cameraKey
           };
-          if (Number.isFinite(overheadCamera?.minTargetY)) {
-            snapshot.minTargetY = overheadCamera.minTargetY;
+          if (Number.isFinite(resolvedMinTargetY)) {
+            snapshot.minTargetY = resolvedMinTargetY;
           }
+          lock.key = cameraKey;
+          lock.snapshot = snapshot;
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -18643,7 +18670,7 @@ const powerRef = useRef(hud.power);
             ? {
                 position: serializeVector3Snapshot(cueStick.position),
                 rotation: serializeQuaternionSnapshot(cueStick.quaternion),
-                visible: cueStick.visible ?? true
+                visible: true
               }
             : null;
           shotRecording.frames.push({
@@ -21224,17 +21251,18 @@ const powerRef = useRef(hud.power);
         new THREE.Vector3(0, 1, 0),
         -TABLE_Y * worldScaleFactor
       );
-      project = (ev) => {
+      const getPointerClient = (ev) => {
+        const clientX =
+          ev?.clientX ?? ev?.touches?.[0]?.clientX ?? ev?.changedTouches?.[0]?.clientX;
+        const clientY =
+          ev?.clientY ?? ev?.touches?.[0]?.clientY ?? ev?.changedTouches?.[0]?.clientY;
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+        return { x: clientX, y: clientY };
+      };
+      const projectFromClient = (clientX, clientY) => {
         const r = dom.getBoundingClientRect();
-        const cx =
-          (((ev.clientX ?? ev.touches?.[0]?.clientX ?? 0) - r.left) / r.width) *
-            2 -
-          1;
-        const cy = -(
-          (((ev.clientY ?? ev.touches?.[0]?.clientY ?? 0) - r.top) / r.height) *
-            2 -
-          1
-        );
+        const cx = (((clientX - r.left) / r.width) * 2 - 1);
+        const cy = -(((clientY - r.top) / r.height) * 2 - 1);
         pointer.set(cx, cy);
         const activeCamera = activeRenderCameraRef.current ?? camera;
         ray.setFromCamera(pointer, activeCamera);
@@ -21244,6 +21272,11 @@ const powerRef = useRef(hud.power);
           pt.x / worldScaleFactor,
           pt.z / worldScaleFactor
         );
+      };
+      project = (ev) => {
+        const client = getPointerClient(ev);
+        if (!client) return null;
+        return projectFromClient(client.x, client.y);
       };
 
       const updateTopViewAimFromPointer = (ev) => {
@@ -21322,13 +21355,15 @@ const powerRef = useRef(hud.power);
         if (meta.variant === 'american' || meta.variant === '9ball') {
           return Boolean(meta.breakInProgress);
         }
+        if (meta.variant === 'uk') {
+          return Boolean(meta.state?.mustPlayFromBaulk);
+        }
         return false;
       };
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return false;
-        if (id === 'american' || id === '9ball') {
+        if (id === 'uk' || id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
         return false;
@@ -21436,6 +21471,26 @@ const powerRef = useRef(hud.power);
           cueBallPlacedFromHandRef.current = true;
         }
         return true;
+      };
+      const resolveInHandDragPosition = (e) => {
+        const client = getPointerClient(e);
+        if (!client) return null;
+        const currentProjected = projectFromClient(client.x, client.y);
+        if (!currentProjected) return null;
+        const lastScreen = inHandDrag.lastScreen;
+        if (!lastScreen || !inHandDrag.lastPos) {
+          inHandDrag.lastScreen = client;
+          return currentProjected;
+        }
+        const lastProjected = projectFromClient(lastScreen.x, lastScreen.y);
+        if (!lastProjected) {
+          inHandDrag.lastScreen = client;
+          return currentProjected;
+        }
+        const delta = currentProjected.clone().sub(lastProjected);
+        const next = inHandDrag.lastPos.clone().add(delta.multiplyScalar(IN_HAND_DRAG_SPEED));
+        inHandDrag.lastScreen = client;
+        return next;
       };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
@@ -21636,6 +21691,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
         inHandDrag.deferred = false;
         inHandDrag.source = 'table';
+        inHandDrag.lastScreen = getPointerClient(e);
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -21652,7 +21708,7 @@ const powerRef = useRef(hud.power);
         ) {
           return;
         }
-        const p = project(e);
+        const p = resolveInHandDragPosition(e);
         if (p) tryUpdatePlacement(p, false);
         e.preventDefault?.();
       };
@@ -21673,6 +21729,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.active = false;
         inHandDrag.deferred = false;
         inHandDrag.source = null;
+        inHandDrag.lastScreen = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -21695,6 +21752,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.pointerId = e.pointerId ?? 'icon';
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
+          inHandDrag.lastScreen = getPointerClient(e);
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -21709,7 +21767,7 @@ const powerRef = useRef(hud.power);
           ) {
             return false;
           }
-          const p = project(e);
+          const p = resolveInHandDragPosition(e);
           if (p) {
             if (inHandDrag.deferred) {
               inHandDrag.lastPos = p;
@@ -21732,6 +21790,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.active = false;
           inHandDrag.deferred = false;
           inHandDrag.source = null;
+          inHandDrag.lastScreen = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
@@ -22149,6 +22208,7 @@ const powerRef = useRef(hud.power);
               frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
                 ? frameTiming.targetMs
                 : 1000 / 60;
+            replayCameraLockRef.current = { key: null, snapshot: null };
             shotRecording = {
               longShot: replayTags.has('long'),
               targetBallId: shotPrediction.ballId ?? null,
@@ -24464,6 +24524,31 @@ const powerRef = useRef(hud.power);
             ? { ...safeState.foul }
             : null;
         }
+        const shotWasFoul = Boolean(safeState?.foul);
+        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
+          const foulBanner = 'Foul';
+          if (replayDecision) {
+            const replayTags = new Set(replayDecision.tags ?? []);
+            replayTags.add('foul');
+            replayDecision = {
+              ...replayDecision,
+              tags: Array.from(replayTags),
+              shouldReplay: true,
+              banner: replayDecision.banner ?? foulBanner,
+              primaryTag: replayDecision.primaryTag ?? 'foul'
+            };
+          } else {
+            replayDecision = {
+              shouldReplay: true,
+              banner: foulBanner,
+              zoomOnly: false,
+              tags: ['foul'],
+              primaryTag: 'foul'
+            };
+          }
+          replayBannerText = replayDecision.banner ?? foulBanner;
+          replayAccent = replayDecision.primaryTag ?? 'foul';
+        }
         const isFinalShot =
           Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
         if (isFinalShot) {
@@ -24493,6 +24578,10 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
+        shouldStartReplay =
+          !skipAllReplaysRef.current &&
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -24531,7 +24620,6 @@ const powerRef = useRef(hud.power);
         if (safeState?.foul) {
           showRuleToast('Foul');
         }
-        const shotWasFoul = Boolean(safeState?.foul);
         const potCount = potted.filter((entry) => entry.id !== 'cue').length;
         if (potted.length) {
           potted.forEach((entry) => {
@@ -24877,10 +24965,14 @@ const powerRef = useRef(hud.power);
               const frameCameraA = frameA?.camera ?? null;
               const frameCameraB = frameB?.camera ?? frameCameraA;
               if (frameCameraA || frameCameraB) {
+                const cameraKeyA = frameCameraA?.key ?? null;
+                const cameraKeyB = frameCameraB?.key ?? cameraKeyA;
+                const shouldCut =
+                  Boolean(cameraKeyA) && Boolean(cameraKeyB) && cameraKeyA !== cameraKeyB;
                 replayFrameCameraRef.current = {
                   frameA: frameCameraA ?? frameCameraB,
                   frameB: frameCameraB ?? frameCameraA,
-                  alpha
+                  alpha: shouldCut ? 0 : alpha
                 };
               }
             } else {
