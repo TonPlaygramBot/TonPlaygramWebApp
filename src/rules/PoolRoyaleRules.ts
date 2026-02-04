@@ -31,13 +31,18 @@ type UkSerializedState = {
 };
 
 type AmericanSerializedState = {
-  ballsOnTable: number[];
+  ballsOnTable: {
+    solids: number[];
+    stripes: number[];
+    black8: boolean;
+    cueInPocket: boolean;
+  };
+  assignments: { A: 'solid' | 'stripe' | null; B: 'solid' | 'stripe' | null };
   currentPlayer: 'A' | 'B';
-  scores: { A: number; B: number };
   ballInHand: boolean;
-  foulStreak: { A: number; B: number };
+  isOpenTable: boolean;
   frameOver: boolean;
-  winner: 'A' | 'B' | 'TIE' | null;
+  winner: 'A' | 'B' | null;
 };
 
 type NineSerializedState = {
@@ -126,11 +131,16 @@ function applyUkState(game: UkPool, snapshot: UkSerializedState) {
 
 function serializeAmericanState(state: AmericanBilliards['state']): AmericanSerializedState {
   return {
-    ballsOnTable: Array.from(state.ballsOnTable.values()),
+    ballsOnTable: {
+      solids: Array.from(state.ballsOnTable.solids.values()),
+      stripes: Array.from(state.ballsOnTable.stripes.values()),
+      black8: state.ballsOnTable.black8,
+      cueInPocket: state.ballsOnTable.cueInPocket
+    },
+    assignments: { ...state.assignments },
     currentPlayer: state.currentPlayer,
-    scores: { ...state.scores },
     ballInHand: state.ballInHand,
-    foulStreak: { ...state.foulStreak },
+    isOpenTable: state.isOpenTable,
     frameOver: state.frameOver,
     winner: state.winner
   };
@@ -138,11 +148,16 @@ function serializeAmericanState(state: AmericanBilliards['state']): AmericanSeri
 
 function applyAmericanState(game: AmericanBilliards, snapshot: AmericanSerializedState) {
   game.state = {
-    ballsOnTable: new Set(snapshot.ballsOnTable),
+    ballsOnTable: {
+      solids: new Set(snapshot.ballsOnTable.solids),
+      stripes: new Set(snapshot.ballsOnTable.stripes),
+      black8: snapshot.ballsOnTable.black8,
+      cueInPocket: snapshot.ballsOnTable.cueInPocket
+    },
+    assignments: { ...snapshot.assignments },
     currentPlayer: snapshot.currentPlayer,
-    scores: { ...snapshot.scores },
     ballInHand: snapshot.ballInHand,
-    foulStreak: { ...snapshot.foulStreak },
+    isOpenTable: snapshot.isOpenTable,
     frameOver: snapshot.frameOver,
     winner: snapshot.winner
   };
@@ -281,20 +296,20 @@ export class PoolRoyaleRules {
         const game = new AmericanBilliards();
         game.state.ballInHand = true;
         const snapshot = serializeAmericanState(game.state);
-        const lowest = lowestBall(snapshot.ballsOnTable) ?? 1;
         const base: FrameState = {
           balls: [],
           activePlayer: 'A',
           players: basePlayers(playerA, playerB),
           currentBreak: 0,
           phase: 'REDS_AND_COLORS',
-          redsRemaining: snapshot.ballsOnTable.length,
-          ballOn: [`BALL_${lowest}`],
+          redsRemaining:
+            snapshot.ballsOnTable.solids.length + snapshot.ballsOnTable.stripes.length,
+          ballOn: ['SOLID', 'STRIPE'],
           frameOver: false
         };
         const hud: HudInfo = {
-          next: `ball ${lowest}`,
-          phase: 'rotation',
+          next: 'open table',
+          phase: 'open',
           scores: { A: 0, B: 0 }
         };
         base.meta = {
@@ -430,6 +445,26 @@ export class PoolRoyaleRules {
     return [];
   }
 
+  private computeAmericanBallOn(state: AmericanSerializedState): string[] {
+    if (state.frameOver) return [];
+    const current = state.currentPlayer;
+    const assignment = state.assignments[current];
+    const available: string[] = [];
+    if (state.isOpenTable || !assignment) {
+      if (state.ballsOnTable.solids.length > 0) available.push('SOLID');
+      if (state.ballsOnTable.stripes.length > 0) available.push('STRIPE');
+      if (available.length === 0 && state.ballsOnTable.black8) available.push('BLACK');
+      return available;
+    }
+    if (assignment === 'solid') {
+      if (state.ballsOnTable.solids.length > 0) return ['SOLID'];
+    } else if (assignment === 'stripe') {
+      if (state.ballsOnTable.stripes.length > 0) return ['STRIPE'];
+    }
+    if (state.ballsOnTable.black8) return ['BLACK'];
+    return [];
+  }
+
   private applyAmericanShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
     const previous = meta && meta.variant === 'american' && meta.state ? meta : null;
@@ -464,41 +499,36 @@ export class PoolRoyaleRules {
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeAmericanState(game.state);
-    const lowest = lowestBall(snapshot.ballsOnTable);
-    const tableClear = snapshot.ballsOnTable.length === 0;
+    const solidsLeft = snapshot.ballsOnTable.solids.length;
+    const stripesLeft = snapshot.ballsOnTable.stripes.length;
+    const tableClear = solidsLeft + stripesLeft === 0 && !snapshot.ballsOnTable.black8;
     const frameOver = snapshot.frameOver || tableClear;
+    const ballOn = this.computeAmericanBallOn(snapshot);
     const hud: HudInfo = {
       next:
         frameOver && snapshot.winner
           ? 'frame over'
-          : lowest != null
-            ? `ball ${lowest}`
-            : tableClear
-              ? 'frame over'
+          : snapshot.isOpenTable
+            ? 'open table'
+            : ballOn.length > 0
+              ? ballOn.map((entry) => entry.toLowerCase()).join(' / ')
               : 'rack clear',
-      phase: frameOver ? 'complete' : 'rotation',
-      scores: { ...snapshot.scores }
+      phase: frameOver ? 'complete' : snapshot.isOpenTable ? 'open' : 'run',
+      scores: { A: 0, B: 0 }
     };
-    let winner: FrameState['winner'];
-    if (frameOver) {
-      if (snapshot.winner === 'A' || snapshot.winner === 'B' || snapshot.winner === 'TIE') {
-        winner = snapshot.winner;
-      } else if (snapshot.scores.A > snapshot.scores.B) winner = 'A';
-      else if (snapshot.scores.B > snapshot.scores.A) winner = 'B';
-      else winner = 'TIE';
-    }
+    const winner: FrameState['winner'] = frameOver ? snapshot.winner ?? undefined : undefined;
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
       players: {
-        A: { ...state.players.A, score: snapshot.scores.A },
-        B: { ...state.players.B, score: snapshot.scores.B }
+        A: { ...state.players.A, score: 0 },
+        B: { ...state.players.B, score: 0 }
       },
       currentBreak:
         !result.foul && game.state.currentPlayer === state.activePlayer && pottedCount > 0
           ? (state.currentBreak ?? 0) + pottedCount
           : 0,
-      ballOn: lowest != null && !frameOver ? [`BALL_${lowest}`] : [],
+      ballOn: !frameOver ? ballOn : [],
       frameOver,
       winner,
       foul: result.foul
