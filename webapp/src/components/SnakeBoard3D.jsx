@@ -75,13 +75,9 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const CHESS_PIECE_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+const LUDO_BATTLE_ROYAL_TOKEN_URLS = [
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -180,9 +176,9 @@ const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
 const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS_SCALE = 1.19;
-const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE;
-// Match the Ludo Battle Royal token height for consistent sizing across arenas.
-const TOKEN_HEIGHT = 0.09;
+const TOKEN_SCALE_MULTIPLIER = 1.7;
+const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
+const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
@@ -196,7 +192,7 @@ const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 1.6;
 // Extra distance so side-seat tokens rest closer to their players than the board edge.
 const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 3.2;
 const BACK_HOME_EXTRA_DISTANCE = TILE_SIZE * 3.6;
-const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE;
+const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 
@@ -512,7 +508,7 @@ async function loadChessPiecePrototypes(renderer = null) {
     const loader = createConfiguredGLTFLoader(renderer);
     CHESS_PIECE_CACHE.promise = (async () => {
       let gltf = null;
-      for (const url of CHESS_PIECE_URLS) {
+      for (const url of LUDO_BATTLE_ROYAL_TOKEN_URLS) {
         try {
           gltf = await loader.loadAsync(url);
           break;
@@ -3763,7 +3759,9 @@ export default function SnakeBoard3D({
 
   useEffect(() => {
     let active = true;
-    if (!tokenShape || tokenShape.source !== 'chessBattleRoyal') {
+    const usesLudoTokens = tokenShape?.source === 'ludoBattleRoyal';
+    const usesChessTokens = tokenShape?.source === 'chessBattleRoyal';
+    if (!tokenShape || (!usesLudoTokens && !usesChessTokens)) {
       if (boardRef.current) {
         boardRef.current.tokenPrototypes = null;
       }
