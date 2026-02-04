@@ -55,6 +55,7 @@ import {
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
+import planShot from '../../../../lib/poolAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
 import {
@@ -5095,7 +5096,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
-const IN_HAND_DRAG_SPEED = 0.92; // restore the 9pm in-hand drag pace for cue-ball placement
+const IN_HAND_DRAG_SPEED = 1.7; // match the faster air-hockey drag pace for cue-ball placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -23810,21 +23811,159 @@ const powerRef = useRef(hud.power);
           }
         };
 
+        const computeOpenSourcePlan = (allBalls, cueBall, frameSnapshot) => {
+          if (!cueBall?.active) return null;
+          const variantId = activeVariantRef.current?.id ?? variantKey;
+          if (variantId !== 'american' && variantId !== '9ball') return null;
+          const width = PLAY_W;
+          const height = PLAY_H;
+          const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
+          const pocketsLocal = pocketEntranceCenters();
+          const pockets = pocketsLocal.map((center) => toAi(center));
+          const mapBallId = (ball) => {
+            if (!ball) return null;
+            if (ball === cueBall) return 0;
+            if (typeof ball.id === 'number') return ball.id;
+            if (typeof ball.id === 'string') {
+              const lower = ball.id.toLowerCase();
+              if (lower === 'cue' || lower === 'cue_ball') return 0;
+              const match = lower.match(/\d+/);
+              if (match) return Number(match[0]);
+            }
+            return null;
+          };
+          const aiBalls = [];
+          allBalls.forEach((ball) => {
+            const mappedId = mapBallId(ball);
+            if (mappedId == null || !ball?.pos) return;
+            const pos = toAi(ball.pos);
+            aiBalls.push({
+              id: mappedId,
+              x: pos.x,
+              y: pos.y,
+              vx: ball.vel?.x ?? 0,
+              vy: ball.vel?.y ?? 0,
+              pocketed: !ball.active
+            });
+          });
+          if (!aiBalls.some((ball) => ball.id === 0 && !ball.pocketed)) {
+            return null;
+          }
+          const metaState = frameSnapshot?.meta?.state ?? null;
+          const aiState = {
+            balls: aiBalls,
+            pockets,
+            width,
+            height,
+            ballRadius: BALL_R,
+            friction: FRICTION,
+            ballInHand: Boolean(metaState?.ballInHand)
+          };
+          const decision = planShot({
+            game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
+            state: aiState,
+            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
+          });
+          if (!decision?.aimPoint) return null;
+          const aimPoint = new THREE.Vector2(
+            decision.aimPoint.x - width / 2,
+            decision.aimPoint.y - height / 2
+          );
+          const aimDir = aimPoint.clone().sub(cueBall.pos);
+          if (aimDir.lengthSq() < 1e-6) return null;
+          aimDir.normalize();
+          const targetBall = allBalls.find((ball) => {
+            const mappedId = mapBallId(ball);
+            return mappedId != null && mappedId === decision.targetBallId;
+          });
+          const targetPocket = decision.targetPocket
+            ? new THREE.Vector2(
+                decision.targetPocket.x - width / 2,
+                decision.targetPocket.y - height / 2
+              )
+            : null;
+          const pocketIndex =
+            targetPocket != null
+              ? pocketsLocal.reduce((bestIndex, center, idx) => {
+                  if (bestIndex == null) return idx;
+                  const bestDist = pocketsLocal[bestIndex].distanceTo(targetPocket);
+                  const dist = center.distanceTo(targetPocket);
+                  return dist < bestDist ? idx : bestIndex;
+                }, null)
+              : null;
+          const pocketCenter =
+            pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
+          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
+          const sideSpin = decision.spin?.side ?? 0;
+          const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
+          const spin = {
+            x: THREE.MathUtils.clamp(sideSpin, -0.6, 0.6),
+            y: THREE.MathUtils.clamp(verticalSpin, -0.6, 0.6)
+          };
+          const quality = Number.isFinite(decision.quality) ? decision.quality : 0;
+          const isSafety =
+            typeof decision.rationale === 'string' &&
+            decision.rationale.toLowerCase().includes('safety');
+          return {
+            type: isSafety ? 'safety' : 'pot',
+            aimDir,
+            power,
+            target: targetBall ? toBallColorId(targetBall.id) : 'SAFETY',
+            targetBall: targetBall ?? null,
+            pocketId: pocketIndex != null ? POCKET_IDS[pocketIndex] : 'SAFETY',
+            pocketCenter,
+            difficulty: quality ? (1 - quality) * 1000 : undefined,
+            cueToTarget: targetBall
+              ? cueBall.pos.distanceTo(targetBall.pos)
+              : cueBall.pos.distanceTo(aimPoint),
+            targetToPocket:
+              targetBall && pocketCenter
+                ? targetBall.pos.distanceTo(pocketCenter)
+                : 0,
+            spin,
+            quality,
+            aiMeta: {
+              quality,
+              rationale: decision.rationale ?? null,
+              source: 'poolAi'
+            }
+          };
+        };
+
         const evaluateShotOptions = () => {
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
-            if (variantId !== 'uk' || !cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
-            if (!advancedPlan) return baseline;
+            if (variantId === 'uk' && cue?.active) {
+              const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+              if (!advancedPlan) return baseline;
+              const result = { ...baseline };
+              if (advancedPlan.type === 'pot') {
+                result.bestPot = advancedPlan;
+                if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
+              } else {
+                result.bestSafety = advancedPlan;
+                if (!result.bestPot) result.bestPot = baseline.bestPot;
+              }
+              return result;
+            }
+            if (!cue?.active) return baseline;
+            const openSourcePlan = computeOpenSourcePlan(balls, cue, stateSnapshot);
+            if (!openSourcePlan) return baseline;
             const result = { ...baseline };
-            if (advancedPlan.type === 'pot') {
-              result.bestPot = advancedPlan;
-              if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
+            if (openSourcePlan.type === 'pot') {
+              const currentQuality = result.bestPot?.quality ?? -Infinity;
+              const nextQuality = openSourcePlan.quality ?? 0;
+              if (!result.bestPot || nextQuality >= currentQuality) {
+                result.bestPot = openSourcePlan;
+              }
             } else {
-              result.bestSafety = advancedPlan;
-              if (!result.bestPot) result.bestPot = baseline.bestPot;
+              const currentQuality = result.bestSafety?.quality ?? -Infinity;
+              const nextQuality = openSourcePlan.quality ?? 0;
+              if (!result.bestSafety || nextQuality >= currentQuality) {
+                result.bestSafety = openSourcePlan;
+              }
             }
             return result;
           } catch (err) {
@@ -25182,9 +25321,20 @@ const powerRef = useRef(hud.power);
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const shouldLockAiAim =
           isAiTurn && activeAiPlan?.aimDir && (previewingAiShot || aiCueViewActive);
+        const shouldAutoAimPlayer =
+          isPlayerTurn &&
+          autoAimRequestRef.current &&
+          !inHandPlacementModeRef.current &&
+          !shooting;
+        const autoAimDir = shouldAutoAimPlayer ? resolveAutoAimDirection() : null;
         if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
+            if (aimDir.lengthSq() > 1e-6) {
+              aimDir.normalize();
+            }
+          } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
+            aimDir.lerp(autoAimDir, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
