@@ -1310,14 +1310,14 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
-const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.12; // widen capture radius so balls settle into the bowl instead of stalling on the lip
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.24; // give middle pockets extra capture so shots don't hang in the jaws
+const POCKET_GUARD_RADIUS = Math.max(0, CAPTURE_R - BALL_R * 0.08); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
+  SIDE_CAPTURE_R - BALL_R * 0.12; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
