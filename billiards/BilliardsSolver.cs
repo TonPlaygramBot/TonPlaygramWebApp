@@ -16,7 +16,6 @@ public class BilliardsSolver
         public double Height;
         public double VerticalVelocity;
         public double MasseFactor = 1.0;
-        public double MaxSpeed;
     }
 
     public struct ShotSpin
@@ -582,8 +581,7 @@ public class BilliardsSolver
             VerticalVelocity = verticalSpeed,
             SideSpin = clamped.Side,
             ForwardSpin = forwardSpin,
-            MasseFactor = masseFactor,
-            MaxSpeed = planarSpeed
+            MasseFactor = masseFactor
         };
     }
 
@@ -627,15 +625,6 @@ public class BilliardsSolver
             }
             var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor;
             b.Velocity += lateral * swerveAccel * dt;
-
-            if (b.MaxSpeed > PhysicsConstants.Epsilon)
-            {
-                var cappedSpeed = b.Velocity.Length;
-                if (cappedSpeed > b.MaxSpeed)
-                {
-                    b.Velocity = b.Velocity.Normalized() * b.MaxSpeed;
-                }
-            }
 
             double decay = Math.Exp(-PhysicsConstants.SpinDecay * dt);
             b.SideSpin *= decay;
