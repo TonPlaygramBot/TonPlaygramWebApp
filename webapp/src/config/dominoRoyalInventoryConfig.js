@@ -1,5 +1,5 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import { POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
@@ -91,12 +91,18 @@ const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
   violetPulse: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe'])
 });
 
-export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze(
-  Object.entries(DOMINO_ROYAL_OPTION_SETS).reduce((acc, [type, options]) => {
-    acc[type] = options.length ? [options[0].id] : [];
-    return acc;
-  }, {})
-);
+const getDefaultOptionId = (options) => options?.[0]?.id;
+
+export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
+  tableWood: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableWood)].filter(Boolean),
+  tableCloth: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableCloth)].filter(Boolean),
+  tableBase: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableBase)].filter(Boolean),
+  tableTheme: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableTheme)].filter(Boolean),
+  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
+  dominoStyle: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.dominoStyle)].filter(Boolean),
+  highlightStyle: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.highlightStyle)].filter(Boolean),
+  chairTheme: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.chairTheme)].filter(Boolean)
+});
 
 export const DOMINO_ROYAL_OPTION_LABELS = Object.freeze(
   Object.entries(DOMINO_ROYAL_OPTION_SETS).reduce((acc, [type, options]) => {
@@ -185,10 +191,50 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
   }))
 ];
 
-export const DOMINO_ROYAL_DEFAULT_LOADOUT = Object.entries(DOMINO_ROYAL_OPTION_SETS).map(
-  ([type, options]) => ({
-    type,
-    optionId: options[0]?.id,
-    label: options[0]?.label
-  })
-);
+const getLabelForOption = (type, optionId) =>
+  DOMINO_ROYAL_OPTION_LABELS[type]?.[optionId] ||
+  DOMINO_ROYAL_OPTION_SETS[type]?.find((option) => option.id === optionId)?.label ||
+  optionId;
+
+export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
+  {
+    type: 'tableWood',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableWood),
+    label: getLabelForOption('tableWood', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableWood))
+  },
+  {
+    type: 'tableCloth',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableCloth),
+    label: getLabelForOption('tableCloth', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableCloth))
+  },
+  {
+    type: 'tableBase',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableBase),
+    label: getLabelForOption('tableBase', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableBase))
+  },
+  {
+    type: 'tableTheme',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableTheme),
+    label: getLabelForOption('tableTheme', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableTheme))
+  },
+  {
+    type: 'environmentHdri',
+    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
+    label: getLabelForOption('environmentHdri', POOL_ROYALE_DEFAULT_HDRI_ID)
+  },
+  {
+    type: 'dominoStyle',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.dominoStyle),
+    label: getLabelForOption('dominoStyle', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.dominoStyle))
+  },
+  {
+    type: 'highlightStyle',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.highlightStyle),
+    label: getLabelForOption('highlightStyle', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.highlightStyle))
+  },
+  {
+    type: 'chairTheme',
+    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.chairTheme),
+    label: getLabelForOption('chairTheme', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.chairTheme))
+  }
+];
