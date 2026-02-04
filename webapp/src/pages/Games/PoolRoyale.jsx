@@ -6313,7 +6313,7 @@ function applySpinController(ball, stepScale, airborne = false) {
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
-    if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
+    if (ball.id === 'cue' && !ball.impacted) {
       forwardSpin = 0;
     }
     const powerScale = resolveSpinPowerScale(speed);
