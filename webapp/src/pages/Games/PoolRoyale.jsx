@@ -634,8 +634,8 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // restore the middle rail rounded cuts to the earlier profile sizing
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the middle rail cuts centered on the pocket line
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1091,7 +1091,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // restore the middle jaw arc radius to the earlier rounded cut size
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -13265,11 +13265,7 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const replayCameraLockRef = useRef({
-    key: null,
-    snapshot: null,
-    overheadSnapshot: null
-  });
+  const replayCameraLockRef = useRef({ key: null, snapshot: null });
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -18394,7 +18390,6 @@ const powerRef = useRef(hud.power);
           const fixedTarget2D = best.center
             .clone()
             .add(approachDir.clone().multiplyScalar(-focusLead));
-          const guaranteed = isGuaranteedPocket || forceCornerCapture;
           return {
             mode: 'pocket',
             ballId,
@@ -18423,8 +18418,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly,
-            guaranteed
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -18583,18 +18577,12 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const pocketActive =
-            pocketCameraStateRef.current &&
-            activeShotView?.mode === 'pocket' &&
-            activeShotView?.guaranteed;
+          const pocketActive = pocketCameraStateRef.current && activeShotView?.mode === 'pocket';
           const pocketKey = pocketActive
             ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
             : null;
           const cameraKey = pocketKey ?? 'overhead';
           const lock = replayCameraLockRef.current;
-          if (cameraKey === 'overhead' && lock.overheadSnapshot) {
-            return lock.overheadSnapshot;
-          }
           if (lock.key === cameraKey && lock.snapshot) {
             return lock.snapshot;
           }
@@ -18632,9 +18620,6 @@ const powerRef = useRef(hud.power);
           }
           lock.key = cameraKey;
           lock.snapshot = snapshot;
-          if (cameraKey === 'overhead') {
-            lock.overheadSnapshot = snapshot;
-          }
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -18933,21 +18918,21 @@ const powerRef = useRef(hud.power);
               );
               if (targetTime <= pullbackTime && pullbackTime > 0) {
                 const t = THREE.MathUtils.clamp(targetTime / pullbackTime, 0, 1);
-                cueStick.position.lerpVectors(idlePos, pullPos, easeInOutCubic(t));
+                cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(t));
               } else if (targetTime <= pullbackTime + forwardTime) {
                 const t = THREE.MathUtils.clamp(
                   (targetTime - pullbackTime) / Math.max(forwardTime, 1e-6),
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(pullPos, impactPos, easeOutBack(t));
+                cueStick.position.lerpVectors(pullPos, impactPos, easeOutQuad(t));
               } else if (targetTime <= pullbackTime + forwardTime + settleTime) {
                 const t = THREE.MathUtils.clamp(
                   (targetTime - pullbackTime - forwardTime) / Math.max(settleTime, 1e-6),
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(impactPos, settlePos, easeOutCubic(t));
+                cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(t));
               } else if (targetTime <= totalStroke) {
                 const t = THREE.MathUtils.clamp(
                   (targetTime - pullbackTime - forwardTime - settleTime) /
@@ -18955,7 +18940,7 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(impactPos, idlePos, easeInOutCubic(t));
+                cueStick.position.lerpVectors(impactPos, idlePos, easeInOutQuad(t));
               } else {
                 cueStick.position.copy(idlePos);
               }
@@ -19013,7 +18998,7 @@ const powerRef = useRef(hud.power);
           }
           if (localTime <= pullEnd && pullback > 0) {
             const t = THREE.MathUtils.clamp(localTime / Math.max(pullback, 1e-6), 0, 1);
-            const eased = easeInOutCubic(t);
+            const eased = easeInOutQuad(t);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
@@ -19024,7 +19009,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutBack(t);
+            const eased = easeOutQuad(t);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -19037,7 +19022,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeOutQuad(t);
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
             tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
             cueStick.visible = true;
@@ -19051,7 +19036,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutCubic(t);
+            const eased = easeInOutQuad(t);
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
             tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
             cueStick.visible = true;
@@ -19129,7 +19114,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutCubic(t);
+            const eased = easeInOutQuad(t);
             cueStick.position.lerpVectors(warmupPos, startPos, eased);
             syncCueShadow();
             return true;
@@ -19140,7 +19125,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutBack(t);
+            const eased = easeOutQuad(t);
             cueStick.position.lerpVectors(startPos, impactPos, eased);
             syncCueShadow();
             return true;
@@ -19151,7 +19136,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeOutQuad(t);
             cueStick.position.lerpVectors(
               impactPos,
               settlePos ?? impactPos,
@@ -19166,7 +19151,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutCubic(t);
+            const eased = easeInOutQuad(t);
             cueStick.position.lerpVectors(impactPos, idlePos, eased);
             syncCueShadow();
             return true;
@@ -21982,15 +21967,10 @@ const powerRef = useRef(hud.power);
         const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
-      // Easing adapted from easings.net (MIT) for a clearer, springier cue stroke.
-      const easeInOutCubic = (t) =>
-        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-      const easeOutBack = (t) => {
-        const c1 = 1.70158;
-        const c3 = c1 + 1;
-        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-      };
+      // Easing adapted from easings.net (MIT) for a clear pull-back + push-forward stroke.
+      const easeInOutQuad = (t) =>
+        t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -22241,11 +22221,7 @@ const powerRef = useRef(hud.power);
               frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
                 ? frameTiming.targetMs
                 : 1000 / 60;
-            replayCameraLockRef.current = {
-              key: null,
-              snapshot: null,
-              overheadSnapshot: null
-            };
+            replayCameraLockRef.current = { key: null, snapshot: null };
             shotRecording = {
               longShot: replayTags.has('long'),
               targetBallId: shotPrediction.ballId ?? null,
@@ -24829,11 +24805,11 @@ const powerRef = useRef(hud.power);
             const nextMeta = safeState.meta;
             if (nextMeta && typeof nextMeta === 'object') {
               if (nextMeta.variant === 'american' && nextMeta.state) {
-                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
+                nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
-                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
+                nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
+                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
           }
