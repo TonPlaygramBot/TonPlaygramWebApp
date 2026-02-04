@@ -620,15 +620,15 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.25; // expand the middle fascia slightly toward the diamonds on both ends
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.14; // extend the plate ends further toward the corner pockets (toward the chalks)
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.18; // extend the plate ends further toward the corner pockets (toward the chalks)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.16; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.56; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.18; // open the rounded chrome cut sizing a touch more
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.2; // open the rounded chrome cut sizing a touch more
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1527,7 +1527,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.6; // reduce overall spin impact by 25%
+const SPIN_GLOBAL_SCALE = 0.6; // keep overall spin impact unchanged
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1544,10 +1544,10 @@ const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw f
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 30% reduction to soften every strike and keep mobile play comfortable.
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
+// Apply a 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
-const SHOT_POWER_REDUCTION = 0.7;
+const SHOT_POWER_REDUCTION = 0.8;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1628,8 +1628,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.7; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 3.2; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 1.1; // ensure the forward push is clearly visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 4.2; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -5095,7 +5095,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
-const IN_HAND_DRAG_SPEED = 2.2; // boost in-hand drag responsiveness for faster, 60fps-feel placement response
+const IN_HAND_DRAG_SPEED = 1; // match air-hockey style 1:1 drag movement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -5142,7 +5142,8 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
-const REPLAY_CUE_RETURN_WINDOW_MS = 260;
+const REPLAY_CUE_RETURN_WINDOW_MS = 480;
+const REPLAY_CUE_START_HOLD_MS = 220;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5175,7 +5176,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.4;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -12801,6 +12802,7 @@ function PoolRoyaleGame({
   });
   const inHandIconDragActiveRef = useRef(false);
   const inHandPlacementApiRef = useRef({ begin: null, move: null, end: null });
+  const pendingInHandResetRef = useRef(false);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
@@ -12968,12 +12970,17 @@ const powerRef = useRef(hud.power);
     wasInHandRef.current = Boolean(hud.inHand);
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
+      pendingInHandResetRef.current = true;
     }
     if (!hud.inHand || !playerTurn) {
       setInHandPlacementMode(false);
       return;
     }
-    if (enteringInHand || cueBallPlacedFromHandRef.current) {
+    if (enteringInHand) {
+      setInHandPlacementMode(true);
+      return;
+    }
+    if (cueBallPlacedFromHandRef.current) {
       setInHandPlacementMode(false);
     }
   }, [hud.inHand, hud.turn]);
@@ -21357,28 +21364,18 @@ const powerRef = useRef(hud.power);
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const variantId = () => activeVariantRef.current?.id ?? variantKey;
-
       const isBreakRestrictedInHand = () => {
         const frameSnapshot = frameRef.current ?? frameState;
         const meta = frameSnapshot?.meta;
         if (!meta || typeof meta !== 'object') return false;
-        if (meta.variant === 'american' || meta.variant === '9ball') {
-          return Boolean(meta.breakInProgress);
-        }
+        if (meta.breakInProgress) return true;
         if (meta.variant === 'uk') {
-          return Boolean(meta.state?.mustPlayFromBaulk);
+          return Boolean(meta.state?.breakInProgress);
         }
         return false;
       };
 
-      const allowFullTableInHand = () => {
-        const id = variantId();
-        if (id === 'uk' || id === 'american' || id === '9ball') {
-          return !isBreakRestrictedInHand();
-        }
-        return false;
-      };
+      const allowFullTableInHand = () => !isBreakRestrictedInHand();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -22545,7 +22542,7 @@ const powerRef = useRef(hud.power);
             }
           }
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
-            const strokeStartOffset = 0;
+            const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
@@ -24799,6 +24796,8 @@ const powerRef = useRef(hud.power);
               cue.swervePowerStrength = 0;
               cue.impacted = false;
               cue.launchDir = null;
+              cueBallPlacedFromHandRef.current = false;
+              pendingInHandResetRef.current = true;
             }
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
@@ -25009,6 +25008,16 @@ const powerRef = useRef(hud.power);
         }
         const nowMs = now;
         updateCueStroke(nowMs);
+        if (pendingInHandResetRef.current && hudRef.current?.inHand) {
+          pendingInHandResetRef.current = false;
+          const startPos = defaultInHandPosition({ forceBaulk: true });
+          if (startPos && cue) {
+            cue.active = false;
+            updateCuePlacement(startPos);
+            cue.active = true;
+            cueBallPlacedFromHandRef.current = false;
+          }
+        }
         const pendingImpact = pendingImpactRef.current;
         if (pendingImpact && nowMs >= pendingImpact.time) {
           pendingImpact.apply?.();
