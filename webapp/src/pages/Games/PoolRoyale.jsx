@@ -6025,58 +6025,6 @@ function reflectRails(ball) {
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   let preImpactVel = null;
-  const resolveRailLimitClamp = () => {
-    const nearPocketRadius =
-      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
-    const nearPocket = pocketCenters().some(
-      (c) => ball.pos.distanceTo(c) < nearPocketRadius
-    );
-    if (nearPocket) return null;
-    let collided = null;
-    let collisionNormal = null;
-    if (ball.pos.x < -railLimitX) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = -railLimitX - ball.pos.x;
-      ball.pos.x = -railLimitX + overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(1, 0);
-    }
-    if (ball.pos.x > railLimitX) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = ball.pos.x - railLimitX;
-      ball.pos.x = railLimitX - overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(-1, 0);
-    }
-    if (ball.pos.y < -railLimitY) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = -railLimitY - ball.pos.y;
-      ball.pos.y = -railLimitY + overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(0, 1);
-    }
-    if (ball.pos.y > railLimitY) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = ball.pos.y - railLimitY;
-      ball.pos.y = railLimitY - overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(0, -1);
-    }
-    if (collided) {
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = collided;
-    }
-    if (collided) {
-      const normal = collisionNormal ?? new THREE.Vector2(0, 1);
-      const tangent = new THREE.Vector2(-normal.y, normal.x);
-      return { type: collided, normal, tangent, preImpactVel };
-    }
-    return null;
-  };
   const hasCushionSegments =
     Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
   if (hasCushionSegments) {
@@ -6174,8 +6122,6 @@ function reflectRails(ball) {
         preImpactVel
       };
     }
-    const fallbackImpact = resolveRailLimitClamp();
-    if (fallbackImpact) return fallbackImpact;
   }
   if (!hasCushionSegments) {
     for (const { sx, sy } of CORNER_SIGNS) {
@@ -6247,8 +6193,55 @@ function reflectRails(ball) {
       }
     }
 
-    const fallbackImpact = resolveRailLimitClamp();
-    if (fallbackImpact) return fallbackImpact;
+    const nearPocketRadius =
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+    const nearPocket = pocketCenters().some(
+      (c) => ball.pos.distanceTo(c) < nearPocketRadius
+    );
+    if (nearPocket) return null;
+    let collided = null;
+    let collisionNormal = null;
+    if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = -railLimitX - ball.pos.x;
+      ball.pos.x = -railLimitX + overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(1, 0);
+    }
+    if (ball.pos.x > railLimitX && ball.vel.x > 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = ball.pos.x - railLimitX;
+      ball.pos.x = railLimitX - overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(-1, 0);
+    }
+    if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = -railLimitY - ball.pos.y;
+      ball.pos.y = -railLimitY + overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, 1);
+    }
+    if (ball.pos.y > railLimitY && ball.vel.y > 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = ball.pos.y - railLimitY;
+      ball.pos.y = railLimitY - overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, -1);
+    }
+    if (collided) {
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = collided;
+    }
+    if (collided) {
+      const normal = collisionNormal ?? new THREE.Vector2(0, 1);
+      const tangent = new THREE.Vector2(-normal.y, normal.x);
+      return { type: collided, normal, tangent, preImpactVel };
+    }
   }
   return null;
 }
