@@ -415,19 +415,23 @@ export default function ProjectAchievementsCard() {
                 <div className="absolute right-1 top-1">
                   <InfoIcon infoType="game" infoKey={game.name} label={game.name} />
                 </div>
-                <img
-                  src={thumbnail || game.image}
-                  alt={game.name}
-                  className="h-10 w-10 rounded-md object-cover"
-                  loading="lazy"
-                  onError={(event) => {
-                    event.currentTarget.src = game.image;
-                  }}
-                />
+                <div className="relative flex flex-col items-center">
+                  {expandedInfo.type === 'game' && expandedInfo.key === game.name && (
+                    <div className="absolute bottom-full left-1/2 z-10 mb-1 w-40 -translate-x-1/2 rounded-md border border-border/60 bg-surface/95 p-2 text-[9px] leading-relaxed text-foreground shadow-lg">
+                      {gameInfo}
+                    </div>
+                  )}
+                  <img
+                    src={thumbnail || game.image}
+                    alt={game.name}
+                    className="h-10 w-10 rounded-md object-cover"
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.src = game.image;
+                    }}
+                  />
+                </div>
                 <span className="text-[9px] font-semibold text-muted">{game.name}</span>
-                {expandedInfo.type === 'game' && expandedInfo.key === game.name && (
-                  <p className="text-[9px] leading-relaxed text-muted/80">{gameInfo}</p>
-                )}
               </div>
             );
           })}
