@@ -1,19 +1,32 @@
-
 <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>
   <defs>
-    <radialGradient id='shine' cx='35%' cy='25%' r='70%'>
-      <stop offset='0%' stop-color='#86efac' stop-opacity='0.9'/>
-      <stop offset='100%' stop-color='#86efac' stop-opacity='0'/>
-    </radialGradient>
-    <linearGradient id='body' x1='0' y1='0' x2='1' y2='1'>
+    <linearGradient id='piece' x1='0' y1='0' x2='1' y2='1'>
       <stop offset='0%' stop-color='#14532d'/>
-      <stop offset='100%' stop-color='#1f2937'/>
+      <stop offset='100%' stop-color='#111827'/>
+    </linearGradient>
+    <linearGradient id='pieceAlt' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#86efac'/>
+      <stop offset='100%' stop-color='#14532d'/>
     </linearGradient>
   </defs>
   <rect width='256' height='256' rx='36' fill='#0b1220'/>
-  <circle cx='128' cy='68' r='32' fill='url(#body)' stroke='#86efac' stroke-width='4'/>
-  <path d='M82 200c8-38 18-62 46-62s38 24 46 62' fill='url(#body)'/>
-  <path d='M96 170c4-22 14-38 32-38s28 16 32 38' fill='#1f2937' opacity='0.45'/>
-  <rect x='64' y='196' width='128' height='30' rx='14' fill='#1f2937'/>
-  <circle cx='110' cy='76' r='50' fill='url(#shine)'/>
+  <rect x='18' y='52' width='220' height='152' rx='24' fill='#0f172a' opacity='0.65'/>
+  <g font-family="'DejaVu Sans','Segoe UI Symbol','Noto Sans Symbols2','Apple Symbols',sans-serif" font-size='26' font-weight='700' text-anchor='middle'>
+    <text x='30' y='108' fill='url(#pieceAlt)'>♜</text>
+    <text x='58' y='108' fill='url(#pieceAlt)'>♞</text>
+    <text x='86' y='108' fill='url(#pieceAlt)'>♝</text>
+    <text x='114' y='108' fill='url(#pieceAlt)'>♛</text>
+    <text x='142' y='108' fill='url(#pieceAlt)'>♚</text>
+    <text x='170' y='108' fill='url(#pieceAlt)'>♝</text>
+    <text x='198' y='108' fill='url(#pieceAlt)'>♞</text>
+    <text x='226' y='108' fill='url(#pieceAlt)'>♜</text>
+    <text x='30' y='156' fill='url(#piece)'>♟</text>
+    <text x='58' y='156' fill='url(#piece)'>♟</text>
+    <text x='86' y='156' fill='url(#piece)'>♟</text>
+    <text x='114' y='156' fill='url(#piece)'>♟</text>
+    <text x='142' y='156' fill='url(#piece)'>♟</text>
+    <text x='170' y='156' fill='url(#piece)'>♟</text>
+    <text x='198' y='156' fill='url(#piece)'>♟</text>
+    <text x='226' y='156' fill='url(#piece)'>♟</text>
+  </g>
 </svg>
