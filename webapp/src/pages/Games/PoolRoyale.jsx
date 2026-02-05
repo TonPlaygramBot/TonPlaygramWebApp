@@ -1042,7 +1042,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = false;
+const LOCK_REPLAY_CAMERA = true;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -1098,7 +1098,7 @@ const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // reduce the outward shift so the rounded cut matches the earlier jaw size
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // restore the middle jaw edges so they finish full-width like the morning build
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep collision arc true to the jaw outer radius for precise pocket mapping
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -1616,7 +1616,7 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
@@ -1645,7 +1645,7 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.35; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.38; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
@@ -7940,9 +7940,9 @@ export function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.085; // push the cushions slightly farther outward to match the physical rail edge
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
+  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.03; // pull the cushions inward toward the playfield to match the morning spacing
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.015; // pull the short-rail cushions slightly toward center
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.02; // pull the long-rail cushions slightly toward center
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
@@ -25165,7 +25165,7 @@ const powerRef = useRef(hud.power);
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
             const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
-            if (playback?.cueStroke) {
+            if (ENABLE_CUE_STROKE_ANIMATION) {
               applyReplayCueStroke(playback, targetTime);
             } else if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
