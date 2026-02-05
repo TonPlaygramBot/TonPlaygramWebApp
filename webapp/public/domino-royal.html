@@ -5679,6 +5679,37 @@ function tileKey(tile){
 
 function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t; }
 
+let contextLost = false;
+let contextLossReloadTimer = null;
+const CONTEXT_LOSS_RELOAD_DELAY_MS = 1500;
+
+function scheduleContextLossRecovery(reason = '') {
+  if (contextLossReloadTimer || typeof window === 'undefined') return;
+  const message = reason ? `Graphics reset (${reason}). Reloading...` : 'Graphics reset. Reloading...';
+  setStatus(message);
+  contextLossReloadTimer = window.setTimeout(() => {
+    if (contextLost) {
+      window.location.reload();
+    }
+  }, CONTEXT_LOSS_RELOAD_DELAY_MS);
+}
+
+function handleWebglContextLoss(event) {
+  event?.preventDefault?.();
+  contextLost = true;
+  setControlEnabled(false);
+  scheduleContextLossRecovery('WebGL context lost');
+}
+
+function handleWebglContextRestored() {
+  contextLost = false;
+  setControlEnabled(false);
+  scheduleContextLossRecovery('restored');
+}
+
+renderer.domElement.addEventListener('webglcontextlost', handleWebglContextLoss, { passive: false });
+renderer.domElement.addEventListener('webglcontextrestored', handleWebglContextRestored);
+
 function genSet(){ const set=[]; for(let a=0;a<=6;a++){ for(let b=a;b<=6;b++){ set.push({a,b}); } } return set; }
 function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
@@ -7276,6 +7307,11 @@ function monitorFrameHealth(elapsedMs, timing) {
 /* ---------- Loop & Resize ---------- */
 function tick(now){
   const current = Number.isFinite(now) ? now : performance.now();
+  requestAnimationFrame(tick);
+  if (contextLost || renderer.getContext?.()?.isContextLost?.()) {
+    lastFrameTime = current;
+    return;
+  }
   const timing = frameTiming ?? buildFrameTiming(frameQuality);
   const targetMs = Number.isFinite(timing?.targetMs) ? timing.targetMs : 1000 / 60;
   const maxMs = Number.isFinite(timing?.maxMs)
@@ -7287,14 +7323,20 @@ function tick(now){
   const deltaSeconds = Math.min(0.2, Math.max(0, step / 1000));
   monitorFrameHealth(elapsed, timing);
 
-  updateEntrySequence(current);
-  updateDrawAnimations(current);
-  updatePlacementAnimations(current);
-  updateWinnerHighlight(current);
-  updateSeatBadgePositions();
-  controls.update(deltaSeconds);
-  renderer.render(scene,camera);
-  requestAnimationFrame(tick);
+  try {
+    updateEntrySequence(current);
+    updateDrawAnimations(current);
+    updatePlacementAnimations(current);
+    updateWinnerHighlight(current);
+    updateSeatBadgePositions();
+    controls.update(deltaSeconds);
+    renderer.render(scene,camera);
+  } catch (error) {
+    console.error('Domino Royal render loop failed', error);
+    contextLost = true;
+    setControlEnabled(false);
+    scheduleContextLossRecovery('render loop error');
+  }
 }
 let lastFrameTime = performance.now();
 requestAnimationFrame(tick);
