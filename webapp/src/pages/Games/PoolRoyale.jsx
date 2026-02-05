@@ -621,15 +621,15 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.25; // expand the middle fascia slightly toward the diamonds on both ends
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.18; // extend the plate ends further toward the corner pockets (toward the chalks)
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.04; // trim the plate ends closer to the middle pockets near the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.16; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.04; // ease the corner bias so the middle plates stay tighter to the pocket cut
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.56; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // restore the rounded chrome cut size to the earlier 9am scale
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.1; // open the rounded chrome cut slightly more around the middle pockets
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -917,11 +917,13 @@ function addPocketCuts(
 // to fit comfortably inside the existing mobile arena presentation.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
-const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
+const BASE_TABLE_FOOTPRINT_SCALE = 0.82; // baseline footprint used for pocket + ball sizing
+const TABLE_FIELD_SHRINK = 0.85; // shrink the playfield ~15% while keeping the table height unchanged
+const TABLE_FOOTPRINT_SCALE = BASE_TABLE_FOOTPRINT_SCALE * TABLE_FIELD_SHRINK; // reduce the table footprint while preserving proportions
+const BASE_FOOTPRINT_SHRINK = TABLE_FOOTPRINT_SCALE; // keep the base footprint aligned with the reduced field
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.8; // shrink the table footprint slightly less so the playfield reads larger
+const TABLE_DISPLAY_SCALE = 0.8; // keep the camera framing unchanged while shrinking the field
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1133,6 +1135,17 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
+const BASE_TABLE_W = 72 * TABLE_SCALE * BASE_TABLE_FOOTPRINT_SCALE;
+const BASE_TABLE_H = 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * BASE_TABLE_FOOTPRINT_SCALE;
+const BASE_TABLE_WALL = 2.6 * TABLE_SCALE * BASE_TABLE_FOOTPRINT_SCALE;
+const BASE_SIDE_RAIL_INNER_THICKNESS = BASE_TABLE_WALL * SIDE_RAIL_INNER_SCALE;
+const BASE_END_RAIL_INNER_SCALE =
+  (BASE_TABLE_H - TARGET_RATIO * (BASE_TABLE_W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS)) /
+  (2 * BASE_TABLE_WALL);
+const BASE_END_RAIL_INNER_THICKNESS = BASE_TABLE_WALL * BASE_END_RAIL_INNER_SCALE;
+const BASE_PLAY_W = BASE_TABLE_W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS;
+const BASE_PLAY_H = BASE_TABLE_H - 2 * BASE_END_RAIL_INNER_THICKNESS;
+const BASE_INNER_LONG = Math.max(BASE_PLAY_W, BASE_PLAY_H);
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -1150,7 +1163,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
+const MM_TO_UNITS = BASE_INNER_LONG / WIDTH_REF;
 const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
