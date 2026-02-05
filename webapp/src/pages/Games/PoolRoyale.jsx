@@ -1240,7 +1240,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
+const CLOTH_DROP = BALL_R * 0.22; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -4504,7 +4504,7 @@ function createBroadcastCameras({
 
   const defaultFocus = new THREE.Vector3(
     0,
-    TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+    TABLE_Y + TABLE.THICK + BALL_R * 2.2,
     0
   );
 
@@ -4936,7 +4936,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.82; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.78; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4952,7 +4952,8 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.5; // pull the standing camera slightly closer while keeping the angle unchanged
+const BROADCAST_RAIL_CAMERA_HEIGHT_SCALE = 1.06; // lift standing/replay rail cameras slightly higher for clearer downward view
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5021,9 +5022,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.07; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
@@ -15450,7 +15451,7 @@ const powerRef = useRef(hud.power);
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: topDownHeight,
+        cameraHeight: topDownHeight * BROADCAST_RAIL_CAMERA_HEIGHT_SCALE,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
