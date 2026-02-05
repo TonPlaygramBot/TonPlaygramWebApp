@@ -635,7 +635,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.03; // expand the middle rail rounded cuts slightly
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep middle rail rounded cuts aligned to the baseline profile
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wood cutouts centered on the middle pocket line
 
 function buildChromePlateGeometry({
@@ -1042,7 +1042,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = true;
+const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -1098,7 +1098,7 @@ const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // reduce the outward shift so the rounded cut matches the earlier jaw size
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // restore the full jaw shoulder so the middle pocket trim matches the earlier build
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep collision arc true to the jaw outer radius for precise pocket mapping
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -1617,7 +1617,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1645,7 +1645,7 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.35; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
@@ -7940,9 +7940,9 @@ export function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // pull cushions inward slightly so all six sit closer to center
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.02; // pull the short-rail cushions inward toward center
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.02; // pull the long-rail cushions inward toward center
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.085; // push the cushions slightly farther outward to match the physical rail edge
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
@@ -18857,33 +18857,33 @@ const powerRef = useRef(hud.power);
           if (!stroke) {
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
-            const basePos =
-              playback?.cueBase?.clone?.() ??
-              cuePath[0]?.pos?.clone?.() ??
-              (snapshotApplied ? cueStick.position.clone() : null);
-            const cuePos = basePos ? TMP_VEC3_A.copy(basePos) : null;
+            const cueBall = cueRef.current || cue;
+            const cueBallPos = cueBall?.mesh?.position ?? null;
+            const cuePos =
+              cueBallPos
+                ? TMP_VEC3_A.copy(cueBallPos)
+                : cuePath[0]?.pos?.clone?.() ??
+                  (snapshotApplied ? cueStick.position.clone() : null);
             if (!cuePos) {
               cueStick.visible = false;
               cueAnimating = false;
               syncCueShadow();
               return;
             }
-            if (playback?.cueDir) {
-              TMP_VEC3_CUE_DIR.copy(playback.cueDir);
+            const first = cuePath[0]?.pos ?? null;
+            const second = cuePath[1]?.pos ?? null;
+            if (first && second) {
+              TMP_VEC3_CUE_DIR.copy(second).sub(first);
+            } else if (cueBall?.vel) {
+              TMP_VEC3_CUE_DIR.set(cueBall.vel.x, 0, cueBall.vel.y);
             } else {
-              const first = cuePath[0]?.pos ?? null;
-              const second = cuePath[1]?.pos ?? null;
-              if (first && second) {
-                TMP_VEC3_CUE_DIR.copy(second).sub(first);
-                TMP_VEC3_CUE_DIR.y = 0;
-                if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
-                  TMP_VEC3_CUE_DIR.normalize();
-                } else {
-                  TMP_VEC3_CUE_DIR.set(0, 0, 1);
-                }
-              } else {
-                TMP_VEC3_CUE_DIR.set(0, 0, 1);
-              }
+              TMP_VEC3_CUE_DIR.set(0, 0, 1);
+            }
+            TMP_VEC3_CUE_DIR.y = 0;
+            if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_CUE_DIR.normalize();
+            } else {
+              TMP_VEC3_CUE_DIR.set(0, 0, 1);
             }
             cuePos.y = CUE_Y;
             cueStick.rotation.y = Math.atan2(TMP_VEC3_CUE_DIR.x, TMP_VEC3_CUE_DIR.z) + Math.PI;
@@ -19321,12 +19321,10 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const overheadReplayCamera = LOCK_REPLAY_CAMERA
-            ? null
-            : resolveRailOverheadReplayCamera({
-                focusOverride: storedTarget,
-                minTargetY
-              });
+          const overheadReplayCamera = resolveRailOverheadReplayCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
           if (overheadReplayCamera?.position) {
             storedPosition = overheadReplayCamera.position.clone();
             if (overheadReplayCamera?.target) {
@@ -19414,49 +19412,6 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
           }
         };
-        const resolveReplayCueBase = (recording, trimmed) => {
-          const cuePath = trimmed?.cuePath ?? recording?.cuePath ?? [];
-          if (cuePath.length > 0) {
-            const cuePos = cuePath[0]?.pos?.clone?.();
-            if (cuePos) return cuePos;
-          }
-          const cueSnapshot = trimmed?.frames?.[0]?.cue ?? recording?.frames?.[0]?.cue ?? null;
-          const cueSnapPos = normalizeVector3Snapshot(cueSnapshot?.position);
-          if (cueSnapPos) {
-            return new THREE.Vector3(cueSnapPos.x, cueSnapPos.y, cueSnapPos.z);
-          }
-          const cueEntry = (recording?.startState ?? []).find((entry) => entry.id === 'cue');
-          const cueMeshPos = normalizeVector3Snapshot(cueEntry?.mesh?.position);
-          if (cueMeshPos) {
-            return new THREE.Vector3(cueMeshPos.x, cueMeshPos.y, cueMeshPos.z);
-          }
-          if (cueEntry?.pos) {
-            return new THREE.Vector3(cueEntry.pos.x, BALL_CENTER_Y, cueEntry.pos.y);
-          }
-          return null;
-        };
-        const resolveReplayCueDir = (trimmed) => {
-          const cuePath = trimmed?.cuePath ?? [];
-          if (cuePath.length > 1) {
-            const first = cuePath[0]?.pos;
-            const second = cuePath[1]?.pos;
-            if (first && second) {
-              const dir = second.clone().sub(first);
-              dir.y = 0;
-              if (dir.lengthSq() > 1e-8) return dir.normalize();
-            }
-          }
-          if (Number.isFinite(trimmed?.cueStroke?.rotationY)) {
-            const rotY = trimmed.cueStroke.rotationY;
-            const dir = new THREE.Vector3(
-              Math.sin(rotY - Math.PI),
-              0,
-              Math.cos(rotY - Math.PI)
-            );
-            if (dir.lengthSq() > 1e-8) return dir.normalize();
-          }
-          return new THREE.Vector3(0, 0, 1);
-        };
 
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
@@ -19464,8 +19419,6 @@ const powerRef = useRef(hud.power);
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
-          const cueBase = resolveReplayCueBase(shotRecording, trimmed);
-          const cueDir = resolveReplayCueDir(trimmed);
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           setReplayActive(true);
@@ -19477,8 +19430,6 @@ const powerRef = useRef(hud.power);
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
             cueStroke: trimmed.cueStroke ?? null,
-            cueBase,
-            cueDir,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -21477,28 +21428,18 @@ const powerRef = useRef(hud.power);
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const variantId = () => activeVariantRef.current?.id ?? variantKey;
       const isBreakRestrictedInHand = () => {
         const frameSnapshot = frameRef.current ?? frameState;
         const meta = frameSnapshot?.meta;
         if (!meta || typeof meta !== 'object') return false;
-        if (meta.variant === 'american' || meta.variant === '9ball') {
-          return Boolean(meta.breakInProgress);
-        }
+        if (meta.breakInProgress) return true;
         if (meta.variant === 'uk') {
           return Boolean(meta.state?.breakInProgress);
         }
         return false;
       };
 
-      const allowFullTableInHand = () => {
-        const id = variantId();
-        if (id === 'uk') return false;
-        if (id === 'american' || id === '9ball') {
-          return !isBreakRestrictedInHand();
-        }
-        return true;
-      };
+      const allowFullTableInHand = () => !isBreakRestrictedInHand();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -25223,8 +25164,12 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            applyReplayFrame(frameA, frameB, alpha);
-            applyReplayCueStroke(playback, targetTime);
+            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
+            if (playback?.cueStroke) {
+              applyReplayCueStroke(playback, targetTime);
+            } else if (!hasCueSnapshot) {
+              applyReplayCueStroke(playback, targetTime);
+            }
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
               const frameCameraA = frameA?.camera ?? null;
