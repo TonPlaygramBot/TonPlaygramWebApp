@@ -621,15 +621,15 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.25; // expand the middle fascia slightly toward the diamonds on both ends
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.03; // trim the plate ends a touch more so the middle chrome stops closer to the corner pockets
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.06; // trim the plate ends a touch more so the middle chrome stops closer to the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.02; // reduce the middle chrome bias toward the corner pockets for a tighter span
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.04; // reduce the middle chrome bias toward the corner pockets for a tighter span
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.56; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.15; // open the rounded chrome cut a touch more around the middle pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.12; // open the rounded chrome cut a touch more around the middle pockets
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1091,7 +1091,7 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.44; // trim middle jaw reach slightly while keeping the same diameter and height
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // restore middle jaw reach so the pocket cut matches the earlier 9am sizing
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the middle jaw arc radius aligned with the baseline profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
@@ -1152,7 +1152,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.2828; // increase balls ~15% from the current tuned size for stronger table presence
+const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -4924,7 +4924,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.8; // lower the standing orbit slightly for a closer player view
+const STANDING_VIEW_PHI = 0.82; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4940,7 +4940,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.52; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5009,9 +5009,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02; // lower the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.02; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
@@ -24972,7 +24972,7 @@ const powerRef = useRef(hud.power);
             if (cueBallPotted) {
               cue.active = false;
               removePocketDropEntry(cue.id);
-              const fallback = defaultInHandPosition({ forceBaulk: false });
+              const fallback = defaultInHandPosition({ forceBaulk: true });
               if (fallback) {
                 updateCuePlacement(fallback);
               } else {
@@ -25204,7 +25204,7 @@ const powerRef = useRef(hud.power);
         updateCueStroke(nowMs);
         if (pendingInHandResetRef.current && hudRef.current?.inHand) {
           pendingInHandResetRef.current = false;
-          const startPos = defaultInHandPosition({ forceBaulk: false });
+          const startPos = defaultInHandPosition({ forceBaulk: true });
           if (startPos && cue) {
             cue.active = false;
             updateCuePlacement(startPos);
