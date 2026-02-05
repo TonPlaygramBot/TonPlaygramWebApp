@@ -769,15 +769,7 @@ const COMMENTARY_LINES = {
   ]
 };
 
-const speechSynth = (() => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-  try {
-    return window.speechSynthesis;
-  } catch (error) {
-    console.warn('Speech synthesis unavailable', error);
-    return null;
-  }
-})();
+const speechSynth = null;
 const speechUtteranceCtor =
   typeof SpeechSynthesisUtterance === 'function' ? SpeechSynthesisUtterance : null;
 let commentaryVoices = [];
