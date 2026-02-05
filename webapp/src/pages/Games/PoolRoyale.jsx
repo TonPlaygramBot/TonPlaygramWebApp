@@ -1049,7 +1049,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
+  const TABLE_LENGTH_SCALE = 0.68; // shorten the table by an additional 15% to match the requested length
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
     H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
@@ -1164,7 +1164,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = BASE_INNER_LONG / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.15; // increase balls ~15% so they sit flush with the cloth
+const BALL_SIZE_SCALE = 1.1; // increase balls 10% to match the new visual scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1242,7 +1242,7 @@ const CLOTH_LIFT = (() => {
 const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
-const BALL_REST_SINK = BALL_R * 0.06; // nudge resting balls slightly lower so they sit closer to the cloth
+const BALL_REST_SINK = 0; // keep ball bottoms touching the cloth surface
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
