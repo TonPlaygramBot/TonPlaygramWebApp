@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId } from '../utils/telegram.js';
@@ -17,6 +17,7 @@ export default function Messages() {
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     markInboxRead(telegramId);
@@ -44,46 +45,148 @@ export default function Messages() {
     markInboxRead(telegramId);
   }
 
+  const filteredFriends = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return friends;
+    return friends.filter((friend) => {
+      const label = friend.nickname ||
+        `${friend.firstName || ''} ${friend.lastName || ''}`.trim() ||
+        'User';
+      return label.toLowerCase().includes(term);
+    });
+  }, [friends, search]);
+
   return (
-    <div className="p-4 space-y-4 text-text">
-      <h2 className="text-xl font-bold">Inbox</h2>
-      <div className="flex space-x-4">
-        <div className="w-1/3 space-y-2">
-          {friends.map((f) => (
-            <div
-              key={f.telegramId}
-              className={`p-2 border border-border rounded cursor-pointer ${selected?.telegramId === f.telegramId ? 'bg-accent' : ''}`}
-              onClick={() => setSelected(f)}
-            >
-              {f.nickname || `${f.firstName} ${f.lastName}`.trim() || 'User'}
-            </div>
-          ))}
+    <div className="p-4 space-y-6 text-text">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-subtext">
+            Squad Inbox
+          </p>
+          <h2 className="text-2xl font-bold text-white">Messages</h2>
+          <p className="text-sm text-subtext">
+            Keep your team synced with quick chat and match invites.
+          </p>
         </div>
-        <div className="flex-1 space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search squadmates..."
+            className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-white focus:outline-none"
+          />
+          <button className="rounded-full border border-border px-4 py-2 text-sm text-white">
+            New Chat
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_2fr]">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">Active Squad</p>
+            <span className="text-xs text-subtext">
+              {filteredFriends.length} online
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:gap-3 lg:overflow-visible">
+            {filteredFriends.map((f) => {
+              const label =
+                f.nickname ||
+                `${f.firstName || ''} ${f.lastName || ''}`.trim() ||
+                'User';
+              return (
+                <button
+                  key={f.telegramId}
+                  onClick={() => setSelected(f)}
+                  className={`min-w-[160px] flex-1 rounded-xl border p-3 text-left ${
+                    selected?.telegramId === f.telegramId
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border bg-surface'
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-white">{label}</p>
+                  <p className="text-xs text-subtext">
+                    Ready for a match
+                  </p>
+                </button>
+              );
+            })}
+            {filteredFriends.length === 0 && (
+              <div className="rounded-xl border border-border bg-surface p-4 text-xs text-subtext">
+                No friends found. Invite squadmates to start chatting.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface/90 p-4 space-y-4">
           {selected ? (
             <>
-              <div className="h-64 overflow-y-auto border border-border rounded p-2 space-y-1">
-                {messages.map((m, idx) => (
-                  <div key={idx} className={`${m.from === telegramId ? 'text-right' : 'text-left'}`}>{m.text}</div>
-                ))}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {selected.nickname ||
+                      `${selected.firstName || ''} ${selected.lastName || ''}`.trim() ||
+                      'User'}
+                  </p>
+                  <p className="text-xs text-subtext">
+                    Matchmaking · Squad chat
+                  </p>
+                </div>
+                <button className="rounded-full border border-border px-3 py-1 text-xs text-white">
+                  View Profile
+                </button>
               </div>
-              <div className="flex space-x-2">
+              <div className="h-[320px] overflow-y-auto rounded-xl border border-border bg-background/60 p-3 space-y-3">
+                {messages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex ${m.from === telegramId ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
+                        m.from === telegramId
+                          ? 'bg-primary text-background'
+                          : 'bg-surface text-white border border-border'
+                      }`}
+                    >
+                      {m.text}
+                    </div>
+                  </div>
+                ))}
+                {messages.length === 0 && (
+                  <div className="text-center text-xs text-subtext">
+                    Start the conversation with a quick hello.
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   type="text"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  className="flex-1 border border-border rounded px-2 py-1 bg-surface"
+                  className="flex-1 rounded-full border border-border bg-background/60 px-3 py-2 text-sm text-white focus:outline-none"
+                  placeholder="Type a message..."
                 />
                 <button
                   onClick={handleSend}
-                  className="px-2 py-1 bg-primary hover:bg-primary-hover rounded"
+                  className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-background"
                 >
                   Send
                 </button>
               </div>
             </>
           ) : (
-            <p>Select a friend to chat</p>
+            <div className="flex flex-col items-center justify-center gap-3 text-center text-subtext min-h-[320px]">
+              <p className="text-sm font-semibold text-white">
+                Pick a squadmate to start chatting
+              </p>
+              <p className="text-xs">
+                Your latest conversations will appear here once you open a chat.
+              </p>
+            </div>
           )}
         </div>
       </div>
