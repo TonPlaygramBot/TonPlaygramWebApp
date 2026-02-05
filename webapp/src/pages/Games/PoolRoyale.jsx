@@ -1164,7 +1164,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = BASE_INNER_LONG / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
+const BALL_SIZE_SCALE = 1.125; // increase balls a touch more so they sit flush with the cloth
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1623,7 +1623,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = 1; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.2; // lower the full table assembly a touch more
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
