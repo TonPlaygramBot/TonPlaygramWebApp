@@ -621,15 +621,15 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.25; // expand the middle fascia slightly toward the diamonds on both ends
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.04; // trim the plate ends closer to the middle pockets near the corner pockets
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.18; // extend the plate ends further toward the corner pockets (toward the chalks)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.04; // ease the corner bias so the middle plates stay tighter to the pocket cut
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.16; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.56; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.1; // open the rounded chrome cut slightly more around the middle pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // restore the rounded chrome cut size to the earlier 9am scale
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -917,13 +917,11 @@ function addPocketCuts(
 // to fit comfortably inside the existing mobile arena presentation.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const BASE_TABLE_FOOTPRINT_SCALE = 0.82; // baseline footprint used for pocket + ball sizing
-const TABLE_FIELD_SHRINK = 0.85; // shrink the playfield ~15% while keeping the table height unchanged
-const TABLE_FOOTPRINT_SCALE = BASE_TABLE_FOOTPRINT_SCALE * TABLE_FIELD_SHRINK; // reduce the table footprint while preserving proportions
-const BASE_FOOTPRINT_SHRINK = TABLE_FOOTPRINT_SCALE; // keep the base footprint aligned with the reduced field
+const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
+const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.8; // keep the camera framing unchanged while shrinking the field
+const TABLE_DISPLAY_SCALE = 0.8; // shrink the table footprint slightly less so the playfield reads larger
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1049,7 +1047,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.68; // shorten the table by an additional 15% to match the requested length
+  const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
     H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
@@ -1135,17 +1133,6 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const BASE_TABLE_W = 72 * TABLE_SCALE * BASE_TABLE_FOOTPRINT_SCALE;
-const BASE_TABLE_H = 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * BASE_TABLE_FOOTPRINT_SCALE;
-const BASE_TABLE_WALL = 2.6 * TABLE_SCALE * BASE_TABLE_FOOTPRINT_SCALE;
-const BASE_SIDE_RAIL_INNER_THICKNESS = BASE_TABLE_WALL * SIDE_RAIL_INNER_SCALE;
-const BASE_END_RAIL_INNER_SCALE =
-  (BASE_TABLE_H - TARGET_RATIO * (BASE_TABLE_W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS)) /
-  (2 * BASE_TABLE_WALL);
-const BASE_END_RAIL_INNER_THICKNESS = BASE_TABLE_WALL * BASE_END_RAIL_INNER_SCALE;
-const BASE_PLAY_W = BASE_TABLE_W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS;
-const BASE_PLAY_H = BASE_TABLE_H - 2 * BASE_END_RAIL_INNER_THICKNESS;
-const BASE_INNER_LONG = Math.max(BASE_PLAY_W, BASE_PLAY_H);
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -1163,8 +1150,8 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
-const MM_TO_UNITS = BASE_INNER_LONG / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.21; // increase balls 10% from the current size to match the new visual scale
+const MM_TO_UNITS = innerLong / WIDTH_REF;
+const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1193,7 +1180,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const BAULK_FROM_BAULK = PLAY_H * 0.25;
+const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
@@ -1242,7 +1229,6 @@ const CLOTH_LIFT = (() => {
 const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
-const BALL_REST_SINK = BALL_R * 0.02; // sink balls slightly lower into the cloth for a subtler drop
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
@@ -1254,7 +1240,7 @@ const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
-  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP - BALL_REST_SINK; // rest balls directly on the lowered cloth plane
+  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
 const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -1623,7 +1609,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = 1; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.253; // lower the full table assembly ~10% more
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -4896,7 +4882,7 @@ function applySnookerScaling({
   }
   if (markings?.baulkLine) {
     const halfWidth = width / 2;
-    const baulkZ = -halfWidth + width * 0.25;
+    const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
     if (markings.dArc) {
@@ -4953,7 +4939,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.5; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -12826,7 +12812,6 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-  const inHandForceBaulkRef = useRef(false);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -12984,9 +12969,6 @@ const powerRef = useRef(hud.power);
     const playerTurn = (hud.turn ?? 0) === 0;
     const enteringInHand = Boolean(hud.inHand && !wasInHandRef.current);
     wasInHandRef.current = Boolean(hud.inHand);
-    if (!hud.inHand) {
-      inHandForceBaulkRef.current = false;
-    }
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
       pendingInHandResetRef.current = true;
@@ -21456,8 +21438,7 @@ const powerRef = useRef(hud.power);
         return false;
       };
 
-      const allowFullTableInHand = () =>
-        !isBreakRestrictedInHand() && !inHandForceBaulkRef.current;
+      const allowFullTableInHand = () => !isBreakRestrictedInHand();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -24917,7 +24898,6 @@ const powerRef = useRef(hud.power);
           spin: { x: 0, y: 0 }
         };
         let nextInHand = cueBallPotted;
-        let nextForceBaulk = cueBallPotted;
         try {
           if (shotResolved) {
             if (safeState.foul) {
@@ -25017,15 +24997,12 @@ const powerRef = useRef(hud.power);
               if (nextMeta.variant === 'american' && nextMeta.state) {
                 nextInHand =
                   cueBallPotted || Boolean(nextMeta.state.ballInHand);
-                nextForceBaulk = cueBallPotted;
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand =
                   cueBallPotted || Boolean(nextMeta.state.ballInHand);
-                nextForceBaulk = cueBallPotted;
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                const mustPlayFromBaulk = Boolean(nextMeta.state.mustPlayFromBaulk);
-                nextInHand = cueBallPotted || mustPlayFromBaulk;
-                nextForceBaulk = cueBallPotted || mustPlayFromBaulk;
+                nextInHand =
+                  cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
           }
@@ -25035,7 +25012,6 @@ const powerRef = useRef(hud.power);
           frameRef.current = safeState;
           setFrameState(safeState);
           setTurnCycle((value) => value + 1);
-          inHandForceBaulkRef.current = nextForceBaulk;
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
