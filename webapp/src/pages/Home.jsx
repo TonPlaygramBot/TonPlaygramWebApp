@@ -6,6 +6,7 @@ import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
+import HomeSocialHub from '../components/HomeSocialHub.jsx';
 
 import {
   FaArrowUp,
@@ -189,6 +190,7 @@ export default function Home() {
             </div>
           </div>
 
+          <HomeSocialHub />
           <DailyCheckIn />
           <NftGiftCard />
           <HomeGamesCard />
