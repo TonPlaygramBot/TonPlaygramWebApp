@@ -621,15 +621,15 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.25; // expand the middle fascia slightly toward the diamonds on both ends
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.18; // extend the plate ends further toward the corner pockets (toward the chalks)
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.06; // trim the plate ends a touch more so the middle chrome stops closer to the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.16; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.04; // reduce the middle chrome bias toward the corner pockets for a tighter span
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.56; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // restore the rounded chrome cut size to the earlier 9am scale
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.12; // open the rounded chrome cut a touch more around the middle pockets
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1133,8 +1133,9 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
-const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
+const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
+const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
   tableWidth: TABLE.W,
   tableLength: TABLE.H,
