@@ -826,7 +826,8 @@
     return applyTemplate(pickRandom(pool), mergedContext);
   };
 
-  const getSpeechSynthesis = () => null;
+  const getSpeechSynthesis = () =>
+    typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
 
   const loadVoices = (synth, timeoutMs = 2500) =>
     new Promise((resolve) => {
@@ -917,7 +918,7 @@
     }
   };
 
-  const commentarySupported = false;
+  const commentarySupported = Boolean(getSpeechSynthesis());
   let commentaryPresetId = GOAL_RUSH_COMMENTARY_PRESETS[0]?.id || 'english';
   try {
     const stored = localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
