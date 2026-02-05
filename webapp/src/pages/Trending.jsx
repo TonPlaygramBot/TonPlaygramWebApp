@@ -56,6 +56,8 @@ export default function Trending() {
   const [isPosting, setIsPosting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const toPostList = (data) => (Array.isArray(data) ? data : []);
+
   useEffect(() => {
     let active = true;
     setIsLoading(true);
@@ -65,7 +67,7 @@ export default function Trending() {
         : listWallFeed(telegramId);
     request
       .then((data) => {
-        if (active) setPosts(data || []);
+        if (active) setPosts(toPostList(data));
       })
       .catch(() => {
         if (active) setPosts([]);
@@ -101,7 +103,7 @@ export default function Trending() {
       activeTab === 'trending'
         ? await listTrendingPosts()
         : await listWallFeed(telegramId);
-    setPosts(data || []);
+    setPosts(toPostList(data));
   }
 
   async function handlePostSubmit() {
@@ -140,8 +142,10 @@ export default function Trending() {
   }
 
   async function handleReact(id, emoji) {
-    await reactWallPost(id, telegramId, emoji);
-    refresh();
+    const res = await reactWallPost(id, telegramId, emoji);
+    if (!res?.error) {
+      refresh();
+    }
   }
 
   function shareOn(platform, post) {
