@@ -1193,7 +1193,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
+const BAULK_FROM_BAULK = PLAY_H * 0.25;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
@@ -1242,7 +1242,7 @@ const CLOTH_LIFT = (() => {
 const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
-const BALL_REST_SINK = BALL_R * 0.02; // nudge resting balls slightly lower so they sit closer to the cloth
+const BALL_REST_SINK = BALL_R * 0.06; // nudge resting balls slightly lower so they sit closer to the cloth
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
@@ -4896,7 +4896,7 @@ function applySnookerScaling({
   }
   if (markings?.baulkLine) {
     const halfWidth = width / 2;
-    const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
+    const baulkZ = -halfWidth + width * 0.25;
     const markingY = markings.baulkLine.position.y;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
     if (markings.dArc) {
@@ -12826,6 +12826,7 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
+  const inHandForceBaulkRef = useRef(false);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -12983,6 +12984,9 @@ const powerRef = useRef(hud.power);
     const playerTurn = (hud.turn ?? 0) === 0;
     const enteringInHand = Boolean(hud.inHand && !wasInHandRef.current);
     wasInHandRef.current = Boolean(hud.inHand);
+    if (!hud.inHand) {
+      inHandForceBaulkRef.current = false;
+    }
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
       pendingInHandResetRef.current = true;
@@ -21452,7 +21456,8 @@ const powerRef = useRef(hud.power);
         return false;
       };
 
-      const allowFullTableInHand = () => !isBreakRestrictedInHand();
+      const allowFullTableInHand = () =>
+        !isBreakRestrictedInHand() && !inHandForceBaulkRef.current;
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -24912,6 +24917,7 @@ const powerRef = useRef(hud.power);
           spin: { x: 0, y: 0 }
         };
         let nextInHand = cueBallPotted;
+        let nextForceBaulk = cueBallPotted;
         try {
           if (shotResolved) {
             if (safeState.foul) {
@@ -25011,12 +25017,15 @@ const powerRef = useRef(hud.power);
               if (nextMeta.variant === 'american' && nextMeta.state) {
                 nextInHand =
                   cueBallPotted || Boolean(nextMeta.state.ballInHand);
+                nextForceBaulk = cueBallPotted;
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand =
                   cueBallPotted || Boolean(nextMeta.state.ballInHand);
+                nextForceBaulk = cueBallPotted;
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand =
-                  cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
+                const mustPlayFromBaulk = Boolean(nextMeta.state.mustPlayFromBaulk);
+                nextInHand = cueBallPotted || mustPlayFromBaulk;
+                nextForceBaulk = cueBallPotted || mustPlayFromBaulk;
               }
             }
           }
@@ -25026,6 +25035,7 @@ const powerRef = useRef(hud.power);
           frameRef.current = safeState;
           setFrameState(safeState);
           setTurnCycle((value) => value + 1);
+          inHandForceBaulkRef.current = nextForceBaulk;
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
