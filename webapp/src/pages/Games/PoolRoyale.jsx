@@ -1051,7 +1051,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
-  const TABLE_SURFACE_EXPANSION = 1.12; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~25% so the full table reads 10–15% larger in view
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
     H:
@@ -1160,8 +1160,9 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.1545; // reduce balls by 10% for a slightly smaller play feel
+const TABLE_SIZE_COMPENSATION = 1 / TABLE_SURFACE_EXPANSION; // keep pocket/ball sizes anchored while the table footprint grows
+const MM_TO_UNITS = (innerLong / WIDTH_REF) * TABLE_SIZE_COMPENSATION;
+const BALL_SIZE_SCALE = 1.1545 * 0.85; // shrink balls 15% from the current size
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5019,10 +5020,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02; // lower the camera a touch to sit closer to the table
+const TOP_VIEW_MARGIN = 1.18; // lift the top view a bit higher to keep the full table visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // raise the camera slightly for a higher 2D overview
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.02; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.06; // raise the 2D top view slightly to keep framing consistent after the table expansion
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
