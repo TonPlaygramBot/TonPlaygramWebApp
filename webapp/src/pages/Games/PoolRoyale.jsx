@@ -1056,7 +1056,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.33; // raise rails slightly so the cushions sit higher
+const RAIL_HEIGHT = TABLE.THICK * 1.38; // raise rails slightly so the cushions sit higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1351,8 +1351,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.01; // lift the cushion base slightly so the lip sits higher above the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.12; // trim the cushion tops a touch less so they sit higher than before
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.02; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.1; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -26587,6 +26587,29 @@ const powerRef = useRef(hud.power);
             const c = captureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
             if (b.pos.distanceTo(c) < captureRadius) {
+              const isCueBall = b.id === 'cue';
+              const inHandActive = Boolean(hudRef.current?.inHand);
+              if (isCueBall && inHandActive) {
+                const fallback = defaultInHandPosition({ forceCenter: true });
+                if (fallback) {
+                  updateCuePlacement(fallback);
+                  b.active = true;
+                  b.mesh.visible = true;
+                  b.vel.set(0, 0);
+                  b.spin?.set(0, 0);
+                  b.pendingSpin?.set(0, 0);
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
+                  b.impacted = false;
+                  inHandDragRef.current.lastPos = fallback.clone();
+                }
+                if (!hudRef.current?.inHand) {
+                  hudRef.current = { ...hudRef.current, inHand: true };
+                  setHud((prev) => ({ ...prev, inHand: true }));
+                }
+                return;
+              }
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
@@ -26650,7 +26673,6 @@ const powerRef = useRef(hud.power);
               b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              const isCueBall = b.id === 'cue';
               if (b.mesh && table && !isCueBall) {
                 if (pocketCameraStateRef.current) {
                   pocketPopupPendingRef.current.push({
