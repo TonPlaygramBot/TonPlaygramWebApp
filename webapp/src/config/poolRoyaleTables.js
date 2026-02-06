@@ -1,9 +1,22 @@
 const BASE_TABLE_SCALE = 1.44;
 const BASE_TABLE_MOBILE_SCALE = 1.44;
 const BASE_TABLE_COMPACT_SCALE = 1.44;
-const BASE_PLAYFIELD_WIDTH_MM = 2540; // WPA 9 ft playing surface width (100")
+const BASE_PLAYFIELD_WIDTH_MM = 1981; // WPA 7 ft playing surface width (78")
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
+  '7ft': {
+    id: '7ft',
+    label: '7 ft (Bar Box)',
+    playfield: Object.freeze({ widthMm: 1981, heightMm: 991 }), // 78" × 39"
+    ballDiameterMm: 57.15,
+    pocketMouthMm: Object.freeze({
+      corner: 114.3,
+      side: 127
+    }),
+    cushionCutAngleDeg: 32,
+    sideCushionCutAngleDeg: 32,
+    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
+  },
   '9ft': {
     id: '9ft',
     label: '9 ft (Tournament)',
@@ -75,7 +88,7 @@ export const TABLE_SIZE_OPTIONS = Object.freeze(
   }, {})
 );
 
-export const DEFAULT_TABLE_SIZE_ID = '9ft';
+export const DEFAULT_TABLE_SIZE_ID = '7ft';
 
 export function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';

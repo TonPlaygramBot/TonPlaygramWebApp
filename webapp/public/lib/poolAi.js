@@ -1,6 +1,6 @@
 // Minimal billiards AI planner
 
-/** @typedef {'AMERICAN_BILLIARDS'|'NINE_BALL'|'EIGHT_POOL_UK'} GameType */
+/** @typedef {'AMERICAN_8BALL'|'NINE_BALL'|'EIGHT_POOL_UK'} GameType */
 
 /**
  * @typedef {Object} Ball
@@ -161,9 +161,28 @@ function currentGroup (state) {
 
 function chooseTargets (req) {
   const balls = req.state.balls.filter(b => !b.pocketed && b.id !== 0)
-  if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
+  if (req.game === 'NINE_BALL') {
     const lowest = balls.reduce((m, b) => (b.id < m.id ? b : m), balls[0])
     return lowest ? [lowest] : []
+  }
+  if (req.game === 'AMERICAN_8BALL') {
+    const solids = balls.filter(b => b.id >= 1 && b.id <= 7)
+    const stripes = balls.filter(b => b.id >= 9 && b.id <= 15)
+    const eight = balls.find(b => b.id === 8)
+    const group = currentGroup(req.state)
+    if (group === 'SOLIDS') {
+      if (solids.length > 0) return solids
+      if (eight) return [eight]
+      return []
+    }
+    if (group === 'STRIPES') {
+      if (stripes.length > 0) return stripes
+      if (eight) return [eight]
+      return []
+    }
+    const openTargets = balls.filter(b => b.id !== 8)
+    if (openTargets.length === 0 && eight) return [eight]
+    return openTargets
   }
   if (req.game === 'EIGHT_POOL_UK') {
     const solids = balls.filter(b => b.id >= 1 && b.id <= 7)
@@ -187,10 +206,31 @@ function chooseTargets (req) {
 
 function nextTargetsAfter (targetId, req) {
   const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && b.id !== 0)
-  if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
+  if (req.game === 'NINE_BALL') {
     if (cloned.length === 0) return []
     const lowest = cloned.reduce((m, b) => (b.id < m.id ? b : m), cloned[0])
     return lowest ? [lowest] : []
+  }
+  if (req.game === 'AMERICAN_8BALL') {
+    const solids = cloned.filter(b => b.id >= 1 && b.id <= 7)
+    const stripes = cloned.filter(b => b.id >= 9 && b.id <= 15)
+    const eight = cloned.find(b => b.id === 8)
+    let group = currentGroup(req.state)
+    if (!group || group === 'UNASSIGNED') {
+      if (targetId >= 1 && targetId <= 7) group = 'SOLIDS'
+      else if (targetId >= 9 && targetId <= 15) group = 'STRIPES'
+    }
+    if (group === 'SOLIDS') {
+      if (solids.length > 0) return solids
+      if (eight) return [eight]
+      return []
+    }
+    if (group === 'STRIPES') {
+      if (stripes.length > 0) return stripes
+      if (eight) return [eight]
+      return []
+    }
+    return cloned.filter(b => b.id !== 8)
   }
   if (req.game === 'EIGHT_POOL_UK') {
     const solids = cloned.filter(b => b.id >= 1 && b.id <= 7)
