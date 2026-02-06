@@ -1044,15 +1044,20 @@ const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
-  const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
+  const BALL_D_REF = 57.15;
+  const BALL_DIAMETER_TARGET = 2.5032825703675816; // lock ball size/height to the prior 9ft-tuned build
+  const MM_TO_UNITS = BALL_DIAMETER_TARGET / BALL_D_REF;
+  const WIDTH_REF = 1981; // 7ft BCA playfield width (78")
+  const HEIGHT_REF = 991; // 7ft BCA playfield height (39")
+  const RAIL_SIDE_REF = 139.7; // 5.5" side rail from cushion nose to table edge
+  const RAIL_END_REF = 152.4; // 6" end rail from cushion nose to table edge
+  const TABLE_WALL_RATIO = 0.9121511199052171;
+  const TABLE_THICKNESS_RATIO = 0.7701088254359244;
   const TABLE = {
-    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
-    THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
+    W: (WIDTH_REF + RAIL_SIDE_REF * 2) * MM_TO_UNITS,
+    H: (HEIGHT_REF + RAIL_END_REF * 2) * MM_TO_UNITS,
+    THICK: BALL_DIAMETER_TARGET * TABLE_THICKNESS_RATIO,
+    WALL: BALL_DIAMETER_TARGET * TABLE_WALL_RATIO
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
@@ -1111,31 +1116,18 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Reuse the Pool Royale playfield and pocket metrics so pockets + balls line up exactly with that table
-  // (WPA 9ft reference: 100" × 50", 2.25" balls)
-  const WIDTH_REF = 2540;
-  const HEIGHT_REF = 1270;
-  const BALL_D_REF = 57.15;
+  // Rebuild the Pool Royale playfield to match a 7ft BCA table (78" × 39") while
+  // keeping the ball size/height locked to the prior build for mobile readability.
   const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (25")
-  const D_RADIUS_REF = 292;
-  const PINK_FROM_TOP_REF = 737;
-  const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+  const D_RADIUS_REF = WIDTH_REF * (292 / 2540);
+  const PINK_FROM_TOP_REF = WIDTH_REF * (737 / 2540);
+  const BLACK_FROM_TOP_REF = WIDTH_REF * (324 / 2540); // Black spot distance from the top cushion (12.75")
   const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
   const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
-  const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
-  const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-  const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  // Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
-  // and preserving pocket proportions from the previous build.
-  const TARGET_RATIO = 1.83;
-const END_RAIL_INNER_SCALE =
-  (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
-  (2 * TABLE.WALL);
-const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
-const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
-const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
-const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
+  const SIDE_RAIL_INNER_THICKNESS = RAIL_SIDE_REF * MM_TO_UNITS;
+  const END_RAIL_INNER_THICKNESS = RAIL_END_REF * MM_TO_UNITS;
+const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
+const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
   tableWidth: TABLE.W,
   tableLength: TABLE.H,
@@ -1148,11 +1140,10 @@ const innerLong = Math.max(PLAY_W, PLAY_H);
 const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   console.assert(
-    Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-    'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
+    Math.abs(CURRENT_RATIO - WIDTH_REF / HEIGHT_REF) < 1e-4,
+    'Pool table inner ratio must match the official 7ft 2:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.1545; // reduce balls by 10% for a slightly smaller play feel
+const BALL_SIZE_SCALE = BALL_DIAMETER_TARGET / (BALL_D_REF * MM_TO_UNITS);
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
