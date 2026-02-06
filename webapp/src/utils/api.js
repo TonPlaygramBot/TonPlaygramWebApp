@@ -582,6 +582,18 @@ export function reactWallPost(postId, telegramId, emoji) {
   return post('/api/social/wall/react', { postId, telegramId, emoji });
 }
 
+export function updateWallPost(postId, telegramId, updates = {}) {
+  return post('/api/social/wall/update', {
+    postId,
+    telegramId,
+    ...updates
+  });
+}
+
+export function deleteWallPost(postId, telegramId) {
+  return post('/api/social/wall/delete', { postId, telegramId });
+}
+
 export function pinWallPost(postId, telegramId, pinned) {
   return post('/api/social/wall/pin', { postId, telegramId, pinned });
 }

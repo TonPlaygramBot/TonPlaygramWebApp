@@ -93,9 +93,9 @@ export default function Messages() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search squadmates..."
-            className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-white focus:outline-none"
+            className="w-full rounded-full border border-border bg-surface px-4 py-2 text-sm text-white focus:outline-none sm:w-auto"
           />
-          <button className="rounded-full border border-border px-4 py-2 text-sm text-white">
+          <button className="w-full rounded-full border border-border px-4 py-2 text-sm text-white sm:w-auto">
             New Chat
           </button>
         </div>
@@ -124,7 +124,7 @@ export default function Messages() {
               {filteredFriends.length} online
             </span>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:gap-3 lg:overflow-visible">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             {filteredFriends.map((f) => {
               const label =
                 f.nickname ||
@@ -134,7 +134,7 @@ export default function Messages() {
                 <button
                   key={f.telegramId}
                   onClick={() => setSelected(f)}
-                  className={`min-w-[160px] flex-1 rounded-xl border p-3 text-left ${
+                  className={`rounded-xl border p-3 text-left ${
                     selected?.telegramId === f.telegramId
                       ? 'border-primary bg-primary/10'
                       : 'border-border bg-surface'
@@ -157,13 +157,13 @@ export default function Messages() {
             <p className="text-xs uppercase tracking-[0.25em] text-subtext">
               Messaging Tools
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {['Send', 'Receive', 'Archive', 'Delete', 'Save', 'Mute', 'Report'].map(
                 (label) => (
                   <button
                     key={label}
                     onClick={() => handleQuickAction(label)}
-                    className="rounded-full border border-border px-3 py-1 text-xs text-white"
+                    className="w-full rounded-full border border-border px-3 py-1 text-xs text-white"
                   >
                     {label}
                   </button>
@@ -190,34 +190,34 @@ export default function Messages() {
                     Matchmaking · Squad chat · Direct messages
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <button
                     onClick={() => handleQuickAction('Archive')}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
                   >
                     <FaArchive /> Archive
                   </button>
                   <button
                     onClick={() => handleQuickAction('Save')}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
                   >
                     <FaBookmark /> Save
                   </button>
                   <button
                     onClick={() => handleQuickAction('Delete')}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
                   >
                     <FaTrash /> Delete
                   </button>
                   <button
                     onClick={() => handleQuickAction('Mute')}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
                   >
                     <FaVolumeMute /> Mute
                   </button>
                 </div>
               </div>
-              <div className="h-[320px] overflow-y-auto rounded-xl border border-border bg-background/60 p-3 space-y-3">
+              <div className="h-[40vh] sm:h-[320px] overflow-y-auto rounded-xl border border-border bg-background/60 p-3 space-y-3">
                 {messages.map((m, idx) => (
                   <div
                     key={idx}
@@ -267,7 +267,7 @@ export default function Messages() {
                     <FaPaperPlane /> Send
                   </button>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <label className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white cursor-pointer">
                     <FaImage />
                     Photo
@@ -285,19 +285,19 @@ export default function Messages() {
                   </label>
                   <button
                     onClick={() => handleQuickAction('Voice')}
-                    className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
                   >
                     <FaMicrophone /> Voice
                   </button>
                   <button
                     onClick={() => handleQuickAction('Report')}
-                    className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
                   >
                     <FaFlag /> Report
                   </button>
                   <button
                     onClick={() => handleQuickAction('Archive')}
-                    className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
                   >
                     <FaArchive /> Archive
                   </button>

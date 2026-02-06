@@ -6,7 +6,8 @@ import {
   FaGamepad,
   FaBolt,
   FaFilter,
-  FaVideo
+  FaVideo,
+  FaEllipsisH
 } from 'react-icons/fa';
 import {
   AiFillHeart,
@@ -36,6 +37,9 @@ import {
   commentWallPost,
   shareWallPost,
   reactWallPost,
+  updateWallPost,
+  deleteWallPost,
+  pinWallPost,
   getProfile
 } from '../utils/api.js';
 
@@ -63,6 +67,11 @@ export default function Trending() {
   const [activeTab, setActiveTab] = useState('for-you');
   const [isPosting, setIsPosting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [menuPostId, setMenuPostId] = useState(null);
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [editTags, setEditTags] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const toPostList = (data) => (Array.isArray(data) ? data : []);
 
@@ -155,6 +164,52 @@ export default function Trending() {
     if (!res?.error) {
       refresh();
     }
+  }
+
+  function handleEditStart(post) {
+    setEditingPostId(post._id);
+    setEditText(post.text || '');
+    setEditTags((post.tags || []).join(', '));
+    setMenuPostId(null);
+  }
+
+  function handleEditCancel() {
+    setEditingPostId(null);
+    setEditText('');
+    setEditTags('');
+  }
+
+  async function handleEditSave(postId) {
+    if (!editText.trim()) return;
+    setIsUpdating(true);
+    const tags = editTags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    try {
+      await updateWallPost(postId, telegramId, {
+        text: editText.trim(),
+        tags
+      });
+      handleEditCancel();
+      refresh();
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleDelete(postId) {
+    setMenuPostId(null);
+    if (!window.confirm('Delete this post?')) return;
+    await deleteWallPost(postId, telegramId);
+    refresh();
+  }
+
+  async function handlePin(post) {
+    setMenuPostId(null);
+    await pinWallPost(post._id, telegramId, !post.pinned);
+    refresh();
   }
 
   function shareOn(platform, post) {
@@ -331,46 +386,133 @@ export default function Trending() {
           </div>
 
           <div className="space-y-4">
-            {posts.map((p) => (
-              <div
-                key={p._id}
-                className="border border-border rounded-2xl p-4 space-y-3 bg-surface"
-              >
-                <div className="flex items-start gap-3">
-                  <img
-                    src={authorProfiles[p.author]?.photo || '/assets/icons/profile.svg'}
-                    alt={`Avatar of ${
-                      authorProfiles[p.author]?.nickname ||
-                      authorProfiles[p.author]?.firstName ||
-                      'User'
-                    }`}
-                    className="w-10 h-10 rounded-full border border-accent"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-sm font-semibold text-white">
-                          {authorProfiles[p.author]?.nickname ||
-                            authorProfiles[p.author]?.firstName ||
-                            'User'}
+            {posts.map((p) => {
+              const isOwner = Number(p.owner) === Number(telegramId);
+              const isEditing = editingPostId === p._id;
+              return (
+                <div
+                  key={p._id}
+                  className="border border-border rounded-2xl p-4 space-y-3 bg-surface"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={authorProfiles[p.author]?.photo || '/assets/icons/profile.svg'}
+                      alt={`Avatar of ${
+                        authorProfiles[p.author]?.nickname ||
+                        authorProfiles[p.author]?.firstName ||
+                        'User'
+                      }`}
+                      className="w-10 h-10 rounded-full border border-accent"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-semibold text-white">
+                            {authorProfiles[p.author]?.nickname ||
+                              authorProfiles[p.author]?.firstName ||
+                              'User'}
+                          </div>
+                          <div className="text-xs text-subtext">
+                            {new Date(p.createdAt).toLocaleString()} ·{' '}
+                            {p.views || 0} views
+                          </div>
                         </div>
-                        <div className="text-xs text-subtext">
-                          {new Date(p.createdAt).toLocaleString()} ·{' '}
-                          {p.views || 0} views
+                        <div className="flex items-center gap-2">
+                          {p.pinned && (
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-yellow-200 rounded-full border border-yellow-400/40 px-2 py-1">
+                              Pinned
+                            </span>
+                          )}
+                          <span className="text-[11px] text-subtext rounded-full border border-border px-2 py-1">
+                            {p.tags?.[0] ? `#${p.tags[0]}` : 'Wall Drop'}
+                          </span>
+                          {isOwner && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setMenuPostId(
+                                    menuPostId === p._id ? null : p._id
+                                  )
+                                }
+                                className="rounded-full border border-border p-2 text-subtext hover:text-white"
+                                aria-label="Post options"
+                              >
+                                <FaEllipsisH />
+                              </button>
+                              {menuPostId === p._id && (
+                                <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl border border-border bg-surface/95 p-2 shadow-lg">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditStart(p)}
+                                    className="w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-background/60"
+                                  >
+                                    Edit post
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePin(p)}
+                                    className="w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-background/60"
+                                  >
+                                    {p.pinned ? 'Unfavorite' : 'Favorite'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(p._id)}
+                                    className="w-full rounded-lg px-3 py-2 text-left text-xs text-red-300 hover:bg-background/60"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <span className="text-[11px] text-subtext rounded-full border border-border px-2 py-1">
-                        {p.tags?.[0] ? `#${p.tags[0]}` : 'Wall Drop'}
-                      </span>
                     </div>
                   </div>
-                </div>
 
-                {p.text && (
-                  <ReactMarkdown className="prose prose-invert break-words">
-                    {p.text}
-                  </ReactMarkdown>
-                )}
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <textarea
+                        value={editText}
+                        onChange={(event) =>
+                          setEditText(event.target.value.slice(0, 240))
+                        }
+                        className="w-full min-h-[110px] rounded-xl border border-border bg-background/60 px-3 py-2 text-sm text-white focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={editTags}
+                        onChange={(event) => setEditTags(event.target.value)}
+                        placeholder="Tags (comma separated)"
+                        className="w-full rounded-full border border-border bg-background/60 px-3 py-2 text-xs text-white focus:outline-none"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleEditSave(p._id)}
+                          disabled={isUpdating || !editText.trim()}
+                          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background disabled:opacity-60"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleEditCancel}
+                          className="rounded-full border border-border px-4 py-2 text-xs text-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    p.text && (
+                      <ReactMarkdown className="prose prose-invert break-words">
+                        {p.text}
+                      </ReactMarkdown>
+                    )
+                  )}
                 {p.photo && (
                   <img
                     src={p.photo}
@@ -462,8 +604,9 @@ export default function Trending() {
                     <AiOutlineComment className="inline" /> Reply
                   </button>
                 </div>
-              </div>
-            ))}
+                </div>
+              );
+            })}
             {!isLoading && posts.length === 0 && (
               <div className="border border-border rounded-2xl p-6 text-center text-subtext bg-surface">
                 No wall drops yet. Be the first to post a highlight!

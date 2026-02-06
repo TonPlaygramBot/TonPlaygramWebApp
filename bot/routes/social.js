@@ -283,6 +283,37 @@ router.post('/wall/react', async (req, res) => {
   res.json(post);
 });
 
+router.post('/wall/update', async (req, res) => {
+  const { postId, telegramId, text, tags, photo, photoAlt } = req.body;
+  if (!postId || !telegramId)
+    return res.status(400).json({ error: 'postId and telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
+  const updates = {};
+  if (typeof text === 'string') updates.text = text;
+  if (Array.isArray(tags)) updates.tags = tags;
+  if (typeof photo === 'string') updates.photo = photo;
+  if (typeof photoAlt === 'string') updates.photoAlt = photoAlt;
+  if (Object.keys(updates).length === 0)
+    return res.status(400).json({ error: 'no updates provided' });
+  const post = await Post.findOneAndUpdate(
+    { _id: postId, owner: telegramId },
+    { $set: updates },
+    { new: true }
+  );
+  if (!post) return res.status(404).json({ error: 'post not found' });
+  res.json(post);
+});
+
+router.post('/wall/delete', async (req, res) => {
+  const { postId, telegramId } = req.body;
+  if (!postId || !telegramId)
+    return res.status(400).json({ error: 'postId and telegramId required' });
+  if (!requireMatchingTelegram(req, res, telegramId)) return;
+  const post = await Post.findOneAndDelete({ _id: postId, owner: telegramId });
+  if (!post) return res.status(404).json({ error: 'post not found' });
+  res.json({ success: true });
+});
+
 router.post('/wall/trending', async (req, res) => {
   const limit = Math.max(1, Math.min(Number(req.body.limit) || 20, 50));
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
