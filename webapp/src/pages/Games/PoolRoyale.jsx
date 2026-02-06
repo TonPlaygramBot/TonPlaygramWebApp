@@ -1111,9 +1111,10 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Official 7ft bar table playing surface reference: 78" × 39" (1981.2mm × 990.6mm), 2.25" balls.
-  const WIDTH_REF = 1981.2;
-  const HEIGHT_REF = 990.6;
+  // Reuse the Pool Royale playfield and pocket metrics so pockets + balls line up exactly with that table
+  // (WPA 9ft reference: 100" × 50", 2.25" balls)
+  const WIDTH_REF = 2540;
+  const HEIGHT_REF = 1270;
   const BALL_D_REF = 57.15;
   const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (25")
   const D_RADIUS_REF = 292;
@@ -1124,8 +1125,9 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  // Match the official 7ft (bar) table playing surface ratio (78" × 39").
-  const TARGET_RATIO = 2;
+  // Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
+  // and preserving pocket proportions from the previous build.
+  const TARGET_RATIO = 1.83;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
@@ -1147,12 +1149,10 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   console.assert(
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-    'Pool table inner ratio must match the official 7ft 2:1 target after scaling.'
+    'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const LEGACY_WIDTH_REF = 2540;
-const LEGACY_BALL_SCALE = 1.1545;
-const BALL_SIZE_SCALE = LEGACY_BALL_SCALE * (LEGACY_WIDTH_REF / WIDTH_REF);
+const BALL_SIZE_SCALE = 1.1545; // reduce balls by 10% for a slightly smaller play feel
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
