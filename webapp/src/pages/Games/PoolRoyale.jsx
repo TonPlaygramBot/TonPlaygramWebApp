@@ -1044,16 +1044,39 @@ const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
-  const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
-  const TABLE = {
-    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
-    THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
-  };
+const TABLE_BASE_SCALE = 1.2;
+const TABLE_WIDTH_SCALE = 1.25;
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
+const TABLE_THICK = 1.8 * TABLE_SCALE;
+const TABLE_WALL = 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE;
+const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
+const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
+const SIDE_RAIL_INNER_THICKNESS = TABLE_WALL * SIDE_RAIL_INNER_SCALE;
+const END_RAIL_INNER_REDUCTION = SIDE_RAIL_INNER_REDUCTION;
+const END_RAIL_INNER_SCALE = 1 - END_RAIL_INNER_REDUCTION;
+const END_RAIL_INNER_THICKNESS = TABLE_WALL * END_RAIL_INNER_SCALE;
+// Official 7ft pool playfield (78" × 39") mapped to the current ball diameter.
+const WIDTH_REF = 1981.2;
+const HEIGHT_REF = 990.6;
+const BALL_D_REF = 57.15;
+const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (19.5")
+const D_RADIUS_REF = 292;
+const PINK_FROM_TOP_REF = 737;
+const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
+const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
+const BALL_DIAMETER = 2.5032825703675816; // preserve current ball size in world units
+const BALL_SCALE = BALL_DIAMETER / 4;
+const BALL_R = BALL_DIAMETER / 2;
+const MM_TO_UNITS = BALL_DIAMETER / BALL_D_REF;
+const PLAY_H = WIDTH_REF * MM_TO_UNITS;
+const PLAY_W = HEIGHT_REF * MM_TO_UNITS;
+const TABLE = {
+  W: PLAY_W + 2 * SIDE_RAIL_INNER_THICKNESS,
+  H: PLAY_H + 2 * END_RAIL_INNER_THICKNESS,
+  THICK: TABLE_THICK,
+  WALL: TABLE_WALL
+};
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.38; // raise rails slightly so the cushions sit higher
@@ -1111,31 +1134,6 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Reuse the Pool Royale playfield and pocket metrics so pockets + balls line up exactly with that table
-  // (WPA 9ft reference: 100" × 50", 2.25" balls)
-  const WIDTH_REF = 2540;
-  const HEIGHT_REF = 1270;
-  const BALL_D_REF = 57.15;
-  const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (25")
-  const D_RADIUS_REF = 292;
-  const PINK_FROM_TOP_REF = 737;
-  const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
-  const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
-  const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
-  const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
-  const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-  const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  // Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
-  // and preserving pocket proportions from the previous build.
-  const TARGET_RATIO = 1.83;
-const END_RAIL_INNER_SCALE =
-  (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
-  (2 * TABLE.WALL);
-const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
-const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
-const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
-const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
   tableWidth: TABLE.W,
   tableLength: TABLE.H,
@@ -1147,15 +1145,11 @@ export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
 const innerLong = Math.max(PLAY_W, PLAY_H);
 const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
-  console.assert(
-    Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-    'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
-  );
-const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.1545; // reduce balls by 10% for a slightly smaller play feel
-const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
-const BALL_SCALE = BALL_DIAMETER / 4;
-const BALL_R = BALL_DIAMETER / 2;
+const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+console.assert(
+  Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
+  'Pool table inner ratio must match the official 7ft 2:1 target after scaling.'
+);
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
@@ -4906,7 +4900,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
+    const expectedRadius = BALL_R;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -23834,6 +23828,13 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const metaState = frameSnapshot?.meta?.state ?? null;
+          const activeSeat = metaState?.currentPlayer ?? frameSnapshot?.activePlayer ?? 'A';
+          const assignment =
+            metaState && metaState.assignments ? metaState.assignments[activeSeat] : null;
+          const myGroup =
+            variantId === 'american'
+              ? assignment || (metaState?.isOpenTable ? 'UNASSIGNED' : null)
+              : null;
           const aiState = {
             balls: aiBalls,
             pockets,
@@ -23841,10 +23842,15 @@ const powerRef = useRef(hud.power);
             height,
             ballRadius: BALL_R,
             friction: FRICTION,
-            ballInHand: Boolean(metaState?.ballInHand)
+            ballInHand: Boolean(metaState?.ballInHand),
+            myGroup,
+            ballOn:
+              Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length === 1
+                ? frameSnapshot.ballOn[0]
+                : null
           };
           const decision = planShot({
-            game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
+            game: variantId === 'american' ? 'EIGHT_POOL_UK' : 'NINE_BALL',
             state: aiState,
             timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
           });
