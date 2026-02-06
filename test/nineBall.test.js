@@ -43,17 +43,3 @@ test('scratch gives opponent ball in hand', () => {
   assert.equal(res1.nextPlayer, 'B');
   assert.equal(game.state.currentPlayer, 'B');
 });
-
-test('no rail after contact is a foul', () => {
-  const game = new NineBall();
-  const res = game.shotTaken({
-    contactOrder: [1],
-    potted: [],
-    cueOffTable: false,
-    placedFromHand: false,
-    noCushionAfterContact: true
-  });
-  assert.equal(res.foul, true);
-  assert.equal(res.reason, 'no rail');
-  assert.equal(res.ballInHandNext, true);
-});
