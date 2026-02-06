@@ -12972,7 +12972,8 @@ const powerRef = useRef(hud.power);
     wasInHandRef.current = Boolean(hud.inHand);
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
-      pendingInHandResetRef.current = true;
+      const cueBall = cueRef.current;
+      pendingInHandResetRef.current = Boolean(cueBall && !cueBall.active);
     }
     if (!hud.inHand || !playerTurn) {
       setInHandPlacementMode(false);
@@ -18827,6 +18828,13 @@ const powerRef = useRef(hud.power);
             cueAnimating = false;
             return;
           }
+          const replayFrames = playback?.frames ?? [];
+          const hasCueFrames = replayFrames.some((frame) => Boolean(frame?.cue?.position));
+          if (hasCueFrames) {
+            cueAnimating = Boolean(cueStick.visible);
+            syncCueShadow();
+            return;
+          }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = false;
             cueAnimating = false;
@@ -18834,13 +18842,16 @@ const powerRef = useRef(hud.power);
             return;
           }
           const applyCueSnapshot = () => {
-            const frames = playback?.frames ?? [];
-            if (!frames.length) return false;
+            if (!replayFrames.length) return false;
             let frameIndex = 0;
-            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+            while (
+              frameIndex < replayFrames.length - 1 &&
+              replayFrames[frameIndex + 1].t <= targetTime
+            ) {
               frameIndex += 1;
             }
-            const cueSnapshot = frames[frameIndex]?.cue ?? frames[0]?.cue ?? null;
+            const cueSnapshot =
+              replayFrames[frameIndex]?.cue ?? replayFrames[0]?.cue ?? null;
             if (!cueSnapshot?.position) return false;
             const pos = normalizeVector3Snapshot(cueSnapshot.position);
             if (!pos) return false;
@@ -18857,13 +18868,16 @@ const powerRef = useRef(hud.power);
           if (!stroke) {
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
-            const cueBall = cueRef.current || cue;
-            const cueBallPos = cueBall?.mesh?.position ?? null;
+            const firstFrame = replayFrames[0] ?? null;
+            const cueBallFrame = firstFrame?.balls?.find?.((entry) => entry.id === 'cue') ?? null;
+            const cueBallFramePos =
+              cueBallFrame?.pos && typeof cueBallFrame.pos === 'object'
+                ? TMP_VEC3_A.set(cueBallFrame.pos.x, CUE_Y, cueBallFrame.pos.y)
+                : null;
             const cuePos =
-              cueBallPos
-                ? TMP_VEC3_A.copy(cueBallPos)
-                : cuePath[0]?.pos?.clone?.() ??
-                  (snapshotApplied ? cueStick.position.clone() : null);
+              cuePath[0]?.pos?.clone?.() ??
+              cueBallFramePos ??
+              (snapshotApplied ? cueStick.position.clone() : null);
             if (!cuePos) {
               cueStick.visible = false;
               cueAnimating = false;
@@ -21434,6 +21448,11 @@ const powerRef = useRef(hud.power);
         const frameSnapshot = frameRef.current ?? frameState;
         const meta = frameSnapshot?.meta;
         if (!meta || typeof meta !== 'object') return false;
+        const breakInProgress = Boolean(
+          meta.breakInProgress ??
+            (meta.state && typeof meta.state === 'object' ? meta.state.breakInProgress : false)
+        );
+        if (breakInProgress) return true;
         if (meta.variant === 'uk') {
           return Boolean(meta.state?.breakInProgress);
         }
@@ -22490,13 +22509,17 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            const resolvedPull = Number.isFinite(pullAmount) ? pullAmount : 0;
+            const tipTarget = resolveCueTipTarget(dir, resolvedPull, spinWorld);
             applyCueObstructionLift(tipTarget, obstructionLift);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
-          const idlePos = buildCuePosition(0);
-          const pullPos = buildCuePosition(visualPull);
+          const basePull = Number.isFinite(startPull) ? startPull : 0;
+          const extraPull = Math.max(BALL_R * 0.6, basePull * 0.35);
+          const strokePull = Math.min(maxPull, basePull + extraPull);
+          const idlePos = buildCuePosition(basePull);
+          const pullPos = buildCuePosition(strokePull);
           cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
