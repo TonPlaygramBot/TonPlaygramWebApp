@@ -12972,8 +12972,7 @@ const powerRef = useRef(hud.power);
     wasInHandRef.current = Boolean(hud.inHand);
     if (enteringInHand) {
       cueBallPlacedFromHandRef.current = false;
-      const cueBall = cueRef.current;
-      pendingInHandResetRef.current = Boolean(cueBall && !cueBall.active);
+      pendingInHandResetRef.current = true;
     }
     if (!hud.inHand || !playerTurn) {
       setInHandPlacementMode(false);
@@ -18858,17 +18857,13 @@ const powerRef = useRef(hud.power);
           if (!stroke) {
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
-            const replayFrames = playback?.frames ?? [];
-            const firstFrame = replayFrames[0] ?? null;
-            const cueBallFrame = firstFrame?.balls?.find?.((entry) => entry.id === 'cue') ?? null;
-            const cueBallFramePos =
-              cueBallFrame?.pos && typeof cueBallFrame.pos === 'object'
-                ? TMP_VEC3_A.set(cueBallFrame.pos.x, CUE_Y, cueBallFrame.pos.y)
-                : null;
+            const cueBall = cueRef.current || cue;
+            const cueBallPos = cueBall?.mesh?.position ?? null;
             const cuePos =
-              cuePath[0]?.pos?.clone?.() ??
-              cueBallFramePos ??
-              (snapshotApplied ? cueStick.position.clone() : null);
+              cueBallPos
+                ? TMP_VEC3_A.copy(cueBallPos)
+                : cuePath[0]?.pos?.clone?.() ??
+                  (snapshotApplied ? cueStick.position.clone() : null);
             if (!cuePos) {
               cueStick.visible = false;
               cueAnimating = false;
@@ -21439,11 +21434,6 @@ const powerRef = useRef(hud.power);
         const frameSnapshot = frameRef.current ?? frameState;
         const meta = frameSnapshot?.meta;
         if (!meta || typeof meta !== 'object') return false;
-        const breakInProgress = Boolean(
-          meta.breakInProgress ??
-            (meta.state && typeof meta.state === 'object' ? meta.state.breakInProgress : false)
-        );
-        if (breakInProgress) return true;
         if (meta.variant === 'uk') {
           return Boolean(meta.state?.breakInProgress);
         }
