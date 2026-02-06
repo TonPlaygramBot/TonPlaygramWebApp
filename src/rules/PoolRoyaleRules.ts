@@ -38,9 +38,6 @@ type AmericanSerializedState = {
   foulStreak: { A: number; B: number };
   frameOver: boolean;
   winner: 'A' | 'B' | 'TIE' | null;
-  assignments: { A: 'solids' | 'stripes' | null; B: 'solids' | 'stripes' | null };
-  isOpenTable: boolean;
-  breakInProgress: boolean;
 };
 
 type NineSerializedState = {
@@ -135,10 +132,7 @@ function serializeAmericanState(state: AmericanBilliards['state']): AmericanSeri
     ballInHand: state.ballInHand,
     foulStreak: { ...state.foulStreak },
     frameOver: state.frameOver,
-    winner: state.winner,
-    assignments: { ...state.assignments },
-    isOpenTable: state.isOpenTable,
-    breakInProgress: state.breakInProgress
+    winner: state.winner
   };
 }
 
@@ -150,10 +144,7 @@ function applyAmericanState(game: AmericanBilliards, snapshot: AmericanSerialize
     ballInHand: snapshot.ballInHand,
     foulStreak: { ...snapshot.foulStreak },
     frameOver: snapshot.frameOver,
-    winner: snapshot.winner,
-    assignments: { ...snapshot.assignments },
-    isOpenTable: snapshot.isOpenTable,
-    breakInProgress: snapshot.breakInProgress
+    winner: snapshot.winner
   };
 }
 
@@ -299,6 +290,7 @@ export class PoolRoyaleRules {
         const game = new AmericanBilliards();
         game.state.ballInHand = true;
         const snapshot = serializeAmericanState(game.state);
+        const lowest = lowestBall(snapshot.ballsOnTable) ?? 1;
         const base: FrameState = {
           balls: [],
           activePlayer: 'A',
@@ -306,12 +298,12 @@ export class PoolRoyaleRules {
           currentBreak: 0,
           phase: 'REDS_AND_COLORS',
           redsRemaining: snapshot.ballsOnTable.length,
-          ballOn: ['SOLID', 'STRIPE'],
+          ballOn: [`BALL_${lowest}`],
           frameOver: false
         };
         const hud: HudInfo = {
-          next: 'open table',
-          phase: 'open',
+          next: `ball ${lowest}`,
+          phase: 'rotation',
           scores: { A: 0, B: 0 }
         };
         base.meta = {
@@ -479,38 +471,43 @@ export class PoolRoyaleRules {
       placedFromHand: Boolean(context.placedFromHand),
       noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
-    const pottedCount = potted.filter((id) => id !== 0 && id !== 8).length;
+    const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeAmericanState(game.state);
-    const frameOver = snapshot.frameOver;
-    const ballOn = this.computeAmericanBallOn(snapshot);
-    const playerScores = this.computeAmericanScores(snapshot);
+    const lowest = lowestBall(snapshot.ballsOnTable);
+    const tableClear = snapshot.ballsOnTable.length === 0;
+    const frameOver = snapshot.frameOver || tableClear;
     const hud: HudInfo = {
-      next: frameOver
-        ? 'frame over'
-        : snapshot.isOpenTable
-          ? 'open table'
-          : ballOn.join(' / ').toLowerCase(),
-      phase: frameOver ? 'complete' : snapshot.isOpenTable ? 'open' : 'groups',
-      scores: playerScores
+      next:
+        frameOver && snapshot.winner
+          ? 'frame over'
+          : lowest != null
+            ? `ball ${lowest}`
+            : tableClear
+              ? 'frame over'
+              : 'rack clear',
+      phase: frameOver ? 'complete' : 'rotation',
+      scores: { ...snapshot.scores }
     };
     let winner: FrameState['winner'];
     if (frameOver) {
       if (snapshot.winner === 'A' || snapshot.winner === 'B' || snapshot.winner === 'TIE') {
         winner = snapshot.winner;
-      }
+      } else if (snapshot.scores.A > snapshot.scores.B) winner = 'A';
+      else if (snapshot.scores.B > snapshot.scores.A) winner = 'B';
+      else winner = 'TIE';
     }
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
       players: {
-        A: { ...state.players.A, score: playerScores.A },
-        B: { ...state.players.B, score: playerScores.B }
+        A: { ...state.players.A, score: snapshot.scores.A },
+        B: { ...state.players.B, score: snapshot.scores.B }
       },
       currentBreak:
         !result.foul && game.state.currentPlayer === state.activePlayer && pottedCount > 0
           ? (state.currentBreak ?? 0) + pottedCount
           : 0,
-      ballOn: frameOver ? [] : ballOn,
+      ballOn: lowest != null && !frameOver ? [`BALL_${lowest}`] : [],
       frameOver,
       winner,
       foul: result.foul
@@ -523,52 +520,10 @@ export class PoolRoyaleRules {
         variant: 'american',
         state: snapshot,
         hud,
-        breakInProgress: snapshot.breakInProgress
+        breakInProgress: false
       } satisfies PoolMeta
     };
     return nextState;
-  }
-
-  private computeAmericanScores(state: AmericanSerializedState): { A: number; B: number } {
-    const solidsRemaining = state.ballsOnTable.filter((id) => id >= 1 && id <= 7).length;
-    const stripesRemaining = state.ballsOnTable.filter((id) => id >= 9 && id <= 15).length;
-    const solidsPotted = 7 - solidsRemaining;
-    const stripesPotted = 7 - stripesRemaining;
-    return {
-      A:
-        state.assignments.A === 'solids'
-          ? solidsPotted
-          : state.assignments.A === 'stripes'
-            ? stripesPotted
-            : 0,
-      B:
-        state.assignments.B === 'solids'
-          ? solidsPotted
-          : state.assignments.B === 'stripes'
-            ? stripesPotted
-            : 0
-    };
-  }
-
-  private computeAmericanBallOn(state: AmericanSerializedState): string[] {
-    if (state.frameOver) return [];
-    if (state.isOpenTable) {
-      const hasSolids = state.ballsOnTable.some((id) => id >= 1 && id <= 7);
-      const hasStripes = state.ballsOnTable.some((id) => id >= 9 && id <= 15);
-      const targets: string[] = [];
-      if (hasSolids) targets.push('SOLID');
-      if (hasStripes) targets.push('STRIPE');
-      if (targets.length === 0 && state.ballsOnTable.includes(8)) targets.push('BLACK');
-      return targets;
-    }
-    const current = state.currentPlayer;
-    const assignment = state.assignments[current];
-    const hasSolids = state.ballsOnTable.some((id) => id >= 1 && id <= 7);
-    const hasStripes = state.ballsOnTable.some((id) => id >= 9 && id <= 15);
-    if (assignment === 'solids' && hasSolids) return ['SOLID'];
-    if (assignment === 'stripes' && hasStripes) return ['STRIPE'];
-    if (state.ballsOnTable.includes(8)) return ['BLACK'];
-    return [];
   }
 
   private applyNineBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
