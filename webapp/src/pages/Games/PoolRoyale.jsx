@@ -1061,7 +1061,7 @@ const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outwa
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // match Snooker Royal middle jaw inner lip
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.965; // tighten the middle jaw inner lip for a smaller rounded cut
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -1091,16 +1091,16 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // match Snooker Royal middle jaw reach
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match Snooker Royal middle jaw arc radius
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // match Snooker Royal middle jaw depth
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.3; // trim middle jaw reach slightly while preserving the radius and height
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the middle jaw arc radius aligned with the baseline profile
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // match Snooker Royal middle jaw outward shift
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.035; // reduce the outward shift so the rounded cut matches the earlier jaw size
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // match Snooker Royal middle jaw edge trim
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // restore the full jaw shoulder so the middle pocket trim matches the earlier build
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.97; // match Snooker Royal collision arc
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep collision arc true to the jaw outer radius for precise pocket mapping
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -7940,9 +7940,9 @@ export function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.06; // pull cushions slightly inward toward the table center
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.004; // ease the short-rail cushions back toward center
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.008; // nudge the long rails inward a touch more
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.085; // push the cushions slightly farther outward to match the Snooker Royal rail edge
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
@@ -12753,7 +12753,6 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
-  const replayPotFocusRef = useRef(null);
   const waitForActiveReplay = useCallback(
     (timeoutMs = 8000) =>
       new Promise((resolve) => {
@@ -18586,26 +18585,6 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const now = performance.now();
-          const replayPotFocus = replayPotFocusRef.current;
-          if (replayPotFocus?.until && now > replayPotFocus.until) {
-            replayPotFocusRef.current = null;
-          }
-          if (replayPotFocusRef.current?.center) {
-            const focusTarget = replayPotFocusRef.current.center.clone();
-            const replayCamera = resolveReplayTopViewCamera({
-              focusOverride: focusTarget,
-              minTargetY
-            });
-            if (replayCamera?.position) {
-              return {
-                position: replayCamera.position,
-                target: replayCamera.target ?? focusTarget,
-                fov: replayCamera.fov ?? fovSnapshot,
-                key: replayPotFocusRef.current.key ?? 'pocket:replay'
-              };
-            }
-          }
           const pocketActive = pocketCameraStateRef.current && activeShotView?.mode === 'pocket';
           const pocketKey = pocketActive
             ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
@@ -18879,6 +18858,9 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return true;
           };
+          if (hasCueSnapshots) {
+            return;
+          }
           if (!stroke) {
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
@@ -26685,14 +26667,6 @@ const powerRef = useRef(hud.power);
                   }
                 }
               }
-              const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
-              if (shotRecording && !pocketCameraStateRef.current) {
-                replayPotFocusRef.current = {
-                  center: new THREE.Vector3(c.x, BALL_CENTER_Y, c.y),
-                  until: performance.now() + POCKET_VIEW_POST_POT_HOLD_MS,
-                  key: `pocket:${pocketId}`
-                };
-              }
               if (shotRecording) {
                 recordReplayFrame(performance.now());
               }
@@ -26736,6 +26710,7 @@ const powerRef = useRef(hud.power);
                   });
                 }
               }
+              const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
