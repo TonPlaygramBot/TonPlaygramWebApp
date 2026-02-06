@@ -616,27 +616,27 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.22; // trim the side fascia reach so the middle chrome ends cleanly at the side rail edge
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.25; // expand the middle fascia slightly toward the diamonds on both ends
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.96; // reduce outside reach so the chrome ends flush with the side rail
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.03; // trim the plate ends a touch more so the middle chrome stops closer to the corner pockets
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.01; // trim the outer fascia extension so the outside edge tucks in slightly
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.02; // reduce the middle chrome bias toward the corner pockets for a tighter span
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
-const CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE = 0.56; // trim the opposite side of the middle pocket chrome so it ends flush past the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the snooker fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.16; // open the rounded chrome cut a touch more around the middle pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // tighten the middle rail rounded cuts to keep them smaller than the chrome plates
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wood cutouts centered on the middle pocket line
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1042,7 +1042,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = true;
+const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -1185,12 +1185,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.965; // shrink the middle pocket mouth width a touch more so the radius tightens up further
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.97; // match snooker middle pocket mouth width
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.975; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.985; // match snooker middle pocket cut size
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1694,7 +1694,7 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.14; // pull the cushion noses slightly inward toward the table center
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // pull the cushion noses slightly farther inward toward the table center
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -4940,7 +4940,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.5; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.47; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -8047,16 +8047,17 @@ export function Table3D(
   );
   const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
+    chromeOuterHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
   const chromePlateBaseHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
+    chromeOuterHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
   );
   const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
   const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
+  const chromeSideOuterFlushTrim = TABLE.THICK * CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
@@ -8068,18 +8069,6 @@ export function Table3D(
   const chromePlateHeight = Math.max(
     MICRO_EPS,
     chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
-      chromeCornerEdgeTrim +
-      chromeCornerFieldExtension -
-      chromeOuterFlushTrim * 2
-  );
-  const sideChromePlateBaseHeight = Math.max(
-    MICRO_EPS,
-    chromeOuterHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
-      chromeCornerPlateTrim
-  );
-  const sideChromePlateHeightBase = Math.max(
-    MICRO_EPS,
-    sideChromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
       chromeCornerEdgeTrim +
       chromeCornerFieldExtension -
       chromeOuterFlushTrim * 2
@@ -8111,7 +8100,7 @@ export function Table3D(
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
       sideChromePlateWidthExpansion -
-      chromeOuterFlushTrim * 2
+      chromeSideOuterFlushTrim * 2
   );
   sideChromePlateWidth = Math.max(
     MICRO_EPS,
@@ -8119,9 +8108,6 @@ export function Table3D(
   );
   const sideChromeOuterExtension =
     TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE;
-  const sideChromeOuterTrim =
-    sideChromeOuterExtension +
-    TABLE.THICK * CHROME_SIDE_PLATE_OUTER_TRIM_EXTRA_SCALE;
   const sidePlateHalfHeightLimit = Math.max(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
@@ -8135,7 +8121,7 @@ export function Table3D(
   const sideChromePlateHeight = Math.min(
     Math.max(
       MICRO_EPS,
-      sideChromePlateHeightBase * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2
+      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeSideOuterFlushTrim * 2
     ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
@@ -8731,12 +8717,12 @@ export function Table3D(
       { id: 'sideLeft', sx: -1 },
       { id: 'sideRight', sx: 1 }
     ].forEach(({ id, sx }) => {
-      let plateWidth = sideChromePlateWidth + sideChromeOuterExtension - sideChromeOuterTrim;
-      const baseCenterX =
-        sx *
-        (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
-          (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
-      let centerX = baseCenterX + sx * ((sideChromeOuterExtension - sideChromeOuterTrim) / 2);
+    let plateWidth = sideChromePlateWidth + sideChromeOuterExtension;
+    const baseCenterX =
+      sx *
+      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
+        (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
+    let centerX = baseCenterX + sx * (sideChromeOuterExtension / 2);
       const baseOuterEdge = Math.abs(centerX) + plateWidth / 2;
       if (baseOuterEdge > sideChromeOuterEdgeLimit) {
         const overrun = baseOuterEdge - sideChromeOuterEdgeLimit;
@@ -16986,9 +16972,7 @@ const powerRef = useRef(hud.power);
           };
           const cameraA = replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null;
           const cameraB = replayFrameCamera?.frameB ?? cameraA;
-          const isPocketFrame = (frame) =>
-            typeof frame?.key === 'string' && frame.key.startsWith('pocket:');
-          const useReplayFrame = isPocketFrame(cameraA) || isPocketFrame(cameraB);
+          const useReplayFrame = Boolean(cameraA || cameraB);
           const resolvedCameraA = useReplayFrame ? cameraA : null;
           const resolvedCameraB = useReplayFrame ? cameraB : resolvedCameraA;
           const alpha = THREE.MathUtils.clamp(replayFrameCamera?.alpha ?? 0, 0, 1);
@@ -18578,9 +18562,9 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
-            ? fallbackCamera.fov
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
             : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
@@ -18589,7 +18573,7 @@ const powerRef = useRef(hud.power);
           const pocketKey = pocketActive
             ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
             : null;
-          const cameraKey = pocketKey ?? 'overhead';
+          const cameraKey = pocketKey ?? 'broadcast';
           const lock = replayCameraLockRef.current;
           if (lock.key === cameraKey && lock.snapshot) {
             return lock.snapshot;
@@ -18598,24 +18582,10 @@ const powerRef = useRef(hud.power);
           let resolvedTarget = null;
           let resolvedFov = fovSnapshot;
           let resolvedMinTargetY = null;
-          if (pocketActive) {
-            const pocketCamera = activeRenderCameraRef.current ?? null;
-            resolvedPosition = pocketCamera?.position?.clone?.() ?? null;
-            resolvedTarget = targetSnapshot;
-            resolvedFov = Number.isFinite(pocketCamera?.fov) ? pocketCamera.fov : fovSnapshot;
-          } else {
-            const overheadCamera = resolveRailOverheadReplayCamera({
-              focusOverride: targetSnapshot,
-              minTargetY
-            });
-            resolvedPosition = overheadCamera?.position?.clone?.() ??
-              fallbackCamera?.position?.clone?.() ?? null;
-            resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-            resolvedFov = Number.isFinite(overheadCamera?.fov)
-              ? overheadCamera.fov
-              : fovSnapshot;
-            resolvedMinTargetY = overheadCamera?.minTargetY ?? null;
-          }
+          resolvedPosition = activeCamera?.position?.clone?.() ?? null;
+          resolvedTarget = targetSnapshot;
+          resolvedFov = Number.isFinite(activeCamera?.fov) ? activeCamera.fov : fovSnapshot;
+          resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
