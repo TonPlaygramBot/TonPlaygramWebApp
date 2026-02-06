@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaUserFriends, FaGamepad, FaComments, FaUsers } from 'react-icons/fa';
+import { FaUserFriends, FaGamepad, FaComments, FaUsers, FaVideo } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
 import { socket } from '../utils/socket.js';
 import { getTelegramId } from '../utils/telegram.js';
@@ -43,7 +43,48 @@ export default function HomeSocialHub() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [invites, setInvites] = useState(() => loadStoredInvites());
 
-  const visibleInvites = useMemo(() => invites.slice(0, 3), [invites]);
+  const receivedInvites = useMemo(
+    () =>
+      invites.filter(
+        (invite) =>
+          invite.fromId !== telegramId &&
+          invite.fromTelegramId !== telegramId &&
+          invite.fromAccountId !== telegramId
+      ),
+    [invites, telegramId]
+  );
+  const sentInvites = useMemo(
+    () =>
+      invites.filter(
+        (invite) =>
+          invite.fromId === telegramId ||
+          invite.fromTelegramId === telegramId ||
+          invite.fromAccountId === telegramId
+      ),
+    [invites, telegramId]
+  );
+  const visibleInvites = useMemo(() => receivedInvites.slice(0, 3), [receivedInvites]);
+  const inviteHistory = useMemo(() => invites.slice(0, 5), [invites]);
+  const incomingRequests = useMemo(
+    () =>
+      friendRequests.filter(
+        (req) =>
+          req.fromId !== telegramId &&
+          req.fromTelegramId !== telegramId &&
+          req.fromAccountId !== telegramId
+      ),
+    [friendRequests, telegramId]
+  );
+  const outgoingRequests = useMemo(
+    () =>
+      friendRequests.filter(
+        (req) =>
+          req.fromId === telegramId ||
+          req.fromTelegramId === telegramId ||
+          req.fromAccountId === telegramId
+      ),
+    [friendRequests, telegramId]
+  );
 
   useEffect(() => {
     let active = true;
@@ -69,7 +110,8 @@ export default function HomeSocialHub() {
   useEffect(() => {
     const onInvite = (invite) => {
       setInvites((prev) => {
-        const next = [invite, ...prev].slice(0, 5);
+        const nextInvite = { ...invite, receivedAt: Date.now() };
+        const next = [nextInvite, ...prev].slice(0, 5);
         persistInvites(next);
         return next;
       });
@@ -86,10 +128,10 @@ export default function HomeSocialHub() {
 
   return (
     <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-subtext">Social</p>
-          <h3 className="text-lg font-semibold text-white">Wall & Inbox Hub</h3>
+          <h3 className="text-lg font-semibold text-white">Wall & Messages Hub</h3>
         </div>
         <Link to="/trending" className="text-xs text-primary hover:text-primary-hover">
           Open Wall
@@ -117,7 +159,7 @@ export default function HomeSocialHub() {
         >
           <div>
             <p className="text-sm font-semibold text-white flex items-center gap-2">
-              <FaComments className="text-primary" /> Inbox
+              <FaComments className="text-primary" /> Messages
             </p>
             <p className="text-xs text-subtext">
               {unreadCount ? `${unreadCount} unread messages` : 'Chat with your friends.'}
@@ -128,74 +170,180 @@ export default function HomeSocialHub() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+        <div className="rounded-lg border border-border bg-background/40 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white flex items-center gap-2">
               <FaUserFriends className="text-primary" /> Friend Requests
             </p>
-            <span className="text-xs text-subtext">{friendRequests.length} pending</span>
+            <span className="text-xs text-subtext">
+              {incomingRequests.length} pending
+            </span>
           </div>
-          {friendRequests.length === 0 ? (
-            <p className="text-xs text-subtext">No new requests right now.</p>
-          ) : (
-            <div className="space-y-2">
-              {friendRequests.slice(0, 3).map((req) => (
-                <div
-                  key={req._id || req.requestId || req.fromId}
-                  className="flex items-center justify-between text-xs text-subtext border border-border rounded p-2"
-                >
-                  <span className="text-white">
-                    {req.fromName || req.fromNickname || req.fromId || 'Player'}
-                  </span>
-                  <button
-                    onClick={() => handleAccept(req._id || req.requestId)}
-                    className="px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white text-[11px]"
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-subtext">
+              Incoming
+            </p>
+            {incomingRequests.length === 0 ? (
+              <p className="text-xs text-subtext">No new requests right now.</p>
+            ) : (
+              <div className="space-y-2">
+                {incomingRequests.slice(0, 3).map((req) => (
+                  <div
+                    key={req._id || req.requestId || req.fromId}
+                    className="flex items-center justify-between text-xs text-subtext border border-border rounded p-2"
                   >
-                    Accept
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                    <span className="text-white">
+                      {req.fromName || req.fromNickname || req.fromId || 'Player'}
+                    </span>
+                    <button
+                      onClick={() => handleAccept(req._id || req.requestId)}
+                      className="px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white text-[11px]"
+                    >
+                      Accept
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-subtext">
+              Sent
+            </p>
+            {outgoingRequests.length === 0 ? (
+              <p className="text-xs text-subtext">No outgoing requests yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {outgoingRequests.slice(0, 3).map((req) => (
+                  <div
+                    key={req._id || req.requestId || req.toId}
+                    className="flex items-center justify-between text-xs text-subtext border border-border rounded p-2"
+                  >
+                    <span className="text-white">
+                      {req.toName || req.toNickname || req.toId || 'Player'}
+                    </span>
+                    <span className="text-[10px] text-subtext">Pending</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+        <div className="rounded-lg border border-border bg-background/40 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white flex items-center gap-2">
-              <FaGamepad className="text-primary" /> Game Requests
+              <FaGamepad className="text-primary" /> Game Invites
             </p>
             <span className="text-xs text-subtext">{invites.length} active</span>
           </div>
-          {visibleInvites.length === 0 ? (
-            <p className="text-xs text-subtext">
-              New invites appear here when friends challenge you.
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-subtext">
+              Received
             </p>
-          ) : (
-            <div className="space-y-2">
-              {visibleInvites.map((invite, idx) => (
-                <div
-                  key={`${invite.roomId || 'invite'}-${idx}`}
-                  className="flex items-center justify-between text-xs text-subtext border border-border rounded p-2"
-                >
-                  <div>
-                    <p className="text-white">
-                      {invite.fromName || invite.fromId || 'Friend'} ·{' '}
-                      {(invite.game || 'snake').toUpperCase()}
-                    </p>
-                    <p className="text-[10px] text-subtext">
-                      Stake: {invite.amount || 0} {invite.token || 'TPC'}
-                    </p>
-                  </div>
-                  <Link
-                    to={`/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`}
-                    className="px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white text-[11px]"
+            {visibleInvites.length === 0 ? (
+              <p className="text-xs text-subtext">
+                New invites appear here when friends challenge you.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {visibleInvites.map((invite, idx) => (
+                  <div
+                    key={`${invite.roomId || 'invite'}-${idx}`}
+                    className="flex items-center justify-between text-xs text-subtext border border-border rounded p-2"
                   >
-                    Join
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
+                    <div>
+                      <p className="text-white">
+                        {invite.fromName || invite.fromId || 'Friend'} ·{' '}
+                        {(invite.game || 'snake').toUpperCase()}
+                      </p>
+                      <p className="text-[10px] text-subtext">
+                        Stake: {invite.amount || 0} {invite.token || 'TPC'}
+                      </p>
+                    </div>
+                    <Link
+                      to={`/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`}
+                      className="px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white text-[11px]"
+                    >
+                      Join
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-subtext">
+              Sent
+            </p>
+            {sentInvites.length === 0 ? (
+              <p className="text-xs text-subtext">
+                No sent invites yet. Challenge friends to track them here.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {sentInvites.slice(0, 2).map((invite, idx) => (
+                  <div
+                    key={`sent-${invite.roomId || invite.game || 'invite'}-${idx}`}
+                    className="flex items-center justify-between text-[11px] text-subtext border border-border rounded p-2"
+                  >
+                    <span className="text-white">
+                      {(invite.game || 'snake').toUpperCase()} ·{' '}
+                      {invite.toName || invite.toId || 'Friend'}
+                    </span>
+                    <span className="text-[10px] text-subtext">Pending</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-subtext">
+              Invite History
+            </p>
+            {inviteHistory.length === 0 ? (
+              <p className="text-xs text-subtext">No invite history yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {inviteHistory.map((invite, idx) => (
+                  <div
+                    key={`history-${invite.roomId || invite.game || 'invite'}-${idx}`}
+                    className="flex items-center justify-between text-[11px] text-subtext border border-border rounded p-2"
+                  >
+                    <span className="text-white">
+                      {(invite.game || 'snake').toUpperCase()} ·{' '}
+                      {invite.fromName || invite.fromId || 'Friend'}
+                    </span>
+                    <span className="text-[10px] text-subtext">
+                      {invite.receivedAt ? new Date(invite.receivedAt).toLocaleDateString() : 'Recently'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-white flex items-center gap-2">
+            <FaVideo className="text-primary" /> Clips & Highlights
+          </p>
+          <span className="text-xs text-subtext">Share</span>
+        </div>
+        <p className="text-xs text-subtext">
+          Upload short clips, add a caption, and share to the wall or direct messages.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            type="file"
+            accept="video/*"
+            className="text-xs text-subtext file:mr-3 file:rounded-full file:border-0 file:bg-primary file:px-3 file:py-1 file:text-[11px] file:font-semibold file:text-background"
+          />
+          <button className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background">
+            Upload Clip
+          </button>
         </div>
       </div>
     </div>

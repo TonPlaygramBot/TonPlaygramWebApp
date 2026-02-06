@@ -569,7 +569,7 @@ export default function MyAccount() {
               href="/messages"
               className="underline text-red-600 text-outline-white relative"
             >
-              Inbox
+              Messages
               {unread > 0 && (
                 <span className="absolute -top-1 -right-3 bg-red-600 text-background text-xs rounded-full px-1">
                   {unread}
