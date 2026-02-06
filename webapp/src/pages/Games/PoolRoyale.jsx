@@ -917,6 +917,7 @@ function addPocketCuts(
 // to fit comfortably inside the existing mobile arena presentation.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
+const TABLE_LAYOUT_EXPANSION = 1.1; // widen the full table footprint by 10% on all sides
 const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
@@ -1048,12 +1049,12 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
-  const TABLE = {
-    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
-    THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
-  };
+const TABLE = {
+  W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_LAYOUT_EXPANSION,
+  H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_LAYOUT_EXPANSION,
+  THICK: 1.8 * TABLE_SCALE,
+  WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_LAYOUT_EXPANSION
+};
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
@@ -1133,7 +1134,10 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const BASE_PLAYFIELD_SHRINK = 0.85;
+const PLAYFIELD_SHRINK = 1; // match the snooker table layout without the extra pool shrink
+const POCKET_SIZE_COMPENSATION = BASE_PLAYFIELD_SHRINK / TABLE_LAYOUT_EXPANSION;
+const BALL_SIZE_COMPENSATION = POCKET_SIZE_COMPENSATION;
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -1153,7 +1157,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 1.2828; // increase balls another 15% for stronger table presence
-const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
+const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE * BALL_SIZE_COMPENSATION;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
@@ -1192,8 +1196,9 @@ const POCKET_SIDE_MOUTH_SCALE =
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
 const SIDE_POCKET_CUT_SCALE = 0.985; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
-  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE * POCKET_SIZE_COMPENSATION;
+const POCKET_SIDE_MOUTH =
+  SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE * POCKET_SIZE_COMPENSATION;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1208,7 +1213,7 @@ const CORNER_CHROME_NOTCH_RADIUS =
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
   POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
-const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
+const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS * POCKET_SIZE_COMPENSATION;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
