@@ -40,7 +40,7 @@ export default function InboxWidget() {
 
   return (
     <div className="p-2 border border-border rounded bg-surface space-y-2">
-      <h3 className="font-semibold">Inbox</h3>
+      <h3 className="font-semibold">Messages</h3>
       <div className="flex space-x-2 text-sm">
         <div className="w-1/3 space-y-1">
           {friends.map((f) => (

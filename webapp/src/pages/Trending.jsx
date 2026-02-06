@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaTelegramPlane, FaFacebook, FaGamepad, FaBolt, FaFilter } from 'react-icons/fa';
+import {
+  FaTelegramPlane,
+  FaFacebook,
+  FaGamepad,
+  FaBolt,
+  FaFilter,
+  FaVideo
+} from 'react-icons/fa';
 import {
   AiFillHeart,
   AiOutlineShareAlt,
@@ -52,6 +59,7 @@ export default function Trending() {
   const [commentText, setCommentText] = useState({});
   const [postText, setPostText] = useState('');
   const [postTags, setPostTags] = useState('');
+  const [clipFile, setClipFile] = useState(null);
   const [activeTab, setActiveTab] = useState('for-you');
   const [isPosting, setIsPosting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,6 +126,7 @@ export default function Trending() {
       await createWallPost(telegramId, telegramId, postText.trim(), '', '', tags);
       setPostText('');
       setPostTags('');
+      setClipFile(null);
       refresh();
     } finally {
       setIsPosting(false);
@@ -193,7 +202,7 @@ export default function Trending() {
               to="/messages"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-border text-sm text-white"
             >
-              <FaBolt /> Squad Inbox
+              <FaBolt /> Squad Messages
             </Link>
           </div>
         </div>
@@ -239,6 +248,34 @@ export default function Trending() {
               placeholder="What are you playing today?"
               className="w-full min-h-[110px] rounded-xl border border-border bg-background/60 px-3 py-2 text-sm text-white focus:outline-none"
             />
+            <div className="rounded-xl border border-border bg-background/60 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-white flex items-center gap-2">
+                  <FaVideo className="text-primary" /> Clip upload
+                </p>
+                <span className="text-[11px] text-subtext">Up to 60s</span>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(event) => setClipFile(event.target.files?.[0] || null)}
+                  className="text-xs text-subtext file:mr-3 file:rounded-full file:border-0 file:bg-primary file:px-3 file:py-1 file:text-[11px] file:font-semibold file:text-background"
+                />
+                <button
+                  type="button"
+                  onClick={() => setClipFile(null)}
+                  className="rounded-full border border-border px-4 py-2 text-xs text-white"
+                >
+                  Clear
+                </button>
+              </div>
+              {clipFile && (
+                <p className="text-[11px] text-subtext">
+                  Selected clip: {clipFile.name}
+                </p>
+              )}
+            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 type="text"
