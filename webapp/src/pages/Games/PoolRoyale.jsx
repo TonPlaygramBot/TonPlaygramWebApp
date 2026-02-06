@@ -1590,7 +1590,9 @@ const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
+const BASE_HEIGHT_REDUCTION = 0.8; // shorten table bases by 20% for the lowered stance
+const LEG_LENGTH_SCALE =
+  BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const BASE_LEG_ROOM_HEIGHT =
@@ -1607,7 +1609,7 @@ const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
-const BASE_HEIGHT_FILL = 1; // grow bases upward so the stance stays consistent with the shorter skirt
+const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
@@ -1694,7 +1696,7 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.2; // pull the cushion noses slightly farther inward toward the table center
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.26; // pull the cushion noses farther inward toward the table center
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -7940,9 +7942,9 @@ export function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.085; // push the cushions slightly farther outward to match the Snooker Royal rail edge
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.045; // keep cushions closer to center to avoid overlap with rails
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.01; // pull short-rail cushions inward so they clear the wood rails
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // nudge long-rail cushions inward for cleaner rail separation
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
