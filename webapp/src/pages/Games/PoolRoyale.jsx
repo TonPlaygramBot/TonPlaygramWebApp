@@ -1061,7 +1061,7 @@ const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outwa
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.965; // tighten the middle jaw inner lip for a smaller rounded cut
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // round the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -1091,16 +1091,16 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.3; // trim middle jaw reach slightly while preserving the radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the middle jaw arc radius aligned with the baseline profile
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // add a hint of extra depth so the enlarged jaws stay balanced
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.035; // reduce the outward shift so the rounded cut matches the earlier jaw size
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // restore the full jaw shoulder so the middle pocket trim matches the earlier build
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep collision arc true to the jaw outer radius for precise pocket mapping
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.97; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1694,7 +1694,7 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playable face and cushion nose further inward to match the expanded top surface
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.14; // pull the cushion noses slightly inward toward the table center
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -18692,7 +18692,7 @@ const powerRef = useRef(hud.power);
             ? {
                 position: serializeVector3Snapshot(cueStick.position),
                 rotation: serializeQuaternionSnapshot(cueStick.quaternion),
-                visible: true
+                visible: cueStick.visible
               }
             : null;
           shotRecording.frames.push({
@@ -21445,13 +21445,12 @@ const powerRef = useRef(hud.power);
         const frameSnapshot = frameRef.current ?? frameState;
         const meta = frameSnapshot?.meta;
         if (!meta || typeof meta !== 'object') return false;
-        const breakInProgress = Boolean(
-          meta.breakInProgress ??
-            (meta.state && typeof meta.state === 'object' ? meta.state.breakInProgress : false)
-        );
-        if (breakInProgress) return true;
         if (meta.variant === 'uk') {
-          return Boolean(meta.state?.breakInProgress);
+          return Boolean(
+            meta.state?.mustPlayFromBaulk ??
+              meta.state?.breakInProgress ??
+              meta.breakInProgress
+          );
         }
         return false;
       };
@@ -26887,7 +26886,7 @@ const powerRef = useRef(hud.power);
           }
         }
         // Fund i goditjes
-          if (shotRecording && shooting) {
+          if (shotRecording && (shooting || pocketDropRef.current.size > 0)) {
             recordReplayFrame(now);
           }
           if (shooting) {
