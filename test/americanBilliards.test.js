@@ -2,67 +2,71 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AmericanBilliards } from '../lib/americanBilliards.js';
 
-test('hitting wrong ball first is foul and points to opponent', () => {
+test('open table assigns groups on first legal pot', () => {
   const game = new AmericanBilliards();
   const res = game.shotTaken({
-    contactOrder: [2],
-    potted: [2],
+    contactOrder: [3],
+    potted: [3],
     cueOffTable: false,
     placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+  assert.equal(game.state.isOpenTable, false);
+  assert.equal(game.state.assignments.A, 'SOLIDS');
+  assert.equal(game.state.assignments.B, 'STRIPES');
+});
+
+test('eight ball on the break is a win', () => {
+  const game = new AmericanBilliards();
+  const res = game.shotTaken({
+    contactOrder: [8],
+    potted: [8],
+    cueOffTable: false,
+    placedFromHand: false
+  });
+  assert.equal(res.frameOver, true);
+  assert.equal(res.winner, 'A');
+});
+
+test('wrong first contact after assignment is a foul', () => {
+  const game = new AmericanBilliards();
+  game.shotTaken({ contactOrder: [2], potted: [2], cueOffTable: false, placedFromHand: false });
+  const res = game.shotTaken({
+    contactOrder: [9],
+    potted: [],
+    cueOffTable: false,
+    placedFromHand: false,
+    noCushionAfterContact: false
   });
   assert.equal(res.foul, true);
   assert.equal(res.reason, 'wrong first contact');
   assert.equal(res.nextPlayer, 'B');
   assert.equal(res.ballInHandNext, true);
-  assert.equal(res.scores.B, 2);
-  assert.equal(game.state.ballsOnTable.has(2), true);
 });
 
-test('legal pot adds points and keeps turn', () => {
+test('early eight-ball is a loss', () => {
   const game = new AmericanBilliards();
-  const res1 = game.shotTaken({
-    contactOrder: [1],
-    potted: [1],
-    cueOffTable: false,
-    placedFromHand: false
-  });
-  assert.equal(res1.foul, false);
-  assert.equal(res1.nextPlayer, 'A');
-  assert.equal(res1.scores.A, 1);
-  const res2 = game.shotTaken({
-    contactOrder: [2],
-    potted: [],
-    cueOffTable: false,
-    placedFromHand: false
-  });
-  assert.equal(res2.nextPlayer, 'B');
-});
-
-test('scratch gives opponent points and ball in hand', () => {
-  const game = new AmericanBilliards();
+  game.shotTaken({ contactOrder: [10], potted: [10], cueOffTable: false, placedFromHand: false });
   const res = game.shotTaken({
-    contactOrder: [1],
-    potted: [1, 0],
+    contactOrder: [8],
+    potted: [8],
     cueOffTable: false,
     placedFromHand: false
   });
-  assert.equal(res.foul, true);
-  assert.equal(res.reason, 'scratch');
-  assert.equal(res.nextPlayer, 'B');
-  assert.equal(res.ballInHandNext, true);
-  assert.equal(res.scores.B, 1);
-  assert.equal(game.state.ballsOnTable.has(1), true);
+  assert.equal(res.frameOver, true);
+  assert.equal(res.winner, 'B');
 });
 
-test('eight ball is treated as normal', () => {
+test('clearing group then potting eight wins', () => {
   const game = new AmericanBilliards();
   game.shotTaken({ contactOrder: [1], potted: [1], cueOffTable: false, placedFromHand: false });
+  game.state.ballsOnTable = new Set([8]);
   const res = game.shotTaken({
-    contactOrder: [2],
-    potted: [2, 8],
+    contactOrder: [8],
+    potted: [8],
     cueOffTable: false,
     placedFromHand: false
   });
-  assert.equal(res.foul, false);
-  assert.equal(res.scores.A, 1 + 2 + 8);
+  assert.equal(res.frameOver, true);
+  assert.equal(res.winner, 'A');
 });
