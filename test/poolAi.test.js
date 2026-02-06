@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planShot, estimateCueAfterShot } from '../lib/poolAi.js';
 
-test('planShot targets lowest numbered ball', () => {
+test('planShot targets lowest numbered ball on an open table', () => {
   const req = {
-    game: 'AMERICAN_BILLIARDS',
+    game: 'AMERICAN_8BALL',
     state: {
       balls: [
         { id: 0, x: 300, y: 250, vx: 0, vy: 0, pocketed: false },
@@ -30,9 +30,9 @@ test('planShot targets lowest numbered ball', () => {
   assert(decision.rationale.length > 0);
 });
 
-test('eight ball is treated as normal', () => {
+test('eight ball becomes the target when it is the only object ball', () => {
   const req = {
-    game: 'AMERICAN_BILLIARDS',
+    game: 'AMERICAN_8BALL',
     state: {
       balls: [
         { id: 0, x: 100, y: 100, vx: 0, vy: 0, pocketed: false },
@@ -56,7 +56,7 @@ test('eight ball is treated as normal', () => {
 
 test('ball in hand aims for straight shot', () => {
   const req = {
-    game: 'AMERICAN_BILLIARDS',
+    game: 'AMERICAN_8BALL',
     state: {
       balls: [
         { id: 0, x: 0, y: 0, vx: 0, vy: 0, pocketed: false },
@@ -88,7 +88,7 @@ test('ball in hand aims for straight shot', () => {
 
 test('avoids pocket with blocking ball at entrance', () => {
   const req = {
-    game: 'AMERICAN_BILLIARDS',
+    game: 'AMERICAN_8BALL',
     state: {
       balls: [
         { id: 0, x: 50, y: 100, vx: 0, vy: 0, pocketed: false },
@@ -162,7 +162,7 @@ test('UNASSIGNED group defers to ballOn value', () => {
 
 test('prefers target with smallest cut angle', () => {
   const req = {
-    game: 'AMERICAN_BILLIARDS',
+    game: 'AMERICAN_8BALL',
     state: {
       balls: [
         { id: 0, x: 100, y: 250, vx: 0, vy: 0, pocketed: false },
@@ -218,7 +218,7 @@ test('straight shots stay on line regardless of power', () => {
 
 test('avoids unnecessary spin when natural position is good', () => {
   const req = {
-    game: 'AMERICAN_BILLIARDS',
+    game: 'AMERICAN_8BALL',
     state: {
       balls: [
         { id: 0, x: 200, y: 250, vx: 0, vy: 0, pocketed: false },

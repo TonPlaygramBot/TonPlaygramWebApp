@@ -44,7 +44,7 @@ describe('PoolRoyaleRules', () => {
     expect(foulState.ballOn).toContain('YELLOW');
   });
 
-  test('American variant handles break transition, fouls, and ball-in-hand', () => {
+  test('American 8-ball handles break transition, fouls, and ball-in-hand', () => {
     const rules = new PoolRoyaleRules('american');
     const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
     const initialMeta = initialFrame.meta as any;
@@ -52,7 +52,7 @@ describe('PoolRoyaleRules', () => {
     expect(initialMeta?.variant).toBe('american');
     expect(initialMeta?.breakInProgress).toBe(true);
     expect(initialMeta?.state?.ballInHand).toBe(true);
-    expect(initialMeta?.hud?.next).toBe('ball 1');
+    expect(initialMeta?.hud?.next).toBe('open table');
 
     const breakEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 1, ballId: 1 },
@@ -68,12 +68,12 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
-    expect(cleared.ballOn).toEqual(['BALL_3']);
-    expect(clearedMeta?.hud?.next).toBe('ball 3');
-    expect(cleared.players.A.score).toBe(3);
+    expect(cleared.ballOn).toEqual(['SOLIDS']);
+    expect(clearedMeta?.hud?.next).toBe('solids');
+    expect(cleared.players.A.score).toBe(2);
 
     const scratchEvents: ShotEvent[] = [
-      { type: 'HIT', firstContact: 3, ballId: 3 },
+      { type: 'HIT', firstContact: 9, ballId: 9 },
       { type: 'POTTED', ball: 0, pocket: 'TR', ballId: 'cue' }
     ];
     const scratchContext: ShotContext = { cueBallPotted: true, contactMade: true };
@@ -83,8 +83,8 @@ describe('PoolRoyaleRules', () => {
     expect(scratch.foul?.reason).toBe('scratch');
     expect(scratchMeta?.state?.ballInHand).toBe(true);
     expect(scratch.activePlayer).toBe('B');
-    expect(scratch.ballOn).toEqual(['BALL_3']);
-    expect(scratchMeta?.hud?.phase).toBe('rotation');
+    expect(scratch.ballOn).toEqual(['STRIPES']);
+    expect(scratchMeta?.hud?.phase).toBe('groups');
   });
 
   test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {
