@@ -3048,19 +3048,36 @@ const isTelegramWebView = /Telegram/i.test(navigator.userAgent || '') || Boolean
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+const MAX_HDRI_CACHE_SIZE = prefersUhd ? 6 : 3;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k'];
-  const lowProfile = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
-  return lowProfile ? ['1k', '2k', '4k'] : ['2k', '4k'];
+  if (prefersUhd) return ['4k', '2k'];
+  if (isLowProfileDevice) return ['1k'];
+  return ['2k', '1k'];
+}
+function shouldLoadExternalHdri() {
+  return prefersUhd || !isLowProfileDevice;
+}
+function pruneHdriCache() {
+  if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
+  const entries = [...hdriTextureCache.entries()];
+  const overflow = Math.max(0, entries.length - MAX_HDRI_CACHE_SIZE);
+  for (let i = 0; i < overflow; i += 1) {
+    const [key, texture] = entries[i];
+    hdriTextureCache.delete(key);
+    texture?.dispose?.();
+  }
 }
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
+  if (!shouldLoadExternalHdri()) return null;
+  const allowedResolutions = resolveHdriResolutionOrder();
   const preferred = Array.isArray(variant.preferredResolutions)
-    ? variant.preferredResolutions.filter((res) => HDRI_RESOLUTION_ORDER.includes(res))
+    ? variant.preferredResolutions.filter((res) => allowedResolutions.includes(res))
     : [];
-  const order = preferred.length ? preferred : resolveHdriResolutionOrder();
+  const order = preferred.length ? preferred : allowedResolutions;
   let lastError = null;
   for (const res of order) {
     const cacheKey = `${variant.id}:${res}`;
@@ -3077,6 +3094,7 @@ async function loadHdriEnvironment(variant) {
         texture.mapping = THREE.EquirectangularReflectionMapping;
         const envMap = pmrem.fromEquirectangular(texture).texture;
         hdriTextureCache.set(cacheKey, envMap);
+        pruneHdriCache();
         texture.dispose?.();
         return envMap;
       } catch (error) {
