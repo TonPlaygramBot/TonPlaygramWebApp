@@ -969,7 +969,7 @@ const BASE_FOOTPRINT_SHRINK = 0.88; // shrink the table base footprint by 12% wi
 const SIZE_REDUCTION = 0.78; // enlarge the playfield/balls to better match Pool Royale sizing
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 1.06; // keep the playfield slightly enlarged without altering layout proportions
-const CAMERA_DISPLAY_SCALE = 0.712; // pull cameras closer to match Pool Royale ball size on the larger snooker table
+const CAMERA_DISPLAY_SCALE = 1; // match Pool Royale camera scaling for identical coordinates
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1573,7 +1573,9 @@ const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
+const BASE_HEIGHT_REDUCTION = 0.8; // shorten table bases by 20% for the lowered stance
+const LEG_LENGTH_SCALE =
+  BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const BASE_LEG_ROOM_HEIGHT =
@@ -1590,7 +1592,7 @@ const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
-const BASE_HEIGHT_FILL = 1; // grow bases upward so the stance stays consistent with the shorter skirt
+const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
@@ -4910,13 +4912,13 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.84; // match Pool Royale standing orbit coordinates
+const STANDING_VIEW_PHI = 0.95; // match Pool Royale standing orbit coordinates
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
+const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view a touch higher while staying above the cue
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the standing view dip slightly lower while still staying above the cue
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // pull the player orbit nearer to the cloth while keeping the frame airy
@@ -4924,9 +4926,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.46; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5000,9 +5002,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // match the Pool Royale 2D framing
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.05; // lift the top view slightly higher
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.04; // match the Pool Royale 2D framing
+const TOP_VIEW_RADIUS_SCALE = 1.05; // lift the 2D top view slightly higher to keep the framing airy
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045,
@@ -23477,22 +23479,18 @@ const powerRef = useRef(hud.power);
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-          const replayDecision = resolveReplayDecision({
+          let replayDecision = resolveReplayDecision({
             recording: shotRecording,
             hadObjectPot,
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          if (replayDecision && shotRecording) {
-            shotRecording.replayTags = replayDecision.tags;
-            shotRecording.zoomOnly = replayDecision.zoomOnly;
-          }
-          const shouldStartReplay =
+          let shouldStartReplay =
             !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
-          const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
-          const replayAccent = replayDecision?.primaryTag ?? 'default';
+          let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+          let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
@@ -23554,6 +23552,64 @@ const powerRef = useRef(hud.power);
             ? { ...safeState.foul }
             : null;
         }
+        const shotWasFoul = Boolean(safeState?.foul);
+        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
+          const foulBanner = 'Foul';
+          if (replayDecision) {
+            const replayTags = new Set(replayDecision.tags ?? []);
+            replayTags.add('foul');
+            replayDecision = {
+              ...replayDecision,
+              tags: Array.from(replayTags),
+              shouldReplay: true,
+              banner: replayDecision.banner ?? foulBanner,
+              primaryTag: replayDecision.primaryTag ?? 'foul'
+            };
+          } else {
+            replayDecision = {
+              shouldReplay: true,
+              banner: foulBanner,
+              zoomOnly: false,
+              tags: ['foul'],
+              primaryTag: 'foul'
+            };
+          }
+          replayBannerText = replayDecision.banner ?? foulBanner;
+          replayAccent = replayDecision.primaryTag ?? 'foul';
+        }
+        const isFinalShot =
+          Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
+        if (isFinalShot) {
+          if (replayDecision) {
+            const replayTags = new Set(replayDecision.tags ?? []);
+            replayTags.add('final');
+            replayDecision = {
+              ...replayDecision,
+              tags: Array.from(replayTags),
+              shouldReplay: true,
+              primaryTag: replayDecision.primaryTag ?? 'final'
+            };
+          } else {
+            replayDecision = {
+              shouldReplay: true,
+              banner: selectReplayBanner('final'),
+              zoomOnly: false,
+              tags: ['final'],
+              primaryTag: 'final'
+            };
+          }
+          replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
+          replayAccent = replayDecision.primaryTag ?? 'final';
+          shouldStartReplay = !skipAllReplaysRef.current;
+        }
+        if (replayDecision && shotRecording) {
+          shotRecording.replayTags = replayDecision.tags;
+          shotRecording.zoomOnly = replayDecision.zoomOnly;
+        }
+        shouldStartReplay =
+          !skipAllReplaysRef.current &&
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
