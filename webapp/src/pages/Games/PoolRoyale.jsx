@@ -1068,7 +1068,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.42; // raise rails slightly so the cushions sit higher
+const RAIL_HEIGHT = TABLE.THICK * 1.48; // raise rails slightly so the cushions sit higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1079,10 +1079,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.155; // trim the jaw height slightly so the top edge sits lower
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
+const POCKET_JAW_DEPTH_SCALE = 1.06; // extend the jaw bodies so the underside reaches deeper below the cloth
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.12; // trim the jaw height slightly so the top edge sits lower
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.015; // allow the jaw extrusion to extend farther down without lifting the top
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.21; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
@@ -1163,7 +1163,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.1545 * 0.85 * 0.9 * 1.07; // enlarge balls by 7% to match the updated visual scale
+const BALL_SIZE_SCALE = 1.1545 * 0.85 * 0.9 * 1.07 * 1.03; // enlarge balls by 7% to match the updated visual scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1192,7 +1192,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.06; // lift chalks slightly so they sit on the rail surface
+const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.085; // lift chalks slightly so they sit on the rail surface
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
@@ -1240,7 +1240,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.12; // lower the cloth surface slightly for added depth
+const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -1252,7 +1252,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.05; // lift balls slightly so they sit a touch higher above the cloth
+const BALL_CENTER_LIFT = 0; // align balls to the cloth surface to match snooker seating
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1363,9 +1363,9 @@ const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wra
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
-const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.03; // lift the cushion base slightly so the lip sits higher above the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.085; // trim the cushion tops a touch less so they sit higher than before
+const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.05; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.07; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1709,7 +1709,7 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.34; // pull long-rail cushions farther inward toward the table center
+const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.36; // pull long-rail cushions farther inward toward the table center
 const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.3; // keep short-rail cushions unchanged
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
@@ -4940,9 +4940,9 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.92; // lower the standing orbit slightly while keeping a clear top surface view
+const STANDING_VIEW_PHI = 0.95; // lower the standing orbit slightly while keeping a clear top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
+const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
 const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view a touch higher while staying above the cue
@@ -4954,9 +4954,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.39; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
