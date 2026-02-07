@@ -962,13 +962,13 @@ function addPocketCuts(
 // --------------------------------------------------
 // separate scales for table and balls
 // Dimensions tuned for the Pool Royale footprint for identical table sizing and layout.
-const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint slightly while keeping the layout aligned
+const TABLE_SIZE_SHRINK = 0.9; // tighten the table footprint slightly while keeping the layout aligned
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the lighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
-const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
-const SIZE_REDUCTION = 0.7; // keep snooker table height aligned with Pool Royale
+const TABLE_FOOTPRINT_SCALE = 0.88; // reduce the table footprint ~12% while keeping the table height unchanged
+const BASE_FOOTPRINT_SHRINK = 0.88; // shrink the table base footprint by 12% without changing overall height
+const SIZE_REDUCTION = 0.78; // enlarge the playfield/balls to better match Pool Royale sizing
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.8; // keep the playfield slightly enlarged without altering layout proportions
+const TABLE_DISPLAY_SCALE = 1.06; // keep the playfield slightly enlarged without altering layout proportions
 const CAMERA_DISPLAY_SCALE = 1; // match Pool Royale camera scaling for identical coordinates
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
@@ -1410,7 +1410,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.5; // pull pocket cameras further inward so they sit closer to the table edge
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -5049,13 +5049,11 @@ const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
-const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.32;
-const CAMERA_LOW_VIEW_PULL_RANGE = CAMERA.minR * 0.08;
+const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
-const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
-const IN_HAND_DRAG_SPEED = 1.7; // match the faster air-hockey drag pace for cue-ball placement
+const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
