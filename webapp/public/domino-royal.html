@@ -28,13 +28,9 @@
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
   #configButton:hover{background:rgba(0,0,0,.6);border-color:rgba(148,197,255,.45);}
   #configButton svg{width:1.4rem;height:1.4rem;}
-  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));max-width:min(288px, 80vw);max-height:min(80dvh, 520px);background:rgba(0,0,0,.8);color:#fff;border-radius:1.25rem;box-shadow:0 24px 40px rgba(2,6,23,.55);padding:1rem;border:1px solid rgba(255,255,255,.15);z-index:3;backdrop-filter:blur(10px);display:none;flex-direction:column;gap:0.9rem;overflow:hidden;}
+  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));max-width:min(320px, 84vw);max-height:min(72dvh, 480px);background:rgba(3,7,18,.92);color:#fff;border-radius:1.25rem;box-shadow:0 24px 40px rgba(2,6,23,.55);padding:0.85rem 1rem;border:1px solid rgba(148,197,255,.2);z-index:3;backdrop-filter:blur(10px);display:none;flex-direction:column;gap:0.65rem;overflow:hidden;}
   #configPanel.active{display:flex;}
-  .config-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;}
-  .config-eyebrow{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.4rem;color:rgba(186,230,253,.8);}
-  .config-subtitle{margin:.3rem 0 0;font-size:.7rem;line-height:1.4;color:rgba(255,255,255,.7);}
-  .config-header button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#f1f5f9;border-radius:999px;padding:.35rem;display:grid;place-items:center;transition:background .2s ease, border-color .2s ease;}
-  .config-header button:hover{background:rgba(248,250,252,.16);border-color:rgba(248,250,252,.38);}
+  #configPanel h3{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.28rem;color:rgba(148,197,255,.75);}
   #configSections{display:flex;flex-direction:column;gap:.55rem;overflow-y:auto;padding-right:.3rem;margin-right:-.3rem;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;}
   #configSections::-webkit-scrollbar{width:.35rem;}
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
@@ -77,33 +73,16 @@
   .chat-bubble{position:fixed;display:flex;align-items:center;gap:.35rem;padding:.35rem .6rem;border-radius:999px;background:rgba(8,13,26,.88);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:.7rem;font-weight:700;box-shadow:0 10px 24px rgba(0,0,0,.45);z-index:7;pointer-events:none;white-space:nowrap;}
   .chat-bubble img,.chat-bubble .avatar{width:1.2rem;height:1.2rem;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:.75rem;}
   .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem);transform:translateX(-50%);padding:.4rem .75rem;border-radius:999px;background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.18);color:#f8fafc;font-size:.72rem;font-weight:700;z-index:7;box-shadow:0 10px 24px rgba(0,0,0,.45);pointer-events:none;}
-  .config-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);border-radius:0.95rem;padding:.75rem;display:flex;flex-direction:column;gap:.75rem;}
-  .config-card-title{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.35rem;color:rgba(255,255,255,.7);}
-  .config-card-subtitle{margin:.25rem 0 0;font-size:.7rem;line-height:1.4;color:rgba(255,255,255,.6);}
-  .config-card-body{display:flex;flex-direction:column;gap:.75rem;}
-  .config-card-note{margin:0;font-size:.6rem;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.5);}
-  .config-section{display:flex;flex-direction:column;gap:.5rem;}
-  .config-section-title{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.35rem;color:rgba(255,255,255,.6);}
-  .config-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;}
-  .config-option{border-radius:1rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e2e8f0;padding:.5rem;display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center;font-size:.65rem;line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
-  .config-option-label{font-size:.65rem;font-weight:600;color:#e2e8f0;}
-  .config-thumb{width:100%;height:3.5rem;border-radius:0.75rem;border:1px solid rgba(255,255,255,.1);overflow:hidden;}
-  .config-option.active{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.12);box-shadow:0 0 0 1px rgba(56,189,248,.35),0 12px 24px rgba(8,145,178,.28);}
+  .config-section{display:flex;flex-direction:column;gap:.3rem;}
+  .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
+  .config-option{border-radius:0.85rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.4rem .5rem;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;font-size:clamp(.62rem,1.75vw,.72rem);line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
+  .config-option span{font-size:clamp(.5rem,1.45vw,.58rem);text-transform:uppercase;letter-spacing:.24rem;color:rgba(148,197,255,.68);}
+  .config-option.active{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.15);box-shadow:0 0 0 1px rgba(56,189,248,.35),0 12px 24px rgba(8,145,178,.28);}
   .config-option:disabled{opacity:.45;cursor:not-allowed;}
   .config-option:not(.active):hover{border-color:rgba(255,255,255,.32);transform:translateY(-1px);}
-  .config-list{display:grid;gap:.5rem;}
-  .config-list-button{width:100%;border-radius:1rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e2e8f0;padding:.5rem .75rem;text-align:left;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
-  .config-list-button.active{border-color:rgba(125,211,252,.7);background:rgba(125,211,252,.15);box-shadow:0 0 0 1px rgba(56,189,248,.3),0 10px 18px rgba(8,145,178,.25);}
-  .config-list-button:disabled{opacity:.45;cursor:not-allowed;}
-  .config-list-button:not(.active):hover{border-color:rgba(255,255,255,.32);transform:translateY(-1px);}
-  .config-list-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
-  .config-list-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.26rem;color:#fff;}
-  .config-list-meta{font-size:.62rem;font-weight:600;letter-spacing:.08em;color:rgba(224,242,254,.9);}
-  .config-list-description{margin:.3rem 0 0;font-size:.6rem;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.6);}
-  .config-toggle{display:flex;align-items:center;justify-content:space-between;gap:.5rem;border-radius:999px;padding:.55rem .75rem;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.22rem;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);transition:background .2s ease, color .2s ease, border-color .2s ease;}
-  .config-toggle.active{background:rgba(125,211,252,.85);color:#0f172a;border-color:rgba(125,211,252,.9);box-shadow:0 0 12px rgba(125,211,252,.4);}
-  .config-toggle:disabled{opacity:.45;cursor:not-allowed;}
-  .config-toggle-status{border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:.1rem .45rem;font-size:.55rem;letter-spacing:.2rem;}
+  .config-close{display:flex;justify-content:flex-end;}
+  .config-close button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);color:#f1f5f9;border-radius:999px;padding:.35rem;display:grid;place-items:center;transition:background .2s ease, border-color .2s ease;}
+  .config-close button:hover{background:rgba(248,250,252,.16);border-color:rgba(248,250,252,.38);}
   @media (max-width:640px){
     #configPanel{left:50%;transform:translateX(-50%);top:calc(4.75rem + env(safe-area-inset-top,0px));}
   }
@@ -135,17 +114,14 @@
   tabindex="-1"
   aria-hidden="true"
 >
-  <div class="config-header">
-    <div>
-      <p class="config-eyebrow" id="configTitle">Table Setup</p>
-      <p class="config-subtitle">Personalize the Domino Royal table, chairs, and tiles.</p>
-    </div>
+  <div class="config-close">
     <button id="configClose" type="button" aria-label="Close table setup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12M18 6 6 18" />
       </svg>
     </button>
   </div>
+  <h3 id="configTitle">Table Setup</h3>
   <div id="configSections"></div>
 </div>
 <div id="topRightActions" aria-label="Top actions">
@@ -5006,7 +4982,10 @@ window.addEventListener('dominoRoyalInventoryUpdate', (event) => {
 
 function createOptionPreview(key, option) {
   const swatch = document.createElement('div');
-  swatch.className = 'config-thumb';
+  swatch.style.width = '100%';
+  swatch.style.height = '1.5rem';
+  swatch.style.borderRadius = '0.75rem';
+  swatch.style.border = '1px solid rgba(255,255,255,0.12)';
   switch (key) {
     case 'environmentHdri': {
       swatch.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
@@ -5150,24 +5129,75 @@ function createOptionPreview(key, option) {
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
-  const personalizeCard = document.createElement('div');
-  personalizeCard.className = 'config-card';
-  const personalizeHeader = document.createElement('div');
-  const personalizeTitle = document.createElement('p');
-  personalizeTitle.className = 'config-card-title';
-  personalizeTitle.textContent = 'Personalize Arena';
-  const personalizeSubtitle = document.createElement('p');
-  personalizeSubtitle.className = 'config-card-subtitle';
-  personalizeSubtitle.textContent = 'Table surface, chairs, and tiles.';
-  personalizeHeader.append(personalizeTitle, personalizeSubtitle);
-  personalizeCard.appendChild(personalizeHeader);
-  const personalizeBody = document.createElement('div');
-  personalizeBody.className = 'config-card-body';
+  const commentaryWrapper = document.createElement('div');
+  commentaryWrapper.className = 'config-section';
+  const commentaryLabel = document.createElement('h4');
+  commentaryLabel.textContent = 'Commentary';
+  commentaryWrapper.appendChild(commentaryLabel);
+  const commentaryGrid = document.createElement('div');
+  commentaryGrid.className = 'config-options';
+  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor);
+  COMMENTARY_PRESETS.forEach((preset) => {
+    const presetButton = document.createElement('button');
+    presetButton.type = 'button';
+    presetButton.className = 'config-option';
+    presetButton.disabled = !commentarySupported;
+    if (preset.id === commentaryPresetId) {
+      presetButton.classList.add('active');
+    }
+    const presetLabel = document.createElement('span');
+    presetLabel.textContent = preset.name;
+    presetButton.appendChild(presetLabel);
+    const presetTone = document.createElement('div');
+    presetTone.textContent = preset.tone;
+    presetTone.style.fontSize = '0.7rem';
+    presetTone.style.color = 'rgba(226,232,240,0.78)';
+    presetTone.style.fontWeight = '600';
+    presetTone.style.lineHeight = '1.35';
+    presetButton.appendChild(presetTone);
+    presetButton.addEventListener('click', () => {
+      if (!commentarySupported) return;
+      setCommentaryPresetId(preset.id);
+    });
+    commentaryGrid.appendChild(presetButton);
+  });
+  const muteButton = document.createElement('button');
+  muteButton.type = 'button';
+  muteButton.className = 'config-option';
+  muteButton.setAttribute('aria-pressed', String(commentaryMuted));
+  muteButton.disabled = !commentarySupported;
+  if (commentaryMuted) {
+    muteButton.classList.add('active');
+  }
+  const muteLabel = document.createElement('span');
+  muteLabel.textContent = commentaryMuted ? 'Commentary muted' : 'Commentary on';
+  muteButton.appendChild(muteLabel);
+  const muteHelper = document.createElement('div');
+  muteHelper.textContent = commentaryMuted ? 'Tap to unmute the announcer' : 'Tap to mute the announcer';
+  muteHelper.style.fontSize = '0.65rem';
+  muteHelper.style.color = 'rgba(226,232,240,0.78)';
+  muteHelper.style.fontWeight = '700';
+  muteHelper.style.lineHeight = '1.35';
+  muteButton.appendChild(muteHelper);
+  muteButton.addEventListener('click', () => {
+    setCommentaryMuted(!commentaryMuted);
+  });
+  commentaryGrid.appendChild(muteButton);
+  commentaryWrapper.appendChild(commentaryGrid);
+  if (!commentarySupported) {
+    const commentaryNote = document.createElement('p');
+    commentaryNote.textContent = 'Voice commentary requires a browser with Web Speech support.';
+    commentaryNote.style.margin = '0';
+    commentaryNote.style.fontSize = '0.65rem';
+    commentaryNote.style.color = 'rgba(226,232,240,0.7)';
+    commentaryNote.style.lineHeight = '1.4';
+    commentaryWrapper.appendChild(commentaryNote);
+  }
+  configSectionsEl.appendChild(commentaryWrapper);
   TABLE_SETUP_SECTIONS.forEach((section) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'config-section';
-    const label = document.createElement('p');
-    label.className = 'config-section-title';
+    const label = document.createElement('h4');
     label.textContent = section.label;
     wrapper.appendChild(label);
     const optionsGrid = document.createElement('div');
@@ -5183,7 +5213,6 @@ function refreshConfigUI() {
       }
       button.appendChild(createOptionPreview(section.key, option));
       const name = document.createElement('span');
-      name.className = 'config-option-label';
       name.textContent = option.label ?? option.id;
       button.appendChild(name);
       button.addEventListener('click', () => {
@@ -5195,41 +5224,103 @@ function refreshConfigUI() {
       optionsGrid.appendChild(button);
     });
     wrapper.appendChild(optionsGrid);
-    personalizeBody.appendChild(wrapper);
+    configSectionsEl.appendChild(wrapper);
   });
-  personalizeCard.appendChild(personalizeBody);
-  configSectionsEl.appendChild(personalizeCard);
 
-  const graphicsCard = document.createElement('div');
-  graphicsCard.className = 'config-card';
-  const graphicsTitle = document.createElement('p');
-  graphicsTitle.className = 'config-card-title';
-  graphicsTitle.textContent = 'Graphics';
-  graphicsCard.appendChild(graphicsTitle);
-  const graphicsList = document.createElement('div');
-  graphicsList.className = 'config-list';
+  const feedbackWrapper = document.createElement('div');
+  feedbackWrapper.className = 'config-section';
+  const feedbackLabel = document.createElement('h4');
+  feedbackLabel.textContent = 'Audio & haptics';
+  feedbackWrapper.appendChild(feedbackLabel);
+  const feedbackGrid = document.createElement('div');
+  feedbackGrid.className = 'config-options';
+  feedbackGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
+  [
+    { key: 'sound', label: feedbackSettings.sound ? 'Sound on' : 'Sound muted', helper: 'Procedural knocks & win jingles' },
+    { key: 'haptics', label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off', helper: 'Short vibrations on plays' }
+  ].forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (feedbackSettings[option.key]) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(!!feedbackSettings[option.key]));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    const helper = document.createElement('div');
+    helper.textContent = option.helper;
+    helper.style.fontSize = '0.65rem';
+    helper.style.color = 'rgba(226,232,240,0.78)';
+    helper.style.fontWeight = '700';
+    helper.style.lineHeight = '1.35';
+    button.appendChild(helper);
+    button.addEventListener('click', () => {
+      setFeedbackSettings({ [option.key]: !feedbackSettings[option.key] });
+    });
+    feedbackGrid.appendChild(button);
+  });
+  const feedbackHint = document.createElement('p');
+  feedbackHint.textContent = 'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
+  feedbackHint.style.margin = '0';
+  feedbackHint.style.fontSize = '0.65rem';
+  feedbackHint.style.color = 'rgba(226,232,240,0.7)';
+  feedbackHint.style.lineHeight = '1.4';
+  feedbackWrapper.appendChild(feedbackGrid);
+  feedbackWrapper.appendChild(feedbackHint);
+  configSectionsEl.appendChild(feedbackWrapper);
+
+  const graphicsWrapper = document.createElement('div');
+  graphicsWrapper.className = 'config-section';
+  const graphicsLabel = document.createElement('h4');
+  graphicsLabel.textContent = 'Graphics';
+  graphicsWrapper.appendChild(graphicsLabel);
+  const graphicsGrid = document.createElement('div');
+  graphicsGrid.className = 'config-options';
+  graphicsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
   FRAME_RATE_OPTIONS.forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'config-list-button';
+    button.className = 'config-option';
     if (frameRateId === option.id) {
       button.classList.add('active');
     }
     button.setAttribute('aria-pressed', String(frameRateId === option.id));
-    const row = document.createElement('div');
-    row.className = 'config-list-row';
     const label = document.createElement('span');
-    label.className = 'config-list-title';
     label.textContent = option.label;
-    const meta = document.createElement('span');
-    meta.className = 'config-list-meta';
-    meta.textContent = option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`;
-    row.append(label, meta);
-    button.appendChild(row);
+    button.appendChild(label);
+    const line = document.createElement('div');
+    line.style.display = 'flex';
+    line.style.width = '100%';
+    line.style.justifyContent = 'space-between';
+    line.style.alignItems = 'center';
+    line.style.gap = '0.35rem';
+    line.style.fontSize = '0.72rem';
+    line.style.fontWeight = '700';
+    line.style.letterSpacing = '0.04em';
+    const fpsTag = document.createElement('strong');
+    fpsTag.textContent = `${option.fps} FPS`;
+    fpsTag.style.fontSize = '0.78rem';
+    fpsTag.style.color = 'var(--fg)';
+    line.appendChild(fpsTag);
+    const resolution = document.createElement('span');
+    resolution.textContent = option.resolution || '';
+    resolution.style.color = 'rgba(226,232,240,0.76)';
+    resolution.style.fontSize = '0.65rem';
+    resolution.style.textAlign = 'right';
+    resolution.style.flex = '1';
+    resolution.style.letterSpacing = '0.05em';
+    line.appendChild(resolution);
+    button.appendChild(line);
     if (option.description) {
-      const desc = document.createElement('span');
-      desc.className = 'config-list-description';
+      const desc = document.createElement('p');
       desc.textContent = option.description;
+      desc.style.margin = '0';
+      desc.style.fontSize = '0.65rem';
+      desc.style.lineHeight = '1.35';
+      desc.style.color = 'rgba(226,232,240,0.74)';
+      desc.style.fontWeight = '600';
       button.appendChild(desc);
     }
     button.addEventListener('click', () => {
@@ -5237,116 +5328,10 @@ function refreshConfigUI() {
       applyFrameRateSelection(option.id, { refreshUi: false });
       refreshConfigUI();
     });
-    graphicsList.appendChild(button);
+    graphicsGrid.appendChild(button);
   });
-  graphicsCard.appendChild(graphicsList);
-  configSectionsEl.appendChild(graphicsCard);
-
-  const commentaryCard = document.createElement('div');
-  commentaryCard.className = 'config-card';
-  const commentaryTitle = document.createElement('p');
-  commentaryTitle.className = 'config-card-title';
-  commentaryTitle.textContent = 'Commentary';
-  commentaryCard.appendChild(commentaryTitle);
-  const commentaryList = document.createElement('div');
-  commentaryList.className = 'config-list';
-  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor);
-  COMMENTARY_PRESETS.forEach((preset) => {
-    const presetButton = document.createElement('button');
-    presetButton.type = 'button';
-    presetButton.className = 'config-list-button';
-    presetButton.disabled = !commentarySupported;
-    if (preset.id === commentaryPresetId) {
-      presetButton.classList.add('active');
-    }
-    const row = document.createElement('div');
-    row.className = 'config-list-row';
-    const presetLabel = document.createElement('span');
-    presetLabel.className = 'config-list-title';
-    presetLabel.textContent = preset.name;
-    row.appendChild(presetLabel);
-    presetButton.appendChild(row);
-    if (preset.tone) {
-      const presetTone = document.createElement('span');
-      presetTone.className = 'config-list-description';
-      presetTone.textContent = preset.tone;
-      presetButton.appendChild(presetTone);
-    }
-    presetButton.addEventListener('click', () => {
-      if (!commentarySupported) return;
-      setCommentaryPresetId(preset.id);
-    });
-    commentaryList.appendChild(presetButton);
-  });
-  const muteButton = document.createElement('button');
-  muteButton.type = 'button';
-  muteButton.className = 'config-toggle';
-  muteButton.setAttribute('aria-pressed', String(commentaryMuted));
-  muteButton.disabled = !commentarySupported;
-  if (commentaryMuted) {
-    muteButton.classList.add('active');
-  }
-  const muteLabel = document.createElement('span');
-  muteLabel.textContent = 'Mute commentary';
-  muteButton.appendChild(muteLabel);
-  const muteStatus = document.createElement('span');
-  muteStatus.className = 'config-toggle-status';
-  muteStatus.textContent = commentaryMuted ? 'On' : 'Off';
-  muteButton.appendChild(muteStatus);
-  muteButton.addEventListener('click', () => {
-    setCommentaryMuted(!commentaryMuted);
-  });
-  commentaryCard.appendChild(commentaryList);
-  commentaryCard.appendChild(muteButton);
-  if (!commentarySupported) {
-    const commentaryNote = document.createElement('p');
-    commentaryNote.className = 'config-card-note';
-    commentaryNote.textContent = 'Voice commentary needs Web Speech support.';
-    commentaryCard.appendChild(commentaryNote);
-  }
-  configSectionsEl.appendChild(commentaryCard);
-
-  const feedbackCard = document.createElement('div');
-  feedbackCard.className = 'config-card';
-  const feedbackTitle = document.createElement('p');
-  feedbackTitle.className = 'config-card-title';
-  feedbackTitle.textContent = 'Audio & haptics';
-  feedbackCard.appendChild(feedbackTitle);
-  const feedbackList = document.createElement('div');
-  feedbackList.className = 'config-list';
-  [
-    { key: 'sound', label: feedbackSettings.sound ? 'Sound on' : 'Sound muted', helper: 'Procedural knocks & win jingles' },
-    { key: 'haptics', label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off', helper: 'Short vibrations on plays' }
-  ].forEach((option) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'config-list-button';
-    if (feedbackSettings[option.key]) {
-      button.classList.add('active');
-    }
-    button.setAttribute('aria-pressed', String(!!feedbackSettings[option.key]));
-    const row = document.createElement('div');
-    row.className = 'config-list-row';
-    const label = document.createElement('span');
-    label.className = 'config-list-title';
-    label.textContent = option.label;
-    row.appendChild(label);
-    button.appendChild(row);
-    const helper = document.createElement('span');
-    helper.className = 'config-list-description';
-    helper.textContent = option.helper;
-    button.appendChild(helper);
-    button.addEventListener('click', () => {
-      setFeedbackSettings({ [option.key]: !feedbackSettings[option.key] });
-    });
-    feedbackList.appendChild(button);
-  });
-  feedbackCard.appendChild(feedbackList);
-  const feedbackHint = document.createElement('p');
-  feedbackHint.className = 'config-card-note';
-  feedbackHint.textContent = 'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
-  feedbackCard.appendChild(feedbackHint);
-  configSectionsEl.appendChild(feedbackCard);
+  graphicsWrapper.appendChild(graphicsGrid);
+  configSectionsEl.appendChild(graphicsWrapper);
 }
 
 function closeConfigPanel() {
