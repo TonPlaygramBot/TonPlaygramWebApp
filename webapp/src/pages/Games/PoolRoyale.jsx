@@ -629,7 +629,7 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia 
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the snooker fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.04; // tighten the rounded chrome corner cut so the radius reads slightly smaller
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.05; // tighten the middle pocket chrome cut to match the reduced corner radius
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.08; // open the middle pocket chrome cut radius slightly for a softer curve
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief so the rounded corner cuts read slightly smaller
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1163,7 +1163,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.1545 * 0.85; // reduce balls by 15% to match the updated visual scale
+const BALL_SIZE_SCALE = 1.1545 * 0.85 * 0.9; // reduce balls by an additional 10% to match the updated visual scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1192,6 +1192,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
+const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.06; // lift chalks slightly so they sit on the rail surface
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
@@ -1708,7 +1709,8 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.3; // pull the cushion noses farther inward toward the table center
+const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.34; // pull long-rail cushions farther inward toward the table center
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.3; // keep short-rail cushions unchanged
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -4954,7 +4956,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.44; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.42; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5008,8 +5010,8 @@ const STANDING_VIEW_COT = (() => {
   const sinPhi = Math.sin(STANDING_VIEW_PHI);
   return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
 })();
-const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
-const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
+const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
+const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
@@ -9718,7 +9720,7 @@ export function Table3D(
       side.clone()
     ];
   };
-  const chalkBaseY = railsTopY + chalkHeight / 2;
+  const chalkBaseY = railsTopY + CHALK_RAIL_SURFACE_LIFT + chalkHeight / 2;
   const sideRailCenterX = PLAY_W / 2 + longRailW * 0.5;
   const endRailCenterZ = PLAY_H / 2 + endRailW * 0.5;
   const chalkSideRailOffset = Math.min(
@@ -9779,7 +9781,7 @@ export function Table3D(
   chalkSlots.forEach((slot, index) => {
     const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
     const chalkRestHeight = slot.height ?? chalkHeight;
-    const chalkRestY = railsTopY + chalkRestHeight / 2;
+    const chalkRestY = railsTopY + CHALK_RAIL_SURFACE_LIFT + chalkRestHeight / 2;
     mesh.position
       .copy(slot.basePosition)
       .addScaledVector(slot.tangent, slot.defaultOffset ?? 0);
