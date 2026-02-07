@@ -3048,16 +3048,14 @@ const isTelegramWebView = /Telegram/i.test(navigator.userAgent || '') || Boolean
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
-const isSaveDataMode = Boolean(navigator.connection?.saveData);
-const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice || isSaveDataMode;
-const MAX_HDRI_CACHE_SIZE = prefersUhd ? 6 : isLowProfileDevice ? 2 : 3;
+const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+const MAX_HDRI_CACHE_SIZE = prefersUhd ? 6 : 3;
 function resolveHdriResolutionOrder() {
   if (prefersUhd) return ['4k', '2k'];
   if (isLowProfileDevice) return ['1k'];
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
-  if (renderer.getContext?.()?.isContextLost?.()) return false;
   return prefersUhd || !isLowProfileDevice;
 }
 function pruneHdriCache() {
@@ -3071,13 +3069,6 @@ function pruneHdriCache() {
   }
 }
 let activeEnvironmentHdri = null;
-function isCachedHdriTexture(texture) {
-  if (!texture) return false;
-  for (const cached of hdriTextureCache.values()) {
-    if (cached === texture) return true;
-  }
-  return false;
-}
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
@@ -3124,15 +3115,10 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
       envMap?.dispose?.();
       return;
     }
-    if (scene.environment && scene.environment !== fallbackEnvTexture && !isCachedHdriTexture(scene.environment)) {
+    if (scene.environment && scene.environment !== fallbackEnvTexture) {
       scene.environment.dispose?.();
     }
-    if (
-      hdriBackground &&
-      hdriBackground !== envMap &&
-      hdriBackground !== fallbackEnvTexture &&
-      !isCachedHdriTexture(hdriBackground)
-    ) {
+    if (hdriBackground && hdriBackground !== envMap && hdriBackground !== fallbackEnvTexture) {
       hdriBackground.dispose?.();
     }
     scene.environment = envMap || fallbackEnvTexture;
