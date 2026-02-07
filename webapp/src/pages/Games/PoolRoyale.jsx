@@ -629,13 +629,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia 
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the snooker fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.08; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.075; // open the middle pocket chrome cut slightly more
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.86; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.05; // open the middle rail rounded cuts slightly more to match the chrome reveal
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
@@ -1251,8 +1251,9 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
+const BALL_CENTER_LIFT = BALL_R * 0.035; // lift balls slightly so they sit a touch higher above the cloth
 const BALL_CENTER_Y =
-  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
+  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
 const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -4937,7 +4938,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.89; // lower the standing orbit slightly while keeping a clear top surface view
+const STANDING_VIEW_PHI = 0.92; // lower the standing orbit slightly while keeping a clear top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4953,7 +4954,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.47; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.455; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
