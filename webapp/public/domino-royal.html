@@ -28,13 +28,28 @@
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
   #configButton:hover{background:rgba(0,0,0,.6);border-color:rgba(148,197,255,.45);}
   #configButton svg{width:1.4rem;height:1.4rem;}
-  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));max-width:min(320px, 84vw);max-height:min(72dvh, 480px);background:rgba(3,7,18,.92);color:#fff;border-radius:1.25rem;box-shadow:0 24px 40px rgba(2,6,23,.55);padding:0.85rem 1rem;border:1px solid rgba(148,197,255,.2);z-index:3;backdrop-filter:blur(10px);display:none;flex-direction:column;gap:0.65rem;overflow:hidden;}
+  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:18rem;max-width:80vw;max-height:80dvh;background:rgba(0,0,0,.8);color:#fff;border-radius:1rem;box-shadow:0 24px 40px rgba(2,6,23,.6);padding:1rem;border:1px solid rgba(255,255,255,.15);z-index:3;backdrop-filter:blur(12px);display:none;flex-direction:column;gap:0.75rem;overflow:hidden;}
   #configPanel.active{display:flex;}
-  #configPanel h3{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.28rem;color:rgba(148,197,255,.75);}
-  #configSections{display:flex;flex-direction:column;gap:.55rem;overflow-y:auto;padding-right:.3rem;margin-right:-.3rem;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;}
+  .config-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;}
+  .config-panel-title{margin:0;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.4rem;color:rgba(186,230,253,.8);font-weight:700;}
+  .config-panel-subtitle{margin:0.2rem 0 0;font-size:0.7rem;color:rgba(255,255,255,.7);line-height:1.4;}
+  #configSections{display:flex;flex-direction:column;gap:.75rem;overflow-y:auto;padding-right:.25rem;margin-right:-.25rem;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;}
   #configSections::-webkit-scrollbar{width:.35rem;}
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
+  .config-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);border-radius:0.75rem;padding:0.75rem;display:flex;flex-direction:column;gap:0.75rem;}
+  .config-card-header{display:flex;flex-direction:column;gap:0.25rem;}
+  .config-section-title{margin:0;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.35rem;color:rgba(255,255,255,.7);font-weight:700;}
+  .config-section-subtitle{margin:0;font-size:0.7rem;color:rgba(255,255,255,.6);line-height:1.4;}
+  .config-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.5rem;}
+  .config-option{border-radius:1rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e2e8f0;padding:0.5rem;display:flex;flex-direction:column;align-items:center;gap:0.45rem;font-size:0.65rem;line-height:1.3;font-weight:600;text-align:center;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
+  .config-option-label{font-size:0.65rem;font-weight:600;color:#e5e7eb;}
+  .config-option-helper{font-size:0.6rem;color:rgba(226,232,240,.72);font-weight:600;line-height:1.35;}
+  .config-note{margin:0;font-size:0.65rem;color:rgba(226,232,240,.7);line-height:1.4;}
+  .config-preview{position:relative;width:100%;height:3.5rem;border-radius:0.75rem;border:1px solid rgba(255,255,255,.1);overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0f172a;}
+  .config-preview > *{position:relative;z-index:2;}
+  .config-preview::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.45));pointer-events:none;z-index:1;}
+  .config-badge{display:inline-block;padding:0.12rem 0.4rem;border-radius:999px;background:rgba(0,0,0,0.45);font-size:0.55rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(226,232,240,.9);}
   #seatOverlay{position:fixed;inset:0;pointer-events:none;z-index:4;}
   .seat-badge{position:absolute;transform:translate(-50%,-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:.35rem;min-width:3.5rem;}
   .seat-badge-avatar{position:relative;width:3.15rem;height:3.15rem;display:grid;place-items:center;}
@@ -73,16 +88,12 @@
   .chat-bubble{position:fixed;display:flex;align-items:center;gap:.35rem;padding:.35rem .6rem;border-radius:999px;background:rgba(8,13,26,.88);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:.7rem;font-weight:700;box-shadow:0 10px 24px rgba(0,0,0,.45);z-index:7;pointer-events:none;white-space:nowrap;}
   .chat-bubble img,.chat-bubble .avatar{width:1.2rem;height:1.2rem;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:.75rem;}
   .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem);transform:translateX(-50%);padding:.4rem .75rem;border-radius:999px;background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.18);color:#f8fafc;font-size:.72rem;font-weight:700;z-index:7;box-shadow:0 10px 24px rgba(0,0,0,.45);pointer-events:none;}
-  .config-section{display:flex;flex-direction:column;gap:.3rem;}
-  .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
-  .config-option{border-radius:0.85rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.4rem .5rem;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;font-size:clamp(.62rem,1.75vw,.72rem);line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
-  .config-option span{font-size:clamp(.5rem,1.45vw,.58rem);text-transform:uppercase;letter-spacing:.24rem;color:rgba(148,197,255,.68);}
+  .config-section{display:flex;flex-direction:column;gap:.45rem;}
   .config-option.active{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.15);box-shadow:0 0 0 1px rgba(56,189,248,.35),0 12px 24px rgba(8,145,178,.28);}
   .config-option:disabled{opacity:.45;cursor:not-allowed;}
   .config-option:not(.active):hover{border-color:rgba(255,255,255,.32);transform:translateY(-1px);}
-  .config-close{display:flex;justify-content:flex-end;}
-  .config-close button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);color:#f1f5f9;border-radius:999px;padding:.35rem;display:grid;place-items:center;transition:background .2s ease, border-color .2s ease;}
-  .config-close button:hover{background:rgba(248,250,252,.16);border-color:rgba(248,250,252,.38);}
+  .config-close-button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);color:#f1f5f9;border-radius:999px;padding:.35rem;display:grid;place-items:center;transition:background .2s ease, border-color .2s ease;}
+  .config-close-button:hover{background:rgba(248,250,252,.16);border-color:rgba(248,250,252,.38);}
   @media (max-width:640px){
     #configPanel{left:50%;transform:translateX(-50%);top:calc(4.75rem + env(safe-area-inset-top,0px));}
   }
@@ -114,14 +125,17 @@
   tabindex="-1"
   aria-hidden="true"
 >
-  <div class="config-close">
-    <button id="configClose" type="button" aria-label="Close table setup">
+  <div class="config-panel-header">
+    <div>
+      <p id="configTitle" class="config-panel-title">Table Setup</p>
+      <p class="config-panel-subtitle">Personalize the Domino Royal table, tiles, and ambience.</p>
+    </div>
+    <button id="configClose" class="config-close-button" type="button" aria-label="Close table setup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12M18 6 6 18" />
       </svg>
     </button>
   </div>
-  <h3 id="configTitle">Table Setup</h3>
   <div id="configSections"></div>
 </div>
 <div id="topRightActions" aria-label="Top actions">
@@ -4982,24 +4996,16 @@ window.addEventListener('dominoRoyalInventoryUpdate', (event) => {
 
 function createOptionPreview(key, option) {
   const swatch = document.createElement('div');
-  swatch.style.width = '100%';
-  swatch.style.height = '1.5rem';
-  swatch.style.borderRadius = '0.75rem';
-  swatch.style.border = '1px solid rgba(255,255,255,0.12)';
+  swatch.className = 'config-preview';
   switch (key) {
     case 'environmentHdri': {
       swatch.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
       const badge = document.createElement('span');
       badge.textContent = option?.name || option?.label || 'HDRI';
-      badge.style.display = 'inline-block';
-      badge.style.padding = '0.12rem 0.4rem';
-      badge.style.borderRadius = '999px';
-      badge.style.background = 'rgba(0,0,0,0.35)';
-      badge.style.fontSize = '0.65rem';
-      badge.style.fontWeight = '700';
-      badge.style.letterSpacing = '0.08em';
-      badge.style.textTransform = 'uppercase';
-      badge.style.margin = '0.2rem';
+      badge.className = 'config-badge';
+      badge.style.position = 'absolute';
+      badge.style.left = '0.35rem';
+      badge.style.bottom = '0.35rem';
       badge.style.pointerEvents = 'none';
       swatch.appendChild(badge);
       if (Array.isArray(option?.swatches) && option.swatches.length >= 2) {
@@ -5011,13 +5017,10 @@ function createOptionPreview(key, option) {
       swatch.style.background = 'linear-gradient(135deg, #0f172a, #1f2937)';
       const label = document.createElement('span');
       label.textContent = option?.label || 'Table';
-      label.style.display = 'inline-block';
-      label.style.padding = '0.12rem 0.4rem';
-      label.style.borderRadius = '0.5rem';
-      label.style.background = 'rgba(255,255,255,0.08)';
-      label.style.fontSize = '0.72rem';
-      label.style.fontWeight = '700';
-      label.style.letterSpacing = '0.04em';
+      label.className = 'config-badge';
+      label.style.position = 'absolute';
+      label.style.left = '0.35rem';
+      label.style.bottom = '0.35rem';
       swatch.appendChild(label);
       break;
     }
@@ -5039,16 +5042,9 @@ function createOptionPreview(key, option) {
           const badge = document.createElement('span');
           badge.textContent = grain.label.slice(0, 16);
           badge.style.position = 'absolute';
-          badge.style.right = '0.4rem';
+          badge.style.right = '0.35rem';
           badge.style.bottom = '0.35rem';
-          badge.style.padding = '0.12rem 0.4rem';
-          badge.style.borderRadius = '999px';
-          badge.style.fontSize = '0.5rem';
-          badge.style.fontWeight = '700';
-          badge.style.letterSpacing = '0.12em';
-          badge.style.textTransform = 'uppercase';
-          badge.style.color = 'rgba(226,232,240,0.92)';
-          badge.style.background = 'rgba(15,23,42,0.7)';
+          badge.className = 'config-badge';
           badge.style.pointerEvents = 'none';
           swatch.appendChild(badge);
         }
@@ -5072,11 +5068,11 @@ function createOptionPreview(key, option) {
       {
         const pip = document.createElement('div');
         pip.style.position = 'absolute';
-        pip.style.width = '0.58rem';
-        pip.style.height = '0.58rem';
+        pip.style.width = '0.8rem';
+        pip.style.height = '0.8rem';
         pip.style.borderRadius = '50%';
-        pip.style.left = '0.5rem';
-        pip.style.top = '0.46rem';
+        pip.style.left = '0.6rem';
+        pip.style.top = '0.6rem';
         pip.style.background = option.pip?.color ?? '#111827';
         pip.style.boxShadow = `0 0 0 2px ${option.accent?.color ?? '#d8af37'}`;
         pip.style.opacity = '0.95';
@@ -5086,8 +5082,8 @@ function createOptionPreview(key, option) {
       {
         const inset = document.createElement('div');
         inset.style.position = 'absolute';
-        inset.style.inset = 'auto 0.4rem 0.3rem 0.4rem';
-        inset.style.height = '0.22rem';
+        inset.style.inset = 'auto 0.5rem 0.4rem 0.5rem';
+        inset.style.height = '0.3rem';
         inset.style.borderRadius = '999px';
         inset.style.background = option.accent?.color ?? '#d8af37';
         inset.style.opacity = '0.9';
@@ -5103,7 +5099,7 @@ function createOptionPreview(key, option) {
       const ring = document.createElement('div');
       ring.className = 'avatar-timer-ring';
       ring.style.position = 'absolute';
-      ring.style.inset = '0.25rem';
+      ring.style.inset = '0.5rem';
       ring.style.setProperty('--timer-gradient', option.gradient ?? 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)');
       swatch.appendChild(ring);
       const icon = document.createElement('div');
@@ -5111,7 +5107,7 @@ function createOptionPreview(key, option) {
       icon.style.inset = '0';
       icon.style.display = 'grid';
       icon.style.placeItems = 'center';
-      icon.style.fontSize = '1rem';
+      icon.style.fontSize = '1.15rem';
       icon.style.fontWeight = '800';
       icon.textContent = option.icon || '🎯';
       swatch.appendChild(icon);
@@ -5129,9 +5125,59 @@ function createOptionPreview(key, option) {
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
+  const tableCard = document.createElement('div');
+  tableCard.className = 'config-card';
+  const tableHeader = document.createElement('div');
+  tableHeader.className = 'config-card-header';
+  const tableTitle = document.createElement('p');
+  tableTitle.className = 'config-section-title';
+  tableTitle.textContent = 'Personalize Arena';
+  const tableSubtitle = document.createElement('p');
+  tableSubtitle.className = 'config-section-subtitle';
+  tableSubtitle.textContent = 'Table surface, seating, and domino tiles.';
+  tableHeader.appendChild(tableTitle);
+  tableHeader.appendChild(tableSubtitle);
+  tableCard.appendChild(tableHeader);
+  TABLE_SETUP_SECTIONS.forEach((section) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'config-section';
+    const label = document.createElement('p');
+    label.className = 'config-section-title';
+    label.textContent = section.label;
+    wrapper.appendChild(label);
+    const optionsGrid = document.createElement('div');
+    optionsGrid.className = 'config-options';
+    const availableOptions = getUnlockedOptions(section.key, dominoInventory);
+    availableOptions.forEach((option) => {
+      const idx = findDominoOptionIndex(section.key, option.id);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'config-option';
+      if (appearance[section.key] === idx) {
+        button.classList.add('active');
+      }
+      button.appendChild(createOptionPreview(section.key, option));
+      const name = document.createElement('span');
+      name.className = 'config-option-label';
+      name.textContent = option.label ?? option.id;
+      button.appendChild(name);
+      button.addEventListener('click', () => {
+        if (appearance[section.key] === idx) return;
+        appearance[section.key] = idx;
+        applyAppearanceChange({ refresh: false });
+        refreshConfigUI();
+      });
+      optionsGrid.appendChild(button);
+    });
+    wrapper.appendChild(optionsGrid);
+    tableCard.appendChild(wrapper);
+  });
+  configSectionsEl.appendChild(tableCard);
+
   const commentaryWrapper = document.createElement('div');
-  commentaryWrapper.className = 'config-section';
-  const commentaryLabel = document.createElement('h4');
+  commentaryWrapper.className = 'config-card';
+  const commentaryLabel = document.createElement('p');
+  commentaryLabel.className = 'config-section-title';
   commentaryLabel.textContent = 'Commentary';
   commentaryWrapper.appendChild(commentaryLabel);
   const commentaryGrid = document.createElement('div');
@@ -5146,14 +5192,12 @@ function refreshConfigUI() {
       presetButton.classList.add('active');
     }
     const presetLabel = document.createElement('span');
+    presetLabel.className = 'config-option-label';
     presetLabel.textContent = preset.name;
     presetButton.appendChild(presetLabel);
     const presetTone = document.createElement('div');
+    presetTone.className = 'config-option-helper';
     presetTone.textContent = preset.tone;
-    presetTone.style.fontSize = '0.7rem';
-    presetTone.style.color = 'rgba(226,232,240,0.78)';
-    presetTone.style.fontWeight = '600';
-    presetTone.style.lineHeight = '1.35';
     presetButton.appendChild(presetTone);
     presetButton.addEventListener('click', () => {
       if (!commentarySupported) return;
@@ -5170,14 +5214,12 @@ function refreshConfigUI() {
     muteButton.classList.add('active');
   }
   const muteLabel = document.createElement('span');
+  muteLabel.className = 'config-option-label';
   muteLabel.textContent = commentaryMuted ? 'Commentary muted' : 'Commentary on';
   muteButton.appendChild(muteLabel);
   const muteHelper = document.createElement('div');
+  muteHelper.className = 'config-option-helper';
   muteHelper.textContent = commentaryMuted ? 'Tap to unmute the announcer' : 'Tap to mute the announcer';
-  muteHelper.style.fontSize = '0.65rem';
-  muteHelper.style.color = 'rgba(226,232,240,0.78)';
-  muteHelper.style.fontWeight = '700';
-  muteHelper.style.lineHeight = '1.35';
   muteButton.appendChild(muteHelper);
   muteButton.addEventListener('click', () => {
     setCommentaryMuted(!commentaryMuted);
@@ -5186,55 +5228,20 @@ function refreshConfigUI() {
   commentaryWrapper.appendChild(commentaryGrid);
   if (!commentarySupported) {
     const commentaryNote = document.createElement('p');
+    commentaryNote.className = 'config-note';
     commentaryNote.textContent = 'Voice commentary requires a browser with Web Speech support.';
-    commentaryNote.style.margin = '0';
-    commentaryNote.style.fontSize = '0.65rem';
-    commentaryNote.style.color = 'rgba(226,232,240,0.7)';
-    commentaryNote.style.lineHeight = '1.4';
     commentaryWrapper.appendChild(commentaryNote);
   }
   configSectionsEl.appendChild(commentaryWrapper);
-  TABLE_SETUP_SECTIONS.forEach((section) => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'config-section';
-    const label = document.createElement('h4');
-    label.textContent = section.label;
-    wrapper.appendChild(label);
-    const optionsGrid = document.createElement('div');
-    optionsGrid.className = 'config-options';
-    const availableOptions = getUnlockedOptions(section.key, dominoInventory);
-    availableOptions.forEach((option) => {
-      const idx = findDominoOptionIndex(section.key, option.id);
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'config-option';
-      if (appearance[section.key] === idx) {
-        button.classList.add('active');
-      }
-      button.appendChild(createOptionPreview(section.key, option));
-      const name = document.createElement('span');
-      name.textContent = option.label ?? option.id;
-      button.appendChild(name);
-      button.addEventListener('click', () => {
-        if (appearance[section.key] === idx) return;
-        appearance[section.key] = idx;
-        applyAppearanceChange({ refresh: false });
-        refreshConfigUI();
-      });
-      optionsGrid.appendChild(button);
-    });
-    wrapper.appendChild(optionsGrid);
-    configSectionsEl.appendChild(wrapper);
-  });
 
   const feedbackWrapper = document.createElement('div');
-  feedbackWrapper.className = 'config-section';
-  const feedbackLabel = document.createElement('h4');
+  feedbackWrapper.className = 'config-card';
+  const feedbackLabel = document.createElement('p');
+  feedbackLabel.className = 'config-section-title';
   feedbackLabel.textContent = 'Audio & haptics';
   feedbackWrapper.appendChild(feedbackLabel);
   const feedbackGrid = document.createElement('div');
   feedbackGrid.className = 'config-options';
-  feedbackGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
   [
     { key: 'sound', label: feedbackSettings.sound ? 'Sound on' : 'Sound muted', helper: 'Procedural knocks & win jingles' },
     { key: 'haptics', label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off', helper: 'Short vibrations on plays' }
@@ -5247,38 +5254,33 @@ function refreshConfigUI() {
     }
     button.setAttribute('aria-pressed', String(!!feedbackSettings[option.key]));
     const label = document.createElement('span');
+    label.className = 'config-option-label';
     label.textContent = option.label;
     button.appendChild(label);
     const helper = document.createElement('div');
+    helper.className = 'config-option-helper';
     helper.textContent = option.helper;
-    helper.style.fontSize = '0.65rem';
-    helper.style.color = 'rgba(226,232,240,0.78)';
-    helper.style.fontWeight = '700';
-    helper.style.lineHeight = '1.35';
     button.appendChild(helper);
     button.addEventListener('click', () => {
       setFeedbackSettings({ [option.key]: !feedbackSettings[option.key] });
     });
-    feedbackGrid.appendChild(button);
+  feedbackGrid.appendChild(button);
   });
   const feedbackHint = document.createElement('p');
+  feedbackHint.className = 'config-note';
   feedbackHint.textContent = 'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
-  feedbackHint.style.margin = '0';
-  feedbackHint.style.fontSize = '0.65rem';
-  feedbackHint.style.color = 'rgba(226,232,240,0.7)';
-  feedbackHint.style.lineHeight = '1.4';
   feedbackWrapper.appendChild(feedbackGrid);
   feedbackWrapper.appendChild(feedbackHint);
   configSectionsEl.appendChild(feedbackWrapper);
 
   const graphicsWrapper = document.createElement('div');
-  graphicsWrapper.className = 'config-section';
-  const graphicsLabel = document.createElement('h4');
+  graphicsWrapper.className = 'config-card';
+  const graphicsLabel = document.createElement('p');
+  graphicsLabel.className = 'config-section-title';
   graphicsLabel.textContent = 'Graphics';
   graphicsWrapper.appendChild(graphicsLabel);
   const graphicsGrid = document.createElement('div');
   graphicsGrid.className = 'config-options';
-  graphicsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
   FRAME_RATE_OPTIONS.forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -5288,6 +5290,7 @@ function refreshConfigUI() {
     }
     button.setAttribute('aria-pressed', String(frameRateId === option.id));
     const label = document.createElement('span');
+    label.className = 'config-option-label';
     label.textContent = option.label;
     button.appendChild(label);
     const line = document.createElement('div');
@@ -5315,12 +5318,8 @@ function refreshConfigUI() {
     button.appendChild(line);
     if (option.description) {
       const desc = document.createElement('p');
+      desc.className = 'config-option-helper';
       desc.textContent = option.description;
-      desc.style.margin = '0';
-      desc.style.fontSize = '0.65rem';
-      desc.style.lineHeight = '1.35';
-      desc.style.color = 'rgba(226,232,240,0.74)';
-      desc.style.fontWeight = '600';
       button.appendChild(desc);
     }
     button.addEventListener('click', () => {
