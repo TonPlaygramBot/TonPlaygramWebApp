@@ -629,7 +629,7 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia 
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the snooker fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.04; // tighten the rounded chrome corner cut so the radius reads slightly smaller
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.04; // tighten the middle pocket chrome cut radius slightly for a firmer curve
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.08; // open the middle pocket chrome cut radius slightly for a broader curve
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief so the rounded corner cuts read slightly smaller
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1163,7 +1163,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.1545 * 0.85 * 0.9 * 1.07 * 1.03; // enlarge balls by 7% to match the updated visual scale
+const BALL_SIZE_SCALE = 1.1545 * 0.85 * 0.9 * 1.07 * 1.03 * 0.95; // trim balls by 5% while preserving the table mapping scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -7967,6 +7967,7 @@ export function Table3D(
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match Snooker Royal pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.012; // lift short-rail cushions slightly so their tops align with the long rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -10033,7 +10034,11 @@ export function Table3D(
     mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
-    group.position.set(x, cushionBaseY, z);
+    group.position.set(
+      x,
+      cushionBaseY + (horizontal ? SHORT_RAIL_CUSHION_VERTICAL_LIFT : 0),
+      z
+    );
     if (!horizontal) group.rotation.y = Math.PI / 2;
     if (flip) group.rotation.y += Math.PI;
 
