@@ -212,37 +212,37 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    renderScale: 1,
+    pixelRatioCap: 1.3,
+    resolution: 'Full HD render • DPR 1.3 cap',
+    description: 'Balanced 1080p profile tuned for stability on mobile and desktop.'
   },
   {
     id: 'qhd90',
     label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    renderScale: 1.15,
+    pixelRatioCap: 1.5,
+    resolution: 'QHD render • DPR 1.5 cap',
+    description: 'Sharper 1440p render for capable 90 Hz devices with safer headroom.'
   },
   {
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    renderScale: 1.25,
+    pixelRatioCap: 1.8,
+    resolution: 'Ultra HD render • DPR 1.8 cap',
+    description: '4K-focused profile for 120 Hz flagships with controlled GPU load.'
   },
   {
     id: 'ultra144',
     label: 'Ultra HD+ (144 Hz)',
     fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD+ render • DPR 2.0 cap',
+    description: 'High clarity preset with safer limits for sustained sessions.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -3049,14 +3049,15 @@ const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAge
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
-const MAX_HDRI_CACHE_SIZE = prefersUhd ? 6 : 3;
+const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   if (prefersUhd) return ['4k', '2k'];
   if (isLowProfileDevice) return ['1k'];
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
-  return prefersUhd || !isLowProfileDevice;
+  const highTierFrameRate = frameRateId === 'uhd120' || frameRateId === 'ultra144';
+  return !isLowProfileDevice && (prefersUhd || highTierFrameRate);
 }
 function pruneHdriCache() {
   if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
@@ -4965,6 +4966,7 @@ function applyFrameRateSelection(optionId, { refreshUi = true } = {}) {
   frameTiming = buildFrameTiming(frameQuality);
   persistFrameRateSelection(resolvedId);
   applyRendererQuality(frameQuality);
+  applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
   if (refreshUi) {
     refreshConfigUI();
   }
