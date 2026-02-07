@@ -4945,8 +4945,8 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view a touch higher while staying above the cue
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.18; // let the standing view dip slightly lower while still staying above the cue
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // pull the player orbit nearer to the cloth while keeping the frame airy
