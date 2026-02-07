@@ -1412,6 +1412,7 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
+const POCKET_CAM_DISTANCE_PULL = BALL_DIAMETER * 5; // pull pocket cameras inward by ~5 balls
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1431,7 +1432,7 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 0.9,
+  heightOffset: BALL_R * 1.15,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -4912,7 +4913,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.95; // match Pool Royale standing orbit coordinates
+const STANDING_VIEW_PHI = 0.99; // lower the standing orbit a touch for a closer table feel
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4928,7 +4929,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.36; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.32; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -17273,8 +17274,12 @@ const powerRef = useRef(hud.power);
                 : POCKET_CAM.outwardOffset;
             const distanceScale =
               activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
-            const cameraDistance =
-              (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) * distanceScale;
+            const cameraDistance = Math.max(
+              BALL_DIAMETER,
+              (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) *
+                distanceScale -
+                POCKET_CAM_DISTANCE_PULL
+            );
             const sideEdgeShift =
               anchorType === 'side'
                 ? POCKET_CAM_SIDE_EDGE_SHIFT *
