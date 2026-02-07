@@ -1118,7 +1118,6 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
-const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1167,6 +1166,11 @@ const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned si
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const POCKET_CENTER_INWARD_PULL = BALL_DIAMETER * 5;
+const POCKET_CENTER_UPWARD_SHIFT = BALL_DIAMETER;
+const EFFECTIVE_CORNER_POCKET_CENTER_INSET =
+  CORNER_POCKET_CENTER_INSET + POCKET_CENTER_INWARD_PULL;
+const POCKET_JAW_INWARD_PULL = POCKET_CENTER_INWARD_PULL; // keep jaw centers aligned with the pocket pull
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
@@ -4912,7 +4916,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.95; // match Pool Royale standing orbit coordinates
+const STANDING_VIEW_PHI = 1.02; // lower the standing view slightly for a closer rail-level feel
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4928,7 +4932,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.36; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.32; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5530,19 +5534,22 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
 
 const cornerPocketCenter = (sx, sz) =>
   new THREE.Vector2(
-    sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
-    sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
+    sx * (PLAY_W / 2 - EFFECTIVE_CORNER_POCKET_CENTER_INSET),
+    sz * (PLAY_H / 2 - EFFECTIVE_CORNER_POCKET_CENTER_INSET) -
+      POCKET_CENTER_UPWARD_SHIFT
   );
 let sidePocketShift = 0;
+const resolveSidePocketCenterX = () =>
+  PLAY_W / 2 + sidePocketShift - POCKET_CENTER_INWARD_PULL;
 const pocketCenters = () => {
-  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
+  const sidePocketCenterX = resolveSidePocketCenterX();
   return [
     cornerPocketCenter(-1, -1),
     cornerPocketCenter(1, -1),
     cornerPocketCenter(-1, 1),
     cornerPocketCenter(1, 1),
-    new THREE.Vector2(-sidePocketCenterX, 0),
-    new THREE.Vector2(sidePocketCenterX, 0)
+    new THREE.Vector2(-sidePocketCenterX, -POCKET_CENTER_UPWARD_SHIFT),
+    new THREE.Vector2(sidePocketCenterX, -POCKET_CENTER_UPWARD_SHIFT)
   ];
 };
 const pocketEntranceCenters = () =>
@@ -5621,9 +5628,9 @@ const getPocketCenterById = (id) => {
     case 'BR':
       return cornerPocketCenter(1, 1);
     case 'TM':
-      return new THREE.Vector2(-(PLAY_W / 2 + sidePocketShift), 0);
+      return new THREE.Vector2(-resolveSidePocketCenterX(), -POCKET_CENTER_UPWARD_SHIFT);
     case 'BM':
-      return new THREE.Vector2(PLAY_W / 2 + sidePocketShift, 0);
+      return new THREE.Vector2(resolveSidePocketCenterX(), -POCKET_CENTER_UPWARD_SHIFT);
     default:
       return null;
   }
@@ -7248,7 +7255,7 @@ function Table3D(
     maxSidePocketShift,
     rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS
   );
-  const sidePocketCenterX = halfW + sidePocketShift;
+  const sidePocketCenterX = resolveSidePocketCenterX();
   const pocketPositions = pocketCenters();
   const clothPocketPositions = pocketPositions.map((center, index) => {
     if (index < 4 || !center) return center;
@@ -7758,13 +7765,13 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = CORNER_CHROME_NOTCH_RADIUS;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = innerHalfW - (halfW - CORNER_POCKET_CENTER_INSET);
+  const cornerInset = innerHalfW - (halfW - EFFECTIVE_CORNER_POCKET_CENTER_INSET);
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 
   // Derive exact cushion extents from the chrome pocket arcs so the rails stop
   // precisely where each pocket begins.
   const cornerCenterX = innerHalfW - cornerInset;
-  const cornerCenterZ = innerHalfH - cornerInset;
+  const cornerCenterZ = innerHalfH - cornerInset - POCKET_CENTER_UPWARD_SHIFT;
   const cornerLineX = halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE;
   const cornerLineZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE;
   const cornerDeltaX = cornerLineX - cornerCenterX;
@@ -8038,7 +8045,7 @@ function Table3D(
 
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
-    const cz = sz * (innerHalfH - cornerInset);
+    const cz = sz * (innerHalfH - cornerInset) - POCKET_CENTER_UPWARD_SHIFT;
     const notchCircle = circlePoly(
       cx,
       cz,
@@ -8103,7 +8110,7 @@ function Table3D(
       Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
-    const circle = circlePoly(cx, 0, radius, 256);
+    const circle = circlePoly(cx, -POCKET_CENTER_UPWARD_SHIFT, radius, 256);
     const useThroat =
       throatLength > MICRO_EPS && throatHeight > MICRO_EPS && throatRadius > MICRO_EPS;
 
@@ -8113,7 +8120,7 @@ function Table3D(
 
     const throat = roundedRectPoly(
       cx + (sx * throatLength) / 2,
-      0,
+      -POCKET_CENTER_UPWARD_SHIFT,
       Math.abs(throatLength),
       throatHeight,
       throatRadius,
@@ -9048,7 +9055,7 @@ function Table3D(
       const baseMP = cornerNotchMP(sx, sz);
       const fallbackCenter = new THREE.Vector2(
         sx * (innerHalfW - cornerInset),
-        sz * (innerHalfH - cornerInset)
+        sz * (innerHalfH - cornerInset) - POCKET_CENTER_UPWARD_SHIFT
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       pullPocketJawInward(center, POCKET_JAW_INWARD_PULL);
@@ -9069,7 +9076,10 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
-      const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
+      const fallbackCenter = new THREE.Vector2(
+        sx * sidePocketCenterX,
+        -POCKET_CENTER_UPWARD_SHIFT
+      );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
       pullPocketJawInward(center, POCKET_JAW_INWARD_PULL);
