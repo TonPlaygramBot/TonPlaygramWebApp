@@ -1203,8 +1203,6 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_CENTER_OUTWARD_SHIFT = TABLE.THICK * 0.045; // shift pocket centers outward to keep the pocket stack aligned away from the playfield
-const POCKET_CENTER_INWARD_OFFSET = BALL_DIAMETER * 5; // pull pocket centers inward by five balls for a tighter jaw alignment
-const POCKET_CENTER_UP_OFFSET = BALL_DIAMETER * 0.6; // lift pocket centers slightly upward in the portrait framing
 const CORNER_POCKET_CENTER_INSET = Math.max(
   0,
   POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION - POCKET_CENTER_OUTWARD_SHIFT
@@ -4914,7 +4912,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 1.01; // match Pool Royale standing orbit coordinates while sitting slightly lower
+const STANDING_VIEW_PHI = 0.95; // match Pool Royale standing orbit coordinates
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4930,7 +4928,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.33; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // pull the standing camera a bit closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5536,25 +5534,15 @@ const cornerPocketCenter = (sx, sz) =>
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
 let sidePocketShift = 0;
-const applyPocketCenterOffset = (center) => {
-  if (!center) return center;
-  const towardCenter = center.clone().multiplyScalar(-1);
-  if (towardCenter.lengthSq() > MICRO_EPS * MICRO_EPS) {
-    towardCenter.normalize().multiplyScalar(POCKET_CENTER_INWARD_OFFSET);
-    center.add(towardCenter);
-  }
-  center.y += POCKET_CENTER_UP_OFFSET;
-  return center;
-};
 const pocketCenters = () => {
   const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
   return [
-    applyPocketCenterOffset(cornerPocketCenter(-1, -1)),
-    applyPocketCenterOffset(cornerPocketCenter(1, -1)),
-    applyPocketCenterOffset(cornerPocketCenter(-1, 1)),
-    applyPocketCenterOffset(cornerPocketCenter(1, 1)),
-    applyPocketCenterOffset(new THREE.Vector2(-sidePocketCenterX, 0)),
-    applyPocketCenterOffset(new THREE.Vector2(sidePocketCenterX, 0))
+    cornerPocketCenter(-1, -1),
+    cornerPocketCenter(1, -1),
+    cornerPocketCenter(-1, 1),
+    cornerPocketCenter(1, 1),
+    new THREE.Vector2(-sidePocketCenterX, 0),
+    new THREE.Vector2(sidePocketCenterX, 0)
   ];
 };
 const pocketEntranceCenters = () =>
