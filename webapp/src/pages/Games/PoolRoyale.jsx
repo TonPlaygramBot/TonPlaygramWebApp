@@ -1709,8 +1709,8 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.36; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.3; // keep short-rail cushions unchanged
+const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.38; // pull long-rail cushions farther inward toward the table center
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.32; // pull short-rail cushions slightly inward to match
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -4945,7 +4945,7 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.18; // let the standing view dip slightly lower while still staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the standing view dip slightly lower while still staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -5108,7 +5108,8 @@ const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
-const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
+const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.32;
+const CAMERA_LOW_VIEW_PULL_RANGE = CAMERA.minR * 0.08;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
@@ -16752,6 +16753,17 @@ const powerRef = useRef(hud.power);
           if (dynamicPull > 1e-5) {
             const adjusted = clampOrbitRadius(
               finalRadius - dynamicPull,
+              cueMinRadius
+            );
+            finalRadius =
+              minRadiusForRails != null
+                ? Math.max(adjusted, minRadiusForRails)
+                : adjusted;
+          }
+          const lowViewPull = CAMERA_LOW_VIEW_PULL_RANGE * (1 - phiProgress);
+          if (lowViewPull > 1e-5) {
+            const adjusted = clampOrbitRadius(
+              finalRadius - lowViewPull,
               cueMinRadius
             );
             finalRadius =
