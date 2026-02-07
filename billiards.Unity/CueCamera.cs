@@ -164,13 +164,13 @@ public class CueCamera : MonoBehaviour
     // Height offset above the table focus, captured on start.
     public float standingCameraHeight = 0.48f;
     // Pull the standing camera inward so the framing matches the Pool Royale view.
-    public float standingCameraDistanceInset = 0.08f;
+    public float standingCameraDistanceInset = 0.12f;
     // Additional height offset applied after caching the standing camera pose.
-    public float standingCameraHeightOffset = -0.04f;
+    public float standingCameraHeightOffset = -0.06f;
 
     [Header("Pocket camera framing")]
     // Pull the pocket camera slightly inward for tighter pocket coverage.
-    public float pocketCameraDistanceInset = 0.14f;
+    public float pocketCameraDistanceInset = 0.2f;
     // Nudge the pocket camera look target downward for a slightly steeper angle.
     public float pocketCameraLookDownOffset = 0.03f;
 
