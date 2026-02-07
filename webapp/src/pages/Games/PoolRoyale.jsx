@@ -7964,10 +7964,10 @@ export function Table3D(
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match Snooker Royal pocket clearance
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.35; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.012; // lift short-rail cushions slightly so their tops align with the long rails
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.03; // lift short-rail cushions up to match the side-rail cushion top line
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
