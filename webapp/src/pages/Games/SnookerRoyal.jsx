@@ -4913,7 +4913,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 1.03; // lower the standing orbit a touch more for a closer, slightly lower table feel
+const STANDING_VIEW_PHI = 0.99; // lower the standing orbit a touch for a closer table feel
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4929,7 +4929,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.23; // pull the standing camera closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.26; // pull the standing camera closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
