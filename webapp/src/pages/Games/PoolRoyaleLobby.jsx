@@ -28,16 +28,26 @@ export default function PoolRoyaleLobby() {
     const requestedType = searchParams.get('type');
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
+  const initialStakeToken = searchParams.get('token') || 'TPC';
+  const initialStakeAmount = Number(searchParams.get('amount')) || 100;
+  const initialMode = searchParams.get('mode') === 'online' ? 'online' : 'ai';
+  const initialVariant = (() => {
+    const requested = searchParams.get('variant');
+    if (requested === 'american' || requested === '9ball') return requested;
+    return 'uk';
+  })();
+  const initialUkBallSet = searchParams.get('ballSet') === 'american' ? 'american' : 'uk';
+  const autoMatch = searchParams.get('autoMatch') === '1';
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const [mode, setMode] = useState('ai');
+  const [stake, setStake] = useState({ token: initialStakeToken, amount: initialStakeAmount });
+  const [mode, setMode] = useState(initialMode);
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
-  const [variant, setVariant] = useState('uk');
-  const [ukBallSet, setUkBallSet] = useState('uk');
+  const [variant, setVariant] = useState(initialVariant);
+  const [ukBallSet, setUkBallSet] = useState(initialUkBallSet);
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
@@ -57,6 +67,7 @@ export default function PoolRoyaleLobby() {
   const stakeDebitRef = useRef(null);
   const matchTimeoutRef = useRef(null);
   const seatTimeoutRef = useRef(null);
+  const autoMatchStartedRef = useRef(false);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -234,6 +245,12 @@ export default function PoolRoyaleLobby() {
 
     navigate(`/games/poolroyale?${params.toString()}`);
   };
+
+  useEffect(() => {
+    if (!autoMatch || autoMatchStartedRef.current) return;
+    autoMatchStartedRef.current = true;
+    startGame();
+  }, [autoMatch, startGame]);
 
   useEffect(() => {
     let active = true;
