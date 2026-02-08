@@ -40,7 +40,6 @@ type AmericanSerializedState = {
   assignments: { A: 'SOLIDS' | 'STRIPES' | null; B: 'SOLIDS' | 'STRIPES' | null };
   isOpenTable: boolean;
   breakInProgress: boolean;
-  breakBallInHand: boolean;
 };
 
 type NineSerializedState = {
@@ -137,8 +136,7 @@ function serializeAmericanState(state: AmericanBilliards['state']): AmericanSeri
     winner: state.winner,
     assignments: { ...state.assignments },
     isOpenTable: state.isOpenTable,
-    breakInProgress: state.breakInProgress,
-    breakBallInHand: state.breakBallInHand ?? false
+    breakInProgress: state.breakInProgress
   };
 }
 
@@ -152,8 +150,7 @@ function applyAmericanState(game: AmericanBilliards, snapshot: AmericanSerialize
     winner: snapshot.winner,
     assignments: { ...snapshot.assignments },
     isOpenTable: snapshot.isOpenTable,
-    breakInProgress: snapshot.breakInProgress,
-    breakBallInHand: snapshot.breakBallInHand ?? false
+    breakInProgress: snapshot.breakInProgress
   };
 }
 
