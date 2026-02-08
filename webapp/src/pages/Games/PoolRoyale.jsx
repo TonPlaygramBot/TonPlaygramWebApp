@@ -1542,10 +1542,10 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 420;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
-const POCKET_VIEW_POST_POT_HOLD_MS = 80;
-const POCKET_VIEW_MAX_HOLD_MS = 1400;
+const POCKET_VIEW_MIN_DURATION_MS = 320;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 140;
+const POCKET_VIEW_POST_POT_HOLD_MS = 40;
+const POCKET_VIEW_MAX_HOLD_MS = 900;
 const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -1562,7 +1562,7 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
+const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to reflect spin deflection
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -1676,7 +1676,7 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.45;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.8;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
@@ -1685,7 +1685,7 @@ const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.52;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.12, CUE_TIP_RADIUS * 1.35);
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.12, CUE_TIP_RADIUS * 1.55);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -1694,7 +1694,7 @@ const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
-const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 2.6;
 const TOPSPIN_MULTIPLIER = 1.5;
@@ -5003,7 +5003,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 3; // thicker guides for cue/target direction lines
+const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 1.5; // thinner guides for cue/target direction lines
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -5367,7 +5367,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_CUSHION_EPS = BALL_R * 0.5;
+const SPIN_CUSHION_EPS = BALL_R * 0.6;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0;
 
 const resolveTopspinPowerScale = (power) => {
@@ -25768,7 +25768,14 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const cueFollowDirSpinAdjusted =
+            resolveTargetSpinDeflection(
+              cueFollowDir,
+              dir,
+              appliedSpin,
+              cuePowerStrength,
+              liftStrength
+            ) ?? cueFollowDir.clone();
           const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
           const followEnd = end
             .clone()
@@ -25998,8 +26005,9 @@ const powerRef = useRef(hud.power);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
+          const remoteSpinNormalized = normalizeSpinInput(remoteSpin);
           const remoteSwerveActive = false;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpinNormalized);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remotePhysicsSpin,
@@ -26064,7 +26072,14 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const cueFollowDirSpinAdjusted =
+            resolveTargetSpinDeflection(
+              cueFollowDir,
+              baseDir,
+              remoteSpinNormalized,
+              cuePowerStrength,
+              0
+            ) ?? cueFollowDir.clone();
           const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
           const followEnd = end
             .clone()
