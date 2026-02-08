@@ -1420,7 +1420,7 @@ const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments to
 const POCKET_SIDE_GUIDE_STRAP_PULL = BALL_R * 0.08; // push only the side rails toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.04; // keep balls flush without overlap as they settle against the strap
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.6; // pull the resting spot inward toward the pocket and strap
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.05; // pull the resting spot inward toward the pocket and strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1457,8 +1457,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.48,
-  heightOffsetShortMultiplier: 1.2,
+  heightOffset: BALL_R * 1.34,
+  heightOffsetShortMultiplier: 1.16,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -5003,7 +5003,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 3; // thicker guides for cue/target direction lines
+const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18); // thicker guides for cue/target direction lines
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -6603,33 +6603,6 @@ function calcTarget(cue, dir, balls) {
       .normalize();
   }
   return { impact, targetDir, cueDir, targetBall, railNormal, tHit: travel };
-}
-
-function resolveCueFollowPreview({ cueDir, dir, targetBall, backspin = 0 }) {
-  const baseDir = dir?.clone ? dir.clone() : new THREE.Vector3(0, 0, 1);
-  if (baseDir.lengthSq() < 1e-8) baseDir.set(0, 0, 1);
-  else baseDir.normalize();
-  let followDir = cueDir
-    ? new THREE.Vector3(cueDir.x, 0, cueDir.y)
-    : baseDir.clone();
-  if (followDir.lengthSq() > 1e-8) followDir.normalize();
-  let hide = !cueDir && Boolean(targetBall);
-  const backspinInfluence =
-    BACKSPIN_DIRECTION_PREVIEW > 0
-      ? clamp(-backspin, 0, 1) * BACKSPIN_DIRECTION_PREVIEW
-      : 0;
-  if (backspinInfluence > 1e-6) {
-    const backward = baseDir.clone().multiplyScalar(-1);
-    if (followDir.lengthSq() < 1e-8) {
-      followDir.copy(backward);
-    } else {
-      followDir.lerp(backward, backspinInfluence);
-    }
-    if (followDir.lengthSq() > 1e-8) followDir.normalize();
-    hide = false;
-  }
-  if (followDir.lengthSq() < 1e-8) return { dir: null, hide: true };
-  return { dir: followDir, hide };
 }
 
 function Guret(parent, id, color, x, y, options = {}) {
@@ -20816,7 +20789,6 @@ const powerRef = useRef(hud.power);
         tickGeom,
         new THREE.LineBasicMaterial({
           color: 0xffffff,
-          linewidth: AIM_LINE_WIDTH,
           depthTest: false,
           depthWrite: false
         })
@@ -25775,35 +25747,28 @@ const powerRef = useRef(hud.power);
           } else {
             aimFocusRef.current = null;
           }
-          const cueFollow = resolveCueFollowPreview({
-            cueDir,
-            dir,
-            targetBall,
-            backspin: appliedSpin?.y ?? 0
-          });
-          if (cueFollow.hide || !cueFollow.dir) {
-            cueAfter.visible = false;
-            cueAfterPower.visible = false;
-          } else {
-            const cueFollowLength = BALL_R * (12 + powerStrength * 18);
-            const followEnd = end
-              .clone()
-              .add(cueFollow.dir.clone().multiplyScalar(cueFollowLength));
-            cueAfterGeom.setFromPoints([end, followEnd]);
-            cueAfter.visible = true;
-            cueAfterPower.material.color.copy(powerColor);
-            cueAfterPower.material.opacity = 0.35 + 0.45 * powerStrength;
-            cueAfterPower.visible = updatePowerLinePoints(
-              cueAfterPowerGeom,
-              end,
-              followEnd,
-              powerStrength
-            );
-            const cueBackwards = cueFollow.dir.dot(dir) < 0;
-            cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
-            cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
-            cueAfter.computeLineDistances();
-          }
+          const cueFollowDir = cueDir
+            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+            : dir.clone();
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const followEnd = end
+            .clone()
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
+          cueAfterGeom.setFromPoints([end, followEnd]);
+          cueAfter.visible = true;
+          cueAfterPower.material.color.copy(powerColor);
+          cueAfterPower.material.opacity = 0.35 + 0.45 * powerStrength;
+          cueAfterPower.visible = updatePowerLinePoints(
+            cueAfterPowerGeom,
+            end,
+            followEnd,
+            powerStrength
+          );
+          const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
+          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.computeLineDistances();
           if (impactRingEnabled) {
             impactRing.visible = true;
             impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
@@ -26015,8 +25980,6 @@ const powerRef = useRef(hud.power);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
-          const spinX = THREE.MathUtils.clamp(remoteSpin.x ?? 0, -1, 1);
-          const spinY = THREE.MathUtils.clamp(remoteSpin.y ?? 0, -1, 1);
           const remoteSwerveActive = false;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
           const guideAimDir2D = resolveSwerveAimDir(
@@ -26064,40 +26027,35 @@ const powerRef = useRef(hud.power);
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
-          const cueFollow = resolveCueFollowPreview({
-            cueDir,
-            dir: baseDir,
-            targetBall,
-            backspin: spinY
-          });
-          if (cueFollow.hide || !cueFollow.dir) {
-            cueAfter.visible = false;
-            cueAfterPower.visible = false;
-          } else {
-            const cueFollowLength = BALL_R * (12 + powerStrength * 18);
-            const followEnd = end
-              .clone()
-              .add(cueFollow.dir.clone().multiplyScalar(cueFollowLength));
-            cueAfterGeom.setFromPoints([end, followEnd]);
-            cueAfter.visible = true;
-            cueAfterPower.material.color.copy(powerColor);
-            cueAfterPower.material.opacity = 0.35 + 0.45 * powerStrength;
-            cueAfterPower.visible = updatePowerLinePoints(
-              cueAfterPowerGeom,
-              end,
-              followEnd,
-              powerStrength
-            );
-            const cueBackwards = cueFollow.dir.dot(baseDir) < 0;
-            cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
-            cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
-            cueAfter.computeLineDistances();
-          }
+          const cueFollowDir = cueDir
+            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+            : baseDir.clone();
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const followEnd = end
+            .clone()
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
+          cueAfterGeom.setFromPoints([end, followEnd]);
+          cueAfter.visible = true;
+          cueAfterPower.material.color.copy(powerColor);
+          cueAfterPower.material.opacity = 0.35 + 0.45 * powerStrength;
+          cueAfterPower.visible = updatePowerLinePoints(
+            cueAfterPowerGeom,
+            end,
+            followEnd,
+            powerStrength
+          );
+          const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
+          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.computeLineDistances();
           impactRing.visible = false;
           const maxPull = CUE_PULL_BASE;
           const desiredPull = computePullTargetFromPower(powerStrength, maxPull);
           const pull = computeCuePull(desiredPull, maxPull);
           const visualPull = applyVisualPullCompensation(pull, baseDir);
+          const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
+          const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
             { x: spinX, y: spinY },
             ranges
@@ -26948,8 +26906,7 @@ const powerRef = useRef(hud.power);
                       c.y
                     ),
                     material: b.mesh.material,
-                    renderOrder: (b.mesh.renderOrder ?? 0) + 1,
-                    scale: b.mesh?.scale?.clone?.() ?? null
+                    renderOrder: (b.mesh.renderOrder ?? 0) + 1
                   });
                 } else {
                   const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
@@ -26958,9 +26915,6 @@ const powerRef = useRef(hud.power);
                     BALL_CENTER_Y + POCKET_POPUP_LIFT,
                     c.y
                   );
-                  if (b.mesh?.scale) {
-                    popupMesh.scale.copy(b.mesh.scale);
-                  }
                   popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
                   popupMesh.castShadow = false;
                   popupMesh.receiveShadow = false;
@@ -27239,9 +27193,6 @@ const powerRef = useRef(hud.power);
               if (!entry?.material || !entry?.position) return;
               const popupMesh = new THREE.Mesh(BALL_GEOMETRY, entry.material);
               popupMesh.position.copy(entry.position);
-              if (entry.scale) {
-                popupMesh.scale.copy(entry.scale);
-              }
               popupMesh.renderOrder = entry.renderOrder ?? 0;
               popupMesh.castShadow = false;
               popupMesh.receiveShadow = false;
