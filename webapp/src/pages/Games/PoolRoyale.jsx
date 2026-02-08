@@ -635,7 +635,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.99; // keep the wooden rail pocket relie
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner relief diameter identical to the middle pockets
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.97; // pull back the middle rail rounded cuts to keep the radius a bit tighter
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // pull back the middle rail rounded cuts to keep the radius a bit tighter
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
@@ -1104,7 +1104,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.93; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.945; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -7967,7 +7967,7 @@ export function Table3D(
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.7; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.48; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
-  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.035; // push side-rail cushions away from the middle pockets toward the corners
+  const SIDE_CUSHION_CORNER_SHIFT = 0; // keep side-rail cushions aligned to the same pocket spacing as the short rails
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.02; // keep short-rail cushions level with the side rails
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
