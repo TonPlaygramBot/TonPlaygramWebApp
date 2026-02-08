@@ -6516,6 +6516,14 @@ function resolveTargetSpinDeflection(
   return dir;
 }
 
+function resolveDefaultCueFollowSpin(spin, powerStrength, liftStrength = 0) {
+  const forwardSpin = spin?.y ?? 0;
+  if (forwardSpin < -0.02) return 0;
+  const powerScale = 0.4 + THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1) * 0.6;
+  const liftScale = 1 + Math.max(0, liftStrength) * 0.1;
+  return AIM_SPIN_PREVIEW_FORWARD * powerScale * liftScale;
+}
+
 function resolveCueFollowPreview({
   cueDir,
   aimDir,
@@ -11407,6 +11415,15 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const [postGameActions, setPostGameActions] = useState({
+    visible: false,
+    status: 'idle',
+    message: '',
+    countdown: 0
+  });
+  const [rematchInvite, setRematchInvite] = useState(null);
+  const rematchInviteTimerRef = useRef(null);
+  const rematchRequestRef = useRef(null);
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -12793,7 +12810,7 @@ function PoolRoyaleGame({
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
   const tableId = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('tableId') || '';
+    return params.get('tableId') || params.get('table') || '';
   }, [location.search]);
   const localSeat = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -12827,6 +12844,15 @@ function PoolRoyaleGame({
   );
   const opponentDisplayName = opponentProfile?.name || opponentLabel;
   const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
+  const opponentAccountId = useMemo(
+    () =>
+      opponentProfile?.id ||
+      opponentProfile?.accountId ||
+      opponentProfile?.playerId ||
+      opponentProfile?.userId ||
+      '',
+    [opponentProfile]
+  );
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanCacheRef = useRef({ key: null, plan: null });
@@ -12932,6 +12958,7 @@ useEffect(() => {
 }, [hud.turn]);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
 const lastPottedBySeatRef = useRef({ A: null, B: null });
+const lastPottedBallRef = useRef(null);
 const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
@@ -13005,6 +13032,9 @@ const powerRef = useRef(hud.power);
     setPottedBySeat({ A: [], B: [] });
     lastAssignmentsRef.current = { A: null, B: null };
     lastShotReminderRef.current = { A: 0, B: 0 };
+    lastPottedBallRef.current = null;
+    setWinnerOverlay(null);
+    setPostGameActions({ visible: false, status: 'idle', message: '', countdown: 0 });
     setTurnCycle(0);
     setRuleToast(null);
     setHud((prev) => ({
@@ -13439,6 +13469,80 @@ const powerRef = useRef(hud.power);
       : '/games/poolroyale/lobby';
     window.location.assign(lobbyUrl);
   }, [frameState.winner, location.search, tournamentMode]);
+  const clearRematchTimers = useCallback(() => {
+    if (rematchInviteTimerRef.current) {
+      clearInterval(rematchInviteTimerRef.current);
+      rematchInviteTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => () => clearRematchTimers(), [clearRematchTimers]);
+  const resetPostGameState = useCallback(() => {
+    clearRematchTimers();
+    rematchRequestRef.current = null;
+    setRematchInvite(null);
+    setPostGameActions({ visible: false, status: 'idle', message: '', countdown: 0 });
+    setWinnerOverlay(null);
+  }, [clearRematchTimers]);
+  const startRematchRound = useCallback(
+    ({ emit = false, rematchId = null } = {}) => {
+      const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
+      const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
+      const nextFrame =
+        baseFrame.activePlayer === desiredStarter
+          ? baseFrame
+          : { ...baseFrame, activePlayer: desiredStarter };
+      const nextHud = {
+        power: 0,
+        A: nextFrame.players.A.score,
+        B: nextFrame.players.B.score,
+        turn:
+          localSeat === desiredStarter
+            ? 0
+            : 1,
+        phase: nextFrame.phase === 'REDS_AND_COLORS' ? 'reds' : 'colors',
+        next: nextFrame.ballOn?.length ? nextFrame.ballOn.join(' / ') : 'ball',
+        inHand: deriveInHandFromFrame(nextFrame),
+        over: false
+      };
+      cueBallPlacedFromHandRef.current = !nextHud.inHand;
+      pendingInHandResetRef.current = false;
+      gameOverHandledRef.current = false;
+      lastPottedBySeatRef.current = { A: null, B: null };
+      lastPottedBallRef.current = null;
+      setPottedBySeat({ A: [], B: [] });
+      setRuleToast(null);
+      setReplayActive(false);
+      setReplayFoul(null);
+      setHud((prev) => ({ ...prev, ...nextHud }));
+      frameRef.current = nextFrame;
+      setFrameState(nextFrame);
+      setTurnCycle((value) => value + 1);
+      resetSpinRef.current?.();
+      setShotActive(false);
+      const layout = resetTableForNewGame();
+      resetPostGameState();
+      if (emit && isOnlineMatch && tableId) {
+        socket.emit('poolRematchStart', {
+          tableId,
+          rematchId,
+          state: nextFrame,
+          hud: nextHud,
+          layout
+        });
+      }
+    },
+    [
+      framePlayerAName,
+      framePlayerBName,
+      isOnlineMatch,
+      localSeat,
+      resetPostGameState,
+      resetTableForNewGame,
+      rules,
+      starterSeat,
+      tableId
+    ]
+  );
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
     const userSeed = st.userSeed;
@@ -14321,6 +14425,69 @@ const powerRef = useRef(hud.power);
     },
     [isUkAmericanSet]
   );
+  const resetTableForNewGame = useCallback(() => {
+    const cueBall = cueRef.current;
+    const balls = ballsRef.current || [];
+    if (!cueBall || balls.length === 0) return null;
+    const variantConfig = activeVariantRef.current;
+    const baulkZ = -PLAY_H / 2 + BAULK_FROM_BAULK;
+    const rackStartZ = spotPositions(baulkZ).pink[1] + BALL_R * 2;
+    const rackLayout = variantConfig?.rackLayout || 'triangle';
+    const rackColors = Array.isArray(variantConfig?.objectColors)
+      ? variantConfig.objectColors
+      : [];
+    const rackPositions = generateRackPositions(
+      rackColors.length,
+      rackLayout,
+      BALL_R,
+      rackStartZ
+    );
+    pocketRestIndexRef.current?.clear?.();
+    const resetBall = (ball, x, z) => {
+      if (!ball) return;
+      removePocketDropEntry(ball.id);
+      ball.active = true;
+      if (ball.mesh) ball.mesh.visible = true;
+      ball.pos.set(x, z);
+      if (ball.mesh) {
+        ball.mesh.position.set(x, BALL_CENTER_Y, z);
+        ball.mesh.scale.set(1, 1, 1);
+      }
+      ball.vel.set(0, 0);
+      ball.spin?.set(0, 0);
+      ball.pendingSpin?.set(0, 0);
+      ball.omega?.set(0, 0, 0);
+      ball.spinMode = 'standard';
+      ball.swerveStrength = 0;
+      ball.swervePowerStrength = 0;
+      ball.impacted = false;
+      ball.launchDir = null;
+    };
+    const objectBalls = balls.filter((ball) => ball && String(ball.id) !== 'cue');
+    const ballById = new Map(objectBalls.map((ball) => [String(ball.id), ball]));
+    const used = new Set();
+    const resolveBall = (id) => {
+      const key = String(id);
+      const direct = ballById.get(key);
+      if (direct && !used.has(direct)) {
+        used.add(direct);
+        return direct;
+      }
+      const fallback = objectBalls.find((ball) => ball && !used.has(ball));
+      if (fallback) used.add(fallback);
+      return fallback || null;
+    };
+    rackColors.forEach((_color, rid) => {
+      const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1];
+      if (!pos) return;
+      const ballId = getPoolBallId(variantConfig, rid);
+      const ball = resolveBall(ballId);
+      if (!ball) return;
+      resetBall(ball, pos.x, pos.z);
+    });
+    resetBall(cueBall, -BALL_R * 2, baulkZ);
+    return captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : null;
+  }, [removePocketDropEntry]);
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
     setHud((prev) => {
@@ -14384,6 +14551,9 @@ const powerRef = useRef(hud.power);
         scores: finalScores
       });
       if (cancelled) return;
+      if (!tournamentMode) {
+        resetTableForNewGame();
+      }
       const userSeat = localSeat === 'B' ? 'B' : 'A';
       const userWon = winnerSeat === userSeat;
       const prizeAmount =
@@ -14398,16 +14568,25 @@ const powerRef = useRef(hud.power);
         avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
         prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
         rewards: tournamentOutcome?.unlocks || [],
-        userWon
+        userWon,
+        lastPotted: lastPottedBallRef.current
       };
       setWinnerOverlay(overlayData);
       const burstCount = overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
         ? 28
         : 18;
       triggerCoinBurst(burstCount);
-      await wait(3200);
-      if (!cancelled) {
-        goToLobby();
+      setPostGameActions({
+        visible: true,
+        status: 'idle',
+        message: '',
+        countdown: 0
+      });
+      if (tournamentMode) {
+        await wait(3200);
+        if (!cancelled) {
+          goToLobby();
+        }
       }
     };
     runMatchWrapUp();
@@ -14430,7 +14609,298 @@ const powerRef = useRef(hud.power);
     tournamentMode,
     tournamentPlayers,
     triggerCoinBurst,
+    resetTableForNewGame,
     waitForActiveReplay
+  ]);
+
+  const beginOnlineRematchInvite = useCallback(() => {
+    if (!isOnlineMatch || !tableId) return;
+    if (!opponentAccountId) {
+      setPostGameActions({
+        visible: true,
+        status: 'error',
+        message: 'Opponent unavailable. Searching for a new match…',
+        countdown: 0
+      });
+      const params = new URLSearchParams();
+      params.set('mode', 'online');
+      params.set('variant', variantKey);
+      if (ballSetKey) params.set('ballSet', ballSetKey);
+      if (tableSizeKey) params.set('tableSize', tableSizeKey);
+      if (stakeToken) params.set('token', stakeToken);
+      if (stakeAmount) params.set('amount', String(stakeAmount));
+      params.set('autoMatch', '1');
+      navigate(`/games/poolroyale/lobby?${params.toString()}`);
+      return;
+    }
+    const rematchId = `${tableId}-${Date.now()}`;
+    const expiresAt = Date.now() + 15000;
+    rematchRequestRef.current = { rematchId, expiresAt };
+    setPostGameActions({
+      visible: true,
+      status: 'waiting',
+      message: `Waiting for ${opponentDisplayName || 'opponent'}…`,
+      countdown: 15
+    });
+    socket.emit('poolRematchInvite', {
+      tableId,
+      rematchId,
+      fromId: resolvedAccountId || accountId || '',
+      fromName: player.name || playerLabel,
+      toId: opponentAccountId,
+      variant: variantKey,
+      ballSet: ballSetKey,
+      tableSize: tableSizeKey,
+      stakeToken,
+      stakeAmount
+    });
+    clearRematchTimers();
+    rematchInviteTimerRef.current = window.setInterval(() => {
+      const active = rematchRequestRef.current;
+      if (!active) return;
+      const remainingMs = active.expiresAt - Date.now();
+      const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
+      setPostGameActions((prev) =>
+        prev.visible && prev.status === 'waiting'
+          ? { ...prev, countdown: remaining }
+          : prev
+      );
+      if (remaining <= 0) {
+        rematchRequestRef.current = null;
+        clearRematchTimers();
+        setPostGameActions({
+          visible: true,
+          status: 'declined',
+          message: 'Rematch timed out. Searching for a new opponent…',
+          countdown: 0
+        });
+        const params = new URLSearchParams();
+        params.set('mode', 'online');
+        params.set('variant', variantKey);
+        if (ballSetKey) params.set('ballSet', ballSetKey);
+        if (tableSizeKey) params.set('tableSize', tableSizeKey);
+        if (stakeToken) params.set('token', stakeToken);
+        if (stakeAmount) params.set('amount', String(stakeAmount));
+        params.set('autoMatch', '1');
+        navigate(`/games/poolroyale/lobby?${params.toString()}`);
+      }
+    }, 500);
+  }, [
+    accountId,
+    ballSetKey,
+    clearRematchTimers,
+    isOnlineMatch,
+    navigate,
+    opponentAccountId,
+    opponentDisplayName,
+    player.name,
+    playerLabel,
+    resolvedAccountId,
+    stakeAmount,
+    stakeToken,
+    tableId,
+    tableSizeKey,
+    variantKey
+  ]);
+
+  const handlePlayAgain = useCallback(() => {
+    if (tournamentMode) {
+      goToLobby();
+      return;
+    }
+    if (isOnlineMatch) {
+      beginOnlineRematchInvite();
+      return;
+    }
+    startRematchRound();
+  }, [beginOnlineRematchInvite, goToLobby, isOnlineMatch, startRematchRound, tournamentMode]);
+
+  const handleLobbyClick = useCallback(() => {
+    resetPostGameState();
+    goToLobby();
+  }, [goToLobby, resetPostGameState]);
+
+  const handleAcceptRematch = useCallback(() => {
+    if (!rematchInvite || !isOnlineMatch || !tableId) return;
+    socket.emit('poolRematchResponse', {
+      tableId,
+      rematchId: rematchInvite.rematchId,
+      accepted: true,
+      fromId: resolvedAccountId || accountId || ''
+    });
+    clearRematchTimers();
+    setRematchInvite(null);
+    setPostGameActions({
+      visible: true,
+      status: 'starting',
+      message: 'Accepted! Preparing the rematch…',
+      countdown: 0
+    });
+  }, [
+    accountId,
+    clearRematchTimers,
+    isOnlineMatch,
+    rematchInvite,
+    resolvedAccountId,
+    tableId
+  ]);
+
+  const handleDeclineRematch = useCallback(() => {
+    if (!rematchInvite || !isOnlineMatch || !tableId) return;
+    socket.emit('poolRematchResponse', {
+      tableId,
+      rematchId: rematchInvite.rematchId,
+      accepted: false,
+      fromId: resolvedAccountId || accountId || ''
+    });
+    clearRematchTimers();
+    setRematchInvite(null);
+    setPostGameActions({
+      visible: true,
+      status: 'declined',
+      message: 'Rematch declined.',
+      countdown: 0
+    });
+  }, [
+    accountId,
+    clearRematchTimers,
+    isOnlineMatch,
+    rematchInvite,
+    resolvedAccountId,
+    tableId
+  ]);
+
+  useEffect(() => {
+    if (!isOnlineMatch || !tableId) return undefined;
+    const handleInvite = (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      if (payload.toId && String(payload.toId) !== String(resolvedAccountId || accountId || '')) {
+        return;
+      }
+      if (payload.fromId && String(payload.fromId) === String(resolvedAccountId || accountId || '')) {
+        return;
+      }
+      const expiresAt = Date.now() + 15000;
+      setRematchInvite({
+        rematchId: payload.rematchId || `${tableId}-${Date.now()}`,
+        fromName: payload.fromName || opponentDisplayName || 'Opponent',
+        expiresAt
+      });
+      setPostGameActions({
+        visible: true,
+        status: 'incoming',
+        message: 'Opponent wants a rematch',
+        countdown: 15
+      });
+      clearRematchTimers();
+      rematchInviteTimerRef.current = window.setInterval(() => {
+        setRematchInvite((prev) => {
+          if (!prev) return prev;
+          const remainingMs = prev.expiresAt - Date.now();
+          const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
+          setPostGameActions((state) =>
+            state.visible && state.status === 'incoming'
+              ? { ...state, countdown: remaining }
+              : state
+          );
+          if (remaining <= 0) {
+            socket.emit('poolRematchResponse', {
+              tableId,
+              rematchId: prev.rematchId,
+              accepted: false,
+              fromId: resolvedAccountId || accountId || ''
+            });
+            clearRematchTimers();
+            setPostGameActions({
+              visible: true,
+              status: 'declined',
+              message: 'Rematch invite expired.',
+              countdown: 0
+            });
+            return null;
+          }
+          return prev;
+        });
+      }, 500);
+    };
+    const handleResponse = (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      const request = rematchRequestRef.current;
+      if (!request || payload.rematchId !== request.rematchId) return;
+      rematchRequestRef.current = null;
+      clearRematchTimers();
+      if (payload.accepted) {
+        setPostGameActions({
+          visible: true,
+          status: 'starting',
+          message: 'Opponent accepted! Setting up…',
+          countdown: 0
+        });
+        startRematchRound({ emit: true, rematchId: payload.rematchId });
+      } else {
+        setPostGameActions({
+          visible: true,
+          status: 'declined',
+          message: 'Opponent declined. Searching for a new opponent…',
+          countdown: 0
+        });
+        const params = new URLSearchParams();
+        params.set('mode', 'online');
+        params.set('variant', variantKey);
+        if (ballSetKey) params.set('ballSet', ballSetKey);
+        if (tableSizeKey) params.set('tableSize', tableSizeKey);
+        if (stakeToken) params.set('token', stakeToken);
+        if (stakeAmount) params.set('amount', String(stakeAmount));
+        params.set('autoMatch', '1');
+        navigate(`/games/poolroyale/lobby?${params.toString()}`);
+      }
+    };
+    const handleStart = (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      if (payload.state) {
+        frameRef.current = payload.state;
+        setFrameState(payload.state);
+        setTurnCycle((value) => value + 1);
+      }
+      if (payload.hud) {
+        setHud((prev) => ({ ...prev, ...payload.hud, over: false }));
+      }
+      if (Array.isArray(payload.layout)) {
+        const applySnapshot = applyBallSnapshotRef.current;
+        if (applySnapshot) {
+          applySnapshot(payload.layout);
+        } else {
+          pendingLayoutRef.current = payload.layout;
+        }
+      } else {
+        resetTableForNewGame();
+      }
+      resetPostGameState();
+    };
+    socket.on('poolRematchInvite', handleInvite);
+    socket.on('poolRematchResponse', handleResponse);
+    socket.on('poolRematchStart', handleStart);
+    return () => {
+      socket.off('poolRematchInvite', handleInvite);
+      socket.off('poolRematchResponse', handleResponse);
+      socket.off('poolRematchStart', handleStart);
+    };
+  }, [
+    accountId,
+    ballSetKey,
+    clearRematchTimers,
+    isOnlineMatch,
+    navigate,
+    opponentDisplayName,
+    resetPostGameState,
+    resetTableForNewGame,
+    resolvedAccountId,
+    startRematchRound,
+    stakeAmount,
+    stakeToken,
+    tableId,
+    tableSizeKey,
+    variantKey
   ]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
@@ -25014,6 +25484,7 @@ const powerRef = useRef(hud.power);
             (entry) => entry && entry.color && entry.color !== 'CUE'
           );
           if (newPots.length) {
+            lastPottedBallRef.current = newPots[newPots.length - 1] ?? null;
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
               [shooterSeat]: newPots[newPots.length - 1] ?? null
@@ -25030,12 +25501,14 @@ const powerRef = useRef(hud.power);
               ]
             }));
           } else {
+            lastPottedBallRef.current = null;
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
               [shooterSeat]: null
             };
           }
         } else {
+          lastPottedBallRef.current = null;
           lastPottedBySeatRef.current = {
             ...lastPottedBySeatRef.current,
             [shooterSeat]: null
@@ -25880,10 +26353,19 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
+          const defaultForwardSpin = resolveDefaultCueFollowSpin(
+            appliedSpin,
+            powerStrength,
+            liftStrength
+          );
+          const previewSpin = {
+            x: appliedSpin?.x ?? 0,
+            y: (appliedSpin?.y ?? 0) + defaultForwardSpin
+          };
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
-            spin: appliedSpin,
+            spin: previewSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength
@@ -26183,10 +26665,19 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
+          const defaultForwardSpin = resolveDefaultCueFollowSpin(
+            remoteSpinNormalized,
+            powerStrength,
+            0
+          );
+          const previewSpin = {
+            x: remoteSpinNormalized?.x ?? 0,
+            y: (remoteSpinNormalized?.y ?? 0) + defaultForwardSpin
+          };
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: baseDir,
-            spin: remoteSpinNormalized,
+            spin: previewSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength: 0
@@ -28399,7 +28890,7 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {winnerOverlay && (
-        <div className="pointer-events-none absolute inset-0 z-[120] flex items-center justify-center bg-black/70 px-4">
+        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/70 px-4">
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="relative">
               <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-amber-300 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-[0_0_32px_rgba(250,204,21,0.55)]">
@@ -28420,6 +28911,16 @@ const powerRef = useRef(hud.power);
             <div className="text-lg font-semibold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
               {winnerOverlay.name}
             </div>
+            {winnerOverlay.lastPotted ? (
+              <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-amber-200/30 bg-white/10 px-4 py-3 text-xs text-white shadow-[0_0_22px_rgba(0,0,0,0.35)] backdrop-blur">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-100">
+                  Last potted ball replay
+                </div>
+                <div className="mt-2 flex items-center justify-center">
+                  {renderPottedRow([winnerOverlay.lastPotted], winnerOverlay.lastPotted.id, '#fbbf24')}
+                </div>
+              </div>
+            ) : null}
             {winnerOverlay.prizeText ? (
               <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2 text-sm font-bold uppercase tracking-[0.22em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]">
                 <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC prize" className="h-6 w-6" />
@@ -28447,6 +28948,60 @@ const powerRef = useRef(hud.power);
                 </ul>
               </div>
             ) : null}
+            {postGameActions?.visible && (
+              <div className="pointer-events-auto flex flex-col items-center gap-3">
+                {postGameActions.message ? (
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-100">
+                    {postGameActions.message}
+                    {postGameActions.countdown
+                      ? ` (${postGameActions.countdown}s)`
+                      : ''}
+                  </div>
+                ) : null}
+                {postGameActions.status === 'incoming' ? (
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAcceptRematch}
+                      className="rounded-full border border-emerald-200/70 bg-emerald-300 px-6 py-2 text-xs font-bold uppercase tracking-[0.24em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeclineRematch}
+                      className="rounded-full border border-red-300/70 bg-red-400/80 px-6 py-2 text-xs font-bold uppercase tracking-[0.24em] text-black shadow-[0_0_18px_rgba(248,113,113,0.55)]"
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleLobbyClick}
+                      className="rounded-full border border-white/30 bg-white/10 px-6 py-2 text-xs font-bold uppercase tracking-[0.24em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+                    >
+                      Lobby
+                    </button>
+                    {!tournamentMode && (
+                      <button
+                        type="button"
+                        onClick={handlePlayAgain}
+                        disabled={postGameActions.status === 'waiting' || postGameActions.status === 'starting'}
+                        className={`rounded-full border px-6 py-2 text-xs font-bold uppercase tracking-[0.24em] shadow-[0_0_18px_rgba(16,185,129,0.55)] ${
+                          postGameActions.status === 'waiting' || postGameActions.status === 'starting'
+                            ? 'border-white/30 bg-white/10 text-white/60'
+                            : 'border-emerald-200/70 bg-emerald-300 text-black'
+                        }`}
+                      >
+                        Play Again
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
