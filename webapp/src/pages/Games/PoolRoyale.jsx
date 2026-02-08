@@ -579,10 +579,10 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 0.985;
-const CORNER_POCKET_INWARD_SCALE = 1.008; // ease the corner cuts back toward the rail so the mouth stays as wide as the bowl
+const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.012;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // keep the corner chrome arch radius aligned with the middle pockets
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.06; // pull the rounded corner cut slightly inward while keeping the notch aligned to the cloth
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
@@ -628,11 +628,11 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the snooker fascia edge
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // tighten the rounded chrome corner cut so the radius reads slightly smaller
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.13; // open the middle pocket chrome cut radius slightly for a broader curve
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.16; // open the middle pocket chrome cut radius slightly for a broader curve
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // tighten the wooden rail pocket relief so the rounded corner cuts read slightly smaller
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.99; // keep the wooden rail pocket relief identical across corner and middle cuts
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner relief diameter identical to the middle pockets
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // pull back the middle rail rounded cuts to keep the radius a bit tighter
@@ -1163,7 +1163,8 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.1545 * 0.85 * 0.9 * 1.07 * 1.03 * 0.95 * 0.95 * 0.95; // trim balls by an extra 5% while preserving the table mapping scale
+const BALL_SIZE_SCALE =
+  1.1545 * 0.85 * 0.9 * 1.07 * 1.03 * 0.95 * 0.95 * 0.95 * 1.05; // increase balls by 5% while preserving the table mapping scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -7963,12 +7964,12 @@ export function Table3D(
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.08; // nudge long-rail cushions inward for cleaner rail separation
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
-  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.7; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.48; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
-  const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.03; // lift short-rail cushions up to match the side-rail cushion top line
-  const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // lift long-rail cushions to the same top line as the short rails
+  const SIDE_CUSHION_CORNER_SHIFT = 0; // keep side-rail cushions aligned to the same pocket spacing as the short rails
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.02; // keep short-rail cushions level with the side rails
+  const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
