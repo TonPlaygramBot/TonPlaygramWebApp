@@ -63,11 +63,27 @@
       }
       .aim-line {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 2px;
+        width: 1px;
         height: 0;
         background: #fff;
+        transform-origin: top center;
+        transform: translate(-50%, -100%) rotate(0);
+        pointer-events: none;
+      }
+      .cue-line {
+        position: absolute;
+        width: 1px;
+        height: 0;
+        background: rgba(92, 227, 255, 0.9);
+        transform-origin: top center;
+        transform: translate(-50%, -100%) rotate(0);
+        pointer-events: none;
+      }
+      .target-line {
+        position: absolute;
+        width: 1px;
+        height: 0;
+        background: rgba(255, 214, 98, 0.95);
         transform-origin: top center;
         transform: translate(-50%, -100%) rotate(0);
         pointer-events: none;
@@ -123,6 +139,11 @@
         border-radius: 50%;
         background: rgba(255,255,255,0.25);
         cursor: crosshair;
+      }
+      #spin-controller.is-blocked {
+        cursor: not-allowed;
+        opacity: 0.45;
+        box-shadow: inset 0 0 0 2px rgba(255, 110, 110, 0.6);
       }
       #spin-controller .spin-dot {
         pointer-events: none;
@@ -191,6 +212,8 @@
       <svg id="frame" class="overlay debug-marker" viewBox="0 0 1000 1500"></svg>
       <div class="ball-layer">
         <div id="aim-line" class="aim-line debug-marker"></div>
+        <div id="cue-line" class="cue-line debug-marker"></div>
+        <div id="target-line" class="target-line debug-marker"></div>
         <div id="cue-ball" class="ball">
           <div id="cue-spin-dot" class="spin-dot debug-marker"></div>
         </div>
@@ -232,6 +255,8 @@
     <script>
       const stage = document.querySelector('.stage');
       const aimLine = document.getElementById('aim-line');
+      const cueLine = document.getElementById('cue-line');
+      const targetLine = document.getElementById('target-line');
       const cueBall = document.getElementById('cue-ball');
       const targetBall = document.getElementById('target-ball');
       const powerInput = document.getElementById('power');
@@ -297,16 +322,144 @@
       });
 
       let shotDir = { x: 0, y: -1 };
-      let shotLength = 0;
+      let shotLength = 180;
       let spin = { x: 0, y: 0 };
 
-      const rect = stage.getBoundingClientRect();
-      const center = { x: rect.width / 2, y: rect.height / 2 };
+      let rect = stage.getBoundingClientRect();
+      let center = { x: rect.width / 2, y: rect.height / 2 };
+      let clothBounds = null;
+      const rootStyles = getComputedStyle(document.documentElement);
+      const clothInsets = {
+        top: parseFloat(rootStyles.getPropertyValue('--cloth-top')) / 100,
+        bottom: parseFloat(rootStyles.getPropertyValue('--cloth-bottom')) / 100,
+        left: parseFloat(rootStyles.getPropertyValue('--cloth-left')) / 100,
+        right: parseFloat(rootStyles.getPropertyValue('--cloth-right')) / 100
+      };
+      const ballSize = parseFloat(rootStyles.getPropertyValue('--ball-size')) || 42;
+      const ballRadius = ballSize / 2;
 
       cueBall.style.left = `${center.x}px`;
       cueBall.style.top = `${center.y}px`;
       targetBall.style.left = `${center.x}px`;
       targetBall.style.top = `${center.y}px`;
+
+      function updateLayout() {
+        rect = stage.getBoundingClientRect();
+        center = { x: rect.width / 2, y: rect.height / 2 };
+        clothBounds = {
+          minX: rect.width * clothInsets.left,
+          maxX: rect.width * (1 - clothInsets.right),
+          minY: rect.height * clothInsets.top,
+          maxY: rect.height * (1 - clothInsets.bottom)
+        };
+        cueBall.style.left = `${center.x}px`;
+        cueBall.style.top = `${center.y}px`;
+      }
+
+      function setLine(line, origin, angleDeg, length) {
+        if (length <= 0.5) {
+          line.style.height = '0px';
+          return;
+        }
+        line.style.left = `${origin.x}px`;
+        line.style.top = `${origin.y}px`;
+        line.style.height = `${length}px`;
+        line.style.transform = `translate(-50%, -100%) rotate(${angleDeg}deg)`;
+      }
+
+      function rayRectDistance(origin, dir, bounds) {
+        let tx = Infinity;
+        let ty = Infinity;
+        if (dir.x > 0) tx = (bounds.maxX - origin.x) / dir.x;
+        else if (dir.x < 0) tx = (bounds.minX - origin.x) / dir.x;
+        if (dir.y > 0) ty = (bounds.maxY - origin.y) / dir.y;
+        else if (dir.y < 0) ty = (bounds.minY - origin.y) / dir.y;
+        const t = Math.min(tx, ty);
+        return Math.max(0, t);
+      }
+
+      function resolveAimContactDistance() {
+        const targetCenter = {
+          x: parseFloat(targetBall.style.left),
+          y: parseFloat(targetBall.style.top)
+        };
+        const toTarget = {
+          x: targetCenter.x - center.x,
+          y: targetCenter.y - center.y
+        };
+        const proj = toTarget.x * shotDir.x + toTarget.y * shotDir.y;
+        const perpendicular = Math.abs(toTarget.x * shotDir.y - toTarget.y * shotDir.x);
+        let targetContact = Infinity;
+        if (proj > 0 && perpendicular <= ballRadius * 0.9) {
+          targetContact = Math.max(proj - ballRadius * 2, ballRadius * 0.5);
+        }
+        const cushionContact = Math.max(
+          rayRectDistance(center, shotDir, clothBounds) - ballRadius,
+          ballRadius * 0.5
+        );
+        return Math.min(shotLength, targetContact, cushionContact);
+      }
+
+      function isSpinBlocked() {
+        if (!clothBounds) return false;
+        const cushionGap = Math.min(
+          center.x - clothBounds.minX,
+          clothBounds.maxX - center.x,
+          center.y - clothBounds.minY,
+          clothBounds.maxY - center.y
+        );
+        if (cushionGap < ballRadius * 1.2) return true;
+        const targetCenter = {
+          x: parseFloat(targetBall.style.left),
+          y: parseFloat(targetBall.style.top)
+        };
+        const dist = Math.hypot(targetCenter.x - center.x, targetCenter.y - center.y);
+        return dist < ballRadius * 2.2;
+      }
+
+      function updateAimHelpers() {
+        if (!clothBounds) return;
+        const angle = (Math.atan2(shotDir.y, shotDir.x) * 180) / Math.PI + 90;
+        const contactDistance = resolveAimContactDistance();
+        setLine(aimLine, center, angle, contactDistance);
+
+        const power = Number(powerInput.value) / 100;
+        const speed = 4 + power * 9;
+        const forward = spin.y;
+        const side = spin.x;
+        const spinScale = speed;
+        const cueVel = {
+          x: shotDir.x * forward * spinScale + -shotDir.y * side * spinScale,
+          y: shotDir.y * forward * spinScale + shotDir.x * side * spinScale
+        };
+        const cueSpeed = Math.hypot(cueVel.x, cueVel.y);
+        const cueDir =
+          cueSpeed > 0.001
+            ? { x: cueVel.x / cueSpeed, y: cueVel.y / cueSpeed }
+            : null;
+        const contactPoint = {
+          x: center.x + shotDir.x * contactDistance,
+          y: center.y + shotDir.y * contactDistance
+        };
+        if (cueDir) {
+          const cueAngle = (Math.atan2(cueDir.y, cueDir.x) * 180) / Math.PI + 90;
+          const cueLength = Math.min(220, 60 + cueSpeed * 18);
+          setLine(cueLine, contactPoint, cueAngle, cueLength);
+        } else {
+          setLine(cueLine, contactPoint, 0, 0);
+        }
+
+        const targetAngle = (Math.atan2(shotDir.y, shotDir.x) * 180) / Math.PI + 90;
+        const targetLength = Math.min(260, 120 + speed * 12);
+        setLine(targetLine, contactPoint, targetAngle, targetLength);
+      }
+
+      updateLayout();
+      updateAimHelpers();
+      window.addEventListener('resize', () => {
+        updateLayout();
+        updateAimHelpers();
+      });
 
       stage.addEventListener('click', (e) => {
         const r = stage.getBoundingClientRect();
@@ -318,13 +471,12 @@
         const length = Math.hypot(dx, dy);
         shotDir = { x: dx / length, y: dy / length };
         shotLength = length;
-        aimLine.style.height = `${length}px`;
-        aimLine.style.transform = `translate(-50%,-100%) rotate(${angle}deg)`;
-
         const tbx = center.x + shotDir.x * 200;
         const tby = center.y + shotDir.y * 200;
         targetBall.style.left = `${tbx}px`;
         targetBall.style.top = `${tby}px`;
+        updateAimHelpers();
+        refreshSpinAvailability();
       });
 
       function updateSpinDots (sx, sy) {
@@ -341,6 +493,7 @@
       let spinning = false;
       function setSpin (e) {
         if (e.type === 'pointermove' && !spinning) return;
+        if (spinController.classList.contains('is-blocked')) return;
         const r = spinController.getBoundingClientRect();
         const cx = r.width / 2;
         const cy = r.height / 2;
@@ -355,8 +508,10 @@
         const eased = strength * strength;
         spin = { x: rawSpin.x * eased, y: rawSpin.y * eased };
         updateSpinDots(rawSpin.x, rawSpin.y);
+        updateAimHelpers();
       }
       spinController.addEventListener('pointerdown', (e) => {
+        if (spinController.classList.contains('is-blocked')) return;
         spinning = true;
         spinController.setPointerCapture(e.pointerId);
         setSpin(e);
@@ -366,6 +521,7 @@
         spinning = false;
         spinController.releasePointerCapture(e.pointerId);
       });
+      powerInput.addEventListener('input', updateAimHelpers);
 
       function playHit(power) {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -436,6 +592,18 @@
       }
 
       shootBtn.addEventListener('click', shoot);
+      function refreshSpinAvailability() {
+        const blocked = isSpinBlocked();
+        spinController.classList.toggle('is-blocked', blocked);
+        if (blocked) {
+          spin = { x: 0, y: 0 };
+          updateSpinDots(0, 0);
+          updateAimHelpers();
+        }
+      }
+
+      refreshSpinAvailability();
+      window.addEventListener('resize', refreshSpinAvailability);
 
       function setDebugVisible (visible) {
         document.querySelectorAll('.debug-marker').forEach((el) => {
