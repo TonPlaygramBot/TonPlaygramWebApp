@@ -1412,7 +1412,7 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
-const POCKET_CAM_DISTANCE_PULL = BALL_DIAMETER * 5; // pull pocket cameras inward by ~5 balls
+const POCKET_CAM_DISTANCE_PULL = BALL_DIAMETER * 10; // pull pocket cameras inward by ~10 balls (adds ~5 balls more)
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1432,7 +1432,7 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.15,
+  heightOffset: BALL_R * 1.15 + BALL_DIAMETER * 5,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -4929,7 +4929,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.32; // pull the standing camera a bit closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.26; // pull the standing camera closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
