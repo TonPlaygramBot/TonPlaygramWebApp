@@ -21469,6 +21469,15 @@ const powerRef = useRef(hud.power);
               meta.breakInProgress
           );
         }
+        if (meta.variant === 'american') {
+          return Boolean(
+            meta.state?.breakInProgress ??
+              meta.breakInProgress
+          );
+        }
+        if (meta.variant === '9ball') {
+          return Boolean(meta.breakInProgress);
+        }
         return false;
       };
 
