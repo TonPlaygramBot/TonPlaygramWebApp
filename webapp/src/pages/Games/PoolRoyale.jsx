@@ -616,16 +616,16 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.08; // trim the fascia closer to the pocket cut so the inner edge tightens slightly
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.32; // trim fascia span so the middle plates finish at the side rail edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.88; // trim the outer fascia extension so the outside edge tucks in slightly
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.18; // trim the fascia closer to the pocket cut so the inner edge tightens slightly
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.08; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.95; // keep the outside edge sitting over the wooden rail after the inner trim
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.06; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.2; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.06; // keep the rail-facing edge aligned while trimming the playfield side
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.016; // trim side fascia edges slightly more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
@@ -1079,19 +1079,19 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.02; // extend the jaw bodies so the underside reaches deeper below the cloth
+const POCKET_JAW_DEPTH_SCALE = 0.96; // trim the jaw bodies so the underside sits shorter below the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.09; // trim the jaw height slightly so the top edge sits lower
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.015; // allow the jaw extrusion to extend farther down without lifting the top
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // reduce the bottom reach slightly so jaws read shorter
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.21; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.08; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.2; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.2; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.05; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.35; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.38; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.32; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.7; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
@@ -9914,18 +9914,13 @@ export function Table3D(
     let leftCut = computeCut(leftCutAngle);
     let rightCut = computeCut(rightCutAngle);
     const straightEdgeCut = baseThickness * 0.12;
-    const straightEdgeCurve = baseThickness * 0.12;
     const leftStraightEdge = Boolean(cutAngles?.leftStraightEdge);
     const rightStraightEdge = Boolean(cutAngles?.rightStraightEdge);
-    let leftCurve = 0;
-    let rightCurve = 0;
     if (leftStraightEdge) {
       leftCut = Math.min(leftCut, straightEdgeCut);
-      leftCurve = straightEdgeCurve;
     }
     if (rightStraightEdge) {
       rightCut = Math.min(rightCut, straightEdgeCut);
-      rightCurve = straightEdgeCurve;
     }
     const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
     const totalCut = leftCut + rightCut;
@@ -9936,20 +9931,12 @@ export function Table3D(
     }
 
     const shape = new THREE.Shape();
-    const rightFrontX = halfLen - (rightCurve > 0 ? rightCurve : rightCut);
-    const leftFrontX = -halfLen + (leftCurve > 0 ? leftCurve : leftCut);
+    const rightFrontX = halfLen - rightCut;
+    const leftFrontX = -halfLen + leftCut;
     shape.moveTo(-halfLen, backY);
     shape.lineTo(halfLen, backY);
-    if (rightCurve > 0) {
-      shape.lineTo(halfLen, frontY + rightCurve);
-      shape.quadraticCurveTo(halfLen, frontY, rightFrontX, frontY);
-    } else {
-      shape.lineTo(rightFrontX, frontY);
-    }
+    shape.lineTo(rightFrontX, frontY);
     shape.lineTo(leftFrontX, frontY);
-    if (leftCurve > 0) {
-      shape.quadraticCurveTo(-halfLen, frontY, -halfLen, frontY + leftCurve);
-    }
     shape.lineTo(-halfLen, backY);
 
     const cushionBevel = Math.min(railH, baseThickness) * 0.12;
