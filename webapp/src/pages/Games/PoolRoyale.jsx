@@ -1450,7 +1450,7 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   POCKET_CAM_EDGE_SCALE *
   POCKET_CAM_OUTWARD_MULTIPLIER;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 18,
+  triggerDist: CAPTURE_R * 23,
   dotThreshold: 0.15,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE * POCKET_CAM_INWARD_SCALE,
   minOutsideShort:
@@ -1542,10 +1542,10 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 420;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
-const POCKET_VIEW_POST_POT_HOLD_MS = 80;
-const POCKET_VIEW_MAX_HOLD_MS = 1400;
+const POCKET_VIEW_MIN_DURATION_MS = 280;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 140;
+const POCKET_VIEW_POST_POT_HOLD_MS = 40;
+const POCKET_VIEW_MAX_HOLD_MS = 900;
 const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
