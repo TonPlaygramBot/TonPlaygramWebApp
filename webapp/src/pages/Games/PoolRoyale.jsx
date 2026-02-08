@@ -5007,6 +5007,12 @@ const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18); // thicker guides for cue/t
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
+const POWER_LINE_MIN_STRENGTH = 0.04;
+const POWER_LINE_OPACITY_MIN = 0.3;
+const POWER_LINE_OPACITY_MAX = 0.95;
+const POWER_LINE_LOW_COLOR = new THREE.Color(0xffffff);
+const POWER_LINE_CUE_COLOR = new THREE.Color(0x7ce7ff);
+const POWER_LINE_TARGET_COLOR = new THREE.Color(0xff5c5c);
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -5320,6 +5326,8 @@ const TMP_VEC3_CUE_SAMPLE_START = new THREE.Vector3();
 const TMP_VEC3_CUE_SAMPLE_END = new THREE.Vector3();
 const TMP_VEC3_CUE_SAMPLE_POINT = new THREE.Vector3();
 const TMP_VEC3_OBSTRUCTION_TARGET = new THREE.Vector3();
+const TMP_VEC3_POWER_END = new THREE.Vector3();
+const TMP_COLOR = new THREE.Color();
 const CUE_OBSTRUCTION_SAMPLE_POINTS = Array.from(
   { length: CUE_OBSTRUCTION_SAMPLE_MAX },
   () => new THREE.Vector3()
@@ -6354,6 +6362,30 @@ function applySpinController(ball, stepScale, airborne = false) {
   return decaySpin(ball, stepScale, airborne);
 }
 
+function applyPendingSpinAfterImpact(ball) {
+  if (!ball?.pendingSpin || ball.pendingSpin.lengthSq() < 1e-6) return false;
+  if (ball.spin) {
+    ball.spin.copy(ball.pendingSpin);
+  }
+  ball.pendingSpin.set(0, 0);
+  if (ball.omega) {
+    ball.omega.set(0, 0, 0);
+    TMP_VEC3_A.set(ball.vel.x, 0, ball.vel.y);
+    if (TMP_VEC3_A.lengthSq() > 1e-8) {
+      TMP_VEC3_A.normalize();
+      TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+      if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+      TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar((ball.spin?.x ?? 0) * BALL_R);
+      TMP_VEC3_C.y += (ball.spin?.y ?? 0) * BALL_R;
+      const impulseMag = BALL_MASS * ball.vel.length();
+      TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+      TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+      ball.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+    }
+  }
+  return true;
+}
+
 function applyRailSpinResponse(ball, impact) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
   const normal = impact.normal.clone().normalize();
@@ -6453,6 +6485,38 @@ function buildSwerveAimLinePoints(
   points[0].copy(start);
   points[1].copy(end);
   return points;
+}
+
+function updatePowerLineSegment(
+  geom,
+  material,
+  start,
+  dir,
+  fullLength,
+  powerStrength,
+  highColor
+) {
+  if (!geom || !material || !start || !dir) return false;
+  const clamped = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
+  if (
+    clamped <= POWER_LINE_MIN_STRENGTH ||
+    !Number.isFinite(fullLength) ||
+    fullLength <= 1e-6 ||
+    dir.lengthSq() < 1e-6
+  ) {
+    return false;
+  }
+  const length = fullLength * clamped;
+  TMP_VEC3_POWER_END.copy(start).addScaledVector(dir, length);
+  geom.setFromPoints([start, TMP_VEC3_POWER_END]);
+  material.opacity = THREE.MathUtils.lerp(
+    POWER_LINE_OPACITY_MIN,
+    POWER_LINE_OPACITY_MAX,
+    clamped
+  );
+  TMP_COLOR.copy(POWER_LINE_LOW_COLOR).lerp(highColor, clamped);
+  material.color.copy(TMP_COLOR);
+  return true;
 }
 
 function resolveTargetSpinDeflection(
@@ -20727,6 +20791,23 @@ const powerRef = useRef(hud.power);
       );
       cueAfter.visible = false;
       table.add(cueAfter);
+      const cueAfterPowerGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const cueAfterPower = new THREE.Line(
+        cueAfterPowerGeom,
+        new THREE.LineBasicMaterial({
+          color: 0x7ce7ff,
+          linewidth: AIM_LINE_WIDTH,
+          transparent: true,
+          opacity: 0.9,
+          depthTest: false,
+          depthWrite: false
+        })
+      );
+      cueAfterPower.visible = false;
+      table.add(cueAfterPower);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -20759,6 +20840,23 @@ const powerRef = useRef(hud.power);
       );
       target.visible = false;
       table.add(target);
+      const targetPowerGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const targetPower = new THREE.Line(
+        targetPowerGeom,
+        new THREE.LineBasicMaterial({
+          color: 0xff5c5c,
+          linewidth: AIM_LINE_WIDTH,
+          transparent: true,
+          opacity: 0.9,
+          depthTest: false,
+          depthWrite: false
+        })
+      );
+      targetPower.visible = false;
+      table.add(targetPower);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
         replayTrailGeom,
@@ -22120,29 +22218,15 @@ const powerRef = useRef(hud.power);
         };
         cue.vel.copy(base);
         if (cue.spin) {
-          cue.spin.set(offsetScaled.x, offsetScaled.y);
+          cue.spin.set(0, 0);
         }
+        if (cue.pendingSpin) cue.pendingSpin.set(offsetScaled.x, offsetScaled.y);
         if (cue.omega) {
           cue.omega.set(0, 0, 0);
         }
-        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
-        const shotDir = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
-        if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
-        const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
-        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
-        const rOffset = TMP_VEC3_E
-          .copy(sideAxis)
-          .multiplyScalar(offsetScaled.x * BALL_R)
-          .addScaledVector(new THREE.Vector3(0, 1, 0), offsetScaled.y * BALL_R);
-        const impulseMag = BALL_MASS * base.length();
-        const impulse = TMP_VEC3_A.copy(shotDir).multiplyScalar(impulseMag);
-        const torqueImpulse = TMP_VEC3_B.copy(rOffset).cross(impulse);
-        if (cue.omega) {
-          cue.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
-        }
         resetSpinRef.current?.();
         cueLiftRef.current.lift = 0;
         cueLiftRef.current.startLift = 0;
@@ -22420,22 +22504,12 @@ const powerRef = useRef(hud.power);
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
+            cue.spin.set(0, 0);
           }
+          if (cue.pendingSpin) cue.pendingSpin.set(spinSide, spinTop);
           if (cue.omega) {
             cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
           }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode = 'standard';
           cue.swerveStrength = 0;
           cue.swervePowerStrength = 0;
@@ -25690,6 +25764,15 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
+          cueAfterPower.visible = updatePowerLineSegment(
+            cueAfterPowerGeom,
+            cueAfterPower.material,
+            end,
+            cueFollowDirSpinAdjusted,
+            cueFollowLength,
+            powerStrength,
+            POWER_LINE_CUE_COLOR
+          );
           const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
@@ -25854,6 +25937,15 @@ const powerRef = useRef(hud.power);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
+            targetPower.visible = updatePowerLineSegment(
+              targetPowerGeom,
+              targetPower.material,
+              targetStart,
+              tDir,
+              distanceScale,
+              powerStrength,
+              POWER_LINE_TARGET_COLOR
+            );
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
@@ -25865,9 +25957,19 @@ const powerRef = useRef(hud.power);
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
+            targetPower.visible = updatePowerLineSegment(
+              targetPowerGeom,
+              targetPower.material,
+              end,
+              bounceDir,
+              bounceLength,
+              powerStrength,
+              POWER_LINE_CUE_COLOR
+            );
             target.computeLineDistances();
           } else {
             target.visible = false;
+            targetPower.visible = false;
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -25946,6 +26048,15 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
+          cueAfterPower.visible = updatePowerLineSegment(
+            cueAfterPowerGeom,
+            cueAfterPower.material,
+            end,
+            cueFollowDirSpinAdjusted,
+            cueFollowLength,
+            powerStrength,
+            POWER_LINE_CUE_COLOR
+          );
           const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
@@ -26005,6 +26116,15 @@ const powerRef = useRef(hud.power);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
+            targetPower.visible = updatePowerLineSegment(
+              targetPowerGeom,
+              targetPower.material,
+              targetStart,
+              tDir,
+              distanceScale,
+              powerStrength,
+              POWER_LINE_TARGET_COLOR
+            );
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
@@ -26016,15 +26136,27 @@ const powerRef = useRef(hud.power);
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
+            targetPower.visible = updatePowerLineSegment(
+              targetPowerGeom,
+              targetPower.material,
+              end,
+              bounceDir,
+              bounceLength,
+              powerStrength,
+              POWER_LINE_CUE_COLOR
+            );
             target.computeLineDistances();
           } else {
             target.visible = false;
+            targetPower.visible = false;
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
           cueAfter.visible = false;
+          cueAfterPower.visible = false;
+          targetPower.visible = false;
           impactRing.visible = false;
           updateChalkVisibility(null);
           const planDir = activeAiPlan.aimDir
@@ -26080,6 +26212,8 @@ const powerRef = useRef(hud.power);
           tick.visible = false;
           target.visible = false;
           cueAfter.visible = false;
+          cueAfterPower.visible = false;
+          targetPower.visible = false;
           impactRing.visible = false;
           computeCuePull(0, CUE_PULL_BASE);
           if (tipGroupRef.current) {
@@ -26214,7 +26348,10 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
+            if (railImpact && b.id === 'cue') {
+              b.impacted = true;
+              applyPendingSpinAfterImpact(b);
+            }
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
@@ -26374,7 +26511,10 @@ const powerRef = useRef(hud.power);
                 ) {
                   activeShotView.hitConfirmed = true;
                 }
-                if (cueBall && cueBall.omega?.lengthSq() > 0) {
+                if (cueBall && isNewImpact) {
+                  cueBall.impacted = true;
+                  applyPendingSpinAfterImpact(cueBall);
+                } else if (cueBall && cueBall.omega?.lengthSq() > 0) {
                   cueBall.impacted = true;
                 }
               }
