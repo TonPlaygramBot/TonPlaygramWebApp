@@ -635,7 +635,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.99; // keep the wooden rail pocket relie
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner relief diameter identical to the middle pockets
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // pull back the middle rail rounded cuts to keep the radius a bit tighter
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.965; // pull back the middle rail rounded cuts to keep the radius a touch tighter
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
@@ -1104,7 +1104,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.945; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.93; // trim the middle jaw arc radius so the side-pocket jaws read slightly tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -7963,7 +7963,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.055; // pull short-rail cushions inward so they clear the wood rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.08; // nudge long-rail cushions inward for cleaner rail separation
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = -TABLE.THICK * 0.04; // push side-rail cushions a touch farther from the middle pocket toward the corners
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.7; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.48; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
