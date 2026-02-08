@@ -1450,7 +1450,7 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   POCKET_CAM_EDGE_SCALE *
   POCKET_CAM_OUTWARD_MULTIPLIER;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 18,
+  triggerDist: CAPTURE_R * 22,
   dotThreshold: 0.15,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE * POCKET_CAM_INWARD_SCALE,
   minOutsideShort:
@@ -1542,10 +1542,10 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 420;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
-const POCKET_VIEW_POST_POT_HOLD_MS = 80;
-const POCKET_VIEW_MAX_HOLD_MS = 1400;
+const POCKET_VIEW_MIN_DURATION_MS = 320;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 160;
+const POCKET_VIEW_POST_POT_HOLD_MS = 50;
+const POCKET_VIEW_MAX_HOLD_MS = 1100;
 const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -1676,7 +1676,7 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.45;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.7;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
@@ -5003,7 +5003,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 3; // thicker guides for cue/target direction lines
+const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 1.5; // thinner guides for cue/target direction lines
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -6474,6 +6474,46 @@ function updatePowerLinePoints(geom, start, end, powerStrength) {
   TMP_VEC3_POWER.copy(end).sub(start).multiplyScalar(fraction).add(start);
   geom.setFromPoints([start, TMP_VEC3_POWER]);
   return true;
+}
+
+function resolveCueFollowPreviewDir(
+  cueDir,
+  baseDir,
+  spin,
+  powerStrength,
+  liftStrength = 0
+) {
+  const fallback = baseDir?.clone ? baseDir.clone() : null;
+  const resolved =
+    cueDir && cueDir.lengthSq && cueDir.lengthSq() > 1e-8
+      ? cueDir.clone()
+      : fallback;
+  if (!resolved || resolved.lengthSq() < 1e-8) return resolved;
+  resolved.normalize();
+  const sideSpin = spin?.x ?? 0;
+  const forwardSpin = spin?.y ?? 0;
+  if (Math.abs(sideSpin) < 1e-4 && Math.abs(forwardSpin) < 1e-4) {
+    return resolved;
+  }
+  const powerScale = 0.35 + THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1) * 0.65;
+  const liftScale = 0.85 + Math.max(0, liftStrength) * 0.25;
+  const base = baseDir?.clone ? baseDir.clone() : resolved.clone();
+  if (base.lengthSq() > 1e-8) base.normalize();
+  if (Math.abs(sideSpin) > 1e-4) {
+    const perp = new THREE.Vector3(-base.z, 0, base.x);
+    if (perp.lengthSq() > 1e-8) {
+      perp.normalize();
+      resolved.add(perp.multiplyScalar(sideSpin * AIM_SPIN_PREVIEW_SIDE * powerScale * liftScale));
+    }
+  }
+  if (Math.abs(forwardSpin) > 1e-4) {
+    const forwardScale = AIM_SPIN_PREVIEW_FORWARD * powerScale;
+    const directionScale =
+      forwardSpin < 0 ? forwardScale * BACKSPIN_DIRECTION_PREVIEW : forwardScale;
+    resolved.add(base.multiplyScalar(forwardSpin * directionScale));
+  }
+  if (resolved.lengthSq() > 1e-8) resolved.normalize();
+  return resolved;
 }
 
 function resolveTargetSpinDeflection(
@@ -19660,7 +19700,7 @@ const powerRef = useRef(hud.power);
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
-            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, ballsList, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
               y: 0
@@ -25768,7 +25808,13 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const cueFollowDirSpinAdjusted = resolveCueFollowPreviewDir(
+            cueFollowDir,
+            dir,
+            appliedSpin,
+            cuePowerStrength,
+            liftStrength
+          );
           const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
           const followEnd = end
             .clone()
@@ -26064,7 +26110,13 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
+          const cueFollowDirSpinAdjusted = resolveCueFollowPreviewDir(
+            cueFollowDir,
+            baseDir,
+            remoteSpin,
+            cuePowerStrength,
+            0
+          );
           const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
           const followEnd = end
             .clone()
