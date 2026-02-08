@@ -502,6 +502,10 @@ export class PoolRoyaleRules {
       phase: frameOver ? 'complete' : snapshot.isOpenTable ? 'open' : 'groups',
       scores
     };
+    const breakInProgress =
+      Boolean(previous?.state?.breakInProgress) && Boolean(result.foul)
+        ? true
+        : Boolean(snapshot.breakInProgress);
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -526,7 +530,7 @@ export class PoolRoyaleRules {
         variant: 'american',
         state: snapshot,
         hud,
-        breakInProgress: false
+        breakInProgress
       } satisfies PoolMeta
     };
     return nextState;

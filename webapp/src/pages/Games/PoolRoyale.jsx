@@ -1546,7 +1546,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 420;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
 const POCKET_VIEW_POST_POT_HOLD_MS = 80;
 const POCKET_VIEW_MAX_HOLD_MS = 1400;
-const SPIN_GLOBAL_SCALE = 0.6; // keep overall spin impact unchanged
+const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -5020,7 +5020,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.04;
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -6043,7 +6043,7 @@ function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
-  const cutRadius = Math.min(railRadius, CUSHION_CUT_CONTACT_RADIUS);
+  const cutRadius = Math.max(railRadius, CUSHION_CUT_CONTACT_RADIUS);
   const railLimitX = limX + (BALL_R - railRadius);
   const railLimitY = limY + (BALL_R - railRadius);
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -21467,6 +21467,15 @@ const powerRef = useRef(hud.power);
               meta.state?.breakInProgress ??
               meta.breakInProgress
           );
+        }
+        if (meta.variant === 'american') {
+          return Boolean(
+            meta.state?.breakInProgress ??
+              meta.breakInProgress
+          );
+        }
+        if (meta.variant === '9ball') {
+          return Boolean(meta.breakInProgress);
         }
         return false;
       };
