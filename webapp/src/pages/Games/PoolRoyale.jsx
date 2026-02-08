@@ -5004,6 +5004,8 @@ const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely 
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
 const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18); // thicker guides for cue/target direction lines
+const AIM_POWER_LINE_WIDTH = AIM_LINE_WIDTH * 1.35; // brighter power overlay on aim/target lines
+const AIM_POWER_MIN_VISIBLE = 0.02; // hide power overlay for near-zero strength
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -20710,6 +20712,23 @@ const powerRef = useRef(hud.power);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
       table.add(aim);
+      const aimPowerGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const aimPower = new THREE.Line(
+        aimPowerGeom,
+        new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          linewidth: AIM_POWER_LINE_WIDTH,
+          transparent: true,
+          opacity: 0.95,
+          depthTest: false,
+          depthWrite: false
+        })
+      );
+      aimPower.visible = false;
+      table.add(aimPower);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -20759,6 +20778,23 @@ const powerRef = useRef(hud.power);
       );
       target.visible = false;
       table.add(target);
+      const targetPowerGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const targetPower = new THREE.Line(
+        targetPowerGeom,
+        new THREE.LineBasicMaterial({
+          color: 0xfff1c1,
+          linewidth: AIM_POWER_LINE_WIDTH,
+          transparent: true,
+          opacity: 0.9,
+          depthTest: false,
+          depthWrite: false
+        })
+      );
+      targetPower.visible = false;
+      table.add(targetPower);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
         replayTrailGeom,
@@ -25654,6 +25690,16 @@ const powerRef = useRef(hud.power);
               : 0x7ce7ff;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          const powerVisible = powerStrength > AIM_POWER_MIN_VISIBLE;
+          if (powerVisible) {
+            const powerEnd = start.clone().lerp(end, powerStrength);
+            aimPowerGeom.setFromPoints([start, powerEnd]);
+            aimPower.material.color.setHex(aimingWrong ? 0xffb0b0 : 0xffffff);
+            aimPower.material.opacity = 0.65 + 0.35 * powerStrength;
+            aimPower.visible = true;
+          } else {
+            aimPower.visible = false;
+          }
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
@@ -25855,6 +25901,15 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
+            if (powerStrength > AIM_POWER_MIN_VISIBLE) {
+              const targetPowerEnd = targetStart.clone().lerp(tEnd, powerStrength);
+              targetPowerGeom.setFromPoints([targetStart, targetPowerEnd]);
+              targetPower.material.color.setHex(0xfff1c1);
+              targetPower.material.opacity = 0.6 + 0.35 * powerStrength;
+              targetPower.visible = true;
+            } else {
+              targetPower.visible = false;
+            }
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
@@ -25866,8 +25921,18 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
+            if (powerStrength > AIM_POWER_MIN_VISIBLE) {
+              const targetPowerEnd = end.clone().lerp(bounceEnd, powerStrength);
+              targetPowerGeom.setFromPoints([end, targetPowerEnd]);
+              targetPower.material.color.setHex(0xd7f2ff);
+              targetPower.material.opacity = 0.5 + 0.35 * powerStrength;
+              targetPower.visible = true;
+            } else {
+              targetPower.visible = false;
+            }
           } else {
             target.visible = false;
+            targetPower.visible = false;
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -25918,6 +25983,15 @@ const powerRef = useRef(hud.power);
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
+          if (powerStrength > AIM_POWER_MIN_VISIBLE) {
+            const powerEnd = start.clone().lerp(end, powerStrength);
+            aimPowerGeom.setFromPoints([start, powerEnd]);
+            aimPower.material.color.setHex(0xffffff);
+            aimPower.material.opacity = 0.65 + 0.35 * powerStrength;
+            aimPower.visible = true;
+          } else {
+            aimPower.visible = false;
+          }
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
@@ -26006,6 +26080,15 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
+            if (powerStrength > AIM_POWER_MIN_VISIBLE) {
+              const targetPowerEnd = targetStart.clone().lerp(tEnd, powerStrength);
+              targetPowerGeom.setFromPoints([targetStart, targetPowerEnd]);
+              targetPower.material.color.setHex(0xfff1c1);
+              targetPower.material.opacity = 0.6 + 0.35 * powerStrength;
+              targetPower.visible = true;
+            } else {
+              targetPower.visible = false;
+            }
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
@@ -26017,13 +26100,25 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
+            if (powerStrength > AIM_POWER_MIN_VISIBLE) {
+              const targetPowerEnd = end.clone().lerp(bounceEnd, powerStrength);
+              targetPowerGeom.setFromPoints([end, targetPowerEnd]);
+              targetPower.material.color.setHex(0xd7f2ff);
+              targetPower.material.opacity = 0.5 + 0.35 * powerStrength;
+              targetPower.visible = true;
+            } else {
+              targetPower.visible = false;
+            }
           } else {
             target.visible = false;
+            targetPower.visible = false;
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
+          aimPower.visible = false;
           tick.visible = false;
           target.visible = false;
+          targetPower.visible = false;
           cueAfter.visible = false;
           impactRing.visible = false;
           updateChalkVisibility(null);
@@ -26077,8 +26172,10 @@ const powerRef = useRef(hud.power);
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
+          aimPower.visible = false;
           tick.visible = false;
           target.visible = false;
+          targetPower.visible = false;
           cueAfter.visible = false;
           impactRing.visible = false;
           computeCuePull(0, CUE_PULL_BASE);
