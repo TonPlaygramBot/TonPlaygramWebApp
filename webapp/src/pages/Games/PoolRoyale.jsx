@@ -1544,8 +1544,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 });
 const POCKET_VIEW_MIN_DURATION_MS = 320;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 140;
-const POCKET_VIEW_POST_POT_HOLD_MS = 40;
+const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 900;
+const POCKET_VIEW_EARLY_ALIGNMENT = 0.55;
 const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -18214,31 +18215,27 @@ const powerRef = useRef(hud.power);
         };
         const resumeAfterPocket = (pocketView, now) => {
           updatePocketCameraState(false);
-          const resumeAction =
-            pocketView?.resumeAction?.mode === 'action'
-              ? pocketView.resumeAction
-              : suspendedActionView?.mode === 'action'
-                ? suspendedActionView
-                : null;
-          if (resumeAction) {
-            resumeAction.stage = 'pair';
-            resumeAction.lastUpdate = now;
-            resumeAction.holdUntil = now + ACTION_CAM.followHoldMs;
-            resumeAction.pendingActivation = false;
-            resumeAction.activationDelay = null;
-            resumeAction.activationTravel = 0;
-            if (cameraRef.current) {
-              resumeAction.smoothedPos = cameraRef.current.position.clone();
-              const storedTarget = lastCameraTargetRef.current?.clone();
-              if (storedTarget) {
-                resumeAction.smoothedTarget = storedTarget;
-              }
-            }
-            activeShotView = resumeAction;
-            suspendedActionView = null;
-          } else {
-            activeShotView = null;
-            restoreOrbitCamera(pocketView);
+          activeShotView = null;
+          suspendedActionView = null;
+          const standing = cameraBoundsRef.current?.standing;
+          const sph = sphRef.current;
+          const baseTheta = initialOrbitRef.current?.theta ?? sph?.theta ?? 0;
+          const standingView =
+            standing && sph
+              ? {
+                  resumeOrbit: {
+                    radius: clampOrbitRadius(standing.radius ?? sph.radius),
+                    phi: THREE.MathUtils.clamp(
+                      standing.phi ?? STANDING_VIEW.phi,
+                      CAMERA.minPhi,
+                      CAMERA.maxPhi
+                    ),
+                    theta: baseTheta
+                  }
+                }
+              : pocketView;
+          if (standingView) {
+            restoreOrbitCamera(standingView, true);
           }
         };
         const makeActionCameraView = (
@@ -18378,18 +18375,20 @@ const powerRef = useRef(hud.power);
               : forceCornerCapture
                 ? 1
                 : null;
-          const isGuaranteedPocket =
-            shotPrediction?.ballId === ballId &&
-            predictedAlignment != null &&
-            predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          const allowEarly = forceCornerCapture;
-          if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
+          const alignmentScore =
+            predictedAlignment != null ? predictedAlignment : bestScore;
+          const allowEarly =
+            forceCornerCapture ||
+            forceEarly ||
+            alignmentScore >= POCKET_VIEW_EARLY_ALIGNMENT;
+          if (!allowEarly) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
             !forceCornerCapture &&
+            alignmentScore < POCKET_VIEW_EARLY_ALIGNMENT &&
             ((predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
               best.dist < SHORT_SHOT_CAMERA_DISTANCE)
@@ -18406,8 +18405,9 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
-          if (!forceCornerCapture && best.dist > POCKET_CAM.triggerDist) return null;
+          if (!forceCornerCapture && alignmentScore < POCKET_VIEW_EARLY_ALIGNMENT && best.dist > POCKET_CAM.triggerDist) {
+            return null;
+          }
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
@@ -21544,7 +21544,8 @@ const powerRef = useRef(hud.power);
         }
         if (meta.variant === 'american') {
           return Boolean(
-            meta.state?.breakInProgress ??
+            meta.state?.breakBallInHand ??
+              meta.state?.breakInProgress ??
               meta.breakInProgress
           );
         }
@@ -25771,12 +25772,44 @@ const powerRef = useRef(hud.power);
           const cueFollowDirSpinAdjusted =
             resolveTargetSpinDeflection(
               cueFollowDir,
-              dir,
+              { x: dir.x, y: dir.z },
               appliedSpin,
               cuePowerStrength,
               liftStrength
             ) ?? cueFollowDir.clone();
-          const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
+          const spinMagnitude = Math.hypot(
+            appliedSpin?.x ?? 0,
+            appliedSpin?.y ?? 0
+          );
+          const backspinWeight = Math.max(0, -(appliedSpin?.y ?? 0));
+          const topspinWeight = Math.max(0, appliedSpin?.y ?? 0);
+          const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
+          if (backspinLerp > 1e-4) {
+            const drawDir = dir.clone().multiplyScalar(-1);
+            const backspinBlend = THREE.MathUtils.clamp(
+              backspinLerp * (0.45 + cuePowerStrength * 0.65),
+              0,
+              1
+            );
+            cueFollowDirSpinAdjusted.lerp(drawDir, backspinBlend);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
+          const stunWeight = THREE.MathUtils.clamp(
+            1 - spinMagnitude / Math.max(SPIN_STUN_RADIUS, 1e-3),
+            0,
+            1
+          );
+          const powerScale = THREE.MathUtils.lerp(0.45, 1.25, cuePowerStrength);
+          const baseLength = BALL_R * (6 + powerScale * 18);
+          const spinBoost =
+            1 +
+            backspinWeight * 0.9 +
+            topspinWeight * 0.35 +
+            Math.abs(appliedSpin?.x ?? 0) * 0.15;
+          const lengthScale = THREE.MathUtils.lerp(0.12, 1, 1 - stunWeight);
+          const cueFollowLength = baseLength * lengthScale * spinBoost;
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
@@ -26075,12 +26108,44 @@ const powerRef = useRef(hud.power);
           const cueFollowDirSpinAdjusted =
             resolveTargetSpinDeflection(
               cueFollowDir,
-              baseDir,
+              { x: baseDir.x, y: baseDir.z },
               remoteSpinNormalized,
               cuePowerStrength,
               0
             ) ?? cueFollowDir.clone();
-          const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
+          const spinMagnitude = Math.hypot(
+            remoteSpinNormalized?.x ?? 0,
+            remoteSpinNormalized?.y ?? 0
+          );
+          const backspinWeight = Math.max(0, -(remoteSpinNormalized?.y ?? 0));
+          const topspinWeight = Math.max(0, remoteSpinNormalized?.y ?? 0);
+          const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
+          if (backspinLerp > 1e-4) {
+            const drawDir = baseDir.clone().multiplyScalar(-1);
+            const backspinBlend = THREE.MathUtils.clamp(
+              backspinLerp * (0.45 + cuePowerStrength * 0.65),
+              0,
+              1
+            );
+            cueFollowDirSpinAdjusted.lerp(drawDir, backspinBlend);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
+          const stunWeight = THREE.MathUtils.clamp(
+            1 - spinMagnitude / Math.max(SPIN_STUN_RADIUS, 1e-3),
+            0,
+            1
+          );
+          const powerScale = THREE.MathUtils.lerp(0.45, 1.25, cuePowerStrength);
+          const baseLength = BALL_R * (6 + powerScale * 18);
+          const spinBoost =
+            1 +
+            backspinWeight * 0.9 +
+            topspinWeight * 0.35 +
+            Math.abs(remoteSpinNormalized?.x ?? 0) * 0.15;
+          const lengthScale = THREE.MathUtils.lerp(0.12, 1, 1 - stunWeight);
+          const cueFollowLength = baseLength * lengthScale * spinBoost;
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
@@ -27104,11 +27169,20 @@ const powerRef = useRef(hud.power);
           const maxHoldReached =
             pocketView.startedAt != null && now - pocketView.startedAt >= POCKET_VIEW_MAX_HOLD_MS;
           if (!focusBall?.active) {
-            if (pocketView.holdUntil == null) {
-              pocketView.holdUntil = now + POCKET_VIEW_POST_POT_HOLD_MS;
-            }
-            if (now >= pocketView.holdUntil) {
-              resumeAfterPocket(pocketView, now);
+            const dropEntry = pocketDropRef.current.get(pocketView.ballId);
+            if (dropEntry && !dropEntry.resting) {
+              const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
+              pocketView.holdUntil =
+                pocketView.holdUntil != null
+                  ? Math.max(pocketView.holdUntil, extendTo)
+                  : extendTo;
+            } else {
+              if (pocketView.holdUntil == null) {
+                pocketView.holdUntil = now + POCKET_VIEW_POST_POT_HOLD_MS;
+              }
+              if (now >= pocketView.holdUntil) {
+                resumeAfterPocket(pocketView, now);
+              }
             }
           } else {
             const newRailHit =
