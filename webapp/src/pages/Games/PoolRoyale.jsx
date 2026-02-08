@@ -629,13 +629,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia 
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the snooker fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.16; // open the middle pocket chrome cut radius slightly for a broader curve
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.99; // keep the wooden rail pocket relief identical across corner and middle cuts
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner relief diameter identical to the middle pockets
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.92; // match the wooden corner relief diameter to the middle pocket cuts
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.94; // pull back the middle rail rounded cuts to keep the radius a bit tighter
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.92; // pull back the middle rail rounded cuts to tighten the radius slightly
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
@@ -7967,10 +7967,10 @@ export function Table3D(
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.08; // nudge long-rail cushions inward for cleaner rail separation
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
-  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.5; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.36; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.65; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.25; // trim short-rail cushions slightly less so the long-rail segments reach further toward corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
-  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.095; // push side-rail cushions away from the middle pockets toward the corners
+  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.12; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.02; // keep short-rail cushions level with the side rails
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
