@@ -1420,7 +1420,7 @@ const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments to
 const POCKET_SIDE_GUIDE_STRAP_PULL = BALL_R * 0.08; // push only the side rails toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.04; // keep balls flush without overlap as they settle against the strap
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.45; // pull the resting spot inward so balls stop flush with the leather straps
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.05; // pull the resting spot inward toward the pocket and strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1457,7 +1457,7 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.48,
+  heightOffset: BALL_R * 1.34,
   heightOffsetShortMultiplier: 1.16,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -4935,8 +4935,6 @@ function applySnookerScaling({
       if (Number.isFinite(baseRadius) && baseRadius > 0) {
         const scale = expectedRadius / baseRadius;
         mesh.scale.setScalar(scale);
-        mesh.userData = mesh.userData || {};
-        mesh.userData.ballScale = scale;
       }
     });
   }
@@ -5005,7 +5003,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 3; // triple-thick guides for cue/target direction lines
+const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18); // thicker guides for cue/target direction lines
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -6475,26 +6473,6 @@ function updatePowerLinePoints(geom, start, end, powerStrength) {
   TMP_VEC3_POWER.copy(end).sub(start).multiplyScalar(fraction).add(start);
   geom.setFromPoints([start, TMP_VEC3_POWER]);
   return true;
-}
-
-function resolveImpactPowerFractions(aimDir, targetDir) {
-  if (!aimDir || !targetDir) {
-    return { cue: 1, target: 0 };
-  }
-  const aim = aimDir.clone();
-  if (aim.lengthSq() < 1e-8) {
-    return { cue: 1, target: 0 };
-  }
-  aim.normalize();
-  const target = targetDir.clone();
-  if (target.lengthSq() < 1e-8) {
-    return { cue: 1, target: 0 };
-  }
-  target.normalize();
-  const impactDot = THREE.MathUtils.clamp(Math.abs(aim.dot(target)), 0, 1);
-  const targetFraction = impactDot;
-  const cueFraction = Math.sqrt(Math.max(0, 1 - impactDot * impactDot));
-  return { cue: cueFraction, target: targetFraction };
 }
 
 function resolveTargetSpinDeflection(
@@ -25673,10 +25651,6 @@ const powerRef = useRef(hud.power);
             guideAimDir2D,
             balls
           );
-          const { cue: cuePowerFraction, target: targetPowerFraction } =
-            resolveImpactPowerFractions(guideAimDir2D, targetDir);
-          const cuePowerStrength = powerStrength * cuePowerFraction;
-          const targetPowerStrength = powerStrength * targetPowerFraction;
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = baseAimDir.clone();
@@ -25777,23 +25751,23 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
           const cueFollowDirSpinAdjusted = cueFollowDir.clone();
-          const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
+          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(powerColor);
-          cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
+          cueAfterPower.material.opacity = 0.35 + 0.45 * powerStrength;
           cueAfterPower.visible = updatePowerLinePoints(
             cueAfterPowerGeom,
             end,
             followEnd,
-            cuePowerStrength
+            powerStrength
           );
           const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
-          cueAfter.material.opacity = 0.35 + 0.35 * cuePowerStrength;
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
             impactRing.visible = true;
@@ -25938,7 +25912,7 @@ const powerRef = useRef(hud.power);
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
           if (targetDir && targetBall) {
-            const travelScale = BALL_R * (14 + targetPowerStrength * 22);
+            const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
             const tDir =
               rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
@@ -25953,15 +25927,15 @@ const powerRef = useRef(hud.power);
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
+            target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.4 + 0.5 * targetPowerStrength;
+            targetPower.material.opacity = 0.4 + 0.5 * powerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               targetStart,
               tEnd,
-              targetPowerStrength
+              powerStrength
             );
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
@@ -26057,23 +26031,23 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
           const cueFollowDirSpinAdjusted = cueFollowDir.clone();
-          const cueFollowLength = BALL_R * (12 + cuePowerStrength * 18);
+          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(powerColor);
-          cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
+          cueAfterPower.material.opacity = 0.35 + 0.45 * powerStrength;
           cueAfterPower.visible = updatePowerLinePoints(
             cueAfterPowerGeom,
             end,
             followEnd,
-            cuePowerStrength
+            powerStrength
           );
           const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
-          cueAfter.material.opacity = 0.35 + 0.35 * cuePowerStrength;
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
           const maxPull = CUE_PULL_BASE;
@@ -26113,7 +26087,7 @@ const powerRef = useRef(hud.power);
           cueStick.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
-            const travelScale = BALL_R * (14 + targetPowerStrength * 22);
+            const travelScale = BALL_R * (14 + powerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
             const tDir =
               rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : baseDir.clone();
@@ -26128,15 +26102,15 @@ const powerRef = useRef(hud.power);
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
+            target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.4 + 0.5 * targetPowerStrength;
+            targetPower.material.opacity = 0.4 + 0.5 * powerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               targetStart,
               tEnd,
-              targetPowerStrength
+              powerStrength
             );
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
@@ -26932,8 +26906,7 @@ const powerRef = useRef(hud.power);
                       c.y
                     ),
                     material: b.mesh.material,
-                    renderOrder: (b.mesh.renderOrder ?? 0) + 1,
-                    scale: b.mesh.userData?.ballScale ?? null
+                    renderOrder: (b.mesh.renderOrder ?? 0) + 1
                   });
                 } else {
                   const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
@@ -26942,12 +26915,6 @@ const powerRef = useRef(hud.power);
                     BALL_CENTER_Y + POCKET_POPUP_LIFT,
                     c.y
                   );
-                  const popupScale = b.mesh.userData?.ballScale;
-                  if (Number.isFinite(popupScale)) {
-                    popupMesh.scale.setScalar(popupScale);
-                  } else {
-                    popupMesh.scale.copy(b.mesh.scale);
-                  }
                   popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
                   popupMesh.castShadow = false;
                   popupMesh.receiveShadow = false;
@@ -27047,12 +27014,7 @@ const powerRef = useRef(hud.power);
                 };
                 if (b.mesh) {
                   b.mesh.visible = true;
-                  const baseScale = b.mesh.userData?.ballScale;
-                  if (Number.isFinite(baseScale)) {
-                    b.mesh.scale.setScalar(baseScale);
-                  } else {
-                    b.mesh.scale.set(1, 1, 1);
-                  }
+                  b.mesh.scale.set(1, 1, 1);
                   b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
                 }
                 pocketDropRef.current.set(b.id, dropEntry);
@@ -27177,12 +27139,7 @@ const powerRef = useRef(hud.power);
               if (entry.resting) {
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
-                const baseScale = mesh.userData?.ballScale;
-                if (Number.isFinite(baseScale)) {
-                  mesh.scale.setScalar(baseScale);
-                } else {
-                  mesh.scale.set(1, 1, 1);
-                }
+                mesh.scale.set(1, 1, 1);
                 return;
               }
               entry.velocityY =
@@ -27202,12 +27159,7 @@ const powerRef = useRef(hud.power);
               let posX = xDrop;
               let posZ = zDrop;
               mesh.visible = true;
-              const baseScale = mesh.userData?.ballScale;
-              if (Number.isFinite(baseScale)) {
-                mesh.scale.setScalar(baseScale);
-              } else {
-                mesh.scale.set(1, 1, 1);
-              }
+              mesh.scale.set(1, 1, 1);
               if (entry.rollStartAt && now >= entry.rollStartAt) {
                 const runSpeed = Math.max(MICRO_EPS, entry.runSpeed ?? POCKET_HOLDER_RUN_SPEED_MIN);
                 const rollDuration = Math.max(MICRO_EPS, (entry.restDistance ?? 0) / runSpeed);
@@ -27241,10 +27193,6 @@ const powerRef = useRef(hud.power);
               if (!entry?.material || !entry?.position) return;
               const popupMesh = new THREE.Mesh(BALL_GEOMETRY, entry.material);
               popupMesh.position.copy(entry.position);
-              const popupScale = entry.scale;
-              if (Number.isFinite(popupScale)) {
-                popupMesh.scale.setScalar(popupScale);
-              }
               popupMesh.renderOrder = entry.renderOrder ?? 0;
               popupMesh.castShadow = false;
               popupMesh.receiveShadow = false;
