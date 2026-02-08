@@ -1112,6 +1112,9 @@ const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snook
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
+const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
+const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
+const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.95; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -7964,8 +7967,8 @@ export function Table3D(
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.08; // nudge long-rail cushions inward for cleaner rail separation
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
-  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.7; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.48; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.5; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.36; // trim short-rail cushions slightly more so the longer side doesn't overhang the pocket cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.095; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.02; // keep short-rail cushions level with the side rails
@@ -9060,11 +9063,17 @@ export function Table3D(
       edgeTaperScaleOverride,
       edgeProfilePowerOverride,
       edgeTrim:
-        wide && SIDE_POCKET_JAW_EDGE_TRIM_SCALE < 1
+        (wide ? SIDE_POCKET_JAW_EDGE_TRIM_SCALE : CORNER_POCKET_JAW_EDGE_TRIM_SCALE) < 1
           ? {
-              start: SIDE_POCKET_JAW_EDGE_TRIM_START,
-              scale: SIDE_POCKET_JAW_EDGE_TRIM_SCALE,
-              curve: SIDE_POCKET_JAW_EDGE_TRIM_CURVE
+              start: wide
+                ? SIDE_POCKET_JAW_EDGE_TRIM_START
+                : CORNER_POCKET_JAW_EDGE_TRIM_START,
+              scale: wide
+                ? SIDE_POCKET_JAW_EDGE_TRIM_SCALE
+                : CORNER_POCKET_JAW_EDGE_TRIM_SCALE,
+              curve: wide
+                ? SIDE_POCKET_JAW_EDGE_TRIM_CURVE
+                : CORNER_POCKET_JAW_EDGE_TRIM_CURVE
             }
           : null
     });
