@@ -1566,6 +1566,7 @@ const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw f
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to reflect spin deflection
+const DEFAULT_FORWARD_ROLL_SPIN = 0.16; // default forward roll bias for cue-ball follow previews
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -6536,31 +6537,51 @@ function resolveCueFollowPreview({
   } else {
     aimVec.normalize();
   }
+  const spinX = spin?.x ?? 0;
+  const spinY = spin?.y ?? 0;
+  const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
+  const cuePower = THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1);
+  const naturalForwardRoll =
+    spinY >= 0 ? DEFAULT_FORWARD_ROLL_SPIN * (0.4 + 0.6 * Math.max(power, cuePower)) : 0;
+  const effectiveSpinY = spinY + naturalForwardRoll;
+  const effectiveSpin = { ...(spin || {}), y: effectiveSpinY };
   const spinAdjusted =
     resolveTargetSpinDeflection(
       baseDir ?? aimVec,
       aimVec,
-      spin,
+      effectiveSpin,
       powerStrength,
       liftStrength
     ) ?? baseDir ?? aimVec;
-  const spinX = spin?.x ?? 0;
-  const spinY = spin?.y ?? 0;
-  const spinMagnitude = Math.hypot(spinX, spinY);
-  const backspinWeight = Math.max(0, -spinY);
-  const topspinWeight = Math.max(0, spinY);
+  const spinMagnitude = Math.hypot(spinX, effectiveSpinY);
+  const backspinWeight = Math.max(0, -effectiveSpinY);
+  const topspinWeight = Math.max(0, effectiveSpinY);
   const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
   const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
   const previewDir = spinAdjusted.clone();
+  const followBlend = THREE.MathUtils.clamp(
+    (effectiveSpinY - SPIN_STUN_RADIUS) / Math.max(1 - SPIN_STUN_RADIUS, 1e-6),
+    0,
+    1
+  );
+  const drawBlend = THREE.MathUtils.clamp(
+    (-effectiveSpinY - SPIN_STUN_RADIUS) / Math.max(1 - SPIN_STUN_RADIUS, 1e-6),
+    0,
+    1
+  );
+  const spinBlendScale = 0.55 + 0.45 * power;
   if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
     const backwards = aimVec.clone().multiplyScalar(-1);
     previewDir.lerp(backwards, backspinLerp * BACKSPIN_DIRECTION_PREVIEW);
   } else if (topspinLerp > 1e-4) {
     previewDir.lerp(aimVec, topspinLerp);
   }
+  if (followBlend > 1e-4) {
+    previewDir.lerp(aimVec, followBlend * spinBlendScale);
+  } else if (drawBlend > 1e-4) {
+    previewDir.lerp(aimVec.clone().multiplyScalar(-1), drawBlend * spinBlendScale);
+  }
   if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
-  const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  const cuePower = THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1);
   const stunShot = spinMagnitude <= SPIN_STUN_RADIUS + 1e-4;
   const basePower = Math.max(cuePower, power * 0.2);
   let length = BALL_R * (stunShot ? 4.5 : 7);
@@ -11379,6 +11400,9 @@ function PoolRoyaleGame({
     if (activeVariant?.id === 'uk') {
       return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
     }
+    if (activeVariant?.id === 'american') {
+      return 'Hit the lowest numbered ball first and score points for every ball you pot. The higher score after 15 balls wins.';
+    }
     return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
   }, [activeVariant]);
   const isUkAmericanSet = useMemo(
@@ -11407,6 +11431,23 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const [matchEndActionsOpen, setMatchEndActionsOpen] = useState(false);
+  const [rematchState, setRematchState] = useState({
+    status: 'idle',
+    requestId: null,
+    roomId: null,
+    expiresAt: null,
+    fromName: '',
+    fromAvatar: ''
+  });
+  const [rematchCountdown, setRematchCountdown] = useState(0);
+  const rematchRequestRef = useRef(null);
+  const rematchInviteRef = useRef(null);
+  const rematchTimeoutRef = useRef(null);
+  const rematchCountdownRef = useRef(null);
+  const initialRackSnapshotRef = useRef(null);
+  const rerackPendingRef = useRef(false);
+  const rerackTableRef = useRef(() => {});
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -12849,29 +12890,6 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
-  const waitForActiveReplay = useCallback(
-    (timeoutMs = 8000) =>
-      new Promise((resolve) => {
-        const start = performance.now();
-        const tick = () => {
-          const hasReplay =
-            replayPlaybackRef.current ||
-            replayBannerTimeoutRef.current ||
-            replaySlateTimeoutRef.current;
-          if (!hasReplay) {
-            resolve();
-            return;
-          }
-          if (performance.now() - start > timeoutMs) {
-            resolve();
-            return;
-          }
-          requestAnimationFrame(tick);
-        };
-        tick();
-      }),
-    []
-  );
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
@@ -13439,6 +13457,36 @@ const powerRef = useRef(hud.power);
       : '/games/poolroyale/lobby';
     window.location.assign(lobbyUrl);
   }, [frameState.winner, location.search, tournamentMode]);
+  const clearRematchTimers = useCallback(() => {
+    if (rematchTimeoutRef.current) {
+      clearTimeout(rematchTimeoutRef.current);
+      rematchTimeoutRef.current = null;
+    }
+    if (rematchCountdownRef.current) {
+      clearInterval(rematchCountdownRef.current);
+      rematchCountdownRef.current = null;
+    }
+    setRematchCountdown(0);
+  }, []);
+  const startRematchCountdown = useCallback(
+    (expiresAt) => {
+      clearRematchTimers();
+      const computeRemaining = () => {
+        const remainingMs = Math.max(0, (expiresAt ?? 0) - Date.now());
+        const remaining = Math.ceil(remainingMs / 1000);
+        setRematchCountdown(remaining);
+        return remainingMs;
+      };
+      computeRemaining();
+      rematchCountdownRef.current = window.setInterval(() => {
+        if (computeRemaining() <= 0) {
+          clearRematchTimers();
+        }
+      }, 300);
+    },
+    [clearRematchTimers]
+  );
+  useEffect(() => () => clearRematchTimers(), [clearRematchTimers]);
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
     const userSeed = st.userSeed;
@@ -14151,6 +14199,75 @@ const powerRef = useRef(hud.power);
     });
   }, [playerAvatar, playerName]);
   const resolvedPlayerAvatar = player.avatar || getTelegramPhotoUrl();
+  const buildRematchParams = useCallback(
+    ({
+      tableId: rematchTableId,
+      seat,
+      starter,
+      opponentLabelOverride,
+      opponentAvatarOverride,
+      modeOverride = mode
+    }) => {
+      const params = new URLSearchParams();
+      params.set('variant', variantKey || 'american');
+      if (ballSetKey) params.set('ballSet', ballSetKey);
+      if (tableSizeKey) params.set('tableSize', tableSizeKey);
+      params.set('type', playType);
+      params.set('mode', modeOverride);
+      if (rematchTableId) params.set('tableId', rematchTableId);
+      if (stakeToken) params.set('token', stakeToken);
+      if (stakeAmount) params.set('amount', String(stakeAmount));
+      const avatar = resolvedPlayerAvatar || playerAvatar;
+      if (avatar) params.set('avatar', avatar);
+      if (tgId) params.set('tgId', tgId);
+      if (accountId) params.set('accountId', accountId);
+      if (seat) params.set('seat', seat);
+      if (starter) params.set('starter', starter);
+      const name = (player.name || playerName || '').trim();
+      if (name) params.set('name', name);
+      if (opponentLabelOverride) params.set('opponent', opponentLabelOverride);
+      if (opponentAvatarOverride) params.set('opponentAvatar', opponentAvatarOverride);
+      return params;
+    },
+    [
+      accountId,
+      ballSetKey,
+      mode,
+      playType,
+      player.name,
+      playerName,
+      playerAvatar,
+      resolvedPlayerAvatar,
+      stakeAmount,
+      stakeToken,
+      tableSizeKey,
+      tgId,
+      variantKey
+    ]
+  );
+  const navigateToRematch = useCallback(
+    (params) => {
+      if (!params) return;
+      window.location.assign(`/games/poolroyale?${params.toString()}`);
+    },
+    []
+  );
+  const buildLobbyParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set('variant', variantKey || 'american');
+    if (ballSetKey) params.set('ballSet', ballSetKey);
+    if (tableSizeKey) params.set('tableSize', tableSizeKey);
+    params.set('type', playType);
+    params.set('mode', 'online');
+    if (stakeToken) params.set('token', stakeToken);
+    if (stakeAmount) params.set('amount', String(stakeAmount));
+    params.set('autoMatch', '1');
+    return params;
+  }, [ballSetKey, playType, stakeAmount, stakeToken, tableSizeKey, variantKey]);
+  const navigateToLobbyMatch = useCallback(() => {
+    const params = buildLobbyParams();
+    navigate(`/games/poolroyale/lobby?${params.toString()}`);
+  }, [buildLobbyParams, navigate]);
   const resolvedOpponentAvatar = isOnlineMatch ? opponentAvatar || '' : '';
   const giftPlayers = useMemo(
     () => {
@@ -14223,6 +14340,251 @@ const powerRef = useRef(hud.power);
       };
     });
   }, [framePlayersProfile.A.avatar, framePlayersProfile.A.name, framePlayersProfile.B.avatar, framePlayersProfile.B.name]);
+  const sendRematchSignal = useCallback(
+    (payload) => {
+      if (!isOnlineMatch || !tableId || !payload) return;
+      socket.emit('poolFrame', { tableId, rematch: payload });
+    },
+    [isOnlineMatch, tableId]
+  );
+  const handleRematchSignal = useCallback(
+    (payload) => {
+      if (!payload || !isOnlineMatch) return;
+      if (payload.type === 'invite') {
+        if (rematchState.status === 'waiting') return;
+        if (payload.fromId && accountId && payload.fromId === accountId) return;
+        const expiresAt = Number.isFinite(payload.expiresAt)
+          ? payload.expiresAt
+          : Date.now() + 15000;
+        rematchInviteRef.current = payload;
+        setRematchState({
+          status: 'incoming',
+          requestId: payload.requestId ?? null,
+          roomId: payload.roomId ?? null,
+          expiresAt,
+          fromName: payload.fromName || opponentDisplayName,
+          fromAvatar: payload.fromAvatar || opponentDisplayAvatar
+        });
+        clearRematchTimers();
+        startRematchCountdown(expiresAt);
+        rematchTimeoutRef.current = window.setTimeout(() => {
+          if (rematchInviteRef.current?.requestId !== payload.requestId) return;
+          sendRematchSignal({
+            type: 'response',
+            requestId: payload.requestId,
+            accepted: false,
+            reason: 'timeout'
+          });
+          setRematchState({
+            status: 'expired',
+            requestId: null,
+            roomId: null,
+            expiresAt: null,
+            fromName: '',
+            fromAvatar: ''
+          });
+          rematchInviteRef.current = null;
+        }, Math.max(0, expiresAt - Date.now()));
+      }
+      if (payload.type === 'response') {
+        const request = rematchRequestRef.current;
+        if (!request || payload.requestId !== request.requestId) return;
+        clearRematchTimers();
+        rematchRequestRef.current = null;
+        if (payload.accepted) {
+          setRematchState({
+            status: 'accepted',
+            requestId: null,
+            roomId: null,
+            expiresAt: null,
+            fromName: '',
+            fromAvatar: ''
+          });
+          navigateToRematch(request.params);
+        } else {
+          setRematchState({
+            status: 'declined',
+            requestId: null,
+            roomId: null,
+            expiresAt: null,
+            fromName: '',
+            fromAvatar: ''
+          });
+          showRuleToast('Rematch declined. Finding a new opponent...');
+          navigateToLobbyMatch();
+        }
+      }
+    },
+    [
+      accountId,
+      clearRematchTimers,
+      isOnlineMatch,
+      navigateToLobbyMatch,
+      navigateToRematch,
+      opponentDisplayAvatar,
+      opponentDisplayName,
+      rematchState.status,
+      sendRematchSignal,
+      showRuleToast,
+      startRematchCountdown
+    ]
+  );
+  const sendRematchInvite = useCallback(() => {
+    if (!isOnlineMatch || !tableId || rematchState.status === 'waiting') return;
+    const requestId = `rematch-${tableId}-${Date.now()}`;
+    const roomId = `rematch-${tableId}-${Date.now()}`;
+    const expiresAt = Date.now() + 15000;
+    const config = {
+      variant: variantKey || 'american',
+      ballSet: ballSetKey,
+      tableSize: tableSizeKey,
+      playType,
+      token: stakeToken,
+      amount: stakeAmount,
+      starterSeat: localSeat,
+      fromSeat: localSeat
+    };
+    const params = buildRematchParams({
+      tableId: roomId,
+      seat: localSeat,
+      starter: config.starterSeat,
+      opponentLabelOverride: opponentDisplayName,
+      opponentAvatarOverride: opponentDisplayAvatar,
+      modeOverride: 'online'
+    });
+    rematchRequestRef.current = { requestId, roomId, expiresAt, params };
+    setRematchState({
+      status: 'waiting',
+      requestId,
+      roomId,
+      expiresAt,
+      fromName: '',
+      fromAvatar: ''
+    });
+    clearRematchTimers();
+    startRematchCountdown(expiresAt);
+    rematchTimeoutRef.current = window.setTimeout(() => {
+      if (rematchRequestRef.current?.requestId !== requestId) return;
+      rematchRequestRef.current = null;
+      setRematchState({
+        status: 'expired',
+        requestId: null,
+        roomId: null,
+        expiresAt: null,
+        fromName: '',
+        fromAvatar: ''
+      });
+      showRuleToast('Rematch timed out. Finding a new opponent...');
+      navigateToLobbyMatch();
+    }, Math.max(0, expiresAt - Date.now()));
+    sendRematchSignal({
+      type: 'invite',
+      requestId,
+      roomId,
+      expiresAt,
+      fromId: accountId,
+      fromName: player.name || playerName || 'Player',
+      fromAvatar: resolvedPlayerAvatar || playerAvatar || '',
+      config
+    });
+  }, [
+    accountId,
+    ballSetKey,
+    buildRematchParams,
+    clearRematchTimers,
+    isOnlineMatch,
+    localSeat,
+    navigateToLobbyMatch,
+    opponentDisplayAvatar,
+    opponentDisplayName,
+    player.name,
+    playerName,
+    playerAvatar,
+    playType,
+    rematchState.status,
+    resolvedPlayerAvatar,
+    sendRematchSignal,
+    showRuleToast,
+    stakeAmount,
+    stakeToken,
+    startRematchCountdown,
+    tableId,
+    tableSizeKey,
+    variantKey
+  ]);
+  const acceptRematchInvite = useCallback(() => {
+    const invite = rematchInviteRef.current;
+    if (!invite || !invite.roomId) return;
+    const config = invite.config || {};
+    const fromSeat = config.fromSeat === 'B' ? 'B' : 'A';
+    const seat = fromSeat === 'A' ? 'B' : 'A';
+    const starter = config.starterSeat || fromSeat;
+    const params = buildRematchParams({
+      tableId: invite.roomId,
+      seat,
+      starter,
+      opponentLabelOverride: invite.fromName || opponentDisplayName,
+      opponentAvatarOverride: invite.fromAvatar || opponentDisplayAvatar,
+      modeOverride: 'online'
+    });
+    clearRematchTimers();
+    sendRematchSignal({
+      type: 'response',
+      requestId: invite.requestId,
+      accepted: true,
+      roomId: invite.roomId
+    });
+    rematchInviteRef.current = null;
+    setRematchState({
+      status: 'accepted',
+      requestId: null,
+      roomId: null,
+      expiresAt: null,
+      fromName: '',
+      fromAvatar: ''
+    });
+    navigateToRematch(params);
+  }, [
+    buildRematchParams,
+    clearRematchTimers,
+    navigateToRematch,
+    opponentDisplayAvatar,
+    opponentDisplayName,
+    sendRematchSignal
+  ]);
+  const declineRematchInvite = useCallback(() => {
+    const invite = rematchInviteRef.current;
+    if (!invite) return;
+    clearRematchTimers();
+    sendRematchSignal({
+      type: 'response',
+      requestId: invite.requestId,
+      accepted: false,
+      roomId: invite.roomId
+    });
+    rematchInviteRef.current = null;
+    setRematchState({
+      status: 'declined',
+      requestId: null,
+      roomId: null,
+      expiresAt: null,
+      fromName: '',
+      fromAvatar: ''
+    });
+  }, [clearRematchTimers, sendRematchSignal]);
+  const handlePlayAgain = useCallback(() => {
+    if (isOnlineMatch) {
+      sendRematchInvite();
+      return;
+    }
+    const params = new URLSearchParams(location.search);
+    params.set('rematch', String(Date.now()));
+    window.location.assign(`/games/poolroyale?${params.toString()}`);
+  }, [isOnlineMatch, location.search, sendRematchInvite]);
+  const handleLobbyClick = useCallback(() => {
+    clearRematchTimers();
+    goToLobby();
+  }, [clearRematchTimers, goToLobby]);
   useEffect(() => {
     muteRef.current = isGameMuted();
     volumeRef.current = getGameVolume();
@@ -14361,6 +14723,17 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
+      setMatchEndActionsOpen(false);
+      setWinnerOverlay(null);
+      clearRematchTimers();
+      setRematchState({
+        status: 'idle',
+        requestId: null,
+        roomId: null,
+        expiresAt: null,
+        fromName: '',
+        fromAvatar: ''
+      });
       return;
     }
     if (gameOverHandledRef.current) return;
@@ -14378,7 +14751,6 @@ const powerRef = useRef(hud.power);
     };
     let cancelled = false;
     const runMatchWrapUp = async () => {
-      await waitForActiveReplay();
       const tournamentOutcome = await handleTournamentResult({
         winnerSeat,
         scores: finalScores
@@ -14405,19 +14777,21 @@ const powerRef = useRef(hud.power);
         ? 28
         : 18;
       triggerCoinBurst(burstCount);
-      await wait(3200);
-      if (!cancelled) {
-        goToLobby();
-      }
+      setMatchEndActionsOpen(true);
     };
+    rerackPendingRef.current = true;
+    if (!replayPlaybackRef.current) {
+      rerackPendingRef.current = false;
+      rerackTableRef.current?.();
+    }
     runMatchWrapUp();
     return () => {
       cancelled = true;
     };
   }, [
+    clearRematchTimers,
     frameState.frameOver,
     frameState.winner,
-    goToLobby,
     handleTournamentResult,
     isTraining,
     localSeat,
@@ -14429,8 +14803,7 @@ const powerRef = useRef(hud.power);
     stakeToken,
     tournamentMode,
     tournamentPlayers,
-    triggerCoinBurst,
-    waitForActiveReplay
+    triggerCoinBurst
   ]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
@@ -14556,11 +14929,13 @@ const powerRef = useRef(hud.power);
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      if (payload.rematch) handleRematchSignal(payload.rematch);
       handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      if (payload.rematch) handleRematchSignal(payload.rematch);
       handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
@@ -14575,7 +14950,7 @@ const powerRef = useRef(hud.power);
       socket.off('poolState', handlePoolState);
       socket.off('poolFrame', handlePoolFrame);
     };
-  }, [accountId, applyRemoteState, handleRemotePayload, isOnlineMatch, tableId]);
+  }, [accountId, applyRemoteState, handleRemotePayload, handleRematchSignal, isOnlineMatch, tableId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
@@ -18817,6 +19192,17 @@ const powerRef = useRef(hud.power);
         applyBallSnapshotRef.current = (snapshot) => {
           applyBallSnapshot(snapshot);
         };
+        if (!initialRackSnapshotRef.current) {
+          initialRackSnapshotRef.current = captureBallSnapshot();
+        }
+        rerackTableRef.current = () => {
+          const snapshot = initialRackSnapshotRef.current;
+          if (snapshot) {
+            applyBallSnapshot(snapshot);
+          }
+          setPottedBySeat({ A: [], B: [] });
+          lastPottedBySeatRef.current = { A: null, B: null };
+        };
         if (pendingLayoutRef.current) {
           applyBallSnapshotRef.current(pendingLayoutRef.current);
           pendingLayoutRef.current = null;
@@ -19637,6 +20023,10 @@ const powerRef = useRef(hud.power);
           if (!playback) return;
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
+          }
+          if (rerackPendingRef.current) {
+            rerackPendingRef.current = false;
+            rerackTableRef.current?.();
           }
           replayTrail.visible = false;
           const storedReplayCamera = replayCameraRef.current;
@@ -24998,7 +25388,7 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = !skipAllReplaysRef.current;
+          shouldStartReplay = true;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -28447,6 +28837,85 @@ const powerRef = useRef(hud.power);
                 </ul>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+      {matchEndActionsOpen && (
+        <div className="absolute inset-0 z-[121] flex items-end justify-center px-4 pb-10">
+          <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-white/20 bg-black/70 p-4 text-center shadow-[0_18px_48px_rgba(0,0,0,0.55)] backdrop-blur">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+              Match complete
+            </div>
+            {rematchState.status === 'waiting' && (
+              <p className="mt-2 text-sm font-semibold text-emerald-200">
+                Waiting for opponent… {rematchCountdown}s
+              </p>
+            )}
+            {rematchState.status === 'expired' && (
+              <p className="mt-2 text-sm font-semibold text-amber-200">
+                Rematch timed out.
+              </p>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleLobbyClick}
+                className="rounded-full border border-white/30 bg-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.28em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.4)] transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                Lobby
+              </button>
+              <button
+                type="button"
+                onClick={handlePlayAgain}
+                disabled={rematchState.status === 'waiting'}
+                className={`rounded-full px-4 py-3 text-xs font-bold uppercase tracking-[0.28em] shadow-[0_10px_24px_rgba(0,0,0,0.4)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                  rematchState.status === 'waiting'
+                    ? 'cursor-not-allowed border border-white/20 bg-white/5 text-white/40'
+                    : 'border border-emerald-300/70 bg-emerald-300 text-black hover:bg-emerald-200'
+                }`}
+              >
+                Play again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {rematchState.status === 'incoming' && (
+        <div className="absolute inset-0 z-[130] flex items-center justify-center bg-black/75 px-4">
+          <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-emerald-300/50 bg-slate-900/95 p-5 text-center shadow-[0_18px_52px_rgba(0,0,0,0.6)]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-300 bg-emerald-400/15 text-2xl">
+              {rematchState.fromAvatar ? (
+                <img
+                  src={rematchState.fromAvatar}
+                  alt="Opponent avatar"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                '🎱'
+              )}
+            </div>
+            <p className="mt-3 text-sm font-semibold text-white">
+              {rematchState.fromName || 'Opponent'} wants to play again.
+            </p>
+            <p className="mt-1 text-xs uppercase tracking-[0.24em] text-emerald-200/80">
+              {rematchCountdown}s left
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={declineRematchInvite}
+                className="rounded-full border border-white/30 bg-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.28em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.4)] transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={acceptRematchInvite}
+                className="rounded-full border border-emerald-300/70 bg-emerald-300 px-4 py-3 text-xs font-bold uppercase tracking-[0.28em] text-black shadow-[0_10px_24px_rgba(0,0,0,0.4)] transition hover:bg-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                Yes
+              </button>
+            </div>
           </div>
         </div>
       )}
