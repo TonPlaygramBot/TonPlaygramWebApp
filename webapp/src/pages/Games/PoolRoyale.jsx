@@ -6531,6 +6531,11 @@ function resolveCueFollowPreview({
   liftStrength = 0
 }) {
   const normalizedSpin = normalizeSpinInput(spin);
+  const clampedPower = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
+  const clampedCuePower = Number.isFinite(cuePowerStrength)
+    ? THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1)
+    : clampedPower;
+  const impactPower = clampedCuePower;
   const baseDir = cueDir ? cueDir.clone() : null;
   if (!baseDir || baseDir.lengthSq() < 1e-8) {
     baseDir?.set(0, 0, 1);
@@ -6548,7 +6553,7 @@ function resolveCueFollowPreview({
       baseDir ?? aimVec,
       aimVec,
       normalizedSpin,
-      powerStrength,
+      impactPower,
       liftStrength
     ) ?? baseDir ?? aimVec;
   const spinX = normalizedSpin?.x ?? 0;
@@ -6564,14 +6569,14 @@ function resolveCueFollowPreview({
   const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
   if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
     const drawBlend = THREE.MathUtils.clamp(
-      backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * powerStrength),
+      backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
       0,
       1
     );
     previewDir.lerp(backwards, drawBlend);
   } else if (topspinLerp > 1e-4) {
     const followBlend = THREE.MathUtils.clamp(
-      topspinLerp * (0.75 + powerStrength * 0.35) * (1 - cutPenalty * 0.45),
+      topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
       0,
       1
     );
@@ -6579,7 +6584,7 @@ function resolveCueFollowPreview({
   }
   const sideInfluence =
     Math.min(Math.abs(spinX), 1) *
-    (0.18 + powerStrength * 0.22) *
+    (0.18 + impactPower * 0.22) *
     (1 - cutPenalty * 0.3);
   if (sideInfluence > 1e-4) {
     const perp = new THREE.Vector3(-previewDir.z, 0, previewDir.x);
@@ -6589,8 +6594,8 @@ function resolveCueFollowPreview({
     }
   }
   if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
-  const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  const cuePower = THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1);
+  const power = clampedPower;
+  const cuePower = clampedCuePower;
   const stunShot = spinMagnitude <= SPIN_STUN_RADIUS + 1e-4;
   const basePower = Math.max(cuePower, power * 0.2);
   let length = BALL_R * (stunShot ? 4.5 : 7);
@@ -13316,6 +13321,7 @@ const powerRef = useRef(hud.power);
     standing: { phi: STANDING_VIEW.phi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
+  const renderLoopErrorRef = useRef({ count: 0, lastAt: 0 });
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
@@ -15206,6 +15212,8 @@ const powerRef = useRef(hud.power);
       setErr('Graphics renderer reset; restoring the table…');
       setRenderResetKey((value) => value + 1);
     };
+    const renderLoopErrorWindowMs = 2000;
+    const renderLoopErrorThreshold = 3;
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -26474,7 +26482,9 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
-            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
+            const bounceDir = cueFollowPreview?.dir
+              ? cueFollowPreview.dir.clone().normalize()
+              : new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
             const bounceEnd = end
               .clone()
@@ -26672,7 +26682,9 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
-            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
+            const bounceDir = cueFollowPreview?.dir
+              ? cueFollowPreview.dir.clone().normalize()
+              : new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
             const bounceEnd = end
               .clone()
@@ -27820,6 +27832,11 @@ const powerRef = useRef(hud.power);
             }
           }
           renderer.render(scene, frameCamera ?? camera);
+          const errorState = renderLoopErrorRef.current;
+          if (errorState.count > 0 || errorState.lastAt > 0) {
+            errorState.count = 0;
+            errorState.lastAt = 0;
+          }
           const shouldStreamAim =
             isOnlineMatch &&
             tableId &&
@@ -27871,6 +27888,20 @@ const powerRef = useRef(hud.power);
           }
         } catch (error) {
           console.error('Pool Royale render loop failed; attempting recovery.', error);
+          const now = performance.now();
+          const errorState = renderLoopErrorRef.current;
+          if (now - errorState.lastAt < renderLoopErrorWindowMs) {
+            errorState.count += 1;
+          } else {
+            errorState.count = 1;
+          }
+          errorState.lastAt = now;
+          if (errorState.count >= renderLoopErrorThreshold) {
+            errorState.count = 0;
+            errorState.lastAt = 0;
+            triggerRendererReset();
+            return;
+          }
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
