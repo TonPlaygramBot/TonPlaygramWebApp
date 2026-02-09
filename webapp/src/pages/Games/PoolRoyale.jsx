@@ -1460,8 +1460,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.45,
-  heightOffsetShortMultiplier: 1.16,
+  heightOffset: BALL_R * 1.55,
+  heightOffsetShortMultiplier: 1.2,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -5014,7 +5014,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.6, BALL_R * 0.18) * 1.5; // thinner guides for cue/target direction lines
+const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.2; // thinner guides for cue/target direction lines with better clarity
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -19144,13 +19144,28 @@ const powerRef = useRef(hud.power);
           if (lock.key === cameraKey && lock.snapshot) {
             return lock.snapshot;
           }
+          const overheadReplayCamera = pocketActive
+            ? null
+            : resolveRailOverheadReplayCamera({
+                focusOverride: targetSnapshot,
+                minTargetY
+              });
           let resolvedPosition = null;
           let resolvedTarget = null;
           let resolvedFov = fovSnapshot;
           let resolvedMinTargetY = null;
-          resolvedPosition = activeCamera?.position?.clone?.() ?? null;
-          resolvedTarget = targetSnapshot;
-          resolvedFov = Number.isFinite(activeCamera?.fov) ? activeCamera.fov : fovSnapshot;
+          resolvedPosition =
+            overheadReplayCamera?.position?.clone?.() ??
+            activeCamera?.position?.clone?.() ??
+            null;
+          resolvedTarget =
+            overheadReplayCamera?.target?.clone?.() ??
+            targetSnapshot;
+          resolvedFov = Number.isFinite(overheadReplayCamera?.fov)
+            ? overheadReplayCamera.fov
+            : Number.isFinite(activeCamera?.fov)
+              ? activeCamera.fov
+              : fovSnapshot;
           resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
@@ -21225,7 +21240,7 @@ const powerRef = useRef(hud.power);
         color: 0xe8f6ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.58,
         depthTest: false,
         depthWrite: false
       });
@@ -21246,7 +21261,7 @@ const powerRef = useRef(hud.power);
           color: 0xffffff,
           linewidth: AIM_LINE_WIDTH,
           transparent: true,
-          opacity: 0.9,
+          opacity: 0.95,
           depthTest: false,
           depthWrite: false
         })
@@ -21263,7 +21278,7 @@ const powerRef = useRef(hud.power);
           color: 0x7ce7ff,
           linewidth: AIM_LINE_WIDTH,
           transparent: true,
-          opacity: 0.55,
+          opacity: 0.68,
           depthTest: false,
           depthWrite: false
         })
@@ -21280,7 +21295,7 @@ const powerRef = useRef(hud.power);
           color: 0xffffff,
           linewidth: AIM_LINE_WIDTH,
           transparent: true,
-          opacity: 0.7,
+          opacity: 0.82,
           depthTest: false,
           depthWrite: false
         })
@@ -21313,7 +21328,7 @@ const powerRef = useRef(hud.power);
           color: 0xffe3a1,
           linewidth: AIM_LINE_WIDTH,
           transparent: true,
-          opacity: 0.6,
+          opacity: 0.72,
           depthTest: false,
           depthWrite: false
         })
@@ -21330,7 +21345,7 @@ const powerRef = useRef(hud.power);
           color: 0xffffff,
           linewidth: AIM_LINE_WIDTH,
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.9,
           depthTest: false,
           depthWrite: false
         })
