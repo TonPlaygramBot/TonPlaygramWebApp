@@ -37,9 +37,9 @@
  * @property {{x:number,y:number}} [aimPoint]
  */
 
-const LOOKAHEAD_DEPTH = 3
-const LOOKAHEAD_CANDIDATES = 4
-const MONTE_CARLO_BASE_SAMPLES = 40
+const LOOKAHEAD_DEPTH = 4
+const LOOKAHEAD_CANDIDATES = 6
+const MONTE_CARLO_BASE_SAMPLES = 55
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -55,6 +55,10 @@ function dist (a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
   return Math.hypot(dx, dy)
+}
+
+function clamp (value, min, max) {
+  return Math.min(Math.max(value, min), max)
 }
 
 function lineIntersectsBall (a, b, ball, radius) {
@@ -285,12 +289,18 @@ function clearShotCandidates (req) {
       const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
       const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
       const approachStraightness = 1 - Math.min(cut / (Math.PI / 2), 1)
+      const laneClearance = clearanceMargin(cue, target, req.state.balls, [0, target.id], r, 1.35)
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
-      const rank = weightedView * 0.5 + approachStraightness * 0.3 + distanceScore * 0.2
+      const clearanceScore = Math.max(0, Math.min((laneClearance - 0.4) / 0.8, 1))
+      const rank =
+        weightedView * 0.45 +
+        approachStraightness * 0.25 +
+        distanceScore * 0.2 +
+        clearanceScore * 0.1
 
       // require fairly central hit and open pocket view
-      if (cut <= maxCut && weightedView >= minView) {
+      if (cut <= maxCut && weightedView >= minView && laneClearance >= 0.4) {
         candidates.push({ target, pocket, cut, view: weightedView, rank })
       }
     }
@@ -363,7 +373,7 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   const shotLength = dist(cue, target)
   const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
   const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor)))
-  const jitterScale = 0.015 + 0.025 * distanceFactor
+  const jitterScale = 0.012 + 0.02 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
     const a = baseAngle + (rng() - 0.5) * jitterScale
@@ -594,6 +604,20 @@ function fallbackAimAtTarget (req) {
   return rest
 }
 
+function buildPowerOptions (req, cuePos, target) {
+  const r = req.state.ballRadius
+  const shotDist = dist(cuePos, target)
+  const base = clamp(shotDist / (r * 32), 0.4, 0.92)
+  const candidates = [
+    base - 0.14,
+    base - 0.06,
+    base,
+    base + 0.08,
+    base + 0.18
+  ].map(value => clamp(value, 0.35, 0.98))
+  return Array.from(new Set(candidates.map(v => Number(v.toFixed(3)))))
+}
+
 /**
  * @param {AimRequest} req
  * @returns {ShotDecision}
@@ -607,7 +631,6 @@ export function planShot (req) {
   let fallback = null
   let hasViableShot = false
 
-  const powers = [0.45, 0.6, 0.75, 0.9]
   const spins = [
     { top: 0, side: 0, back: 0 },
     { top: 0.2, side: 0, back: -0.2 },
@@ -672,12 +695,14 @@ export function planShot (req) {
           b.id === 0 ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
 
+        const powers = buildPowerOptions(req, cuePos, target)
+        const basePower = powers[Math.floor(powers.length / 2)] ?? powers[0]
         const baseCand = evaluate(
           req,
           cuePos,
           target,
           pocket,
-          powers[0],
+          basePower,
           spins[0],
           balls,
           strict,
@@ -697,7 +722,7 @@ export function planShot (req) {
 
         for (const power of powers) {
           for (const spin of spins) {
-            if (power === powers[0] && spin === spins[0]) continue
+            if (power === basePower && spin === spins[0]) continue
             if (Date.now() > deadline) {
               return best && best.quality >= 0.1 ? best : fallbackAimAtTarget(req) || safetyShot(req)
             }
