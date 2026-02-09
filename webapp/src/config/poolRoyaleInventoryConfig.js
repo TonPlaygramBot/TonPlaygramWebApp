@@ -300,12 +300,11 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
-  fabric_leather_02: polyHavenThumb('fabric_leather_02'),
-  fabric_leather_01: polyHavenThumb('fabric_leather_01'),
-  brown_leather: polyHavenThumb('brown_leather'),
-  leather_red_02: polyHavenThumb('leather_red_02'),
-  leather_red_03: polyHavenThumb('leather_red_03'),
-  leather_white: polyHavenThumb('leather_white')
+  'plastic-black': swatchThumbnail(['#151515', '#2b2b2b', '#111111']),
+  'plastic-dark-grey': swatchThumbnail(['#2c2f33', '#3a3f45', '#1e2124']),
+  'plastic-grey': swatchThumbnail(['#5b5f64', '#6b7076', '#4b4f54']),
+  'plastic-light-grey': swatchThumbnail(['#b8bcc2', '#cdd1d6', '#a6aab0']),
+  'plastic-magnolia': swatchThumbnail(['#f4f0e6', '#ede6d9', '#d9d0c2'])
 });
 
 const CUE_STYLE_THUMBNAILS = Object.freeze({
@@ -378,7 +377,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['fabric_leather_02'],
+  pocketLiner: ['plastic-black'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
   tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
@@ -429,12 +428,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   pocketLiner: Object.freeze({
-    fabric_leather_02: 'Fabric Leather 02 Pocket Jaws',
-    fabric_leather_01: 'Fabric Leather 01 Pocket Jaws',
-    brown_leather: 'Brown Leather Pocket Jaws',
-    leather_red_02: 'Leather Red 02 Pocket Jaws',
-    leather_red_03: 'Leather Red 03 Pocket Jaws',
-    leather_white: 'Leather White Pocket Jaws'
+    'plastic-black': 'Plastic Black Pocket Jaws',
+    'plastic-dark-grey': 'Plastic Dark Grey Pocket Jaws',
+    'plastic-grey': 'Plastic Grey Pocket Jaws',
+    'plastic-light-grey': 'Plastic Light Grey Pocket Jaws',
+    'plastic-magnolia': 'Plastic Magnolia Pocket Jaws'
   })
 });
 
@@ -521,58 +519,49 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: variant.thumbnail
   })),
   {
-    id: 'pocket-fabric-leather-02',
+    id: 'pocket-plastic-black',
     type: 'pocketLiner',
-    optionId: 'fabric_leather_02',
-    name: 'Fabric Leather 02 Pocket Jaws',
+    optionId: 'plastic-black',
+    name: 'Plastic Black Pocket Jaws',
     price: 520,
-    description: 'Warm stitched leather weave liners for the classic Pool Royale look.',
-    thumbnail: POCKET_LINER_THUMBNAILS.fabric_leather_02
+    description: 'Deep black plastic jaws with a clean monoblock finish.',
+    thumbnail: POCKET_LINER_THUMBNAILS['plastic-black']
   },
   {
-    id: 'pocket-fabric-leather-01',
+    id: 'pocket-plastic-dark-grey',
     type: 'pocketLiner',
-    optionId: 'fabric_leather_01',
-    name: 'Fabric Leather 01 Pocket Jaws',
+    optionId: 'plastic-dark-grey',
+    name: 'Plastic Dark Grey Pocket Jaws',
     price: 530,
-    description: 'Soft-grain leather weave liners with a mellow brown finish.',
-    thumbnail: POCKET_LINER_THUMBNAILS.fabric_leather_01
+    description: 'Dark grey monoblock jaws with a muted satin sheen.',
+    thumbnail: POCKET_LINER_THUMBNAILS['plastic-dark-grey']
   },
   {
-    id: 'pocket-brown-leather',
+    id: 'pocket-plastic-grey',
     type: 'pocketLiner',
-    optionId: 'brown_leather',
-    name: 'Brown Leather Pocket Jaws',
+    optionId: 'plastic-grey',
+    name: 'Plastic Grey Pocket Jaws',
     price: 540,
-    description: 'Deep brown leather pockets with natural creases and aged texture.',
-    thumbnail: POCKET_LINER_THUMBNAILS.brown_leather
+    description: 'Balanced grey plastic jaws with a solid molded finish.',
+    thumbnail: POCKET_LINER_THUMBNAILS['plastic-grey']
   },
   {
-    id: 'pocket-leather-red-02',
+    id: 'pocket-plastic-light-grey',
     type: 'pocketLiner',
-    optionId: 'leather_red_02',
-    name: 'Leather Red 02 Pocket Jaws',
+    optionId: 'plastic-light-grey',
+    name: 'Plastic Light Grey Pocket Jaws',
     price: 560,
-    description: 'Bold red leather liners with pronounced seams and worn highlights.',
-    thumbnail: POCKET_LINER_THUMBNAILS.leather_red_02
+    description: 'Light grey monoblock jaws with a brighter matte finish.',
+    thumbnail: POCKET_LINER_THUMBNAILS['plastic-light-grey']
   },
   {
-    id: 'pocket-leather-red-03',
+    id: 'pocket-plastic-magnolia',
     type: 'pocketLiner',
-    optionId: 'leather_red_03',
-    name: 'Leather Red 03 Pocket Jaws',
-    price: 570,
-    description: 'Deep crimson leather pocket liners with subtle stitch detailing.',
-    thumbnail: POCKET_LINER_THUMBNAILS.leather_red_03
-  },
-  {
-    id: 'pocket-leather-white',
-    type: 'pocketLiner',
-    optionId: 'leather_white',
-    name: 'Leather White Pocket Jaws',
+    optionId: 'plastic-magnolia',
+    name: 'Plastic Magnolia Pocket Jaws',
     price: 590,
-    description: 'Bright white leather pockets with crisp seam definition and clean grain.',
-    thumbnail: POCKET_LINER_THUMBNAILS.leather_white
+    description: 'Warm magnolia plastic jaws with a soft molded tone.',
+    thumbnail: POCKET_LINER_THUMBNAILS['plastic-magnolia']
   },
   {
     id: 'cue-redwood',
