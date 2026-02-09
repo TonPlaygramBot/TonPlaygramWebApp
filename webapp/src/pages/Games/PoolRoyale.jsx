@@ -1043,7 +1043,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = true;
+const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1317,7 +1317,7 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // disable max-power bounce lift (never reaches this)
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
-const MAX_POWER_BOUNCE_GRAVITY = SPIN_GRAVITY * BALL_R * 0.95;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
@@ -5127,7 +5127,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
-const IN_HAND_DRAG_SPEED = 2.6; // faster cue-ball placement for ball-in-hand
+const IN_HAND_DRAG_SPEED = 1.7; // match the faster air-hockey drag pace for cue-ball placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // nudge forward slightly at the floor of the cue view, then stop
 const STANDING_TO_CUE_FORWARD_PUSH = CAMERA.minR * 0.1; // gently push forward as the standing view lowers toward cue view
@@ -5177,11 +5177,11 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 0;
+const REPLAY_CUE_START_HOLD_MS = 220;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
-  RAIL_LIMIT_Y - POCKET_VIS_R * 0.7; // request pocket cams earlier as play reaches the short rail mouths
+  RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_MIN_SHOT_TIME_MS = 5000;
 const AI_MAX_SHOT_TIME_MS = 7000;
@@ -5190,7 +5190,7 @@ const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
 const AI_THINKING_BUDGET_MS =
-  AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS + 800; // allow extra planning time for pro AI-level shot selection
+  AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CAMERA_DROP_LEAD_MS =
@@ -5210,7 +5210,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.4;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -19145,33 +19145,10 @@ const powerRef = useRef(hud.power);
           let resolvedTarget = null;
           let resolvedFov = fovSnapshot;
           let resolvedMinTargetY = null;
-          const preferBroadcastReplay =
-            Boolean(shotRecording) && !pocketActive;
-          if (preferBroadcastReplay) {
-            const broadcastCamera =
-              resolveRailOverheadReplayCamera({
-                focusOverride: targetSnapshot,
-                minTargetY
-              }) ??
-              resolveBroadcastTopViewCamera({
-                focusOverride: targetSnapshot,
-                minTargetY
-              });
-            resolvedPosition = broadcastCamera?.position?.clone?.() ?? null;
-            resolvedTarget = broadcastCamera?.target?.clone?.() ?? targetSnapshot;
-            resolvedFov = Number.isFinite(broadcastCamera?.fov)
-              ? broadcastCamera.fov
-              : fovSnapshot;
-            resolvedMinTargetY =
-              broadcastCamera?.minTargetY ?? minTargetY;
-          } else {
-            resolvedPosition = activeCamera?.position?.clone?.() ?? null;
-            resolvedTarget = targetSnapshot;
-            resolvedFov = Number.isFinite(activeCamera?.fov)
-              ? activeCamera.fov
-              : fovSnapshot;
-            resolvedMinTargetY = minTargetY;
-          }
+          resolvedPosition = activeCamera?.position?.clone?.() ?? null;
+          resolvedTarget = targetSnapshot;
+          resolvedFov = Number.isFinite(activeCamera?.fov) ? activeCamera.fov : fovSnapshot;
+          resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
@@ -22112,7 +22089,7 @@ const powerRef = useRef(hud.power);
       };
       const resolveInHandPlacement = (
         point,
-        { clearanceMultiplier = 1.65, maxRadius = BALL_R * 3.2 } = {}
+        { clearanceMultiplier = 2.05, maxRadius = BALL_R * 3.2 } = {}
       ) => {
         const clamped = clampInHandPosition(point);
         if (!clamped) return null;
@@ -24454,14 +24431,6 @@ const powerRef = useRef(hud.power);
           if (!cueBall?.active) return null;
           const variantId = activeVariantRef.current?.id ?? variantKey;
           if (variantId !== 'american' && variantId !== '9ball') return null;
-          const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
-            ? frameSnapshot.ballOn
-            : [];
-          const legalTargets = new Set(
-            legalTargetsRaw
-              .map((entry) => normalizeTargetId(entry))
-              .filter((entry) => entry && isBallTargetId(entry))
-          );
           const width = PLAY_W;
           const height = PLAY_H;
           const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
@@ -24509,7 +24478,7 @@ const powerRef = useRef(hud.power);
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
             state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 800)
+            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
           });
           if (!decision?.aimPoint) return null;
           const aimPoint = new THREE.Vector2(
@@ -24523,15 +24492,6 @@ const powerRef = useRef(hud.power);
             const mappedId = mapBallId(ball);
             return mappedId != null && mappedId === decision.targetBallId;
           });
-          if (
-            legalTargets.size > 0 &&
-            targetBall &&
-            !Array.from(legalTargets).some((targetId) =>
-              matchesTargetId(targetBall, targetId)
-            )
-          ) {
-            return null;
-          }
           const targetPocket = decision.targetPocket
             ? new THREE.Vector2(
                 decision.targetPocket.x - width / 2,
@@ -27847,14 +27807,7 @@ const powerRef = useRef(hud.power);
               handIconEl.style.pointerEvents = 'none';
             } else {
               const rect = renderer.domElement.getBoundingClientRect();
-              if (cue?.mesh && cue.active && cue.mesh.visible) {
-                cue.mesh.getWorldPosition(TMP_VEC3_IN_HAND_ICON);
-              } else if (table) {
-                TMP_VEC3_IN_HAND_ICON.set(0, BALL_CENTER_Y, 0);
-                table.localToWorld(TMP_VEC3_IN_HAND_ICON);
-              } else {
-                TMP_VEC3_IN_HAND_ICON.set(0, BALL_CENTER_Y, 0);
-              }
+              cue.mesh.getWorldPosition(TMP_VEC3_IN_HAND_ICON);
               const cameraForUi = frameCamera ?? camera;
               TMP_VEC3_IN_HAND_ICON.project(cameraForUi);
               const screenX =
