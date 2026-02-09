@@ -1204,7 +1204,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.26; // lift chalks slightly so they sit on the rail surface
+const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.34; // lift chalks slightly so they sit on the rail surface
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
@@ -1313,12 +1313,12 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.018;
+const ROLLING_RESISTANCE = 0.014;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.45;
+const STOP_EPS = 0.012;
+const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -1398,6 +1398,9 @@ const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 10;
 const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(2.4, 2.4);
+const POCKET_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 1, y: 1 });
+const POCKET_PLASTIC_TEXTURE_ANISOTROPY = 8;
+const POCKET_PLASTIC_NORMAL_SCALE = new THREE.Vector2(0.55, 0.55);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -2520,6 +2523,115 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
   return cacheEntry;
 };
 
+const POCKET_PLASTIC_GLTF_URLS = Object.freeze([
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ToyCar/glTF/ToyCar.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ToyCar/glTF/ToyCar.gltf'
+]);
+const pocketPlasticTextureCache = new Map();
+const pocketPlasticConsumers = new Set();
+
+const registerPocketPlasticConsumer = (materials = []) => {
+  materials.forEach((material) => {
+    if (material) pocketPlasticConsumers.add(material);
+  });
+};
+
+const applyPocketPlasticTextureDefaults = (
+  texture,
+  { isColor = false, repeat = POCKET_PLASTIC_TEXTURE_REPEAT } = {}
+) => {
+  if (!texture) return texture;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  const repeatX = repeat?.x ?? POCKET_PLASTIC_TEXTURE_REPEAT.x;
+  const repeatY = repeat?.y ?? POCKET_PLASTIC_TEXTURE_REPEAT.y;
+  texture.repeat.set(repeatX, repeatY);
+  texture.anisotropy = resolveTextureAnisotropy(POCKET_PLASTIC_TEXTURE_ANISOTROPY);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  if (isColor) {
+    applySRGBColorSpace(texture);
+  }
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const broadcastPocketPlasticTextures = (textures) => {
+  if (!textures) return;
+  pocketPlasticConsumers.forEach((material) => {
+    if (!material) return;
+    material.map = textures.map ?? null;
+    material.normalMap = textures.normal ?? null;
+    material.roughnessMap = textures.roughness ?? null;
+    applyPocketPlasticTextureDefaults(material.map, { isColor: true });
+    applyPocketPlasticTextureDefaults(material.normalMap);
+    applyPocketPlasticTextureDefaults(material.roughnessMap);
+    material.needsUpdate = true;
+  });
+};
+
+const pickPlasticMaterialTextures = (scene) => {
+  let picked = null;
+  if (!scene) return picked;
+  scene.traverse((node) => {
+    if (picked || !node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (picked || !material) return;
+      const map = material.map ?? null;
+      const normal = material.normalMap ?? null;
+      const roughness = material.roughnessMap ?? null;
+      if (map || normal || roughness) {
+        picked = { map, normal, roughness };
+      }
+    });
+  });
+  return picked;
+};
+
+const ensurePocketPlasticTextures = () => {
+  const cacheKey = 'pocket-plastic';
+  if (!pocketPlasticTextureCache.has(cacheKey)) {
+    pocketPlasticTextureCache.set(cacheKey, {
+      map: null,
+      normal: null,
+      roughness: null,
+      loading: false,
+      ready: false
+    });
+  }
+  const cacheEntry = pocketPlasticTextureCache.get(cacheKey);
+  if (cacheEntry.loading || cacheEntry.ready) return cacheEntry;
+  if (typeof window === 'undefined') return cacheEntry;
+  cacheEntry.loading = true;
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  (async () => {
+    let picked = null;
+    for (const url of POCKET_PLASTIC_GLTF_URLS) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        picked = pickPlasticMaterialTextures(scene);
+        if (picked) break;
+      } catch (error) {
+        console.warn('Pocket plastic GLTF load failed', error);
+      }
+    }
+    cacheEntry.map = picked?.map ?? null;
+    cacheEntry.normal = picked?.normal ?? null;
+    cacheEntry.roughness = picked?.roughness ?? null;
+    applyPocketPlasticTextureDefaults(cacheEntry.map, { isColor: true });
+    applyPocketPlasticTextureDefaults(cacheEntry.normal);
+    applyPocketPlasticTextureDefaults(cacheEntry.roughness);
+    cacheEntry.ready = true;
+    cacheEntry.loading = false;
+    broadcastPocketPlasticTextures(cacheEntry);
+  })();
+  return cacheEntry;
+};
+
 const createPocketMaterials = () => {
   const { jawMaterial, rimMaterial } = createPocketLinerMaterials(
     POCKET_LINER_OPTIONS[0] ?? null
@@ -2968,73 +3080,67 @@ const resolveBroadcastSystem = (id) =>
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
-    id: 'fabric_leather_02',
-    label: 'Fabric Leather 02',
-    textureId: 'fabric_leather_02'
+    id: 'plastic-black',
+    label: 'Plastic Black',
+    baseColor: '#151515'
   }),
   Object.freeze({
-    id: 'fabric_leather_01',
-    label: 'Fabric Leather 01',
-    textureId: 'fabric_leather_01'
+    id: 'plastic-dark-grey',
+    label: 'Plastic Dark Grey',
+    baseColor: '#2c2f33'
   }),
   Object.freeze({
-    id: 'brown_leather',
-    label: 'Brown Leather',
-    textureId: 'brown_leather'
+    id: 'plastic-grey',
+    label: 'Plastic Grey',
+    baseColor: '#5b5f64'
   }),
   Object.freeze({
-    id: 'leather_red_02',
-    label: 'Leather Red 02',
-    textureId: 'leather_red_02'
+    id: 'plastic-light-grey',
+    label: 'Plastic Light Grey',
+    baseColor: '#b8bcc2'
   }),
   Object.freeze({
-    id: 'leather_red_03',
-    label: 'Leather Red 03',
-    textureId: 'leather_red_03'
-  }),
-  Object.freeze({
-    id: 'leather_white',
-    label: 'Leather White',
-    textureId: 'leather_white'
+    id: 'plastic-magnolia',
+    label: 'Plastic Magnolia',
+    baseColor: '#f4f0e6'
   })
 ]);
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS.find((preset) => preset.id === 'fabric_leather_02')?.id ??
+  POCKET_LINER_PRESETS.find((preset) => preset.id === 'plastic-black')?.id ??
   POCKET_LINER_PRESETS[0]?.id ??
-  'fabric_leather_02';
+  'plastic-black';
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config) =>
     Object.freeze({
       id: config.id,
       label: `${config.label} Pocket Jaws`,
-      textureId: config.textureId ?? config.id,
-      thumbnail: polyHavenThumb(config.textureId ?? config.id),
-      roughness: 0.86,
-      metalness: 0.04,
-      clearcoat: 0.14,
-      clearcoatRoughness: 0.6,
-      sheen: 0.42,
-      sheenRoughness: 0.5,
-      envMapIntensity: 0.32
+      baseColor: config.baseColor ?? '#ffffff',
+      jawColor: config.baseColor ?? '#ffffff',
+      roughness: 0.28,
+      metalness: 0.06,
+      clearcoat: 0.62,
+      clearcoatRoughness: 0.22,
+      sheen: 0.16,
+      sheenRoughness: 0.38,
+      envMapIntensity: 0.35
     })
   )
 );
 
 function createPocketLinerMaterials(option) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
-  const textureId = selection?.textureId ?? POCKET_LEATHER_TEXTURE_ID;
-  const textures = ensurePocketLeatherTextures(textureId);
-  const baseColor = new THREE.Color(0xffffff);
+  const textures = ensurePocketPlasticTextures(selection);
+  const baseColor = new THREE.Color(selection?.baseColor ?? '#ffffff');
   const jawMaterial = new THREE.MeshPhysicalMaterial({
     color: baseColor,
-    roughness: selection.roughness ?? 0.86,
-    metalness: selection.metalness ?? 0.04,
-    clearcoat: selection.clearcoat ?? 0.14,
-    clearcoatRoughness: selection.clearcoatRoughness ?? 0.6,
-    sheen: selection.sheen ?? 0.42,
-    sheenRoughness: selection.sheenRoughness ?? 0.5,
+    roughness: selection.roughness ?? 0.28,
+    metalness: selection.metalness ?? 0.06,
+    clearcoat: selection.clearcoat ?? 0.62,
+    clearcoatRoughness: selection.clearcoatRoughness ?? 0.22,
+    sheen: selection.sheen ?? 0.16,
+    sheenRoughness: selection.sheenRoughness ?? 0.38,
     sheenColor: baseColor.clone(),
     envMapIntensity: selection.envMapIntensity ?? 0.32,
     map: textures.map ?? null,
@@ -3042,27 +3148,27 @@ function createPocketLinerMaterials(option) {
     roughnessMap: textures.roughness ?? null
   });
   const rimMaterial = jawMaterial.clone();
-  rimMaterial.roughness = Math.min(1, (jawMaterial.roughness ?? 0.86) + 0.06);
-  rimMaterial.clearcoat = Math.min(0.2, (jawMaterial.clearcoat ?? 0.14) * 0.8);
+  rimMaterial.roughness = Math.min(1, (jawMaterial.roughness ?? 0.28) + 0.08);
+  rimMaterial.clearcoat = Math.min(0.35, (jawMaterial.clearcoat ?? 0.62) * 0.85);
   rimMaterial.clearcoatRoughness = Math.min(
     1,
-    (jawMaterial.clearcoatRoughness ?? 0.6) + 0.08
+    (jawMaterial.clearcoatRoughness ?? 0.22) + 0.08
   );
-  rimMaterial.sheen = Math.max(0.24, (jawMaterial.sheen ?? 0.42) * 0.7);
+  rimMaterial.sheen = Math.max(0.2, (jawMaterial.sheen ?? 0.16) * 0.7);
   rimMaterial.emissive = baseColor.clone().multiplyScalar(0.04);
   if (jawMaterial.normalMap) {
-    jawMaterial.normalScale = POCKET_LEATHER_NORMAL_SCALE.clone();
+    jawMaterial.normalScale = POCKET_PLASTIC_NORMAL_SCALE.clone();
   }
   if (rimMaterial.normalMap) {
-    rimMaterial.normalScale = POCKET_LEATHER_NORMAL_SCALE.clone();
+    rimMaterial.normalScale = POCKET_PLASTIC_NORMAL_SCALE.clone();
   }
-  applyPocketLeatherTextureDefaults(jawMaterial.map, { isColor: true });
-  applyPocketLeatherTextureDefaults(jawMaterial.normalMap);
-  applyPocketLeatherTextureDefaults(jawMaterial.roughnessMap);
-  applyPocketLeatherTextureDefaults(rimMaterial.map, { isColor: true });
-  applyPocketLeatherTextureDefaults(rimMaterial.normalMap);
-  applyPocketLeatherTextureDefaults(rimMaterial.roughnessMap);
-  registerPocketLeatherConsumer(textureId, [jawMaterial, rimMaterial]);
+  applyPocketPlasticTextureDefaults(jawMaterial.map, { isColor: true });
+  applyPocketPlasticTextureDefaults(jawMaterial.normalMap);
+  applyPocketPlasticTextureDefaults(jawMaterial.roughnessMap);
+  applyPocketPlasticTextureDefaults(rimMaterial.map, { isColor: true });
+  applyPocketPlasticTextureDefaults(rimMaterial.normalMap);
+  applyPocketPlasticTextureDefaults(rimMaterial.roughnessMap);
+  registerPocketPlasticConsumer([jawMaterial, rimMaterial]);
   jawMaterial.needsUpdate = true;
   rimMaterial.needsUpdate = true;
   return { jawMaterial, rimMaterial };
@@ -10005,8 +10111,8 @@ export function Table3D(
     slack: BALL_R * 0.35,
     sideReach: longRailW + chalkSideRailOffset + chalkSize * 0.5,
     endReach: endRailW + chalkEndRailOffset + chalkSize * 0.5,
-    overlapThreshold: chalkSize * 0.6,
-    nudgeDistance: chalkSize * 0.25
+    overlapThreshold: chalkSize * 0.78,
+    nudgeDistance: chalkSize * 0.34
   };
 
   const FACE_SHRINK_LONG = 1;
@@ -26681,8 +26787,19 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const deflectedTargetDir = resolveTargetSpinDeflection(
+              rawTargetDir,
+              cueDir,
+              aimPreviewSpin,
+              powerStrength,
+              liftStrength
+            );
             const tDir =
-              rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
+              deflectedTargetDir && deflectedTargetDir.lengthSq() > 1e-8
+                ? deflectedTargetDir.normalize()
+                : rawTargetDir.lengthSq() > 1e-8
+                  ? rawTargetDir.normalize()
+                  : dir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
