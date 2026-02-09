@@ -19154,18 +19154,18 @@ const powerRef = useRef(hud.power);
           let resolvedTarget = null;
           let resolvedFov = fovSnapshot;
           let resolvedMinTargetY = null;
-          resolvedPosition =
-            overheadReplayCamera?.position?.clone?.() ??
-            activeCamera?.position?.clone?.() ??
-            null;
-          resolvedTarget =
-            overheadReplayCamera?.target?.clone?.() ??
-            targetSnapshot;
+          if (!pocketActive && !overheadReplayCamera) {
+            return null;
+          }
+          resolvedPosition = pocketActive
+            ? activeCamera?.position?.clone?.() ?? null
+            : overheadReplayCamera?.position?.clone?.() ?? null;
+          resolvedTarget = pocketActive
+            ? targetSnapshot
+            : overheadReplayCamera?.target?.clone?.() ?? targetSnapshot;
           resolvedFov = Number.isFinite(overheadReplayCamera?.fov)
             ? overheadReplayCamera.fov
-            : Number.isFinite(activeCamera?.fov)
-              ? activeCamera.fov
-              : fovSnapshot;
+            : fovSnapshot;
           resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
