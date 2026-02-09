@@ -55,7 +55,7 @@ const PREFETCH_RUNTIME_ASSETS = [
   '/texas-holdem.js',
   '/lib/texasHoldem.js',
   '/lib/texasHoldemGame.js',
-  '/domino-royal.js',
+  '/domino-royal.html',
   '/murlan-royale.html',
   '/roulette.html',
   '/chess-royale.html',
