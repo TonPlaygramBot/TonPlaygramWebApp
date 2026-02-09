@@ -1582,7 +1582,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to ref
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
+const SHOT_POWER_ADJUSTMENT = 0.9; // reduce overall Pool Royale power by 10% for a slightly faster pace
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -6496,7 +6496,7 @@ function resolvePowerLineColor(powerStrength) {
 
 function resolveAimPreviewSpin(spin) {
   const normalized = normalizeSpinInput(spin);
-  return { x: -(normalized?.x ?? 0), y: -(normalized?.y ?? 0) };
+  return { x: -(normalized?.x ?? 0), y: normalized?.y ?? 0 };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -6937,6 +6937,7 @@ function updateCushionSegmentsFromTable(table) {
   const jawEntries = Array.isArray(table.userData.pocketJaws)
     ? table.userData.pocketJaws
     : [];
+  const jawEndpoints = [];
   jawEntries.forEach((jaw) => {
     if (!(jaw?.center instanceof THREE.Vector2)) return;
     if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
@@ -6948,6 +6949,16 @@ function updateCushionSegmentsFromTable(table) {
     const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
     const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
     const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
+    jawEndpoints.push(
+      new THREE.Vector2(
+        jaw.center.x + Math.cos(startAngle) * mappingOuterRadius,
+        jaw.center.y + Math.sin(startAngle) * mappingOuterRadius
+      ),
+      new THREE.Vector2(
+        jaw.center.x + Math.cos(endAngle) * mappingOuterRadius,
+        jaw.center.y + Math.sin(endAngle) * mappingOuterRadius
+      )
+    );
     let prev = null;
     for (let i = 0; i <= steps; i += 1) {
       const t = steps === 0 ? 0 : i / steps;
@@ -6974,6 +6985,29 @@ function updateCushionSegmentsFromTable(table) {
       prev = point;
     }
   });
+  if (jawEndpoints.length > 0) {
+    const cutEndpoints = segments
+      .filter((segment) => segment?.type === 'cut' && segment.start && segment.end)
+      .flatMap((segment) => [segment.start, segment.end]);
+    const maxGap = CUSHION_CUT_CONTACT_RADIUS * 1.15;
+    jawEndpoints.forEach((endpoint) => {
+      let best = null;
+      let bestDist = Infinity;
+      cutEndpoints.forEach((cutPoint) => {
+        const dist = endpoint.distanceTo(cutPoint);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = cutPoint;
+        }
+      });
+      if (!best || bestDist <= MICRO_EPS || bestDist > maxGap) return;
+      segments.push({
+        start: best.clone(),
+        end: endpoint.clone(),
+        type: 'cut'
+      });
+    });
+  }
   const tableCenter = new THREE.Vector2(0, 0);
   segments.forEach((segment) => {
     if (segment.normal) return;
@@ -25504,6 +25538,21 @@ const powerRef = useRef(hud.power);
             ...safeState,
             activePlayer: nextPlayer,
             foul: safeState?.foul ?? { points: 0, reason: 'scratch' },
+            meta: nextMeta ?? safeState.meta
+          };
+        }
+        if (safeState?.foul) {
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            if (nextMeta.variant === 'uk') {
+              nextMeta.state = { ...nextMeta.state, mustPlayFromBaulk: true };
+            } else {
+              nextMeta.state = { ...nextMeta.state, ballInHand: true };
+            }
+          }
+          safeState = {
+            ...safeState,
             meta: nextMeta ?? safeState.meta
           };
         }
