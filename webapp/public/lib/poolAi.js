@@ -37,9 +37,9 @@
  * @property {{x:number,y:number}} [aimPoint]
  */
 
-const LOOKAHEAD_DEPTH = 2
-const LOOKAHEAD_CANDIDATES = 3
-const MONTE_CARLO_BASE_SAMPLES = 28
+const LOOKAHEAD_DEPTH = 3
+const LOOKAHEAD_CANDIDATES = 4
+const MONTE_CARLO_BASE_SAMPLES = 40
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -159,9 +159,28 @@ function currentGroup (state) {
   return undefined
 }
 
+function parseBallOnIds (state) {
+  const raw = state?.ballOn
+  const entries = Array.isArray(raw) ? raw : raw ? [raw] : []
+  const ids = entries
+    .map(value => {
+      if (typeof value === 'number') return value
+      if (typeof value !== 'string') return null
+      const match = value.match(/(\d+)/)
+      return match ? Number(match[1]) : null
+    })
+    .filter(id => Number.isFinite(id))
+  return Array.from(new Set(ids))
+}
+
 function chooseTargets (req) {
   const balls = req.state.balls.filter(b => !b.pocketed && b.id !== 0)
+  const ballOnIds = parseBallOnIds(req.state)
   if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
+    if (ballOnIds.length > 0) {
+      const restricted = balls.filter(b => ballOnIds.includes(b.id))
+      if (restricted.length > 0) return restricted
+    }
     const lowest = balls.reduce((m, b) => (b.id < m.id ? b : m), balls[0])
     return lowest ? [lowest] : []
   }
@@ -440,15 +459,16 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const maxD = Math.hypot(req.state.width, req.state.height)
   const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls, 20, rng)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
+  const cueAfterClamped = clampPointToTable(cueAfter, req.state, 1.1)
   const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
   let nextScore = 0
   let hasNext = false
   if (nextTargets.length > 0) {
     hasNext = true
     const next = nextTargets[0]
-    nextScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
+    nextScore = 1 - Math.min(dist(cueAfterClamped, next) / maxD, 1)
   }
-  const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
+  const risk = req.state.pockets.some(p => dist(cueAfterClamped, p) < r * 1.4) ? 1 : 0
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
   let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
@@ -473,7 +493,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     : LOOKAHEAD_DEPTH
   const runoutPotential = options.skipLookahead
     ? 0
-    : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth, rng)
+    : estimateRunoutPotential(req, cueAfterClamped, target.id, balls, lookaheadDepth, rng)
   const quality = Math.max(
     0,
     Math.min(
@@ -587,13 +607,13 @@ export function planShot (req) {
   let fallback = null
   let hasViableShot = false
 
-  const powers = [0.5, 0.7, 0.85]
+  const powers = [0.45, 0.6, 0.75, 0.9]
   const spins = [
     { top: 0, side: 0, back: 0 },
-    { top: 0.3, side: 0, back: -0.3 },
-    { top: -0.3, side: 0.3, back: 0 },
-    { top: -0.3, side: -0.3, back: 0 },
-    { top: 0, side: 0.3, back: 0 }
+    { top: 0.2, side: 0, back: -0.2 },
+    { top: -0.2, side: 0, back: 0 },
+    { top: 0, side: 0.18, back: 0 },
+    { top: 0, side: -0.18, back: 0 }
   ]
 
   // first, gather candidate target/pocket pairs meeting strict criteria

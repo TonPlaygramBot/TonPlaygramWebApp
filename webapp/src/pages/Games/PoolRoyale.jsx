@@ -1043,10 +1043,12 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = false;
+const ENABLE_TABLE_MAPPING_LINES = true;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
+const REPLAY_CAMERA_START_DELAY_MS = 180;
+const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -1305,6 +1307,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
+const ROLLING_RESISTANCE = 0.018;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.02;
@@ -5127,7 +5130,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
-const IN_HAND_DRAG_SPEED = 1.7; // match the faster air-hockey drag pace for cue-ball placement
+const IN_HAND_DRAG_SPEED = 2.6; // accelerate ball-in-hand drags for faster repositioning
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // nudge forward slightly at the floor of the cue view, then stop
 const STANDING_TO_CUE_FORWARD_PUSH = CAMERA.minR * 0.1; // gently push forward as the standing view lowers toward cue view
@@ -5210,7 +5213,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 2.4;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -19220,7 +19223,10 @@ const powerRef = useRef(hud.power);
           }
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
-          const cameraSnapshot = captureReplayCameraSnapshot();
+          const cameraSnapshot =
+            relative >= REPLAY_CAMERA_START_DELAY_MS
+              ? captureReplayCameraSnapshot()
+              : null;
           const cueSnapshot = cueStick
             ? {
                 position: serializeVector3Snapshot(cueStick.position),
@@ -19980,7 +19986,8 @@ const powerRef = useRef(hud.power);
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
-            pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+            pocketDrops: pausedPocketDrops ?? pocketDropRef.current,
+            pocketCameraCutoff: null
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
@@ -24473,7 +24480,10 @@ const powerRef = useRef(hud.power);
             height,
             ballRadius: BALL_R,
             friction: FRICTION,
-            ballInHand: Boolean(metaState?.ballInHand)
+            ballInHand: Boolean(metaState?.ballInHand),
+            ballOn: Array.isArray(frameSnapshot?.ballOn)
+              ? frameSnapshot.ballOn
+              : frameSnapshot?.ballOn ?? null
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -25801,13 +25811,32 @@ const powerRef = useRef(hud.power);
               if (frameCameraA || frameCameraB) {
                 const cameraKeyA = frameCameraA?.key ?? null;
                 const cameraKeyB = frameCameraB?.key ?? cameraKeyA;
+                const isPocketKey = (key) =>
+                  typeof key === 'string' && key.startsWith('pocket:');
+                const isPocketCamera = isPocketKey(cameraKeyA) || isPocketKey(cameraKeyB);
+                if (isPocketCamera) {
+                  if (!Number.isFinite(playback.pocketCameraCutoff)) {
+                    playback.pocketCameraCutoff =
+                      frameA.t + REPLAY_POCKET_CAMERA_HOLD_MS;
+                  }
+                } else {
+                  playback.pocketCameraCutoff = null;
+                }
                 const shouldCut =
                   Boolean(cameraKeyA) && Boolean(cameraKeyB) && cameraKeyA !== cameraKeyB;
-                replayFrameCameraRef.current = {
-                  frameA: frameCameraA ?? frameCameraB,
-                  frameB: frameCameraB ?? frameCameraA,
-                  alpha: shouldCut ? 0 : alpha
-                };
+                if (
+                  isPocketCamera &&
+                  Number.isFinite(playback.pocketCameraCutoff) &&
+                  targetTime >= playback.pocketCameraCutoff
+                ) {
+                  replayFrameCameraRef.current = null;
+                } else {
+                  replayFrameCameraRef.current = {
+                    frameA: frameCameraA ?? frameCameraB,
+                    frameB: frameCameraB ?? frameCameraA,
+                    alpha: shouldCut ? 0 : alpha
+                  };
+                }
               }
             } else {
               replayFrameCameraRef.current = null;
@@ -26883,6 +26912,17 @@ const powerRef = useRef(hud.power);
                 b.vel.addScaledVector(b.launchDir, -forwardDot);
               }
             }
+            if (!hasLift) {
+              const rollingDt = SPIN_FIXED_DT * stepScale;
+              const rollingSpeed = b.vel.length();
+              if (rollingSpeed > 1e-6) {
+                const rollingDecel = ROLLING_RESISTANCE * SPIN_GRAVITY * rollingDt;
+                const nextSpeed = Math.max(0, rollingSpeed - rollingDecel);
+                if (nextSpeed < rollingSpeed) {
+                  b.vel.multiplyScalar(nextSpeed / rollingSpeed);
+                }
+              }
+            }
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
@@ -27799,7 +27839,6 @@ const powerRef = useRef(hud.power);
             const currentHud = hudRef.current;
             const shouldShow =
               Boolean(currentHud?.inHand) &&
-              currentHud?.turn === 0 &&
               cue?.mesh &&
               !replayPlaybackRef.current;
             if (!shouldShow) {
@@ -28199,7 +28238,8 @@ const powerRef = useRef(hud.power);
     setHud((prev) => ({ ...prev, inHand: true }));
     setInHandPlacementMode(true);
   }, [canRepositionCueBall]);
-  const canUseInHandIcon = showPlayerControls && hud.inHand;
+  const showInHandIcon = hud.inHand && !replayActive;
+  const canDragInHandIcon = showPlayerControls && hud.inHand;
   const handleInHandIconPointerMove = useCallback((event) => {
     inHandPlacementApiRef.current?.move?.(event);
     event.preventDefault?.();
@@ -28221,7 +28261,7 @@ const powerRef = useRef(hud.power);
   }, []);
   const handleInHandIconPointerDown = useCallback(
     (event) => {
-      if (!canUseInHandIcon || shootingRef.current) return;
+      if (!canDragInHandIcon || shootingRef.current) return;
       cueBallPlacedFromHandRef.current = false;
       inHandPlacementModeRef.current = true;
       setInHandPlacementMode(true);
@@ -28237,7 +28277,7 @@ const powerRef = useRef(hud.power);
       window.addEventListener('pointercancel', handleInHandIconPointerUp);
       event.preventDefault?.();
     },
-    [canUseInHandIcon, handleInHandIconPointerMove, handleInHandIconPointerUp]
+    [canDragInHandIcon, handleInHandIconPointerMove, handleInHandIconPointerUp]
   );
   const spinRingLabels = useMemo(
     () => {
@@ -30121,17 +30161,20 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
-      {canUseInHandIcon && (
+      {showInHandIcon && (
         <button
           ref={inHandIconRef}
           type="button"
           aria-label="Hold and drag, release to place the cue ball"
           title="Hold and drag, release to place the cue ball"
+          disabled={!canDragInHandIcon}
           onPointerDown={handleInHandIconPointerDown}
           onPointerMove={handleInHandIconPointerMove}
           onPointerUp={handleInHandIconPointerUp}
           onPointerCancel={handleInHandIconPointerUp}
-          className="fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition relative"
+          className={`fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition relative ${
+            canDragInHandIcon ? '' : 'opacity-70'
+          }`}
           style={{ opacity: 0, pointerEvents: 'none', transform: 'translate(-9999px, -9999px)' }}
         >
           <span
