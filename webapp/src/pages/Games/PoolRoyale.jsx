@@ -6522,15 +6522,43 @@ function resolveTargetSpinDeflection(
   return dir;
 }
 
+function resolveCuePreviewSpinScale(spin, powerStrength = 0) {
+  const spinX = spin?.x ?? 0;
+  const spinY = spin?.y ?? 0;
+  const powerSpinScale = 0.55 + powerStrength * 0.45;
+  const topspinPowerScale = resolveTopspinPowerScale(powerStrength);
+  let sideScale = SIDE_SPIN_MULTIPLIER * powerSpinScale;
+  let forwardScale = powerSpinScale;
+  if (spinY < -1e-4) {
+    forwardScale *= BACKSPIN_MULTIPLIER;
+  } else if (spinY > 1e-4) {
+    forwardScale = topspinPowerScale * TOPSPIN_MULTIPLIER;
+    if (Math.abs(spinX) > 1e-6) {
+      sideScale = SIDE_SPIN_MULTIPLIER * topspinPowerScale;
+    }
+  }
+  return {
+    x: sideScale * SPIN_GLOBAL_SCALE,
+    y: forwardScale * SPIN_GLOBAL_SCALE
+  };
+}
+
 function resolveCueFollowPreview({
   cueDir,
   aimDir,
   spin,
   powerStrength,
   cuePowerStrength,
-  liftStrength = 0
+  liftStrength = 0,
+  spinScale = null
 }) {
   const normalizedSpin = normalizeSpinInput(spin);
+  const scaleX = Number.isFinite(spinScale?.x) ? spinScale.x : 1;
+  const scaleY = Number.isFinite(spinScale?.y) ? spinScale.y : 1;
+  const previewSpin = {
+    x: (normalizedSpin?.x ?? 0) * scaleX,
+    y: (normalizedSpin?.y ?? 0) * scaleY
+  };
   const baseDir = cueDir ? cueDir.clone() : null;
   if (!baseDir || baseDir.lengthSq() < 1e-8) {
     baseDir?.set(0, 0, 1);
@@ -6547,12 +6575,12 @@ function resolveCueFollowPreview({
     resolveTargetSpinDeflection(
       baseDir ?? aimVec,
       aimVec,
-      normalizedSpin,
+      previewSpin,
       powerStrength,
       liftStrength
     ) ?? baseDir ?? aimVec;
-  const spinX = normalizedSpin?.x ?? 0;
-  const spinY = normalizedSpin?.y ?? 0;
+  const spinX = previewSpin?.x ?? 0;
+  const spinY = previewSpin?.y ?? 0;
   const spinMagnitude = Math.hypot(spinX, spinY);
   const backspinWeight = Math.max(0, -spinY);
   const topspinWeight = Math.max(0, spinY);
@@ -25744,6 +25772,19 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
+    if (renderer?.getContext?.()?.isContextLost?.()) {
+      triggerRendererReset();
+      if (!disposed) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+      return;
+    }
+    if (host && (host.clientWidth === 0 || host.clientHeight === 0)) {
+      if (!disposed) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+      return;
+    }
     try {
       const playback = replayPlaybackRef.current;
         if (playback) {
@@ -26279,13 +26320,15 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
+          const previewSpinScale = resolveCuePreviewSpinScale(appliedSpin, powerStrength);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
             spin: appliedSpin,
             powerStrength,
             cuePowerStrength,
-            liftStrength
+            liftStrength,
+            spinScale: previewSpinScale
           });
           const followEnd = end
             .clone()
@@ -26582,13 +26625,18 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
+          const previewSpinScale = resolveCuePreviewSpinScale(
+            remoteSpinNormalized,
+            powerStrength
+          );
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: baseDir,
             spin: remoteSpinNormalized,
             powerStrength,
             cuePowerStrength,
-            liftStrength: 0
+            liftStrength: 0,
+            spinScale: previewSpinScale
           });
           const followEnd = end
             .clone()
@@ -27866,15 +27914,16 @@ const powerRef = useRef(hud.power);
               lastLiveSyncSentAt = now;
             }
           }
-          if (!disposed) {
-            rafRef.current = requestAnimationFrame(step);
-          }
-        } catch (error) {
-          console.error('Pool Royale render loop failed; attempting recovery.', error);
-          if (!disposed) {
-            rafRef.current = requestAnimationFrame(step);
-          }
+        if (!disposed) {
+          rafRef.current = requestAnimationFrame(step);
         }
+      } catch (error) {
+        console.error('Pool Royale render loop failed; attempting recovery.', error);
+        triggerRendererReset();
+        if (!disposed) {
+          rafRef.current = requestAnimationFrame(step);
+        }
+      }
       };
       step(performance.now());
 
