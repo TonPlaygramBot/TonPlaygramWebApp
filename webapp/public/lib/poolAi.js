@@ -159,6 +159,7 @@ function currentGroup (state) {
   // Map the textual colour assignment to the corresponding group.
   if (norm === 'RED') return 'SOLIDS'
   if (norm === 'BLUE') return 'STRIPES'
+  if (norm === 'YELLOW') return 'SOLIDS'
   if (norm === 'SOLIDS' || norm === 'STRIPES') return norm
   return undefined
 }

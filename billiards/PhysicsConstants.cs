@@ -45,6 +45,7 @@ public static class PhysicsConstants
     public const double CornerPocketMouth = 0.1014984; // scaled with table reduction
     public const double SidePocketMouth = 0.1116013;    // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
+    public const double PocketAngleCutScale = 1.035;    // extend angle cut slightly for truer mouth mapping
     public const double CornerJawRadiusScale = 0.94;
     public const double CornerJawInset = 0.006;
     public const double SideJawInset = 0.006;
@@ -55,7 +56,7 @@ public static class PhysicsConstants
     public const double PocketMouthGuardInset = BallRadius * 0.35;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
-    public const int CornerJawSegments = 32;
-    public const int SideJawSegments = 24;
-    public const int JawCushionSegments = 2;           // how many segments nearest the rails behave as cushions
+    public const int CornerJawSegments = 40;
+    public const int SideJawSegments = 30;
+    public const int JawCushionSegments = 3;           // how many segments nearest the rails behave as cushions
 }

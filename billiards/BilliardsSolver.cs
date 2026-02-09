@@ -65,8 +65,9 @@ public class BilliardsSolver
         double height = PhysicsConstants.TableHeight;
         double cornerMouth = PhysicsConstants.CornerPocketMouth;
         double sideMouth = PhysicsConstants.SidePocketMouth;
-        double cornerCut = cornerMouth / Math.Sqrt(2.0);
-        double sideCut = sideMouth / 2.0;
+        double cutScale = Math.Max(PhysicsConstants.PocketAngleCutScale, 0.01);
+        double cornerCut = cornerMouth / Math.Sqrt(2.0) * cutScale;
+        double sideCut = sideMouth / 2.0 * cutScale;
         double cornerJawRadius = cornerCut * PhysicsConstants.CornerJawRadiusScale;
         double cornerJawInset = PhysicsConstants.CornerJawInset;
         double cornerJawCenter = cornerCut + cornerJawInset;
