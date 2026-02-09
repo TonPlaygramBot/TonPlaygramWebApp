@@ -538,9 +538,8 @@ export function createMurlanStyleTable({
   const trimHeight = 0.08 * scaleFactor;
   const trimOffset = 0.06 * scaleFactor;
   const clothRise = 0.07 * scaleFactor;
-  let baseHeight = 0.66 * scaleFactor;
+  let baseHeight = 0.62 * scaleFactor;
   const tableY = tableHeight - clothRise;
-  const baseLift = 0.03 * scaleFactor;
 
   const minBaseHeight = tableY > 0 ? tableY * 2 : 0;
   if (baseHeight < minBaseHeight) {
@@ -659,7 +658,7 @@ export function createMurlanStyleTable({
       false
     );
     const baseMesh = new ThreeNamespace.Mesh(baseGeometry, baseMat);
-    baseMesh.position.y = tableY - baseHeight / 2 + baseLift;
+    baseMesh.position.y = tableY - baseHeight / 2;
     baseMesh.castShadow = true;
     baseMesh.receiveShadow = true;
     tableGroup.add(baseMesh);
