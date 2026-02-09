@@ -1,5 +1,7 @@
-let gameMuted = localStorage.getItem('gameMuted') === 'true';
-let gameVolume = parseFloat(localStorage.getItem('gameVolume') || '1');
+import { safeGetItem, safeSetItem } from './storage.js';
+
+let gameMuted = safeGetItem('gameMuted') === 'true';
+let gameVolume = parseFloat(safeGetItem('gameVolume') || '1');
 
 export function isGameMuted() {
   return gameMuted;
@@ -11,17 +13,13 @@ export function getGameVolume() {
 
 export function setGameMuted(val) {
   gameMuted = val;
-  try {
-    localStorage.setItem('gameMuted', val ? 'true' : 'false');
-  } catch (err) {}
+  safeSetItem('gameMuted', val ? 'true' : 'false');
   window.dispatchEvent(new Event('gameMuteChanged'));
 }
 
 export function setGameVolume(val) {
   gameVolume = val;
-  try {
-    localStorage.setItem('gameVolume', String(val));
-  } catch (err) {}
+  safeSetItem('gameVolume', String(val));
   window.dispatchEvent(new Event('gameVolumeChanged'));
 }
 
