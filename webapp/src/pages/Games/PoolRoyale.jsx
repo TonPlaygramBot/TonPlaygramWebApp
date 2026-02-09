@@ -1082,7 +1082,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.9; // trim the jaw bodies so the underside sits shorter below the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.09; // trim the jaw height slightly so the top edge sits lower
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.022; // reduce the bottom reach slightly so jaws read shorter
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1117,7 +1117,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.95; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep the collision arc aligned to the jaw edge so cushion cuts stay sealed
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1577,6 +1577,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
+const SHOT_POWER_BOOST = 1.2; // increase overall shot power by 20%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1587,7 +1588,8 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
   SHOT_POWER_INCREASE *
-  SHOT_POWER_ADJUSTMENT;
+  SHOT_POWER_ADJUSTMENT *
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -24617,15 +24619,79 @@ const powerRef = useRef(hud.power);
           const cueBall = cue;
           const activeBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const targetOrder = resolveTargetPriorities(
+            frameSnapshot,
+            activeVariantId,
+            activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
+          );
+          const isLegalTargetBall = (ball) => {
+            if (!ball) return false;
+            if (legalTargets.size === 0) return true;
+            return Array.from(legalTargets).some((target) =>
+              matchesTargetId(ball, target)
+            );
+          };
+          const pickLegalTargetBall = () => {
+            const cuePos = cueBall?.pos ? cueBall.pos.clone() : null;
+            const candidates = activeBalls.filter(
+              (ball) =>
+                ball?.active &&
+                String(ball.id) !== 'cue' &&
+                isLegalTargetBall(ball)
+            );
+            if (!cuePos || candidates.length === 0) return null;
+            if (targetOrder.length > 0) {
+              for (const targetId of targetOrder) {
+                const matches = candidates.filter((ball) =>
+                  matchesTargetId(ball, targetId)
+                );
+                if (matches.length > 0) {
+                  return matches.reduce((best, ball) => {
+                    if (!best) return ball;
+                    return scoreBallForAim(ball, cuePos) > scoreBallForAim(best, cuePos)
+                      ? ball
+                      : best;
+                  }, null);
+                }
+              }
+            }
+            return candidates.reduce((best, ball) => {
+              if (!best) return ball;
+              return scoreBallForAim(ball, cuePos) > scoreBallForAim(best, cuePos)
+                ? ball
+                : best;
+            }, null);
+          };
           const aimDir = plan.aimDir.clone();
           if (aimDir.lengthSq() < 1e-6) return plan;
           aimDir.normalize();
           plan.aimDir = aimDir;
-          if (plan.type !== 'pot' || plan.viaCushion || !plan.targetBall?.active) {
+          if (plan.type !== 'pot' || plan.viaCushion) {
             return plan;
+          }
+          if (plan.targetBall && !plan.targetBall.active) {
+            plan.targetBall = null;
+          }
+          if (plan.targetBall && !isLegalTargetBall(plan.targetBall)) {
+            plan.targetBall = null;
           }
           const contact = calcTarget(cueBall, aimDir, activeBalls);
           const hitBall = contact?.targetBall ?? null;
+          if (!plan.targetBall && hitBall && isLegalTargetBall(hitBall)) {
+            plan.targetBall = hitBall;
+            plan.target = toBallColorId(hitBall.id);
+          }
           if (hitBall && String(hitBall.id) === String(plan.targetBall.id)) {
             if (Number.isFinite(contact?.tHit)) {
               plan.cueToTarget = contact.tHit;
@@ -24633,6 +24699,17 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
+          if (!plan.targetBall && plan.target) {
+            const targetBall = activeBalls.find(
+              (ball) => ball?.active && matchesTargetId(ball, plan.target)
+            );
+            if (targetBall) {
+              plan.targetBall = targetBall;
+            }
+          }
+          if (!plan.targetBall) {
+            plan.targetBall = pickLegalTargetBall();
+          }
           if (plan.pocketCenter && plan.targetBall?.pos) {
             const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
             if (toPocket.lengthSq() > 1e-6) {
@@ -24653,6 +24730,9 @@ const powerRef = useRef(hud.power);
               corrected = direct.normalize();
               plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
             }
+          }
+          if (!corrected && !plan.targetBall) {
+            return null;
           }
           if (corrected) {
             plan.aimDir = corrected;
