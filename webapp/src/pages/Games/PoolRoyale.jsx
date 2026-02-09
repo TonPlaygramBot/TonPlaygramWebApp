@@ -1204,7 +1204,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.32; // lift chalks slightly so they sit on the rail surface
+const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.26; // lift chalks slightly so they sit on the rail surface
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
@@ -1317,8 +1317,7 @@ const ROLLING_RESISTANCE = 0.018;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.02;
-const STOP_SOFTENING_MIN = 0.92; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_SOFTENING_MAX = 0.985; // let higher-power shots coast a touch longer before settling
+const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -1392,13 +1391,13 @@ const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap brie
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
-const POCKET_LEATHER_TEXTURE_ID = 'plastic_monobloc_chair_01';
+const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
-  x: 0.28,
-  y: 0.28
+  x: (0.08 / 27) * 0.7 / 2,
+  y: (0.44 / 27) * 0.7 / 2
 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 10;
-const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.6, 1.6);
+const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(2.4, 2.4);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1628,7 +1627,7 @@ const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const BASE_HEIGHT_REDUCTION = 0.86; // shorten table bases by 14% for the lowered stance
+const BASE_HEIGHT_REDUCTION = 0.8; // shorten table bases by 20% for the lowered stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -2969,41 +2968,41 @@ const resolveBroadcastSystem = (id) =>
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
-    id: 'plastic_black',
-    label: 'Plastic Black',
-    textureId: POCKET_LEATHER_TEXTURE_ID,
-    color: 0x121212
+    id: 'fabric_leather_02',
+    label: 'Fabric Leather 02',
+    textureId: 'fabric_leather_02'
   }),
   Object.freeze({
-    id: 'plastic_dark_grey',
-    label: 'Plastic Dark Grey',
-    textureId: POCKET_LEATHER_TEXTURE_ID,
-    color: 0x2c2f33
+    id: 'fabric_leather_01',
+    label: 'Fabric Leather 01',
+    textureId: 'fabric_leather_01'
   }),
   Object.freeze({
-    id: 'plastic_grey',
-    label: 'Plastic Grey',
-    textureId: POCKET_LEATHER_TEXTURE_ID,
-    color: 0x6f7379
+    id: 'brown_leather',
+    label: 'Brown Leather',
+    textureId: 'brown_leather'
   }),
   Object.freeze({
-    id: 'plastic_light_grey',
-    label: 'Plastic Light Grey',
-    textureId: POCKET_LEATHER_TEXTURE_ID,
-    color: 0xb9bdc4
+    id: 'leather_red_02',
+    label: 'Leather Red 02',
+    textureId: 'leather_red_02'
   }),
   Object.freeze({
-    id: 'plastic_magnolia',
-    label: 'Plastic Magnolia',
-    textureId: POCKET_LEATHER_TEXTURE_ID,
-    color: 0xf2eee6
+    id: 'leather_red_03',
+    label: 'Leather Red 03',
+    textureId: 'leather_red_03'
+  }),
+  Object.freeze({
+    id: 'leather_white',
+    label: 'Leather White',
+    textureId: 'leather_white'
   })
 ]);
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS.find((preset) => preset.id === 'plastic_black')?.id ??
+  POCKET_LINER_PRESETS.find((preset) => preset.id === 'fabric_leather_02')?.id ??
   POCKET_LINER_PRESETS[0]?.id ??
-  'plastic_black';
+  'fabric_leather_02';
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config) =>
@@ -3011,15 +3010,14 @@ const POCKET_LINER_OPTIONS = Object.freeze(
       id: config.id,
       label: `${config.label} Pocket Jaws`,
       textureId: config.textureId ?? config.id,
-      color: config.color ?? 0xffffff,
       thumbnail: polyHavenThumb(config.textureId ?? config.id),
-      roughness: 0.48,
-      metalness: 0.05,
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.44,
-      sheen: 0.18,
-      sheenRoughness: 0.6,
-      envMapIntensity: 0.24
+      roughness: 0.86,
+      metalness: 0.04,
+      clearcoat: 0.14,
+      clearcoatRoughness: 0.6,
+      sheen: 0.42,
+      sheenRoughness: 0.5,
+      envMapIntensity: 0.32
     })
   )
 );
@@ -3028,7 +3026,7 @@ function createPocketLinerMaterials(option) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
   const textureId = selection?.textureId ?? POCKET_LEATHER_TEXTURE_ID;
   const textures = ensurePocketLeatherTextures(textureId);
-  const baseColor = new THREE.Color(selection?.color ?? 0xffffff);
+  const baseColor = new THREE.Color(0xffffff);
   const jawMaterial = new THREE.MeshPhysicalMaterial({
     color: baseColor,
     roughness: selection.roughness ?? 0.86,
@@ -5343,7 +5341,6 @@ const TMP_VEC3_CUE_SAMPLE_END = new THREE.Vector3();
 const TMP_VEC3_CUE_SAMPLE_POINT = new THREE.Vector3();
 const TMP_VEC3_OBSTRUCTION_TARGET = new THREE.Vector3();
 const TMP_VEC3_POWER = new THREE.Vector3();
-const TMP_VEC3_TARGET = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
 const TMP_COLOR_POWER = new THREE.Color();
 const POWER_LINE_COLOR_LOW = new THREE.Color(0xf9d648);
@@ -10005,11 +10002,11 @@ export function Table3D(
   table.userData.chalks = chalkGroup.children.slice();
   table.userData.chalkSlots = chalkSlots;
   table.userData.chalkMeta = {
-    slack: BALL_R * 0.45,
+    slack: BALL_R * 0.35,
     sideReach: longRailW + chalkSideRailOffset + chalkSize * 0.5,
     endReach: endRailW + chalkEndRailOffset + chalkSize * 0.5,
-    overlapThreshold: chalkSize * 0.75,
-    nudgeDistance: chalkSize * 0.32
+    overlapThreshold: chalkSize * 0.6,
+    nudgeDistance: chalkSize * 0.25
   };
 
   const FACE_SHRINK_LONG = 1;
@@ -26403,15 +26400,6 @@ const powerRef = useRef(hud.power);
             targetDir && (targetDir.x || targetDir.y)
               ? TMP_VEC3_IMPACT.set(targetDir.x, 0, targetDir.y)
               : null;
-          const adjustedTargetDir = targetDir
-            ? resolveTargetSpinDeflection(
-                TMP_VEC3_TARGET.set(targetDir.x, 0, targetDir.y),
-                cueDir,
-                aimPreviewSpin,
-                powerStrength,
-                liftStrength
-              )
-            : null;
           let cuePowerStrength = powerStrength;
           let targetPowerStrength = powerStrength;
           if (impactDir && impactDir.lengthSq() > 1e-8) {
@@ -26690,11 +26678,9 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          if ((adjustedTargetDir || targetDir) && targetBall) {
+          if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
-            const rawTargetDir = adjustedTargetDir
-              ? adjustedTargetDir.clone()
-              : new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
             const tDir =
               rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
             const targetStart = new THREE.Vector3(
@@ -26782,15 +26768,6 @@ const powerRef = useRef(hud.power);
             targetDir && (targetDir.x || targetDir.y)
               ? TMP_VEC3_IMPACT.set(targetDir.x, 0, targetDir.y)
               : null;
-          const adjustedTargetDir = targetDir
-            ? resolveTargetSpinDeflection(
-                TMP_VEC3_TARGET.set(targetDir.x, 0, targetDir.y),
-                cueDir,
-                aimPreviewSpin,
-                powerStrength,
-                0
-              )
-            : null;
           let cuePowerStrength = powerStrength;
           let targetPowerStrength = powerStrength;
           if (impactDir && impactDir.lengthSq() > 1e-8) {
@@ -26902,11 +26879,9 @@ const powerRef = useRef(hud.power);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
-          if ((adjustedTargetDir || targetDir) && targetBall) {
+          if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
-            const rawTargetDir = adjustedTargetDir
-              ? adjustedTargetDir.clone()
-              : new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
             const tDir =
               rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : baseDir.clone();
             const targetStart = new THREE.Vector3(
@@ -27147,20 +27122,13 @@ const powerRef = useRef(hud.power);
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
-            const stopPower = THREE.MathUtils.clamp(lastShotPower ?? 0, 0, 1);
             if (scaledSpeed < STOP_EPS) {
-              const stopSoftening = THREE.MathUtils.lerp(
-                STOP_SOFTENING_MIN,
-                STOP_SOFTENING_MAX,
-                stopPower
-              );
-              b.vel.multiplyScalar(Math.pow(stopSoftening, stepScale));
+              b.vel.multiplyScalar(Math.pow(STOP_SOFTENING, stepScale));
               speed = b.vel.length();
               scaledSpeed = speed * stepScale;
             }
             const hasSpinAfter = b.omega?.lengthSq() > 1e-6;
-            const stopFinalEpsScale = THREE.MathUtils.lerp(1.1, 0.65, stopPower);
-            if (scaledSpeed < STOP_FINAL_EPS * stopFinalEpsScale) {
+            if (scaledSpeed < STOP_FINAL_EPS) {
               b.vel.set(0, 0);
               if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
               if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
