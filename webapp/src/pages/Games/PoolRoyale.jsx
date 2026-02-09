@@ -1568,8 +1568,9 @@ const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal r
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to reflect spin deflection
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
+// Trim another 15% so Pool Royale feels slightly less punchy while matching Snooker roll speed.
 const SHOT_POWER_REDUCTION = 0.64;
+const SHOT_POWER_TRIM = 0.85;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1579,6 +1580,7 @@ const SHOT_FORCE_BOOST =
   1.3 *
   0.85 *
   SHOT_POWER_REDUCTION *
+  SHOT_POWER_TRIM *
   SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
@@ -14624,39 +14626,53 @@ const powerRef = useRef(hud.power);
     };
     let cancelled = false;
     const runMatchWrapUp = async () => {
-      await waitForActiveReplay();
-      const tournamentOutcome = await handleTournamentResult({
-        winnerSeat,
-        scores: finalScores
-      });
-      if (cancelled) return;
-      resetTableLayoutForRematch();
-      const userSeat = localSeat === 'B' ? 'B' : 'A';
-      const userWon = winnerSeat === userSeat;
-      const prizeAmount =
-        stakeAmount > 0
-          ? Math.max(
-              0,
-              Math.round(stakeAmount * (tournamentMode ? tournamentPlayers || 2 : 2))
-            )
-          : 0;
-      const lastPot =
-        lastPottedBySeatRef.current?.[winnerSeat] ??
-        lastPottedBySeatRef.current?.[userSeat] ??
-        null;
-      setFinalPotLabel(lastPot ? resolveBallLabel(lastPot) : '');
-      const overlayData = {
-        name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
-        avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
-        prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
-        rewards: tournamentOutcome?.unlocks || [],
-        userWon
-      };
-      setWinnerOverlay(overlayData);
-      const burstCount = overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
-        ? 28
-        : 18;
-      triggerCoinBurst(burstCount);
+      try {
+        await waitForActiveReplay();
+        const tournamentOutcome = await handleTournamentResult({
+          winnerSeat,
+          scores: finalScores
+        });
+        if (cancelled) return;
+        resetTableLayoutForRematch();
+        const userSeat = localSeat === 'B' ? 'B' : 'A';
+        const userWon = winnerSeat === userSeat;
+        const prizeAmount =
+          stakeAmount > 0
+            ? Math.max(
+                0,
+                Math.round(stakeAmount * (tournamentMode ? tournamentPlayers || 2 : 2))
+              )
+            : 0;
+        const lastPot =
+          lastPottedBySeatRef.current?.[winnerSeat] ??
+          lastPottedBySeatRef.current?.[userSeat] ??
+          null;
+        setFinalPotLabel(lastPot ? resolveBallLabel(lastPot) : '');
+        const overlayData = {
+          name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
+          avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
+          prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
+          rewards: tournamentOutcome?.unlocks || [],
+          userWon
+        };
+        setWinnerOverlay(overlayData);
+        const burstCount = overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
+          ? 28
+          : 18;
+        triggerCoinBurst(burstCount);
+      } catch (error) {
+        console.error('Pool Royale match wrap-up failed:', error);
+        if (cancelled) return;
+        const userSeat = localSeat === 'B' ? 'B' : 'A';
+        const userWon = winnerSeat === userSeat;
+        setWinnerOverlay({
+          name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
+          avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
+          prizeText: '',
+          rewards: [],
+          userWon
+        });
+      }
     };
     runMatchWrapUp();
     return () => {
@@ -25289,6 +25305,41 @@ const powerRef = useRef(hud.power);
           shotResolved = true;
         } catch (err) {
           console.error('Pool Royale shot resolution failed:', err);
+        }
+        if (shotResolved && cueBallPotted && safeState && !safeState.frameOver) {
+          const currentPlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
+          const activePlayer = safeState.activePlayer === 'B' ? 'B' : 'A';
+          const nextPlayer = currentPlayer === 'B' ? 'A' : 'B';
+          const shouldSwitchTurn = activePlayer === currentPlayer;
+          const meta = safeState.meta && typeof safeState.meta === 'object' ? safeState.meta : null;
+          let updatedMeta = meta;
+          if (meta?.state && typeof meta.state === 'object') {
+            if (meta.variant === 'uk') {
+              updatedMeta = {
+                ...meta,
+                state: {
+                  ...meta.state,
+                  mustPlayFromBaulk: true
+                }
+              };
+            } else if (meta.variant === 'american' || meta.variant === '9ball') {
+              updatedMeta = {
+                ...meta,
+                state: {
+                  ...meta.state,
+                  ballInHand: true
+                }
+              };
+            }
+          }
+          if (shouldSwitchTurn || updatedMeta !== meta || !safeState.foul) {
+            safeState = {
+              ...safeState,
+              activePlayer: shouldSwitchTurn ? nextPlayer : activePlayer,
+              foul: safeState.foul ?? { points: 0, reason: 'cue ball potted' },
+              meta: updatedMeta ?? safeState.meta
+            };
+          }
         }
         if (isTraining) {
           if (!trainingRulesRef.current) {
