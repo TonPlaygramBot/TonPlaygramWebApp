@@ -1569,8 +1569,11 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to ref
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
-const SHOT_POWER_REDUCTION = 0.64;
+// Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
+const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
+const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
+const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1579,7 +1582,9 @@ const SHOT_FORCE_BOOST =
   1.3 *
   0.85 *
   SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER;
+  SHOT_POWER_MULTIPLIER *
+  SHOT_POWER_INCREASE *
+  SHOT_POWER_ADJUSTMENT;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -5495,7 +5500,7 @@ const computeShortRailPairFraming = (camera, cuePos, targetPos = null, margin = 
 const resolveBackspinPreviewLerp = (backSpinWeight) => {
   if (!Number.isFinite(backSpinWeight) || backSpinWeight <= 1e-4) return 0;
   const eased = Math.min(1, Math.pow(backSpinWeight, 0.75));
-  const minimum = Math.min(0.18, backSpinWeight * 0.35 + 0.04);
+  const minimum = Math.min(0.24, backSpinWeight * 0.4 + 0.05);
   return Math.min(1, Math.max(eased, minimum));
 };
 
@@ -14624,39 +14629,61 @@ const powerRef = useRef(hud.power);
     };
     let cancelled = false;
     const runMatchWrapUp = async () => {
-      await waitForActiveReplay();
-      const tournamentOutcome = await handleTournamentResult({
-        winnerSeat,
-        scores: finalScores
-      });
-      if (cancelled) return;
-      resetTableLayoutForRematch();
-      const userSeat = localSeat === 'B' ? 'B' : 'A';
-      const userWon = winnerSeat === userSeat;
-      const prizeAmount =
-        stakeAmount > 0
-          ? Math.max(
-              0,
-              Math.round(stakeAmount * (tournamentMode ? tournamentPlayers || 2 : 2))
-            )
-          : 0;
-      const lastPot =
-        lastPottedBySeatRef.current?.[winnerSeat] ??
-        lastPottedBySeatRef.current?.[userSeat] ??
-        null;
-      setFinalPotLabel(lastPot ? resolveBallLabel(lastPot) : '');
-      const overlayData = {
-        name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
-        avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
-        prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
-        rewards: tournamentOutcome?.unlocks || [],
-        userWon
-      };
-      setWinnerOverlay(overlayData);
-      const burstCount = overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
-        ? 28
-        : 18;
-      triggerCoinBurst(burstCount);
+      try {
+        await waitForActiveReplay();
+        const tournamentOutcome = await handleTournamentResult({
+          winnerSeat,
+          scores: finalScores
+        });
+        if (cancelled) return;
+        resetTableLayoutForRematch();
+        const userSeat = localSeat === 'B' ? 'B' : 'A';
+        const userWon = winnerSeat === userSeat;
+        const prizeAmount =
+          stakeAmount > 0
+            ? Math.max(
+                0,
+                Math.round(stakeAmount * (tournamentMode ? tournamentPlayers || 2 : 2))
+              )
+            : 0;
+        const lastPot =
+          lastPottedBySeatRef.current?.[winnerSeat] ??
+          lastPottedBySeatRef.current?.[userSeat] ??
+          null;
+        setFinalPotLabel(lastPot ? resolveBallLabel(lastPot) : '');
+        const overlayData = {
+          name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
+          avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
+          prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
+          rewards: tournamentOutcome?.unlocks || [],
+          userWon
+        };
+        setWinnerOverlay(overlayData);
+        const burstCount =
+          overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
+            ? 28
+            : 18;
+        triggerCoinBurst(burstCount);
+      } catch (error) {
+        console.error('Pool Royale match wrap-up failed:', error);
+        if (cancelled) return;
+        resetTableLayoutForRematch();
+        const userSeat = localSeat === 'B' ? 'B' : 'A';
+        const userWon = winnerSeat === userSeat;
+        const lastPot =
+          lastPottedBySeatRef.current?.[winnerSeat] ??
+          lastPottedBySeatRef.current?.[userSeat] ??
+          null;
+        setFinalPotLabel(lastPot ? resolveBallLabel(lastPot) : '');
+        setWinnerOverlay({
+          name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
+          avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
+          prizeText: '',
+          rewards: [],
+          userWon
+        });
+        triggerCoinBurst(18);
+      }
     };
     runMatchWrapUp();
     return () => {
@@ -25302,6 +25329,20 @@ const powerRef = useRef(hud.power);
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
+        }
+        if (!isTraining && cueBallPotted && safeState?.activePlayer === currentState?.activePlayer) {
+          const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = { ...nextMeta.state, currentPlayer: nextPlayer };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: nextPlayer,
+            foul: safeState?.foul ?? { points: 0, reason: 'scratch' },
+            meta: nextMeta ?? safeState.meta
+          };
         }
         if (shotRecording) {
           shotRecording.replayFoul = safeState?.foul
