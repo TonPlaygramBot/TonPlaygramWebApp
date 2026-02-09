@@ -1043,7 +1043,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = false;
+const ENABLE_TABLE_MAPPING_LINES = true;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1317,7 +1317,8 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // disable max-power bounce lift (never reaches this)
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
+const BALL_GRAVITY = BALL_R * 4.2; // gravity used for vertical lift so airborne balls fall naturally
+const MAX_POWER_BOUNCE_GRAVITY = BALL_GRAVITY;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
@@ -5127,7 +5128,8 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
-const IN_HAND_DRAG_SPEED = 1.7; // match the faster air-hockey drag pace for cue-ball placement
+const IN_HAND_DRAG_SPEED = 2.6; // accelerate cue-ball placement for faster, freer positioning
+const IN_HAND_DRAG_HOLD_THRESHOLD_PX = 4;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // nudge forward slightly at the floor of the cue view, then stop
 const STANDING_TO_CUE_FORWARD_PUSH = CAMERA.minR * 0.1; // gently push forward as the standing view lowers toward cue view
@@ -5210,7 +5212,9 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 2.4;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_POCKET_EARLY_TRIGGER_MULTIPLIER = 1.2;
+const REPLAY_POCKET_EARLY_ALIGNMENT_BOOST = 0.08;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -12947,6 +12951,8 @@ function PoolRoyaleGame({
     pointerId: null,
     lastPos: null,
     lastScreen: null,
+    startScreen: null,
+    moved: false,
     deferred: false,
     source: null
   });
@@ -18855,6 +18861,11 @@ const powerRef = useRef(hud.power);
             }
             if (!best) return null;
           }
+          const replayCapture = Boolean(shotRecording);
+          const earlyAlignmentThreshold = Math.max(
+            0,
+            POCKET_EARLY_ALIGNMENT - (replayCapture ? REPLAY_POCKET_EARLY_ALIGNMENT_BOOST : 0)
+          );
           const predictedAlignment =
             shotPrediction?.ballId === ballId && shotPrediction?.dir
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
@@ -18871,7 +18882,7 @@ const powerRef = useRef(hud.power);
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           const isEarlyPocket =
             predictedAlignment != null &&
-            predictedAlignment >= POCKET_EARLY_ALIGNMENT &&
+            predictedAlignment >= earlyAlignmentThreshold &&
             isDirectPrediction;
           const allowEarly = forceCornerCapture || isEarlyPocket;
           if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
@@ -18900,8 +18911,10 @@ const powerRef = useRef(hud.power);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
           if (isSidePocket) return null;
           const triggerDistance = allowEarly
-            ? POCKET_CAM_EARLY_TRIGGER_DIST
-            : POCKET_CAM.triggerDist;
+            ? POCKET_CAM_EARLY_TRIGGER_DIST *
+              (replayCapture ? REPLAY_POCKET_EARLY_TRIGGER_MULTIPLIER : 1)
+            : POCKET_CAM.triggerDist *
+              (replayCapture ? REPLAY_POCKET_EARLY_TRIGGER_MULTIPLIER : 1);
           if (!forceCornerCapture && best.dist > triggerDistance) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
@@ -19838,7 +19851,21 @@ const powerRef = useRef(hud.power);
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const frameDuration = frames[frames.length - 1]?.t ?? 0;
+          const trimOffset = Math.max(0, cueStroke?.startOffset ?? 0);
+          const trimByOffset = (entries = []) =>
+            entries
+              .filter((entry) => entry && entry.t >= trimOffset - 1e-3)
+              .map((entry) => ({ ...entry, t: Math.max(0, entry.t - trimOffset) }));
+          let trimmedFrames = trimOffset > 0 ? trimByOffset(frames) : frames;
+          let trimmedCuePath = trimOffset > 0 ? trimByOffset(cuePath) : cuePath;
+          if (trimOffset > 0 && trimmedFrames.length === 0) {
+            trimmedFrames = frames;
+            trimmedCuePath = cuePath;
+          }
+          if (cueStroke && trimOffset > 0) {
+            cueStroke.startOffset = Math.max(0, cueStroke.startOffset - trimOffset);
+          }
+          const frameDuration = trimmedFrames[trimmedFrames.length - 1]?.t ?? 0;
           const strokeDuration = cueStroke
             ? Math.max(
                 0,
@@ -19850,7 +19877,7 @@ const powerRef = useRef(hud.power);
               )
             : 0;
           const duration = Math.max(frameDuration, strokeDuration);
-          return { frames, cuePath, duration, cueStroke };
+          return { frames: trimmedFrames, cuePath: trimmedCuePath, duration, cueStroke };
         };
 
         const storeReplayCameraFrame = () => {
@@ -22372,14 +22399,19 @@ const powerRef = useRef(hud.power);
         if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
+        const startScreen = getPointerClient(e);
         const p = project(e);
-        if (!p) return;
-        if (!tryUpdatePlacement(p, false)) return;
+        const cuePos =
+          cue?.pos != null ? new THREE.Vector2(cue.pos.x, cue.pos.y) : null;
+        if (!p && !cuePos) return;
+        inHandDrag.moved = false;
+        inHandDrag.startScreen = startScreen;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
-        inHandDrag.deferred = false;
+        inHandDrag.deferred = true;
         inHandDrag.source = 'table';
-        inHandDrag.lastScreen = getPointerClient(e);
+        inHandDrag.lastScreen = startScreen;
+        inHandDrag.lastPos = cuePos || p;
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -22395,6 +22427,19 @@ const powerRef = useRef(hud.power);
           e.pointerId !== inHandDrag.pointerId
         ) {
           return;
+        }
+        if (inHandDrag.deferred && !inHandDrag.moved) {
+          const start = inHandDrag.startScreen;
+          const client = getPointerClient(e);
+          if (start && client) {
+            const dx = client.x - start.x;
+            const dy = client.y - start.y;
+            if (Math.hypot(dx, dy) >= IN_HAND_DRAG_HOLD_THRESHOLD_PX) {
+              inHandDrag.moved = true;
+            } else {
+              return;
+            }
+          }
         }
         const p = resolveInHandDragPosition(e);
         if (p) tryUpdatePlacement(p, false);
@@ -22414,11 +22459,19 @@ const powerRef = useRef(hud.power);
             dom.releasePointerCapture(e.pointerId);
           } catch {}
         }
+        const wasMoved = inHandDrag.moved;
+        const startScreen = inHandDrag.startScreen;
         inHandDrag.active = false;
         inHandDrag.deferred = false;
         inHandDrag.source = null;
         inHandDrag.lastScreen = null;
-        const pos = inHandDrag.lastPos;
+        inHandDrag.startScreen = null;
+        inHandDrag.moved = false;
+        let pos = inHandDrag.lastPos;
+        if (!wasMoved && startScreen) {
+          const projected = projectFromClient(startScreen.x, startScreen.y);
+          if (projected) pos = projected;
+        }
         if (pos) {
           tryUpdatePlacement(pos, true);
           setInHandPlacementMode(false);
@@ -22441,6 +22494,8 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
           inHandDrag.lastScreen = getPointerClient(e);
+          inHandDrag.startScreen = inHandDrag.lastScreen;
+          inHandDrag.moved = false;
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -22454,6 +22509,19 @@ const powerRef = useRef(hud.power);
             e.pointerId !== inHandDrag.pointerId
           ) {
             return false;
+          }
+          if (inHandDrag.deferred && !inHandDrag.moved) {
+            const start = inHandDrag.startScreen;
+            const client = getPointerClient(e);
+            if (start && client) {
+              const dx = client.x - start.x;
+              const dy = client.y - start.y;
+              if (Math.hypot(dx, dy) >= IN_HAND_DRAG_HOLD_THRESHOLD_PX) {
+                inHandDrag.moved = true;
+              } else {
+                return false;
+              }
+            }
           }
           const p = resolveInHandDragPosition(e);
           if (p) {
@@ -22475,12 +22543,16 @@ const powerRef = useRef(hud.power);
           ) {
             return false;
           }
+          const wasMoved = inHandDrag.moved;
+          const wasDeferred = inHandDrag.deferred;
           inHandDrag.active = false;
           inHandDrag.deferred = false;
           inHandDrag.source = null;
           inHandDrag.lastScreen = null;
+          inHandDrag.startScreen = null;
+          inHandDrag.moved = false;
           const pos = inHandDrag.lastPos;
-          if (pos) {
+          if (pos && (wasMoved || !wasDeferred)) {
             tryUpdatePlacement(pos, true);
             setInHandPlacementMode(false);
             autoAimRequestRef.current = true;
@@ -24478,7 +24550,7 @@ const powerRef = useRef(hud.power);
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
             state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
+            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 650)
           });
           if (!decision?.aimPoint) return null;
           const aimPoint = new THREE.Vector2(
