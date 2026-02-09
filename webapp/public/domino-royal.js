@@ -1,0 +1,7218 @@
+import * as THREE from "https://esm.sh/three@0.160.0";
+import { OrbitControls } from "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js";
+import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { RGBELoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/RGBELoader.js";
+import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
+import "./flag-emojis.js";
+
+const urlParams = new URLSearchParams(window.location.search);
+const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
+const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1,
+    pixelRatioCap: 1.3,
+    resolution: 'Full HD render • DPR 1.3 cap',
+    description: 'Balanced 1080p profile tuned for stability on mobile and desktop.'
+  },
+  {
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
+    fps: 90,
+    renderScale: 1.15,
+    pixelRatioCap: 1.5,
+    resolution: 'QHD render • DPR 1.5 cap',
+    description: 'Sharper 1440p render for capable 90 Hz devices with safer headroom.'
+  },
+  {
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.25,
+    pixelRatioCap: 1.8,
+    resolution: 'Ultra HD render • DPR 1.8 cap',
+    description: '4K-focused profile for 120 Hz flagships with controlled GPU load.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD+ render • DPR 2.0 cap',
+    description: 'High clarity preset with safer limits for sustained sessions.'
+  }
+]);
+const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
+  FRAME_RATE_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+const FRAME_DROP_THRESHOLD = 1.35;
+const FRAME_DROP_WINDOW_MS = 3200;
+const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
+const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
+
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+function detectHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+let cachedRendererString = null;
+let rendererLookupAttempted = false;
+
+function readGraphicsRendererString() {
+  if (rendererLookupAttempted) {
+    return cachedRendererString;
+  }
+  rendererLookupAttempted = true;
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl') ||
+      canvas.getContext('webgl2');
+    if (!gl) {
+      return null;
+    }
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? '';
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    } else {
+      const vendor = gl.getParameter(gl.VENDOR) ?? '';
+      const renderer = gl.getParameter(gl.RENDERER) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    }
+    return cachedRendererString;
+  } catch (err) {
+    return null;
+  }
+}
+
+function classifyRendererTier(rendererString) {
+  if (typeof rendererString !== 'string' || rendererString.length === 0) {
+    return 'unknown';
+  }
+  const signature = rendererString.toLowerCase();
+  if (
+    signature.includes('mali') ||
+    signature.includes('adreno') ||
+    signature.includes('powervr') ||
+    signature.includes('apple a') ||
+    signature.includes('snapdragon') ||
+    signature.includes('tegra x1')
+  ) {
+    return 'mobile';
+  }
+  if (
+    signature.includes('geforce') ||
+    signature.includes('nvidia') ||
+    signature.includes('radeon') ||
+    signature.includes('rx ') ||
+    signature.includes('rtx') ||
+    signature.includes('apple m') ||
+    signature.includes('arc')
+  ) {
+    return 'desktopHigh';
+  }
+  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+    return 'desktopMid';
+  }
+  return 'unknown';
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return DEFAULT_FRAME_RATE_ID;
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const highRefresh = detectHighRefreshDisplay();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'fhd60';
+    }
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'uhd120';
+    }
+    if (
+      highRefresh ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'qhd90';
+    }
+    return 'fhd60';
+  }
+
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'ultra144';
+  }
+
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'uhd120';
+  }
+
+  if (rendererTier === 'desktopMid') {
+    return 'qhd90';
+  }
+
+  return 'fhd60';
+}
+
+function resolveDefaultPixelRatioCap() {
+  if (typeof window === 'undefined') {
+    return 2;
+  }
+  return window.innerWidth <= 1366 ? 1.5 : 2;
+}
+
+function buildFrameQuality(optionId) {
+  const fallback = FRAME_RATE_OPTIONS_BY_ID[DEFAULT_FRAME_RATE_ID] ?? FRAME_RATE_OPTIONS[0];
+  const option = FRAME_RATE_OPTIONS_BY_ID[optionId] ?? fallback ?? FRAME_RATE_OPTIONS[0];
+  const fps = Number.isFinite(option?.fps) && option.fps > 0
+    ? option.fps
+    : Number.isFinite(fallback?.fps) && fallback.fps > 0
+      ? fallback.fps
+      : 60;
+  const renderScale =
+    typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+      ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
+      : 1;
+  const pixelRatioCap =
+    typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+      ? Math.max(1, option.pixelRatioCap)
+      : resolveDefaultPixelRatioCap();
+  return {
+    id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+    fps,
+    renderScale,
+    pixelRatioCap,
+    label: option?.label ?? 'Graphics',
+    description: option?.description ?? '',
+    resolution: option?.resolution ?? ''
+  };
+}
+
+function buildFrameTiming(quality) {
+  const fps = Number.isFinite(quality?.fps) && quality.fps > 0 ? quality.fps : 60;
+  const targetMs = 1000 / fps;
+  return {
+    id: quality?.id ?? DEFAULT_FRAME_RATE_ID,
+    fps,
+    targetMs,
+    maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+  };
+}
+
+function resolveInitialFrameRateId() {
+  const urlPreset = urlParams.get('frameRateId') || urlParams.get('graphics');
+  if (urlPreset && FRAME_RATE_OPTIONS_BY_ID[urlPreset]) {
+    return urlPreset;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS_BY_ID[stored]) {
+        return stored;
+      }
+    } catch (error) {
+      console.warn('Failed to read Domino graphics selection, falling back', error);
+    }
+  }
+  const detected = detectPreferredFrameRateId();
+  if (FRAME_RATE_OPTIONS_BY_ID[detected]) {
+    return detected;
+  }
+  return DEFAULT_FRAME_RATE_ID;
+}
+
+function findFallbackFrameRateId(currentId) {
+  const idx = FRAME_RATE_OPTIONS.findIndex((opt) => opt.id === currentId);
+  if (idx > 0) {
+    return FRAME_RATE_OPTIONS[idx - 1]?.id || null;
+  }
+  return null;
+}
+
+let frameRateId = resolveInitialFrameRateId();
+let frameQuality = buildFrameQuality(frameRateId);
+let frameTiming = buildFrameTiming(frameQuality);
+let slowFrameAccumulatorMs = 0;
+let lastFailsafeTimestamp = 0;
+
+function persistFrameRateSelection(id) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, id);
+  } catch (error) {
+    console.warn('Failed to persist Domino graphics option', error);
+  }
+}
+
+function prefersReducedMotion() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)')?.matches ?? false;
+  } catch {
+    return false;
+  }
+}
+
+function prefersReducedAudio() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try {
+    const quietMediaQueries = ['(prefers-reduced-motion: reduce)', '(prefers-reduced-transparency: reduce)'];
+    return quietMediaQueries.some((query) => window.matchMedia(query)?.matches);
+  } catch {
+    return false;
+  }
+}
+
+function buildDefaultFeedbackSettings() {
+  return {
+    sound: !prefersReducedAudio(),
+    haptics: !prefersReducedMotion()
+  };
+}
+
+function normalizeFeedbackSettings(raw = {}) {
+  const defaults = buildDefaultFeedbackSettings();
+  return {
+    sound: typeof raw.sound === 'boolean' ? raw.sound : defaults.sound,
+    haptics: typeof raw.haptics === 'boolean' ? raw.haptics : defaults.haptics
+  };
+}
+
+function readFeedbackSettings() {
+  if (typeof window === 'undefined') return buildDefaultFeedbackSettings();
+  try {
+    const raw = window.localStorage?.getItem(FEEDBACK_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return normalizeFeedbackSettings(parsed);
+  } catch {
+    return buildDefaultFeedbackSettings();
+  }
+}
+
+function persistFeedbackSettings(settings) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
+let feedbackSettings = readFeedbackSettings();
+
+function setFeedbackSettings(next, { refreshUi = true } = {}) {
+  feedbackSettings = normalizeFeedbackSettings({ ...feedbackSettings, ...next });
+  persistFeedbackSettings(feedbackSettings);
+  if (typeof updateQuickActionMute === 'function') {
+    updateQuickActionMute();
+  }
+  if (refreshUi) {
+    refreshConfigUI();
+  }
+}
+
+const COMMENTARY_STORAGE_KEY = 'dominoRoyalCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'dominoRoyalCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1000;
+const COMMENTARY_PRESETS = [
+  {
+    id: 'english',
+    name: 'English Booth',
+    tone: 'Mixed voices, classic English',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+        rate: 1,
+        pitch: 0.96
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma'],
+        rate: 1.04,
+        pitch: 1.06
+      }
+    ]
+  },
+  {
+    id: 'saffron-table',
+    name: 'Indian Table',
+    tone: 'Hindi commentary with lively pacing',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+        rate: 1.06,
+        pitch: 1.02
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha'],
+        rate: 1.08,
+        pitch: 1.08
+      }
+    ]
+  },
+  {
+    id: 'moscow-mics',
+    name: 'Russian Booth',
+    tone: 'Russian commentary with steady cadence',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+        rate: 1,
+        pitch: 0.95
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga'],
+        rate: 1.03,
+        pitch: 1.02
+      }
+    ]
+  },
+  {
+    id: 'latin-pulse',
+    name: 'Latin Pulse',
+    tone: 'Spanish play-by-play with lively color',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+        rate: 1.05,
+        pitch: 1
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila'],
+        rate: 1.08,
+        pitch: 1.1
+      }
+    ]
+  },
+  {
+    id: 'francophone-booth',
+    name: 'Francophone Booth',
+    tone: 'French broadcast pairing',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+        rate: 0.98,
+        pitch: 0.96
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte'],
+        rate: 1.04,
+        pitch: 1.06
+      }
+    ]
+  }
+];
+const COMMENTARY_LINES = {
+  greeting: [
+    'Welcome to Domino Battle Royal. Let us rule the table.',
+    'Domino Battle Royal is live. Keep the chain moving.',
+    'New arena online. Domino Battle Royal begins.',
+    'The table is set. Time for domino control.',
+    'Welcome back. Let us see who commands the chain.',
+    'Fresh arena lights. Domino Battle Royal is underway.'
+  ],
+  startRound: [
+    'Fresh round. Watch the opening tile.',
+    'New deal. Set your tempo early.',
+    'Round reset. Chain control is everything.',
+    'New round. Read the ends and plan ahead.',
+    'Another round begins. Keep your options open.'
+  ],
+  yourTurn: [
+    'Your move. Find the match.',
+    'You are on the clock. Keep the chain alive.',
+    'Your turn. Time to drop a tile.',
+    'Your move. Check the ends.',
+    'Your turn. Pick the strongest lane.'
+  ],
+  opponentTurn: [
+    '{name} is lining up a play.',
+    '{name} is thinking.',
+    'Eyes on {name}.',
+    '{name} is studying the ends.',
+    '{name} wants a clean drop.'
+  ],
+  playTile: [
+    '{name} drops {tile}.',
+    '{name} plays {tile}.',
+    '{name} sends {tile} to the chain.',
+    '{name} keeps the line alive with {tile}.',
+    '{name} answers with {tile}.'
+  ],
+  playDouble: [
+    'Double down from {name}.',
+    '{name} slams a double!',
+    'Power play. {name} drops a double.',
+    '{name} locks in a double.',
+    'Double on the table by {name}.'
+  ],
+  draw: [
+    '{name} draws from the boneyard.',
+    '{name} reloads with a draw.',
+    '{name} digs into the stock.',
+    '{name} pulls a fresh tile.',
+    '{name} taps the boneyard for help.'
+  ],
+  pass: [
+    '{name} passes. No match.',
+    '{name} skips the turn.',
+    '{name} has to pass.',
+    '{name} is blocked and passes.',
+    '{name} cannot move. Pass.'
+  ],
+  nearWin: [
+    '{name} is down to {countLabel}!',
+    '{name} is on match point!',
+    'Pressure rising. {name} holds {countLabel}.',
+    '{name} is one play from closing.',
+    '{name} is nearly out of tiles.'
+  ],
+  blocked: [
+    'Blocked table. Tally the pips.',
+    'No moves left. Count the hands.',
+    'Stalemate. Lowest pips win.',
+    'The chain is sealed. Count the totals.',
+    'No plays remain. Time to score it.'
+  ],
+  win: [
+    '{name} claims the win. Great control.',
+    '{name} ruled the chain. Victory!',
+    'That is game. {name} takes it.',
+    '{name} closes the round in style.',
+    'Victory to {name}.'
+  ],
+  lose: [
+    '{name} takes this one. Reset and strike back.',
+    'Game over. Reload for the next round.',
+    'Close one. You will get the next.',
+    '{name} edges the finish. Next round soon.',
+    'That round goes to {name}.'
+  ]
+};
+
+const speechSynth = (() => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  try {
+    return window.speechSynthesis;
+  } catch (error) {
+    console.warn('Speech synthesis unavailable', error);
+    return null;
+  }
+})();
+const speechUtteranceCtor =
+  typeof SpeechSynthesisUtterance === 'function' ? SpeechSynthesisUtterance : null;
+let commentaryVoices = [];
+let commentaryPresetId = COMMENTARY_PRESETS[0]?.id || 'atlas';
+let commentaryMuted = false;
+let commentaryQueue = [];
+let commentarySpeaking = false;
+let commentaryReady = false;
+let commentaryLastEventAt = 0;
+let commentaryGreetingPlayed = false;
+let lastAnnouncedTurn = null;
+let commentaryVoiceCycleIndex = 0;
+let commentaryUnlocked = false;
+let commentaryVoicesRetryTimer = null;
+const lastCommentaryLineByKind = new Map();
+const COMMENTARY_VOICE_BY_KIND = {
+  greeting: 'color',
+  startRound: 'color',
+  yourTurn: 'playByPlay',
+  opponentTurn: 'playByPlay',
+  playTile: 'playByPlay',
+  playDouble: 'playByPlay',
+  draw: 'color',
+  pass: 'color',
+  nearWin: 'color',
+  blocked: 'color',
+  win: 'color',
+  lose: 'color'
+};
+
+function readCommentaryPrefs() {
+  if (typeof window === 'undefined') return;
+  try {
+    const storedPreset = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
+    if (storedPreset && COMMENTARY_PRESETS.some((preset) => preset.id === storedPreset)) {
+      commentaryPresetId = storedPreset;
+    }
+    const storedMute = window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+    if (storedMute === '1') commentaryMuted = true;
+    if (storedMute === '0') commentaryMuted = false;
+  } catch {}
+}
+
+function persistCommentaryPrefs() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, commentaryPresetId);
+    window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+  } catch {}
+}
+
+function refreshCommentaryVoices() {
+  if (!speechSynth) return;
+  try {
+    commentaryVoices = speechSynth.getVoices() || [];
+    commentaryReady = true;
+  } catch (error) {
+    commentaryVoices = [];
+    commentaryReady = false;
+    console.warn('Failed to refresh commentary voices', error);
+  }
+}
+
+function findVoiceMatch(voices, hints = [], excludeNames = []) {
+  if (!voices.length) return null;
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean);
+  const filteredVoices = excludeNames.length
+    ? voices.filter((voice) => !excludeNames.includes(voice.name))
+    : voices;
+  if (!normalizedHints.length) return voices[0];
+  return (
+    filteredVoices.find((voice) =>
+      normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
+    ) ||
+    filteredVoices.find((voice) =>
+      normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
+    ) ||
+    filteredVoices[0] ||
+    voices[0]
+  );
+}
+
+function getActiveCommentaryPreset() {
+  return COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) || COMMENTARY_PRESETS[0];
+}
+
+function resolveCommentaryVoice(profile, excludeNames = []) {
+  if (!profile) return findVoiceMatch(commentaryVoices, [], excludeNames);
+  return findVoiceMatch(commentaryVoices, profile.voiceHints || [], excludeNames);
+}
+
+function getCommentaryVoiceProfiles() {
+  const preset = getActiveCommentaryPreset();
+  if (Array.isArray(preset?.voices) && preset.voices.length) return preset.voices;
+  return preset ? [preset] : [];
+}
+
+function getVoiceProfileForKind(kind) {
+  const profiles = getCommentaryVoiceProfiles();
+  if (!profiles.length) return null;
+  const desiredRole = COMMENTARY_VOICE_BY_KIND[kind];
+  if (desiredRole) {
+    const matched = profiles.find((profile) => profile.role === desiredRole || profile.id === desiredRole);
+    if (matched) return matched;
+  }
+  const profile = profiles[commentaryVoiceCycleIndex % profiles.length];
+  commentaryVoiceCycleIndex = (commentaryVoiceCycleIndex + 1) % profiles.length;
+  return profile;
+}
+
+function clearCommentaryQueue() {
+  commentaryQueue = [];
+  commentarySpeaking = false;
+  if (speechSynth) {
+    speechSynth.cancel();
+  }
+}
+
+function setCommentaryMuted(next) {
+  commentaryMuted = !!next;
+  persistCommentaryPrefs();
+  if (commentaryMuted) {
+    clearCommentaryQueue();
+  }
+  refreshConfigUI();
+}
+
+function setCommentaryPresetId(next) {
+  if (!next || commentaryPresetId === next) return;
+  commentaryPresetId = next;
+  commentaryVoiceCycleIndex = 0;
+  persistCommentaryPrefs();
+  refreshConfigUI();
+}
+
+function formatSeatName(index) {
+  const names = getSeatUsernames(N);
+  if (index === human) {
+    return names[index] || seatAvatarUsername || 'You';
+  }
+  return names[index] || `Player ${index + 1}`;
+}
+
+function formatTileCount(count) {
+  if (!Number.isFinite(count)) return '';
+  if (count === 1) return '1 tile';
+  return `${count} tiles`;
+}
+
+function formatTileName(tile) {
+  if (!tile) return 'a tile';
+  const a = tile.a;
+  const b = tile.b;
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'a tile';
+  if (a === b) return `double ${a}`;
+  return `${a}-${b}`;
+}
+
+function pickRandom(list = []) {
+  if (!list.length) return '';
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function buildCommentaryLine(kind, context = {}) {
+  const templates = COMMENTARY_LINES[kind] || [];
+  if (!templates.length) return '';
+  const lastLine = lastCommentaryLineByKind.get(kind);
+  let template = pickRandom(templates);
+  if (lastLine && templates.length > 1) {
+    let tries = 0;
+    while (template === lastLine && tries < 5) {
+      template = pickRandom(templates);
+      tries += 1;
+    }
+  }
+  lastCommentaryLineByKind.set(kind, template);
+  if (!template) return '';
+  return template
+    .replace('{name}', context.name || formatSeatName(context.player ?? human))
+    .replace('{tile}', context.tileLabel || formatTileName(context.tile))
+    .replace('{count}', Number.isFinite(context.tilesLeft) ? String(context.tilesLeft) : '')
+    .replace('{countLabel}', formatTileCount(context.tilesLeft));
+}
+
+function ensureSpeechUnlocked() {
+  if (!speechSynth) return;
+  try {
+    speechSynth.resume();
+  } catch (error) {
+    console.warn('Failed to resume speech synthesis', error);
+  }
+}
+
+function scheduleCommentaryVoicesRetry() {
+  if (!speechSynth || commentaryVoicesRetryTimer) return;
+  commentaryVoicesRetryTimer = window.setTimeout(() => {
+    commentaryVoicesRetryTimer = null;
+    refreshCommentaryVoices();
+    if (!commentaryVoices.length) {
+      scheduleCommentaryVoicesRetry();
+    }
+  }, 600);
+}
+
+function speakCommentary(text, { interrupt = false, priority = false, kind = '' } = {}) {
+  if (!speechSynth || !speechUtteranceCtor || commentaryMuted || !text) return;
+  if (!commentaryReady) {
+    refreshCommentaryVoices();
+  }
+  if (!commentaryVoices.length) {
+    scheduleCommentaryVoicesRetry();
+  }
+  if (!commentaryUnlocked) {
+    if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
+    commentaryQueue.push({ text, options: { interrupt, priority, kind } });
+    return;
+  }
+  ensureSpeechUnlocked();
+  const now = performance.now();
+  if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
+  if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
+  const profile = getVoiceProfileForKind(kind);
+  const utterance = new speechUtteranceCtor(text);
+  const primaryVoice = resolveCommentaryVoice(profile);
+  const secondaryVoice = resolveCommentaryVoice(
+    getCommentaryVoiceProfiles().find((voiceProfile) => voiceProfile !== profile),
+    primaryVoice?.name ? [primaryVoice.name] : []
+  );
+  const activeVoice = primaryVoice || secondaryVoice;
+  if (activeVoice) utterance.voice = activeVoice;
+  utterance.rate = profile?.rate ?? 1;
+  utterance.pitch = profile?.pitch ?? 1;
+  utterance.onend = () => {
+    commentarySpeaking = false;
+    const next = commentaryQueue.shift();
+    if (next) {
+      speakCommentary(next.text, next.options);
+    }
+  };
+  utterance.onerror = () => {
+    commentarySpeaking = false;
+    const next = commentaryQueue.shift();
+    if (next) {
+      speakCommentary(next.text, next.options);
+    }
+  };
+  commentaryLastEventAt = now;
+  if (speechSynth.speaking || commentarySpeaking) {
+    if (interrupt) {
+      speechSynth.cancel();
+    } else {
+      commentaryQueue.push({ text, options: { interrupt, priority, kind } });
+      return;
+    }
+  }
+  commentarySpeaking = true;
+  try {
+    speechSynth.speak(utterance);
+  } catch (error) {
+    commentarySpeaking = false;
+    console.warn('Commentary failed to speak', error);
+  }
+}
+
+function announceCommentary(kind, context = {}, options = {}) {
+  if (commentaryMuted || !speechSynth || !speechUtteranceCtor) return;
+  const line = buildCommentaryLine(kind, context);
+  if (!line) return;
+  speakCommentary(line, { ...options, kind });
+}
+
+if (speechSynth) {
+  readCommentaryPrefs();
+  refreshCommentaryVoices();
+  speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
+  scheduleCommentaryVoicesRetry();
+} else {
+  readCommentaryPrefs();
+}
+
+function unlockInteractiveAudio() {
+  ensureAudioContext();
+  ensureSpeechUnlocked();
+  if (!commentaryUnlocked) {
+    commentaryUnlocked = true;
+    if (!commentarySpeaking && commentaryQueue.length) {
+      const next = commentaryQueue.shift();
+      if (next) {
+        speakCommentary(next.text, next.options);
+      }
+    }
+  }
+}
+
+['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
+  window.addEventListener(eventName, unlockInteractiveAudio, { once: true, passive: true });
+});
+
+function isSoundEnabled() {
+  return !!feedbackSettings.sound;
+}
+
+function isHapticsEnabled() {
+  return !!feedbackSettings.haptics && !prefersReducedMotion();
+}
+
+function getSoundGainMultiplier() {
+  if (!isSoundEnabled()) return 0;
+  return prefersReducedAudio() ? 0.65 : 1;
+}
+
+function vibratePattern(pattern = []) {
+  if (!isHapticsEnabled()) return;
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern);
+    }
+  } catch {}
+}
+
+function triggerHaptics(kind) {
+  const patterns = {
+    place: [10],
+    draw: [8, 0, 6],
+    pass: [5],
+    win: [14, 0, 18],
+    block: [10, 10, 12]
+  };
+  const pattern = patterns[kind];
+  if (pattern && pattern.length) {
+    vibratePattern(pattern);
+  }
+}
+
+/* ---------- Audio (SFX) ---------- */
+let audioCtx = null;
+
+function ensureAudioContext() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!audioCtx) {
+    try {
+      audioCtx = new AudioContextCtor();
+    } catch (error) {
+      console.warn('Failed to create AudioContext', error);
+      audioCtx = null;
+      return null;
+    }
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx;
+}
+
+function createBuffer(ctx, durationSeconds, sampleFn) {
+  if (!ctx) return null;
+  const length = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) {
+    const t = i / ctx.sampleRate;
+    data[i] = sampleFn(t, i, length);
+  }
+  return buffer;
+}
+
+function playBuffer(buffer, { gain = 0.5, playbackRate = 1 } = {}) {
+  const gainMultiplier = getSoundGainMultiplier();
+  if (gainMultiplier <= 0 || !buffer) return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = playbackRate;
+  const g = ctx.createGain();
+  g.gain.value = gain * gainMultiplier;
+  src.connect(g).connect(ctx.destination);
+  src.start();
+}
+
+function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.28 }) {
+  const gainMultiplier = getSoundGainMultiplier();
+  if (gainMultiplier <= 0) return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(startFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+  g.gain.setValueAtTime(0.001, now);
+  g.gain.exponentialRampToValueAtTime(gain * gainMultiplier, now + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.05);
+}
+
+function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
+  const gainMultiplier = getSoundGainMultiplier();
+  if (gainMultiplier <= 0) return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  notes.forEach(({ time, freq, length = 0.18 }) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now + time);
+    g.gain.setValueAtTime(0.0001, now + time);
+    g.gain.linearRampToValueAtTime(gain * gainMultiplier, now + time + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + time + length);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(now + time);
+    osc.stop(now + time + length + 0.05);
+  });
+}
+
+const KNOCK_SFX_URL = encodeURI('/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3');
+
+const sfxBuffers = {
+  placeFallback: null,
+  draw: null,
+  block: null
+};
+
+let placeBufferPromise = null;
+
+function ensureSfxBuffers() {
+  if (getSoundGainMultiplier() <= 0) return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  if (!sfxBuffers.placeFallback) {
+    sfxBuffers.placeFallback = createBuffer(ctx, 0.36, (t, i) => {
+      const strikeEnv = Math.exp(-t * 72);
+      const bodyEnv = Math.exp(-t * 14);
+      const click = Math.sin((i + 11) * 0.22) * strikeEnv * 0.52;
+      const rasp = ((Math.sin(i * 12.9898) * 43758.5453) % 1 - 0.5) * strikeEnv * 0.24;
+      const knock = Math.sin(2 * Math.PI * 128 * t) * bodyEnv * 0.46;
+      const woodBody = Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * 0.28;
+      const lowThump = Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * 0.32;
+      return (click + rasp + knock + woodBody + lowThump) * 0.88;
+    });
+    sfxBuffers.draw = createBuffer(ctx, 0.26, (t, i, length) => {
+      const env = Math.exp(-t * 16);
+      const swirl = Math.sin(2 * Math.PI * (240 + 220 * Math.sin(t * 5.8)) * t) * 0.42;
+      const breath = (Math.sin((i + 13) * 0.19) * 0.5 + Math.sin((length - i) * 0.013)) * 0.18;
+      return (swirl + breath) * env;
+    });
+    sfxBuffers.block = createBuffer(ctx, 0.32, (t, i) => {
+      const env = Math.exp(-t * 8.5);
+      const detune = 1 + Math.sin(t * 7) * 0.18;
+      const rumble = Math.sin(2 * Math.PI * 74 * t * detune) * 0.34;
+      const scrape = Math.sin((i + 5) * 0.091) * Math.exp(-t * 18) * 0.22;
+      return (rumble + scrape) * env;
+    });
+  }
+}
+
+function loadPlaceBuffer() {
+  if (placeBufferPromise) return placeBufferPromise;
+  const ctx = ensureAudioContext();
+  if (!ctx) {
+    placeBufferPromise = Promise.resolve(null);
+    return placeBufferPromise;
+  }
+  placeBufferPromise = fetch(KNOCK_SFX_URL)
+    .then((res) => {
+      if (!res?.ok) throw new Error(`Failed to fetch knock SFX: ${res?.status}`);
+      return res.arrayBuffer();
+    })
+    .then((data) => ctx.decodeAudioData(data))
+    .catch((error) => {
+      console.warn('Domino SFX: falling back to procedural knock', error);
+      ensureSfxBuffers();
+      return sfxBuffers.placeFallback;
+    });
+  return placeBufferPromise;
+}
+
+const SFX = {
+  place() {
+    ensureSfxBuffers();
+    loadPlaceBuffer().then((buffer) =>
+      playBuffer(buffer || sfxBuffers.placeFallback, { gain: 0.55, playbackRate: 1.02 })
+    );
+    triggerHaptics('place');
+  },
+  drawTile() {
+    ensureSfxBuffers();
+    playBuffer(sfxBuffers.draw, { gain: 0.5, playbackRate: 1.08 });
+    triggerHaptics('draw');
+  },
+  pass() {
+    playGlide({ startFreq: 420, endFreq: 170, duration: 0.42, gain: 0.32 });
+    triggerHaptics('pass');
+  },
+  win() {
+    playChimeSequence(
+      [
+        { time: 0, freq: 880 },
+        { time: 0.12, freq: 1175 },
+        { time: 0.24, freq: 1568 },
+        { time: 0.34, freq: 1760 }
+      ],
+      { gain: 0.3, type: 'sine' }
+    );
+    triggerHaptics('win');
+  },
+  drawGame() {
+    ensureSfxBuffers();
+    playBuffer(sfxBuffers.block, { gain: 0.36, playbackRate: 0.92 });
+    triggerHaptics('block');
+  }
+};
+
+  /* ---------- Renderer / Scene ---------- */
+const app = document.getElementById("app");
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
+const prefersUhd = urlParams.get('uhd') === '1';
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.autoUpdate = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.physicallyCorrectLights = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.85;
+function setRendererSize(quality = frameQuality){
+  const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
+  const scale = typeof quality?.renderScale === 'number' ? quality.renderScale : 1;
+  renderer.setSize(w * scale, h * scale, false);
+  renderer.domElement.style.width = '100%';
+  renderer.domElement.style.height = '100%';
+}
+function applyRendererQuality(quality = frameQuality) {
+  const dpr = typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+    ? window.devicePixelRatio
+    : 1;
+  const pixelRatioCap =
+    typeof quality?.pixelRatioCap === 'number' && Number.isFinite(quality.pixelRatioCap)
+      ? quality.pixelRatioCap
+      : resolveDefaultPixelRatioCap();
+  const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
+  renderer.setPixelRatio(Math.min(cappedRatio, dpr));
+  setRendererSize(quality);
+}
+applyRendererQuality();
+app.appendChild(renderer.domElement);
+renderer.domElement.style.touchAction = 'none';
+
+const scene = new THREE.Scene();
+const textureLoader = new THREE.TextureLoader();
+textureLoader.setCrossOrigin('anonymous');
+const pmrem = new THREE.PMREMGenerator(renderer);
+const hdriLoader = new RGBELoader();
+const hdriTextureCache = new Map();
+let hdriBackground = null;
+let environmentApplyToken = 0;
+const fallbackEnvTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = fallbackEnvTexture;
+scene.background = null;
+
+const LIGHT_INTENSITY_FACTOR = 1;
+const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
+
+const MODEL_SCALE = 0.75;
+const TABLE_SCALE = 0.95;
+const ARENA_GROWTH = 1.45;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
+const STOOL_SCALE = 1.5 * 1.38;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const COLUMN_RADIUS_TOP = 0.2 * MODEL_SCALE;
+const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
+const BASE_RADIUS = 0.72 * MODEL_SCALE;
+const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
+const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
+const CHAIR_GAP = 0.04 * MODEL_SCALE;
+const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.38 + CHAIR_GAP;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
+const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
+const HUMAN_SEAT_INDEX = 0;
+const CHAIR_SEAT_ANGLES = Object.freeze([
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(0),
+  THREE.MathUtils.degToRad(270),
+  THREE.MathUtils.degToRad(180)
+]);
+const CHAIR_SEAT_RADII = Object.freeze([
+  CHAIR_RADIUS,
+  CHAIR_RADIUS,
+  CHAIR_RADIUS,
+  CHAIR_RADIUS
+]);
+const ARENA_WALL_HEIGHT = 3.6 * 1.3;
+const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+const CARPET_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.2;
+const FLOOR_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 3.2;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
+const CAMERA_FOV = 52;
+const CAMERA_NEAR = 0.1;
+const CAMERA_FAR = 5000;
+const CAMERA_MIN_POLAR = 0.92;
+const CAMERA_MAX_POLAR = 1.22;
+const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(CAMERA_MIN_POLAR, CAMERA_MAX_POLAR, 0.35);
+const CAMERA_BASE_RADIUS = TABLE_RADIUS;
+const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
+const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
+const CAMERA_DEFAULT_AZIMUTH = CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
+const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
+const CAMERA_REAR_OFFSET = { portrait: 1.85, landscape: 1.35 };
+const CAMERA_HEIGHT_BOOST = { portrait: 1.95, landscape: 1.58 };
+const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
+const CAMERA_TOPDOWN_RADIUS = TABLE_RADIUS * 2.35;
+const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
+const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
+const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
+const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
+const CAMERA_TOPDOWN_FRAMING = Object.freeze({
+  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
+  landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
+});
+const UP = new THREE.Vector3(0, 1, 0);
+const USE_MINIMAL_STAGE = true;
+
+const VIEW_MODES = Object.freeze({ threeD: '3d', twoD: '2d' });
+let cameraViewMode = VIEW_MODES.threeD;
+
+function normalizeAvatarSource(src = '') {
+  const trimmed = src.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('assets/')) {
+    return `/${trimmed}`;
+  }
+  return trimmed;
+}
+
+const entryMode = (urlParams.get('entry') || '').toLowerCase();
+const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
+const shouldShowSeatLabel = shouldRunHallwayEntry;
+
+const accountId = (urlParams.get('accountId') || '').trim();
+const telegramId = (urlParams.get('tgId') || urlParams.get('telegramId') || '').trim();
+let seatAvatarPhoto = normalizeAvatarSource(urlParams.get('avatar') || '');
+let seatAvatarUsername = (urlParams.get('username') || '').trim();
+const telegramUser = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+if (!seatAvatarPhoto && telegramUser?.photo_url) {
+  seatAvatarPhoto = normalizeAvatarSource(telegramUser.photo_url);
+}
+if (!seatAvatarUsername && telegramUser) {
+  seatAvatarUsername = (telegramUser.username || telegramUser.first_name || telegramUser.last_name || '').trim();
+}
+const lobbyAvatarFallback = (() => {
+  try {
+    return normalizeAvatarSource(localStorage.getItem('profilePhoto') || '');
+  } catch (error) {
+    console.warn('Unable to read lobby avatar fallback', error);
+    return '';
+  }
+})();
+const DEFAULT_AVATAR_EMOJI = '🌐';
+const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
+const FLAG_EMOJI_POOL = Array.isArray(window.FLAG_EMOJIS) ? window.FLAG_EMOJIS : [];
+const aiAvatarMode = (urlParams.get('avatars') || 'flags').toLowerCase();
+const selectedFlagAvatars = (urlParams.get('flags') || '')
+  .split(',')
+  .map((n) => Number.parseInt(n, 10))
+  .filter(Number.isFinite)
+  .map((idx) => FLAG_EMOJI_POOL[idx])
+  .filter((flag) => typeof flag === 'string' && flag.trim().length);
+const regionNames =
+  typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
+    ? new Intl.DisplayNames(['en'], { type: 'region' })
+    : null;
+
+function emojiToRegionCode(flag = '') {
+  const chars = Array.from(flag);
+  if (chars.length !== 2) return '';
+  const codePoints = chars.map((c) => (c.codePointAt(0) ?? 0) - 0x1f1e6 + 65);
+  if (codePoints.some((cp) => cp < 65 || cp > 90)) return '';
+  return String.fromCharCode(codePoints[0], codePoints[1]);
+}
+
+function avatarToName(source = '') {
+  if (!source) return '';
+  if (!source.startsWith('/') && !source.startsWith('http') && !source.startsWith('data:')) {
+    const region = emojiToRegionCode(source.trim());
+    if (region) {
+      try {
+        const display = regionNames?.of(region);
+        if (display) return display;
+      } catch {}
+      return region;
+    }
+    return '';
+  }
+  const filename = source.split('/').pop() || '';
+  const base = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
+  if (!base) return '';
+  return base.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function pickFlagForSeat(index = 0) {
+  if (aiAvatarMode === 'flags') {
+    const explicit = selectedFlagAvatars[index] ?? selectedFlagAvatars[index - 1];
+    if (explicit) return explicit;
+  }
+  if (FLAG_EMOJI_POOL.length) {
+    const jitter = Math.abs((index + 1) * 13) % FLAG_EMOJI_POOL.length;
+    return FLAG_EMOJI_POOL[jitter];
+  }
+  return DEFAULT_AVATAR_EMOJI;
+}
+
+function getSeatUsernames(count = N) {
+  const avatars = buildSeatAvatarSources(count);
+  return avatars.map((avatar, idx) => {
+    if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) {
+      return seatAvatarUsername;
+    }
+    const derived = avatarToName(avatar);
+    if (derived) return derived;
+    return DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`;
+  });
+}
+
+async function loadHumanProfileFromApi() {
+  if ((!accountId && !telegramId) || !window?.fbApi?.getUserInfo) {
+    if (!seatAvatarPhoto && lobbyAvatarFallback) {
+      seatAvatarPhoto = lobbyAvatarFallback;
+    }
+    return null;
+  }
+  try {
+    const user = await window.fbApi.getUserInfo({ accountId, tgId: telegramId });
+    if (user) {
+      if (!seatAvatarPhoto) {
+        seatAvatarPhoto = normalizeAvatarSource(user.photo_url || '');
+      }
+      if (!seatAvatarUsername) {
+        seatAvatarUsername = (user.username || user.first_name || user.last_name || '').trim();
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load Domino player profile', error);
+  }
+  if (!seatAvatarPhoto && lobbyAvatarFallback) {
+    seatAvatarPhoto = lobbyAvatarFallback;
+  }
+  return { photo: seatAvatarPhoto, name: seatAvatarUsername };
+}
+
+function seatBasisForAngle(angle, radius = CHAIR_RADIUS) {
+  const useAngle = Number.isFinite(angle) ? angle : CAMERA_DEFAULT_AZIMUTH;
+  const useRadius = Number.isFinite(radius) ? radius : CHAIR_RADIUS;
+  const position = new THREE.Vector3(
+    Math.cos(useAngle) * useRadius,
+    0,
+    Math.sin(useAngle) * useRadius
+  );
+  const forward = position.clone();
+  if (forward.lengthSq() > 0) {
+    forward.multiplyScalar(-1 / forward.length());
+  } else {
+    forward.set(0, 0, -1);
+  }
+  const right = new THREE.Vector3().crossVectors(UP, forward).normalize();
+  if (right.lengthSq() === 0) {
+    right.set(1, 0, 0);
+  }
+  return { position, forward, right };
+}
+
+function seatBasisForIndex(index = 0) {
+  const safeIndex = Number.isFinite(index) ? index : 0;
+  const angle = CHAIR_SEAT_ANGLES[safeIndex % CHAIR_SEAT_ANGLES.length] ?? CAMERA_DEFAULT_AZIMUTH;
+  const radius = CHAIR_SEAT_RADII[safeIndex % CHAIR_SEAT_RADII.length] ?? CHAIR_RADIUS;
+  return seatBasisForAngle(angle, radius);
+}
+
+const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
+function fitCamera(){
+  const vv = window.visualViewport; const w= vv?vv.width:innerWidth; const h= vv?vv.height:innerHeight;
+  camera.aspect = w/h; camera.updateProjectionMatrix(); applyRendererQuality();
+}
+fitCamera();
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enableZoom = false;
+controls.zoomSpeed = 0;
+controls.enablePan = true;
+controls.panSpeed = 0.9;
+controls.screenSpacePanning = true;
+controls.enableRotate = true;
+controls.minDistance = CAMERA_MIN_RADIUS;
+controls.maxDistance = CAMERA_MAX_RADIUS;
+controls.minPolarAngle = CAMERA_MIN_POLAR;
+controls.maxPolarAngle = CAMERA_MAX_POLAR;
+controls.touches.ONE = THREE.TOUCH.ROTATE;
+controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+controls.touches.THREE = THREE.TOUCH.PAN;
+controls.target.copy(CAMERA_TARGET);
+
+let cameraHasUserControl = false;
+controls.addEventListener('start', () => {
+  cameraHasUserControl = true;
+});
+renderer.domElement.addEventListener(
+  'wheel',
+  () => {
+    cameraHasUserControl = true;
+  },
+  { passive: true }
+);
+
+function getViewportMetrics() {
+  const dom = renderer.domElement;
+  const width = dom?.clientWidth || window.innerWidth || 1;
+  const height = dom?.clientHeight || window.innerHeight || 1;
+  const isPortrait = height >= width;
+  return { width, height, isPortrait };
+}
+
+function computeDesiredCameraPosition() {
+  const { isPortrait } = getViewportMetrics();
+
+  const seat = seatBasisForIndex(HUMAN_SEAT_INDEX);
+  const seatHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+  const seatAnchor = seat.position.clone();
+  seatAnchor.y = seatHeight;
+
+  const retreat = isPortrait ? CAMERA_REAR_OFFSET.portrait : CAMERA_REAR_OFFSET.landscape;
+  const lateral = isPortrait ? CAMERA_LATERAL_OFFSET.portrait : CAMERA_LATERAL_OFFSET.landscape;
+  const elevation = isPortrait ? CAMERA_HEIGHT_BOOST.portrait : CAMERA_HEIGHT_BOOST.landscape;
+
+  const desiredPosition = seatAnchor
+    .clone()
+    .addScaledVector(seat.forward, -retreat)
+    .addScaledVector(seat.right, lateral);
+  desiredPosition.y = seatHeight + elevation;
+  return desiredPosition;
+}
+
+function getTopDownFramingOffset() {
+  const { isPortrait } = getViewportMetrics();
+  const framing = isPortrait ? CAMERA_TOPDOWN_FRAMING.portrait : CAMERA_TOPDOWN_FRAMING.landscape;
+  const { right = 0, forward = 0 } = framing || {};
+  return new THREE.Vector3(right, 0, forward);
+}
+
+function getActiveCameraTarget() {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return CAMERA_TARGET.clone().add(getTopDownFramingOffset());
+  }
+  return CAMERA_TARGET.clone();
+}
+
+function computeTopDownCameraPosition(target = CAMERA_TARGET) {
+  const lift = Math.max(TABLE_HEIGHT + CAMERA_TARGET_EXTRA, CAMERA_TOPDOWN_RADIUS);
+  return target.clone().add(new THREE.Vector3(0, lift, 0.0001));
+}
+
+function getActiveCameraConstraints() {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return {
+      minPolar: CAMERA_TOPDOWN_MIN_POLAR,
+      maxPolar: CAMERA_TOPDOWN_MAX_POLAR,
+      minRadius: CAMERA_TOPDOWN_MIN_RADIUS,
+      maxRadius: CAMERA_TOPDOWN_MAX_RADIUS
+    };
+  }
+
+  return {
+    minPolar: CAMERA_MIN_POLAR,
+    maxPolar: CAMERA_MAX_POLAR,
+    minRadius: CAMERA_MIN_RADIUS,
+    maxRadius: CAMERA_MAX_RADIUS
+  };
+}
+
+function getDesiredCameraPosition(target = getActiveCameraTarget()) {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return computeTopDownCameraPosition(target);
+  }
+  return computeDesiredCameraPosition();
+}
+
+function applyCameraConstraints() {
+  const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
+  controls.minPolarAngle = minPolar;
+  controls.maxPolarAngle = maxPolar;
+  controls.minDistance = minRadius;
+  controls.maxDistance = maxRadius;
+  controls.enableRotate = cameraViewMode !== VIEW_MODES.twoD;
+}
+
+function clampCameraPosition(position, target = getActiveCameraTarget()) {
+  const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
+  const offset = position.clone().sub(target);
+  const spherical = new THREE.Spherical().setFromVector3(offset);
+  if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
+    spherical.radius = minRadius;
+    spherical.theta = CAMERA_DEFAULT_AZIMUTH;
+    spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, minPolar, maxPolar);
+  }
+  spherical.radius = THREE.MathUtils.clamp(spherical.radius, minRadius, maxRadius);
+  spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
+  const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
+  return target.clone().add(clampedOffset);
+}
+
+function positionCameraForViewport({ force = false } = {}) {
+  fitCamera();
+  applyCameraConstraints();
+  const target = getActiveCameraTarget();
+  const desiredPosition = getDesiredCameraPosition(target);
+  const clampedDesired = clampCameraPosition(desiredPosition, target);
+  if (!cameraHasUserControl || force) {
+    camera.position.copy(clampedDesired);
+    if (force) {
+      cameraHasUserControl = false;
+    }
+  } else {
+    camera.position.copy(clampCameraPosition(camera.position, target));
+  }
+
+  controls.target.copy(target);
+  controls.update();
+}
+
+function updateViewToggleLabel() {
+  const isTopDown = cameraViewMode === VIEW_MODES.twoD;
+  if (viewToggle) {
+    viewToggle.textContent = isTopDown ? '3D' : '2D';
+    viewToggle.setAttribute('aria-pressed', isTopDown ? 'true' : 'false');
+    const nextLabel = isTopDown ? 'Switch to 3D view' : 'Switch to 2D view';
+    viewToggle.setAttribute('aria-label', nextLabel);
+    viewToggle.title = nextLabel;
+  }
+}
+
+function setCameraViewMode(mode = VIEW_MODES.threeD) {
+  if (!Object.values(VIEW_MODES).includes(mode)) return;
+  if (mode === cameraViewMode) return;
+
+  cameraViewMode = mode;
+  cameraHasUserControl = false;
+  updateRaycasterThreshold();
+  applyCameraConstraints();
+  positionCameraForViewport({ force: true });
+  updateViewToggleLabel();
+  renderHands();
+}
+
+function toggleCameraViewMode() {
+  const next = cameraViewMode === VIEW_MODES.twoD ? VIEW_MODES.threeD : VIEW_MODES.twoD;
+  setCameraViewMode(next);
+}
+
+
+/* ---------- Lights ---------- */
+const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+keyLight.position.set(6, 8, 5);
+keyLight.castShadow = true;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.65);
+fillLight.position.set(-5, 5.5, 3);
+scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.9);
+rimLight.position.set(0, 6, -6);
+scene.add(rimLight);
+const spot = new THREE.SpotLight(0xffffff, 0.8, TABLE_RADIUS * 10, Math.PI / 3, 0.38, 1);
+spot.position.set(0, 4.2, 4.6);
+scene.add(spot);
+const spotTarget = new THREE.Object3D();
+scene.add(spotTarget);
+spot.target = spotTarget;
+
+const getPoolCarpetTextures = (() => {
+  let cache = null;
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  const prng = (seed) => {
+    let value = seed >>> 0;
+    return () => {
+      value = (value * 1664525 + 1013904223) % 4294967296;
+      return value / 4294967296;
+    };
+  };
+  const drawRoundedRect = (ctx, x, y, w, h, r) => {
+    const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  };
+  return (renderer) => {
+    if (cache) return cache;
+    if (typeof document === "undefined") {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+    const size = 1024;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
+
+    // Match Pool Royale's crimson carpet palette.
+    const gradient = ctx.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, "#7c242f");
+    gradient.addColorStop(1, "#9d3642");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const rand = prng(987654321);
+    const image = ctx.getImageData(0, 0, size, size);
+    const data = image.data;
+    const baseColor = { r: 112, g: 28, b: 34 };
+    const highlightColor = { r: 196, g: 72, b: 82 };
+    const toChannel = (component) => Math.round(clamp01(component / 255) * 255);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const fiber = (Math.sin((x / size) * Math.PI * 14) + Math.cos((y / size) * Math.PI * 16)) * 0.08;
+        const grain = (rand() - 0.5) * 0.12;
+        const shade = clamp01(0.55 + fiber * 0.75 + grain * 0.6);
+        const r = baseColor.r + (highlightColor.r - baseColor.r) * shade;
+        const g = baseColor.g + (highlightColor.g - baseColor.g) * shade;
+        const b = baseColor.b + (highlightColor.b - baseColor.b) * shade;
+        data[idx] = toChannel(r);
+        data[idx + 1] = toChannel(g);
+        data[idx + 2] = toChannel(b);
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+
+    ctx.globalAlpha = 0.04;
+    ctx.fillStyle = "#4f1119";
+    for (let row = 0; row < size; row += 3) {
+      ctx.fillRect(0, row, size, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    const insetRatio = 0.055;
+    const stripeInset = size * insetRatio;
+    const stripeRadius = size * 0.08;
+    const stripeWidth = size * 0.012;
+    ctx.lineWidth = stripeWidth;
+    ctx.strokeStyle = "#f2b7b4";
+    ctx.shadowColor = "rgba(80,20,30,0.18)";
+    ctx.shadowBlur = stripeWidth * 0.8;
+    drawRoundedRect(ctx, stripeInset, stripeInset, size - stripeInset * 2, size - stripeInset * 2, stripeRadius);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const bumpCanvas = document.createElement("canvas");
+    bumpCanvas.width = bumpCanvas.height = size;
+    const bumpCtx = bumpCanvas.getContext("2d");
+    bumpCtx.drawImage(canvas, 0, 0);
+    const bumpImage = bumpCtx.getImageData(0, 0, size, size);
+    const bumpData = bumpImage.data;
+    const bumpRand = prng(246813579);
+    for (let i = 0; i < bumpData.length; i += 4) {
+      const r = bumpData[i];
+      const g = bumpData[i + 1];
+      const b = bumpData[i + 2];
+      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      const noise = (bumpRand() - 0.5) * 0.16;
+      const v = clamp01(0.62 + lum * 0.28 + noise);
+      const value = Math.floor(v * 255);
+      bumpData[i] = bumpData[i + 1] = bumpData[i + 2] = value;
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+
+    const bump = new THREE.CanvasTexture(bumpCanvas);
+    bump.wrapS = bump.wrapT = THREE.ClampToEdgeWrapping;
+    bump.anisotropy = Math.min(texture.anisotropy ?? 4, 6);
+    bump.minFilter = THREE.LinearMipMapLinearFilter;
+    bump.magFilter = THREE.LinearFilter;
+    bump.generateMipmaps = true;
+
+    cache = { map: texture, bump };
+    return cache;
+  };
+})();
+
+const CHAIR_CLOTH_TEXTURE_SIZE = 512;
+const CHAIR_CLOTH_REPEAT = 12;
+const DEFAULT_CHAIR_THEME = Object.freeze({
+  id: "crimsonVelvet",
+  label: "Crimson Velvet",
+  seatColor: "#8b1538",
+  legColor: "#1f1f1f",
+  highlight: "#d35a7a"
+});
+
+const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
+
+const MURLAN_BASE_STOOL_THEMES = [
+  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f', price: 0, description: 'Default ruby cushions with noir legs.' },
+  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a', price: 210, description: 'Slate seats with midnight legs.' },
+  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a', price: 230, description: 'Teal cushions with deep green support.' },
+  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410', price: 250, description: 'Amber seats with rich brown legs.' },
+  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059', price: 270, description: 'Violet cushions with twilight framing.' },
+  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a', price: 290, description: 'Frosted charcoal seats with dark legs.' },
+  { id: 'leather', label: 'Leather', seatColor: '#6a4a32', legColor: '#1a1410', price: 320, description: 'Leather-wrapped seats with dark studio legs.' }
+];
+
+const MURLAN_POLYHAVEN_CHAIR_THEMES = [
+  { id: 'ArmChair_01', label: 'Arm Chair 01', source: 'polyhaven', assetId: 'ArmChair_01' },
+  { id: 'BarberShopChair_01', label: 'Barber Shop Chair 01', source: 'polyhaven', assetId: 'BarberShopChair_01' },
+  { id: 'GreenChair_01', label: 'Green Chair 01', source: 'polyhaven', assetId: 'GreenChair_01' },
+  { id: 'SchoolChair_01', label: 'School Chair 01', source: 'polyhaven', assetId: 'SchoolChair_01' },
+  { id: 'dining_chair_02', label: 'Dining Chair 02', source: 'polyhaven', assetId: 'dining_chair_02' },
+  { id: 'gallinera_chair', label: 'Gallinera Chair', source: 'polyhaven', assetId: 'gallinera_chair' },
+  { id: 'mid_century_lounge_chair', label: 'Mid-Century Lounge', source: 'polyhaven', assetId: 'mid_century_lounge_chair' },
+  { id: 'modern_arm_chair_01', label: 'Modern Arm Chair', source: 'polyhaven', assetId: 'modern_arm_chair_01' },
+  { id: 'painted_wooden_chair_01', label: 'Painted Wooden Chair 01', source: 'polyhaven', assetId: 'painted_wooden_chair_01' },
+  { id: 'painted_wooden_chair_02', label: 'Painted Wooden Chair 02', source: 'polyhaven', assetId: 'painted_wooden_chair_02' },
+  { id: 'plastic_monobloc_chair_01', label: 'Plastic Monobloc Chair', source: 'polyhaven', assetId: 'plastic_monobloc_chair_01' },
+  { id: 'wheelchair_01', label: 'Wheelchair 01', source: 'polyhaven', assetId: 'wheelchair_01' }
+].map((option, index) => ({
+  ...option,
+  thumbnail: POLYHAVEN_THUMB(option.assetId),
+  price: 520 + index * 35,
+  description: `${option.label} with preserved original materials.`,
+  preserveMaterials: true
+}));
+
+const MURLAN_STOOL_THEMES = Object.freeze([...MURLAN_BASE_STOOL_THEMES, ...MURLAN_POLYHAVEN_CHAIR_THEMES]);
+
+const MURLAN_TABLE_THEMES = Object.freeze([
+  {
+    id: 'murlan-default',
+    label: 'Murlan Default Table',
+    source: 'procedural',
+    price: 0,
+    thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
+    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+  },
+  { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
+  { id: 'WoodenTable_01', label: 'Wooden Table 01' },
+  { id: 'WoodenTable_02', label: 'Wooden Table 02' },
+  { id: 'WoodenTable_03', label: 'Wooden Table 03' },
+  { id: 'chinese_console_table', label: 'Chinese Console Table' },
+  { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
+  { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
+  { id: 'gallinera_table', label: 'Gallinera Table' },
+  { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
+  { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
+  { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
+  { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
+  { id: 'painted_wooden_table', label: 'Painted Wooden Table' },
+  { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
+  { id: 'side_table_01', label: 'Side Table 01' },
+  { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
+  { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' },
+  { id: 'wooden_table_02', label: 'Wooden Table 02 (Alt)' }
+].map((option, index) => ({
+  ...option,
+  assetId: option.assetId || option.id,
+  source: option.source || 'polyhaven',
+  thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
+  price: option.price ?? 980 + index * 40,
+  preserveMaterials: option.preserveMaterials ?? true,
+  description: option.description || `${option.label} with preserved Poly Haven materials.`
+})));
+
+const CHAIR_THEME_OPTIONS = Object.freeze(
+  MURLAN_STOOL_THEMES.map((theme, idx) => ({
+    ...theme,
+    seatColor: theme.seatColor || theme.baseColor || DEFAULT_CHAIR_THEME.seatColor,
+    legColor: theme.legColor || '#1f1f1f',
+    highlight: theme.highlight || theme.accentColor || adjustHexColor(theme.seatColor || DEFAULT_CHAIR_THEME.seatColor, 0.22),
+    idx
+  }))
+);
+
+const CHAIR_MODEL_URLS = [
+  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb",
+  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb",
+  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb"
+];
+const polyhavenModelCache = new Map();
+
+async function loadPolyhavenModel(assetId) {
+  if (!assetId) return null;
+  if (polyhavenModelCache.has(assetId)) {
+    const cached = polyhavenModelCache.get(assetId);
+    return cached.clone(true);
+  }
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+  loader.setCrossOrigin('anonymous');
+  loader.setDRACOLoader(draco);
+
+  const candidates = [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
+  ];
+  let gltf = null;
+  let lastError = null;
+  for (const url of candidates) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+  }
+  const root = gltf.scene || gltf.scenes?.[0];
+  if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (mat?.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      if (mat?.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+    });
+  });
+  polyhavenModelCache.set(assetId, root);
+  return root.clone(true);
+}
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+
+const clamp01f = (value) => Math.min(1, Math.max(0, value));
+const normalizeHue = (h) => {
+  let hue = h % 360;
+  if (hue < 0) hue += 360;
+  return hue;
+};
+
+let chairTemplatePromise = null;
+let chairTemplateBounds = null;
+let chairBuildToken = 0;
+const chairTemplateCache = new Map();
+
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    const scale = targetMax / currentMax;
+    model.scale.multiplyScalar(scale);
+  }
+
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  const offset = new THREE.Vector3(
+    -scaledCenter.x,
+    TARGET_CHAIR_MIN_Y - scaledBox.min.y,
+    TARGET_CHAIR_CENTER_Z - scaledCenter.z
+  );
+  model.position.add(offset);
+}
+
+function extractChairMaterials(model) {
+  const upholstery = new Set();
+  const metal = new Set();
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
+      bucket.add(mat);
+    });
+  });
+  const upholsteryArr = Array.from(upholstery);
+  const metalArr = Array.from(metal);
+  return {
+    seat: upholsteryArr[0] ?? metalArr[0] ?? null,
+    leg: metalArr[0] ?? upholsteryArr[0] ?? null,
+    upholstery: upholsteryArr,
+    metal: metalArr
+  };
+}
+
+async function ensureMurlanChairTemplate(theme = null) {
+  if (chairTemplatePromise) return chairTemplatePromise;
+  chairTemplatePromise = (async () => {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      const model = await loadPolyhavenModel(theme.assetId);
+      fitChairModelToFootprint(model);
+      chairTemplateBounds = new THREE.Box3().setFromObject(model);
+      return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
+    }
+    const loader = new GLTFLoader();
+    const draco = new DRACOLoader();
+    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+    loader.setCrossOrigin('anonymous');
+    loader.setDRACOLoader(draco);
+
+    let gltf = null;
+    let lastError = null;
+    for (const url of CHAIR_MODEL_URLS) {
+      try {
+        gltf = await loader.loadAsync(url);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!gltf) {
+      throw lastError || new Error("Failed to load chair model");
+    }
+
+    const model = gltf.scene || gltf.scenes?.[0];
+    if (!model) {
+      throw new Error("Chair model missing scene");
+    }
+
+    model.traverse((obj) => {
+      if (!obj.isMesh) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+        if (mat?.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      });
+    });
+
+    fitChairModelToFootprint(model);
+    chairTemplateBounds = new THREE.Box3().setFromObject(model);
+
+    return { chairTemplate: model, materials: extractChairMaterials(model) };
+  })();
+
+  return chairTemplatePromise;
+}
+
+async function ensureChairTemplateForTheme(theme) {
+  const key = theme?.id || 'default';
+  if (chairTemplateCache.has(key)) return chairTemplateCache.get(key);
+  const promise = (async () => {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      try {
+        const model = await loadPolyhavenModel(theme.assetId);
+        fitChairModelToFootprint(model);
+        chairTemplateBounds = new THREE.Box3().setFromObject(model);
+        return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
+      } catch (error) {
+        console.warn('Poly Haven chair load failed, falling back', error);
+      }
+    }
+    return ensureMurlanChairTemplate(theme);
+  })();
+  chairTemplateCache.set(key, promise);
+  return promise;
+}
+
+function cloneChairWithTheme(chairData, option) {
+  const { chairTemplate, materials, preserveMaterials } = chairData;
+  const clone = chairTemplate.clone(true);
+  const upholsterySet = new Set(materials.upholstery);
+  const metalSet = new Set(materials.metal);
+
+  clone.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const themed = mats.map((mat) => {
+      if (!mat) return mat;
+      const next = mat.clone();
+      if (preserveMaterials) return next;
+      if (upholsterySet.has(mat)) {
+        if (next.color) next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
+        if (next.emissive) next.emissive.set(option?.highlight ?? option?.seatColor ?? DEFAULT_CHAIR_THEME.highlight);
+      } else if (metalSet.has(mat)) {
+        if (next.color) next.color.set(option?.legColor ?? DEFAULT_CHAIR_THEME.legColor);
+      }
+      return next;
+    });
+    obj.material = Array.isArray(obj.material) ? themed : themed[0];
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+
+  return clone;
+}
+const hslString = (h, s, l) => {
+  const sat = clamp01f(s);
+  const light = clamp01f(l);
+  return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
+};
+const hslToHexNumber = (h, s, l) => {
+  const color = new THREE.Color();
+  color.setHSL(normalizeHue(h) / 360, clamp01f(s), clamp01f(l));
+  return color.getHex();
+};
+const hslToHexString = (h, s, l) => `#${hslToHexNumber(h, s, l).toString(16).padStart(6, '0')}`;
+const shiftLightness = (light, delta) => clamp01f(light + delta);
+const shiftSaturation = (sat, delta) => clamp01f(sat + delta);
+
+const WOOD_FINISH_PRESETS = Object.freeze([
+  Object.freeze({ id: 'birch', label: 'Birch', hue: 38, sat: 0.25, light: 0.84, contrast: 0.42 }),
+  Object.freeze({ id: 'maple', label: 'Maple', hue: 35, sat: 0.22, light: 0.78, contrast: 0.44 }),
+  Object.freeze({ id: 'oak', label: 'Oak', hue: 32, sat: 0.34, light: 0.7, contrast: 0.52 }),
+  Object.freeze({ id: 'cherry', label: 'Cherry', hue: 14, sat: 0.42, light: 0.6, contrast: 0.58 }),
+  Object.freeze({ id: 'teak', label: 'Teak', hue: 28, sat: 0.4, light: 0.52, contrast: 0.6 }),
+  Object.freeze({ id: 'walnut', label: 'Walnut', hue: 22, sat: 0.4, light: 0.44, contrast: 0.64 }),
+  Object.freeze({ id: 'smokedOak', label: 'Smoked Oak', hue: 28, sat: 0.35, light: 0.28, contrast: 0.75 }),
+  Object.freeze({ id: 'wenge', label: 'Wenge', hue: 24, sat: 0.38, light: 0.22, contrast: 0.8 }),
+  Object.freeze({ id: 'ebony', label: 'Eben', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
+]);
+
+const WOOD_PRESETS_BY_ID = Object.freeze(
+  WOOD_FINISH_PRESETS.reduce((acc, preset) => {
+    acc[preset.id] = preset;
+    return acc;
+  }, {})
+);
+
+const WOOD_GRAIN_OPTIONS = Object.freeze([
+  Object.freeze({
+    id: 'estateBands',
+    label: 'Estate Bands',
+    rail: {
+      repeat: { x: 0.12, y: 0.68 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.32, y: 0.4 },
+      rotation: 0,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'studioVeins',
+    label: 'Studio Veins',
+    rail: {
+      repeat: { x: 0.1, y: 0.56 },
+      rotation: Math.PI / 14,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.24, y: 0.38 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  })
+]);
+
+const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
+  WOOD_GRAIN_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
+const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'estateBands';
+const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
+const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
+const WOOD_TEXTURE_BASE_CACHE = new Map();
+
+function makeCacheKey({
+  hue,
+  sat,
+  light,
+  contrast,
+  textureSize,
+  roughnessSize,
+  roughnessBase,
+  roughnessVariance,
+  sharedKey
+}) {
+  const parts = [
+    sharedKey ?? 'solo',
+    Number.isFinite(hue) ? hue.toFixed(4) : '0',
+    Number.isFinite(sat) ? sat.toFixed(4) : '0',
+    Number.isFinite(light) ? light.toFixed(4) : '0',
+    Number.isFinite(contrast) ? contrast.toFixed(4) : '0',
+    textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessSize ?? DEFAULT_WOOD_ROUGHNESS_SIZE,
+    Number.isFinite(roughnessBase) ? roughnessBase.toFixed(4) : '0',
+    Number.isFinite(roughnessVariance) ? roughnessVariance.toFixed(4) : '0'
+  ];
+  return parts.join('|');
+}
+
+function makeNaturalWoodTexture(width, height, hue, sat, light, contrast) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = hslString(hue, sat, light);
+  ctx.fillRect(0, 0, width, height);
+
+  for (let i = 0; i < 3000; i += 1) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const grainLen = 50 + Math.random() * 200;
+    const curve = Math.sin(y / 40 + Math.random() * 2) * 10;
+    ctx.strokeStyle = hslString(hue, sat * 0.6, light - Math.random() * contrast);
+    ctx.lineWidth = 0.8 + Math.random() * 1.2;
+    ctx.globalAlpha = 0.25 + Math.random() * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + curve, y + grainLen / 2, x, y + grainLen);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 40; i += 1) {
+    const kx = Math.random() * width;
+    const ky = Math.random() * height;
+    const r = 8 + Math.random() * 15;
+    const grad = ctx.createRadialGradient(kx, ky, 0, kx, ky, r);
+    grad.addColorStop(0, hslString(hue, sat * 0.9, light - 0.3));
+    grad.addColorStop(1, hslString(hue, sat * 0.4, light));
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(kx, ky, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 16;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function makeRoughnessMap(width, height, base, variance) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const imageData = ctx.createImageData(width, height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const value = clamp01f(base + (Math.random() - 0.5) * variance);
+    const channel = Math.round(value * 255);
+    data[i] = data[i + 1] = data[i + 2] = channel;
+    data[i + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function disposeWoodTextures(material) {
+  if (!material) return;
+  const textures = material.userData?.__woodTextures;
+  if (textures) {
+    const { map, roughnessMap } = textures;
+    if (map?.dispose) map.dispose();
+    if (roughnessMap && roughnessMap !== map && roughnessMap.dispose) {
+      roughnessMap.dispose();
+    }
+    delete material.userData.__woodTextures;
+  }
+  if (material.map && material.map.dispose) {
+    material.map.dispose();
+  }
+  if (material.roughnessMap && material.roughnessMap !== material.map && material.roughnessMap.dispose) {
+    material.roughnessMap.dispose();
+  }
+  material.map = null;
+  material.roughnessMap = null;
+}
+
+function cloneWoodTexture(texture, repeatVec, rotation) {
+  if (!texture) return null;
+  const clone = texture.clone();
+  clone.repeat.copy(repeatVec ?? new THREE.Vector2(1, 1));
+  clone.center.set(0.5, 0.5);
+  if (typeof rotation === 'number' && rotation !== 0) {
+    clone.rotation = rotation;
+  }
+  clone.needsUpdate = true;
+  return clone;
+}
+
+function ensureSharedWoodTextures({
+  hue,
+  sat,
+  light,
+  contrast,
+  textureSize,
+  roughnessSize,
+  roughnessBase,
+  roughnessVariance,
+  sharedKey
+}) {
+  if (typeof document === 'undefined') {
+    return { map: null, roughnessMap: null };
+  }
+  const key = makeCacheKey({
+    hue,
+    sat,
+    light,
+    contrast,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance,
+    sharedKey
+  });
+  let entry = WOOD_TEXTURE_BASE_CACHE.get(key);
+  if (!entry) {
+    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const roughnessMap = makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance);
+    if (map) {
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.center.set(0.5, 0.5);
+      map.needsUpdate = true;
+    }
+    if (roughnessMap) {
+      roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+      roughnessMap.center.set(0.5, 0.5);
+      roughnessMap.needsUpdate = true;
+    }
+    entry = { map, roughnessMap };
+    WOOD_TEXTURE_BASE_CACHE.set(key, entry);
+  }
+  return entry;
+}
+
+function applyWoodTextures(
+  material,
+  {
+    hue,
+    sat,
+    light,
+    contrast,
+    repeat = { x: 1, y: 1 },
+    rotation = 0,
+    textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
+    roughnessBase = 0.18,
+    roughnessVariance = 0.25,
+    sharedKey = null
+  } = {}
+) {
+  if (!material) return null;
+  disposeWoodTextures(material);
+  const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
+  let map = null;
+  let roughnessMap = null;
+  if (typeof document !== 'undefined') {
+    const baseTextures = sharedKey
+      ? ensureSharedWoodTextures({
+          hue,
+          sat,
+          light,
+          contrast,
+          textureSize,
+          roughnessSize,
+          roughnessBase,
+          roughnessVariance,
+          sharedKey
+        })
+      : {
+          map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
+          roughnessMap: makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance)
+        };
+    map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
+    roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
+    if (map) {
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.needsUpdate = true;
+    }
+    if (roughnessMap) {
+      roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+      roughnessMap.needsUpdate = true;
+    }
+  }
+  material.map = map ?? null;
+  material.roughnessMap = roughnessMap ?? null;
+  material.color.setHex(0xffffff);
+  material.needsUpdate = true;
+  material.userData = material.userData || {};
+  material.userData.__woodTextures = { map: material.map, roughnessMap: material.roughnessMap };
+  material.userData.__woodOptions = {
+    hue,
+    sat,
+    light,
+    contrast,
+    repeat: { x: repeatVec.x, y: repeatVec.y },
+    rotation,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance,
+    sharedKey
+  };
+  material.userData.woodRepeat = repeatVec.clone();
+  if (material.map) material.map.needsUpdate = true;
+  if (material.roughnessMap) material.roughnessMap.needsUpdate = true;
+  return { map: material.map, roughnessMap: material.roughnessMap };
+}
+
+function makeTableWoodOption({ id, label, presetId, grainId }) {
+  const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
+  const preset = (presetId && WOOD_PRESETS_BY_ID[presetId]) || fallbackPreset;
+  return Object.freeze({
+    id,
+    label,
+    presetId,
+    grainId,
+    baseHex: hslToHexString(preset.hue, preset.sat, preset.light),
+    rimHex: hslToHexString(preset.hue, shiftSaturation(preset.sat, 0.04), shiftLightness(preset.light, -0.08)),
+    accentHex: hslToHexString(preset.hue, shiftSaturation(preset.sat, 0.12), shiftLightness(preset.light, -0.18))
+  });
+}
+
+function resolveWoodComponents(option) {
+  const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
+  const preset = (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
+  const fallbackGrain = WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+  const grain = (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || fallbackGrain;
+  return { preset, grain };
+}
+
+const TABLE_WOOD_OPTIONS = Object.freeze([
+  makeTableWoodOption({ id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' }),
+  makeTableWoodOption({ id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' })
+]);
+
+const TABLE_CLOTH_OPTIONS = Object.freeze([
+  { id: "crimson", label: "Crimson Cloth", feltTop: "#960019", feltBottom: "#4a0012", border: "#210308", emissive: "#210308", emissiveIntensity: dimIntensity(0.42) },
+  { id: "emerald", label: "Emerald Cloth", feltTop: "#0f6a2f", feltBottom: "#054d24", border: "#021a0b", emissive: "#021a0b", emissiveIntensity: dimIntensity(0.42) },
+  { id: "arctic", label: "Arctic Cloth", feltTop: "#2563eb", feltBottom: "#1d4ed8", border: "#071a42", emissive: "#071a42", emissiveIntensity: dimIntensity(0.42) },
+  { id: "sunset", label: "Sunset Cloth", feltTop: "#ea580c", feltBottom: "#c2410c", border: "#320e03", emissive: "#320e03", emissiveIntensity: dimIntensity(0.42) },
+  { id: "violet", label: "Violet Cloth", feltTop: "#7c3aed", feltBottom: "#5b21b6", border: "#1f0a47", emissive: "#1f0a47", emissiveIntensity: dimIntensity(0.42) },
+  { id: "amber", label: "Amber Cloth", feltTop: "#b7791f", feltBottom: "#92571a", border: "#2b1402", emissive: "#2b1402", emissiveIntensity: dimIntensity(0.42) }
+]);
+
+const TABLE_BASE_OPTIONS = Object.freeze([
+  { id: "obsidian", label: "Obsidian Base", base: "#141414", column: "#0b0d10", trim: "#1f232a" },
+  { id: "forestBronze", label: "Forest Base", base: "#101714", column: "#0a0f0c", trim: "#1f2d24" },
+  { id: "midnightChrome", label: "Midnight Base", base: "#0f172a", column: "#0a1020", trim: "#1e2f4a" },
+  { id: "emberCopper", label: "Copper Base", base: "#231312", column: "#140707", trim: "#5c2d1b" },
+  { id: "violetShadow", label: "Violet Shadow Base", base: "#1f1130", column: "#130622", trim: "#3f1b5b" },
+  { id: "desertGold", label: "Desert Base", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
+]);
+
+const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
+  {
+    id: 'neonPhotostudio',
+    name: 'Neon Photo Studio',
+    assetId: 'neon_photostudio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.18,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.06
+  },
+  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
+  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
+  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
+  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
+  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
+  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
+  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
+  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
+  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
+  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
+  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
+]);
+
+const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
+  ...theme,
+  label: theme.label || theme.name || theme.id
+}));
+const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+  ...variant,
+  label: variant.label || `${variant.name} HDRI` || variant.id
+}));
+
+const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'marksmanAmber',
+    label: 'Marksman Amber',
+    gradient: 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)',
+    icon: '🎯',
+    color: '#fbbf24',
+    emissive: '#c47c12'
+  },
+  {
+    id: 'iceTracer',
+    label: 'Ice Tracer',
+    gradient: 'conic-gradient(#a5f3fc 360deg, #0ea5e9 0deg)',
+    icon: '❄️',
+    color: '#67e8f9',
+    emissive: '#0ea5e9'
+  },
+  {
+    id: 'violetPulse',
+    label: 'Violet Pulse',
+    gradient: 'conic-gradient(#c084fc 360deg, #6366f1 0deg)',
+    icon: '✨',
+    color: '#c084fc',
+    emissive: '#6b21a8'
+  }
+]);
+
+const DOMINO_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'imperialIvory',
+    label: 'Imperial Ivory',
+    preview: ['#f7f1e4', '#d8af37'],
+    body: {
+      color: '#f7f1e4',
+      roughness: 0.16,
+      metalness: 0.24,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.72,
+      sheen: 0.35,
+      sheenColor: '#fff7d1'
+    },
+    pip: {
+      color: '#121314',
+      metalness: 0.55,
+      roughness: 0.22,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.05,
+      emissive: '#080808',
+      emissiveIntensity: dimIntensity(0.12),
+      sheen: 0.12
+    },
+    accent: {
+      color: '#d8af37',
+      emissive: '#7a5300',
+      emissiveIntensity: dimIntensity(0.52),
+      metalness: 1.0,
+      roughness: 0.22,
+      reflectivity: 1.0,
+      ringInner: 0.104,
+      ringOuter: 0.122
+    }
+  },
+  {
+    id: 'obsidianPlatinum',
+    label: 'Obsidian Platinum',
+    preview: ['#090909', '#c5ccd9'],
+    body: {
+      color: '#0b0c10',
+      roughness: 0.24,
+      metalness: 0.32,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.6,
+      sheen: 0.25,
+      sheenColor: '#1f2937'
+    },
+    pip: {
+      color: '#dce6ff',
+      metalness: 0.74,
+      roughness: 0.18,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.03,
+      emissive: '#6b87ff',
+      emissiveIntensity: dimIntensity(0.08),
+      sheen: 0.18
+    },
+    accent: {
+      color: '#d7dce3',
+      emissive: '#5b636f',
+      emissiveIntensity: dimIntensity(0.38),
+      metalness: 1.0,
+      roughness: 0.14,
+      reflectivity: 1.0,
+      ringInner: 0.106,
+      ringOuter: 0.124
+    }
+  },
+  {
+    id: 'midnightRose',
+    label: 'Midnight Rose',
+    preview: ['#0d1533', '#c27c6a'],
+    body: {
+      color: '#101b38',
+      roughness: 0.2,
+      metalness: 0.26,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.66,
+      sheen: 0.42,
+      sheenColor: '#27446d'
+    },
+    pip: {
+      color: '#f1f2f8',
+      metalness: 0.35,
+      roughness: 0.14,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.05,
+      emissive: '#2a3f63',
+      emissiveIntensity: dimIntensity(0.1),
+      sheen: 0.2
+    },
+    accent: {
+      color: '#c27c6a',
+      emissive: '#5b3126',
+      emissiveIntensity: dimIntensity(0.46),
+      metalness: 1.0,
+      roughness: 0.18,
+      reflectivity: 1.0,
+      ringInner: 0.105,
+      ringOuter: 0.123
+    }
+  },
+  {
+    id: 'auroraJade',
+    label: 'Aurora Jade',
+    preview: ['#0e3b2c', '#d0b58f'],
+    body: {
+      color: '#0e3b2c',
+      roughness: 0.22,
+      metalness: 0.28,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.68,
+      sheen: 0.36,
+      sheenColor: '#1c6d53'
+    },
+    pip: {
+      color: '#f1f5f2',
+      metalness: 0.42,
+      roughness: 0.16,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.04,
+      emissive: '#215544',
+      emissiveIntensity: dimIntensity(0.08),
+      sheen: 0.16
+    },
+    accent: {
+      color: '#d0b58f',
+      emissive: '#7a5b36',
+      emissiveIntensity: dimIntensity(0.44),
+      metalness: 0.92,
+      roughness: 0.19,
+      reflectivity: 0.96,
+      ringInner: 0.104,
+      ringOuter: 0.121
+    }
+  },
+  {
+    id: 'frostedOpal',
+    label: 'Frosted Opal',
+    preview: ['#e8eef4', '#7a93d2'],
+    body: {
+      color: '#e8eef4',
+      roughness: 0.18,
+      metalness: 0.22,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.7,
+      sheen: 0.4,
+      sheenColor: '#ffffff'
+    },
+    pip: {
+      color: '#182235',
+      metalness: 0.58,
+      roughness: 0.2,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.04,
+      emissive: '#1c3a6b',
+      emissiveIntensity: dimIntensity(0.09),
+      sheen: 0.18
+    },
+    accent: {
+      color: '#7a93d2',
+      emissive: '#31497a',
+      emissiveIntensity: dimIntensity(0.42),
+      metalness: 0.95,
+      roughness: 0.17,
+      reflectivity: 1.0,
+      ringInner: 0.106,
+      ringOuter: 0.123
+    }
+  },
+  {
+    id: 'carbonVolt',
+    label: 'Carbon Volt',
+    preview: ['#0b1020', '#22d3ee'],
+    body: {
+      color: '#0c1428',
+      roughness: 0.28,
+      metalness: 0.48,
+      clearcoat: 0.95,
+      clearcoatRoughness: 0.06,
+      reflectivity: 0.62,
+      sheen: 0.24,
+      sheenColor: '#1f2a44'
+    },
+    pip: {
+      color: '#e0f2fe',
+      metalness: 0.68,
+      roughness: 0.18,
+      clearcoat: 0.62,
+      clearcoatRoughness: 0.04,
+      emissive: '#22d3ee',
+      emissiveIntensity: dimIntensity(0.2),
+      sheen: 0.18
+    },
+    accent: {
+      color: '#22d3ee',
+      emissive: '#0ea5e9',
+      emissiveIntensity: dimIntensity(0.54),
+      metalness: 0.98,
+      roughness: 0.18,
+      reflectivity: 1,
+      ringInner: 0.105,
+      ringOuter: 0.124
+    }
+  },
+  {
+    id: 'sandstoneAurora',
+    label: 'Sandstone Aurora',
+    preview: ['#f1d8b0', '#f97316'],
+    body: {
+      color: '#f1d8b0',
+      roughness: 0.34,
+      metalness: 0.22,
+      clearcoat: 0.82,
+      clearcoatRoughness: 0.08,
+      reflectivity: 0.58,
+      sheen: 0.26,
+      sheenColor: '#fff1db'
+    },
+    pip: {
+      color: '#422006',
+      metalness: 0.44,
+      roughness: 0.26,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.06,
+      emissive: '#6b2f0d',
+      emissiveIntensity: dimIntensity(0.14),
+      sheen: 0.16
+    },
+    accent: {
+      color: '#f97316',
+      emissive: '#c2410c',
+      emissiveIntensity: dimIntensity(0.46),
+      metalness: 0.93,
+      roughness: 0.2,
+      reflectivity: 0.98,
+      ringInner: 0.103,
+      ringOuter: 0.122
+    }
+  }
+]);
+
+const TABLE_SETUP_SECTIONS = [
+  { key: "environmentHdri", label: "HDR Environments", options: ENVIRONMENT_HDRI_OPTIONS },
+  { key: "tableTheme", label: "Table Theme", options: TABLE_THEME_OPTIONS },
+  { key: "tableWood", label: "Table Wood", options: TABLE_WOOD_OPTIONS },
+  { key: "tableCloth", label: "Table Cloth", options: TABLE_CLOTH_OPTIONS },
+  { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
+  { key: "dominoStyle", label: "Domino", options: DOMINO_STYLE_OPTIONS },
+  { key: "highlightStyle", label: "Highlights", options: HIGHLIGHT_STYLE_OPTIONS },
+  { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
+];
+
+const DOMINO_OPTIONS_BY_KEY = Object.freeze({
+  environmentHdri: ENVIRONMENT_HDRI_OPTIONS,
+  tableTheme: TABLE_THEME_OPTIONS,
+  tableWood: TABLE_WOOD_OPTIONS,
+  tableCloth: TABLE_CLOTH_OPTIONS,
+  tableBase: TABLE_BASE_OPTIONS,
+  dominoStyle: DOMINO_STYLE_OPTIONS,
+  highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
+  chairTheme: CHAIR_THEME_OPTIONS
+});
+
+const DOMINO_DEFAULT_UNLOCKS = Object.freeze(
+  Object.entries(DOMINO_OPTIONS_BY_KEY).reduce((acc, [key, options]) => {
+    acc[key] = options.length && options[0]?.id ? [options[0].id] : [];
+    return acc;
+  }, {})
+);
+
+const DOMINO_INVENTORY_STORAGE_KEY = "dominoRoyalInventoryByAccount";
+
+const copyDominoDefaults = () =>
+  Object.entries(DOMINO_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
+    acc[key] = Array.isArray(values) ? [...values] : [];
+    return acc;
+  }, {});
+
+const resolveDominoAccountId = (accountId) => {
+  if (accountId) return accountId;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = window.localStorage.getItem("accountId");
+      if (stored) return stored;
+    } catch (error) {
+      console.warn("Failed to read Domino account id, using guest", error);
+    }
+  }
+  return "guest";
+};
+
+const readDominoInventories = () => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(DOMINO_INVENTORY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    console.warn("Failed to read domino inventory, resetting", error);
+    return {};
+  }
+};
+
+const writeDominoInventories = (payload) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DOMINO_INVENTORY_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Failed to persist domino inventory", error);
+  }
+};
+
+const normalizeDominoInventory = (rawInventory) => {
+  const base = copyDominoDefaults();
+  if (!rawInventory || typeof rawInventory !== "object") return base;
+  const merged = { ...base };
+  Object.entries(rawInventory).forEach(([key, value]) => {
+    if (!Array.isArray(value)) return;
+    merged[key] = Array.from(new Set([...(merged[key] || []), ...value]));
+  });
+  return merged;
+};
+
+function getDominoInventory(accountId) {
+  const resolvedAccountId = resolveDominoAccountId(accountId);
+  const inventories = readDominoInventories();
+  const normalized = normalizeDominoInventory(inventories[resolvedAccountId]);
+  if (typeof window !== "undefined") {
+    writeDominoInventories({
+      ...inventories,
+      [resolvedAccountId]: normalized
+    });
+  }
+  return normalized;
+}
+
+function isDominoOptionUnlocked(type, optionId, inventoryOrAccountId) {
+  if (!type || !optionId) return false;
+  const inventory =
+    typeof inventoryOrAccountId === "string" || !inventoryOrAccountId
+      ? getDominoInventory(inventoryOrAccountId)
+      : inventoryOrAccountId;
+  return Array.isArray(inventory?.[type]) && inventory[type].includes(optionId);
+}
+
+const findDominoOptionIndex = (key, optionId) => {
+  const options = DOMINO_OPTIONS_BY_KEY[key] || [];
+  const idx = options.findIndex((opt) => opt.id === optionId);
+  return idx >= 0 ? idx : 0;
+};
+
+const DEFAULT_APPEARANCE = Object.freeze(
+  Object.entries(DOMINO_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
+    acc[key] = findDominoOptionIndex(key, values?.[0]);
+    return acc;
+  }, {})
+);
+const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
+const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
+let appearance = { ...DEFAULT_APPEARANCE };
+let dominoInventory = getDominoInventory();
+
+function normalizeAppearance(raw) {
+  const normalized = { ...DEFAULT_APPEARANCE };
+  const source = raw && typeof raw === "object" ? raw : {};
+  const limits = [
+    ["environmentHdri", ENVIRONMENT_HDRI_OPTIONS.length],
+    ["tableTheme", TABLE_THEME_OPTIONS.length],
+    ["tableWood", TABLE_WOOD_OPTIONS.length],
+    ["tableCloth", TABLE_CLOTH_OPTIONS.length],
+    ["tableBase", TABLE_BASE_OPTIONS.length],
+    ["dominoStyle", DOMINO_STYLE_OPTIONS.length],
+    ["highlightStyle", HIGHLIGHT_STYLE_OPTIONS.length],
+    ["chairTheme", CHAIR_THEME_OPTIONS.length]
+  ];
+  limits.forEach(([key, max]) => {
+    const value = Number(source[key]);
+    if (Number.isFinite(value)) {
+      normalized[key] = Math.min(Math.max(0, Math.round(value)), Math.max(0, max - 1));
+    }
+  });
+  return normalized;
+}
+
+function sanitizeAppearance(rawAppearance, inventory = dominoInventory) {
+  const normalized = normalizeAppearance(rawAppearance);
+  const next = { ...normalized };
+  Object.entries(DOMINO_OPTIONS_BY_KEY).forEach(([key, options]) => {
+    const option = options[next[key]] ?? options[0];
+    if (!option || !isDominoOptionUnlocked(key, option.id, inventory)) {
+      const fallbackId = DOMINO_DEFAULT_UNLOCKS[key]?.[0] || options[0]?.id;
+      next[key] = findDominoOptionIndex(key, fallbackId);
+    }
+  });
+  return next;
+}
+
+function getUnlockedOptions(key, inventory = dominoInventory) {
+  const options = DOMINO_OPTIONS_BY_KEY[key] || [];
+  return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
+}
+
+const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
+const isTelegramWebView = /Telegram/i.test(navigator.userAgent || '') || Boolean(window?.Telegram?.WebApp);
+const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
+function resolveHdriResolutionOrder() {
+  if (prefersUhd) return ['4k', '2k'];
+  if (isLowProfileDevice) return ['1k'];
+  return ['2k', '1k'];
+}
+function shouldLoadExternalHdri() {
+  const highTierFrameRate = frameRateId === 'uhd120' || frameRateId === 'ultra144';
+  return !isLowProfileDevice && (prefersUhd || highTierFrameRate);
+}
+function pruneHdriCache() {
+  if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
+  const entries = [...hdriTextureCache.entries()];
+  const overflow = Math.max(0, entries.length - MAX_HDRI_CACHE_SIZE);
+  for (let i = 0; i < overflow; i += 1) {
+    const [key, texture] = entries[i];
+    hdriTextureCache.delete(key);
+    texture?.dispose?.();
+  }
+}
+let activeEnvironmentHdri = null;
+
+async function loadHdriEnvironment(variant) {
+  if (!variant?.assetId) return null;
+  if (!shouldLoadExternalHdri()) return null;
+  const allowedResolutions = resolveHdriResolutionOrder();
+  const preferred = Array.isArray(variant.preferredResolutions)
+    ? variant.preferredResolutions.filter((res) => allowedResolutions.includes(res))
+    : [];
+  const order = preferred.length ? preferred : allowedResolutions;
+  let lastError = null;
+  for (const res of order) {
+    const cacheKey = `${variant.id}:${res}`;
+    if (hdriTextureCache.has(cacheKey)) {
+      return hdriTextureCache.get(cacheKey);
+    }
+    const urls = [
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`,
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${variant.assetId}_${res}.exr`
+    ];
+    for (const url of urls) {
+      try {
+        const texture = await hdriLoader.loadAsync(url);
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        hdriTextureCache.set(cacheKey, envMap);
+        pruneHdriCache();
+        texture.dispose?.();
+        return envMap;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
+}
+
+async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
+  const variant = option || ENVIRONMENT_HDRI_OPTIONS[0];
+  const token = ++environmentApplyToken;
+  try {
+    const envMap = await loadHdriEnvironment(variant);
+    if (token !== environmentApplyToken) {
+      envMap?.dispose?.();
+      return;
+    }
+    if (scene.environment && scene.environment !== fallbackEnvTexture) {
+      scene.environment.dispose?.();
+    }
+    if (hdriBackground && hdriBackground !== envMap && hdriBackground !== fallbackEnvTexture) {
+      hdriBackground.dispose?.();
+    }
+    scene.environment = envMap || fallbackEnvTexture;
+    scene.background = envMap || null;
+    hdriBackground = envMap || fallbackEnvTexture;
+    renderer.toneMappingExposure = variant.exposure ?? renderer.toneMappingExposure;
+    activeEnvironmentHdri = variant;
+  } catch (error) {
+    console.warn("Failed to apply Domino HDRI", error);
+    if (token !== environmentApplyToken) return;
+    scene.environment = fallbackEnvTexture;
+    scene.background = null;
+    renderer.toneMappingExposure = 1.75;
+    activeEnvironmentHdri = null;
+  }
+}
+
+try {
+  const keysToCheck = [APPEARANCE_STORAGE_KEY, ...LEGACY_APPEARANCE_KEYS];
+  for (const key of keysToCheck) {
+    const stored = window.localStorage?.getItem(key);
+    if (!stored) continue;
+    const parsed = JSON.parse(stored);
+    if (parsed && typeof parsed === "object") {
+      appearance = sanitizeAppearance({ ...appearance, ...parsed });
+      if (key !== APPEARANCE_STORAGE_KEY) {
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+      }
+      break;
+    }
+  }
+  appearance = sanitizeAppearance(appearance);
+} catch (error) {
+  console.warn("Failed to load Domino Royal appearance", error);
+  appearance = sanitizeAppearance(appearance);
+}
+
+function adjustHexColor(hex, amount) {
+  const base = new THREE.Color(hex);
+  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
+  base.lerp(target, Math.min(Math.abs(amount), 1));
+  return `#${base.getHexString()}`;
+}
+
+function createCarbonFiberTexture(
+  renderer,
+  {
+    tile = 4,
+    primary = '#171c24',
+    secondary = '#10141c',
+    highlight = 'rgba(255, 255, 255, 0.08)'
+  } = {}
+) {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = secondary;
+  ctx.fillRect(0, 0, size, size);
+
+  const cell = size / 16;
+  for (let y = 0; y < size; y += cell) {
+    for (let x = 0; x < size; x += cell) {
+      const evenCell = ((x + y) / cell) % 2 === 0;
+      ctx.fillStyle = evenCell ? primary : secondary;
+      ctx.fillRect(x, y, cell, cell);
+
+      ctx.fillStyle = evenCell ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.moveTo(x, y + cell * 0.15);
+      ctx.lineTo(x + cell * 0.85, y + cell);
+      ctx.lineTo(x + cell, y + cell * 0.85);
+      ctx.lineTo(x + cell * 0.15, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = highlight;
+  ctx.lineWidth = cell * 0.18;
+  for (let offset = -size; offset <= size * 2; offset += cell * 2) {
+    ctx.beginPath();
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset + size, size);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+  for (let offset = -size; offset <= size * 2; offset += cell * 2) {
+    ctx.beginPath();
+    ctx.moveTo(offset + cell, 0);
+    ctx.lineTo(offset + size + cell, size);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(tile, tile);
+  const maxAnisotropy =
+    (renderer?.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
+      ? renderer.capabilities.getMaxAnisotropy()
+      : renderer?.capabilities?.anisotropy) || 4;
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createChairClothTexture(option, renderer) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const primary = option?.seatColor ?? "#8b0000";
+  const accent = adjustHexColor(primary, -0.28);
+  const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const shadow = adjustHexColor(accent, -0.22);
+  const seam = adjustHexColor(accent, -0.35);
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, adjustHexColor(primary, 0.2));
+  gradient.addColorStop(0.5, primary);
+  gradient.addColorStop(1, accent);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const spacing = canvas.width / CHAIR_CLOTH_REPEAT;
+  const halfSpacing = spacing / 2;
+  const lineWidth = Math.max(1.6, spacing * 0.06);
+
+  ctx.strokeStyle = seam;
+  ctx.lineWidth = lineWidth;
+  ctx.globalAlpha = 0.9;
+  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset - canvas.height, canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset + canvas.height, canvas.height);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = adjustHexColor(highlight, 0.18);
+  ctx.lineWidth = lineWidth * 0.55;
+  ctx.globalAlpha = 0.55;
+  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(offset + halfSpacing, 0);
+    ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(offset + halfSpacing, 0);
+    ctx.lineTo(offset + halfSpacing + canvas.height, canvas.height);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+  const tuftRadius = Math.max(1.8, spacing * 0.08);
+  for (let y = -spacing; y <= canvas.height + spacing; y += spacing) {
+    for (let x = -spacing; x <= canvas.width + spacing; x += spacing) {
+      ctx.beginPath();
+      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = "overlay";
+  const sheenGradient = ctx.createRadialGradient(
+    canvas.width * 0.28,
+    canvas.height * 0.32,
+    canvas.width * 0.05,
+    canvas.width * 0.28,
+    canvas.height * 0.32,
+    canvas.width * 0.75
+  );
+  sheenGradient.addColorStop(0, "rgba(255, 255, 255, 0.26)");
+  sheenGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.08)");
+  sheenGradient.addColorStop(1, "rgba(0, 0, 0, 0.35)");
+  ctx.fillStyle = sheenGradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  ctx.globalAlpha = 0.08;
+  for (let y = 0; y < canvas.height; y += 2) {
+    for (let x = 0; x < canvas.width; x += 2) {
+      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(CHAIR_CLOTH_REPEAT, CHAIR_CLOTH_REPEAT);
+  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createChairFabricMaterial(option, renderer) {
+  const texture = createChairClothTexture(option, renderer);
+  const primary = option?.seatColor ?? "#8b0000";
+  const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.2);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(adjustHexColor(primary, 0.04)),
+    map: texture,
+    roughness: 0.28,
+    metalness: 0.08,
+    clearcoat: 0.48,
+    clearcoatRoughness: 0.28,
+    sheen: 0.18
+  });
+  if ("sheenColor" in material) {
+    material.sheenColor.set(sheenColor);
+  }
+  if ("sheenRoughness" in material) {
+    material.sheenRoughness = 0.32;
+  }
+  if ("specularIntensity" in material) {
+    material.specularIntensity = 0.65;
+  }
+  return material;
+}
+
+const CHAIR_DIMENSIONS = Object.freeze({
+  seatWidth: SEAT_WIDTH,
+  seatDepth: SEAT_DEPTH,
+  seatThickness: SEAT_THICKNESS,
+  backHeight: BACK_HEIGHT,
+  backThickness: BACK_THICKNESS,
+  armHeight: ARM_HEIGHT,
+  armThickness: ARM_THICKNESS,
+  armDepth: ARM_DEPTH,
+  columnHeight: COLUMN_HEIGHT,
+  baseThickness: BASE_THICKNESS,
+  columnRadiusTop: COLUMN_RADIUS_TOP,
+  columnRadiusBottom: COLUMN_RADIUS_BOTTOM,
+  baseRadius: BASE_RADIUS,
+  footRingRadius: FOOT_RING_RADIUS,
+  footRingTube: FOOT_RING_TUBE
+});
+
+function createDominoChair(option, renderer, sharedMaterials = null) {
+  const material = sharedMaterials?.fabric ?? createChairFabricMaterial(option, renderer);
+  const legMaterial = sharedMaterials?.leg ??
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color(option?.legColor ?? "#1f1f1f"),
+      metalness: 0.6,
+      roughness: 0.35
+    });
+  const metalAccent = sharedMaterials?.accent ??
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#2a2a2a"),
+      metalness: 0.75,
+      roughness: 0.32
+    });
+
+  const group = new THREE.Group();
+  const dims = CHAIR_DIMENSIONS;
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(dims.baseRadius, dims.baseRadius * 1.02, dims.baseThickness, 32), legMaterial);
+  base.position.y = dims.baseThickness / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const column = new THREE.Mesh(
+    new THREE.CylinderGeometry(dims.columnRadiusBottom, dims.columnRadiusTop, dims.columnHeight, 24),
+    legMaterial
+  );
+  column.position.y = dims.baseThickness + dims.columnHeight / 2;
+  column.castShadow = true;
+  column.receiveShadow = true;
+  group.add(column);
+
+  const footRing = new THREE.Mesh(new THREE.TorusGeometry(dims.footRingRadius, dims.footRingTube, 16, 48), metalAccent);
+  footRing.rotation.x = Math.PI / 2;
+  footRing.position.y = dims.baseThickness + dims.columnHeight * 0.45;
+  footRing.castShadow = true;
+  group.add(footRing);
+
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(dims.seatWidth, dims.seatThickness, dims.seatDepth),
+    material
+  );
+  seat.position.y = dims.baseThickness + dims.columnHeight + dims.seatThickness / 2;
+  seat.castShadow = true;
+  seat.receiveShadow = true;
+  group.add(seat);
+
+  const cushion = new THREE.Mesh(
+    new THREE.BoxGeometry(dims.seatWidth * 0.92, dims.seatThickness * 0.6, dims.seatDepth * 0.92),
+    material
+  );
+  cushion.position.y = seat.position.y + dims.seatThickness * 0.2;
+  cushion.castShadow = true;
+  cushion.receiveShadow = true;
+  group.add(cushion);
+
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(dims.seatWidth * 0.98, dims.backHeight, dims.backThickness),
+    material
+  );
+  back.position.set(0, seat.position.y + dims.backHeight / 2 - dims.seatThickness / 2, dims.seatDepth / 2 - dims.backThickness / 2);
+  back.castShadow = true;
+  back.receiveShadow = true;
+  group.add(back);
+
+  const armGeo = new THREE.BoxGeometry(dims.armThickness, dims.armHeight, dims.armDepth);
+  const armY = seat.position.y + dims.armHeight / 2 - dims.seatThickness * 0.25;
+  const armOffsetZ = (dims.armDepth - dims.seatDepth) / 2;
+  const armLeft = new THREE.Mesh(armGeo, material);
+  armLeft.position.set(-dims.seatWidth / 2 + dims.armThickness / 2, armY, armOffsetZ);
+  armLeft.castShadow = true;
+  armLeft.receiveShadow = true;
+  group.add(armLeft);
+  const armRight = new THREE.Mesh(armGeo, material);
+  armRight.position.set(dims.seatWidth / 2 - dims.armThickness / 2, armY, armOffsetZ);
+  armRight.castShadow = true;
+  armRight.receiveShadow = true;
+  group.add(armRight);
+
+  const armCapGeo = new THREE.BoxGeometry(dims.armThickness * 0.9, dims.armThickness * 0.35, dims.armDepth * 0.92);
+  const armCapY = armY + dims.armHeight / 2 - (dims.armThickness * 0.35) / 2;
+  const armCapLeft = new THREE.Mesh(armCapGeo, material);
+  armCapLeft.position.set(armLeft.position.x, armCapY, armOffsetZ * 0.94);
+  armCapLeft.castShadow = true;
+  armCapLeft.receiveShadow = true;
+  group.add(armCapLeft);
+  const armCapRight = new THREE.Mesh(armCapGeo, material);
+  armCapRight.position.set(armRight.position.x, armCapY, armOffsetZ * 0.94);
+  armCapRight.castShadow = true;
+  armCapRight.receiveShadow = true;
+  group.add(armCapRight);
+
+  const columnCap = new THREE.Mesh(new THREE.CylinderGeometry(dims.columnRadiusTop * 1.05, dims.columnRadiusTop * 1.05, 0.02, 24), metalAccent);
+  columnCap.position.y = dims.baseThickness + dims.columnHeight + 0.01;
+  columnCap.castShadow = true;
+  columnCap.receiveShadow = true;
+  group.add(columnCap);
+
+  return group;
+}
+
+/* ---------- World / Groups ---------- */
+const arenaG = new THREE.Group();
+scene.add(arenaG);
+
+const tableG = new THREE.Group();
+arenaG.add(tableG);
+tableG.rotation.y = 0;
+const piecesG = new THREE.Group();
+tableG.add(piecesG);
+const tableThemeG = new THREE.Group();
+arenaG.add(tableThemeG);
+
+/* ---------- Arena Dressings (Carpet & Walls) ---------- */
+let hallwayDoorState = null;
+let hallwayDoorZ = 0;
+let walkwayEntryZ = TABLE_RADIUS * 2.4;
+
+if (!USE_MINIMAL_STAGE) {
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(FLOOR_RADIUS, 96),
+    new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.92, metalness: 0.12 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0;
+  floor.receiveShadow = true;
+  arenaG.add(floor);
+
+  const carpetTextures = getPoolCarpetTextures(renderer);
+  const carpetMat = new THREE.MeshStandardMaterial({
+    color: 0x8c2a2e,
+    roughness: 0.9,
+    metalness: 0.025
+  });
+  if (carpetTextures.map) {
+    carpetMat.map = carpetTextures.map;
+    carpetMat.map.needsUpdate = true;
+    carpetMat.map.repeat.set(5, 5);
+  }
+  if (carpetTextures.bump) {
+    carpetMat.bumpMap = carpetTextures.bump;
+    carpetMat.bumpScale = 0.18;
+    carpetMat.bumpMap.needsUpdate = true;
+    carpetMat.bumpMap.repeat.set(5, 5);
+  }
+  const carpet = new THREE.Mesh(new THREE.CircleGeometry(CARPET_RADIUS, 96), carpetMat);
+  carpet.rotation.x = -Math.PI / 2;
+  carpet.position.y = 0.01;
+  carpet.receiveShadow = true;
+  arenaG.add(carpet);
+
+  const wallMaterial = new THREE.MeshStandardMaterial({
+    color: 0xb9ddff,
+    roughness: 0.88,
+    metalness: 0.06,
+    side: THREE.DoubleSide
+  });
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      ARENA_WALL_INNER_RADIUS,
+      ARENA_WALL_INNER_RADIUS * 1.02,
+      ARENA_WALL_HEIGHT,
+      80,
+      1,
+      true
+    ),
+    wallMaterial
+  );
+  wall.position.y = ARENA_WALL_CENTER_Y;
+  wall.receiveShadow = false;
+  wall.castShadow = false;
+  arenaG.add(wall);
+
+  const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
+  const carbonFiberTextureBase = createCarbonFiberTexture(renderer, { tile: 4.5 });
+  const hallwayDoorTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+  if (hallwayDoorTexture) {
+    hallwayDoorTexture.repeat.set(2.6, 2.8);
+    hallwayDoorTexture.needsUpdate = true;
+  }
+  const hallwayDoorMaterialConfig = {
+    color: 0x1a1f26,
+    roughness: 0.32,
+    metalness: 0.55,
+    envMapIntensity: 1.05
+  };
+  if (hallwayDoorTexture) {
+    hallwayDoorMaterialConfig.map = hallwayDoorTexture;
+  }
+  const hallwayDoorMaterial = new THREE.MeshStandardMaterial(hallwayDoorMaterialConfig);
+  const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffd87c,
+    metalness: 1,
+    roughness: 0.18,
+    emissive: 0xffeab5,
+    emissiveIntensity: dimIntensity(0.28)
+  });
+  hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
+  const hallwayDoorPivot = new THREE.Group();
+  hallwayDoorPivot.position.set(-ARENA_DOOR_DIMENSIONS.width / 2, ARENA_DOOR_DIMENSIONS.height / 2, hallwayDoorZ);
+
+  const hallwayDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      ARENA_DOOR_DIMENSIONS.width,
+      ARENA_DOOR_DIMENSIONS.height,
+      ARENA_DOOR_DIMENSIONS.thickness
+    ),
+    hallwayDoorMaterial
+  );
+  hallwayDoor.castShadow = true;
+  hallwayDoor.receiveShadow = true;
+  hallwayDoor.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, 0);
+  hallwayDoorPivot.add(hallwayDoor);
+
+  const hallwayHandlePlate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.46, 0.02),
+    new THREE.MeshStandardMaterial({
+      color: 0xffd87c,
+      metalness: 0.95,
+      roughness: 0.18,
+      emissive: 0xffe6aa,
+      emissiveIntensity: dimIntensity(0.32)
+    })
+  );
+  hallwayHandlePlate.position.set(
+    ARENA_DOOR_DIMENSIONS.width - 0.6,
+    -0.35,
+    ARENA_DOOR_DIMENSIONS.thickness / 2 - 0.005
+  );
+  hallwayHandlePlate.castShadow = false;
+  hallwayHandlePlate.receiveShadow = false;
+  hallwayDoor.add(hallwayHandlePlate);
+
+  const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 24), hallwayHandleMaterial);
+  hallwayHandle.rotation.z = Math.PI / 2;
+  hallwayHandle.position.set(ARENA_DOOR_DIMENSIONS.width - 0.6, -0.35, ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03);
+  hallwayHandle.castShadow = true;
+  hallwayHandle.receiveShadow = false;
+  hallwayDoor.add(hallwayHandle);
+
+  const hallwayDoorFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      ARENA_DOOR_DIMENSIONS.width + 0.32,
+      ARENA_DOOR_DIMENSIONS.height + 0.28,
+      ARENA_DOOR_DIMENSIONS.thickness * 0.8
+    ),
+    new THREE.MeshStandardMaterial({
+      color: 0xf2d79b,
+      roughness: 0.18,
+      metalness: 0.94,
+      emissive: 0xffe4b5,
+      emissiveIntensity: dimIntensity(0.4)
+    })
+  );
+  hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
+  hallwayDoorFrame.castShadow = false;
+  hallwayDoorFrame.receiveShadow = false;
+  hallwayDoorPivot.add(hallwayDoorFrame);
+
+  const hallwayDoorGroup = new THREE.Group();
+  hallwayDoorGroup.add(hallwayDoorPivot);
+  arenaG.add(hallwayDoorGroup);
+
+  const ARENA_WALKWAY_LENGTH = 14;
+  const ARENA_WALKWAY_WIDTH = 4.2;
+  const walkwayFloorMaterial = new THREE.MeshStandardMaterial({
+    color: 0x08090f,
+    roughness: 0.24,
+    metalness: 0.72,
+    envMapIntensity: 1.1
+  });
+  const walkwayFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH, ARENA_WALKWAY_LENGTH),
+    walkwayFloorMaterial
+  );
+  walkwayFloor.rotation.x = -Math.PI / 2;
+  walkwayFloor.position.set(
+    0,
+    0.005,
+    hallwayDoorZ + ARENA_WALKWAY_LENGTH / 2 - ARENA_DOOR_DIMENSIONS.thickness * 0.5
+  );
+  walkwayFloor.receiveShadow = true;
+  arenaG.add(walkwayFloor);
+
+  const walkwayRunnerMaterialConfig = {
+    color: new THREE.Color(carpetMat.color.getHex()),
+    roughness: carpetMat.roughness,
+    metalness: carpetMat.metalness
+  };
+  if (carpetTextures.map) {
+    const walkwayMap = carpetTextures.map.clone();
+    walkwayMap.wrapS = walkwayMap.wrapT = THREE.RepeatWrapping;
+    walkwayMap.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+    walkwayMap.colorSpace = THREE.SRGBColorSpace;
+    walkwayMap.needsUpdate = true;
+    walkwayRunnerMaterialConfig.map = walkwayMap;
+  }
+  if (carpetTextures.bump) {
+    const walkwayBump = carpetTextures.bump.clone();
+    walkwayBump.wrapS = walkwayBump.wrapT = THREE.RepeatWrapping;
+    walkwayBump.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+    walkwayBump.needsUpdate = true;
+    walkwayRunnerMaterialConfig.bumpMap = walkwayBump;
+    walkwayRunnerMaterialConfig.bumpScale = 0.18;
+  }
+  const walkwayRunner = new THREE.Mesh(
+    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH * 0.42, ARENA_WALKWAY_LENGTH * 0.92),
+    new THREE.MeshStandardMaterial(walkwayRunnerMaterialConfig)
+  );
+  walkwayRunner.rotation.x = -Math.PI / 2;
+  walkwayRunner.position.set(0, walkwayFloor.position.y + 0.008, walkwayFloor.position.z);
+  walkwayRunner.receiveShadow = true;
+  arenaG.add(walkwayRunner);
+
+  const walkwayTrimMat = new THREE.MeshStandardMaterial({
+    color: 0xba7c2c,
+    roughness: 0.26,
+    metalness: 0.88,
+    emissive: 0xffc978,
+    emissiveIntensity: dimIntensity(0.25)
+  });
+  const walkwayTrimGeo = new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.2, 0.12, 0.4);
+  const walkwayFrontTrim = new THREE.Mesh(walkwayTrimGeo, walkwayTrimMat);
+  walkwayFrontTrim.position.set(0, 0.06, hallwayDoorZ - 0.2);
+  walkwayFrontTrim.castShadow = false;
+  walkwayFrontTrim.receiveShadow = false;
+  arenaG.add(walkwayFrontTrim);
+  const walkwayOuterTrim = walkwayFrontTrim.clone();
+  walkwayOuterTrim.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.2;
+  arenaG.add(walkwayOuterTrim);
+
+  const walkwaySideGeo = new THREE.BoxGeometry(0.35, 1.2, ARENA_WALKWAY_LENGTH);
+  const walkwayWallTexture = textureLoader.load(
+    'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80'
+  );
+  walkwayWallTexture.wrapS = THREE.RepeatWrapping;
+  walkwayWallTexture.wrapT = THREE.RepeatWrapping;
+  walkwayWallTexture.colorSpace = THREE.SRGBColorSpace;
+  walkwayWallTexture.repeat.set(ARENA_WALKWAY_LENGTH / 2.2, 1.4);
+  const walkwaySideMat = new THREE.MeshStandardMaterial({
+    map: walkwayWallTexture,
+    roughness: 0.48,
+    metalness: 0.4,
+    envMapIntensity: 0.8
+  });
+  const walkwaySideAccentGeo = new THREE.BoxGeometry(0.12, 0.9, ARENA_WALKWAY_LENGTH - 0.6);
+  const walkwaySideAccentMat = new THREE.MeshStandardMaterial({
+    color: 0x321c46,
+    roughness: 0.32,
+    metalness: 0.58,
+    emissive: 0xffb964,
+    emissiveIntensity: dimIntensity(0.4)
+  });
+  const walkwaySideCrownGeo = new THREE.BoxGeometry(0.38, 0.1, ARENA_WALKWAY_LENGTH);
+  const walkwaySideCrownMat = new THREE.MeshStandardMaterial({
+    color: 0xf2c36b,
+    roughness: 0.22,
+    metalness: 0.94
+  });
+
+  function createWalkwaySide(offsetX) {
+    const sideGroup = new THREE.Group();
+    const base = new THREE.Mesh(walkwaySideGeo, walkwaySideMat);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    sideGroup.add(base);
+
+    const accent = new THREE.Mesh(walkwaySideAccentGeo, walkwaySideAccentMat);
+    accent.position.set(offsetX > 0 ? -0.11 : 0.11, 0, 0);
+    accent.castShadow = false;
+    accent.receiveShadow = true;
+    sideGroup.add(accent);
+
+    const crown = new THREE.Mesh(walkwaySideCrownGeo, walkwaySideCrownMat);
+    crown.position.y = 0.55;
+    crown.castShadow = true;
+    crown.receiveShadow = false;
+    sideGroup.add(crown);
+
+    const lightStripGeo = new THREE.BoxGeometry(0.18, 0.08, ARENA_WALKWAY_LENGTH - 0.4);
+    const lightStripMat = new THREE.MeshStandardMaterial({
+      color: 0xffd27e,
+      emissive: 0xfff1b5,
+      emissiveIntensity: dimIntensity(0.85),
+      metalness: 0.7,
+      roughness: 0.18
+    });
+    const lightStrip = new THREE.Mesh(lightStripGeo, lightStripMat);
+    lightStrip.position.set(offsetX > 0 ? -0.14 : 0.14, -0.25, 0);
+    lightStrip.castShadow = false;
+    lightStrip.receiveShadow = false;
+    sideGroup.add(lightStrip);
+
+    sideGroup.position.set(offsetX, 0.6, walkwayFloor.position.z);
+    arenaG.add(sideGroup);
+    return sideGroup;
+  }
+
+  const walkwaySideLeft = createWalkwaySide(-ARENA_WALKWAY_WIDTH / 2 - 0.175);
+  const walkwaySideRight = createWalkwaySide(ARENA_WALKWAY_WIDTH / 2 + 0.175);
+
+  const walkwayPortalHeaderTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+  if (walkwayPortalHeaderTexture) {
+    walkwayPortalHeaderTexture.repeat.set((ARENA_WALKWAY_WIDTH + 0.4) / 1.4, 1.6);
+    walkwayPortalHeaderTexture.needsUpdate = true;
+  }
+  const walkwayPortalHeaderMaterialConfig = {
+    color: 0x1c1f26,
+    metalness: 0.68,
+    roughness: 0.28,
+    emissive: 0x140812,
+    emissiveIntensity: dimIntensity(0.35),
+    envMapIntensity: 0.9
+  };
+  if (walkwayPortalHeaderTexture) {
+    walkwayPortalHeaderMaterialConfig.map = walkwayPortalHeaderTexture;
+  }
+  const walkwayPortalHeader = new THREE.Mesh(
+    new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.4, 0.22, 0.5),
+    new THREE.MeshStandardMaterial(walkwayPortalHeaderMaterialConfig)
+  );
+  walkwayPortalHeader.position.set(0, 1.42, hallwayDoorZ - 0.05);
+  walkwayPortalHeader.castShadow = true;
+  arenaG.add(walkwayPortalHeader);
+
+  const walkwayPortalCrown = new THREE.Mesh(
+    new THREE.TorusGeometry((ARENA_WALKWAY_WIDTH + 0.4) / 2, 0.05, 16, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0xf7d891,
+      emissive: 0xffeeba,
+      emissiveIntensity: dimIntensity(0.6),
+      metalness: 0.92,
+      roughness: 0.15
+    })
+  );
+  walkwayPortalCrown.rotation.x = Math.PI / 2;
+  walkwayPortalCrown.position.set(0, 1.52, hallwayDoorZ - 0.12);
+  walkwayPortalCrown.castShadow = false;
+  arenaG.add(walkwayPortalCrown);
+
+  const walkwayCeiling = new THREE.Mesh(
+    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH + 0.8, ARENA_WALKWAY_LENGTH + 1.2),
+    new THREE.MeshStandardMaterial({
+      color: 0x18111f,
+      side: THREE.DoubleSide,
+      roughness: 0.35,
+      metalness: 0.45,
+      emissive: 0x1a0a13,
+      emissiveIntensity: dimIntensity(0.28)
+    })
+  );
+  walkwayCeiling.rotation.x = Math.PI / 2;
+  walkwayCeiling.position.set(0, 1.95, walkwayFloor.position.z);
+  walkwayCeiling.receiveShadow = false;
+  arenaG.add(walkwayCeiling);
+
+  const chandelier = new THREE.Group();
+  const chandelierRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.95, 0.08, 24, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0xf2d79b,
+      emissive: 0xfff0c5,
+      emissiveIntensity: dimIntensity(0.8),
+      metalness: 0.9,
+      roughness: 0.18
+    })
+  );
+  chandelier.add(chandelierRing);
+  const chandelierCore = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.16, 0.6, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0x21142d,
+      metalness: 0.65,
+      roughness: 0.28,
+      emissive: 0x110712,
+      emissiveIntensity: dimIntensity(0.3)
+    })
+  );
+  chandelierCore.position.y = -0.35;
+  chandelier.add(chandelierCore);
+  chandelier.position.set(0, walkwayCeiling.position.y - 0.18, walkwayFloor.position.z);
+  arenaG.add(chandelier);
+
+  const walkwayFrontLight = new THREE.Mesh(
+    new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.25, 0.08, 0.12),
+    new THREE.MeshStandardMaterial({
+      color: 0xffd89a,
+      emissive: 0xffecb3,
+      emissiveIntensity: dimIntensity(0.9),
+      metalness: 0.78,
+      roughness: 0.22
+    })
+  );
+  walkwayFrontLight.position.set(0, 0.18, hallwayDoorZ + 0.18);
+  arenaG.add(walkwayFrontLight);
+  const walkwayRearLight = walkwayFrontLight.clone();
+  walkwayRearLight.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.25;
+  arenaG.add(walkwayRearLight);
+
+  const hallwayAmbient = new THREE.PointLight(0xffe2b5, dimIntensity(1.3), 18, 1.8);
+  hallwayAmbient.position.set(0, walkwayCeiling.position.y - 0.05, walkwayFloor.position.z);
+  hallwayAmbient.castShadow = true;
+  arenaG.add(hallwayAmbient);
+
+  hallwayDoorState = {
+    pivot: hallwayDoorPivot,
+    openAngle: THREE.MathUtils.degToRad(100),
+    closedAngle: 0
+  };
+  const walkwayFarZ = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2;
+  walkwayEntryZ = walkwayFarZ + 1.5;
+}
+
+function easeInOutCubic(t) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+let entrySequenceActive = false;
+let entryStartTime = 0;
+let entryCameraCurve = null;
+let entryTargetCurve = null;
+const ENTRY_TOTAL_DURATION = 6500;
+const ENTRY_SEAT_REMOVAL_PROGRESS = 0.78;
+
+function configureEntryCurves(finalPosition, target = CAMERA_TARGET) {
+  const approachHeight = 1.55;
+  const interiorHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS + 0.35;
+  entryCameraCurve = new THREE.CatmullRomCurve3(
+    [
+      new THREE.Vector3(0, approachHeight, walkwayEntryZ),
+      new THREE.Vector3(0, approachHeight, hallwayDoorZ + 0.6),
+      new THREE.Vector3(0, interiorHeight, hallwayDoorZ - 3.4),
+      finalPosition.clone()
+    ],
+    false,
+    'catmullrom',
+    0.45
+  );
+  entryTargetCurve = new THREE.CatmullRomCurve3(
+    [
+      new THREE.Vector3(0, 1.35, hallwayDoorZ - 1.4),
+      new THREE.Vector3(0, interiorHeight, hallwayDoorZ - 2.8),
+      target.clone()
+    ],
+    false,
+    'catmullrom',
+    0.45
+  );
+}
+
+function startHallwayEntry() {
+  fitCamera();
+  const target = getActiveCameraTarget();
+  const finalDesired = clampCameraPosition(getDesiredCameraPosition(target), target);
+  configureEntryCurves(finalDesired, target);
+  entrySequenceActive = true;
+  entryStartTime = performance.now();
+  controls.enabled = false;
+  cameraHasUserControl = false;
+  if (entryCameraCurve) {
+    const startPoint = entryCameraCurve.getPoint(0);
+    camera.position.copy(startPoint);
+  }
+  if (entryTargetCurve) {
+    controls.target.copy(entryTargetCurve.getPoint(0));
+  } else {
+    controls.target.copy(CAMERA_TARGET);
+  }
+  if (hallwayDoorState) {
+    hallwayDoorState.pivot.rotation.y = hallwayDoorState.closedAngle;
+  }
+}
+
+function updateEntrySequence(now) {
+  if (!entrySequenceActive) {
+    return;
+  }
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  const elapsed = Math.max(0, timestamp - entryStartTime);
+  const progress = Math.min(elapsed / ENTRY_TOTAL_DURATION, 1);
+
+  const doorPhase = easeInOutCubic(Math.min(progress / 0.35, 1));
+  if (hallwayDoorState?.pivot) {
+    const angle = THREE.MathUtils.lerp(
+      hallwayDoorState.closedAngle,
+      hallwayDoorState.closedAngle - hallwayDoorState.openAngle,
+      doorPhase
+    );
+    hallwayDoorState.pivot.rotation.y = angle;
+  }
+
+  if (entryCameraCurve) {
+    const cameraPhase = easeInOutCubic(Math.min(Math.max((progress - 0.05) / 0.85, 0), 1));
+    const point = entryCameraCurve.getPoint(cameraPhase);
+    camera.position.copy(point);
+  }
+
+  if (entryTargetCurve) {
+    const targetPhase = easeInOutCubic(Math.min(Math.max((progress - 0.08) / 0.75, 0), 1));
+    const targetPoint = entryTargetCurve.getPoint(targetPhase);
+    controls.target.copy(targetPoint);
+  }
+
+  if (shouldRunHallwayEntry && seatLabelShouldDisplay && progress >= ENTRY_SEAT_REMOVAL_PROGRESS) {
+    disposeSeatLabel();
+  }
+
+  if (progress >= 1) {
+    entrySequenceActive = false;
+    controls.enabled = true;
+    controls.target.copy(CAMERA_TARGET);
+    if (shouldRunHallwayEntry && seatLabelShouldDisplay) {
+      disposeSeatLabel();
+    }
+    positionCameraForViewport({ force: true });
+  }
+}
+
+/* ---------- Shapes & Table Build ---------- */
+function createRegularPolygonShape(sides = 8, radius = 1) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < sides; i += 1) {
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+  return shape;
+}
+
+function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, top);
+  gradient.addColorStop(1, bottom);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const glow = ctx.createRadialGradient(size * 0.5, size * 0.45, size * 0.12, size * 0.5, size * 0.45, size * 0.6);
+  glow.addColorStop(0, "rgba(255,255,255,0.25)");
+  glow.addColorStop(0.65, "rgba(255,255,255,0.08)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = size * 0.012;
+  ctx.strokeRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
+
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < size; i += 6) {
+    ctx.fillRect(i, 0, 1, size);
+    ctx.fillRect(0, i, size, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  const prng = (() => {
+    let value = 246813579;
+    return () => {
+      value = (value * 1664525 + 1013904223) % 4294967296;
+      return value / 4294967296;
+    };
+  })();
+  const image = ctx.getImageData(0, 0, size, size);
+  const { data } = image;
+  for (let idx = 0; idx < data.length; idx += 4) {
+    const fiber = (prng() - 0.5) * 0.18;
+    const greenFactor = 1 + fiber * 0.9;
+    const sideFactor = 1 + fiber * 0.45;
+    data[idx] = Math.min(255, Math.max(0, data[idx] * sideFactor));
+    data[idx + 1] = Math.min(255, Math.max(0, data[idx + 1] * greenFactor));
+    data[idx + 2] = Math.min(255, Math.max(0, data[idx + 2] * sideFactor));
+  }
+  ctx.putImageData(image, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(18 * 5 * 3, 18 * 5 * 3);
+  const maxAnisotropy =
+    renderer?.capabilities?.getMaxAnisotropy?.() ??
+    renderer?.capabilities?.anisotropy ??
+    4;
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function roundedRectAbs(width, height, radius) {
+  const hw = width / 2;
+  const hh = height / 2;
+  const r = Math.min(Math.max(radius, 0), Math.min(hw, hh));
+  const shape = new THREE.Shape();
+  shape.moveTo(-hw + r, -hh);
+  shape.lineTo(hw - r, -hh);
+  shape.quadraticCurveTo(hw, -hh, hw, -hh + r);
+  shape.lineTo(hw, hh - r);
+  shape.quadraticCurveTo(hw, hh, hw - r, hh);
+  shape.lineTo(-hw + r, hh);
+  shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
+  shape.lineTo(-hw, -hh + r);
+  shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+  shape.closePath();
+  return shape;
+}
+
+const tableMaterials = {
+  top: new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.12 }),
+  rim: new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.14 }),
+  accent: new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.32 }),
+  felt: new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 }),
+  base: new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.65 }),
+  column: new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0.72 }),
+  trim: new THREE.MeshStandardMaterial({ roughness: 0.22, metalness: 0.85 })
+};
+
+function updateTableMaterials() {
+  const wood = TABLE_WOOD_OPTIONS[appearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+  const { preset, grain } = resolveWoodComponents(wood);
+  const sharedKey = `domino-wood-${wood?.id ?? preset.id ?? 'default'}`;
+  applyWoodTextures(tableMaterials.top, {
+    hue: preset.hue,
+    sat: preset.sat,
+    light: preset.light,
+    contrast: preset.contrast,
+    repeat: grain?.frame?.repeat ?? grain?.rail?.repeat ?? { x: 0.24, y: 0.38 },
+    rotation: grain?.frame?.rotation ?? 0,
+    textureSize: grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessBase: 0.16,
+    roughnessVariance: 0.28,
+    sharedKey
+  });
+  applyWoodTextures(tableMaterials.rim, {
+    hue: preset.hue,
+    sat: preset.sat,
+    light: preset.light,
+    contrast: preset.contrast,
+    repeat: grain?.rail?.repeat ?? grain?.frame?.repeat ?? { x: 0.12, y: 0.62 },
+    rotation: grain?.rail?.rotation ?? 0,
+    textureSize: grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessBase: 0.18,
+    roughnessVariance: 0.32,
+    sharedKey
+  });
+  if (!tableMaterials.top.map) {
+    tableMaterials.top.color.set(wood.baseHex);
+  }
+  if (!tableMaterials.rim.map) {
+    tableMaterials.rim.color.set(wood.rimHex ?? wood.baseHex);
+  }
+  tableMaterials.accent.color.set(wood.accentHex);
+  tableMaterials.accent.needsUpdate = true;
+
+  const cloth = TABLE_CLOTH_OPTIONS[appearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+  tableMaterials.felt.color.set(0xffffff);
+  tableMaterials.felt.emissive.set(cloth.emissive ?? adjustHexColor(cloth.feltTop, 0.2));
+  tableMaterials.felt.emissiveIntensity = dimIntensity(cloth.emissiveIntensity ?? 0.34);
+  if (tableMaterials.felt.map) {
+    tableMaterials.felt.map.dispose();
+  }
+  tableMaterials.felt.map = makeClothTexture({ top: cloth.feltTop, bottom: cloth.feltBottom, border: cloth.border });
+  tableMaterials.felt.map.needsUpdate = true;
+  tableMaterials.felt.needsUpdate = true;
+
+  const base = TABLE_BASE_OPTIONS[appearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+  tableMaterials.base.color.set(base.base);
+  tableMaterials.column.color.set(base.column);
+  tableMaterials.trim.color.set(base.trim);
+}
+updateTableMaterials();
+
+function disposeObjectResources(object) {
+  if (!object) return;
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    if (child.geometry?.dispose) child.geometry.dispose();
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat.map && mat.map.dispose) {
+        mat.map.dispose();
+      }
+      mat.dispose?.();
+    });
+  });
+}
+
+function fitTableModelToFootprint(model) {
+  if (!model) return;
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetDiameter = TABLE_RADIUS * 2.1;
+  const targetHeight = TABLE_HEIGHT * 1.05;
+  const maxSide = Math.max(size.x, size.z, 0.0001);
+  const heightScale = targetHeight / Math.max(size.y, 0.0001);
+  const scale = Math.min(targetDiameter / maxSide, heightScale);
+  model.scale.multiplyScalar(scale);
+  const scaled = new THREE.Box3().setFromObject(model);
+  const offset = new THREE.Vector3(
+    -(scaled.min.x + scaled.max.x) / 2,
+    -scaled.min.y,
+    -(scaled.min.z + scaled.max.z) / 2
+  );
+  model.position.add(offset);
+}
+
+let tableThemeToken = 0;
+let activeTableThemeId = null;
+const proceduralTableParts = [];
+function setProceduralTableVisible(flag = true) {
+  proceduralTableParts.forEach((mesh) => {
+    if (mesh) mesh.visible = flag;
+  });
+}
+
+async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]) {
+  const theme = option || TABLE_THEME_OPTIONS[0];
+  tableThemeG.visible = false;
+  while (tableThemeG.children.length) {
+    const child = tableThemeG.children.pop();
+    disposeObjectResources(child);
+    child?.removeFromParent?.();
+  }
+  const token = ++tableThemeToken;
+  if (!theme || theme.id === 'murlan-default') {
+    setProceduralTableVisible(true);
+    activeTableThemeId = 'murlan-default';
+    return;
+  }
+  if (theme && theme.id !== 'murlan-default') {
+    setProceduralTableVisible(false);
+  }
+  try {
+    const model = await loadPolyhavenModel(theme.assetId || theme.id);
+    if (token !== tableThemeToken || !model) {
+      disposeObjectResources(model);
+      return;
+    }
+    fitTableModelToFootprint(model);
+    tableThemeG.add(model);
+    tableThemeG.visible = true;
+    activeTableThemeId = theme.id;
+    setProceduralTableVisible(false);
+  } catch (error) {
+    console.warn('Failed to load table theme', error);
+    setProceduralTableVisible(true);
+  }
+}
+
+const tableParts = {};
+const chairs = [];
+let seatLabelMesh = null;
+let seatLabelShouldDisplay = shouldShowSeatLabel;
+const seatAvatars = [];
+const seatNameTags = [];
+const seatBadges = [];
+const seatOverlay = document.createElement('div');
+seatOverlay.id = 'seatOverlay';
+document.body.appendChild(seatOverlay);
+
+function buildSeatNames(count = N) {
+  return getSeatUsernames(count);
+}
+
+function isAvatarUrl(str = '') {
+  return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/');
+}
+
+function buildSeatAvatarSources(count = N) {
+  const total = Math.max(1, count);
+  return Array.from({ length: total }, (_, idx) => {
+    if (idx === HUMAN_SEAT_INDEX) {
+      const preferred =
+        normalizeAvatarSource(seatAvatarPhoto) ||
+        lobbyAvatarFallback ||
+        (aiAvatarMode === 'flags' ? selectedFlagAvatars[idx] : '');
+      return preferred || pickFlagForSeat(idx);
+    }
+    if (aiAvatarMode === 'flags') {
+      return pickFlagForSeat(idx);
+    }
+    return pickFlagForSeat(idx);
+  });
+}
+
+async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI, fallback = DEFAULT_AVATAR_EMOJI) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  const center = size / 2;
+  const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  ctx.fillStyle = '#fffbe6';
+  ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let imageLoaded = false;
+  if (isAvatarUrl(label)) {
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = label;
+    }).then((img) => {
+      if (!img) return;
+      imageLoaded = true;
+      const maxSide = Math.max(img.width, img.height) || 1;
+      const drawSize = size * 0.44;
+      const ratio = drawSize / maxSide;
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      ctx.drawImage(img, center - w / 2, center - h / 2, w, h);
+    });
+  } else {
+    ctx.fillText(label, center, center);
+    imageLoaded = true;
+  }
+
+  if (!imageLoaded && fallback && fallback !== label) {
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillText(fallback, center, center);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
+  if (!sprite) return null;
+  const texture = await createSeatAvatarTexture(source, pickFlagForSeat(HUMAN_SEAT_INDEX));
+  if (!sprite.material) {
+    sprite.material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  } else {
+    sprite.material.map?.dispose?.();
+    sprite.material.map = texture;
+    sprite.material.needsUpdate = true;
+  }
+  return sprite;
+}
+
+function refreshSeatAvatars() {
+  const sources = buildSeatAvatarSources(N);
+  return Promise.all(
+    seatAvatars.map((sprite, idx) => applySeatAvatarTexture(sprite, sources[idx] ?? DEFAULT_AVATAR_EMOJI))
+  ).catch((error) => console.warn('Failed to refresh seat avatars', error));
+}
+
+const projectedSeatTarget = new THREE.Vector3();
+function updateSeatBadgePositions() {
+  if (!seatBadges.length || !chairs.length || !renderer?.domElement) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
+    'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
+  seatBadges.forEach((badge) => badge?.style?.setProperty?.('--timer-gradient', gradient));
+  chairs.forEach((wrapper, idx) => {
+    const badge = seatBadges[idx];
+    if (!badge) return;
+    const world = wrapper.getWorldPosition(projectedSeatTarget);
+    world.y += CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
+    world.project(camera);
+    const x = (world.x * 0.5 + 0.5) * rect.width + rect.left;
+    const y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
+    badge.style.left = `${x}px`;
+    badge.style.top = `${y}px`;
+    badge.style.opacity = world.z > 1 || world.z < -1 ? '0' : '1';
+  });
+}
+
+function disposeSeatAvatars() {
+  while (seatAvatars.length) {
+    const sprite = seatAvatars.pop();
+    if (!sprite) continue;
+    sprite.parent?.remove(sprite);
+    try {
+      sprite.material?.map?.dispose?.();
+      sprite.material?.dispose?.();
+      sprite.geometry?.dispose?.();
+    } catch {}
+  }
+}
+
+function disposeSeatNameTags() {
+  while (seatNameTags.length) {
+    const tag = seatNameTags.pop();
+    if (!tag) continue;
+    tag.parent?.remove(tag);
+    try {
+      tag.material?.map?.dispose?.();
+      tag.material?.dispose?.();
+      tag.geometry?.dispose?.();
+    } catch {}
+  }
+}
+
+function disposeSeatBadges() {
+  while (seatBadges.length) {
+    const badge = seatBadges.pop();
+    badge?.remove?.();
+  }
+  seatOverlay.innerHTML = '';
+}
+
+function applyBadgeAvatar(target, source = DEFAULT_AVATAR_EMOJI) {
+  if (!target) return;
+  const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  target.textContent = label || DEFAULT_AVATAR_EMOJI;
+  target.style.backgroundImage = '';
+  target.classList.remove('has-photo');
+
+  if (isAvatarUrl(label)) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      target.style.backgroundImage = `url(${label})`;
+      target.textContent = '';
+      target.classList.add('has-photo');
+    };
+    img.onerror = () => {
+      target.style.backgroundImage = '';
+      target.textContent = label || DEFAULT_AVATAR_EMOJI;
+      target.classList.remove('has-photo');
+    };
+    img.src = label;
+  }
+}
+
+function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'seat-badge';
+
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'seat-badge-avatar';
+
+  const ring = document.createElement('div');
+  ring.className = 'avatar-timer-ring';
+  avatarWrap.appendChild(ring);
+
+  const core = document.createElement('div');
+  core.className = 'seat-badge-core';
+  applyBadgeAvatar(core, avatar);
+  avatarWrap.appendChild(core);
+
+  wrap.appendChild(avatarWrap);
+
+  const label = document.createElement('span');
+  label.className = 'seat-badge-name';
+  label.textContent = name || '';
+  wrap.appendChild(label);
+
+  seatOverlay.appendChild(wrap);
+  return wrap;
+}
+
+function refreshSeatBadges(avatars = [], names = []) {
+  disposeSeatBadges();
+  const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
+    'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
+  const avatarSources = avatars.length ? avatars : buildSeatAvatarSources(N);
+  const nameSources = names.length ? names : buildSeatNames(N);
+  avatarSources.forEach((avatar, idx) => {
+    const badge = createSeatBadge({ avatar, name: nameSources[idx] ?? '' });
+    badge.style.setProperty('--timer-gradient', gradient);
+    seatBadges.push(badge);
+  });
+  seatOverlay.style.setProperty('--timer-gradient', gradient);
+}
+
+function disposeSeatLabel({ persistPreference = true } = {}) {
+  if (seatLabelMesh) {
+    seatLabelMesh.parent?.remove(seatLabelMesh);
+    if (seatLabelMesh.material?.map?.dispose) {
+      seatLabelMesh.material.map.dispose();
+    }
+    if (seatLabelMesh.material?.dispose) {
+      seatLabelMesh.material.dispose();
+    }
+    if (seatLabelMesh.geometry?.dispose) {
+      seatLabelMesh.geometry.dispose();
+    }
+    seatLabelMesh = null;
+  }
+  if (persistPreference) {
+    seatLabelShouldDisplay = false;
+  }
+}
+
+function createSeatLabelMesh() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(12, 16, 24, 0.85)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#ffd24a';
+  ctx.lineWidth = 18;
+  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+  ctx.fillStyle = '#ffd24a';
+  ctx.font = 'bold 140px "Inter", Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SEAT', canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  const geometry = new THREE.PlaneGeometry(1.6, 0.8);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 12;
+  return mesh;
+}
+
+function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI, scaleMultiplier = 1) {
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ transparent: true, depthWrite: false, alphaTest: 0.4 })
+  );
+  const diameter = DOMINO_WIDTH * 6.5 * scaleMultiplier;
+  sprite.scale.set(diameter, diameter, diameter);
+  sprite.center.set(0.5, 0);
+  sprite.renderOrder = 2;
+  applySeatAvatarTexture(sprite, source);
+  return sprite;
+}
+
+function createSeatNameTag(label = '') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffe8a3';
+  ctx.font = 'bold 46px "Inter", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label || 'Player', canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  const geometry = new THREE.PlaneGeometry(1.65, 0.52);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 3;
+  return mesh;
+}
+
+const TABLE_OUTER_RADIUS = TABLE_RADIUS;
+const TABLE_INNER_RADIUS = TABLE_OUTER_RADIUS * 0.84;
+const CLOTH_RADIUS = TABLE_OUTER_RADIUS * 0.72;
+const TABLE_TOP_DEPTH = 0.06 * MODEL_SCALE * TABLE_SCALE;
+const RIM_THICK = 0.08 * MODEL_SCALE;
+const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
+const CLOTH_TOP = TABLE_HEIGHT;
+const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
+
+(function buildTable() {
+  const sides = 8;
+  const topShape = createRegularPolygonShape(sides, TABLE_OUTER_RADIUS);
+  const feltShape = createRegularPolygonShape(sides, CLOTH_RADIUS);
+  const rimInnerShape = createRegularPolygonShape(sides, TABLE_INNER_RADIUS);
+
+  const topShapeWithHole = topShape.clone();
+  topShapeWithHole.holes.push(feltShape);
+  const topGeo = new THREE.ExtrudeGeometry(topShapeWithHole, {
+    depth: TABLE_TOP_DEPTH,
+    bevelEnabled: true,
+    bevelThickness: TABLE_TOP_DEPTH * 0.55,
+    bevelSize: TABLE_TOP_DEPTH * 0.5,
+    bevelSegments: 8
+  });
+  topGeo.rotateX(-Math.PI / 2);
+  const topMesh = new THREE.Mesh(topGeo, tableMaterials.top);
+  topMesh.position.y = TABLE_BASE_Y;
+  topMesh.castShadow = true;
+  topMesh.receiveShadow = true;
+  tableG.add(topMesh);
+  tableParts.top = topMesh;
+  proceduralTableParts.push(topMesh);
+
+  const feltGeo = new THREE.ExtrudeGeometry(feltShape, { depth: 0.01, bevelEnabled: false });
+  feltGeo.rotateX(-Math.PI / 2);
+  const feltMesh = new THREE.Mesh(feltGeo, tableMaterials.felt);
+  feltMesh.position.y = CLOTH_TOP + 0.0025;
+  feltMesh.receiveShadow = true;
+  tableG.add(feltMesh);
+  tableParts.felt = feltMesh;
+  proceduralTableParts.push(feltMesh);
+
+  const rimShape = topShape.clone();
+  rimShape.holes.push(rimInnerShape);
+  const rimGeo = new THREE.ExtrudeGeometry(rimShape, {
+    depth: RIM_THICK,
+    bevelEnabled: true,
+    bevelThickness: RIM_THICK * 0.45,
+    bevelSize: RIM_THICK * 0.42,
+    bevelSegments: 6
+  });
+  rimGeo.rotateX(-Math.PI / 2);
+  const rimMesh = new THREE.Mesh(rimGeo, tableMaterials.rim);
+  rimMesh.position.y = TABLE_BASE_Y + TABLE_TOP_DEPTH * 0.55;
+  rimMesh.castShadow = true;
+  rimMesh.receiveShadow = true;
+  tableG.add(rimMesh);
+  tableParts.rim = rimMesh;
+  proceduralTableParts.push(rimMesh);
+
+  const accentShape = rimInnerShape.clone();
+  accentShape.holes.push(feltShape);
+  const accentGeo = new THREE.ExtrudeGeometry(accentShape, { depth: 0.012, bevelEnabled: false });
+  accentGeo.rotateX(-Math.PI / 2);
+  const accentMesh = new THREE.Mesh(accentGeo, tableMaterials.accent);
+  accentMesh.position.y = CLOTH_TOP - 0.003;
+  tableG.add(accentMesh);
+  tableParts.accent = accentMesh;
+  proceduralTableParts.push(accentMesh);
+
+  const columnHeight = TABLE_HEIGHT + 0.25;
+  const column = new THREE.Mesh(
+    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.34, TABLE_OUTER_RADIUS * 0.48, columnHeight, 48),
+    tableMaterials.column
+  );
+  column.position.y = TABLE_BASE_Y - columnHeight / 2;
+  column.castShadow = true;
+  column.receiveShadow = true;
+  tableG.add(column);
+  tableParts.column = column;
+  proceduralTableParts.push(column);
+
+  // Base and trim intentionally omitted to remove the oversized pedestal.
+})();
+
+const SCALE = MODEL_SCALE * 0.92;
+const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
+const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
+const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
+const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
+const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
+const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
+const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.58;
+const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
+const TILE_UP_HALF = TILE_UP_H / 2;
+const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
+const ZMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
+const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
+const CHAIN_TILE_Y = CLOTH_TOP + 0.02;
+
+/* ---------- Materials ---------- */
+const SHARED_DOMINO_MATERIALS = new Set();
+let porcelainMat = null;
+let pipMat = null;
+let accentMat = null;
+let currentDominoStyleOption = DOMINO_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0];
+let dominoStyleProfile = {
+  ringInner: currentDominoStyleOption?.accent?.ringInner ?? 0.107,
+  ringOuter: currentDominoStyleOption?.accent?.ringOuter ?? 0.12,
+  midlineDepth: currentDominoStyleOption?.accent?.midlineDepth ?? 0.01,
+  pipRadius: currentDominoStyleOption?.pip?.radius ?? 0.085,
+  ringEmissiveIntensity: currentDominoStyleOption?.accent?.ringEmissiveIntensity ?? 0.55
+};
+let currentHighlightStyle = HIGHLIGHT_STYLE_OPTIONS[DEFAULT_APPEARANCE.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0];
+let markers = { L: null, R: null };
+
+function disposeDominoBaseMaterials() {
+  if (porcelainMat) {
+    porcelainMat.dispose?.();
+    porcelainMat = null;
+  }
+  if (accentMat) {
+    accentMat.dispose?.();
+    accentMat = null;
+  }
+  if (pipMat) {
+    SHARED_DOMINO_MATERIALS.delete(pipMat);
+    pipMat.dispose?.();
+    pipMat = null;
+  }
+}
+
+function buildDominoMaterial(options = {}, defaults = {}) {
+  const params = { ...defaults, ...options };
+  const material = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(params.color ?? defaults.color ?? '#ffffff'),
+    roughness: params.roughness ?? 0.2,
+    metalness: params.metalness ?? 0.2,
+    clearcoat: params.clearcoat ?? 1.0,
+    clearcoatRoughness: params.clearcoatRoughness ?? 0.05,
+    reflectivity: params.reflectivity ?? 0.6,
+    transmission: params.transmission ?? 0,
+    thickness: params.thickness ?? 0,
+    iridescence: params.iridescence ?? 0,
+    iridescenceIOR: params.iridescenceIOR ?? 1.3,
+    sheen: params.sheen ?? 0,
+    sheenRoughness: params.sheenRoughness ?? 0.7,
+    specularIntensity: params.specularIntensity ?? 1.0
+  });
+  if (params.emissive) {
+    material.emissive.set(params.emissive);
+  }
+  if (typeof params.emissiveIntensity === 'number') {
+    material.emissiveIntensity = dimIntensity(params.emissiveIntensity);
+  }
+  if (params.sheenColor) {
+    material.sheenColor.set(params.sheenColor);
+  }
+  if (params.specularColor) {
+    material.specularColor.set(params.specularColor);
+  }
+  if (typeof params.envMapIntensity === 'number') {
+    material.envMapIntensity = params.envMapIntensity;
+  }
+  if (typeof params.ior === 'number') {
+    material.ior = params.ior;
+  }
+  if (typeof params.opacity === 'number') {
+    material.opacity = params.opacity;
+  }
+  if (typeof params.transparent === 'boolean') {
+    material.transparent = params.transparent;
+  }
+  if (typeof params.side === 'number') {
+    material.side = params.side;
+  }
+  return material;
+}
+
+function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
+  const style = option ?? DOMINO_STYLE_OPTIONS[0];
+  currentDominoStyleOption = style;
+  disposeDominoBaseMaterials();
+  porcelainMat = buildDominoMaterial(style.body, {
+    color: '#f8f8fb',
+    roughness: 0.12,
+    metalness: 0.2,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.05,
+    reflectivity: 0.68,
+    sheen: 0.25,
+    sheenColor: '#fefaf2',
+    envMapIntensity: 1.18
+  });
+  pipMat = buildDominoMaterial(style.pip, {
+    color: '#0a0a0a',
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    sheen: 0.12,
+    envMapIntensity: 0.85
+  });
+  accentMat = buildDominoMaterial(style.accent, {
+    color: '#d7b03b',
+    emissive: '#593d00',
+    emissiveIntensity: dimIntensity(0.55),
+    metalness: 1.0,
+    roughness: 0.18,
+    reflectivity: 1.0,
+    envMapIntensity: 1.42,
+    side: THREE.DoubleSide
+  });
+  accentMat.polygonOffset = true;
+  accentMat.polygonOffsetFactor = -1;
+  accentMat.polygonOffsetUnits = -1;
+  SHARED_DOMINO_MATERIALS.add(pipMat);
+  const ringIntensitySource = style.accent?.ringEmissiveIntensity;
+  dominoStyleProfile = {
+    ringInner: style.accent?.ringInner ?? 0.107,
+    ringOuter: style.accent?.ringOuter ?? 0.12,
+    midlineDepth: style.accent?.midlineDepth ?? 0.01,
+    pipRadius: style.pip?.radius ?? 0.085,
+    ringEmissiveIntensity:
+      typeof ringIntensitySource === 'number'
+        ? dimIntensity(ringIntensitySource)
+        : accentMat.emissiveIntensity ?? dimIntensity(0.55)
+  };
+}
+
+applyDominoStyle(currentDominoStyleOption);
+const markerMat = new THREE.MeshStandardMaterial({
+  color: "#facc15",
+  emissive: new THREE.Color('#eab308'),
+  roughness: .6,
+  metalness: 0,
+  transparent: true,
+  opacity: .62,
+  side: THREE.DoubleSide
+});
+
+function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
+  currentHighlightStyle = option ?? HIGHLIGHT_STYLE_OPTIONS[0];
+  const gradient = currentHighlightStyle.gradient ?? 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
+  markerMat.color.set(currentHighlightStyle.color ?? '#15d16f');
+  if (markerMat.emissive) {
+    markerMat.emissive.set(currentHighlightStyle.emissive ?? '#0f172a');
+    markerMat.emissiveIntensity = 0.5;
+  }
+  markerMat.opacity = currentHighlightStyle.opacity ?? 0.6;
+  markerMat.needsUpdate = true;
+  if (markers?.L?.material) {
+    markers.L.material.color.copy(markerMat.color);
+    markers.L.material.emissive?.copy?.(markerMat.emissive ?? new THREE.Color('#0f172a'));
+    markers.L.material.opacity = markerMat.opacity;
+    markers.L.material.needsUpdate = true;
+  }
+  if (markers?.R?.material) {
+    markers.R.material.color.copy(markerMat.color);
+    markers.R.material.emissive?.copy?.(markerMat.emissive ?? new THREE.Color('#0f172a'));
+    markers.R.material.opacity = markerMat.opacity;
+    markers.R.material.needsUpdate = true;
+  }
+  seatBadges.forEach((badge) => {
+    badge?.style?.setProperty?.('--timer-gradient', gradient);
+    const core = badge?.querySelector?.('.seat-badge-core');
+    if (core) {
+      core.textContent = currentHighlightStyle.icon || core.textContent || '🎯';
+    }
+  });
+  seatOverlay.style.setProperty('--timer-gradient', gradient);
+}
+
+/* ---------- Game Collections (pre-declare for style refresh) ---------- */
+let N = 4;
+let players = [];
+let boneyard = [];
+let chain = [];
+
+const boneyardStackG = new THREE.Group();
+const BONEYARD_STACK_POSITION = new THREE.Vector3(0, CLOTH_TOP + 0.0075, CLOTH_RADIUS * 0.45);
+boneyardStackG.position.copy(BONEYARD_STACK_POSITION);
+piecesG.add(boneyardStackG);
+const BONEYARD_STACK_STEP = DOMINO_WORLD_SCALE * 0.22 * 0.1 * 1.02;
+const MAX_BONEYARD_DISPLAY = 12;
+let boneyardStackVisible = 0;
+let boneyardStackTopLocal = 0;
+
+const drawAnimations = [];
+const DRAW_ANIM_DURATION = 480;
+const placementAnimations = [];
+const PLACE_ANIM_DURATION = 640;
+const PLACE_ANIM_ARC = 0.05;
+const CPU_PLAY_DELAY = 2000;
+
+const TMP_WORLD_POS = new THREE.Vector3();
+const TMP_WORLD_QUAT = new THREE.Quaternion();
+const TMP_WORLD_SCALE = new THREE.Vector3();
+
+function disposeDominoMesh(mesh){
+  if(!mesh) return;
+  piecesG.remove(mesh);
+  try{
+    mesh.traverse((child)=>{
+      if(!child.isMesh) return;
+      if(child.geometry?.dispose){
+        try{ child.geometry.dispose(); }catch{}
+      }
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material)=>{
+        if(!material || SHARED_DOMINO_MATERIALS.has(material)) return;
+        if(material.dispose){
+          try{ material.dispose(); }catch{}
+        }
+      });
+    });
+  }catch{}
+}
+
+function clearExistingDominoMeshes(){
+  if(Array.isArray(players)){
+    players.forEach((player)=>{
+      player?.hand?.forEach((tile)=>{
+        if(tile?.mesh){
+          disposeDominoMesh(tile.mesh);
+          tile.mesh = null;
+        }
+      });
+    });
+  }
+  if(Array.isArray(chain)){
+    chain.forEach((segment)=>{
+      if(segment?.mesh){
+        disposeDominoMesh(segment.mesh);
+        segment.mesh = null;
+      }
+    });
+  }
+  drawAnimations.forEach((anim)=>{
+    if(anim?.mesh){
+      disposeDominoMesh(anim.mesh);
+    }
+  });
+  drawAnimations.length = 0;
+  placementAnimations.forEach((anim)=>{
+    if(anim?.mesh){
+      disposeDominoMesh(anim.mesh);
+    }
+  });
+  placementAnimations.length = 0;
+  boneyardStackG.clear();
+  boneyardStackVisible = 0;
+  boneyardStackTopLocal = 0;
+}
+
+const configButtonEl = document.getElementById('configButton');
+const configPanelEl = document.getElementById('configPanel');
+const configSectionsEl = document.getElementById('configSections');
+const configCloseEl = document.getElementById('configClose');
+if (configButtonEl) {
+  configButtonEl.setAttribute('aria-controls', 'configPanel');
+  configButtonEl.setAttribute('aria-expanded', 'false');
+}
+if (configPanelEl) {
+  configPanelEl.setAttribute('aria-hidden', 'true');
+}
+
+function saveAppearance() {
+  try {
+    const normalized = sanitizeAppearance(appearance);
+    appearance = normalized;
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(normalized));
+  } catch (error) {
+    console.warn('Failed to persist Domino appearance', error);
+  }
+}
+
+function applyAppearanceChange({ refresh = true } = {}) {
+  appearance = sanitizeAppearance(appearance);
+  applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
+  applyTableTheme(TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]);
+  clearExistingDominoMeshes();
+  updateTableMaterials();
+  applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
+  applyHighlightStyle(HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0]);
+  Object.values(tableMaterials).forEach((material) => {
+    if (material && typeof material.needsUpdate === 'boolean') {
+      material.needsUpdate = true;
+    }
+    if (material?.map) {
+      material.map.needsUpdate = true;
+    }
+    if (material?.roughnessMap) {
+      material.roughnessMap.needsUpdate = true;
+    }
+  });
+  buildChairs(CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME);
+  renderHands();
+  renderChain();
+  renderBoneyardStack();
+  refreshSeatBadges(buildSeatAvatarSources(N), buildSeatNames(N));
+  saveAppearance();
+  if (refresh) {
+    refreshConfigUI();
+  }
+}
+
+function applyFrameRateSelection(optionId, { refreshUi = true } = {}) {
+  const resolvedId = FRAME_RATE_OPTIONS_BY_ID[optionId] ? optionId : DEFAULT_FRAME_RATE_ID;
+  frameRateId = resolvedId;
+  frameQuality = buildFrameQuality(resolvedId);
+  frameTiming = buildFrameTiming(frameQuality);
+  persistFrameRateSelection(resolvedId);
+  applyRendererQuality(frameQuality);
+  applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
+  if (refreshUi) {
+    refreshConfigUI();
+  }
+}
+
+window.addEventListener('dominoRoyalInventoryUpdate', (event) => {
+  const targetAccount = resolveDominoAccountId(event?.detail?.accountId);
+  const currentAccount = resolveDominoAccountId();
+  if (!event?.detail?.accountId || targetAccount === currentAccount) {
+    dominoInventory = getDominoInventory(currentAccount);
+    appearance = sanitizeAppearance(appearance, dominoInventory);
+    applyAppearanceChange({ refresh: true });
+  }
+});
+
+function createOptionPreview(key, option) {
+  const swatch = document.createElement('div');
+  swatch.style.width = '100%';
+  swatch.style.height = '1.5rem';
+  swatch.style.borderRadius = '0.75rem';
+  swatch.style.border = '1px solid rgba(255,255,255,0.12)';
+  switch (key) {
+    case 'environmentHdri': {
+      swatch.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
+      const badge = document.createElement('span');
+      badge.textContent = option?.name || option?.label || 'HDRI';
+      badge.style.display = 'inline-block';
+      badge.style.padding = '0.12rem 0.4rem';
+      badge.style.borderRadius = '999px';
+      badge.style.background = 'rgba(0,0,0,0.35)';
+      badge.style.fontSize = '0.65rem';
+      badge.style.fontWeight = '700';
+      badge.style.letterSpacing = '0.08em';
+      badge.style.textTransform = 'uppercase';
+      badge.style.margin = '0.2rem';
+      badge.style.pointerEvents = 'none';
+      swatch.appendChild(badge);
+      if (Array.isArray(option?.swatches) && option.swatches.length >= 2) {
+        swatch.style.background = `linear-gradient(135deg, ${option.swatches[0]}, ${option.swatches[1]})`;
+      }
+      break;
+    }
+    case 'tableTheme': {
+      swatch.style.background = 'linear-gradient(135deg, #0f172a, #1f2937)';
+      const label = document.createElement('span');
+      label.textContent = option?.label || 'Table';
+      label.style.display = 'inline-block';
+      label.style.padding = '0.12rem 0.4rem';
+      label.style.borderRadius = '0.5rem';
+      label.style.background = 'rgba(255,255,255,0.08)';
+      label.style.fontSize = '0.72rem';
+      label.style.fontWeight = '700';
+      label.style.letterSpacing = '0.04em';
+      swatch.appendChild(label);
+      break;
+    }
+    case 'tableWood':
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      swatch.style.background = `linear-gradient(135deg, ${option.baseHex ?? option.top}, ${option.accentHex ?? option.rim})`;
+      {
+        const sheen = document.createElement('div');
+        sheen.style.position = 'absolute';
+        sheen.style.inset = '0';
+        sheen.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.14), rgba(15,23,42,0.55))';
+        sheen.style.pointerEvents = 'none';
+        swatch.appendChild(sheen);
+      }
+      {
+        const grain = (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || WOOD_GRAIN_OPTIONS[0];
+        if (grain?.label) {
+          const badge = document.createElement('span');
+          badge.textContent = grain.label.slice(0, 16);
+          badge.style.position = 'absolute';
+          badge.style.right = '0.4rem';
+          badge.style.bottom = '0.35rem';
+          badge.style.padding = '0.12rem 0.4rem';
+          badge.style.borderRadius = '999px';
+          badge.style.fontSize = '0.5rem';
+          badge.style.fontWeight = '700';
+          badge.style.letterSpacing = '0.12em';
+          badge.style.textTransform = 'uppercase';
+          badge.style.color = 'rgba(226,232,240,0.92)';
+          badge.style.background = 'rgba(15,23,42,0.7)';
+          badge.style.pointerEvents = 'none';
+          swatch.appendChild(badge);
+        }
+      }
+      break;
+    case 'tableCloth':
+      swatch.style.background = `linear-gradient(135deg, ${option.feltTop}, ${option.feltBottom})`;
+      break;
+    case 'tableBase':
+      swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
+      break;
+    case 'dominoStyle':
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      {
+        const [topColor, bottomColor] = Array.isArray(option.preview) && option.preview.length >= 2
+          ? option.preview
+          : ['#1f2937', '#0f172a'];
+        swatch.style.background = `linear-gradient(135deg, ${topColor}, ${bottomColor})`;
+      }
+      {
+        const pip = document.createElement('div');
+        pip.style.position = 'absolute';
+        pip.style.width = '0.58rem';
+        pip.style.height = '0.58rem';
+        pip.style.borderRadius = '50%';
+        pip.style.left = '0.5rem';
+        pip.style.top = '0.46rem';
+        pip.style.background = option.pip?.color ?? '#111827';
+        pip.style.boxShadow = `0 0 0 2px ${option.accent?.color ?? '#d8af37'}`;
+        pip.style.opacity = '0.95';
+        pip.style.pointerEvents = 'none';
+        swatch.appendChild(pip);
+      }
+      {
+        const inset = document.createElement('div');
+        inset.style.position = 'absolute';
+        inset.style.inset = 'auto 0.4rem 0.3rem 0.4rem';
+        inset.style.height = '0.22rem';
+        inset.style.borderRadius = '999px';
+        inset.style.background = option.accent?.color ?? '#d8af37';
+        inset.style.opacity = '0.9';
+        inset.style.boxShadow = '0 0.15rem 0.35rem rgba(0,0,0,0.32)';
+        inset.style.pointerEvents = 'none';
+        swatch.appendChild(inset);
+      }
+      break;
+    case 'highlightStyle': {
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      swatch.style.background = 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(0,0,0,0.1))';
+      const ring = document.createElement('div');
+      ring.className = 'avatar-timer-ring';
+      ring.style.position = 'absolute';
+      ring.style.inset = '0.25rem';
+      ring.style.setProperty('--timer-gradient', option.gradient ?? 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)');
+      swatch.appendChild(ring);
+      const icon = document.createElement('div');
+      icon.style.position = 'absolute';
+      icon.style.inset = '0';
+      icon.style.display = 'grid';
+      icon.style.placeItems = 'center';
+      icon.style.fontSize = '1rem';
+      icon.style.fontWeight = '800';
+      icon.textContent = option.icon || '🎯';
+      swatch.appendChild(icon);
+      break;
+    }
+    case 'chairTheme':
+      swatch.style.background = option.seatColor;
+      break;
+    default:
+      swatch.style.background = '#1f2937';
+  }
+  return swatch;
+}
+
+function refreshConfigUI() {
+  if (!configSectionsEl) return;
+  configSectionsEl.replaceChildren();
+  const commentaryWrapper = document.createElement('div');
+  commentaryWrapper.className = 'config-section';
+  const commentaryLabel = document.createElement('h4');
+  commentaryLabel.textContent = 'Commentary';
+  commentaryWrapper.appendChild(commentaryLabel);
+  const commentaryGrid = document.createElement('div');
+  commentaryGrid.className = 'config-options';
+  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor);
+  COMMENTARY_PRESETS.forEach((preset) => {
+    const presetButton = document.createElement('button');
+    presetButton.type = 'button';
+    presetButton.className = 'config-option';
+    presetButton.disabled = !commentarySupported;
+    if (preset.id === commentaryPresetId) {
+      presetButton.classList.add('active');
+    }
+    const presetLabel = document.createElement('span');
+    presetLabel.textContent = preset.name;
+    presetButton.appendChild(presetLabel);
+    const presetTone = document.createElement('div');
+    presetTone.textContent = preset.tone;
+    presetTone.style.fontSize = '0.7rem';
+    presetTone.style.color = 'rgba(226,232,240,0.78)';
+    presetTone.style.fontWeight = '600';
+    presetTone.style.lineHeight = '1.35';
+    presetButton.appendChild(presetTone);
+    presetButton.addEventListener('click', () => {
+      if (!commentarySupported) return;
+      setCommentaryPresetId(preset.id);
+    });
+    commentaryGrid.appendChild(presetButton);
+  });
+  const muteButton = document.createElement('button');
+  muteButton.type = 'button';
+  muteButton.className = 'config-option';
+  muteButton.setAttribute('aria-pressed', String(commentaryMuted));
+  muteButton.disabled = !commentarySupported;
+  if (commentaryMuted) {
+    muteButton.classList.add('active');
+  }
+  const muteLabel = document.createElement('span');
+  muteLabel.textContent = commentaryMuted ? 'Commentary muted' : 'Commentary on';
+  muteButton.appendChild(muteLabel);
+  const muteHelper = document.createElement('div');
+  muteHelper.textContent = commentaryMuted ? 'Tap to unmute the announcer' : 'Tap to mute the announcer';
+  muteHelper.style.fontSize = '0.65rem';
+  muteHelper.style.color = 'rgba(226,232,240,0.78)';
+  muteHelper.style.fontWeight = '700';
+  muteHelper.style.lineHeight = '1.35';
+  muteButton.appendChild(muteHelper);
+  muteButton.addEventListener('click', () => {
+    setCommentaryMuted(!commentaryMuted);
+  });
+  commentaryGrid.appendChild(muteButton);
+  commentaryWrapper.appendChild(commentaryGrid);
+  if (!commentarySupported) {
+    const commentaryNote = document.createElement('p');
+    commentaryNote.textContent = 'Voice commentary requires a browser with Web Speech support.';
+    commentaryNote.style.margin = '0';
+    commentaryNote.style.fontSize = '0.65rem';
+    commentaryNote.style.color = 'rgba(226,232,240,0.7)';
+    commentaryNote.style.lineHeight = '1.4';
+    commentaryWrapper.appendChild(commentaryNote);
+  }
+  configSectionsEl.appendChild(commentaryWrapper);
+  TABLE_SETUP_SECTIONS.forEach((section) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'config-section';
+    const label = document.createElement('h4');
+    label.textContent = section.label;
+    wrapper.appendChild(label);
+    const optionsGrid = document.createElement('div');
+    optionsGrid.className = 'config-options';
+    const availableOptions = getUnlockedOptions(section.key, dominoInventory);
+    availableOptions.forEach((option) => {
+      const idx = findDominoOptionIndex(section.key, option.id);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'config-option';
+      if (appearance[section.key] === idx) {
+        button.classList.add('active');
+      }
+      button.appendChild(createOptionPreview(section.key, option));
+      const name = document.createElement('span');
+      name.textContent = option.label ?? option.id;
+      button.appendChild(name);
+      button.addEventListener('click', () => {
+        if (appearance[section.key] === idx) return;
+        appearance[section.key] = idx;
+        applyAppearanceChange({ refresh: false });
+        refreshConfigUI();
+      });
+      optionsGrid.appendChild(button);
+    });
+    wrapper.appendChild(optionsGrid);
+    configSectionsEl.appendChild(wrapper);
+  });
+
+  const feedbackWrapper = document.createElement('div');
+  feedbackWrapper.className = 'config-section';
+  const feedbackLabel = document.createElement('h4');
+  feedbackLabel.textContent = 'Audio & haptics';
+  feedbackWrapper.appendChild(feedbackLabel);
+  const feedbackGrid = document.createElement('div');
+  feedbackGrid.className = 'config-options';
+  feedbackGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
+  [
+    { key: 'sound', label: feedbackSettings.sound ? 'Sound on' : 'Sound muted', helper: 'Procedural knocks & win jingles' },
+    { key: 'haptics', label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off', helper: 'Short vibrations on plays' }
+  ].forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (feedbackSettings[option.key]) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(!!feedbackSettings[option.key]));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    const helper = document.createElement('div');
+    helper.textContent = option.helper;
+    helper.style.fontSize = '0.65rem';
+    helper.style.color = 'rgba(226,232,240,0.78)';
+    helper.style.fontWeight = '700';
+    helper.style.lineHeight = '1.35';
+    button.appendChild(helper);
+    button.addEventListener('click', () => {
+      setFeedbackSettings({ [option.key]: !feedbackSettings[option.key] });
+    });
+    feedbackGrid.appendChild(button);
+  });
+  const feedbackHint = document.createElement('p');
+  feedbackHint.textContent = 'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
+  feedbackHint.style.margin = '0';
+  feedbackHint.style.fontSize = '0.65rem';
+  feedbackHint.style.color = 'rgba(226,232,240,0.7)';
+  feedbackHint.style.lineHeight = '1.4';
+  feedbackWrapper.appendChild(feedbackGrid);
+  feedbackWrapper.appendChild(feedbackHint);
+  configSectionsEl.appendChild(feedbackWrapper);
+
+  const graphicsWrapper = document.createElement('div');
+  graphicsWrapper.className = 'config-section';
+  const graphicsLabel = document.createElement('h4');
+  graphicsLabel.textContent = 'Graphics';
+  graphicsWrapper.appendChild(graphicsLabel);
+  const graphicsGrid = document.createElement('div');
+  graphicsGrid.className = 'config-options';
+  graphicsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+  FRAME_RATE_OPTIONS.forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (frameRateId === option.id) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(frameRateId === option.id));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    const line = document.createElement('div');
+    line.style.display = 'flex';
+    line.style.width = '100%';
+    line.style.justifyContent = 'space-between';
+    line.style.alignItems = 'center';
+    line.style.gap = '0.35rem';
+    line.style.fontSize = '0.72rem';
+    line.style.fontWeight = '700';
+    line.style.letterSpacing = '0.04em';
+    const fpsTag = document.createElement('strong');
+    fpsTag.textContent = `${option.fps} FPS`;
+    fpsTag.style.fontSize = '0.78rem';
+    fpsTag.style.color = 'var(--fg)';
+    line.appendChild(fpsTag);
+    const resolution = document.createElement('span');
+    resolution.textContent = option.resolution || '';
+    resolution.style.color = 'rgba(226,232,240,0.76)';
+    resolution.style.fontSize = '0.65rem';
+    resolution.style.textAlign = 'right';
+    resolution.style.flex = '1';
+    resolution.style.letterSpacing = '0.05em';
+    line.appendChild(resolution);
+    button.appendChild(line);
+    if (option.description) {
+      const desc = document.createElement('p');
+      desc.textContent = option.description;
+      desc.style.margin = '0';
+      desc.style.fontSize = '0.65rem';
+      desc.style.lineHeight = '1.35';
+      desc.style.color = 'rgba(226,232,240,0.74)';
+      desc.style.fontWeight = '600';
+      button.appendChild(desc);
+    }
+    button.addEventListener('click', () => {
+      if (frameRateId === option.id) return;
+      applyFrameRateSelection(option.id, { refreshUi: false });
+      refreshConfigUI();
+    });
+    graphicsGrid.appendChild(button);
+  });
+  graphicsWrapper.appendChild(graphicsGrid);
+  configSectionsEl.appendChild(graphicsWrapper);
+}
+
+function closeConfigPanel() {
+  configPanelEl?.classList.remove('active');
+  configPanelEl?.setAttribute('aria-hidden', 'true');
+  configButtonEl?.setAttribute('aria-expanded', 'false');
+}
+
+configButtonEl?.addEventListener('click', () => {
+  const isOpen = configPanelEl?.classList.toggle('active');
+  if (typeof isOpen === 'boolean') {
+    configPanelEl?.setAttribute('aria-hidden', String(!isOpen));
+    configButtonEl?.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      refreshConfigUI();
+      window.requestAnimationFrame(() => {
+        try {
+          configPanelEl?.focus?.();
+        } catch {}
+      });
+    }
+  }
+});
+configCloseEl?.addEventListener('click', () => closeConfigPanel());
+document.addEventListener('click', (event) => {
+  if (!configPanelEl?.classList.contains('active')) return;
+  if (configPanelEl.contains(event.target) || configButtonEl?.contains(event.target)) return;
+  closeConfigPanel();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeConfigPanel();
+  }
+});
+
+/* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
+const CHAIR_TEXTURE_PROPS = Object.freeze([
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'aoMap',
+  'alphaMap',
+  'emissiveMap',
+  'bumpMap',
+  'displacementMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+  'specularMap',
+  'sheenColorMap',
+  'sheenRoughnessMap'
+]);
+
+function disposeChairResources(root) {
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    if (child.geometry?.dispose) {
+      child.geometry.dispose();
+    }
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      CHAIR_TEXTURE_PROPS.forEach((prop) => {
+        const texture = material[prop];
+        if (texture?.isTexture) {
+          texture.dispose();
+        }
+      });
+      if (material.dispose) {
+        material.dispose();
+      }
+    });
+  });
+}
+
+const CHAIR_MODEL_TIMEOUT_MS = 2500;
+
+function placeChairsWithOption(option, chairData, token) {
+  if (token !== chairBuildToken) return;
+
+  disposeSeatLabel({ persistPreference: false });
+  disposeSeatAvatars();
+  disposeSeatNameTags();
+  disposeSeatBadges();
+  while (chairs.length) {
+    const chair = chairs.pop();
+    chair.parent?.remove(chair);
+    disposeChairResources(chair);
+  }
+
+  const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
+  const seatBottomOffset = chairData
+    ? -chairTemplateBounds.min.y
+    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
+  const labelHeight = chairData
+    ? seatBottomOffset + chairTemplateBounds.max.y + 0.12
+    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness + 0.72;
+  const labelDepth = chairData
+    ? -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35
+    : -CHAIR_DIMENSIONS.seatDepth * 0.35;
+
+  const sharedMaterials = chairData
+    ? null
+    : {
+        fabric: createChairFabricMaterial(option, renderer),
+        leg: new THREE.MeshStandardMaterial({
+          color: new THREE.Color(option.legColor ?? "#1f1f1f"),
+          metalness: 0.6,
+          roughness: 0.35
+        }),
+        accent: new THREE.MeshStandardMaterial({
+          color: new THREE.Color(adjustHexColor(option.legColor ?? "#1f1f1f", 0.15)),
+          metalness: 0.75,
+          roughness: 0.32
+        })
+      };
+
+  const seatAvatarSources = buildSeatAvatarSources(N);
+
+  CHAIR_SEAT_ANGLES.forEach((angle, index) => {
+    const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
+    const basis = seatBasisForAngle(angle, radius);
+    const wrapper = new THREE.Group();
+    wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
+    wrapper.lookAt(lookTarget);
+
+    const chair = chairData
+      ? cloneChairWithTheme(chairData, option)
+      : createDominoChair(option, renderer, sharedMaterials);
+    chair.position.y = -seatBottomOffset;
+    wrapper.add(chair);
+
+    wrapper.updateWorldMatrix(true, true);
+    tableG.add(wrapper);
+    chairs.push(wrapper);
+
+    if (seatLabelShouldDisplay && shouldShowSeatLabel && index === HUMAN_SEAT_INDEX) {
+      seatLabelMesh = createSeatLabelMesh();
+      seatLabelMesh.position.set(0, labelHeight, labelDepth);
+      seatLabelMesh.rotation.x = -Math.PI / 16;
+      wrapper.add(seatLabelMesh);
+    }
+  });
+
+  refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
+}
+
+async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
+  const token = ++chairBuildToken;
+  const chairDataPromise = ensureChairTemplateForTheme(option).catch((error) => {
+    console.warn("Falling back to procedural chair for Domino", error);
+    return null;
+  });
+
+  const chairData = await Promise.race([
+    chairDataPromise,
+    new Promise((resolve) => setTimeout(() => resolve(null), CHAIR_MODEL_TIMEOUT_MS))
+  ]);
+
+  placeChairsWithOption(option, chairData, token);
+
+  if (!chairData) {
+    chairDataPromise.then((resolved) => {
+      if (!resolved || token !== chairBuildToken) return;
+      placeChairsWithOption(option, resolved, token);
+    });
+  }
+}
+
+/* ---------- Tile Helpers (ensure defined before use) ---------- */
+function isValidTile(t){
+  if(!t || typeof t.a!=="number" || typeof t.b!=="number") return false;
+  if(t.a<0||t.b<0||t.a>6||t.b>6) return false; return true;
+}
+function canonTile(t){
+  if(!isValidTile(t)) return null; let {a,b}=t; if(a>b){ const k=a; a=b; b=k; } return {a,b};
+}
+
+/* ---------- Domino EXACT for your request ---------- */
+function pipPositions(){
+  return [
+    [-0.3, 0.6], [0, 0.6], [0.3, 0.6],
+    [-0.3, 0.3], [0, 0.3], [0.3, 0.3],
+    [-0.3, 0.0], [0, 0.0], [0.3, 0.0],
+  ];
+}
+const INDEX_SETS = { 0: [], 1: [4], 2: [0,8], 3: [0,4,8], 4: [0,2,6,8], 5: [0,2,4,6,8], 6: [0,2,3,5,6,8] };
+
+function addAccentPerimeter(domino){
+  const inset = 0.04;
+  const w = 1 - inset*2;
+  const h = 2 - inset*2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-w/2, -h/2);
+  shape.lineTo( w/2, -h/2);
+  shape.lineTo( w/2,  h/2);
+  shape.lineTo(-w/2,  h/2);
+  shape.lineTo(-w/2, -h/2);
+  const hole = new THREE.Path();
+  const t = 0.015;
+  hole.moveTo(-w/2 + t, -h/2 + t);
+  hole.lineTo( w/2 - t, -h/2 + t);
+  hole.lineTo( w/2 - t,  h/2 - t);
+  hole.lineTo(-w/2 + t,  h/2 - t);
+  hole.lineTo(-w/2 + t, -h/2 + t);
+  shape.holes.push(hole);
+  const frameDepth = Math.max(0.004, dominoStyleProfile.midlineDepth ?? 0.01);
+  const extrude = new THREE.ExtrudeGeometry(shape, { depth: frameDepth, bevelEnabled: false });
+  const frame = new THREE.Mesh(extrude, accentMat.clone());
+  frame.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? frame.material.emissiveIntensity;
+  frame.position.z = 0.11;
+  frame.renderOrder = 5; // sit on top
+  domino.add(frame);
+}
+
+function addPips(dominoFace, count, yOffset){
+  const positions = pipPositions();
+  const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
+  const pipRadius = dominoStyleProfile.pipRadius ?? 0.085;
+  const pipGeo = new THREE.SphereGeometry(pipRadius, 32, 32);
+  idxs.forEach(i => {
+    const [px, py] = positions[i];
+    const sphere = new THREE.Mesh(pipGeo, pipMat);
+    sphere.position.set(px, py + yOffset, 0.11);
+    dominoFace.add(sphere);
+
+    // Luxury accent ring around each pip
+    const innerR = dominoStyleProfile.ringInner ?? 0.107;
+    const outerR = dominoStyleProfile.ringOuter ?? 0.120;
+    const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
+    const ring = new THREE.Mesh(ringGeo, accentMat.clone());
+    ring.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? ring.material.emissiveIntensity;
+    ring.position.set(px, py + yOffset, 0.11);
+    ring.renderOrder = 6; // above porcelain & pip
+    dominoFace.add(ring);
+  });
+}
+
+function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
+  const tile = {a,b};
+  if(!isValidTile(tile)){ return new THREE.Group(); }
+  const oriented = preserveOrder ? tile : canonTile(tile);
+  if(!oriented){ return new THREE.Group(); }
+  ({a,b} = oriented);
+
+  const group = new THREE.Group();
+
+  // Body EXACTLY as in your code
+  const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
+  const bodyMaterial = porcelainMat.clone();
+  bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
+  const body = new THREE.Mesh(bodyGeo, bodyMaterial);
+  body.castShadow = true; body.receiveShadow = true;
+
+  // Center line — accent
+  const midW = 1 - 0.08;         // sipas kodit
+  const midH = 0.03;
+  const midR = 0.06;
+  const midShape = roundedRectAbs(midW, midH, Math.min(midR, midH/2));
+  const midDepth = Math.max(0.004, dominoStyleProfile.midlineDepth ?? 0.01);
+  const midGeo = new THREE.ExtrudeGeometry(midShape, { depth: midDepth, bevelEnabled: false });
+  const midLine = new THREE.Mesh(midGeo, accentMat.clone());
+  midLine.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? midLine.material.emissiveIntensity;
+  midLine.position.z = 0.11;
+  midLine.renderOrder = 5;
+  body.add(midLine);
+
+  // Luxurious surrounding frame — accent
+  addAccentPerimeter(body);
+
+  // Dots per your code — top & bottom faces (in body coordinates)
+  if(faceUp){
+    addPips(body, a, -0.8);
+    addPips(body, b,  0.2);
+  }
+
+  group.add(body);
+
+  // Invisible collider to make touch / pick detection more forgiving on mobile
+  const colliderGeo = new THREE.BoxGeometry(1, 1, 1);
+  const colliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  const collider = new THREE.Mesh(colliderGeo, colliderMat);
+  collider.name = 'touchCollider';
+  collider.renderOrder = -1;
+  collider.castShadow = false;
+  collider.receiveShadow = false;
+  group.add(collider);
+
+  // Integration with the existing system: on the board they must be flat (face up)
+  if(flat){ group.rotation.x = -Math.PI/2; }
+
+  // Keep the existing world scale (same as before the change)
+  const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
+  const scaleVec = new THREE.Vector3(
+    DOMINO_WORLD_SCALE * sx,
+    DOMINO_WORLD_SCALE * sy,
+    DOMINO_WORLD_SCALE * sz
+  );
+  group.scale.copy(scaleVec);
+
+  collider.scale.set(
+    DOMINO_LENGTH / scaleVec.x,
+    (flat ? DOMINO_WIDTH * 0.38 : TILE_UP_H * 0.92) / scaleVec.y,
+    DOMINO_WIDTH / scaleVec.z
+  );
+
+  group.userData.val = [a,b];
+  return group;
+}
+
+/* ---------- Game State ---------- */
+const statusEl = document.getElementById('status');
+const btnDraw = document.getElementById('draw');
+const btnPass = document.getElementById('pass');
+const setControlEnabled = (enabled) => {
+  [btnDraw, btnPass].forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  });
+};
+setControlEnabled(false);
+const btnRules = document.getElementById('btnRules');
+const viewToggle = document.getElementById('viewToggle');
+const panelRules = document.getElementById('rules');
+const closeRules = document.getElementById('closeRules');
+const quickActions = document.getElementById('quickActions');
+const chatModal = document.getElementById('chatModal');
+const chatMessagesEl = document.getElementById('chatMessages');
+const chatSend = document.getElementById('chatSend');
+const chatClose = document.getElementById('chatClose');
+const giftModal = document.getElementById('giftModal');
+const giftPlayersEl = document.getElementById('giftPlayers');
+const giftTiersEl = document.getElementById('giftTiers');
+const giftSend = document.getElementById('giftSend');
+const giftClose = document.getElementById('giftClose');
+const muteButton = document.getElementById('muteButton');
+const muteIcon = document.getElementById('muteIcon');
+const muteLabel = document.getElementById('muteLabel');
+
+let statusPrefix = '';
+let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
+let current = 0; let human = 0;
+let selectedTile = null;
+let selectedHighlight = null;
+let selectedHighlightHost = null;
+let selectedHighlightMaterials = [];
+let selectedHighlightExtras = [];
+let flipDir = false; // alternate chain direction after each game
+const usedTileKeys = new Set();
+let gameFinished = false;
+let winnerIndex = null;
+let revealAllHands = false;
+let winnerHighlight = null;
+let winnerHighlightStart = 0;
+let cpuMoveTimeout = null;
+
+function tileKey(tile){
+  const ct = canonTile(tile);
+  return ct ? `${ct.a}|${ct.b}` : '';
+}
+
+function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t; }
+
+let contextLost = false;
+let contextLossReloadTimer = null;
+const CONTEXT_LOSS_RELOAD_DELAY_MS = 1500;
+
+function scheduleContextLossRecovery(reason = '') {
+  if (contextLossReloadTimer || typeof window === 'undefined') return;
+  const message = reason ? `Graphics reset (${reason}). Reloading...` : 'Graphics reset. Reloading...';
+  setStatus(message);
+  contextLossReloadTimer = window.setTimeout(() => {
+    if (contextLost) {
+      window.location.reload();
+    }
+  }, CONTEXT_LOSS_RELOAD_DELAY_MS);
+}
+
+function handleWebglContextLoss(event) {
+  event?.preventDefault?.();
+  contextLost = true;
+  setControlEnabled(false);
+  scheduleContextLossRecovery('WebGL context lost');
+}
+
+function handleWebglContextRestored() {
+  contextLost = false;
+  setControlEnabled(false);
+  scheduleContextLossRecovery('restored');
+}
+
+renderer.domElement.addEventListener('webglcontextlost', handleWebglContextLoss, { passive: false });
+renderer.domElement.addEventListener('webglcontextrestored', handleWebglContextRestored);
+
+function genSet(){ const set=[]; for(let a=0;a<=6;a++){ for(let b=a;b<=6;b++){ set.push({a,b}); } } return set; }
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+const requestedPlayers = Number.parseInt(urlParams.get('players') || urlParams.get('playerCount') || '', 10);
+if (requestedPlayers >= 2 && requestedPlayers <= 4) {
+  N = requestedPlayers;
+}
+const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
+const stakeToken = urlParams.get('token') || 'TPC';
+if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
+  statusPrefix = `Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`;
+  setStatus('Ready');
+}
+
+applyAppearanceChange({ refresh: false });
+refreshConfigUI();
+
+function layoutSeat(idx){
+  const EDGE = CLOTH_RADIUS;
+  const MARGIN = EDGE * 0.16;
+  const south = [0, EDGE - MARGIN, 0];
+  const east = [EDGE - MARGIN, 0, Math.PI / 2];
+  const north = [0, -(EDGE - MARGIN), Math.PI];
+  const west = [-(EDGE - MARGIN), 0, -Math.PI / 2];
+  const seats = [south, east, north, west];
+  return seats[idx % seats.length];
+}
+
+function renderHands(){
+  players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
+  clearSelectedHighlight();
+
+  const EDGE_SPAN = CLOTH_RADIUS - 0.28;
+  const BASE_GAP = DOMINO_HAND_GAP;
+  const MIN_GAP = DOMINO_LENGTH * 0.95;
+  const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
+
+  const isTopDown = cameraViewMode === VIEW_MODES.twoD;
+
+  players.forEach((p,pi)=>{
+    const [x0,z0] = layoutSeat(pi);
+    const isHuman = pi === human;
+    const faceUp = revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
+    const count = p.hand.length;
+    const isSide = (pi===1 || pi===3);
+    const openFlat = isTopDown && isHuman;
+
+    const gapBase = openFlat ? BASE_GAP * 1.12 : BASE_GAP;
+    const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y;
+
+    let span = 0;
+    let gap = 0;
+    if(count>1){
+      const desiredSpan = gapBase * (count-1);
+      const minSpan = Math.min(MIN_GAP * (count-1), MAX_SPAN);
+      span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
+      gap = span/(count-1);
+    }
+
+    let start = count>1 ? -span/2 : 0;
+    if(count>1){
+      const axisCenter = isSide ? z0 : x0;
+      const minLimit = -EDGE_SPAN;
+      const maxLimit = EDGE_SPAN;
+      const minStart = minLimit - axisCenter;
+      const maxStart = maxLimit - axisCenter - span;
+      if(minStart <= maxStart){
+        if(start < minStart) start = minStart;
+        if(start > maxStart) start = maxStart;
+      } else {
+        start = (minStart + maxStart) / 2;
+      }
+    }
+
+    p.hand.forEach((h,hi)=>{
+      const m = makeDomino(h.a,h.b,{flat: openFlat, faceUp});
+      const offset = count>1 ? start + gap*hi : 0;
+      if(isSide){
+        m.position.set(x0, handY, z0 + offset);
+      }
+      else{
+        m.position.set(x0 + offset, handY, z0);
+      }
+      const yawTowardCenter = Math.atan2(-x0, -z0);
+      if(openFlat){
+        const yaw = isHuman ? 0 : yawTowardCenter;
+        orientDominoFlat(m, yaw);
+      } else {
+        m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
+        m.rotation.z += (Math.random()*0.006-0.003);
+      }
+      h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
+      if(selectedTile === h){
+        applySelectedHighlight(m);
+      }
+    });
+  });
+}
+
+/* ---------- Chain Rendering ---------- */
+const DOMINO_UP = new THREE.Vector3(0, 1, 0);
+const DOMINO_FORWARD = new THREE.Vector3();
+const DOMINO_RIGHT = new THREE.Vector3();
+const DOMINO_BASIS = new THREE.Matrix4();
+
+function orientDominoFlat(domino, yawAngle = 0) {
+  const angle = Number.isFinite(yawAngle) ? yawAngle : 0;
+  DOMINO_FORWARD.set(Math.cos(angle), 0, Math.sin(angle));
+  if (DOMINO_FORWARD.lengthSq() === 0) {
+    DOMINO_FORWARD.set(1, 0, 0);
+  } else {
+    DOMINO_FORWARD.normalize();
+  }
+
+  DOMINO_RIGHT.crossVectors(DOMINO_FORWARD, DOMINO_UP);
+  if (DOMINO_RIGHT.lengthSq() === 0) {
+    DOMINO_RIGHT.set(0, 0, 1);
+  } else {
+    DOMINO_RIGHT.normalize();
+  }
+
+  DOMINO_BASIS.makeBasis(DOMINO_RIGHT, DOMINO_FORWARD, DOMINO_UP);
+  domino.setRotationFromMatrix(DOMINO_BASIS);
+}
+
+function renderChain(){
+  chain.forEach(c=>{
+    if(c.mesh){
+      piecesG.remove(c.mesh);
+      c.mesh = null;
+    }
+  });
+  chain.forEach(c=>{
+    if(c.animating){
+      return;
+    }
+    const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true, preserveOrder: true });
+    const yPos = CHAIN_TILE_Y;
+    domino.position.set(c.x, yPos, c.z);
+    domino.renderOrder = 5;
+    domino.traverse((child) => {
+      if (child.isMesh) {
+        child.renderOrder = 5;
+      }
+    });
+    // Ensure every domino on the field is completely flat (no tilt)
+    orientDominoFlat(domino, c.rot ?? 0);
+    c.mesh = domino;
+    piecesG.add(domino);
+  });
+}
+
+function renderBoneyardStack(){
+  boneyardStackG.clear();
+  const available = Array.isArray(boneyard) ? boneyard.length : 0;
+  const visible = Math.min(available, MAX_BONEYARD_DISPLAY);
+  boneyardStackVisible = visible;
+  boneyardStackTopLocal = visible > 0 ? (visible - 1) * BONEYARD_STACK_STEP : 0;
+  if(visible === 0){
+    return;
+  }
+
+  for(let i=0;i<visible;i++){
+    const domino = makeDomino(0,0,{flat:true, faceUp:false});
+    orientDominoFlat(domino, Math.PI/2);
+    domino.rotation.z = Math.PI;
+    domino.position.set((i%2===0?1:-1)*0.0045, i * BONEYARD_STACK_STEP, (i%3-1)*0.0035);
+    domino.userData = { stock:true };
+    boneyardStackG.add(domino);
+  }
+}
+
+function getBoneyardTopWorld(){
+  if(!boneyardStackVisible){
+    return null;
+  }
+  const localTop = new THREE.Vector3(0, boneyardStackTopLocal, 0);
+  return boneyardStackG.localToWorld(localTop);
+}
+
+function spawnDrawAnimation(startWorld, seatIndex = human){
+  if(!startWorld){
+    return;
+  }
+  const start = startWorld.clone ? startWorld.clone() : new THREE.Vector3().copy(startWorld);
+  const domino = makeDomino(0,0,{flat:true, faceUp:false});
+  orientDominoFlat(domino, Math.PI/2);
+  domino.rotation.z = Math.PI;
+  domino.userData = { stockAnim:true };
+  domino.position.copy(start);
+  piecesG.add(domino);
+
+  const [seatX, seatZ] = layoutSeat(seatIndex);
+  const end = new THREE.Vector3(seatX * 0.55, HAND_Y + 0.012, seatZ - 0.08);
+  drawAnimations.push({
+    mesh: domino,
+    start,
+    end,
+    startTime: performance.now(),
+    duration: DRAW_ANIM_DURATION,
+    arc: 0.05
+  });
+}
+
+function clearWinnerHighlight(){
+  if(!winnerHighlight){
+    return;
+  }
+  if(winnerHighlight.parent){
+    winnerHighlight.parent.remove(winnerHighlight);
+  }
+  try{
+    winnerHighlight.geometry?.dispose?.();
+  }catch{}
+  const mat = winnerHighlight.material;
+  try{
+    mat?.dispose?.();
+  }catch{}
+  winnerHighlight = null;
+  winnerHighlightStart = 0;
+}
+
+function showWinnerHighlight(index){
+  clearWinnerHighlight();
+  if(!Number.isInteger(index) || index < 0 || index >= chairs.length){
+    return;
+  }
+  const seat = chairs[index];
+  if(!seat){
+    return;
+  }
+  const radius = SEAT_WIDTH * 0.72;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(radius, 0.028, 32, 96),
+    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.6 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(seat.position.x, 0.04, seat.position.z);
+  ring.renderOrder = 2;
+  tableG.add(ring);
+  winnerHighlight = ring;
+  winnerHighlightStart = performance.now();
+}
+
+function attachMeshPreserveWorld(mesh){
+  if(!mesh){
+    return;
+  }
+  mesh.updateMatrixWorld(true);
+  mesh.matrixWorld.decompose(TMP_WORLD_POS, TMP_WORLD_QUAT, TMP_WORLD_SCALE);
+  if(mesh.parent){
+    mesh.parent.remove(mesh);
+  }
+  piecesG.add(mesh);
+  mesh.position.copy(TMP_WORLD_POS);
+  mesh.quaternion.copy(TMP_WORLD_QUAT);
+  mesh.scale.copy(TMP_WORLD_SCALE);
+}
+
+function takeTileMeshForAnimation(tile){
+  if(!tile || !tile.mesh){
+    return null;
+  }
+  const mesh = tile.mesh;
+  tile.mesh = null;
+  const data = mesh.userData || (mesh.userData = {});
+  delete data.owner;
+  delete data.tile;
+  data.animating = true;
+  attachMeshPreserveWorld(mesh);
+  return mesh;
+}
+
+function spawnPlacementAnimation(tile, segment, { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}){
+  if(!segment){
+    return;
+  }
+  let mesh = providedMesh;
+  if(!mesh){
+    mesh = takeTileMeshForAnimation(tile);
+  } else {
+    if(tile && tile.mesh === mesh){
+      tile.mesh = null;
+    }
+    const data = mesh.userData || (mesh.userData = {});
+    delete data.owner;
+    delete data.tile;
+    data.animating = true;
+    attachMeshPreserveWorld(mesh);
+  }
+  if(!mesh){
+    segment.animating = false;
+    renderChain();
+    return;
+  }
+
+  mesh.renderOrder = 6;
+  mesh.traverse((child)=>{
+    if(child.isMesh){
+      child.renderOrder = 6;
+    }
+  });
+
+  const start = mesh.position.clone();
+  const startQuat = mesh.quaternion.clone();
+  const startScale = mesh.scale.clone();
+  const end = new THREE.Vector3(segment.x, CHAIN_TILE_Y, segment.z);
+  const orientTarget = new THREE.Object3D();
+  orientDominoFlat(orientTarget, segment.rot ?? 0);
+  const endQuat = orientTarget.quaternion.clone();
+
+  placementAnimations.push({
+    mesh,
+    start,
+    end,
+    startQuat,
+    endQuat,
+    startScale,
+    endScale: startScale.clone(),
+    startTime: performance.now(),
+    duration: duration || PLACE_ANIM_DURATION,
+    arc: PLACE_ANIM_ARC,
+    segment
+  });
+}
+
+/* ---------- Start / Turn Order ---------- */
+function drawTileFromStock(){
+  while(boneyard.length){
+    const tile = boneyard.pop();
+    if(!isValidTile(tile)){
+      continue;
+    }
+    renderBoneyardStack();
+    return tile;
+  }
+  renderBoneyardStack();
+  return null;
+}
+
+function highestDoubleIndex(hand){ let best=-1, idx=-1; hand.forEach((t,i)=>{ if(t.a===t.b && t.a>best){best=t.a; idx=i;} }); return idx; }
+function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
+
+const VALUE_MAX_OCCURRENCES = 8; // each pip value appears 8 times in a double-six set (including doubles)
+
+function valueOccurrencesInTiles(tiles, value, skipIndex=-1){
+  let total = 0;
+  tiles.forEach((t,i)=>{
+    if(skipIndex===i) return;
+    if(!isValidTile(t)) return;
+    if(t.a===value) total++;
+    if(t.b===value) total++;
+  });
+  return total;
+}
+
+function valueOccurrencesInChain(value){
+  let total = 0;
+  chain.forEach(c=>{
+    const {a,b} = c.tile;
+    if(a===value) total++;
+    if(b===value) total++;
+  });
+  return total;
+}
+
+function enumerateMoves(hand){
+  const moves = [];
+  if(!hand || !hand.length) return moves;
+  if(!ends){
+    hand.forEach((tile,index)=>{
+      if(!isValidTile(tile)) return;
+      moves.push({tile,index,side:1,match:tile.a,other:tile.b});
+    });
+    return moves;
+  }
+  hand.forEach((tile,index)=>{
+    if(!isValidTile(tile)) return;
+    const {L,R} = validSidesFor(tile);
+    if(L){
+      const match = ends.L.v;
+      const other = (tile.a===match) ? tile.b : tile.a;
+      moves.push({tile,index,side:-1,match,other});
+    }
+    if(R){
+      const match = ends.R.v;
+      const other = (tile.a===match) ? tile.b : tile.a;
+      moves.push({tile,index,side:1,match,other});
+    }
+  });
+  return moves;
+}
+
+function scoreMove(player, move){
+  const {tile,index,other,side} = move;
+  const futureHand = [];
+  player.hand.forEach((t, i) => { if (i !== index && isValidTile(t)) futureHand.push(t); });
+
+  let score = 0;
+  const sum = tile.a + tile.b;
+  score += sum * 1.1; // prefer dumping high pips to avoid being stuck later
+  if(tile.a===tile.b){
+    score += 8; // doubles can open/close branches effectively
+  }
+
+  const sameValueRemaining = valueOccurrencesInTiles(player.hand, other, index);
+  score += sameValueRemaining * 2.75; // keeping follow-up options for ourselves
+
+  const occurrencesFromTile = (tile.a === tile.b) ? 2 : ((tile.a === other || tile.b === other) ? 1 : 0);
+  const knownElsewhere = valueOccurrencesInChain(other) + sameValueRemaining + occurrencesFromTile;
+  const remainingElsewhere = Math.max(0, VALUE_MAX_OCCURRENCES - knownElsewhere);
+  if(remainingElsewhere === 0){
+    score += 7.5; // completely choke the value — strong blocking move
+  } else if(remainingElsewhere <= 2){
+    score += 3.75;
+  } else if(remainingElsewhere >= 5 && sameValueRemaining === 0){
+    score -= 1.5; // avoid handing tempo back when opponents likely own the value
+  }
+  score += (VALUE_MAX_OCCURRENCES - remainingElsewhere) * 1.1;
+
+  if(ends){
+    const leftEnd = ends.L;
+    const rightEnd = ends.R;
+    const currentEndValue = (side < 0 ? leftEnd?.v : rightEnd?.v);
+    if(currentEndValue === other && tile.a !== tile.b){
+      // keeping the same value on the end makes it predictable — slight penalty unless it's a double
+      score -= 1.5;
+    }
+    if(sameValueRemaining === 0 && remainingElsewhere > 0){
+      // avoid stranding ourselves with no follow-up on that end unless it is a blocking move
+      score -= 2.4;
+    }
+    const probeEnd = side < 0 ? leftEnd : rightEnd;
+    if (probeEnd) {
+      const projection = nextCandidate(probeEnd);
+      if (Math.abs(projection.nx) > XMAX * 0.92 || Math.abs(projection.nz) > ZMAX * 0.92) {
+        score += 1.1; // reward steering the snake before it hits the rails
+      }
+    }
+
+    const futureLeftValue = (side < 0 ? other : leftEnd?.v);
+    const futureRightValue = (side > 0 ? other : rightEnd?.v);
+    const countMatches = (value) => {
+      if(!Number.isFinite(value)) return 0;
+      return futureHand.reduce((count, t) => count + ((t.a === value || t.b === value) ? 1 : 0), 0);
+    };
+    const leftMatches = countMatches(futureLeftValue);
+    const rightMatches = countMatches(futureRightValue);
+    if(Number.isFinite(futureLeftValue)){
+      score += leftMatches * 1.4;
+      if(leftMatches === 0){
+        score -= remainingElsewhere > 0 ? 3.5 : 0.75;
+      }
+    }
+    if(Number.isFinite(futureRightValue)){
+      score += rightMatches * 1.4;
+      if(rightMatches === 0){
+        score -= remainingElsewhere > 0 ? 3.5 : 0.75;
+      }
+    }
+  } else {
+    // opening move heuristics: reward heavy doubles slightly more to secure tempo
+    if(tile.a === tile.b){
+      score += 5 + tile.a * 0.6;
+    } else {
+      score += sum * 0.35;
+    }
+  }
+
+  if(sameValueRemaining >= 2){
+    score += 1.2; // encourage offloading duplicate values early
+  }
+
+  const futurePipSum = futureHand.reduce((s, t) => s + t.a + t.b, 0);
+  score += (42 - futurePipSum) * 0.12; // bias toward lighter remaining hand
+
+  const futureValues = new Set();
+  futureHand.forEach((t) => { futureValues.add(t.a); futureValues.add(t.b); });
+  if (!futureValues.has(other) && remainingElsewhere === 0) {
+    score += 6; // we lock that value completely
+  }
+
+  const futureDoubleCount = futureHand.filter((t) => t.a === t.b).length;
+  if (tile.a === tile.b) {
+    score += 2.5 + futureDoubleCount * 0.85; // chain strong doubles back-to-back
+  } else if (futureDoubleCount === 0 && remainingElsewhere <= 2) {
+    score += 1.8; // keep variety when low on doubles
+  }
+
+  score += Math.random() * 0.1; // tiny randomness to avoid deterministic loops
+  return score;
+}
+
+function cpuDrawUntilPlayable(player){
+  let drew = false;
+  while(boneyard.length){
+    const tile = drawTileFromStock();
+    if(!tile) break;
+    player.hand.push(tile);
+    drew = true;
+    if(!ends) break;
+    const {L,R} = validSidesFor(tile);
+    if(L || R) break;
+  }
+  return drew;
+}
+
+function startGame(){
+  clearMarkers();
+  clearExistingDominoMeshes();
+  selectedTile=null;
+  clearSelectedHighlight();
+  chain=[];
+  ends=null;
+  usedTileKeys.clear();
+  gameFinished = false;
+  winnerIndex = null;
+  revealAllHands = false;
+  lastAnnouncedTurn = null;
+  clearWinnerHighlight();
+  if(cpuMoveTimeout){
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
+  flipDir = !flipDir;
+  const numericN = Number.isFinite(N) ? Math.round(N) : 4;
+  N = Math.max(2, Math.min(4, numericN));
+  refreshSeatAvatars();
+  players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
+  boneyard=shuffle(genSet());
+  renderBoneyardStack();
+  for(let r=0;r<7;r++){
+    players.forEach(p=>{
+      const dealt = drawTileFromStock();
+      if(dealt){
+        p.hand.push(dealt);
+      }
+    });
+  }
+  players.forEach(p=> shuffle(p.hand)); // random order every game
+  renderHands();
+  let starter=0, idx=-1, bestD=-1;
+  players.forEach((p,pi)=>{ const i=highestDoubleIndex(p.hand); if(i>=0 && p.hand[i].a>bestD){ bestD=p.hand[i].a; starter=pi; idx=i; } });
+  if(idx<0){ idx=0; }
+  const t=players[starter].hand.splice(idx,1)[0];
+  const firstTile=canonTile(t) || t;
+  const firstRot = (firstTile.a===firstTile.b) ? Math.PI/2 : 0;
+  chain.push({tile:firstTile,x:0,z:0,rot:firstRot,double:firstTile.a===firstTile.b});
+  usedTileKeys.add(tileKey(firstTile));
+  const step=STEP;
+  const isDoubleStart = firstTile.a === firstTile.b;
+  if(!flipDir){
+    if(isDoubleStart){
+      ends={
+        L:{v:firstTile.a,x: DOUBLE_END_SHIFT,z:0,dir:[-1,0],orient:Math.PI},
+        R:{v:firstTile.b,x:-DOUBLE_END_SHIFT,z:0,dir:[ 1,0],orient:0}
+      };
+    } else {
+      ends={
+        L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
+        R:{v:firstTile.b,x: step,z:0,dir:[ 1,0],orient:0}
+      };
+    }
+  }
+  else{
+    if(isDoubleStart){
+      ends={
+        L:{v:firstTile.a,x:-DOUBLE_END_SHIFT,z:0,dir:[ 1,0],orient:0},
+        R:{v:firstTile.b,x: DOUBLE_END_SHIFT,z:0,dir:[-1,0],orient:Math.PI}
+      };
+    } else {
+      ends={
+        L:{v:firstTile.a,x: step,z:0,dir:[ 1,0],orient:0},
+        R:{v:firstTile.b,x:-step,z:0,dir:[-1,0],orient:Math.PI}
+      };
+    }
+  }
+  renderChain();
+  current=(starter-1+N)%N;
+  updateInteractivity();
+  if(current!==human){
+    scheduleCpuPlay();
+  }
+  if (!commentaryGreetingPlayed) {
+    commentaryGreetingPlayed = true;
+    announceCommentary('greeting', { player: human }, { priority: true, interrupt: true });
+  } else {
+    announceCommentary('startRound', { player: starter });
+  }
+}
+
+/* ---------- Placement & Snake ---------- */
+function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
+function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
+
+function placeOnBoard(tile, side, options = {}){
+  if(!chain.length || !isValidTile(tile)){
+    return { success:false };
+  }
+  const end = (side < 0 ? ends?.L : ends?.R);
+  if(!end){
+    return { success:false };
+  }
+  const want = end.v;
+  let a = tile.a, b = tile.b;
+  if(a !== want && b === want){
+    [a, b] = [b, a];
+  }
+  if(a !== want){
+    return { success:false };
+  }
+  let [dx, dz] = end.dir;
+  let nx = end.x + dx * STEP;
+  let nz = end.z + dz * STEP;
+  const railMargin = STEP * 0.65;
+  const nearRail = Math.abs(nx) > (XMAX - railMargin) || Math.abs(nz) > (ZMAX - railMargin);
+  if(Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX || nearRail){
+    const centerVecX = -end.x;
+    const centerVecZ = -end.z;
+    const candidates = [
+      { dx: -dz, dz: dx },
+      { dx: dz, dz: -dx }
+    ];
+    let best = null;
+    let bestScore = -Infinity;
+    for(const candidate of candidates){
+      const candX = end.x + candidate.dx * STEP;
+      const candZ = end.z + candidate.dz * STEP;
+      const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
+      const towardCenter = candidate.dx * centerVecX + candidate.dz * centerVecZ;
+      const distance = Math.hypot(candX, candZ);
+      let score = towardCenter - distance * 0.02;
+      if(exceeds){
+        score -= STEP * 25;
+      }
+      if(score > bestScore){
+        bestScore = score;
+        best = { dx: candidate.dx, dz: candidate.dz, x: candX, z: candZ, exceeds };
+      }
+    }
+    if(best){
+      dx = best.dx;
+      dz = best.dz;
+      nx = best.x;
+      nz = best.z;
+      if(best.exceeds){
+        // fallback: clamp within limits if still slightly over the rail
+        nx = Math.max(-XMAX + DOMINO_CHAIN_GAP, Math.min(XMAX - DOMINO_CHAIN_GAP, nx));
+        nz = Math.max(-ZMAX + DOMINO_CHAIN_GAP, Math.min(ZMAX - DOMINO_CHAIN_GAP, nz));
+      }
+    }
+  }
+  const isDouble = (a === b);
+  const isHorizontal = Math.abs(dx) >= Math.abs(dz);
+  let rot;
+  if(isDouble){
+    rot = isHorizontal ? Math.PI / 2 : 0;
+  } else if(isHorizontal){
+    rot = (dx >= 0) ? 0 : Math.PI;
+  } else {
+    rot = (dz >= 0) ? Math.PI / 2 : -Math.PI / 2;
+  }
+  const orientedTile = { a, b };
+  const key = tileKey(orientedTile);
+  if(usedTileKeys.has(key)){
+    return { success:false };
+  }
+
+  const segment = { tile: orientedTile, x: nx, z: nz, rot, double: isDouble, mesh: null };
+  const animate = !!options.animate;
+  if(animate){
+    segment.animating = true;
+  }
+  chain.push(segment);
+  usedTileKeys.add(key);
+
+  const newVal = b;
+  let nextOrient;
+  if(isHorizontal){
+    nextOrient = (dx >= 0) ? 0 : Math.PI;
+  } else {
+    nextOrient = (dz >= 0) ? Math.PI / 2 : -Math.PI / 2;
+  }
+  const updatedEnd = { v: newVal, x: nx, z: nz, dir: [dx, dz], orient: nextOrient };
+  if(side < 0){
+    ends.L = updatedEnd;
+  } else {
+    ends.R = updatedEnd;
+  }
+
+  if(animate){
+    spawnPlacementAnimation(tile, segment, { duration: options.duration, mesh: options.animateMesh });
+  } else {
+    renderChain();
+  }
+  SFX.place();
+  return { success:true, segment, end: updatedEnd };
+}
+function nextCandidate(end){
+  let {x,z,dir:[dx,dz]}=end;
+  let nx=x+dx*STEP, nz=z+dz*STEP;
+  const railMargin = STEP * 0.65;
+  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX || Math.abs(nx) > (XMAX - railMargin) || Math.abs(nz) > (ZMAX - railMargin)){
+    const centerVecX = -x;
+    const centerVecZ = -z;
+    const candidates = [
+      { dx: -dz, dz: dx },
+      { dx: dz, dz: -dx }
+    ];
+    let best = { dx, dz, x: nx, z: nz, exceeds: (Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX) };
+    let bestScore = -Infinity;
+    for(const candidate of candidates){
+      const candX = x + candidate.dx * STEP;
+      const candZ = z + candidate.dz * STEP;
+      const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
+      const towardCenter = candidate.dx * centerVecX + candidate.dz * centerVecZ;
+      const distance = Math.hypot(candX, candZ);
+      let score = towardCenter - distance * 0.02;
+      if(exceeds){
+        score -= STEP * 25;
+      }
+      if(score > bestScore){
+        bestScore = score;
+        best = { dx: candidate.dx, dz: candidate.dz, x: candX, z: candZ, exceeds };
+      }
+    }
+    dx = best.dx;
+    dz = best.dz;
+    nx = best.exceeds ? Math.max(-XMAX + DOMINO_CHAIN_GAP, Math.min(XMAX - DOMINO_CHAIN_GAP, best.x)) : best.x;
+    nz = best.exceeds ? Math.max(-ZMAX + DOMINO_CHAIN_GAP, Math.min(ZMAX - DOMINO_CHAIN_GAP, best.z)) : best.z;
+  }
+  const ang=Math.atan2(dz,dx);
+  return {nx,nz,rot:ang,dx,dz};
+}
+
+/* ---------- Markers for manual placement ---------- */
+function clearSelectedHighlight(){
+  selectedHighlightMaterials.forEach((child)=>{
+    if(child?.userData?.__origMaterial){
+      if(child.material && child.material !== child.userData.__origMaterial && child.material.dispose){
+        try{ child.material.dispose(); }catch{}
+      }
+      child.material = child.userData.__origMaterial;
+      delete child.userData.__origMaterial;
+    }
+  });
+  selectedHighlightMaterials.length = 0;
+  const disposables = [selectedHighlight, ...selectedHighlightExtras];
+  disposables.forEach((hl)=>{
+    if(!hl) return;
+    if(hl.parent){
+      hl.parent.remove(hl);
+    }
+    try{ hl.geometry?.dispose?.(); }catch{}
+    try{ hl.material?.dispose?.(); }catch{}
+  });
+  selectedHighlightExtras.length = 0;
+  selectedHighlight = null;
+  selectedHighlightHost = null;
+}
+
+function applySelectedHighlight(mesh){
+  if(!mesh){
+    return;
+  }
+  clearSelectedHighlight();
+
+  mesh.traverse((child)=>{
+    if(!child.isMesh || child.userData?.marker) return;
+    const isPip = child.material === pipMat || SHARED_DOMINO_MATERIALS.has(child.material);
+    if(!child.userData.__origMaterial && !isPip){
+      child.userData.__origMaterial = child.material;
+    }
+    if(isPip){
+      selectedHighlightMaterials.push(child);
+      return;
+    }
+    const clonedMat = child.material?.clone ? child.material.clone() : child.material;
+    if(clonedMat && clonedMat.color){
+      clonedMat.color = clonedMat.color.clone ? clonedMat.color.clone() : new THREE.Color(clonedMat.color);
+      clonedMat.color.lerp(new THREE.Color('#facc15'), 0.9);
+    }
+    if(clonedMat && clonedMat.emissive){
+      clonedMat.emissive = clonedMat.emissive.clone ? clonedMat.emissive.clone() : new THREE.Color(clonedMat.emissive);
+      clonedMat.emissive.lerp(new THREE.Color('#fde047'), 0.92);
+      clonedMat.emissiveIntensity = Math.max(1.05, clonedMat.emissiveIntensity ?? 0.6);
+    }
+    child.material = clonedMat;
+    selectedHighlightMaterials.push(child);
+  });
+
+  const plateGeometry = new THREE.PlaneGeometry(DOMINO_LENGTH * 1.08, DOMINO_WIDTH * 1.18);
+  const plate = new THREE.Mesh(
+    plateGeometry,
+    new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+  );
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.set(0, 0.011, 0);
+  plate.renderOrder = 9;
+  mesh.add(plate);
+
+  const outline = new THREE.LineSegments(
+    new THREE.EdgesGeometry(plateGeometry),
+    new THREE.LineBasicMaterial({ color: '#eab308', transparent: true, opacity: 0.9, linewidth: 2 })
+  );
+  outline.rotation.copy(plate.rotation);
+  outline.position.copy(plate.position).add(new THREE.Vector3(0, 0.0005, 0));
+  outline.renderOrder = 10;
+  mesh.add(outline);
+
+  selectedHighlight = plate;
+  selectedHighlightExtras.push(outline);
+  selectedHighlightHost = mesh;
+}
+
+function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
+function makeMarker(){
+  const marker = new THREE.Group();
+  marker.userData.marker = true;
+
+  const bodyGeo = new RoundedBoxGeometry(DOMINO_LENGTH, DOMINO_WIDTH, DOMINO_WIDTH * 0.3, 6, DOMINO_WIDTH * 0.18);
+  const plateMat = markerMat.clone();
+  plateMat.color = markerMat.color.clone();
+  plateMat.opacity = 0.68;
+  const plate=new THREE.Mesh(bodyGeo, plateMat);
+  plate.rotation.x=-Math.PI/2;
+  plate.position.y=CLOTH_TOP+DOMINO_WIDTH*0.16;
+  plate.renderOrder=10;
+  plate.userData.marker = true;
+  marker.add(plate);
+
+  const outline = new THREE.LineSegments(
+    new THREE.EdgesGeometry(bodyGeo),
+    new THREE.LineBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0.95, linewidth: 2 })
+  );
+  outline.rotation.copy(plate.rotation);
+  outline.position.copy(plate.position).add(new THREE.Vector3(0, DOMINO_WIDTH * 0.02, 0));
+  outline.renderOrder = 11;
+  marker.add(outline);
+
+  return marker;
+}
+function showMarkersFor(tile){
+  clearMarkers(); if(!ends) return;
+  const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
+  if(canL){ const c=nextCandidate(ends.L); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.rotation.y = c.rot ?? 0; mk.userData={marker:true, side:-1}; piecesG.add(mk); markers.L=mk; }
+  if(canR){ const c=nextCandidate(ends.R); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.rotation.y = c.rot ?? 0; mk.userData={marker:true, side:1}; piecesG.add(mk); markers.R=mk; }
+}
+
+/* ---------- Interactivity ---------- */
+const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
+raycaster.params.Mesh = raycaster.params.Mesh || {};
+const RAYCAST_THRESHOLD = { normal: 0.14, topdown: 0.18 };
+const updateRaycasterThreshold = () => {
+  raycaster.params.Mesh.threshold = cameraViewMode === VIEW_MODES.twoD ? RAYCAST_THRESHOLD.topdown : RAYCAST_THRESHOLD.normal;
+};
+updateRaycasterThreshold();
+const activePointers = new Set();
+function findPickRoot(o){
+  let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
+}
+function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; applySelectedHighlight(obj); showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
+
+renderer.domElement.addEventListener('pointerdown',ev=>{
+  activePointers.add(ev.pointerId);
+  if(gameFinished){
+    return;
+  }
+  updateRaycasterThreshold();
+  if(ev.pointerType==='touch' && activePointers.size>1){
+    return;
+  }
+  // FIX: use the exact canvas size (rect) for the NDC coordinates
+  const rect = renderer.domElement.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
+  const y = -(((ev.clientY - rect.top)/rect.height)*2 - 1);
+  pointer.set(x,y); raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(piecesG.children,true); if(!hits.length) return; const hit=hits[0];
+  const obj=findPickRoot(hit.object);
+  const isHumanTurn=(current===human);
+  if(!isHumanTurn) return;
+  if(obj.userData && obj.userData.owner===human){ humanPickTile(obj); return; }
+  if(obj.userData && obj.userData.marker && selectedTile){
+    const side=obj.userData.side;
+    const idx=players[human].hand.indexOf(selectedTile);
+    let playedTile = null;
+    if(idx>=0){
+      const [picked] = players[human].hand.splice(idx,1);
+      const placement = placeOnBoard(picked, side, { animate: true });
+      if(!placement.success){
+        players[human].hand.splice(idx,0,picked);
+        selectedTile = picked;
+        clearMarkers();
+        renderHands();
+        showMarkersFor(selectedTile);
+        return;
+      }
+      playedTile = picked;
+    }
+    if (playedTile) {
+      announceCommentary(playedTile.a === playedTile.b ? 'playDouble' : 'playTile', { player: human, tile: playedTile });
+      if (players[human].hand.length === 1) {
+        announceCommentary('nearWin', { player: human, tilesLeft: players[human].hand.length }, { priority: true });
+      }
+    }
+    selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
+  }
+});
+renderer.domElement.addEventListener('pointerup',ev=>{ activePointers.delete(ev.pointerId); });
+renderer.domElement.addEventListener('pointercancel',ev=>{ activePointers.delete(ev.pointerId); });
+renderer.domElement.addEventListener('pointerleave',ev=>{ activePointers.delete(ev.pointerId); });
+
+btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) return; let drewTile=false;
+  while(boneyard.length){
+    const startWorld = getBoneyardTopWorld();
+    const t=drawTileFromStock();
+    if(!t) break;
+    players[human].hand.push(t);
+    spawnDrawAnimation(startWorld, human);
+    drewTile = true;
+    const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
+    if(canL||canR) break;
+  }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
+  if (drewTile) {
+    announceCommentary('draw', { player: human });
+  }
+});
+btnPass.addEventListener('click',()=>{
+  if(current===human && !gameFinished){
+    clearMarkers();
+    selectedTile=null;
+    SFX.pass();
+    announceCommentary('pass', { player: human });
+    nextTurn();
+  }
+});
+
+async function bootstrapDominoRoyal() {
+  try {
+    await loadHumanProfileFromApi();
+    startGame();
+    setControlEnabled(true);
+  } catch (error) {
+    console.error('Domino Royal failed to start', error);
+    setStatus('Unable to start match. Please reload.');
+    setControlEnabled(false);
+  }
+}
+
+bootstrapDominoRoyal().catch((error) => {
+  console.error('Domino Royal bootstrap failed', error);
+  setStatus('Unable to start match. Please reload.');
+  setControlEnabled(false);
+});
+
+function blockedAndWinner(){
+  if(!ends) return null;
+  const nobodyCan = players.every(p=> !canPlayAny(p.hand));
+  if(nobodyCan && boneyard.length===0){
+    let best=Infinity, win=-1; players.forEach((p,pi)=>{ const s=pipSum(p.hand); if(s<best){best=s;win=pi;} });
+    return {blocked:true, winner:win, reason:`Blocked. Lowest hand = Player ${win+1} (${best})`};
+  }
+  return null;
+}
+
+function scheduleCpuPlay(delay = CPU_PLAY_DELAY){
+  if(cpuMoveTimeout){
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
+  if(gameFinished){
+    return;
+  }
+  const safeDelay = Math.max(0, Number.isFinite(delay) ? delay : CPU_PLAY_DELAY);
+  cpuMoveTimeout = setTimeout(()=>{
+    cpuMoveTimeout = null;
+    if(!gameFinished){
+      cpuPlay();
+    }
+  }, safeDelay);
+}
+
+function finishGame({ winner = null, reason = '', revealAll = false } = {}){
+  if(gameFinished){
+    return;
+  }
+  gameFinished = true;
+  winnerIndex = Number.isInteger(winner) ? winner : null;
+  revealAllHands = !!revealAll;
+  if(cpuMoveTimeout){
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
+  if(revealAllHands === false && Number.isInteger(winnerIndex) && winnerIndex >= 0){
+    showWinnerHighlight(winnerIndex);
+  } else if(revealAllHands){
+    if(Number.isInteger(winnerIndex) && winnerIndex >= 0){
+      showWinnerHighlight(winnerIndex);
+    } else {
+      clearWinnerHighlight();
+    }
+  } else {
+    clearWinnerHighlight();
+  }
+  clearMarkers();
+  selectedTile = null;
+  clearSelectedHighlight();
+  renderHands();
+  renderChain();
+  if(reason){
+    setStatus(reason);
+  } else if(winnerIndex !== null){
+    setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
+  } else {
+    setStatus('Game over');
+  }
+
+  if (reason && reason.toLowerCase().includes('blocked')) {
+    announceCommentary('blocked', { player: winnerIndex }, { priority: true, interrupt: true });
+  } else if (winnerIndex !== null) {
+    announceCommentary(winnerIndex === human ? 'win' : 'lose', { player: winnerIndex }, { priority: true, interrupt: true });
+  }
+
+  if(winnerIndex !== null){
+    SFX.win();
+  } else {
+    SFX.drawGame();
+  }
+}
+
+function checkForBlockedGame(){
+  if(gameFinished){
+    return true;
+  }
+  const blk = blockedAndWinner();
+  if(blk){
+    finishGame({ winner: blk.winner, reason: blk.reason, revealAll: true });
+    return true;
+  }
+  return false;
+}
+
+function updateInteractivity(){
+  if(gameFinished){
+    renderHands();
+    renderChain();
+    return;
+  }
+  setStatus(`Turn: Player ${current+1}`);
+  if (lastAnnouncedTurn !== current) {
+    lastAnnouncedTurn = current;
+    announceCommentary(current === human ? 'yourTurn' : 'opponentTurn', { player: current });
+  }
+  renderHands(); renderChain();
+}
+function nextTurn(){
+  if(gameFinished){
+    return;
+  }
+  const player = players[current];
+  if(player && player.hand.length === 0){
+    finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
+    return;
+  }
+  if(checkForBlockedGame()){
+    return;
+  }
+  current=(current-1+N)%N;
+  if(checkForBlockedGame()){
+    return;
+  }
+  updateInteractivity();
+  if(gameFinished){
+    return;
+  }
+  if(current!==human){
+    scheduleCpuPlay();
+  }
+}
+function cpuPlay(){
+  if(gameFinished){
+    return;
+  }
+  const player = players[current];
+  if(!player){ nextTurn(); return; }
+
+  const moves = enumerateMoves(player.hand).map(move => ({ ...move, score: scoreMove(player, move) }));
+  moves.sort((a,b)=> b.score - a.score);
+
+  if(!moves.length){
+    const drew = cpuDrawUntilPlayable(player);
+    if(drew){
+      renderHands();
+      SFX.drawTile();
+      announceCommentary('draw', { player: current });
+      if(canPlayAny(player.hand)){
+        scheduleCpuPlay();
+      } else {
+        SFX.pass();
+        announceCommentary('pass', { player: current });
+        nextTurn();
+      }
+    } else {
+      SFX.pass();
+      announceCommentary('pass', { player: current });
+      nextTurn();
+    }
+    return;
+  }
+
+  for(const move of moves){
+    const tile = player.hand[move.index];
+    if(!tile) continue;
+    const picked = player.hand.splice(move.index,1)[0];
+    const placement = placeOnBoard(picked, move.side, { animate: true });
+    if(placement.success){
+      renderHands();
+      announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', { player: current, tile: picked });
+      if (player.hand.length === 1) {
+        announceCommentary('nearWin', { player: current, tilesLeft: player.hand.length }, { priority: true });
+      }
+      if(player.hand.length===0){
+        finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
+        return;
+      }
+      nextTurn();
+      return;
+    }
+    player.hand.splice(move.index,0,picked);
+  }
+
+  // Fallback: if all scored moves failed (shouldn't happen) just draw or pass
+  const drew = cpuDrawUntilPlayable(player);
+  if(drew){
+    renderHands();
+    SFX.drawTile();
+    announceCommentary('draw', { player: current });
+    if(canPlayAny(player.hand)){
+      scheduleCpuPlay();
+    } else {
+      SFX.pass();
+      announceCommentary('pass', { player: current });
+      nextTurn();
+    }
+  } else {
+    SFX.pass();
+    announceCommentary('pass', { player: current });
+    nextTurn();
+  }
+}
+
+/* ---------- Quick actions: chat, gift ---------- */
+const QUICK_MESSAGES = [
+  'Nice bro 😀',
+  'Well done 👍',
+  "You're lucky 🍀",
+  'No way 😲',
+  'Damn it 😡',
+  'Love it ❤️',
+  'Good job 👏',
+  'So close 😬',
+  'Amazing move 😎',
+  'Too hard 😖',
+  'Yay! 🎉',
+  'This is fun 🤩',
+  "I'm lost 🤯",
+  'Great comeback 🏆',
+];
+const NFT_GIFTS = [
+  { id: 'fireworks',    name: 'Fireworks',    icon: '🎆', price: 200,  tier: 1 },
+  { id: 'laugh_bomb',   name: 'Laugh Bomb',   icon: '😂', price: 300,  tier: 1 },
+  { id: 'pizza_slice',  name: 'Pizza Slice',  icon: '🍕', price: 500,  tier: 1 },
+  { id: 'coffee_boost', name: 'Coffee Boost', icon: '☕', price: 750,  tier: 1 },
+  { id: 'baby_chick',   name: 'Baby Chick',   icon: '🐣', price: 1000, tier: 1 },
+  { id: 'poop',         name: 'Poop',         icon: '💩', price: 1200, tier: 2 },
+  { id: 'speed_racer',  name: 'Speed Racer',  icon: '/assets/icons/futuristic_racing_car.webp', price: 1800,  tier: 2 },
+  { id: 'bullseye',     name: 'Bullseye',     icon: '🎯', price: 3000,  tier: 2 },
+  { id: 'magic_trick',  name: 'Magic Trick',  icon: '🎩', price: 5000,  tier: 2 },
+  { id: 'surprise_box', name: 'Surprise Box', icon: '🎁', price: 8000,  tier: 2 },
+  { id: 'dragon_burst', name: 'Dragon Burst', icon: '🐉', price: 20000,  tier: 3 },
+  { id: 'rocket_blast', name: 'Rocket Blast', icon: '🚀', price: 35000,  tier: 3 },
+  { id: 'royal_crown',  name: 'Royal Crown',  icon: '👑', price: 90000,  tier: 3 },
+  { id: 'alien_visit',  name: 'Alien Visit',  icon: '🛸', price: 150000, tier: 3 },
+];
+const GIFT_SOUNDS = {
+  fireworks: "/assets/sounds/fireworks-29629.mp3",
+  laugh_bomb: "/assets/sounds/080998_bullet-hit-39870.mp3",
+  pizza_slice: "/assets/sounds/life_is_beautiful_italiano-108264.mp3",
+  coffee_boost: "/assets/sounds/drinking-coffee-214463.mp3",
+  baby_chick: "/assets/sounds/bebek-220068.mp3",
+  speed_racer: "/assets/sounds/race-care-151963.mp3",
+  bullseye: "/assets/sounds/080998_bullet-hit-39870.mp3",
+  magic_trick: "/assets/sounds/ah-good-morning-sir-would-you-like-a-cup-of-tea-26151.mp3",
+  surprise_box: "/assets/sounds/082229_pinkie-pie-39surprise39wav-86428.mp3",
+  poop: "/assets/sounds/fart-5-228245.mp3",
+  dragon_burst: "/assets/sounds/snake-hissing-high-quality-240154.mp3",
+  rocket_blast: "/assets/sounds/launch-85216.mp3",
+  royal_crown: "/assets/sounds/king-conversation-48272.mp3",
+  alien_visit: "/assets/sounds/ufo-sound-effect-240256.mp3",
+};
+const CHAT_BEEP_URL = "/assets/sounds/080998_bullet-hit-39870.mp3";
+let activeChatMessage = QUICK_MESSAGES[0];
+let selectedGift = NFT_GIFTS[0];
+let selectedGiftTarget = 0;
+
+function toggleModal(modal, open = true) {
+  if (!modal) return;
+  modal.classList.toggle('active', open);
+  modal.setAttribute('aria-hidden', String(!open));
+}
+
+function updateQuickActionMute() {
+  if (!muteIcon) return;
+  const muted = !isSoundEnabled();
+  muteIcon.textContent = muted ? '🔇' : '🔊';
+  if (muteLabel) {
+    muteLabel.textContent = muted ? 'Unmute' : 'Mute';
+  }
+  if (muteButton) {
+    const label = muted ? 'Unmute' : 'Mute';
+    muteButton.setAttribute('aria-label', label);
+    muteButton.setAttribute('title', label);
+  }
+}
+
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2800);
+}
+
+function playEffectSound(url, { delay = 0, maxDuration } = {}) {
+  if (!isSoundEnabled() || !url) return;
+  const gain = getSoundGainMultiplier();
+  if (gain <= 0) return;
+  const audio = new Audio(url);
+  audio.volume = Math.min(1, 0.7 * gain);
+  const play = () => audio.play().catch(() => {});
+  if (delay) {
+    setTimeout(play, delay);
+  } else {
+    play();
+  }
+  if (maxDuration) {
+    setTimeout(() => audio.pause(), maxDuration);
+  }
+}
+
+function createAvatarNode(source) {
+  if (typeof source === 'string' && (source.startsWith('/') || source.startsWith('http') || source.startsWith('data:'))) {
+    const img = document.createElement('img');
+    img.src = source;
+    img.alt = '';
+    img.className = 'avatar';
+    return img;
+  }
+  const span = document.createElement('span');
+  span.className = 'avatar';
+  span.textContent = source || DEFAULT_AVATAR_EMOJI;
+  return span;
+}
+
+function showChatBubble(text, seatIndex = human) {
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble';
+  const avatars = buildSeatAvatarSources(N);
+  bubble.appendChild(createAvatarNode(avatars[seatIndex]));
+  const label = document.createElement('span');
+  label.textContent = text;
+  bubble.appendChild(label);
+  document.body.appendChild(bubble);
+  const badge = seatBadges[seatIndex];
+  if (badge) {
+    const rect = badge.getBoundingClientRect();
+    bubble.style.left = `${rect.left + rect.width / 2}px`;
+    bubble.style.top = `${rect.top - 12}px`;
+    bubble.style.transform = 'translate(-50%, -100%)';
+  } else {
+    bubble.style.left = '1rem';
+    bubble.style.bottom = '5.5rem';
+  }
+  setTimeout(() => bubble.remove(), 3000);
+}
+
+function animateGift(fromIndex, toIndex, gift) {
+  const icon = typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+    ? Object.assign(document.createElement('img'), { src: gift.icon })
+    : Object.assign(document.createElement('div'), { textContent: gift.icon });
+  icon.style.position = 'fixed';
+  icon.style.left = '0';
+  icon.style.top = '0';
+  icon.style.pointerEvents = 'none';
+  icon.style.width = '24px';
+  icon.style.height = '24px';
+  icon.style.fontSize = '24px';
+  icon.style.zIndex = '9999';
+  document.body.appendChild(icon);
+  const start = seatBadges[fromIndex]?.getBoundingClientRect();
+  const end = seatBadges[toIndex]?.getBoundingClientRect();
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const startX = start ? start.left + start.width / 2 : 24;
+  const startY = start ? start.top + start.height / 2 : window.innerHeight - 80;
+  const endX = end ? end.left + end.width / 2 : window.innerWidth - 24;
+  const endY = end ? end.top + end.height / 2 : window.innerHeight / 2;
+  const animation = icon.animate(
+    [
+      { transform: `translate(${startX}px, ${startY}px) scale(1)` },
+      { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+      { transform: `translate(${endX}px, ${endY}px) scale(1)` },
+    ],
+    { duration: 3500, easing: 'linear' },
+  );
+  animation.onfinish = () => icon.remove();
+}
+
+function populateChatMessages() {
+  if (!chatMessagesEl) return;
+  chatMessagesEl.replaceChildren();
+  QUICK_MESSAGES.forEach((message) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = message;
+    if (message === activeChatMessage) {
+      button.classList.add('active');
+    }
+    button.addEventListener('click', () => {
+      activeChatMessage = message;
+      populateChatMessages();
+    });
+    chatMessagesEl.appendChild(button);
+  });
+}
+
+function populateGiftPlayers() {
+  if (!giftPlayersEl) return;
+  giftPlayersEl.replaceChildren();
+  const avatars = buildSeatAvatarSources(N);
+  const names = getSeatUsernames(N);
+  avatars.forEach((avatar, idx) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    if (idx === selectedGiftTarget) {
+      button.classList.add('active');
+    }
+    button.appendChild(createAvatarNode(avatar));
+    const label = document.createElement('span');
+    label.textContent = names[idx] || `Player ${idx + 1}`;
+    button.appendChild(label);
+    button.addEventListener('click', () => {
+      selectedGiftTarget = idx;
+      populateGiftPlayers();
+    });
+    giftPlayersEl.appendChild(button);
+  });
+}
+
+function populateGiftTiers() {
+  if (!giftTiersEl) return;
+  giftTiersEl.replaceChildren();
+  [1, 2, 3].forEach((tier) => {
+    const tierWrap = document.createElement('div');
+    tierWrap.className = 'gift-tier';
+    const heading = document.createElement('h4');
+    heading.textContent = `Tier ${tier}`;
+    tierWrap.appendChild(heading);
+    const grid = document.createElement('div');
+    grid.className = 'gift-grid';
+    NFT_GIFTS.filter((gift) => gift.tier === tier).forEach((gift) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'gift-button';
+      if (gift.id === selectedGift.id) {
+        button.classList.add('active');
+      }
+      const icon = createAvatarNode(gift.icon);
+      icon.classList.add('gift-icon');
+      icon.style.width = '1rem';
+      icon.style.height = '1rem';
+      button.appendChild(icon);
+      const label = document.createElement('span');
+      label.textContent = gift.price;
+      button.appendChild(label);
+      button.addEventListener('click', () => {
+        selectedGift = gift;
+        updateGiftCost();
+        populateGiftTiers();
+      });
+      grid.appendChild(button);
+    });
+    tierWrap.appendChild(grid);
+    giftTiersEl.appendChild(tierWrap);
+  });
+}
+
+function updateGiftCost() {
+  const costEl = document.getElementById('giftCost');
+  if (costEl) {
+    costEl.textContent = selectedGift?.price ?? 0;
+  }
+}
+
+function openChatModal() {
+  populateChatMessages();
+  toggleModal(chatModal, true);
+}
+
+function openGiftModal() {
+  populateGiftPlayers();
+  populateGiftTiers();
+  updateGiftCost();
+  toggleModal(giftModal, true);
+}
+
+updateQuickActionMute();
+
+/* ---------- Rules panel handlers ---------- */
+btnRules.addEventListener('click',()=>{ panelRules.style.display='flex'; });
+closeRules.addEventListener('click',()=>{ panelRules.style.display='none'; });
+panelRules.addEventListener('click',(e)=>{ if(e.target===panelRules) panelRules.style.display='none'; });
+if (quickActions) {
+  quickActions.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    if (action === 'chat') {
+      openChatModal();
+    } else if (action === 'gift') {
+      openGiftModal();
+    }
+  });
+}
+if (muteButton) {
+  muteButton.addEventListener('click', () => {
+    setFeedbackSettings({ sound: !feedbackSettings.sound });
+  });
+}
+if (chatModal) {
+  chatModal.addEventListener('click', (event) => {
+    if (event.target === chatModal) toggleModal(chatModal, false);
+  });
+}
+if (chatClose) {
+  chatClose.addEventListener('click', () => toggleModal(chatModal, false));
+}
+if (chatSend) {
+  chatSend.addEventListener('click', () => {
+    toggleModal(chatModal, false);
+    showChatBubble(activeChatMessage, human);
+    playEffectSound(CHAT_BEEP_URL, { maxDuration: 1200 });
+  });
+}
+if (giftModal) {
+  giftModal.addEventListener('click', (event) => {
+    if (event.target === giftModal) toggleModal(giftModal, false);
+  });
+}
+if (giftClose) {
+  giftClose.addEventListener('click', () => toggleModal(giftModal, false));
+}
+if (giftSend) {
+  giftSend.addEventListener('click', () => {
+    const recipient = selectedGiftTarget;
+    toggleModal(giftModal, false);
+    animateGift(human, recipient, selectedGift);
+    playEffectSound(GIFT_SOUNDS[selectedGift.id], { delay: selectedGift.id === 'bullseye' ? 2500 : 0 });
+    showToast(`Sent ${selectedGift.name} to ${getSeatUsernames(N)[recipient] || `Player ${recipient + 1}`}`);
+  });
+}
+if (viewToggle) {
+  viewToggle.addEventListener('click', toggleCameraViewMode);
+}
+updateViewToggleLabel();
+
+/* ---------- Mini tests (console) ---------- */
+console.assert(document.getElementById('draw') && document.getElementById('pass'), 'UI buttons exist');
+(()=>{ const s=genSet(); const key=t=>`${t.a},${t.b}`; const uniq=new Set(s.map(key));
+  console.assert(s.length===28 && uniq.size===28,'double-six: 28 unique');
+  console.assert(s.some(t=>t.a===0&&t.b===0) && s.some(t=>t.a===6&&t.b===6),'set contains 00 and 66');
+  console.assert(s.every(t=>t.a>=0 && t.b>=0 && t.a<=6 && t.b<=6 && t.a<=t.b),'values in range and sorted');
+})();
+(()=>{ const ct1=canonTile({a:6,b:2}); const ct2=canonTile({a:2,b:6});
+  console.assert(ct1.a===2 && ct1.b===6 && ct2.a===2 && ct2.b===6,'canonTile symmetric and idempotent');
+})();
+(()=>{ const bad1=canonTile({a:-1,b:3}); const bad2=canonTile({a:9,b:1});
+  console.assert(bad1===null && bad2===null,'canonTile rejects out-of-range values');
+})();
+(()=>{ const m=makeDomino(6,6,{flat:true,faceUp:true}); const anyRing=m.children.some(ch=>ch.geometry?.type==='RingGeometry'); console.assert(anyRing,'perimeter/pip rings exist (flat)'); })();
+(()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pips exist'); })();
+
+function updateDrawAnimations(now){
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  for(let i=drawAnimations.length-1;i>=0;i--){
+    const anim = drawAnimations[i];
+    const elapsed = timestamp - anim.startTime;
+    const t = Math.min(1, elapsed / (anim.duration || DRAW_ANIM_DURATION));
+    const ease = 1 - Math.pow(1 - t, 3);
+    const pos = anim.start.clone();
+    pos.lerp(anim.end, ease);
+    if(anim.arc){
+      pos.y += Math.sin(Math.PI * ease) * anim.arc;
+    }
+    anim.mesh.position.copy(pos);
+    if(t >= 1){
+      piecesG.remove(anim.mesh);
+      drawAnimations.splice(i,1);
+    }
+  }
+}
+
+function updatePlacementAnimations(now){
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  for(let i=placementAnimations.length-1;i>=0;i--){
+    const anim = placementAnimations[i];
+    const elapsed = timestamp - anim.startTime;
+    const duration = anim.duration || PLACE_ANIM_DURATION;
+    const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    const pos = anim.start.clone().lerp(anim.end, ease);
+    if(anim.arc){
+      pos.y += Math.sin(Math.PI * ease) * anim.arc;
+    }
+    anim.mesh.position.copy(pos);
+
+    if(anim.endQuat && anim.startQuat){
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
+      anim.mesh.quaternion.copy(quat);
+    }
+
+    if(anim.endScale && anim.startScale){
+      const scale = anim.startScale.clone().lerp(anim.endScale, ease);
+      anim.mesh.scale.copy(scale);
+    }
+
+    if(t >= 1){
+      if(anim.segment){
+        anim.segment.animating = false;
+      }
+      disposeDominoMesh(anim.mesh);
+      placementAnimations.splice(i,1);
+      renderChain();
+    }
+  }
+}
+
+function updateWinnerHighlight(now){
+  if(!winnerHighlight){
+    return;
+  }
+  const mat = winnerHighlight.material;
+  if(!mat){
+    return;
+  }
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  const elapsed = Math.max(0, (timestamp - winnerHighlightStart) / 1000);
+  const pulse = 0.55 + Math.sin(elapsed * 3.2) * 0.35;
+  mat.opacity = Math.min(0.95, Math.max(0.25, pulse));
+  const scale = 1 + Math.sin(elapsed * 1.6) * 0.06;
+  winnerHighlight.scale.setScalar(scale);
+}
+
+function monitorFrameHealth(elapsedMs, timing) {
+  if (!timing || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
+    slowFrameAccumulatorMs = 0;
+    return;
+  }
+  const targetMs = Number.isFinite(timing.targetMs) ? timing.targetMs : 1000 / 60;
+  const slowThreshold = targetMs * FRAME_DROP_THRESHOLD;
+  const skipThreshold = targetMs * 6;
+  if (elapsedMs > skipThreshold) {
+    slowFrameAccumulatorMs = 0;
+    return;
+  }
+  if (elapsedMs > slowThreshold) {
+    slowFrameAccumulatorMs += elapsedMs;
+  } else {
+    slowFrameAccumulatorMs = Math.max(0, slowFrameAccumulatorMs - targetMs * 0.5);
+  }
+  const now = performance.now();
+  if (slowFrameAccumulatorMs >= FRAME_DROP_WINDOW_MS && now - lastFailsafeTimestamp > FRAME_FAILSAFE_COOLDOWN_MS) {
+    const fallbackId = findFallbackFrameRateId(frameRateId);
+    if (fallbackId && fallbackId !== frameRateId) {
+      applyFrameRateSelection(fallbackId);
+      setStatus('Lowered quality for smoother play');
+      slowFrameAccumulatorMs = 0;
+      lastFailsafeTimestamp = now;
+    }
+  }
+}
+
+/* ---------- Loop & Resize ---------- */
+let running = true;
+let tickHandle = null;
+function tick(now){
+  if (!running) return;
+  const current = Number.isFinite(now) ? now : performance.now();
+  tickHandle = requestAnimationFrame(tick);
+  if (contextLost || renderer.getContext?.()?.isContextLost?.()) {
+    lastFrameTime = current;
+    return;
+  }
+  const timing = frameTiming ?? buildFrameTiming(frameQuality);
+  const targetMs = Number.isFinite(timing?.targetMs) ? timing.targetMs : 1000 / 60;
+  const maxMs = Number.isFinite(timing?.maxMs)
+    ? timing.maxMs
+    : targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER;
+  const elapsed = Math.max(current - lastFrameTime, 0);
+  const step = Math.min(elapsed, maxMs);
+  lastFrameTime = current;
+  const deltaSeconds = Math.min(0.2, Math.max(0, step / 1000));
+  monitorFrameHealth(elapsed, timing);
+
+  try {
+    updateEntrySequence(current);
+    updateDrawAnimations(current);
+    updatePlacementAnimations(current);
+    updateWinnerHighlight(current);
+    updateSeatBadgePositions();
+    controls.update(deltaSeconds);
+    renderer.render(scene,camera);
+  } catch (error) {
+    console.error('Domino Royal render loop failed', error);
+    contextLost = true;
+    setControlEnabled(false);
+    scheduleContextLossRecovery('render loop error');
+  }
+}
+let lastFrameTime = performance.now();
+tickHandle = requestAnimationFrame(tick);
+function onResize(){
+  applyRendererQuality(frameQuality);
+  if (entrySequenceActive) {
+    fitCamera();
+    const target = getActiveCameraTarget();
+    const finalDesired = clampCameraPosition(getDesiredCameraPosition(target), target);
+    configureEntryCurves(finalDesired, target);
+    const now = performance.now();
+    const elapsed = Math.max(0, now - entryStartTime);
+    const progress = Math.min(elapsed / ENTRY_TOTAL_DURATION, 1);
+    if (entryCameraCurve) {
+      const cameraPhase = easeInOutCubic(Math.min(Math.max((progress - 0.05) / 0.85, 0), 1));
+      const point = entryCameraCurve.getPoint(cameraPhase);
+      camera.position.copy(point);
+    }
+    if (entryTargetCurve) {
+      const targetPhase = easeInOutCubic(Math.min(Math.max((progress - 0.08) / 0.75, 0), 1));
+      const targetPoint = entryTargetCurve.getPoint(targetPhase);
+      controls.target.copy(targetPoint);
+    }
+  } else {
+    positionCameraForViewport();
+  }
+  updateSeatBadgePositions();
+}
+addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
+const onVisibilityChange = () => {
+  slowFrameAccumulatorMs = 0;
+};
+document.addEventListener('visibilitychange', onVisibilityChange);
+
+if (shouldRunHallwayEntry) {
+  startHallwayEntry();
+} else {
+  positionCameraForViewport({ force: true });
+}
+
+
+window.__dominoRoyalCleanup = () => {
+  running = false;
+  if (tickHandle) {
+    cancelAnimationFrame(tickHandle);
+  }
+  removeEventListener('resize', onResize);
+  if (window.visualViewport) {
+    visualViewport.removeEventListener('resize', onResize);
+  }
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+};

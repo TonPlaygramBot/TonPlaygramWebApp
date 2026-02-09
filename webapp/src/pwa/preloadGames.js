@@ -14,7 +14,7 @@ const GAME_ENTRYPOINTS = [
   '/texas-holdem.js',
   '/lib/texasHoldem.js',
   '/lib/texasHoldemGame.js',
-  '/domino-royal.html',
+  '/domino-royal.js',
   '/murlan-royale.html',
   '/roulette.html',
   '/chess-royale.html',
