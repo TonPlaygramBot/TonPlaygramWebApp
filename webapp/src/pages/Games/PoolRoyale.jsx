@@ -1044,6 +1044,7 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
+const SHOW_TABLE_MAPPING_MARKINGS = false; // hide mapping guide markings while keeping physics mapping intact
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1296,7 +1297,7 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.993;
+const FRICTION = 0.994;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1307,7 +1308,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.018;
+const ROLLING_RESISTANCE = 0.016;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.02;
@@ -1577,7 +1578,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
-const SHOT_POWER_BOOST = 1.2; // increase overall shot power by 20%
+const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -5337,8 +5338,9 @@ const TMP_VEC3_OBSTRUCTION_TARGET = new THREE.Vector3();
 const TMP_VEC3_POWER = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
 const TMP_COLOR_POWER = new THREE.Color();
-const POWER_LINE_COLOR_LOW = new THREE.Color(0x5fe39d);
-const POWER_LINE_COLOR_HIGH = new THREE.Color(0xff6a5c);
+const POWER_LINE_COLOR_LOW = new THREE.Color(0xfff06b);
+const POWER_LINE_COLOR_MID = new THREE.Color(0xffa133);
+const POWER_LINE_COLOR_HIGH = new THREE.Color(0xff3b30);
 const POWER_LINE_MIN_FRACTION = 0.08;
 const CUE_OBSTRUCTION_SAMPLE_POINTS = Array.from(
   { length: CUE_OBSTRUCTION_SAMPLE_MAX },
@@ -6475,9 +6477,21 @@ function buildSwerveAimLinePoints(
   return points;
 }
 
+const invertSpinForAimPreview = (spin) => ({
+  x: -(spin?.x ?? 0),
+  y: -(spin?.y ?? 0)
+});
+
 function resolvePowerLineColor(powerStrength) {
   const t = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  return TMP_COLOR_POWER.copy(POWER_LINE_COLOR_LOW).lerp(POWER_LINE_COLOR_HIGH, t);
+  if (t <= 0.5) {
+    return TMP_COLOR_POWER
+      .copy(POWER_LINE_COLOR_LOW)
+      .lerp(POWER_LINE_COLOR_MID, t / 0.5);
+  }
+  return TMP_COLOR_POWER
+    .copy(POWER_LINE_COLOR_MID)
+    .lerp(POWER_LINE_COLOR_HIGH, (t - 0.5) / 0.5);
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -6535,7 +6549,7 @@ function resolveCueFollowPreview({
   cuePowerStrength,
   liftStrength = 0
 }) {
-  const normalizedSpin = normalizeSpinInput(spin);
+  const normalizedSpin = normalizeSpinInput(invertSpinForAimPreview(spin));
   const clampedPower = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
   const clampedCuePower = Number.isFinite(cuePowerStrength)
     ? THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1)
@@ -9668,7 +9682,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.56;
+  const railMarkerOutset = longRailW * 0.5;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -10821,7 +10835,7 @@ export function Table3D(
     table.userData.pockets.push(marker);
   });
 
-  if (ENABLE_TABLE_MAPPING_LINES) {
+  if (ENABLE_TABLE_MAPPING_LINES && SHOW_TABLE_MAPPING_MARKINGS) {
     const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
     const mappingLineY = clothPlaneWorld + mappingLineLift;
     const SHORT_RAIL_MAPPING_OUTSET = TABLE.THICK * 0.02;
@@ -24277,13 +24291,13 @@ const powerRef = useRef(hud.power);
         const mapSpinPreset = (preset) => {
           switch (preset) {
             case 'followS':
-              return { x: 0, y: -0.18 };
+              return { x: 0, y: 0.18 };
             case 'followL':
-              return { x: 0, y: -0.32 };
+              return { x: 0, y: 0.32 };
             case 'drawS':
-              return { x: 0, y: 0.22 };
+              return { x: 0, y: -0.22 };
             case 'drawL':
-              return { x: 0, y: 0.42 };
+              return { x: 0, y: -0.42 };
             case 'sideL':
               return { x: -0.35, y: -0.06 };
             case 'sideR':
@@ -24538,7 +24552,7 @@ const powerRef = useRef(hud.power);
             pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
           const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
           const sideSpin = decision.spin?.side ?? 0;
-          const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
+          const verticalSpin = (decision.spin?.top ?? 0) - (decision.spin?.back ?? 0);
           const spin = {
             x: THREE.MathUtils.clamp(sideSpin, -0.6, 0.6),
             y: THREE.MathUtils.clamp(verticalSpin, -0.6, 0.6)
