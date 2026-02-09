@@ -6,12 +6,24 @@ function normalizePath(path) {
   return path.startsWith('/') ? path : `/${path}`;
 }
 
+function getFallbackOrigin() {
+  if (typeof window === 'undefined') return 'http://localhost';
+  const origin = window.location?.origin;
+  if (origin && /^https?:\/\//i.test(origin)) {
+    return origin;
+  }
+  return 'http://localhost';
+}
+
 function normalizeBaseUrl(rawUrl) {
-  const fallback = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const fallback = getFallbackOrigin();
   if (!rawUrl) return fallback;
 
   try {
     const parsed = new URL(rawUrl, fallback);
+    if (!/^https?:$/i.test(parsed.protocol)) {
+      return fallback;
+    }
     parsed.pathname = '';
     parsed.search = '';
     parsed.hash = '';
