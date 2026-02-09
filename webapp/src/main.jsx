@@ -7,6 +7,7 @@ import { registerTelegramServiceWorker } from './pwa/registerServiceWorker.js';
 import { warmGameCaches } from './pwa/preloadGames.js';
 import { initNativeBridge } from './utils/nativeBridge.ts';
 import { installSpeechSynthesisUnlock } from './utils/textToSpeech.js';
+import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 
 async function bootstrap() {
   const isNative = Capacitor.isNativePlatform();
@@ -29,7 +30,9 @@ async function bootstrap() {
 
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </React.StrictMode>
   );
 }
