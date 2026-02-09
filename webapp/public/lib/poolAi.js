@@ -37,9 +37,9 @@
  * @property {{x:number,y:number}} [aimPoint]
  */
 
-const LOOKAHEAD_DEPTH = 3
-const LOOKAHEAD_CANDIDATES = 4
-const MONTE_CARLO_BASE_SAMPLES = 48
+const LOOKAHEAD_DEPTH = 2
+const LOOKAHEAD_CANDIDATES = 3
+const MONTE_CARLO_BASE_SAMPLES = 28
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -344,7 +344,7 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   const shotLength = dist(cue, target)
   const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
   const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor)))
-  const jitterScale = 0.012 + 0.02 * distanceFactor
+  const jitterScale = 0.015 + 0.025 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
     const a = baseAngle + (rng() - 0.5) * jitterScale
@@ -448,12 +448,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     const next = nextTargets[0]
     nextScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
   }
-  const pocketDistances = req.state.pockets.map(p => dist(cueAfter, p))
-  const minPocketDist = pocketDistances.length ? Math.min(...pocketDistances) : Infinity
-  if (minPocketDist < r * 1.05) {
-    return null
-  }
-  const risk = Math.max(0, Math.min(1, 1 - minPocketDist / (r * 3.2)))
+  const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
   let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
@@ -468,7 +463,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const shotLengthFactor = Math.min(cueToTarget / (r * 40), 2)
   const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1)
   const pocketTightness = 1 - pocketOpen
-  const difficultyPenalty = 0.3 * (0.45 * cutSeverity + 0.35 * shotLengthFactor + 0.2 * pocketTightness)
+  const difficultyPenalty = 0.25 * (0.5 * cutSeverity + 0.3 * shotLengthFactor + 0.2 * pocketTightness)
   const clearanceScore = Math.max(0, Math.min((laneClearance - 0.5) / 0.7, 1))
   if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
     return null
@@ -483,14 +478,14 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     0,
     Math.min(
       1,
-      0.42 * potChance +
-        0.16 * pocketOpen +
+      0.38 * potChance +
+        0.18 * pocketOpen +
         0.16 * centerAlign +
-        0.07 * nextScore +
-        0.05 * nearHole +
-        0.1 * runoutPotential +
-        0.09 * clearanceScore -
-        0.22 * risk -
+        0.06 * nextScore +
+        0.06 * nearHole +
+        0.08 * runoutPotential +
+        0.08 * clearanceScore -
+        0.18 * risk -
         difficultyPenalty
     )
   )
@@ -592,15 +587,13 @@ export function planShot (req) {
   let fallback = null
   let hasViableShot = false
 
-  const powers = [0.45, 0.65, 0.8, 0.92]
+  const powers = [0.5, 0.7, 0.85]
   const spins = [
     { top: 0, side: 0, back: 0 },
-    { top: 0.2, side: 0, back: -0.2 },
-    { top: -0.2, side: 0.2, back: 0 },
-    { top: -0.2, side: -0.2, back: 0 },
-    { top: 0, side: 0.25, back: 0 },
-    { top: 0.35, side: 0, back: 0 },
-    { top: -0.35, side: 0, back: 0 }
+    { top: 0.3, side: 0, back: -0.3 },
+    { top: -0.3, side: 0.3, back: 0 },
+    { top: -0.3, side: -0.3, back: 0 },
+    { top: 0, side: 0.3, back: 0 }
   ]
 
   // first, gather candidate target/pocket pairs meeting strict criteria
@@ -625,36 +618,29 @@ export function planShot (req) {
           x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
           y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
         }
-        const dists = [4, 6, 8, 10, 12, 14, 16].map(m => m * r)
-        const perp = { x: -dir.y / distTP, y: dir.x / distTP }
-        const lateralOffsets = [0, r * 0.9, -r * 0.9, r * 1.6, -r * 1.6]
+        const dists = [4, 6, 8, 10, 12].map(m => m * r)
         for (const d of dists) {
-          for (const lateral of lateralOffsets) {
-            const cand = {
-              x: ghost.x + (dir.x / distTP) * d + perp.x * lateral,
-              y: ghost.y + (dir.y / distTP) * d + perp.y * lateral
-            }
-            if (
-              cand.x < r ||
-              cand.x > req.state.width - r ||
-              cand.y < r ||
-              cand.y > req.state.height - r
-            ) {
-              continue
-            }
-            if (
-              req.state.mustPlayFromBaulk &&
-              typeof req.state.baulkLineY === 'number' &&
-              cand.y < req.state.baulkLineY
-            ) {
-              continue
-            }
-            const overlap = req.state.balls.some(
-              b => b.id !== 0 && !b.pocketed && dist(cand, b) < r * 2
-            )
-            if (overlap) continue
-            placements.push(cand)
+          const cand = { x: ghost.x + (dir.x / distTP) * d, y: ghost.y + (dir.y / distTP) * d }
+          if (
+            cand.x < r ||
+            cand.x > req.state.width - r ||
+            cand.y < r ||
+            cand.y > req.state.height - r
+          ) {
+            continue
           }
+          if (
+            req.state.mustPlayFromBaulk &&
+            typeof req.state.baulkLineY === 'number' &&
+            cand.y < req.state.baulkLineY
+          ) {
+            continue
+          }
+          const overlap = req.state.balls.some(
+            b => b.id !== 0 && !b.pocketed && dist(cand, b) < r * 2
+          )
+          if (overlap) continue
+          placements.push(cand)
         }
       } else {
         const cue = req.state.balls.find(b => b.id === 0)
