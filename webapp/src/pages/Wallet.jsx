@@ -19,12 +19,11 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { loadGoogleProfile } from '../utils/google.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { mergeStoreTransactions } from '../utils/storeTransactions.js';
-import { safeGetItem, safeSetItem } from '../utils/storage.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DEV_ACCOUNT_ID =
   urlParams.get('dev') ||
-  safeGetItem('devAccountId') ||
+  localStorage.getItem('devAccountId') ||
   import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_ID_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_ID_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
@@ -34,7 +33,7 @@ const DEV_ACCOUNTS = [
   DEV_ACCOUNT_ID_2,
 ].filter(Boolean);
 if (urlParams.get('dev')) {
-  safeSetItem('devAccountId', urlParams.get('dev'));
+  localStorage.setItem('devAccountId', urlParams.get('dev'));
 }
 
 function formatValue(value, decimals = 2) {
@@ -61,7 +60,7 @@ export default function Wallet({ hideClaim = false }) {
     telegramId = undefined;
   }
   const connectedTonAddress = useTonAddress();
-  const [tonWalletAddress, setTonWalletAddress] = useState(() => safeGetItem('walletAddress') || '');
+  const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
   const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress;
 
@@ -88,7 +87,7 @@ export default function Wallet({ hideClaim = false }) {
 
   useEffect(() => {
     if (connectedTonAddress) {
-      safeSetItem('walletAddress', connectedTonAddress);
+      localStorage.setItem('walletAddress', connectedTonAddress);
       setTonWalletAddress(connectedTonAddress);
     }
   }, [connectedTonAddress]);
@@ -115,8 +114,8 @@ export default function Wallet({ hideClaim = false }) {
 
 
   const loadBalances = async () => {
-    const devMode = urlParams.get('dev') || safeGetItem('devAccountId');
-    let id = devMode ? DEV_ACCOUNT_ID : safeGetItem('accountId');
+    const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
+    let id = devMode ? DEV_ACCOUNT_ID : localStorage.getItem('accountId');
     let acc;
     if (id) {
       acc = { accountId: id };
@@ -126,9 +125,9 @@ export default function Wallet({ hideClaim = false }) {
         console.error('Failed to load account:', acc.error);
         return null;
       }
-      safeSetItem('accountId', acc.accountId);
+      localStorage.setItem('accountId', acc.accountId);
       if (acc.walletAddress) {
-        safeSetItem('walletAddress', acc.walletAddress);
+        localStorage.setItem('walletAddress', acc.walletAddress);
         setTonWalletAddress(acc.walletAddress);
       }
       id = acc.accountId;
