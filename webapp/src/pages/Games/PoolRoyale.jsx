@@ -6528,7 +6528,8 @@ function resolveCueFollowPreview({
   spin,
   powerStrength,
   cuePowerStrength,
-  liftStrength = 0
+  liftStrength = 0,
+  railNormal = null
 }) {
   const normalizedSpin = normalizeSpinInput(spin);
   const baseDir = cueDir ? cueDir.clone() : null;
@@ -6588,9 +6589,41 @@ function resolveCueFollowPreview({
       previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
     }
   }
-  if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
   const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
   const cuePower = THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1);
+  if (railNormal && Math.abs(spinX) + Math.abs(spinY) > 1e-6) {
+    const normal = new THREE.Vector3(railNormal.x, 0, railNormal.y);
+    if (normal.lengthSq() > 1e-8) {
+      normal.normalize();
+      const tangent = new THREE.Vector3(-normal.z, 0, normal.x);
+      if (tangent.lengthSq() > 1e-8) {
+        tangent.normalize();
+        const forward = aimVec.clone();
+        if (forward.lengthSq() > 1e-8) forward.normalize();
+        const lateral = new THREE.Vector3(-forward.z, 0, forward.x);
+        if (lateral.lengthSq() > 1e-8) lateral.normalize();
+        const worldSpin = lateral
+          .multiplyScalar(spinX)
+          .addScaledVector(forward, spinY);
+        const spinAlongTangent = worldSpin.dot(tangent);
+        const speedEstimate =
+          SHOT_BASE_SPEED *
+          (SHOT_MIN_FACTOR + SHOT_POWER_RANGE * power) *
+          Math.max(0.4, cuePower);
+        const throwFactor = clamp(
+          speedEstimate / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6),
+          0,
+          1.4
+        );
+        const throwStrength =
+          spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
+        if (Math.abs(throwStrength) > 1e-5) {
+          previewDir.add(tangent.multiplyScalar(throwStrength));
+        }
+      }
+    }
+  }
+  if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
   const stunShot = spinMagnitude <= SPIN_STUN_RADIUS + 1e-4;
   const basePower = Math.max(cuePower, power * 0.2);
   let length = BALL_R * (stunShot ? 4.5 : 7);
@@ -6607,6 +6640,37 @@ function resolveCueFollowPreview({
     length,
     backwards: previewDir.dot(aimVec) < 0
   };
+}
+
+function resolveRailImpactFromSegments(cuePos, dirNorm) {
+  if (!Array.isArray(CUSHION_SEGMENTS) || CUSHION_SEGMENTS.length === 0) {
+    return null;
+  }
+  let bestT = Infinity;
+  let bestNormal = null;
+  let bestType = null;
+  for (const segment of CUSHION_SEGMENTS) {
+    if (!segment?.normal || !segment?.start || !segment?.end) continue;
+    const normal = segment.normal;
+    const dirDot = dirNorm.dot(normal);
+    if (dirDot >= -1e-6) continue;
+    const contactRadius =
+      segment.type === 'cut' ? CUSHION_CUT_CONTACT_RADIUS : RAIL_CONTACT_RADIUS;
+    const dist = TMP_VEC2_A.copy(cuePos).sub(segment.start).dot(normal);
+    const t = (contactRadius - dist) / dirDot;
+    if (!(t > 0 && t < bestT)) continue;
+    TMP_VEC2_B.copy(segment.end).sub(segment.start);
+    const segLenSq = TMP_VEC2_B.lengthSq();
+    if (segLenSq < 1e-8) continue;
+    TMP_VEC2_C.copy(dirNorm).multiplyScalar(t).add(cuePos).sub(segment.start);
+    const proj = TMP_VEC2_C.dot(TMP_VEC2_B) / segLenSq;
+    if (proj < -0.02 || proj > 1.02) continue;
+    bestT = t;
+    bestNormal = normal.clone();
+    bestType = segment.type || 'rail';
+  }
+  if (!Number.isFinite(bestT) || !bestNormal) return null;
+  return { t: bestT, normal: bestNormal, type: bestType };
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -6636,6 +6700,12 @@ function calcTarget(cue, dir, balls) {
   let tHit = Infinity;
   let targetBall = null;
   let railNormal = null;
+  const segmentImpact = resolveRailImpactFromSegments(cuePos, dirNorm);
+  if (segmentImpact) {
+    tHit = segmentImpact.t;
+    railNormal = segmentImpact.normal;
+    targetBall = null;
+  }
 
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
@@ -6647,14 +6717,16 @@ function calcTarget(cue, dir, balls) {
     }
   };
 
-  if (dirNorm.x < -1e-8)
-    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
-  if (dirNorm.x > 1e-8)
-    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
-  if (dirNorm.y < -1e-8)
-    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
-  if (dirNorm.y > 1e-8)
-    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  if (!segmentImpact) {
+    if (dirNorm.x < -1e-8)
+      checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
+    if (dirNorm.x > 1e-8)
+      checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
+    if (dirNorm.y < -1e-8)
+      checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
+    if (dirNorm.y > 1e-8)
+      checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  }
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -26285,7 +26357,8 @@ const powerRef = useRef(hud.power);
             spin: appliedSpin,
             powerStrength,
             cuePowerStrength,
-            liftStrength
+            liftStrength,
+            railNormal
           });
           const followEnd = end
             .clone()
@@ -26588,7 +26661,8 @@ const powerRef = useRef(hud.power);
             spin: remoteSpinNormalized,
             powerStrength,
             cuePowerStrength,
-            liftStrength: 0
+            liftStrength: 0,
+            railNormal
           });
           const followEnd = end
             .clone()
@@ -27871,6 +27945,15 @@ const powerRef = useRef(hud.power);
           }
         } catch (error) {
           console.error('Pool Royale render loop failed; attempting recovery.', error);
+          const context = renderer?.getContext?.();
+          const isContextLost =
+            context?.isContextLost?.() ||
+            (typeof error?.message === 'string' &&
+              /context lost/i.test(error.message));
+          if (isContextLost) {
+            triggerRendererReset();
+            return;
+          }
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
