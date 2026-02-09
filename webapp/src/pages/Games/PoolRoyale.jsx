@@ -55,7 +55,6 @@ import {
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import planShot from '../../../../lib/poolAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
 import {
@@ -1296,7 +1295,7 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.993;
+const FRICTION = 0.994;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1307,7 +1306,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.018;
+const ROLLING_RESISTANCE = 0.016;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.02;
@@ -1410,6 +1409,7 @@ const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the h
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // match Snooker Royal pocket net lift for identical potted-ball framing
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
+const SHOW_TABLE_MARKINGS = false;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.28, BALL_DIAMETER * 7.2); // pull the holder run slightly inward toward the pocket
 const POCKET_GUIDE_DROP = BALL_R * 0.06;
@@ -1577,7 +1577,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
-const SHOT_POWER_BOOST = 1.2; // increase overall shot power by 20%
+const SHOT_POWER_BOOST = 1.44; // increase overall shot power by 20% on top of the prior boost
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -7773,6 +7773,7 @@ export function Table3D(
       child.receiveShadow = false;
     }
   });
+  markingsGroup.visible = SHOW_TABLE_MARKINGS;
   table.add(markingsGroup);
   table.userData.markings = {
     group: markingsGroup,
@@ -24459,7 +24460,11 @@ const powerRef = useRef(hud.power);
           const height = PLAY_H;
           const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
           const pocketsLocal = pocketEntranceCenters();
-          const pockets = pocketsLocal.map((center) => toAi(center));
+          const pockets = pocketsLocal.map((center, idx) => {
+            const aiPos = toAi(center);
+            const localId = POCKET_IDS[idx] ?? `P${idx}`;
+            return { x: aiPos.x, y: aiPos.y, name: mapLocalPocketToAi(localId) };
+          });
           const mapBallId = (ball) => {
             if (!ball) return null;
             if (ball === cueBall) return 0;
@@ -24472,105 +24477,136 @@ const powerRef = useRef(hud.power);
             }
             return null;
           };
+          const objectIds = allBalls
+            .filter((ball) => ball?.active && ball !== cueBall)
+            .map((ball) => mapBallId(ball))
+            .filter((id) => typeof id === 'number' && id > 0);
+          const lowestTargetId =
+            variantId === '9ball' && objectIds.length > 0
+              ? Math.min(...objectIds)
+              : null;
+          const mapBallToColour = (ball) => {
+            const mappedId = mapBallId(ball);
+            if (mappedId == null) return null;
+            if (mappedId === 0) return 'cue';
+            if (variantId === '9ball') {
+              return mappedId === lowestTargetId ? 'red' : 'blue';
+            }
+            if (mappedId === 8) return 'black';
+            if (mappedId >= 9) return 'blue';
+            return 'red';
+          };
           const aiBalls = [];
           allBalls.forEach((ball) => {
             const mappedId = mapBallId(ball);
-            if (mappedId == null || !ball?.pos) return;
+            const colour = mapBallToColour(ball);
+            if (mappedId == null || !ball?.pos || !colour) return;
             const pos = toAi(ball.pos);
             aiBalls.push({
               id: mappedId,
+              colour,
               x: pos.x,
               y: pos.y,
-              vx: ball.vel?.x ?? 0,
-              vy: ball.vel?.y ?? 0,
               pocketed: !ball.active
             });
           });
-          if (!aiBalls.some((ball) => ball.id === 0 && !ball.pocketed)) {
+          if (!aiBalls.some((ball) => ball.colour === 'cue' && !ball.pocketed)) {
             return null;
           }
-          const metaState = frameSnapshot?.meta?.state ?? null;
+          const resolveBallOnColour = () => {
+            if (variantId === '9ball') {
+              return lowestTargetId != null ? 'red' : null;
+            }
+            const raw = Array.isArray(frameSnapshot?.ballOn)
+              ? frameSnapshot.ballOn
+              : frameSnapshot?.ballOn != null
+                ? [frameSnapshot.ballOn]
+                : [];
+            const normalized = raw
+              .map((entry) => (typeof entry === 'string' ? entry.toUpperCase() : ''))
+              .filter(Boolean);
+            if (normalized.some((entry) => entry === 'SOLID' || entry === 'RED')) return 'red';
+            if (
+              normalized.some(
+                (entry) => entry === 'STRIPE' || entry === 'BLUE' || entry === 'YELLOW'
+              )
+            ) {
+              return 'blue';
+            }
+            if (normalized.some((entry) => entry === 'BLACK' || entry === 'BALL_8')) return 'black';
+            return null;
+          };
+          const ballOnColour = resolveBallOnColour();
           const aiState = {
             balls: aiBalls,
             pockets,
             width,
             height,
             ballRadius: BALL_R,
-            friction: FRICTION,
-            ballInHand: Boolean(metaState?.ballInHand),
-            ballOn: Array.isArray(frameSnapshot?.ballOn)
-              ? frameSnapshot.ballOn
-              : frameSnapshot?.ballOn ?? null
+            ballOn: ballOnColour,
+            isOpenTable: variantId === 'american' ? !ballOnColour : false
           };
-          const decision = planShot({
-            game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
-            state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
-          });
-          if (!decision?.aimPoint) return null;
-          const aimPoint = new THREE.Vector2(
-            decision.aimPoint.x - width / 2,
-            decision.aimPoint.y - height / 2
-          );
-          const aimDir = aimPoint.clone().sub(cueBall.pos);
-          if (aimDir.lengthSq() < 1e-6) return null;
-          aimDir.normalize();
-          const targetBall = allBalls.find((ball) => {
-            const mappedId = mapBallId(ball);
-            return mappedId != null && mappedId === decision.targetBallId;
-          });
-          const targetPocket = decision.targetPocket
-            ? new THREE.Vector2(
-                decision.targetPocket.x - width / 2,
-                decision.targetPocket.y - height / 2
-              )
-            : null;
-          const pocketIndex =
-            targetPocket != null
-              ? pocketsLocal.reduce((bestIndex, center, idx) => {
-                  if (bestIndex == null) return idx;
-                  const bestDist = pocketsLocal[bestIndex].distanceTo(targetPocket);
-                  const dist = center.distanceTo(targetPocket);
-                  return dist < bestDist ? idx : bestIndex;
-                }, null)
-              : null;
-          const pocketCenter =
-            pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
-          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
-          const sideSpin = decision.spin?.side ?? 0;
-          const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
-          const spin = {
-            x: THREE.MathUtils.clamp(sideSpin, -0.6, 0.6),
-            y: THREE.MathUtils.clamp(verticalSpin, -0.6, 0.6)
-          };
-          const quality = Number.isFinite(decision.quality) ? decision.quality : 0;
-          const isSafety =
-            typeof decision.rationale === 'string' &&
-            decision.rationale.toLowerCase().includes('safety');
-          return {
-            type: isSafety ? 'safety' : 'pot',
-            aimDir,
-            power,
-            target: targetBall ? toBallColorId(targetBall.id) : 'SAFETY',
-            targetBall: targetBall ?? null,
-            pocketId: pocketIndex != null ? POCKET_IDS[pocketIndex] : 'SAFETY',
-            pocketCenter,
-            difficulty: quality ? (1 - quality) * 1000 : undefined,
-            cueToTarget: targetBall
-              ? cueBall.pos.distanceTo(targetBall.pos)
-              : cueBall.pos.distanceTo(aimPoint),
-            targetToPocket:
+          try {
+            const plan = selectUkAiShot(aiState, {});
+            if (!plan?.aimPoint) return null;
+            const aimPoint = new THREE.Vector2(
+              plan.aimPoint.x - width / 2,
+              plan.aimPoint.y - height / 2
+            );
+            const aimDir = aimPoint.clone().sub(cueBall.pos);
+            if (aimDir.lengthSq() < 1e-6) return null;
+            aimDir.normalize();
+            const targetBall =
+              allBalls.find((ball) => mapBallId(ball) === plan.targetId) ||
+              allBalls.find((ball) => {
+                if (!ball?.active) return false;
+                const colour = mapBallToColour(ball);
+                return colour === plan.targetBall;
+              }) ||
+              null;
+            const localPocketId = mapAiPocketToLocal(plan.pocket);
+            const pocketIndex =
+              localPocketId != null ? POCKET_IDS.indexOf(localPocketId) : -1;
+            const pocketCenter =
+              pocketIndex >= 0 ? pocketsLocal[pocketIndex].clone() : null;
+            const cueToAim = cueBall.pos.distanceTo(aimPoint);
+            const pocketDistance =
               targetBall && pocketCenter
                 ? targetBall.pos.distanceTo(pocketCenter)
-                : 0,
-            spin,
-            quality,
-            aiMeta: {
+                : 0;
+            const basePower = computePowerFromDistance(cueToAim + pocketDistance);
+            const power = THREE.MathUtils.clamp(
+              basePower * mapSpeedPresetScale(plan.cueParams?.speed),
+              0.3,
+              0.95
+            );
+            const spin = mapSpinPreset(plan.cueParams?.spin);
+            const quality = Number.isFinite(plan.EV) ? plan.EV : 0;
+            return {
+              type: plan.actionType === 'pot' ? 'pot' : 'safety',
+              aimDir,
+              power,
+              target: targetBall ? toBallColorId(targetBall.id) : 'SAFETY',
+              targetBall: targetBall ?? null,
+              pocketId: localPocketId ?? 'SAFETY',
+              pocketCenter,
+              difficulty: quality ? (1 - quality) * 1000 : undefined,
+              cueToTarget: targetBall
+                ? cueBall.pos.distanceTo(targetBall.pos)
+                : cueToAim,
+              targetToPocket: pocketDistance,
+              spin,
               quality,
-              rationale: decision.rationale ?? null,
-              source: 'poolAi'
-            }
-          };
+              aiMeta: {
+                EV: plan.EV ?? null,
+                notes: plan.notes ?? null,
+                source: 'advanced'
+              }
+            };
+          } catch (err) {
+            console.warn('advanced AI planning failed', err);
+            return null;
+          }
         };
 
         const evaluateShotOptions = () => {
