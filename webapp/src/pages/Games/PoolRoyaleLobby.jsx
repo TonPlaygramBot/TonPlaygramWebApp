@@ -28,9 +28,11 @@ export default function PoolRoyaleLobby() {
     const requestedType = searchParams.get('type');
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
+  const initialMode = searchParams.get('mode') === 'online' ? 'online' : 'ai';
+  const autoStartRequested = searchParams.get('autostart') === '1';
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const [mode, setMode] = useState('ai');
+  const [mode, setMode] = useState(initialMode);
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
@@ -57,6 +59,7 @@ export default function PoolRoyaleLobby() {
   const stakeDebitRef = useRef(null);
   const matchTimeoutRef = useRef(null);
   const seatTimeoutRef = useRef(null);
+  const autoStartRef = useRef(false);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -234,6 +237,11 @@ export default function PoolRoyaleLobby() {
 
     navigate(`/games/poolroyale?${params.toString()}`);
   };
+  useEffect(() => {
+    if (!autoStartRequested || autoStartRef.current || matching) return;
+    autoStartRef.current = true;
+    startGame();
+  }, [autoStartRequested, matching, startGame]);
 
   useEffect(() => {
     let active = true;
