@@ -26,11 +26,7 @@ function normalizeBaseUrl(url) {
 }
 
 const defaultBase =
-  typeof window !== 'undefined' &&
-  window.location?.origin &&
-  /^https?:\/\//i.test(window.location.origin)
-    ? window.location.origin
-    : '';
+  typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
 const preferredBase = normalizeBaseUrl(resolvedEnv.VITE_API_BASE_URL || defaultBase);
 const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
 
