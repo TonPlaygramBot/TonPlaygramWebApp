@@ -1296,7 +1296,7 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.994;
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1307,7 +1307,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0165;
+const ROLLING_RESISTANCE = 0.018;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.02;
@@ -1577,7 +1577,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
-const SHOT_POWER_BOOST = 1.44; // increase overall shot power by another 20%
+const SHOT_POWER_BOOST = 1.2; // increase overall shot power by 20%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2776,7 +2776,6 @@ const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
   { id: 'circle', label: 'Circles' }
 ]);
 const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
-const RAIL_MARKERS_ENABLED = false; // disable visible rail mapping markers while preserving table mapping
 
 const DEFAULT_RAIL_MARKER_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.railMarkerColor?.[0] ?? 'gold';
@@ -9784,7 +9783,6 @@ export function Table3D(
       addMarker(x, -shortRailZ, Math.PI / 2);
     });
     activeRailMarkerStyle = { shape: shapeId, colorId: colorOpt.id };
-    railMarkerGroup.visible = RAIL_MARKERS_ENABLED;
   };
   applyRailMarkerStyleFn(activeRailMarkerStyle);
   railsGroup.add(railMarkerGroup);
