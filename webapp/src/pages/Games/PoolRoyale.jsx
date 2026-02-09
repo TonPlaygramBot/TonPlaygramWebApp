@@ -1044,6 +1044,12 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
+const TABLE_MAPPING_VISUALS = Object.freeze({
+  field: false,
+  cushions: false,
+  jaws: false,
+  pockets: false
+});
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1296,7 +1302,7 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.993;
+const FRICTION = 0.995;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1577,7 +1583,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.85; // reduce overall Pool Royale power by 15%
-const SHOT_POWER_BOOST = 1.2; // increase overall shot power by 20%
+const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -5337,8 +5343,9 @@ const TMP_VEC3_OBSTRUCTION_TARGET = new THREE.Vector3();
 const TMP_VEC3_POWER = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
 const TMP_COLOR_POWER = new THREE.Color();
-const POWER_LINE_COLOR_LOW = new THREE.Color(0x5fe39d);
-const POWER_LINE_COLOR_HIGH = new THREE.Color(0xff6a5c);
+const POWER_LINE_COLOR_LOW = new THREE.Color(0xf9d648);
+const POWER_LINE_COLOR_MID = new THREE.Color(0xf59e0b);
+const POWER_LINE_COLOR_HIGH = new THREE.Color(0xef4444);
 const POWER_LINE_MIN_FRACTION = 0.08;
 const CUE_OBSTRUCTION_SAMPLE_POINTS = Array.from(
   { length: CUE_OBSTRUCTION_SAMPLE_MAX },
@@ -6477,7 +6484,19 @@ function buildSwerveAimLinePoints(
 
 function resolvePowerLineColor(powerStrength) {
   const t = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  return TMP_COLOR_POWER.copy(POWER_LINE_COLOR_LOW).lerp(POWER_LINE_COLOR_HIGH, t);
+  if (t <= 0.5) {
+    return TMP_COLOR_POWER
+      .copy(POWER_LINE_COLOR_LOW)
+      .lerp(POWER_LINE_COLOR_MID, t * 2);
+  }
+  return TMP_COLOR_POWER
+    .copy(POWER_LINE_COLOR_MID)
+    .lerp(POWER_LINE_COLOR_HIGH, (t - 0.5) * 2);
+}
+
+function resolveAimPreviewSpin(spin) {
+  const normalized = normalizeSpinInput(spin);
+  return { x: -(normalized?.x ?? 0), y: -(normalized?.y ?? 0) };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -9668,7 +9687,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.56;
+  const railMarkerOutset = longRailW * 0.5;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -10827,6 +10846,7 @@ export function Table3D(
     const SHORT_RAIL_MAPPING_OUTSET = TABLE.THICK * 0.02;
     const mappingGroup = new THREE.Group();
     mappingGroup.name = 'tableMappingOverlay';
+    let hasMappingLines = false;
     const fieldLineMaterial = new THREE.LineBasicMaterial({
       color: 0xffffff,
       transparent: true,
@@ -10859,6 +10879,7 @@ export function Table3D(
       line.renderOrder = 6;
       line.frustumCulled = false;
       mappingGroup.add(line);
+      hasMappingLines = true;
     };
     const makeLine = (points, material, loop = false) => {
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -10880,7 +10901,9 @@ export function Table3D(
       new THREE.Vector3(fieldExtents.halfW, mappingLineY, fieldExtents.halfH),
       new THREE.Vector3(-fieldExtents.halfW, mappingLineY, fieldExtents.halfH)
     ];
-    registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
+    if (TABLE_MAPPING_VISUALS.field) {
+      registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
+    }
     if (table.userData?.cushions?.length) {
       table.userData.cushions.forEach((cushion) => {
         if (!cushion) return;
@@ -10906,7 +10929,9 @@ export function Table3D(
           pushPoint(box.min.x + minCut, innerZ);
           pushPoint(box.max.x - maxCut, innerZ);
           pushPoint(box.max.x, outerZ);
-          registerMappingLine(makeLine(points, cushionLineMaterial));
+          if (TABLE_MAPPING_VISUALS.cushions) {
+            registerMappingLine(makeLine(points, cushionLineMaterial));
+          }
         } else {
           const innerX = data.side < 0 ? box.max.x : box.min.x;
           const outerX = data.side < 0 ? box.min.x : box.max.x;
@@ -10914,7 +10939,9 @@ export function Table3D(
           pushPoint(innerX, box.min.z + minCut);
           pushPoint(innerX, box.max.z - maxCut);
           pushPoint(outerX, box.max.z);
-          registerMappingLine(makeLine(points, cushionLineMaterial));
+          if (TABLE_MAPPING_VISUALS.cushions) {
+            registerMappingLine(makeLine(points, cushionLineMaterial));
+          }
         }
       });
     }
@@ -10949,7 +10976,9 @@ export function Table3D(
             )
           );
         }
-        registerMappingLine(makeLine(points, jawLineMaterial));
+        if (TABLE_MAPPING_VISUALS.jaws) {
+          registerMappingLine(makeLine(points, jawLineMaterial));
+        }
       });
     }
     table.userData.pockets.forEach((marker) => {
@@ -10967,9 +10996,13 @@ export function Table3D(
           )
         );
       }
-      registerMappingLine(makeLine(points, pocketLineMaterial, true));
+      if (TABLE_MAPPING_VISUALS.pockets) {
+        registerMappingLine(makeLine(points, pocketLineMaterial, true));
+      }
     });
-    table.add(mappingGroup);
+    if (hasMappingLines) {
+      table.add(mappingGroup);
+    }
   }
 
   pocketMeshes.forEach((mesh) => {
@@ -24262,6 +24295,14 @@ const powerRef = useRef(hud.power);
           }
         };
 
+        const normalizeAiGroup = (value) => {
+          if (!value) return undefined;
+          const normalized = String(value).toUpperCase();
+          if (['SOLID', 'SOLIDS', 'RED'].includes(normalized)) return 'SOLIDS';
+          if (['STRIPE', 'STRIPES', 'BLUE'].includes(normalized)) return 'STRIPES';
+          return undefined;
+        };
+
         const mapSpeedPresetScale = (speed) => {
           switch (speed) {
             case 'soft':
@@ -24490,6 +24531,16 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const metaState = frameSnapshot?.meta?.state ?? null;
+          const activePlayer = metaState?.currentPlayer ?? frameSnapshot?.activePlayer ?? null;
+          const assignmentRaw =
+            activePlayer && metaState?.assignments
+              ? metaState.assignments[activePlayer]
+              : null;
+          const normalizedAssignment = normalizeAiGroup(assignmentRaw);
+          const rawBallOn = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn[0]
+            : frameSnapshot?.ballOn ?? null;
+          const normalizedBallOn = normalizeAiGroup(rawBallOn);
           const aiState = {
             balls: aiBalls,
             pockets,
@@ -24498,9 +24549,8 @@ const powerRef = useRef(hud.power);
             ballRadius: BALL_R,
             friction: FRICTION,
             ballInHand: Boolean(metaState?.ballInHand),
-            ballOn: Array.isArray(frameSnapshot?.ballOn)
-              ? frameSnapshot.ballOn
-              : frameSnapshot?.ballOn ?? null
+            myGroup: normalizedAssignment,
+            ballOn: normalizedBallOn ?? null
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -26096,6 +26146,7 @@ const powerRef = useRef(hud.power);
           }
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
+        const aimPreviewSpin = resolveAimPreviewSpin(appliedSpin);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
         const physicsSpin = mapSpinForPhysics(appliedSpin);
         const ranges = spinRangeRef.current || {};
@@ -26327,7 +26378,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            physicsSpin,
+            aimPreviewSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -26414,7 +26465,7 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
-            spin: appliedSpin,
+            spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength
@@ -26650,6 +26701,7 @@ const powerRef = useRef(hud.power);
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinNormalized = normalizeSpinInput(remoteSpin);
+          const aimPreviewSpin = resolveAimPreviewSpin(remoteSpinNormalized);
           const remoteSwerveActive = false;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpinNormalized);
           const guideAimDir2D = resolveSwerveAimDir(
@@ -26691,7 +26743,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remotePhysicsSpin,
+            aimPreviewSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -26719,7 +26771,7 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: baseDir,
-            spin: remoteSpinNormalized,
+            spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength: 0
