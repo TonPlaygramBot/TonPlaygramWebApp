@@ -625,18 +625,18 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend the plate ends 
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.058; // push middle chrome plates a touch farther toward the side rails while preserving the current layout
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.045; // push middle chrome plates outward toward the rails while keeping the pocket cut centered
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.028; // trim side fascia edges slightly more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.02; // reduce inward pull so middle chrome cutouts sit slightly farther toward the side rails
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.055; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.975; // pull the corner relief radius in slightly for a tighter rounded cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // enlarge the middle rail rounded cuts to match the chrome pocket arc
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.062; // offset the wood cutouts slightly farther outward so they stay aligned with the shifted middle pocket line
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1115,7 +1115,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a to
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match the middle jaw arc radius to the wooden rail rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws a bit farther toward the side rails while keeping the same jaw profile
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1189,8 +1189,8 @@ const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.115; // nudge middle pocket centres slightly farther toward the side rails
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.275; // bias middle pocket centres outward a bit more while preserving the same overall layout
+const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 65° cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -6690,7 +6690,9 @@ function resolveCueFollowPreview({
     : clampedPower;
   const impactPower = clampedCuePower;
   const baseDir = cueDir ? cueDir.clone() : null;
-  if (baseDir && baseDir.lengthSq() > 1e-8) {
+  if (!baseDir || baseDir.lengthSq() < 1e-8) {
+    baseDir?.set(0, 0, 1);
+  } else {
     baseDir.normalize();
   }
   const aimVec = aimDir ? aimDir.clone() : baseDir ? baseDir.clone() : new THREE.Vector3(0, 0, 1);
@@ -6699,16 +6701,14 @@ function resolveCueFollowPreview({
   } else {
     aimVec.normalize();
   }
-  const cuePathDir =
-    baseDir && baseDir.lengthSq() > 1e-8 ? baseDir.clone() : aimVec.clone();
   const spinAdjusted =
     resolveTargetSpinDeflection(
-      cuePathDir,
+      baseDir ?? aimVec,
       aimVec,
       normalizedSpin,
       impactPower,
       liftStrength
-    ) ?? cuePathDir;
+    ) ?? baseDir ?? aimVec;
   const spinX = normalizedSpin?.x ?? 0;
   const spinY = normalizedSpin?.y ?? 0;
   const spinMagnitude = Math.hypot(spinX, spinY);
@@ -6716,28 +6716,30 @@ function resolveCueFollowPreview({
   const topspinWeight = Math.max(0, spinY);
   const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
   const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
-  const previewDir = cuePathDir.clone();
-  const backwards = cuePathDir.clone().multiplyScalar(-1);
+  const previewDir = spinAdjusted.clone();
+  const backwards = aimVec.clone().multiplyScalar(-1);
   const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
   const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
   if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
-    previewDir.copy(backwards);
+    const drawBlend = THREE.MathUtils.clamp(
+      backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
+      0,
+      1
+    );
+    previewDir.lerp(backwards, drawBlend);
   } else if (topspinLerp > 1e-4) {
-    previewDir.copy(spinAdjusted);
     const followBlend = THREE.MathUtils.clamp(
       topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
       0,
       1
     );
-    previewDir.lerp(cuePathDir, followBlend);
-  } else {
-    previewDir.copy(spinAdjusted);
+    previewDir.lerp(aimVec, followBlend);
   }
   const sideInfluence =
     Math.min(Math.abs(spinX), 1) *
     (0.18 + impactPower * 0.22) *
     (1 - cutPenalty * 0.3);
-  if (sideInfluence > 1e-4 && backspinLerp <= 1e-4) {
+  if (sideInfluence > 1e-4) {
     const perp = new THREE.Vector3(-previewDir.z, 0, previewDir.x);
     if (perp.lengthSq() > 1e-8) {
       perp.normalize();
@@ -6761,7 +6763,7 @@ function resolveCueFollowPreview({
   return {
     dir: previewDir,
     length,
-    backwards: previewDir.dot(cuePathDir) < 0
+    backwards: previewDir.dot(aimVec) < 0
   };
 }
 
