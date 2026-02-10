@@ -578,7 +578,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 0.985;
+const POCKET_VISUAL_EXPANSION = 0.972;
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
@@ -1052,6 +1052,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
+const FIXED_RAIL_REPLAY_CAMERA = true;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
@@ -1081,8 +1082,8 @@ const RAIL_HEIGHT = TABLE.THICK * 1.68; // raise rails slightly so the cushions 
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.38; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // round the middle jaws slightly more while keeping the corner match
+const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thinner while keeping the outside profile intact
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.68; // preserve the playable mouth while slightly tightening the corner jaw radius
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -1090,7 +1091,7 @@ const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outw
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.94; // extend jaw bodies slightly so the lower edge reads taller without closing the mouth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // let jaws extend a little further downward from the bottom edge
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.016; // extend jaws slightly further downward so corner jaws read a touch taller from the bottom
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -1100,8 +1101,8 @@ const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.35; // smooth the taper curve so t
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.32; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.7; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.28; // trim inner thickness a little more so all six jaws look slimmer from the inside
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.64; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
@@ -1190,10 +1191,10 @@ const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 65° cut mapping
+const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.14; // push middle pocket centres a little farther out from table centre
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.3; // align middle pocket centres with the shifted chrome + wood cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
-const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
+const SIDE_POCKET_CLOTH_INWARD_PULL = -TABLE.THICK * 0.03; // nudge middle cloth cutouts outward with the shifted side-pocket centreline
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
@@ -1215,7 +1216,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.975; // match snooker middle pocket cut size
+const SIDE_POCKET_CUT_SCALE = 0.962; // shrink side pocket cut radius slightly to tighten all six openings
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1383,7 +1384,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.018; // trim the cushion tops a touc
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.12; // round the exterior wooden rail edges while keeping the rail angles intact
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep exterior wooden rail edges straight so frame sides read with clean angles
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
@@ -20095,12 +20096,13 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const overheadReplayCamera = LOCK_REPLAY_CAMERA
-            ? null
-            : resolveRailOverheadReplayCamera({
+          const overheadReplayCamera =
+            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
+              ? resolveRailOverheadReplayCamera({
                 focusOverride: storedTarget,
                 minTargetY
-              });
+                })
+              : null;
           if (overheadReplayCamera?.position) {
             storedPosition = overheadReplayCamera.position.clone();
             if (overheadReplayCamera?.target) {
@@ -20222,7 +20224,7 @@ const powerRef = useRef(hud.power);
           updateReplayTrail(replayPlayback.cuePath, 0);
           primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
-          if (!LOCK_REPLAY_CAMERA) {
+          if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
             const initialCamera = trimmed.frames?.[0]?.camera ?? null;
             if (initialCamera) {
               replayFrameCameraRef.current = {
@@ -26123,7 +26125,7 @@ const powerRef = useRef(hud.power);
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
-            if (!LOCK_REPLAY_CAMERA) {
+            if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
               const frameCameraA = frameA?.camera ?? null;
               const frameCameraB = frameB?.camera ?? frameCameraA;
               if (frameCameraA || frameCameraB) {
