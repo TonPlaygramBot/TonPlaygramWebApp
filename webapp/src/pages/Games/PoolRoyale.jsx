@@ -630,13 +630,13 @@ const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hai
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.028; // trim side fascia edges slightly more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.02; // nudge the rounded chrome cutouts slightly outward so they track the pushed middle pockets
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.055; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.975; // pull the corner relief radius in slightly for a tighter rounded cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // enlarge the middle rail rounded cuts to match the chrome pocket arc
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.08; // push wood side-pocket cutouts a touch farther outward to stay aligned with the chrome jaws
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1115,7 +1115,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a to
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match the middle jaw arc radius to the wooden rail rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.075; // push middle-pocket jaws slightly farther toward the side rails while preserving jaw layout
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1190,7 +1190,7 @@ const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.29; // move middle pocket centres a little farther toward the side rails
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 65° cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -1437,7 +1437,7 @@ const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potte
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
-const POCKET_MIDDLE_HOLDER_SWAY = 0.38; // add a bit more side sway so middle-pocket holders follow the shifted pocket centreline
+const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
@@ -6767,73 +6767,8 @@ function resolveCueFollowPreview({
   };
 }
 
-function estimateCueLaunchSpeed(powerStrength = 0) {
-  const clampedPower = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
-  const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
-  return SHOT_BASE_SPEED * powerScale;
-}
-
-function predictCueDirectionAfterObjectImpact(dirNorm, contactNormal, options = {}) {
-  if (!dirNorm || !contactNormal) return null;
-  const launchDir = dirNorm.clone();
-  if (launchDir.lengthSq() < 1e-8) return null;
-  launchDir.normalize();
-  const normal2 = contactNormal.clone();
-  if (normal2.lengthSq() < 1e-8) return null;
-  normal2.normalize();
-
-  const launchSpeed = estimateCueLaunchSpeed(options?.powerStrength ?? 0.5);
-  const spin = normalizeSpinInput(options?.spin);
-  const shotDir3 = new THREE.Vector3(launchDir.x, 0, launchDir.y);
-  const sideAxis = new THREE.Vector3(-shotDir3.z, 0, shotDir3.x);
-  if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
-  const rOffset = sideAxis
-    .clone()
-    .multiplyScalar((spin?.x ?? 0) * BALL_R)
-    .addScaledVector(new THREE.Vector3(0, 1, 0), (spin?.y ?? 0) * BALL_R);
-  const impulse = shotDir3.clone().multiplyScalar(BALL_MASS * launchSpeed);
-  const omegaA = rOffset.clone().cross(impulse).multiplyScalar(1 / BALL_INERTIA);
-
-  const n = new THREE.Vector3(normal2.x, 0, normal2.y);
-  const rA = n.clone().multiplyScalar(BALL_R);
-  const rB = n.clone().multiplyScalar(-BALL_R);
-  const velA = shotDir3.clone().multiplyScalar(launchSpeed);
-  const velB = new THREE.Vector3();
-  const omegaB = new THREE.Vector3();
-
-  const contactVelA = omegaA.clone().cross(rA).add(velA);
-  const contactVelB = omegaB.clone().cross(rB).add(velB);
-  const relVel = contactVelB.sub(contactVelA);
-  const relNormal = relVel.dot(n);
-  if (relNormal < 0) {
-    const normalImpulseMag =
-      (-(1 + PHYSICS_PROFILE.restitution) * relNormal * BALL_MASS) / 2;
-    const normalImpulse = n.clone().multiplyScalar(normalImpulseMag);
-    velA.addScaledVector(normalImpulse, -1 / BALL_MASS);
-
-    const tangentVel = relVel.sub(n.clone().multiplyScalar(relNormal));
-    const tangentialSpeed = tangentVel.length();
-    if (tangentialSpeed > 1e-8) {
-      const tangentDir = tangentVel.multiplyScalar(1 / tangentialSpeed);
-      const raCrossT = rA.clone().cross(tangentDir).lengthSq();
-      const rbCrossT = rB.clone().cross(tangentDir).lengthSq();
-      const denom = 2 / BALL_MASS + (raCrossT + rbCrossT) / BALL_INERTIA;
-      const jt = -tangentialSpeed / Math.max(denom, 1e-6);
-      const maxFriction = BALL_BALL_FRICTION * Math.abs(normalImpulseMag);
-      const clampedJt = clamp(jt, -maxFriction, maxFriction);
-      const tangentImpulse = tangentDir.multiplyScalar(clampedJt);
-      velA.addScaledVector(tangentImpulse, -1 / BALL_MASS);
-    }
-  }
-
-  const cueVel2 = new THREE.Vector2(velA.x, velA.z);
-  if (cueVel2.lengthSq() <= 1e-8) return null;
-  return cueVel2.normalize();
-}
-
 // calculate impact point and post-collision direction for aiming guide
-function calcTarget(cue, dir, balls, options = {}) {
+function calcTarget(cue, dir, balls) {
   if (!cue) {
     return {
       impact: new THREE.Vector2(),
@@ -6911,13 +6846,10 @@ function calcTarget(cue, dir, balls, options = {}) {
     if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
     else contactNormal.copy(dirNorm);
     targetDir = contactNormal.clone();
-    cueDir = predictCueDirectionAfterObjectImpact(dirNorm, targetDir, options);
-    if (!cueDir || cueDir.lengthSq() <= 1e-8) {
-      const projected = dirNorm.dot(targetDir);
-      cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
-      if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
-      else cueDir = null;
-    }
+    const projected = dirNorm.dot(targetDir);
+    cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
+    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+    else cueDir = null;
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
     cueDir = dirNorm
@@ -23103,10 +23035,7 @@ const powerRef = useRef(hud.power);
         // Keep first-contact aiming locked to the visible guide line. Spin remains
         // active only for post-impact cue/target behavior.
         const shotAimDir = aimDir.clone();
-        const prediction = calcTarget(cue, shotAimDir.clone(), balls, {
-          spin: physicsSpin,
-          powerStrength: clampedPower
-        });
+        const prediction = calcTarget(cue, shotAimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
           : prediction.tHit;
@@ -26593,11 +26522,7 @@ const powerRef = useRef(hud.power);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
-            balls,
-            {
-              spin: physicsSpin,
-              powerStrength
-            }
+            balls
           );
           const impactDir =
             targetDir && (targetDir.x || targetDir.y)
@@ -26976,11 +26901,7 @@ const powerRef = useRef(hud.power);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
-            balls,
-            {
-              spin: remotePhysicsSpin,
-              powerStrength
-            }
+            balls
           );
           const impactDir =
             targetDir && (targetDir.x || targetDir.y)
