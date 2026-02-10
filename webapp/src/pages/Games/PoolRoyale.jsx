@@ -1052,6 +1052,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
+const LOCK_RAIL_OVERHEAD_FRAME = true;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
 const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
@@ -1110,11 +1111,11 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.7; // reduce corner jaw overreach so balls near corner cuts no longer stack into the jaw face
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match the middle jaw arc radius to the wooden rail rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaw tops aligned with the cushion top plane
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
@@ -1123,7 +1124,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep the collision arc aligned to the jaw edge so cushion cuts stay sealed
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.986; // trim corner-jaw collision arc slightly to stop overlap on angled cuts while preserving pocket mapping
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -3081,16 +3082,16 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     id: 'rail-overhead',
     label: 'Rail Overhead',
     description:
-      'Short-rail broadcast heads mounted above the table for the true TV feed.',
-    method: 'Overhead rail mounts with fast post-shot cuts.',
-    orbitBias: 0.68,
-    railPush: BALL_R * 6,
-    lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
-    focusDepthBias: -BALL_R * 0.6,
+      'Fixed overhead rail camera with no short-rail standing heads and a locked frame.',
+    method: 'Single rail-overhead mount with steady TV framing.',
+    orbitBias: 0,
+    railPush: 0,
+    lateralDolly: 0,
+    focusLift: 0,
+    focusDepthBias: 0,
     focusPan: 0,
-    trackingBias: 0.52,
-    smoothing: 0.14,
+    trackingBias: 0,
+    smoothing: 1,
     avoidPocketCameras: false,
     forceActionActivation: true
   }
@@ -4811,7 +4812,9 @@ function createBroadcastCameras({
     };
   };
 
-  cameras.front = createShortRailUnit(-1);
+  if (!LOCK_RAIL_OVERHEAD_FRAME) {
+    cameras.front = createShortRailUnit(-1);
+  }
   cameras.back = createShortRailUnit(1);
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
@@ -17539,18 +17542,24 @@ const powerRef = useRef(hud.power);
           );
           const baseFocus =
             safeFocusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
-          const trackingTarget = safeTargetWorld ?? baseFocus;
-          const bias = THREE.MathUtils.clamp(system?.trackingBias ?? 0, 0, 1);
-          const orbitBias = THREE.MathUtils.clamp(
-            system?.orbitBias ?? BROADCAST_ORBIT_FOCUS_BIAS,
-            0,
-            1
-          );
+          const lockOverheadFrame =
+            LOCK_RAIL_OVERHEAD_FRAME && (system?.id ?? DEFAULT_BROADCAST_SYSTEM_ID) === 'rail-overhead';
+          const trackingTarget = lockOverheadFrame ? baseFocus : safeTargetWorld ?? baseFocus;
+          const bias = lockOverheadFrame
+            ? 0
+            : THREE.MathUtils.clamp(system?.trackingBias ?? 0, 0, 1);
+          const orbitBias = lockOverheadFrame
+            ? 0
+            : THREE.MathUtils.clamp(
+                system?.orbitBias ?? BROADCAST_ORBIT_FOCUS_BIAS,
+                0,
+                1
+              );
           let focusTarget =
             baseFocus && trackingTarget
               ? baseFocus.clone().lerp(trackingTarget, bias)
               : baseFocus ?? trackingTarget;
-          if (safeOrbitWorld) {
+          if (!lockOverheadFrame && safeOrbitWorld) {
             focusTarget = focusTarget
               ? focusTarget.lerp(safeOrbitWorld, orbitBias)
               : safeOrbitWorld.clone();
@@ -17579,9 +17588,11 @@ const powerRef = useRef(hud.power);
               unit.head.lookAt(headTarget);
             }
           };
-          const useBack = railDir >= 0;
+          const useBack = LOCK_RAIL_OVERHEAD_FRAME ? true : railDir >= 0;
           applyPreset(useBack ? rig.cameras.back : rig.cameras.front, useBack ? 1 : -1);
-          applyPreset(useBack ? rig.cameras.front : rig.cameras.back, useBack ? -1 : 1);
+          if (!LOCK_RAIL_OVERHEAD_FRAME) {
+            applyPreset(useBack ? rig.cameras.front : rig.cameras.back, useBack ? -1 : 1);
+          }
           rig.activeRail = useBack ? 'back' : 'front';
         };
 
@@ -26149,6 +26160,9 @@ const powerRef = useRef(hud.power);
               replayFrameCameraRef.current = null;
             }
             const frameCamera = updateCamera();
+            if (cueStick?.visible) {
+              cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
+            }
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
@@ -26163,6 +26177,10 @@ const powerRef = useRef(hud.power);
         }
         const nowMs = now;
         updateCueStroke(nowMs);
+        if (ENABLE_CUE_STROKE_ANIMATION && cueStick && cueStrokeStateRef.current) {
+          cueStick.visible = true;
+          cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
+        }
         if (pendingInHandResetRef.current && hudRef.current?.inHand) {
           pendingInHandResetRef.current = false;
           const startPos = defaultInHandPosition({ forceCenter: true });
