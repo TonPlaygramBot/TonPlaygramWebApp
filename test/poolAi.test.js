@@ -86,6 +86,46 @@ test('ball in hand aims for straight shot', () => {
   assert(diff < 0.2);
 });
 
+
+test('ball in hand baulk restriction only applies during break placement', () => {
+  const baseState = {
+    balls: [
+      { id: 0, x: 0, y: 0, vx: 0, vy: 0, pocketed: false },
+      { id: 2, x: 500, y: 250, vx: 0, vy: 0, pocketed: false }
+    ],
+    pockets: [
+      { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+      { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+    ],
+    width: 1000,
+    height: 500,
+    ballRadius: 10,
+    friction: 0.01,
+    ballInHand: true,
+    mustPlayFromBaulk: true,
+    baulkLineY: 490
+  };
+
+  const unrestricted = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: { ...baseState, breakInProgress: false },
+    timeBudgetMs: 100,
+    rngSeed: 4
+  });
+  assert(unrestricted.cueBallPosition);
+  assert(unrestricted.cueBallPosition.y < baseState.baulkLineY);
+
+  const restricted = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: { ...baseState, breakInProgress: true },
+    timeBudgetMs: 100,
+    rngSeed: 4
+  });
+  if (restricted.cueBallPosition) {
+    assert(restricted.cueBallPosition.y >= baseState.baulkLineY);
+  }
+});
+
 test('avoids pocket with blocking ball at entrance', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
