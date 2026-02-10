@@ -625,18 +625,18 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend the plate ends 
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.058; // push middle chrome plates slightly farther toward the side rails while preserving the existing pocket layout
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.045; // push middle chrome plates outward toward the rails while keeping the pocket cut centered
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.028; // trim side fascia edges slightly more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.034; // ease inward pull so middle rounded chrome cutouts sit slightly closer to side rails
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.055; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.975; // pull the corner relief radius in slightly for a tighter rounded cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // enlarge the middle rail rounded cuts to match the chrome pocket arc
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.072; // push middle wood cutouts a touch farther outward while retaining the same overall layout
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1115,7 +1115,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a to
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match the middle jaw arc radius to the wooden rail rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.074; // move middle pocket jaws a little farther toward the side rails with the same jaw profile
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1190,7 +1190,7 @@ const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.285; // nudge middle pocket centres slightly toward the side rails while keeping spacing symmetric
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 65° cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -6790,12 +6790,13 @@ function calcTarget(cue, dir, balls) {
       tHit: 0
     };
   }
-
   const dirNorm = dir.clone().normalize();
   let tHit = Infinity;
   let targetBall = null;
   let railNormal = null;
 
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -6804,94 +6805,14 @@ function calcTarget(cue, dir, balls) {
     }
   };
 
-  const checkRayCircle = (center, radius, normalResolver = null) => {
-    if (!center || !Number.isFinite(radius) || radius <= MICRO_EPS) return;
-    const offset = cuePos.clone().sub(center);
-    const a = dirNorm.dot(dirNorm);
-    const b = 2 * offset.dot(dirNorm);
-    const c = offset.dot(offset) - radius * radius;
-    const disc = b * b - 4 * a * c;
-    if (disc < 0) return;
-    const root = Math.sqrt(disc);
-    const inv2a = 1 / (2 * a);
-    const t1 = (-b - root) * inv2a;
-    const t2 = (-b + root) * inv2a;
-    const t = t1 >= 0 ? t1 : t2 >= 0 ? t2 : Infinity;
-    if (!Number.isFinite(t) || t < 0 || t >= tHit) return;
-    tHit = t;
-    targetBall = null;
-    const hitPoint = cuePos.clone().addScaledVector(dirNorm, t);
-    if (typeof normalResolver === 'function') {
-      railNormal = normalResolver(hitPoint, center);
-    } else {
-      railNormal = hitPoint.clone().sub(center).normalize();
-    }
-  };
-
-  const checkCushionSegments = () => {
-    if (!Array.isArray(CUSHION_SEGMENTS) || CUSHION_SEGMENTS.length === 0) return;
-    for (const segment of CUSHION_SEGMENTS) {
-      if (!segment?.start || !segment?.end) continue;
-      const segmentVec = segment.end.clone().sub(segment.start);
-      const lenSq = segmentVec.lengthSq();
-      if (lenSq < 1e-8) continue;
-      const segLen = Math.sqrt(lenSq);
-      const tangent = segmentVec.clone().multiplyScalar(1 / segLen);
-      const normal = segment.normal?.clone();
-      const contactRadius =
-        segment.type === 'cut'
-          ? Math.max(RAIL_CONTACT_RADIUS, CUSHION_CUT_CONTACT_RADIUS)
-          : RAIL_CONTACT_RADIUS;
-
-      if (normal && normal.lengthSq() > 1e-8) {
-        normal.normalize();
-        const denom = dirNorm.dot(normal);
-        if (denom < -1e-6) {
-          const signed = cuePos.clone().sub(segment.start).dot(normal);
-          const t = (contactRadius - signed) / denom;
-          if (t >= 0 && t < tHit) {
-            const hitPoint = cuePos.clone().addScaledVector(dirNorm, t);
-            const along = hitPoint.clone().sub(segment.start).dot(tangent);
-            if (along >= -MICRO_EPS && along <= segLen + MICRO_EPS) {
-              tHit = t;
-              targetBall = null;
-              railNormal = normal.clone();
-            }
-          }
-        }
-      }
-
-      const endpointNormal = (hitPoint, endpoint) => {
-        const outward = hitPoint.clone().sub(endpoint);
-        if (outward.lengthSq() < 1e-8) {
-          if (normal && normal.lengthSq() > 1e-8) return normal.clone();
-          return dirNorm.clone().multiplyScalar(-1);
-        }
-        return outward.normalize();
-      };
-      checkRayCircle(segment.start, contactRadius, endpointNormal);
-      checkRayCircle(segment.end, contactRadius, endpointNormal);
-    }
-  };
-
-  checkCushionSegments();
-
-  if (!Number.isFinite(tHit)) {
-    const limX = RAIL_LIMIT_X;
-    const limY = RAIL_LIMIT_Y;
-    if (dirNorm.x < -1e-8) {
-      checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
-    }
-    if (dirNorm.x > 1e-8) {
-      checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
-    }
-    if (dirNorm.y < -1e-8) {
-      checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
-    }
-    if (dirNorm.y > 1e-8) {
-      checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
-    }
-  }
+  if (dirNorm.x < -1e-8)
+    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
+  if (dirNorm.x > 1e-8)
+    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
+  if (dirNorm.y < -1e-8)
+    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
+  if (dirNorm.y > 1e-8)
+    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -6922,11 +6843,8 @@ function calcTarget(cue, dir, balls) {
   let cueDir = null;
   if (targetBall) {
     const contactNormal = targetBall.pos.clone().sub(impact);
-    if (contactNormal.lengthSq() > 1e-8) {
-      contactNormal.normalize();
-    } else {
-      contactNormal.copy(dirNorm);
-    }
+    if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
+    else contactNormal.copy(dirNorm);
     targetDir = contactNormal.clone();
     const projected = dirNorm.dot(targetDir);
     cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
@@ -6941,7 +6859,6 @@ function calcTarget(cue, dir, balls) {
   }
   return { impact, targetDir, cueDir, targetBall, railNormal, tHit: travel };
 }
-
 
 function Guret(parent, id, color, x, y, options = {}) {
   const pattern = options.pattern || (id === 'cue' ? 'cue' : 'solid');
