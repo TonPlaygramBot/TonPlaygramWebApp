@@ -1,22 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
-export default function DominoRoyalArena({ search }) {
-  const [src, setSrc] = useState(() => `/domino-royal.html${search || ''}`);
+import { DOMINO_ROYAL_INLINE_STYLE, DOMINO_ROYAL_MARKUP } from './dominoRoyalTemplate.js';
+
+const INLINE_STYLE_ID = 'domino-royal-inline-style';
+
+export default function DominoRoyalArena() {
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    setSrc(`/domino-royal.html${search || ''}`);
-  }, [search]);
+    if (!containerRef.current) return undefined;
 
-  return (
-    <div className="relative w-full h-full bg-black">
-      <iframe
-        key={src}
-        src={src}
-        title="Domino Royal 3D"
-        className="absolute inset-0 h-full w-full border-0"
-        allow="fullscreen; autoplay; clipboard-read; clipboard-write; accelerometer; gyroscope"
-        allowFullScreen
-      />
-    </div>
-  );
+    const existingStyle = document.getElementById(INLINE_STYLE_ID);
+    const styleTag = existingStyle ?? document.createElement('style');
+    if (!existingStyle) {
+      styleTag.id = INLINE_STYLE_ID;
+      styleTag.textContent = DOMINO_ROYAL_INLINE_STYLE;
+      document.head.appendChild(styleTag);
+    }
+
+    containerRef.current.innerHTML = DOMINO_ROYAL_MARKUP;
+
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = '/domino-royal-game.js';
+    script.dataset.dominoRoyalScript = 'true';
+    document.body.appendChild(script);
+
+    return () => {
+      script.remove();
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
+  }, []);
+
+  return <div ref={containerRef} className="relative h-full w-full bg-black" />;
 }
