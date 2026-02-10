@@ -578,7 +578,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 0.975;
+const POCKET_VISUAL_EXPANSION = 0.985;
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
@@ -625,18 +625,18 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend the plate ends 
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.06; // push middle chrome plates farther outward toward the rails while keeping the pocket cut centered
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.045; // push middle chrome plates outward toward the rails while keeping the pocket cut centered
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.028; // trim side fascia edges slightly more for a tighter outside finish
-const CHROME_CORNER_POCKET_CUT_SCALE = 0.985; // make the rounded chrome corner cut slightly tighter
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.985; // keep the middle pocket chrome cut radius aligned with the tighter corner cuts
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.03; // reduce inward pull so middle rounded chrome cutouts sit slightly farther out
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.055; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.975; // pull the corner relief radius in slightly for a tighter rounded cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.01; // keep the middle rail rounded cuts close to chrome while slightly tightening radius
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.07; // offset the wood cutouts farther outward so they track the shifted middle pocket line
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // enlarge the middle rail rounded cuts to match the chrome pocket arc
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1081,7 +1081,7 @@ const RAIL_HEIGHT = TABLE.THICK * 1.68; // raise rails slightly so the cushions 
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.43; // pull the inner lip farther outward so jaws open slightly more while keeping the chrome-facing radius untouched
+const POCKET_JAW_CORNER_INNER_SCALE = 1.38; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // round the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.68; // preserve the playable mouth while slightly tightening the corner jaw radius
 const POCKET_JAW_SIDE_OUTER_SCALE =
@@ -1090,7 +1090,7 @@ const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outw
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.94; // extend jaw bodies slightly so the lower edge reads taller without closing the mouth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.016; // let jaws extend further downward from the bottom edge, especially visible on corners
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // let jaws extend a little further downward from the bottom edge
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -1111,8 +1111,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.76; // expand corner jaws slightly on both sides while preserving height
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.58; // push the middle jaw reach wider so the openings read larger
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.7; // reduce corner jaw overreach so balls near corner cuts no longer stack into the jaw face
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match the middle jaw arc radius to the wooden rail rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaw tops aligned with the cushion top plane
@@ -1191,7 +1191,7 @@ const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.28; // push middle pocket centres farther outward away from table centre
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the 65° cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -1215,7 +1215,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.965; // tighten middle pocket cut radius slightly
+const SIDE_POCKET_CUT_SCALE = 0.975; // match snooker middle pocket cut size
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -17662,13 +17662,6 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
-          if (LOCK_RAIL_OVERHEAD_FRAME) {
-            // Keep replay rail-overhead framing fixed in one place with no rail-side drift.
-            return resolveReplayTopViewCamera({
-              focusOverride,
-              minTargetY
-            });
-          }
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
           const activeRail =
