@@ -1,20 +1,22 @@
-import { useEffect } from 'react';
-
-const buildDominoRoyalUrl = (search = '') => `/domino-royal.html${search || ''}`;
+import { useEffect, useState } from 'react';
 
 export default function DominoRoyalArena({ search }) {
-  useEffect(() => {
-    const nextUrl = buildDominoRoyalUrl(search);
-    if (window.location.pathname === '/domino-royal.html' && window.location.search === (search || '')) {
-      return;
-    }
+  const [src, setSrc] = useState(() => `/domino-royal.html${search || ''}`);
 
-    window.location.assign(nextUrl);
+  useEffect(() => {
+    setSrc(`/domino-royal.html${search || ''}`);
   }, [search]);
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-black px-6 text-center text-white/80">
-      <p className="text-sm">Opening Domino Royal…</p>
+    <div className="relative w-full h-full bg-black">
+      <iframe
+        key={src}
+        src={src}
+        title="Domino Royal 3D"
+        className="absolute inset-0 h-full w-full border-0"
+        allow="fullscreen; autoplay; clipboard-read; clipboard-write; accelerometer; gyroscope"
+        allowFullScreen
+      />
     </div>
   );
 }
