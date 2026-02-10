@@ -43,9 +43,6 @@
         height: 100%;
         pointer-events: none;
       }
-      #trajectory-overlay {
-        z-index: 4;
-      }
       .cloth-shadow {
         position: absolute;
         top: var(--cloth-top);
@@ -74,7 +71,6 @@
         transform-origin: top center;
         transform: translate(-50%, -100%) rotate(0);
         pointer-events: none;
-        opacity: 0;
       }
       :root {
         --ball-size: 42px;
@@ -182,17 +178,6 @@
       .debug-marker {
         visibility: hidden;
       }
-      .trajectory-line {
-        stroke: rgba(255, 255, 255, 0.95);
-        stroke-width: 2.5;
-        stroke-linecap: round;
-      }
-      .trajectory-line--after {
-        stroke: rgba(138, 205, 255, 0.98);
-      }
-      .trajectory-impact {
-        fill: rgba(255,255,255,0.9);
-      }
     </style>
   </head>
   <body>
@@ -203,12 +188,6 @@
         alt="Pool table"
       />
       <div id="cloth-shadow" class="cloth-shadow" aria-hidden="true"></div>
-      <svg id="pocket-trim" class="overlay" viewBox="0 0 1600 900" preserveAspectRatio="none"></svg>
-      <svg id="trajectory-overlay" class="overlay" preserveAspectRatio="none">
-        <line id="trajectory-before" class="trajectory-line" />
-        <line id="trajectory-after" class="trajectory-line trajectory-line--after" />
-        <circle id="trajectory-impact" class="trajectory-impact" r="3" />
-      </svg>
       <svg id="frame" class="overlay debug-marker" viewBox="0 0 1000 1500"></svg>
       <div class="ball-layer">
         <div id="aim-line" class="aim-line debug-marker"></div>
@@ -272,11 +251,6 @@
       const cardColorInput = document.getElementById('card-color');
       const controls = document.getElementById('controls');
       const frameSvg = document.getElementById('frame');
-      const pocketTrimSvg = document.getElementById('pocket-trim');
-      const trajectoryOverlay = document.getElementById('trajectory-overlay');
-      const trajectoryBefore = document.getElementById('trajectory-before');
-      const trajectoryAfter = document.getElementById('trajectory-after');
-      const trajectoryImpact = document.getElementById('trajectory-impact');
 
       let ballVolume = volumeSlider.value / 100;
       bgImage.style.filter = `brightness(${brightnessSlider.value}%)`;
@@ -305,45 +279,7 @@
         frameSvg.innerHTML = templates[style];
       }
 
-      function renderPocketTrim() {
-        const jawOffset = 28;
-        const topY = 160;
-        const bottomY = 740;
-        const centerX = 800;
-        const chrome = '#cfd9ea';
-        const chromeDark = '#8ea0b8';
-        const net = '#3d3d3d';
-        pocketTrimSvg.innerHTML = `
-          <defs>
-            <linearGradient id="chromeJaw" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#f8fbff"/>
-              <stop offset="0.55" stop-color="${chrome}"/>
-              <stop offset="1" stop-color="${chromeDark}"/>
-            </linearGradient>
-          </defs>
-
-          <path d="M ${centerX - 88 - jawOffset} ${topY + 8} Q ${centerX - 50 - jawOffset} ${topY - 10}, ${centerX - 22 - jawOffset} ${topY + 17}"
-            fill="none" stroke="url(#chromeJaw)" stroke-width="14" stroke-linecap="round"/>
-          <path d="M ${centerX + 88 + jawOffset} ${topY + 8} Q ${centerX + 50 + jawOffset} ${topY - 10}, ${centerX + 22 + jawOffset} ${topY + 17}"
-            fill="none" stroke="url(#chromeJaw)" stroke-width="14" stroke-linecap="round"/>
-          <circle cx="${centerX - 42 - jawOffset}" cy="${topY + 7}" r="7" fill="${chromeDark}"/>
-          <circle cx="${centerX + 42 + jawOffset}" cy="${topY + 7}" r="7" fill="${chromeDark}"/>
-          <path d="M ${centerX - 36} ${topY + 14} C ${centerX - 16} ${topY + 34}, ${centerX + 16} ${topY + 34}, ${centerX + 36} ${topY + 14}"
-            fill="none" stroke="${net}" stroke-width="7" stroke-linecap="round"/>
-
-          <path d="M ${centerX - 88 - jawOffset} ${bottomY - 8} Q ${centerX - 50 - jawOffset} ${bottomY + 10}, ${centerX - 22 - jawOffset} ${bottomY - 17}"
-            fill="none" stroke="url(#chromeJaw)" stroke-width="14" stroke-linecap="round"/>
-          <path d="M ${centerX + 88 + jawOffset} ${bottomY - 8} Q ${centerX + 50 + jawOffset} ${bottomY + 10}, ${centerX + 22 + jawOffset} ${bottomY - 17}"
-            fill="none" stroke="url(#chromeJaw)" stroke-width="14" stroke-linecap="round"/>
-          <circle cx="${centerX - 42 - jawOffset}" cy="${bottomY - 7}" r="7" fill="${chromeDark}"/>
-          <circle cx="${centerX + 42 + jawOffset}" cy="${bottomY - 7}" r="7" fill="${chromeDark}"/>
-          <path d="M ${centerX - 36} ${bottomY - 14} C ${centerX - 16} ${bottomY - 34}, ${centerX + 16} ${bottomY - 34}, ${centerX + 36} ${bottomY - 14}"
-            fill="none" stroke="${net}" stroke-width="7" stroke-linecap="round"/>
-        `;
-      }
-
       renderFrame();
-      renderPocketTrim();
 
       configBtn.addEventListener('click', () => {
         configPanel.classList.toggle('hidden');
@@ -372,37 +308,6 @@
       targetBall.style.left = `${center.x}px`;
       targetBall.style.top = `${center.y}px`;
 
-      function updateTrajectoryPreview () {
-        const impactDistance = Math.max(0, 200 - 40);
-        const impact = {
-          x: center.x + shotDir.x * impactDistance,
-          y: center.y + shotDir.y * impactDistance
-        };
-        const afterVel = {
-          x: shotDir.x * spin.y + -shotDir.y * spin.x,
-          y: shotDir.y * spin.y + shotDir.x * spin.x
-        };
-        const afterLen = Math.hypot(afterVel.x, afterVel.y);
-        const postDir = afterLen > 1e-5 ? { x: afterVel.x / afterLen, y: afterVel.y / afterLen } : { x: 0, y: 0 };
-        const postDistance = 60 + afterLen * 180;
-        const postEnd = {
-          x: impact.x + postDir.x * postDistance,
-          y: impact.y + postDir.y * postDistance
-        };
-
-        trajectoryBefore.setAttribute('x1', `${center.x}`);
-        trajectoryBefore.setAttribute('y1', `${center.y}`);
-        trajectoryBefore.setAttribute('x2', `${impact.x}`);
-        trajectoryBefore.setAttribute('y2', `${impact.y}`);
-        trajectoryAfter.setAttribute('x1', `${impact.x}`);
-        trajectoryAfter.setAttribute('y1', `${impact.y}`);
-        trajectoryAfter.setAttribute('x2', `${postEnd.x}`);
-        trajectoryAfter.setAttribute('y2', `${postEnd.y}`);
-        trajectoryAfter.style.opacity = afterLen > 0.02 ? '1' : '0.25';
-        trajectoryImpact.setAttribute('cx', `${impact.x}`);
-        trajectoryImpact.setAttribute('cy', `${impact.y}`);
-      }
-
       stage.addEventListener('click', (e) => {
         const r = stage.getBoundingClientRect();
         const cx = r.left + r.width / 2;
@@ -420,7 +325,6 @@
         const tby = center.y + shotDir.y * 200;
         targetBall.style.left = `${tbx}px`;
         targetBall.style.top = `${tby}px`;
-        updateTrajectoryPreview();
       });
 
       function updateSpinDots (sx, sy) {
@@ -451,7 +355,6 @@
         const eased = strength * strength;
         spin = { x: rawSpin.x * eased, y: rawSpin.y * eased };
         updateSpinDots(rawSpin.x, rawSpin.y);
-        updateTrajectoryPreview();
       }
       spinController.addEventListener('pointerdown', (e) => {
         spinning = true;
@@ -533,7 +436,6 @@
       }
 
       shootBtn.addEventListener('click', shoot);
-      updateTrajectoryPreview();
 
       function setDebugVisible (visible) {
         document.querySelectorAll('.debug-marker').forEach((el) => {
