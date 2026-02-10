@@ -625,18 +625,18 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend the plate ends 
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.058; // push middle chrome plates farther toward the rail sides while preserving the current layout
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.045; // push middle chrome plates outward toward the rails while keeping the pocket cut centered
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.028; // trim side fascia edges slightly more for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.038; // ease the inward pull so middle rounded cutouts sit slightly closer to the rail sides
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.055; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.975; // pull the corner relief radius in slightly for a tighter rounded cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // enlarge the middle rail rounded cuts to match the chrome pocket arc
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.065; // push middle wood cutouts a touch farther toward the side rails while keeping the same pattern
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -1429,7 +1429,7 @@ const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so e
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.01; // lift the chrome holder rails so the short L segments sit higher near the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
-const POCKET_SIDE_GUIDE_STRAP_PULL = BALL_R * 0.11; // push side chrome holder rails farther toward the side pockets while preserving symmetry
+const POCKET_SIDE_GUIDE_STRAP_PULL = BALL_R * 0.08; // push only the side rails toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.04; // keep balls flush without overlap as they settle against the strap
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.45; // pull the resting spot inward toward the pocket and strap
@@ -1578,7 +1578,7 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.42; // reduce heuristic spin bias so the cue-ball guide tracks the actual post-impact path more closely
+const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to reflect spin deflection
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -6662,13 +6662,13 @@ function resolveTargetSpinDeflection(
   const perp = new THREE.Vector3(-dir.z, 0, dir.x);
   if (perp.lengthSq() > 1e-8) perp.normalize();
   if (sideInfluence > 1e-6 && perp.lengthSq() > 1e-8) {
-    dir.add(perp.multiplyScalar(sideSpin * sideInfluence * 0.16));
+    dir.add(perp.multiplyScalar(sideSpin * sideInfluence * 0.28));
   }
   if (forwardInfluence > 1e-6 && cueDir) {
     const cueVec = new THREE.Vector3(cueDir.x ?? 0, 0, cueDir.y ?? 0);
     if (cueVec.lengthSq() > 1e-8) {
       cueVec.normalize();
-      dir.add(cueVec.multiplyScalar(forwardSpin * forwardInfluence * 0.06));
+      dir.add(cueVec.multiplyScalar(forwardSpin * forwardInfluence * 0.12));
     }
   }
   if (dir.lengthSq() > 1e-8) dir.normalize();
