@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react';
 import { Download, PackageOpen, Rocket } from 'lucide-react';
 import { cacheOfflineAssets, isTelegramEnvironment } from '../pwa/offlineCache.js';
 import { cacheOpenSourceAssets } from '../pwa/openSourceCache.js';
+import { APP_BUILD } from '../config/buildInfo.js';
 
 const initialProgress = { completed: 0, total: 0, successes: 0, failures: 0 };
 
 export default function PwaDownloadFrame() {
   const [offlineState, setOfflineState] = useState({ status: 'idle', progress: initialProgress, error: '' });
   const [openSourceState, setOpenSourceState] = useState({ status: 'idle', progress: initialProgress, error: '' });
+  const [refreshState, setRefreshState] = useState({ status: 'idle', error: '' });
 
   const telegramLabel = useMemo(() => (isTelegramEnvironment() ? 'Telegram (in-app)' : 'Telegram'), []);
 
@@ -50,6 +52,52 @@ export default function PwaDownloadFrame() {
     }
   };
 
+  const handleRefreshToLatest = async () => {
+    setRefreshState({ status: 'loading', error: '' });
+
+    try {
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('Service worker not supported in this browser.');
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      await registration.update();
+
+      const waitForInstall = registration.installing
+        ? new Promise(resolve => {
+            const worker = registration.installing;
+            worker?.addEventListener('statechange', () => {
+              if (worker.state === 'installed' || worker.state === 'activated') {
+                resolve();
+              }
+            });
+          })
+        : null;
+
+      const targetWorker = registration.waiting || registration.installing;
+      if (targetWorker) {
+        targetWorker.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      if (waitForInstall) {
+        await Promise.race([waitForInstall, new Promise(resolve => setTimeout(resolve, 1500))]);
+      }
+
+      const activeWorker = navigator.serviceWorker.controller || registration.active || registration.waiting;
+      activeWorker?.postMessage({ type: 'CHECK_FOR_UPDATE' });
+
+      setRefreshState({ status: 'success', error: '' });
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err) {
+      setRefreshState({
+        status: 'error',
+        error: err?.message || 'Unable to refresh the PWA right now.'
+      });
+    }
+  };
+
   const offlineHint = offlineState.status === 'loading'
     ? `Caching ${offlineState.progress.completed}/${offlineState.progress.total}`
     : offlineState.status === 'success'
@@ -74,6 +122,28 @@ export default function PwaDownloadFrame() {
             Choose your browser to preload the full game shell. Updates are queued and applied after your match ends.
           </p>
         </div>
+      </div>
+      <div className="rounded-xl border border-border bg-background/70 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-white font-semibold">Latest home page version</p>
+          <span className="text-xs text-subtext">Build {APP_BUILD || 'dev'}</span>
+        </div>
+        <button
+          type="button"
+          className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-primary/80 transition disabled:opacity-60"
+          onClick={handleRefreshToLatest}
+          disabled={refreshState.status === 'loading'}
+        >
+          {refreshState.status === 'loading' ? 'Updating…' : 'Update PWA to latest version'}
+        </button>
+        <p className="text-xs text-subtext">
+          {refreshState.status === 'success'
+            ? 'Latest version found. Reloading now...'
+            : 'Force a quick update check to pull the newest home page and assets.'}
+          {refreshState.status === 'error' && (
+            <span className="text-red-400 block mt-1">{refreshState.error}</span>
+          )}
+        </p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <button
