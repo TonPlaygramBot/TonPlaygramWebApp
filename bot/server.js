@@ -333,10 +333,42 @@ function ensureWebappBuilt() {
 
 ensureWebappBuilt();
 
-app.use(express.static(webappPath, { maxAge: '1y', immutable: true }));
+const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+
+function setWebAssetCacheHeaders(res, filePath) {
+  const relativePath = path.relative(webappPath, filePath).replace(/\\/g, '/');
+  const lowerPath = relativePath.toLowerCase();
+
+  const shouldNeverCache =
+    lowerPath === 'index.html' ||
+    lowerPath === 'service-worker.js' ||
+    lowerPath === 'version.json' ||
+    lowerPath === 'manifest.webmanifest' ||
+    lowerPath === 'pwa/app-build.js' ||
+    lowerPath.endsWith('.html');
+
+  if (shouldNeverCache) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    return;
+  }
+
+  res.setHeader('Cache-Control', `public, max-age=${ONE_YEAR_SECONDS}, immutable`);
+}
+
+app.use(
+  express.static(webappPath, {
+    maxAge: 0,
+    setHeaders: setWebAssetCacheHeaders
+  })
+);
 
 function sendIndex(res) {
   if (ensureWebappBuilt()) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(webappPath, 'index.html'));
   } else {
     res.status(503).send('Webapp build not available');
