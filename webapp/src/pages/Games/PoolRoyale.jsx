@@ -1052,8 +1052,8 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
-const REPLAY_CUE_STICK_HOLD_MS = 760;
-const REPLAY_CAMERA_START_DELAY_MS = 0;
+const REPLAY_CUE_STICK_HOLD_MS = 620;
+const REPLAY_CAMERA_START_DELAY_MS = 180;
 const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -1087,9 +1087,9 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.94; // extend jaw bodies slightly so the lower edge reads taller without closing the mouth
+const POCKET_JAW_DEPTH_SCALE = 0.9; // trim the jaw bodies so the underside sits shorter below the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // let jaws extend a little further downward from the bottom edge
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.022; // reduce the bottom reach slightly so jaws read shorter
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -1470,7 +1470,7 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras slightly so the pocket mouth is seen a bit more from above.
-  heightOffset: BALL_R * 1.96,
+  heightOffset: BALL_R * 1.72,
   heightOffsetShortMultiplier: 1.2,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -1578,7 +1578,7 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
+const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.65; // allow cue follow line to reflect spin deflection
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -5267,6 +5267,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
+const IN_HAND_DRAG_SPEED = 2.6; // accelerate ball-in-hand drags for faster repositioning
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // nudge forward slightly at the floor of the cue view, then stop
 const STANDING_TO_CUE_FORWARD_PUSH = CAMERA.minR * 0.1; // gently push forward as the standing view lowers toward cue view
@@ -19336,14 +19337,14 @@ const powerRef = useRef(hud.power);
           const pocketKey = pocketActive
             ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
             : null;
-          const cameraKey = pocketKey ?? 'replay-top';
+          const cameraKey = pocketKey ?? 'broadcast';
           const lock = replayCameraLockRef.current;
           if (lock.key === cameraKey && lock.snapshot) {
             return lock.snapshot;
           }
           const overheadReplayCamera = pocketActive
             ? null
-            : resolveReplayTopViewCamera({
+            : resolveRailOverheadReplayCamera({
                 focusOverride: targetSnapshot,
                 minTargetY
               });
@@ -19610,7 +19611,6 @@ const powerRef = useRef(hud.power);
             return true;
           };
           if (hasCueSnapshots) {
-            applyCueSnapshot();
             return;
           }
           if (!stroke) {
@@ -22385,8 +22385,20 @@ const powerRef = useRef(hud.power);
         if (!client) return null;
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
+        const lastScreen = inHandDrag.lastScreen;
+        if (!lastScreen || !inHandDrag.lastPos) {
+          inHandDrag.lastScreen = client;
+          return currentProjected;
+        }
+        const lastProjected = projectFromClient(lastScreen.x, lastScreen.y);
+        if (!lastProjected) {
+          inHandDrag.lastScreen = client;
+          return currentProjected;
+        }
+        const delta = currentProjected.clone().sub(lastProjected);
+        const next = inHandDrag.lastPos.clone().add(delta.multiplyScalar(IN_HAND_DRAG_SPEED));
         inHandDrag.lastScreen = client;
-        return currentProjected;
+        return next;
       };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
@@ -22700,12 +22712,15 @@ const powerRef = useRef(hud.power);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition({ forceCenter: true });
+        const shouldResetCue = !cue?.active || isBreakRestrictedInHand();
+        const startPos = shouldResetCue
+          ? defaultInHandPosition({ forceBaulk: isBreakRestrictedInHand() })
+          : null;
         if (startPos && cue) {
           cue.active = false;
           updateCuePlacement(startPos);
           cue.active = true;
-          cueBallPlacedFromHandRef.current = false;
+          cueBallPlacedFromHandRef.current = true;
         }
         if (allowFullTableInHand()) {
           const focusStore = ensureOrbitFocus();
@@ -26794,8 +26809,19 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const deflectedTargetDir = resolveTargetSpinDeflection(
+              rawTargetDir,
+              cueDir,
+              aimPreviewSpin,
+              powerStrength,
+              liftStrength
+            );
             const tDir =
-              rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
+              deflectedTargetDir && deflectedTargetDir.lengthSq() > 1e-8
+                ? deflectedTargetDir.normalize()
+                : rawTargetDir.lengthSq() > 1e-8
+                  ? rawTargetDir.normalize()
+                  : dir.clone();
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
