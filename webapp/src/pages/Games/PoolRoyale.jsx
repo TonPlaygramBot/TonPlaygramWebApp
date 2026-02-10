@@ -1044,7 +1044,6 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
-const SHOW_SHORT_RAIL_BROADCAST_CAMERAS = false;
 const TABLE_MAPPING_VISUALS = Object.freeze({
   field: false,
   cushions: false,
@@ -1089,7 +1088,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.94; // extend jaw bodies slightly so the lower edge reads taller without closing the mouth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.09; // align jaw crowns with the cushion contact plane so corner-cut balls do not visually overlap the jaw lip
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // let jaws extend a little further downward from the bottom edge
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1689,7 +1688,7 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.22; // keep the tip centered while lifting the shaft enough for stroke animation visibility in player/AI/replay shots
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
@@ -4702,7 +4701,7 @@ function createBroadcastCameras({
     const cameraAssembly = new THREE.Group();
     headPivot.add(cameraAssembly);
 
-    if (SHOW_SHORT_RAIL_TRIPODS || SHOW_SHORT_RAIL_BROADCAST_CAMERAS) {
+    if (SHOW_SHORT_RAIL_TRIPODS) {
       const tripod = new THREE.Group();
       slider.add(tripod);
 
@@ -4745,60 +4744,58 @@ function createBroadcastCameras({
       headBase.castShadow = true;
       slider.add(headBase);
 
-      if (SHOW_SHORT_RAIL_BROADCAST_CAMERAS) {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
-        body.castShadow = true;
-        body.receiveShadow = true;
-        cameraAssembly.add(body);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      cameraAssembly.add(body);
 
-        const lensHousing = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
-          darkMetal
-        );
-        lensHousing.rotation.x = Math.PI / 2;
-        lensHousing.position.set(0, 0, -0.2);
-        lensHousing.castShadow = true;
-        cameraAssembly.add(lensHousing);
+      const lensHousing = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
+        darkMetal
+      );
+      lensHousing.rotation.x = Math.PI / 2;
+      lensHousing.position.set(0, 0, -0.2);
+      lensHousing.castShadow = true;
+      cameraAssembly.add(lensHousing);
 
-        const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
-        hood.position.set(0, 0, -0.32);
-        hood.castShadow = true;
-        cameraAssembly.add(hood);
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
+      hood.position.set(0, 0, -0.32);
+      hood.castShadow = true;
+      cameraAssembly.add(hood);
 
-        const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
-        lensGlass.rotation.x = Math.PI / 2;
-        lensGlass.position.set(0, 0, -0.29);
-        cameraAssembly.add(lensGlass);
+      const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
+      lensGlass.rotation.x = Math.PI / 2;
+      lensGlass.position.set(0, 0, -0.29);
+      cameraAssembly.add(lensGlass);
 
-        const topHandle = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
-          rubber
-        );
-        topHandle.rotation.z = Math.PI / 2;
-        topHandle.position.set(0, 0.16, 0);
-        topHandle.castShadow = true;
-        cameraAssembly.add(topHandle);
+      const topHandle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
+        rubber
+      );
+      topHandle.rotation.z = Math.PI / 2;
+      topHandle.position.set(0, 0.16, 0);
+      topHandle.castShadow = true;
+      cameraAssembly.add(topHandle);
 
-        const viewfinder = new THREE.Mesh(
-          new THREE.BoxGeometry(0.16, 0.1, 0.08),
-          lightMetal
-        );
-        viewfinder.position.set(-0.22, 0.06, 0.05);
-        viewfinder.castShadow = true;
-        cameraAssembly.add(viewfinder);
+      const viewfinder = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.1, 0.08),
+        lightMetal
+      );
+      viewfinder.position.set(-0.22, 0.06, 0.05);
+      viewfinder.castShadow = true;
+      cameraAssembly.add(viewfinder);
 
-        const panBar = new THREE.Mesh(panBarGeo, lightMetal);
-        panBar.rotation.z = Math.PI / 2.3;
-        panBar.position.set(0.26, -0.08, 0);
-        panBar.castShadow = true;
-        headPivot.add(panBar);
+      const panBar = new THREE.Mesh(panBarGeo, lightMetal);
+      panBar.rotation.z = Math.PI / 2.3;
+      panBar.position.set(0.26, -0.08, 0);
+      panBar.castShadow = true;
+      headPivot.add(panBar);
 
-        const grip = new THREE.Mesh(gripGeo, rubber);
-        grip.rotation.z = Math.PI / 2.3;
-        grip.position.set(0.37, -0.12, 0);
-        grip.castShadow = true;
-        headPivot.add(grip);
-      }
+      const grip = new THREE.Mesh(gripGeo, rubber);
+      grip.rotation.z = Math.PI / 2.3;
+      grip.position.set(0.37, -0.12, 0);
+      grip.castShadow = true;
+      headPivot.add(grip);
     }
 
     headPivot.lookAt(defaultFocus);
@@ -17535,9 +17532,8 @@ const powerRef = useRef(hud.power);
           const safeOrbitWorld = sanitizeVector3(orbitWorld, null);
           const system =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? BROADCAST_SYSTEM_OPTIONS[0];
-          const lockOverheadFrame = system?.id === 'rail-overhead';
           const smoothing = THREE.MathUtils.clamp(
-            lockOverheadFrame ? 1 : typeof lerp === 'number' ? lerp : system?.smoothing ?? 0.18,
+            typeof lerp === 'number' ? lerp : system?.smoothing ?? 0.18,
             0,
             1
           );
@@ -17559,9 +17555,6 @@ const powerRef = useRef(hud.power);
               ? focusTarget.lerp(safeOrbitWorld, orbitBias)
               : safeOrbitWorld.clone();
           }
-          if (lockOverheadFrame) {
-            focusTarget = rig.defaultFocusWorld?.clone?.() ?? rig.defaultFocus?.clone?.() ?? focusTarget;
-          }
           rig.userData = rig.userData || {};
           if (!rig.userData.focus) {
             rig.userData.focus = focusTarget?.clone() ?? new THREE.Vector3();
@@ -17573,15 +17566,10 @@ const powerRef = useRef(hud.power);
           const applyPreset = (unit, direction) => {
             if (!unit) return;
             if (unit.slider) {
-              if (lockOverheadFrame) {
-                unit.slider.position.x = 0;
-                unit.slider.position.z = 0;
-              } else {
-                const lateral = system?.lateralDolly ?? 0;
-                const depth = system?.railPush ?? 0;
-                unit.slider.position.x = lateral * direction;
-                unit.slider.position.z = depth * direction;
-              }
+              const lateral = system?.lateralDolly ?? 0;
+              const depth = system?.railPush ?? 0;
+              unit.slider.position.x = lateral * direction;
+              unit.slider.position.z = depth * direction;
             }
             if (unit.head && resolvedFocus) {
               const headTarget = resolvedFocus.clone();
@@ -17591,7 +17579,7 @@ const powerRef = useRef(hud.power);
               unit.head.lookAt(headTarget);
             }
           };
-          const useBack = lockOverheadFrame ? true : railDir >= 0;
+          const useBack = railDir >= 0;
           applyPreset(useBack ? rig.cameras.back : rig.cameras.front, useBack ? 1 : -1);
           applyPreset(useBack ? rig.cameras.front : rig.cameras.back, useBack ? -1 : 1);
           rig.activeRail = useBack ? 'back' : 'front';
