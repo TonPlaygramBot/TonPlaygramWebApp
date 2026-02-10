@@ -1043,7 +1043,6 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const FORCE_CUE_STROKE_VISIBILITY = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
   field: false,
@@ -1052,7 +1051,6 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   pockets: false
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const SHOW_SHORT_RAIL_BROADCAST_CAMERAS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
@@ -1082,15 +1080,15 @@ const RAIL_HEIGHT = TABLE.THICK * 1.68; // raise rails slightly so the cushions 
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.24; // tighten the corner jaw inner lip so angled cuts stop letting balls visually overlap near the mouth
+const POCKET_JAW_CORNER_INNER_SCALE = 1.38; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // round the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.52; // slightly reduce the outer shoulder so corner jaw collision stays clear during angle cuts
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.68; // preserve the playable mouth while slightly tightening the corner jaw radius
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.03; // nudge jaws outward to track the cushion line precisely
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.94; // extend jaw bodies slightly so the lower edge reads taller without closing the mouth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.02; // keep jaw tops level with cushion tops so rail mapping and contact height stay aligned
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // let jaws extend a little further downward from the bottom edge
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
@@ -1112,7 +1110,7 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.6; // trim corner jaw reach so angled balls no longer overlap at the pocket shoulder
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // match the middle jaw arc radius to the wooden rail rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
@@ -16132,12 +16130,7 @@ const powerRef = useRef(hud.power);
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
       });
-      broadcastRig.group.visible = SHOW_SHORT_RAIL_BROADCAST_CAMERAS;
       world.add(broadcastRig.group);
-      const defaultFocusWorld = broadcastRig.defaultFocus.clone();
-      broadcastRig.group.localToWorld(defaultFocusWorld);
-      broadcastRig.defaultFocusWorld = defaultFocusWorld.clone();
-      broadcastRig.steadyFocusWorld = defaultFocusWorld.clone();
       broadcastCamerasRef.current = broadcastRig;
 
       if (ENABLE_TRIPOD_CAMERAS) {
@@ -17534,10 +17527,6 @@ const powerRef = useRef(hud.power);
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          if (!SHOW_SHORT_RAIL_BROADCAST_CAMERAS) {
-            rig.activeRail = 'back';
-            return;
-          }
           const safeTargetWorld = sanitizeVector3(targetWorld, null);
           const safeFocusWorld = sanitizeVector3(focusWorld, null);
           const safeOrbitWorld = sanitizeVector3(orbitWorld, null);
@@ -17664,16 +17653,6 @@ const powerRef = useRef(hud.power);
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
-          if (!SHOW_SHORT_RAIL_BROADCAST_CAMERAS) {
-            return resolveBroadcastTopViewCamera({
-              focusOverride:
-                rig.steadyFocusWorld?.clone?.() ??
-                rig.defaultFocusWorld?.clone?.() ??
-                focusOverride?.clone?.() ??
-                null,
-              minTargetY
-            });
-          }
           const activeRail =
             rig.activeRail === 'front'
               ? rig.cameras.front
@@ -27136,11 +27115,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          if (!cueAnimating) {
-            cueStick.visible = FORCE_CUE_STROKE_VISIBILITY && (shooting || replayActive)
-              ? true
-              : false;
-          }
+          if (!cueAnimating) cueStick.visible = false;
           updateChalkVisibility(null);
         }
 
