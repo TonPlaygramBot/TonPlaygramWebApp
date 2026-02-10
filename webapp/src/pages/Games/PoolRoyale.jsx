@@ -620,19 +620,19 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.18; // trim the fascia closer to the pocket cut so the inner edge tightens slightly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.08; // widen the middle fascia a touch so both flanks expand toward the corner pockets
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.89; // trim the outside plate body slightly more so the outer red-marked strip is reduced
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.12; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.86; // trim the outside plate body a touch more so the outer red-marked strip is reduced
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.16; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.058; // push middle chrome plates a little farther outward away from table center
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
-const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.036; // trim more from the outside edge to match the requested red-marked cutback
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.042; // trim a bit more from the outside edge to match the requested red-marked cutback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
-const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle pocket chrome cut radius to the corner pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open the middle pocket chrome cut radius a touch while keeping the rounded profile
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.975; // pull the corner relief radius in slightly for a tighter rounded cut
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 1.01; // enlarge the corner relief radius slightly while keeping the rounded cut vertically straight
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.03; // enlarge middle rail rounded cuts a touch to follow the widened middle chrome arc
@@ -1089,20 +1089,20 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.94; // extend jaw bodies slightly so the lower edge reads taller without closing the mouth
+const POCKET_JAW_DEPTH_SCALE = 0.98; // extend all jaw bodies slightly so the inside profile reads a touch longer
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.024; // extend jaws a little farther downward so the lower jaw profile reads longer beneath the pocket cut
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.26; // shorten both jaw side edges more from the top while preserving the centre crown
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.29; // shorten both jaw side edges a bit more while preserving the centre crown
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.05; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.22; // keep the edge trim gradual from top to side so the taper reads smoother on all jaws
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.3; // keep the edge trim gradual from top to side so the taper reads smoother on all jaws
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.24; // make all six jaws thinner from the inside while preserving outside profile and height
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.58; // keep the centre mass but slim it slightly so jaw interiors look cleaner
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.2; // make all six jaws a bit thinner from the inside while preserving outside profile and height
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.54; // keep the centre mass but slim it slightly so jaw interiors look cleaner
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
@@ -1120,7 +1120,7 @@ const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaw tops aligned with t
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push middle-pocket jaws farther outward away from table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.72; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
@@ -1181,6 +1181,7 @@ const BALL_SIZE_SCALE =
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.78; // nudge the rack slightly upward on screen so object balls sit a touch higher
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
@@ -20938,7 +20939,7 @@ const powerRef = useRef(hud.power);
           const rackColors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
           const rackNumbers = POOL_VARIANT_COLOR_SETS.american.objectNumbers || [];
           const rackPatterns = POOL_VARIANT_COLOR_SETS.american.objectPatterns || [];
-          const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
+          const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
           const rackPositions = generateRackPositions(
             rackColors.length,
             'triangle',
@@ -21395,7 +21396,7 @@ const powerRef = useRef(hud.power);
       const appliedTraining = false;
 
       if (!appliedTraining) {
-        const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
+        const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
         const rackLayout = variantConfig?.rackLayout || 'triangle';
         const rackColors = Array.isArray(variantConfig?.objectColors)
           ? variantConfig.objectColors
@@ -25671,11 +25672,7 @@ const powerRef = useRef(hud.power);
           const nextMeta =
             safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
           if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            if (nextMeta.variant === 'uk') {
-              nextMeta.state = { ...nextMeta.state, mustPlayFromBaulk: true };
-            } else {
-              nextMeta.state = { ...nextMeta.state, ballInHand: true };
-            }
+            nextMeta.state = { ...nextMeta.state, ballInHand: true };
           }
           safeState = {
             ...safeState,
