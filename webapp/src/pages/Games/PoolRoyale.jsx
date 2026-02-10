@@ -1469,7 +1469,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.55,
+  // Lift pocket cameras slightly so the pocket mouth is seen a bit more from above.
+  heightOffset: BALL_R * 1.72,
   heightOffsetShortMultiplier: 1.2,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -1948,7 +1949,7 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === 'uk' && meta.state) {
-    return Boolean(meta.state.mustPlayFromBaulk);
+    return Boolean(meta.state.ballInHand || meta.state.mustPlayFromBaulk);
   }
   return false;
 }
@@ -2523,12 +2524,69 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
   return cacheEntry;
 };
 
-const POCKET_PLASTIC_GLTF_URLS = Object.freeze([
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ToyCar/glTF/ToyCar.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ToyCar/glTF/ToyCar.gltf'
-]);
 const pocketPlasticTextureCache = new Map();
 const pocketPlasticConsumers = new Set();
+
+const createProceduralPocketPlasticTextures = ({
+  size = 512,
+  seed = 1337,
+  repeat = POCKET_PLASTIC_TEXTURE_REPEAT
+} = {}) => {
+  if (typeof document === 'undefined') {
+    return { map: null, normal: null, roughness: null };
+  }
+  let state = seed >>> 0;
+  const rand = () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0xffffffff;
+  };
+  const createTexture = (draw, { isColor = false } = {}) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    draw(ctx, size, rand);
+    const tex = new THREE.CanvasTexture(canvas);
+    applyPocketPlasticTextureDefaults(tex, { isColor, repeat });
+    return tex;
+  };
+  const map = createTexture((ctx, texSize, noise) => {
+    const img = ctx.createImageData(texSize, texSize);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const grain = Math.floor(18 + noise() * 26);
+      img.data[i] = grain;
+      img.data[i + 1] = grain;
+      img.data[i + 2] = grain;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }, { isColor: true });
+  const normal = createTexture((ctx, texSize, noise) => {
+    const img = ctx.createImageData(texSize, texSize);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const nx = 128 + Math.floor((noise() - 0.5) * 30);
+      const ny = 128 + Math.floor((noise() - 0.5) * 30);
+      img.data[i] = THREE.MathUtils.clamp(nx, 0, 255);
+      img.data[i + 1] = THREE.MathUtils.clamp(ny, 0, 255);
+      img.data[i + 2] = 255;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  });
+  const roughness = createTexture((ctx, texSize, noise) => {
+    const img = ctx.createImageData(texSize, texSize);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const r = Math.floor(145 + noise() * 70);
+      img.data[i] = r;
+      img.data[i + 1] = r;
+      img.data[i + 2] = r;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  });
+  return { map, normal, roughness };
+};
 
 const registerPocketPlasticConsumer = (materials = []) => {
   materials.forEach((material) => {
@@ -2570,24 +2628,6 @@ const broadcastPocketPlasticTextures = (textures) => {
   });
 };
 
-const pickPlasticMaterialTextures = (scene) => {
-  let picked = null;
-  if (!scene) return picked;
-  scene.traverse((node) => {
-    if (picked || !node?.isMesh) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    materials.forEach((material) => {
-      if (picked || !material) return;
-      const map = material.map ?? null;
-      const normal = material.normalMap ?? null;
-      const roughness = material.roughnessMap ?? null;
-      if (map || normal || roughness) {
-        picked = { map, normal, roughness };
-      }
-    });
-  });
-  return picked;
-};
 
 const ensurePocketPlasticTextures = () => {
   const cacheKey = 'pocket-plastic';
@@ -2602,33 +2642,16 @@ const ensurePocketPlasticTextures = () => {
   }
   const cacheEntry = pocketPlasticTextureCache.get(cacheKey);
   if (cacheEntry.loading || cacheEntry.ready) return cacheEntry;
-  if (typeof window === 'undefined') return cacheEntry;
-  cacheEntry.loading = true;
-  const loader = new GLTFLoader();
-  loader.setCrossOrigin('anonymous');
-  (async () => {
-    let picked = null;
-    for (const url of POCKET_PLASTIC_GLTF_URLS) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await loader.loadAsync(url);
-        const scene = gltf?.scene || gltf?.scenes?.[0];
-        picked = pickPlasticMaterialTextures(scene);
-        if (picked) break;
-      } catch (error) {
-        console.warn('Pocket plastic GLTF load failed', error);
-      }
-    }
-    cacheEntry.map = picked?.map ?? null;
-    cacheEntry.normal = picked?.normal ?? null;
-    cacheEntry.roughness = picked?.roughness ?? null;
-    applyPocketPlasticTextureDefaults(cacheEntry.map, { isColor: true });
-    applyPocketPlasticTextureDefaults(cacheEntry.normal);
-    applyPocketPlasticTextureDefaults(cacheEntry.roughness);
-    cacheEntry.ready = true;
-    cacheEntry.loading = false;
-    broadcastPocketPlasticTextures(cacheEntry);
-  })();
+  const procedural = createProceduralPocketPlasticTextures();
+  cacheEntry.map = procedural.map;
+  cacheEntry.normal = procedural.normal;
+  cacheEntry.roughness = procedural.roughness;
+  applyPocketPlasticTextureDefaults(cacheEntry.map, { isColor: true });
+  applyPocketPlasticTextureDefaults(cacheEntry.normal);
+  applyPocketPlasticTextureDefaults(cacheEntry.roughness);
+  cacheEntry.ready = true;
+  cacheEntry.loading = false;
+  broadcastPocketPlasticTextures(cacheEntry);
   return cacheEntry;
 };
 
@@ -22966,7 +22989,7 @@ const powerRef = useRef(hud.power);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
-            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
+            placedFromHand = Boolean(meta.state.ballInHand || meta.state.mustPlayFromBaulk);
           }
         }
         const appliedSpinSnapshot = spinAppliedRef.current || { x: 0, y: 0 };
@@ -23009,10 +23032,9 @@ const powerRef = useRef(hud.power);
           swerveActive,
           liftStrength
         );
-        const shotAimDir =
-          guideAimDir2D && guideAimDir2D.lengthSq() > 1e-8
-            ? guideAimDir2D.clone().normalize()
-            : aimDir.clone();
+        // Keep first-contact aiming locked to the visible guide line. Spin remains
+        // active only for post-impact cue/target behavior.
+        const shotAimDir = aimDir.clone();
         const prediction = calcTarget(cue, shotAimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
