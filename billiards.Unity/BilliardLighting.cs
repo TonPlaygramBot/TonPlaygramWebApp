@@ -127,6 +127,9 @@ public class BilliardLighting : MonoBehaviour
 
         if (cloth != null)
         {
+            const float clothLoweringOffset = 0.008f;
+            cloth.transform.position += Vector3.down * clothLoweringOffset;
+
             Renderer renderer = cloth.GetComponent<Renderer>();
             if (renderer != null)
             {

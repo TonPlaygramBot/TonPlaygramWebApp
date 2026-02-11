@@ -45,6 +45,7 @@ public static class PhysicsConstants
     public const double CornerPocketMouth = 0.1014984; // scaled with table reduction
     public const double SidePocketMouth = 0.1116013;    // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
+    public const double CornerPocketScale = 0.965;      // slightly tighten corner pocket/cutout radius
     public const double PocketAngleCutScale = 1.035;    // extend angle cut slightly for truer mouth mapping
     public const double CornerJawRadiusScale = 0.94;
     public const double CornerJawInset = 0.006;
