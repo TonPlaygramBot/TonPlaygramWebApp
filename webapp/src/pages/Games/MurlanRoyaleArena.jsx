@@ -1251,26 +1251,37 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
-function createCharacterCards({ handLift = 0.96, cardCount = 3, playerColor = '#1d4ed8' } = {}) {
+function createCharacterCards({
+  handLift = 0.96,
+  cardCount = 3,
+  playerColor = '#1d4ed8',
+  handCards = [],
+  cardTheme = CARD_THEMES[0]
+} = {}) {
   const cards = new THREE.Group();
-  const safeCount = Math.min(Math.max(Math.round(cardCount || 0), 2), 5);
-  const cardGeometry = new THREE.PlaneGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE);
-  const baseMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.38,
-    metalness: 0.03,
-    side: THREE.DoubleSide
-  });
-  const accentMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(playerColor),
-    roughness: 0.34,
-    metalness: 0.08,
-    side: THREE.DoubleSide
-  });
+  const safeCount = Math.min(Math.max(Math.round(cardCount || handCards.length || 0), 2), 5);
+  const shownCards = handCards.slice(0, safeCount);
+  while (shownCards.length < safeCount) {
+    shownCards.push({ rank: 'A', suit: '♠' });
+  }
 
+  const cardGeometry = new THREE.PlaneGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE);
+  const createdTextures = [];
   const spread = 0.12 * MODEL_SCALE;
-  for (let idx = 0; idx < safeCount; idx++) {
-    const card = new THREE.Mesh(cardGeometry, idx === safeCount - 1 ? accentMaterial : baseMaterial);
+
+  shownCards.forEach((sourceCard, idx) => {
+    const safeCard = sourceCard && sourceCard.rank && sourceCard.suit ? sourceCard : { rank: 'A', suit: '♠' };
+    const faceTexture = makeCardFace(safeCard.rank, safeCard.suit, cardTheme, 256, 360);
+    createdTextures.push(faceTexture);
+
+    const cardMaterial = new THREE.MeshStandardMaterial({
+      map: faceTexture,
+      color: new THREE.Color('#ffffff'),
+      roughness: 0.35,
+      metalness: 0.08,
+      side: THREE.DoubleSide
+    });
+    const card = new THREE.Mesh(cardGeometry, cardMaterial);
     const centered = idx - (safeCount - 1) / 2;
     card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
@@ -1281,12 +1292,15 @@ function createCharacterCards({ handLift = 0.96, cardCount = 3, playerColor = '#
     card.castShadow = true;
     card.receiveShadow = true;
     cards.add(card);
-  }
+  });
 
   cards.userData.dispose = () => {
     cardGeometry.dispose();
-    baseMaterial.dispose();
-    accentMaterial.dispose();
+    createdTextures.forEach((texture) => texture?.dispose?.());
+    cards.children.forEach((cardMesh) => {
+      const mats = Array.isArray(cardMesh.material) ? cardMesh.material : [cardMesh.material];
+      mats.forEach((mat) => mat?.dispose?.());
+    });
   };
   return cards;
 }
@@ -1323,7 +1337,7 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex) {
+function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme = CARD_THEMES[0]) {
   const hips = findBoneByHints(instance, ['hips', 'pelvis']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
   const head = findBoneByHints(instance, ['head', 'neck']);
@@ -1341,10 +1355,17 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   const heldCards = createCharacterCards({
     handLift: characterTheme.handLift ?? 0.94,
     cardCount: player?.hand?.length ?? 3,
-    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8'
+    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
+    handCards: player?.hand ?? [],
+    cardTheme
   });
 
   heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
+  heldCards.userData.themeId = cardTheme?.id || '';
+  heldCards.userData.handSignature = (player?.hand ?? [])
+    .slice(0, 5)
+    .map((card) => `${card?.id || card?.rank || 'x'}:${card?.rank || ''}:${card?.suit || ''}`)
+    .join('|');
 
   if (leftHand) {
     leftHand.add(heldCards);
@@ -1428,12 +1449,18 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   return rig;
 }
 
-function refreshRigHeldCards(rig, cardCount, playerColor) {
+function refreshRigHeldCards(rig, cardCount, playerColor, handCards = [], cardTheme = CARD_THEMES[0]) {
   if (!rig) return;
-  const safeCount = Math.min(Math.max(Math.round(cardCount || 0), 2), 5);
+  const safeCount = Math.min(Math.max(Math.round(cardCount || handCards.length || 0), 2), 5);
+  const handSignature = handCards
+    .slice(0, 5)
+    .map((card) => `${card?.id || card?.rank || 'x'}:${card?.rank || ''}:${card?.suit || ''}`)
+    .join('|');
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
-  if (currentCount === safeCount && !colorChanged) return;
+  const themeChanged = rig.heldCards?.userData?.themeId !== (cardTheme?.id || '');
+  const handChanged = rig.heldCards?.userData?.handSignature !== handSignature;
+  if (currentCount === safeCount && !colorChanged && !themeChanged && !handChanged) return;
 
   const parent = rig.heldCards?.parent || null;
   rig.heldCards?.userData?.dispose?.();
@@ -1442,9 +1469,13 @@ function refreshRigHeldCards(rig, cardCount, playerColor) {
   const nextCards = createCharacterCards({
     handLift: 0.94,
     cardCount: safeCount,
-    playerColor
+    playerColor,
+    handCards,
+    cardTheme
   });
   nextCards.userData.playerColor = playerColor;
+  nextCards.userData.themeId = cardTheme?.id || '';
+  nextCards.userData.handSignature = handSignature;
 
   if (rig.bones?.leftHand) {
     rig.bones.leftHand.add(nextCards);
@@ -1516,7 +1547,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
-  seatRoot.scale.multiplyScalar(characterTheme.scale ?? 0.82);
+  seatRoot.scale.multiplyScalar((characterTheme.scale ?? 1) * 1.38);
   seatRoot.position.set(
     0,
     characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38,
@@ -1530,7 +1561,15 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     rig?.heldCards?.userData?.dispose?.();
   };
 
-  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex);
+  const rig = createCharacterRig(
+    instance,
+    seatRoot,
+    seatConfig,
+    characterTheme,
+    player,
+    playerIndex,
+    CARD_THEMES[store?.cardThemeIndex ?? 0] ?? CARD_THEMES[0]
+  );
   seatConfig.characterRig = rig;
   seatConfig.characterRoot = seatRoot;
   if (!store.characterRigs) store.characterRigs = new Map();
@@ -2993,7 +3032,9 @@ export default function MurlanRoyaleArena({ search }) {
       refreshRigHeldCards(
         seat.characterRig,
         player.hand?.length ?? 0,
-        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8'
+        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
+        player.hand ?? [],
+        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
       );
       const cards = player.hand;
       const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : 0);
@@ -5431,6 +5472,7 @@ function applyOutfitThemeMaterials(three, theme) {
 
 function applyCardThemeMaterials(three, theme, force = false) {
   if (!three?.cardMap) return;
+  three.cardThemeIndex = CARD_THEMES.findIndex((entry) => entry.id === theme.id);
   if (!force && three.cardThemeId === theme.id) return;
   const frontTextures = new Set();
   const backTextures = new Set();
