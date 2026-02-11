@@ -6455,6 +6455,47 @@ function reflectRails(ball) {
   return null;
 }
 
+function isNearPocketMouth(pos, margin = BALL_R * 0.7) {
+  if (!pos) return false;
+  const centers = pocketCenters();
+  for (let i = 0; i < centers.length; i += 1) {
+    const center = centers[i];
+    if (!center) continue;
+    const baseRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+    if (pos.distanceTo(center) <= baseRadius + margin) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function enforceBallTableBounds(ball) {
+  if (!ball?.active || !ball?.pos) return false;
+  if (isNearPocketMouth(ball.pos)) return false;
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
+  let corrected = false;
+  if (ball.pos.x < -limX) {
+    ball.pos.x = -limX;
+    if (ball.vel?.x < 0) ball.vel.x = 0;
+    corrected = true;
+  } else if (ball.pos.x > limX) {
+    ball.pos.x = limX;
+    if (ball.vel?.x > 0) ball.vel.x = 0;
+    corrected = true;
+  }
+  if (ball.pos.y < -limY) {
+    ball.pos.y = -limY;
+    if (ball.vel?.y < 0) ball.vel.y = 0;
+    corrected = true;
+  } else if (ball.pos.y > limY) {
+    ball.pos.y = limY;
+    if (ball.vel?.y > 0) ball.vel.y = 0;
+    corrected = true;
+  }
+  return corrected;
+}
+
 function resolveSpinFrame(ball) {
   const speed = Math.max(ball?.vel?.length?.() ?? 0, 0);
   const forward =
@@ -6602,6 +6643,17 @@ function applyRailImpulse(ball, impact) {
     );
   }
   ball.vel.set(TMP_VEC3_C.x, TMP_VEC3_C.z);
+}
+
+function activatePendingSpin(ball) {
+  if (!ball || !ball.pendingSpin || !ball.spin) return false;
+  if (ball.pendingSpin.lengthSq() <= 1e-8) return false;
+  ball.spin.copy(ball.pendingSpin);
+  ball.pendingSpin.set(0, 0);
+  if (ball.id === 'cue') {
+    ball.impacted = true;
+  }
+  return true;
 }
 
 function resolveSwerveAimDir(
@@ -22929,12 +22981,12 @@ const powerRef = useRef(hud.power);
         };
         cue.vel.copy(base);
         if (cue.spin) {
-          cue.spin.set(offsetScaled.x, offsetScaled.y);
+          cue.spin.set(0, 0);
         }
         if (cue.omega) {
           cue.omega.set(0, 0, 0);
         }
-        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+        if (cue.pendingSpin) cue.pendingSpin.set(offsetScaled.x, offsetScaled.y);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
@@ -23228,22 +23280,12 @@ const powerRef = useRef(hud.power);
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
+            cue.spin.set(0, 0);
           }
           if (cue.omega) {
             cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
           }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          if (cue.pendingSpin) cue.pendingSpin.set(spinSide, spinTop);
           cue.spinMode = 'standard';
           cue.swerveStrength = 0;
           cue.swervePowerStrength = 0;
@@ -27290,7 +27332,10 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
+            if (railImpact && b.id === 'cue') {
+              activatePendingSpin(b);
+              b.impacted = true;
+            }
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
@@ -27298,6 +27343,7 @@ const powerRef = useRef(hud.power);
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
             }
+            enforceBallTableBounds(b);
             if (railImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
@@ -27453,6 +27499,12 @@ const powerRef = useRef(hud.power);
                 if (cueBall && cueBall.omega?.lengthSq() > 0) {
                   cueBall.impacted = true;
                 }
+                if (cueBall) {
+                  activatePendingSpin(cueBall);
+                  cueBall.impacted = true;
+                }
+                enforceBallTableBounds(a);
+                enforceBallTableBounds(b);
               }
             }
         }
