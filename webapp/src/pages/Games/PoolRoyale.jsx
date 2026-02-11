@@ -1091,7 +1091,7 @@ const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.84; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1397,8 +1397,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.125; // lift the cushion base slightly so the lip sits higher above the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.018; // trim the cushion tops a touch less so they sit higher than before
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.148; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -9846,7 +9846,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.48;
+  const brandPlateOutwardShift = endRailW * 0.66;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9863,7 +9863,7 @@ export function Table3D(
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
     plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
-    plate.rotation.y = dirZ > 0 ? Math.PI : 0;
+    plate.rotation.y = dirZ > 0 ? 0 : Math.PI;
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
@@ -9885,7 +9885,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.34;
+  const railMarkerOutset = longRailW * 0.2;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -10003,6 +10003,40 @@ export function Table3D(
   };
   applyRailMarkerStyleFn(activeRailMarkerStyle);
   railsGroup.add(railMarkerGroup);
+
+  const shortRailWordmarkTexture = createBrandPlateLabelTexture({
+    width: 2048,
+    height: 520,
+    lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }]
+  });
+  if (shortRailWordmarkTexture) {
+    const logoWidth = Math.min(PLAY_W * 0.44, Math.max(BALL_R * 13.5, PLAY_W * 0.34));
+    const logoHeight = Math.max(BALL_R * 1.4, railH * 0.18);
+    const logoY = railsTopY - railH * 0.34;
+    const logoInset = Math.max(MICRO_EPS, endRailW * 0.07);
+    const logoZ = halfH + endRailW - logoInset;
+    const logoMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: shortRailWordmarkTexture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    [-1, 1].forEach((dirZ) => {
+      const wordmark = new THREE.Mesh(
+        new THREE.PlaneGeometry(logoWidth, logoHeight),
+        logoMat
+      );
+      wordmark.position.set(0, logoY, dirZ * logoZ);
+      wordmark.rotation.y = dirZ > 0 ? Math.PI : 0;
+      wordmark.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.25;
+      wordmark.castShadow = false;
+      wordmark.receiveShadow = false;
+      railsGroup.add(wordmark);
+      finishParts.trimMeshes.push(wordmark);
+    });
+  }
+
   finishParts.railMarkerGroup = railMarkerGroup;
   table.userData.railMarkers = {
     applyStyle: (style, overrides) => applyRailMarkerStyleFn(style, overrides),
@@ -25718,12 +25752,16 @@ const powerRef = useRef(hud.power);
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
-        if (!isTraining && cueBallPotted && safeState?.activePlayer === currentState?.activePlayer) {
+        if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
             safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
           if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = { ...nextMeta.state, currentPlayer: nextPlayer };
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: nextPlayer,
+              ballInHand: true
+            };
           }
           safeState = {
             ...safeState,
