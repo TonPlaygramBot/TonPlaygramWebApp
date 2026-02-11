@@ -614,7 +614,7 @@ const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by da
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
-const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
+const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
@@ -630,7 +630,7 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plate
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.045; // shrink middle-pocket chrome cut radius a touch so the rounded cut reads slightly smaller
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
@@ -1091,7 +1091,7 @@ const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.76; // lift rails a bit more so all cushions sit visibly higher
+const RAIL_HEIGHT = TABLE.THICK * 1.84; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1130,7 +1130,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.004; // nudge middle jaws a touch lower than corners
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
@@ -1195,7 +1195,7 @@ const BALL_SIZE_SCALE =
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.78; // nudge the rack slightly upward on screen so object balls sit a touch higher
+const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
@@ -1221,7 +1221,7 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.34; // lift chalks slightly so they sit on the rail surface
+const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.42; // raise chalk blocks with the rails so they stay seated on the higher rail tops
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
@@ -1281,7 +1281,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.208; // lift the balls a touch more so they ride clearly on top of the cloth
+const BALL_CENTER_LIFT = BALL_R * 0.24; // lift balls a bit more so they roll clearly on the cloth top surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1690,8 +1690,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.2; // increase minimum forward push so the stroke reads clearly on mobile
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.0; // allow more forward travel so high-power shots show a stronger push-through
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.7; // strengthen minimum forward push so cue-stroke follow-through is always visible
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.8; // extend forward travel so high-power shots show a clear cue push animation
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -1709,8 +1709,8 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.08; // keep a tighter gap so the cue butt clears the cushion top surface
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly as cushions rise so it never touches
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.14; // add extra butt clearance so the cue never clips newly raised cushions
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.1; // lift cue helper path to match raised cushions and updated ball lift
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -5335,7 +5335,7 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 220;
+const REPLAY_CUE_START_HOLD_MS = 320;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5369,7 +5369,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 190; // start replay cue motion slightly earlier so pullback is visible at replay start
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 260; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
 const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
@@ -9841,7 +9841,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.39;
+  const brandPlateOutwardShift = endRailW * 0.48;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9880,7 +9880,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.42;
+  const railMarkerOutset = longRailW * 0.34;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -19655,7 +19655,11 @@ const powerRef = useRef(hud.power);
             if (quat) {
               cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
             }
-            cueStick.visible = cueSnapshot.visible ?? true;
+            const replayCueVisible =
+              cueSnapshot.visible == null
+                ? true
+                : Boolean(cueSnapshot.visible) || targetTime <= REPLAY_CUE_START_HOLD_MS;
+            cueStick.visible = replayCueVisible;
             cueAnimating = cueStick.visible;
             syncCueShadow();
             return true;
