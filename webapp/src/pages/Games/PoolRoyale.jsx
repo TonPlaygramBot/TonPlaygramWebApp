@@ -578,7 +578,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 0.972;
+const POCKET_VISUAL_EXPANSION = 0.958;
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
@@ -1269,7 +1269,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.2; // lower the cloth surface slightly for added depth
+const CLOTH_DROP = BALL_R * 0.23; // lower the cloth surface a touch more while keeping the rest of the table profile intact
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -1486,9 +1486,9 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  // Lift pocket cameras slightly so the pocket mouth is seen a bit more from above.
-  heightOffset: BALL_R * 1.96,
-  heightOffsetShortMultiplier: 1.2,
+  // Lift pocket cameras a bit higher so pocket closeups read more top-down.
+  heightOffset: BALL_R * 2.18,
+  heightOffsetShortMultiplier: 1.24,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -1676,8 +1676,8 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.22 + CUE_TIP_CLEARANCE; // pull the cue tip a bit farther from the cue ball so it does not look too close in aim view
+const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
+const CUE_TIP_GAP = BALL_R * 1.26 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
