@@ -6452,103 +6452,7 @@ function reflectRails(ball) {
       return { type: collided, normal, tangent, preImpactVel };
     }
   }
-
-  // Safety containment: only enforce hard table limits when the ball is not
-  // near any pocket mouth/capture lane, otherwise pocket mapping can be blocked.
-  const tablePocketMarkers =
-    table?.userData?.pockets && Array.isArray(table.userData.pockets)
-      ? table.userData.pockets
-      : null;
-  const safetyPocketCenters =
-    tablePocketMarkers && tablePocketMarkers.length > 0
-      ? tablePocketMarkers.map(
-          (marker) => new THREE.Vector2(marker.position.x, marker.position.z)
-        )
-      : pocketCenters();
-  const nearestPocket = safetyPocketCenters.reduce((best, center, index) => {
-    const dist = ball.pos.distanceTo(center);
-    const markerRadius =
-      tablePocketMarkers && tablePocketMarkers[index]
-        ? tablePocketMarkers[index]?.userData?.captureRadius
-        : null;
-    const captureRadius =
-      typeof markerRadius === 'number'
-        ? markerRadius
-        : index >= 4
-          ? SIDE_CAPTURE_R
-          : CAPTURE_R;
-    if (!best || dist < best.dist) {
-      return { dist, captureRadius };
-    }
-    return best;
-  }, null);
-  const insidePocketCapture =
-    nearestPocket && nearestPocket.dist <= nearestPocket.captureRadius;
-  const nearPocketSafetyLane =
-    nearestPocket &&
-    nearestPocket.dist <=
-      nearestPocket.captureRadius + Math.max(BALL_R * 0.7, CUSHION_CUT_NEAR_POCKET_BUFFER);
-  if (!insidePocketCapture && !nearPocketSafetyLane) {
-    const hardRailLimitX = limX + (BALL_R - railRadius);
-    const hardRailLimitY = limY + (BALL_R - railRadius);
-    let normal = null;
-    const preClampVel = ball.vel.clone();
-    if (ball.pos.x < -hardRailLimitX) {
-      ball.pos.x = -hardRailLimitX;
-      if (ball.vel.x < 0) ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-      normal = new THREE.Vector2(1, 0);
-    } else if (ball.pos.x > hardRailLimitX) {
-      ball.pos.x = hardRailLimitX;
-      if (ball.vel.x > 0) ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-      normal = new THREE.Vector2(-1, 0);
-    }
-    if (ball.pos.y < -hardRailLimitY) {
-      ball.pos.y = -hardRailLimitY;
-      if (ball.vel.y < 0) ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-      normal = new THREE.Vector2(0, 1);
-    } else if (ball.pos.y > hardRailLimitY) {
-      ball.pos.y = hardRailLimitY;
-      if (ball.vel.y > 0) ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-      normal = new THREE.Vector2(0, -1);
-    }
-    if (normal) {
-      const tangent = new THREE.Vector2(-normal.y, normal.x);
-      return {
-        type: 'rail',
-        normal,
-        tangent,
-        preImpactVel: preClampVel
-      };
-    }
-  }
   return null;
-}
-
-function activateCueSpinAfterImpact(ball) {
-  if (!ball || ball.id !== 'cue') return;
-  if (!ball.pendingSpin || ball.pendingSpin.lengthSq() < 1e-8) {
-    ball.impacted = true;
-    return;
-  }
-  ball.spin.copy(ball.pendingSpin);
-  ball.pendingSpin.set(0, 0);
-  if (ball.omega) {
-    TMP_VEC3_A.set(ball.vel.x, 0, ball.vel.y);
-    if (TMP_VEC3_A.lengthSq() < 1e-8 && ball.launchDir?.lengthSq?.() > 1e-8) {
-      TMP_VEC3_A.set(ball.launchDir.x, 0, ball.launchDir.y);
-    }
-    if (TMP_VEC3_A.lengthSq() > 1e-8) {
-      TMP_VEC3_A.normalize();
-      TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x).normalize();
-      TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(ball.spin.x * BALL_R);
-      TMP_VEC3_C.y += ball.spin.y * BALL_R;
-      const impulseMag = BALL_MASS * Math.max(ball.vel.length(), SHOT_BASE_SPEED * 0.5);
-      TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-      TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-      ball.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-    }
-  }
-  ball.impacted = true;
 }
 
 function resolveSpinFrame(ball) {
@@ -6915,9 +6819,8 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
-  const railRadius = RAIL_CONTACT_RADIUS;
-  const limX = RAIL_LIMIT_X + (BALL_R - railRadius);
-  const limY = RAIL_LIMIT_Y + (BALL_R - railRadius);
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -23325,12 +23228,22 @@ const powerRef = useRef(hud.power);
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            cue.spin.set(0, 0);
+            cue.spin.set(spinSide, spinTop);
           }
           if (cue.omega) {
             cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
           }
-          if (cue.pendingSpin) cue.pendingSpin.set(spinSide, spinTop);
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode = 'standard';
           cue.swerveStrength = 0;
           cue.swervePowerStrength = 0;
@@ -27377,9 +27290,7 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') {
-              activateCueSpinAfterImpact(b);
-            }
+            if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
@@ -27539,8 +27450,8 @@ const powerRef = useRef(hud.power);
                 ) {
                   activeShotView.hitConfirmed = true;
                 }
-                if (cueBall) {
-                  activateCueSpinAfterImpact(cueBall);
+                if (cueBall && cueBall.omega?.lengthSq() > 0) {
+                  cueBall.impacted = true;
                 }
               }
             }
