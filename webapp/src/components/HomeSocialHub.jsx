@@ -12,6 +12,12 @@ import {
 
 const INVITES_STORAGE_KEY = 'tonplaygram-game-invites';
 
+function normalizeRequests(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.requests)) return payload.requests;
+  return [];
+}
+
 function loadStoredInvites() {
   try {
     const raw = localStorage.getItem(INVITES_STORAGE_KEY);
@@ -90,7 +96,7 @@ export default function HomeSocialHub() {
     let active = true;
     listFriendRequests(telegramId)
       .then((requests) => {
-        if (active) setFriendRequests(requests || []);
+        if (active) setFriendRequests(normalizeRequests(requests));
       })
       .catch(() => {
         if (active) setFriendRequests([]);
@@ -123,7 +129,7 @@ export default function HomeSocialHub() {
   async function handleAccept(requestId) {
     await acceptFriendRequest(requestId);
     const updated = await listFriendRequests(telegramId);
-    setFriendRequests(updated || []);
+    setFriendRequests(normalizeRequests(updated));
   }
 
   return (

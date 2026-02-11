@@ -28,6 +28,12 @@ import { socket } from '../utils/socket.js';
 import InvitePopup from '../components/InvitePopup.jsx';
 import PlayerInvitePopup from '../components/PlayerInvitePopup.jsx';
 
+function normalizeRequests(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.requests)) return payload.requests;
+  return [];
+}
+
 export default function Mining() {
   useTelegramBackButton();
   let telegramId;
@@ -62,7 +68,7 @@ export default function Mining() {
       setLeaderboard(data.users);
       setRank(data.rank);
     });
-    listFriendRequests(telegramId).then(setFriendRequests);
+    listFriendRequests(telegramId).then((requests) => setFriendRequests(normalizeRequests(requests)));
 
     const saved = loadAvatar();
     if (saved) {
@@ -161,7 +167,9 @@ export default function Mining() {
                   <button
                     onClick={async () => {
                       await acceptFriendRequest(fr._id);
-                      listFriendRequests(telegramId).then(setFriendRequests);
+                      listFriendRequests(telegramId).then((requests) =>
+                        setFriendRequests(normalizeRequests(requests))
+                      );
                     }}
                     className="px-2 py-1 text-sm bg-primary hover:bg-primary-hover rounded"
                   >
