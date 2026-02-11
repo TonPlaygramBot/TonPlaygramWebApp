@@ -1837,10 +1837,10 @@ function createPolyhavenGltfLoader({ assetId, resolution }) {
   const manager = new THREE.LoadingManager();
   manager.setURLModifier((url) => {
     if (!url || !assetId || !resolution) return url;
-    const normalized = String(url).replace(/^\.\//, '');
+    const normalized = String(url).replace(/^\.\//, '').split('?')[0];
     if (normalized.startsWith('textures/')) {
       const filename = normalized.slice('textures/'.length);
-      return `https://dl.polyhaven.org/file/ph-assets/Models/jpg/${resolution}/${assetId}/${filename}`;
+      return `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/textures/${filename}`;
     }
     return url;
   });
