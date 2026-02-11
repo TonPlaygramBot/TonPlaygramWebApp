@@ -1236,7 +1236,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const BASE_CORNER_POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const CORNER_POCKET_RADIUS_SCALE = 0.962; // trim only the corner pocket radius a bit more while keeping middle pockets untouched
+const CORNER_POCKET_RADIUS_SCALE = 0.956; // trim only the corner pocket radius a touch more while keeping middle pockets untouched
 const POCKET_VIS_R = BASE_CORNER_POCKET_VIS_R * CORNER_POCKET_RADIUS_SCALE;
 const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior diameter tight at the rim for slightly smaller pocket openings
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1272,7 +1272,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.268; // lower the cloth surface a touch more while keeping the rest of the table profile intact
+const CLOTH_DROP = BALL_R * 0.276; // lower the cloth surface just a bit more while keeping the rest of the table profile intact
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -8307,7 +8307,7 @@ export function Table3D(
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.03; // lift all six cushions a touch higher while keeping the same profile
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -19388,49 +19388,20 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const pocketActive = pocketCameraStateRef.current && activeShotView?.mode === 'pocket';
-          const pocketKey = pocketActive
-            ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
-            : null;
-          const cameraKey = pocketKey ?? 'broadcast';
-          const lock = replayCameraLockRef.current;
-          if (lock.key === cameraKey && lock.snapshot) {
-            return lock.snapshot;
+          if (targetSnapshot) {
+            targetSnapshot.y = Math.max(targetSnapshot.y ?? 0, minTargetY);
           }
-          const overheadReplayCamera = pocketActive
-            ? null
-            : resolveRailOverheadReplayCamera({
-                focusOverride: targetSnapshot,
-                minTargetY
-              });
-          let resolvedPosition = null;
-          let resolvedTarget = null;
-          let resolvedFov = fovSnapshot;
-          let resolvedMinTargetY = null;
-          if (!pocketActive && !overheadReplayCamera) {
-            return null;
-          }
-          resolvedPosition = pocketActive
-            ? activeCamera?.position?.clone?.() ?? null
-            : overheadReplayCamera?.position?.clone?.() ?? null;
-          resolvedTarget = pocketActive
-            ? targetSnapshot
-            : overheadReplayCamera?.target?.clone?.() ?? targetSnapshot;
-          resolvedFov = Number.isFinite(overheadReplayCamera?.fov)
-            ? overheadReplayCamera.fov
-            : fovSnapshot;
-          resolvedMinTargetY = minTargetY;
-          if (!resolvedPosition && !resolvedTarget) return null;
+          const positionSnapshot = activeCamera?.position?.clone?.() ?? null;
+          if (!positionSnapshot && !targetSnapshot) return null;
           const snapshot = {
-            position: resolvedPosition,
-            target: resolvedTarget,
-            fov: resolvedFov,
-            key: cameraKey
+            position: positionSnapshot,
+            target: targetSnapshot,
+            fov: fovSnapshot,
+            key: 'player',
+            minTargetY
           };
-          if (Number.isFinite(resolvedMinTargetY)) {
-            snapshot.minTargetY = resolvedMinTargetY;
-          }
-          lock.key = cameraKey;
+          const lock = replayCameraLockRef.current;
+          lock.key = snapshot.key;
           lock.snapshot = snapshot;
           return snapshot;
         };
@@ -20146,26 +20117,10 @@ const powerRef = useRef(hud.power);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
-          let storedPosition = activeCamera?.position?.clone?.() ?? null;
-          let storedFov = Number.isFinite(activeCamera?.fov)
+          const storedPosition = activeCamera?.position?.clone?.() ?? null;
+          const storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const overheadReplayCamera =
-            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
-              ? resolveRailOverheadReplayCamera({
-                focusOverride: storedTarget,
-                minTargetY
-                })
-              : null;
-          if (overheadReplayCamera?.position) {
-            storedPosition = overheadReplayCamera.position.clone();
-            if (overheadReplayCamera?.target) {
-              storedTarget.copy(overheadReplayCamera.target);
-            }
-            storedFov = Number.isFinite(overheadReplayCamera?.fov)
-              ? overheadReplayCamera.fov
-              : storedFov;
-          }
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
