@@ -7598,6 +7598,54 @@ function Table3D(
   const topCushionZ = PLAY_H / 2;
   addSpot(0, (topCushionZ + 0) / 2);
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
+
+  const createCushionBrandTexture = ({ text = 'TonPlaygram', width = 2048, height = 512 } = {}) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, width, height);
+    const fontPx = Math.round(height * 0.72);
+    ctx.font = `700 ${fontPx}px "Inter", "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, width * 0.5, height * 0.54);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = true;
+    texture.anisotropy = 4;
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  const cushionBrandTexture = createCushionBrandTexture();
+  if (cushionBrandTexture) {
+    const brandHeight = Math.max(BALL_R * 1.4, railH * 0.9);
+    const brandWidth = Math.min(PLAY_W * 0.5, Math.max(BALL_R * 13, PLAY_W * 0.35));
+    const brandLift = markingHeight + brandHeight * 0.5 + TABLE.THICK * 0.02;
+    const shortRailBrandZ =
+      halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE - TABLE.THICK * 0.07;
+    const brandGeo = new THREE.PlaneGeometry(brandWidth, brandHeight);
+    const brandMat = new THREE.MeshBasicMaterial({
+      map: cushionBrandTexture,
+      transparent: true,
+      alphaTest: 0.08,
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    [-1, 1].forEach((dirZ) => {
+      const brand = new THREE.Mesh(brandGeo, brandMat);
+      brand.position.set(0, brandLift, dirZ * shortRailBrandZ);
+      brand.rotation.y = dirZ > 0 ? Math.PI : 0;
+      brand.renderOrder = cloth.renderOrder + 1.3;
+      brand.castShadow = false;
+      brand.receiveShadow = false;
+      markingsGroup.add(brand);
+    });
+  }
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -7659,10 +7707,11 @@ function Table3D(
   );
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
+  const cornerPocketLift = SIDE_POCKET_PLYWOOD_LIFT;
   pocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
-    const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
+    const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : cornerPocketLift;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
@@ -9371,7 +9420,7 @@ function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.5, PLAY_W * 0.27));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.28;
+  const brandPlateOutwardShift = endRailW * 0.35;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9409,7 +9458,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.62;
+  const railMarkerOutset = longRailW * 0.54;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -20016,8 +20065,9 @@ const powerRef = useRef(hud.power);
         const { dArc, spots } = table.userData.markings;
         if (dArc) dArc.visible = false;
         if (Array.isArray(spots)) {
-          spots.forEach((spot) => {
-            if (spot) spot.visible = false;
+          spots.forEach((spot, index) => {
+            if (!spot) return;
+            spot.visible = index === 5;
           });
         }
       }
