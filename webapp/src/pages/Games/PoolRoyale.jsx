@@ -8307,7 +8307,7 @@ export function Table3D(
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.032; // lift all six cushions a little higher so the cushion tops sit visibly taller
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -9002,29 +9002,6 @@ export function Table3D(
       ctx.fillText(line.text ?? '', canvas.width / 2, y);
       ctx.shadowBlur = 0;
     });
-    const texture = new THREE.CanvasTexture(canvas);
-    applySRGBColorSpace(texture);
-    texture.needsUpdate = true;
-    return texture;
-  };
-
-  const createShortRailBrandTextTexture = ({ width = 2048, height = 384 } = {}) => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(64, Math.floor(width));
-    canvas.height = Math.max(64, Math.floor(height));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const fontSize = Math.max(20, canvas.height * 0.5);
-    ctx.font = `900 ${fontSize}px "Inter", "Segoe UI", Arial, sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = canvas.height * 0.08;
-    ctx.fillText('TonPlaygram', canvas.width / 2, canvas.height / 2);
-    ctx.shadowBlur = 0;
     const texture = new THREE.CanvasTexture(canvas);
     applySRGBColorSpace(texture);
     texture.needsUpdate = true;
@@ -9869,7 +9846,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.58;
+  const brandPlateOutwardShift = endRailW * 0.48;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9886,7 +9863,7 @@ export function Table3D(
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
     plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
-    plate.rotation.y = dirZ > 0 ? 0 : Math.PI;
+    plate.rotation.y = dirZ > 0 ? Math.PI : 0;
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
@@ -9908,7 +9885,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.2;
+  const railMarkerOutset = longRailW * 0.34;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -10498,36 +10475,6 @@ export function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-
-  const shortRailBrandTexture = createShortRailBrandTextTexture();
-  if (shortRailBrandTexture) {
-    const shortRailBrandMaterial = new THREE.MeshBasicMaterial({
-      map: shortRailBrandTexture,
-      color: 0xffffff,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    const shortRailBrandWidth = Math.max(BALL_R * 11.5, PLAY_W * 0.45);
-    const shortRailBrandHeight = Math.max(BALL_R * 0.95, railH * 0.26);
-    const shortRailBrandGeom = new THREE.PlaneGeometry(
-      shortRailBrandWidth,
-      shortRailBrandHeight,
-      1,
-      1
-    );
-    const shortRailBrandY =
-      cushionBaseY + SHORT_RAIL_CUSHION_VERTICAL_LIFT + railH * 0.34;
-    const shortRailBrandZ =
-      halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE + endRailW * 0.24;
-    [-1, 1].forEach((dirZ) => {
-      const label = new THREE.Mesh(shortRailBrandGeom, shortRailBrandMaterial.clone());
-      label.position.set(0, shortRailBrandY, dirZ * shortRailBrandZ);
-      label.rotation.y = dirZ > 0 ? Math.PI : 0;
-      label.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.5;
-      railsGroup.add(label);
-    });
-  }
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
@@ -22374,7 +22321,11 @@ const powerRef = useRef(hud.power);
         const meta = frameSnapshot?.meta;
         if (!meta || typeof meta !== 'object') return false;
         if (meta.variant === 'uk') {
-          return Boolean(meta.state?.breakInProgress ?? meta.breakInProgress);
+          return Boolean(
+            meta.state?.mustPlayFromBaulk ??
+              meta.state?.breakInProgress ??
+              meta.breakInProgress
+          );
         }
         if (meta.variant === 'american') {
           return Boolean(
@@ -25767,20 +25718,12 @@ const powerRef = useRef(hud.power);
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
-        if (
-          !isTraining &&
-          (cueBallPotted || safeState?.foul) &&
-          safeState?.activePlayer === currentState?.activePlayer
-        ) {
+        if (!isTraining && cueBallPotted && safeState?.activePlayer === currentState?.activePlayer) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
             safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
           if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: nextPlayer,
-              ballInHand: Boolean(safeState?.foul || cueBallPotted)
-            };
+            nextMeta.state = { ...nextMeta.state, currentPlayer: nextPlayer };
           }
           safeState = {
             ...safeState,
@@ -26090,15 +26033,7 @@ const powerRef = useRef(hud.power);
           frameRef.current = safeState;
           setFrameState(safeState);
           setTurnCycle((value) => value + 1);
-          setHud((prev) => {
-            const resolvedActive = safeState?.activePlayer === 'B' ? 'B' : 'A';
-            const localId = localSeatRef.current === 'B' ? 'B' : 'A';
-            return {
-              ...prev,
-              turn: resolvedActive === localId ? 0 : 1,
-              inHand: nextInHand
-            };
-          });
+          setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
             socket.emit('poolShot', {
