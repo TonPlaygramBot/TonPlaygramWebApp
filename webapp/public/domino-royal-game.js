@@ -1833,28 +1833,42 @@ const CHAIR_MODEL_URLS = [
 ];
 const polyhavenModelCache = new Map();
 
+function createPolyhavenGltfLoader({ assetId, resolution }) {
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) => {
+    if (!url || !assetId || !resolution) return url;
+    const normalized = String(url).replace(/^\.\//, '');
+    if (normalized.startsWith('textures/')) {
+      const filename = normalized.slice('textures/'.length);
+      return `https://dl.polyhaven.org/file/ph-assets/Models/jpg/${resolution}/${assetId}/${filename}`;
+    }
+    return url;
+  });
+  const loader = new GLTFLoader(manager);
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+  loader.setCrossOrigin('anonymous');
+  loader.setDRACOLoader(draco);
+  return loader;
+}
+
 async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
   if (polyhavenModelCache.has(assetId)) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-  loader.setCrossOrigin('anonymous');
-  loader.setDRACOLoader(draco);
-
   const candidates = [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
+    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`, resolution: '2k' },
+    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`, resolution: '1k' },
+    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`, resolution: '4k' }
   ];
   let gltf = null;
   let lastError = null;
-  for (const url of candidates) {
+  for (const candidate of candidates) {
     try {
-      gltf = await loader.loadAsync(url);
+      const loader = createPolyhavenGltfLoader({ assetId, resolution: candidate.resolution });
+      gltf = await loader.loadAsync(candidate.url);
       break;
     } catch (error) {
       lastError = error;
@@ -2890,8 +2904,7 @@ function resolveHdriResolutionOrder() {
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
-  const highTierFrameRate = frameRateId === 'uhd120' || frameRateId === 'ultra144';
-  return !isLowProfileDevice && (prefersUhd || highTierFrameRate);
+  return true;
 }
 function pruneHdriCache() {
   if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
