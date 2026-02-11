@@ -35,6 +35,7 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import DominoRoyal from './pages/Games/DominoRoyal.jsx';
 import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
+import DiceDuel from './pages/Games/DiceDuel.jsx';
 
 const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
@@ -99,6 +100,8 @@ export default function App() {
             <Route path="/games/goalrush" element={<GoalRush />} />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
+            <Route path="/games/diceduel/lobby" element={<Navigate to="/games/diceduel" replace />} />
+            <Route path="/games/diceduel" element={<DiceDuel />} />
             <Route
               path="/games/chessbattleroyal/lobby"
               element={(
