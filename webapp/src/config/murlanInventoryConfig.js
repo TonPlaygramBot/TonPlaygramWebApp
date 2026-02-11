@@ -2,6 +2,7 @@ import { CARD_THEMES } from '../utils/cardThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_CLOTHS } from './murlanTableCloths.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 import { MURLAN_OUTFIT_THEMES, MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 
 const mapLabels = (options) =>
@@ -19,6 +20,7 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0].id],
   tableCloth: [MURLAN_TABLE_CLOTHS[0].id],
   tableFinish: [MURLAN_TABLE_FINISHES[0].id],
+  characters: [MURLAN_CHARACTER_THEMES[0].id],
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id)
 });
 
@@ -29,6 +31,7 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   tables: mapLabels(MURLAN_TABLE_THEMES),
   tableCloth: mapLabels(MURLAN_TABLE_CLOTHS),
   tableFinish: mapLabels(MURLAN_TABLE_FINISHES),
+  characters: mapLabels(MURLAN_CHARACTER_THEMES),
   environmentHdri: mapLabels(
     POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
       id: variant.id,
@@ -124,6 +127,15 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: theme.description || `Premium ${theme.label} seating with original finish.`,
     thumbnail: theme.thumbnail
   })),
+  MURLAN_CHARACTER_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+    id: `character-${theme.id}`,
+    type: 'characters',
+    optionId: theme.id,
+    name: theme.label,
+    price: theme.price ?? 360 + idx * 30,
+    description: theme.description,
+    thumbnail: theme.thumbnail
+  })),
   POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `hdri-${variant.id}`,
     type: 'environmentHdri',
@@ -142,6 +154,11 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'cards', optionId: CARD_THEMES[0].id, label: CARD_THEMES[0].label },
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
   { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },
+  {
+    type: 'characters',
+    optionId: MURLAN_CHARACTER_THEMES[0].id,
+    label: MURLAN_CHARACTER_THEMES[0].label
+  },
   {
     type: 'tableCloth',
     optionId: MURLAN_TABLE_CLOTHS[0].id,

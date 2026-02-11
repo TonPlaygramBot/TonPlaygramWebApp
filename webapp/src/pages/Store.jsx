@@ -179,6 +179,7 @@ const MURLAN_TYPE_LABELS = {
   outfit: 'Outfits',
   cards: 'Card Themes',
   stools: 'Stools & Chairs',
+  characters: '3D Characters',
   tables: 'Table Models',
   tableCloth: 'Table Cloth',
   tableFinish: 'Table Finish',
