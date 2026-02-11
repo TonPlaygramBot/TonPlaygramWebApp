@@ -621,14 +621,14 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // widen the middle fascia slightly so both flanks expand toward the corner pockets
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.82; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.016; // pull middle chrome plates slightly inward toward table center while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
-const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.064; // trim the middle-pocket outside chrome just a bit more while preserving the rounded pocket cut
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.045; // shrink middle-pocket chrome cut radius a touch so the rounded cut reads slightly smaller
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
@@ -1131,7 +1131,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks 
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.004; // nudge middle jaws a touch lower than corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push middle-pocket jaws farther outward away from table center
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
@@ -1281,7 +1281,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.172; // lift the balls slightly more so the bottom tangent sits on the cloth instead of dipping below it
+const BALL_CENTER_LIFT = BALL_R * 0.208; // lift the balls a touch more so they ride clearly on top of the cloth
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1690,14 +1690,14 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 1.45; // ensure the forward push is clearly visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 4.8; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.2; // increase minimum forward push so the stroke reads clearly on mobile
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.0; // allow more forward travel so high-power shots show a stronger push-through
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 900;
-const PLAYER_CUE_FORWARD_MAX_MS = 1700;
+const PLAYER_CUE_FORWARD_MIN_MS = 520;
+const PLAYER_CUE_FORWARD_MAX_MS = 920;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -9825,13 +9825,11 @@ export function Table3D(
         roughness: 0.32,
         clearcoat: 0.32
       });
-  const brandAccentColor = new THREE.Color(0xd4b163);
   const createBrandSideMaterial = () => {
     const mat = trimMat.clone();
     enhanceChromeMaterial(mat);
-    mat.color.lerp(brandAccentColor, 0.42);
-    mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.12);
-    mat.roughness = Math.max(0.06, (mat.roughness ?? 0.4) * 0.74);
+    mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
+    mat.roughness = Math.max(0.06, (mat.roughness ?? 0.4) * 0.78);
     mat.clearcoat = Math.max(mat.clearcoat ?? 0.28, 0.42);
     mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.32, 0.32);
     mat.sheen = Math.max(mat.sheen ?? 0.12, 0.2);
@@ -9839,11 +9837,11 @@ export function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.58, TABLE.THICK * 0.84);
-  const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.5, PLAY_W * 0.27));
+  const brandPlateDepth = Math.min(endRailW * 0.66, TABLE.THICK * 0.96);
+  const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.34;
+  const brandPlateOutwardShift = endRailW * 0.39;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9860,6 +9858,7 @@ export function Table3D(
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
     plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
+    plate.rotation.y = dirZ > 0 ? Math.PI : 0;
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
@@ -9881,7 +9880,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.5;
+  const railMarkerOutset = longRailW * 0.42;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -11331,21 +11330,33 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
   if (Array.isArray(finishInfo.parts.brandPlates)) {
-    const accentColor = new THREE.Color(0xd4b163);
     finishInfo.parts.brandPlates.forEach((entry) => {
       const sideMaterials = entry?.sideMaterials;
-      if (!Array.isArray(sideMaterials)) return;
-      sideMaterials.forEach((mat) => {
-        if (!mat) return;
-        mat.copy(trimMat);
-        enhanceChromeMaterial(mat);
-        mat.color.lerp(accentColor, 0.42);
-        mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
-        mat.roughness = Math.max(0.04, (mat.roughness ?? 0.4) * 0.82);
-        mat.clearcoat = Math.max(mat.clearcoat ?? 0.28, 0.42);
-        mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.32, 0.32);
-        mat.needsUpdate = true;
-      });
+      if (Array.isArray(sideMaterials)) {
+        sideMaterials.forEach((mat) => {
+          if (!mat) return;
+          mat.copy(trimMat);
+          enhanceChromeMaterial(mat);
+          mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
+          mat.roughness = Math.max(0.04, (mat.roughness ?? 0.4) * 0.82);
+          mat.clearcoat = Math.max(mat.clearcoat ?? 0.28, 0.42);
+          mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.32, 0.32);
+          mat.needsUpdate = true;
+        });
+      }
+      const topMaterial = entry?.topMaterial;
+      if (topMaterial) {
+        topMaterial.metalness = Math.min(1, (trimMat.metalness ?? topMaterial.metalness ?? 0.6) + 0.06);
+        topMaterial.roughness = Math.max(0.2, (trimMat.roughness ?? topMaterial.roughness ?? 0.4) * 0.92);
+        topMaterial.clearcoat = Math.max(trimMat.clearcoat ?? 0.3, topMaterial.clearcoat ?? 0.32);
+        topMaterial.clearcoatRoughness = Math.min(
+          topMaterial.clearcoatRoughness ?? 0.24,
+          trimMat.clearcoatRoughness ?? topMaterial.clearcoatRoughness ?? 0.24
+        );
+        topMaterial.sheen = Math.max(topMaterial.sheen ?? 0.18, trimMat.sheen ?? 0.18);
+        topMaterial.sheenRoughness = Math.min(topMaterial.sheenRoughness ?? 0.5, trimMat.sheenRoughness ?? 0.5);
+        topMaterial.needsUpdate = true;
+      }
     });
   }
   if (table.userData?.railMarkers?.updateBaseMaterial) {
@@ -23409,7 +23420,7 @@ const powerRef = useRef(hud.power);
             impactTime +
             Math.min(
               followDurationResolved,
-              Math.max(180, forwardDuration * 0.9)
+              Math.max(420, forwardDuration * 1.25)
             );
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
