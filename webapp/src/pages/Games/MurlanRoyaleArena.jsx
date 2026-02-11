@@ -95,6 +95,7 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'uhd120';
 
 const MODEL_SCALE = 0.75;
+const CHARACTER_PROPORTION_SCALE = 2.0;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
 
@@ -1251,26 +1252,42 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
-function createCharacterCards({ handLift = 0.96, cardCount = 3, playerColor = '#1d4ed8' } = {}) {
-  const cards = new THREE.Group();
-  const safeCount = Math.min(Math.max(Math.round(cardCount || 0), 2), 5);
-  const cardGeometry = new THREE.PlaneGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE);
-  const baseMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.38,
-    metalness: 0.03,
-    side: THREE.DoubleSide
+function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8' } = {}) {
+  const cardsGroup = new THREE.Group();
+  const handCards = Array.isArray(handCardsInput) && handCardsInput.length
+    ? handCardsInput.slice(0, 5)
+    : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
+  const safeCount = Math.max(handCards.length, 2);
+  const cardGeometry = new THREE.BoxGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE, 0.012 * MODEL_SCALE);
+  const edgeMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
+    roughness: 0.55,
+    metalness: 0.1
   });
-  const accentMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(playerColor),
-    roughness: 0.34,
-    metalness: 0.08,
-    side: THREE.DoubleSide
-  });
+  const backTexture = makeCardBackTexture(cardTheme);
+  const managedTextures = [backTexture];
+  const managedMaterials = [edgeMaterial];
 
   const spread = 0.12 * MODEL_SCALE;
   for (let idx = 0; idx < safeCount; idx++) {
-    const card = new THREE.Mesh(cardGeometry, idx === safeCount - 1 ? accentMaterial : baseMaterial);
+    const handCard = handCards[idx] || handCards[handCards.length - 1];
+    const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, 256, 360);
+    managedTextures.push(faceTexture);
+    const frontMaterial = new THREE.MeshStandardMaterial({
+      map: faceTexture,
+      color: new THREE.Color('#ffffff'),
+      roughness: 0.36,
+      metalness: 0.08
+    });
+    const backMaterial = new THREE.MeshStandardMaterial({
+      map: backTexture,
+      color: new THREE.Color(idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'),
+      roughness: 0.6,
+      metalness: 0.15
+    });
+    managedMaterials.push(frontMaterial, backMaterial);
+    const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
+    const card = new THREE.Mesh(cardGeometry, sideMaterials);
     const centered = idx - (safeCount - 1) / 2;
     card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
@@ -1280,15 +1297,15 @@ function createCharacterCards({ handLift = 0.96, cardCount = 3, playerColor = '#
     );
     card.castShadow = true;
     card.receiveShadow = true;
-    cards.add(card);
+    cardsGroup.add(card);
   }
 
-  cards.userData.dispose = () => {
+  cardsGroup.userData.dispose = () => {
     cardGeometry.dispose();
-    baseMaterial.dispose();
-    accentMaterial.dispose();
+    managedMaterials.forEach((material) => material.dispose());
+    managedTextures.forEach((texture) => texture.dispose());
   };
-  return cards;
+  return cardsGroup;
 }
 
 function normalizeCharacterPivot(characterRoot) {
@@ -1323,36 +1340,40 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex) {
-  const hips = findBoneByHints(instance, ['hips', 'pelvis']);
+function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme) {
+  const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
-  const head = findBoneByHints(instance, ['head', 'neck']);
-  const rightUpperArm = findBoneByHints(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']);
-  const rightForeArm = findBoneByHints(instance, ['rightforearm', 'r_forearm', 'rightlowerarm']);
-  const rightHand = findBoneByHints(instance, ['righthand', 'hand.r', 'r_hand']);
-  const leftUpperArm = findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']);
-  const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm']);
-  const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand']);
-  const leftThigh = findBoneByHints(instance, ['leftupleg', 'leftthigh', 'l_thigh']);
-  const leftCalf = findBoneByHints(instance, ['leftleg', 'leftcalf', 'l_calf']);
-  const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh']);
-  const rightCalf = findBoneByHints(instance, ['rightleg', 'rightcalf', 'r_calf']);
+  const head = findBoneByHints(instance, ['head', 'neck', 'headjoint', 'head_joint']);
+  const rightUpperArm = findBoneByHints(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']);
+  const rightForeArm = findBoneByHints(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']);
+  const rightHand = findBoneByHints(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']);
+  const leftUpperArm = findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']);
+  const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
+  const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
+  const leftThigh = findBoneByHints(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']);
+  const leftCalf = findBoneByHints(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']);
+  const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
+  const rightCalf = findBoneByHints(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3']);
 
   const heldCards = createCharacterCards({
     handLift: characterTheme.handLift ?? 0.94,
-    cardCount: player?.hand?.length ?? 3,
+    handCardsInput: player?.hand ?? [],
+    cardTheme,
     playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8'
   });
 
   heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
+  heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
-  if (leftHand) {
-    leftHand.add(heldCards);
-    heldCards.position.set(0.055, -0.03, 0.08);
-    heldCards.rotation.set(THREE.MathUtils.degToRad(15), THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(22));
-  } else {
-    seatRoot.add(heldCards);
-    heldCards.position.set(0.42 * MODEL_SCALE, 0.5 * MODEL_SCALE, 0.14 * MODEL_SCALE);
+  instance.add(heldCards);
+  heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+  heldCards.scale.setScalar(1.45);
+
+  if (!leftThigh || !rightThigh) {
+    instance.position.y -= 0.02 * MODEL_SCALE;
+    instance.position.z -= 0.02 * MODEL_SCALE;
+    instance.rotation.x = 0;
   }
 
   const rig = {
@@ -1395,19 +1416,19 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   };
 
   // Professional seated base pose for portrait framing.
-  applyRotationOffset(hips, THREE.MathUtils.degToRad(-8), 0, 0);
-  applyRotationOffset(spine, THREE.MathUtils.degToRad(-10), 0, 0);
-  applyRotationOffset(head, THREE.MathUtils.degToRad(14), 0, 0);
-  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-38), THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(22));
-  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(-56), 0, THREE.MathUtils.degToRad(16));
-  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(14), THREE.MathUtils.degToRad(18), 0);
-  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-24), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-18));
-  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-34), 0, THREE.MathUtils.degToRad(-10));
-  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(-14), 0);
-  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(82), 0, 0);
-  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(82), 0, 0);
-  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-92), 0, 0);
-  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-92), 0, 0);
+  applyRotationOffset(hips, THREE.MathUtils.degToRad(-4), 0, 0);
+  applyRotationOffset(spine, THREE.MathUtils.degToRad(-2), 0, 0);
+  applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(4));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(6), 0);
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
+  applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(74), 0, 0);
+  applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(74), 0, 0);
+  applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-82), 0, 0);
+  applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-82), 0, 0);
 
   rig.seatedPose = {
     hips: captureBoneRotation(hips),
@@ -1428,12 +1449,14 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   return rig;
 }
 
-function refreshRigHeldCards(rig, cardCount, playerColor) {
+function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme) {
   if (!rig) return;
-  const safeCount = Math.min(Math.max(Math.round(cardCount || 0), 2), 5);
+  const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
-  if (currentCount === safeCount && !colorChanged) return;
+  const cardsSignature = safeCards.map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
+  const cardsChanged = rig.heldCards?.userData?.cardsSignature !== cardsSignature;
+  if (currentCount === Math.max(safeCards.length, 2) && !colorChanged && !cardsChanged) return;
 
   const parent = rig.heldCards?.parent || null;
   rig.heldCards?.userData?.dispose?.();
@@ -1441,19 +1464,17 @@ function refreshRigHeldCards(rig, cardCount, playerColor) {
 
   const nextCards = createCharacterCards({
     handLift: 0.94,
-    cardCount: safeCount,
+    handCardsInput: safeCards,
+    cardTheme,
     playerColor
   });
   nextCards.userData.playerColor = playerColor;
+  nextCards.userData.cardsSignature = cardsSignature;
 
-  if (rig.bones?.leftHand) {
-    rig.bones.leftHand.add(nextCards);
-    nextCards.position.set(0.055, -0.03, 0.08);
-    nextCards.rotation.set(THREE.MathUtils.degToRad(15), THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(22));
-  } else {
-    rig.seatRoot.add(nextCards);
-    nextCards.position.set(0.42 * MODEL_SCALE, 0.5 * MODEL_SCALE, 0.14 * MODEL_SCALE);
-  }
+  rig.instance.add(nextCards);
+  nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+  nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+  nextCards.scale.setScalar(1.45);
 
   rig.heldCards = nextCards;
 }
@@ -1505,7 +1526,7 @@ function createThrownCardMesh(color = '#f8fafc') {
   return card;
 }
 
-function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0 }) {
+function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme }) {
   if (!template || !seatConfig?.chair) return;
   const instance = cloneSkeleton(template);
   instance.traverse((obj) => {
@@ -1516,13 +1537,17 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
-  seatRoot.scale.multiplyScalar(characterTheme.scale ?? 0.82);
+  const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
+  const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
+  seatRoot.scale.multiplyScalar(seatScale);
+  const baseSeatOffsetY = characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38;
+  const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? 0.18;
   seatRoot.position.set(
     0,
-    characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38,
-    characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? 0.18
+    baseSeatOffsetY - 0.06 - scaleDelta * 0.06,
+    baseSeatOffsetZ + 0.42 - scaleDelta * 0.1
   );
-  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.92, characterTheme.seatYaw ?? Math.PI, 0);
+  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.06, characterTheme.seatYaw ?? Math.PI, 0);
 
   seatRoot.add(instance);
   seatRoot.userData.dispose = () => {
@@ -1530,7 +1555,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     rig?.heldCards?.userData?.dispose?.();
   };
 
-  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex);
+  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme);
   seatConfig.characterRig = rig;
   seatConfig.characterRoot = seatRoot;
   if (!store.characterRigs) store.characterRigs = new Map();
@@ -2992,8 +3017,9 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seat) return;
       refreshRigHeldCards(
         seat.characterRig,
-        player.hand?.length ?? 0,
-        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8'
+        player.hand ?? [],
+        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
+        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
       );
       const cards = player.hand;
       const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : 0);
@@ -3271,7 +3297,8 @@ export default function MurlanRoyaleArena({ search }) {
           characterTheme: safe,
           store,
           player: currentPlayers[seatIndex] ?? null,
-          playerIndex: seatIndex
+          playerIndex: seatIndex,
+          cardTheme: CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0]
         });
       });
     },
@@ -3812,6 +3839,7 @@ export default function MurlanRoyaleArena({ search }) {
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const characterTheme = MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0];
+      const cardTheme = CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const tableFinish = resolveTableFinish(currentAppearance.tableFinish);
       const tableCloth = resolveTableCloth(currentAppearance.tableCloth);
@@ -3953,7 +3981,8 @@ export default function MurlanRoyaleArena({ search }) {
             characterTheme,
             store: threeStateRef.current,
             player,
-            playerIndex: i
+            playerIndex: i,
+            cardTheme
           });
         }
       } catch (error) {
@@ -4006,8 +4035,8 @@ export default function MurlanRoyaleArena({ search }) {
       const spherical = new THREE.Spherical().setFromVector3(initialOffset);
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
-      const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.55);
-      const desiredRadius = minOrbitRadius;
+      const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1);
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
@@ -4027,8 +4056,8 @@ export default function MurlanRoyaleArena({ search }) {
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.minDistance = minOrbitRadius;
-      controls.maxDistance = minOrbitRadius;
+      controls.minDistance = desiredRadius;
+      controls.maxDistance = desiredRadius;
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
       controls.update();
