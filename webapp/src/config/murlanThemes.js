@@ -2,64 +2,52 @@ import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 export const MURLAN_OUTFIT_THEMES = [
   {
-    id: 'soldier',
-    label: 'Soldier',
-    baseColor: '#4b5563',
-    accentColor: '#9ca3af',
+    id: 'midnight',
+    label: 'Royal Blue',
+    baseColor: '#1f3c88',
+    accentColor: '#f5d547',
     glow: '#0f172a',
-    source: 'gltf',
-    preserveMaterials: true,
-    urls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb'],
-    description: 'Open-source GLB character from three.js examples with original textures.',
-    thumbnail: swatchThumbnail(['#4b5563', '#111827', '#9ca3af'])
+    thumbnail: swatchThumbnail(['#1f3c88', '#0f172a', '#f5d547'])
   },
   {
-    id: 'michelle',
-    label: 'Michelle',
-    baseColor: '#7c3aed',
-    accentColor: '#f0abfc',
-    glow: '#1e1b4b',
-    source: 'gltf',
-    preserveMaterials: true,
-    urls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Michelle.glb'],
-    description: 'Open-source GLB character from three.js examples with original textures.',
-    thumbnail: swatchThumbnail(['#7c3aed', '#1e1b4b', '#f0abfc'])
+    id: 'ember',
+    label: 'Neon Red',
+    baseColor: '#a31621',
+    accentColor: '#ff8e3c',
+    glow: '#22080b',
+    thumbnail: swatchThumbnail(['#a31621', '#22080b', '#ff8e3c'])
   },
   {
-    id: 'xbot',
-    label: 'Xbot',
+    id: 'glacier',
+    label: 'Ice',
     baseColor: '#1b8dbf',
     accentColor: '#9ff0ff',
     glow: '#082433',
-    source: 'gltf',
-    preserveMaterials: true,
-    urls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb'],
-    description: 'Open-source GLB character from three.js examples with original textures.',
     thumbnail: swatchThumbnail(['#1b8dbf', '#082433', '#9ff0ff'])
   },
   {
-    id: 'kira',
-    label: 'Kira',
+    id: 'forest',
+    label: 'Forest',
     baseColor: '#1b7f4a',
     accentColor: '#b5f44a',
     glow: '#071f11',
-    source: 'gltf',
-    preserveMaterials: true,
-    urls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/kira.glb'],
-    description: 'Open-source GLB character from three.js examples with original textures.',
     thumbnail: swatchThumbnail(['#1b7f4a', '#071f11', '#b5f44a'])
   },
   {
-    id: 'readyplayer',
-    label: 'Ready Player',
+    id: 'royal',
+    label: 'Violet',
     baseColor: '#6b21a8',
     accentColor: '#f0abfc',
     glow: '#220a35',
-    source: 'gltf',
-    preserveMaterials: true,
-    urls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/readyplayer.me.glb'],
-    description: 'Open-source GLB character from three.js examples with original textures.',
     thumbnail: swatchThumbnail(['#6b21a8', '#220a35', '#f0abfc'])
+  },
+  {
+    id: 'onyx',
+    label: 'Onyx',
+    baseColor: '#1f2937',
+    accentColor: '#9ca3af',
+    glow: '#090b10',
+    thumbnail: swatchThumbnail(['#1f2937', '#090b10', '#9ca3af'])
   }
 ];
 

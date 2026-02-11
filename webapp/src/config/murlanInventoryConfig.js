@@ -95,15 +95,6 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     thumbnail: CARD_THEMES.find((theme) => theme.id === 'onyx')?.thumbnail
   }
 ].concat(
-  MURLAN_OUTFIT_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
-    id: `outfit-${theme.id}`,
-    type: 'outfit',
-    optionId: theme.id,
-    name: theme.label,
-    price: theme.price ?? 540 + idx * 45,
-    description: theme.description || `${theme.label} player model with original textures.`,
-    thumbnail: theme.thumbnail
-  })),
   MURLAN_TABLE_CLOTHS.map((cloth, idx) => ({
     id: `cloth-${cloth.id}`,
     type: 'tableCloth',
