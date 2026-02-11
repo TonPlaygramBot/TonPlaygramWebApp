@@ -600,7 +600,6 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.065; // pull the corner fascia slig
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
-const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.32; // round the edge near corner pockets so the fascia trims match the requested softened cut
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
@@ -686,42 +685,16 @@ function buildChromePlateGeometry({
     }
     shape.lineTo(topStartX, hh);
   } else {
-    const drawRectWithCornerRadii = ({ tl = 0, tr = 0, br = 0, bl = 0 }) => {
-      const clampRadius = (value) => Math.max(0, Math.min(value, hw, hh));
-      const rtl = clampRadius(tl);
-      const rtr = clampRadius(tr);
-      const rbr = clampRadius(br);
-      const rbl = clampRadius(bl);
-
-      shape.moveTo(-hw + rtl, hh);
-      shape.lineTo(hw - rtr, hh);
-      if (rtr > MICRO_EPS) {
-        shape.absarc(hw - rtr, hh - rtr, rtr, Math.PI / 2, 0, true);
-      }
-      shape.lineTo(hw, -hh + rbr);
-      if (rbr > MICRO_EPS) {
-        shape.absarc(hw - rbr, -hh + rbr, rbr, 0, -Math.PI / 2, true);
-      }
-      shape.lineTo(-hw + rbl, -hh);
-      if (rbl > MICRO_EPS) {
-        shape.absarc(-hw + rbl, -hh + rbl, rbl, -Math.PI / 2, -Math.PI, true);
-      }
-      shape.lineTo(-hw, hh - rtl);
-      if (rtl > MICRO_EPS) {
-        shape.absarc(-hw + rtl, hh - rtl, rtl, Math.PI, Math.PI / 2, true);
-      }
-      shape.lineTo(-hw + rtl, hh);
-    };
-
     const cornerKey = typeof corner === 'string' ? corner.toLowerCase() : '';
-    const pocketEdgeRadius = Math.min(
-      r * CHROME_CORNER_POCKET_EDGE_ROUND_SCALE,
-      Math.min(width, height) * 0.2
-    );
     switch (cornerKey) {
       case 'topleft': {
         if (r > MICRO_EPS) {
-          drawRectWithCornerRadii({ tl: r, br: pocketEdgeRadius, bl: pocketEdgeRadius });
+          shape.moveTo(-hw + r, hh);
+          shape.lineTo(hw, hh);
+          shape.lineTo(hw, -hh);
+          shape.lineTo(-hw, -hh);
+          shape.lineTo(-hw, hh - r);
+          shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
@@ -733,7 +706,12 @@ function buildChromePlateGeometry({
       }
       case 'topright': {
         if (r > MICRO_EPS) {
-          drawRectWithCornerRadii({ tr: r, br: pocketEdgeRadius, bl: pocketEdgeRadius });
+          shape.moveTo(-hw, hh);
+          shape.lineTo(hw - r, hh);
+          shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
+          shape.lineTo(hw, -hh);
+          shape.lineTo(-hw, -hh);
+          shape.lineTo(-hw, hh);
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
@@ -745,7 +723,12 @@ function buildChromePlateGeometry({
       }
       case 'bottomright': {
         if (r > MICRO_EPS) {
-          drawRectWithCornerRadii({ tl: pocketEdgeRadius, tr: pocketEdgeRadius, br: r });
+          shape.moveTo(-hw, hh);
+          shape.lineTo(hw, hh);
+          shape.lineTo(hw, -hh + r);
+          shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
+          shape.lineTo(-hw, -hh);
+          shape.lineTo(-hw, hh);
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
@@ -757,7 +740,12 @@ function buildChromePlateGeometry({
       }
       case 'bottomleft': {
         if (r > MICRO_EPS) {
-          drawRectWithCornerRadii({ tl: pocketEdgeRadius, tr: pocketEdgeRadius, bl: r });
+          shape.moveTo(-hw, hh);
+          shape.lineTo(hw, hh);
+          shape.lineTo(hw, -hh);
+          shape.lineTo(-hw + r, -hh);
+          shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
+          shape.lineTo(-hw, hh);
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
