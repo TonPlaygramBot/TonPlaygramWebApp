@@ -13,6 +13,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
@@ -1437,6 +1438,53 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
   return createProceduralChair(theme);
 }
 
+
+
+function applyApproximateSeatedPose(model) {
+  if (!model) return;
+  model.traverse((node) => {
+    if (!node?.isBone) return;
+    const name = (node.name || '').toLowerCase();
+    if (name.includes('upperleg') || name.includes('thigh')) {
+      node.rotation.x = -1.25;
+    } else if (name.includes('lowerleg') || name.includes('calf') || name.includes('shin')) {
+      node.rotation.x = 1.32;
+    } else if (name.includes('spine') || name.includes('chest')) {
+      node.rotation.x = 0.14;
+    } else if (name.includes('upperarm') || name.includes('shoulder')) {
+      node.rotation.x = -0.48;
+    } else if (name.includes('lowerarm') || name.includes('forearm')) {
+      node.rotation.x = -0.24;
+    }
+  });
+}
+
+async function buildCharacterTemplate(theme, renderer = null) {
+  const urls = Array.isArray(theme?.urls) ? theme.urls : [];
+  if (!urls.length) return null;
+  const loader = createConfiguredGLTFLoader(renderer);
+  let gltf = null;
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error('Failed to load character model');
+  }
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) {
+    throw new Error('Character model missing scene');
+  }
+  prepareLoadedModel(model);
+  fitModelToHeight(model, 1.5 * MODEL_SCALE);
+  applyApproximateSeatedPose(model);
+  return model;
+}
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const CARD_SCALE = 0.92;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
@@ -2355,6 +2403,9 @@ export default function MurlanRoyaleArena({ search }) {
     chairThemePreserve: false,
     chairThemeId: null,
     chairInstances: [],
+    characterTemplate: null,
+    characterThemeId: null,
+    characterInstances: [],
     decorPlants: [],
     decorGroup: null,
     outfitParts: [],
@@ -2779,6 +2830,50 @@ export default function MurlanRoyaleArena({ search }) {
     [threeReady]
   );
 
+  const rebuildCharacters = useCallback(
+    async (outfitTheme) => {
+      if (!threeReady) return;
+      const safe = outfitTheme || OUTFIT_THEMES[0];
+      const store = threeStateRef.current;
+      let characterTemplate = null;
+      try {
+        characterTemplate = await buildCharacterTemplate(safe, store.renderer);
+      } catch (error) {
+        console.warn('Unable to load selected character model', error);
+      }
+      const currentAppearance = normalizeAppearance(appearanceRef.current);
+      const expectedTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
+      if (expectedTheme.id !== safe.id) return;
+
+      if (store.characterTemplate) {
+        disposeObjectResources(store.characterTemplate);
+      }
+      store.characterTemplate = characterTemplate;
+      store.characterThemeId = safe.id;
+      store.characterInstances = [];
+
+      store.chairInstances.forEach((chair) => {
+        const previous = chair?.userData?.characterModel;
+        if (previous) {
+          disposeObjectResources(previous);
+          chair.remove(previous);
+        }
+        if (!characterTemplate) {
+          chair.userData.characterModel = null;
+          return;
+        }
+        const clone = SkeletonUtils.clone(characterTemplate);
+        clone.position.set(0, -0.04 * MODEL_SCALE, 0.08 * MODEL_SCALE);
+        clone.rotation.y = Math.PI;
+        chair.add(clone);
+        chair.userData.characterModel = clone;
+        store.characterInstances.push(clone);
+      });
+    },
+    [threeReady]
+  );
+
+
   const applyHdriEnvironment = useCallback(
     async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
       const three = threeStateRef.current;
@@ -2873,6 +2968,9 @@ export default function MurlanRoyaleArena({ search }) {
         } else {
           applyChairThemeMaterials(three, stoolTheme);
         }
+        if (three.characterThemeId !== outfitTheme.id) {
+          void rebuildCharacters(outfitTheme);
+        }
         applyOutfitThemeMaterials(three, outfitTheme);
 
         const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
@@ -2890,6 +2988,7 @@ export default function MurlanRoyaleArena({ search }) {
       applyStateToScene,
       ensureCardMeshes,
       rebuildChairs,
+      rebuildCharacters,
       rebuildTable,
       applyTableMaterials,
       threeReady
@@ -3028,17 +3127,21 @@ export default function MurlanRoyaleArena({ search }) {
       case 'outfit':
       default:
         return (
-          <div className="relative flex h-14 w-full items-center justify-center">
-            <div className="relative h-14 w-14 rounded-full" style={{ background: option.baseColor }}>
-              <div
-                className="absolute inset-1 rounded-full border-2"
-                style={{ borderColor: option.accentColor }}
-              />
-              <div
-                className="absolute left-1/2 top-1/2 h-4 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                style={{ background: option.accentColor }}
-              />
-            </div>
+          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/50">
+            {option.thumbnail ? (
+              <img src={option.thumbnail} alt={option.label} className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <div className="relative h-14 w-14 rounded-full" style={{ background: option.baseColor }}>
+                <div
+                  className="absolute inset-1 rounded-full border-2"
+                  style={{ borderColor: option.accentColor }}
+                />
+                <div
+                  className="absolute left-1/2 top-1/2 h-4 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                  style={{ background: option.accentColor }}
+                />
+              </div>
+            )}
           </div>
         );
     }
@@ -3356,6 +3459,16 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.chairThemeId = stoolTheme.id;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
+      let characterTemplate = null;
+      try {
+        characterTemplate = await buildCharacterTemplate(outfitTheme, renderer);
+      } catch (error) {
+        console.warn('Unable to load selected character model', error);
+      }
+      threeStateRef.current.characterTemplate = characterTemplate;
+      threeStateRef.current.characterThemeId = outfitTheme.id;
+      threeStateRef.current.characterInstances = [];
+
       const chairRadius = CHAIR_RADIUS;
       const seatThickness = SEAT_THICKNESS;
 
@@ -3371,6 +3484,15 @@ export default function MurlanRoyaleArena({ search }) {
         chair.add(chairModel);
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
+
+        if (characterTemplate) {
+          const characterModel = SkeletonUtils.clone(characterTemplate);
+          characterModel.position.set(0, -0.04 * MODEL_SCALE, 0.08 * MODEL_SCALE);
+          characterModel.rotation.y = Math.PI;
+          chair.add(characterModel);
+          chair.userData.characterModel = characterModel;
+          threeStateRef.current.characterInstances.push(characterModel);
+        }
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
@@ -3640,6 +3762,14 @@ export default function MurlanRoyaleArena({ search }) {
         });
         store.chairInstances = [];
       }
+      if (store.characterTemplate) {
+        disposeObjectResources(store.characterTemplate);
+        store.characterTemplate = null;
+      }
+      if (store.characterInstances?.length) {
+        store.characterInstances.forEach((model) => disposeObjectResources(model));
+        store.characterInstances = [];
+      }
       if (store.decorGroup) {
         disposeObjectResources(store.decorGroup);
         if (store.decorGroup.parent) {
@@ -3691,6 +3821,9 @@ export default function MurlanRoyaleArena({ search }) {
         chairThemePreserve: false,
         chairThemeId: null,
         chairInstances: [],
+        characterTemplate: null,
+        characterThemeId: null,
+        characterInstances: [],
         decorPlants: [],
         decorGroup: null,
         outfitParts: [],
@@ -4836,6 +4969,7 @@ function applyChairThemeMaterials(three, theme) {
 }
 
 function applyOutfitThemeMaterials(three, theme) {
+  if (theme?.preserveMaterials) return;
   const parts = three?.outfitParts;
   if (!parts?.length) return;
   const base = theme?.baseColor ? new THREE.Color(theme.baseColor) : null;
