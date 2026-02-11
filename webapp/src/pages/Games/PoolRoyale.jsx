@@ -596,7 +596,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirror
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
 const CHROME_CORNER_WIDTH_SCALE = 1.018; // broaden the corner plate footprint so each side gains more visible chrome length
 const CHROME_CORNER_HEIGHT_SCALE = 1.012; // extend the short-rail plate reach while keeping the corner chrome cut unchanged
-const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.018; // push corner fascia outward a touch while keeping the rounded corner-pocket cut unchanged
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // push corner fascia a tiny bit farther outward while keeping the rounded corner-pocket cut unchanged
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.06; // trim the corner chrome footprint so the outside strip near corner pockets is visibly shorter
@@ -1191,7 +1191,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
 const BALL_SIZE_SCALE =
-  1.1545 * 0.85 * 0.9 * 1.07 * 1.03 * 0.95 * 0.95 * 0.95 * 1.05; // increase balls by 5% while preserving the table mapping scale
+  1.1545 * 0.85 * 0.9 * 1.07 * 1.03 * 0.95 * 0.95 * 0.95 * 1.05 * 1.15; // increase balls by an additional 15% while preserving the existing table mapping scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -13184,6 +13184,7 @@ function PoolRoyaleGame({
   });
   const inHandIconDragActiveRef = useRef(false);
   const inHandPlacementApiRef = useRef({ begin: null, move: null, end: null });
+  const openingBreakInHandPendingRef = useRef(true);
   const pendingInHandResetRef = useRef(false);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
@@ -22393,6 +22394,15 @@ const powerRef = useRef(hud.power);
         }
         return best;
       };
+      const resolveInHandDragPlacement = (point, { commit = false } = {}) => {
+        const clamped = clampInHandPosition(point);
+        if (!clamped) return null;
+        if (isSpotFree(clamped, 2.01)) return clamped;
+        return resolveInHandPlacement(clamped, {
+          clearanceMultiplier: commit ? 2.05 : 2.01,
+          maxRadius: commit ? BALL_R * 2.8 : BALL_R * 1.4
+        });
+      };
       const defaultInHandPosition = ({ forceBaulk = false, forceCenter = false } = {}) => {
         const restrictToBaulk = forceBaulk || (!forceCenter && !allowFullTableInHand());
         const target = forceCenter
@@ -22416,7 +22426,7 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const clamped = resolveInHandPlacement(raw);
+        const clamped = resolveInHandDragPlacement(raw, { commit });
         if (!clamped) return false;
         cue.active = true;
         updateCuePlacement(clamped);
@@ -22428,7 +22438,14 @@ const powerRef = useRef(hud.power);
         return true;
       };
       const resolveInHandDragPosition = (e) => {
-        const client = getPointerClient(e);
+        let sampleEvent = e;
+        if (typeof e?.getCoalescedEvents === 'function') {
+          const coalesced = e.getCoalescedEvents();
+          if (Array.isArray(coalesced) && coalesced.length > 0) {
+            sampleEvent = coalesced[coalesced.length - 1];
+          }
+        }
+        const client = getPointerClient(sampleEvent);
         if (!client) return null;
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
@@ -22747,12 +22764,19 @@ const powerRef = useRef(hud.power);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition({ forceCenter: true });
+        const shouldForceOpeningBreakBaulk =
+          openingBreakInHandPendingRef.current && isBreakRestrictedInHand();
+        const startPos = shouldForceOpeningBreakBaulk
+          ? defaultInHandPosition({ forceBaulk: true })
+          : defaultInHandPosition({ forceCenter: true });
         if (startPos && cue) {
           cue.active = false;
           updateCuePlacement(startPos);
           cue.active = true;
           cueBallPlacedFromHandRef.current = false;
+        }
+        if (shouldForceOpeningBreakBaulk) {
+          openingBreakInHandPendingRef.current = false;
         }
         if (allowFullTableInHand()) {
           const focusStore = ensureOrbitFocus();
