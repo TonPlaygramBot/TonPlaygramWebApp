@@ -1235,7 +1235,9 @@ const SIDE_POCKET_CUT_SCALE = 0.962; // shrink side pocket cut radius slightly t
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
-const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
+const BASE_CORNER_POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
+const CORNER_POCKET_RADIUS_SCALE = 0.97; // trim only the corner pocket radius slightly while keeping middle pockets untouched
+const POCKET_VIS_R = BASE_CORNER_POCKET_VIS_R * CORNER_POCKET_RADIUS_SCALE;
 const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior diameter tight at the rim for slightly smaller pocket openings
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_CENTER_OUTWARD_SHIFT = TABLE.THICK * 0.02; // shift pocket centers outward to keep the pocket stack aligned away from the playfield
@@ -1251,7 +1253,8 @@ const CORNER_RAIL_NOTCH_INSET =
   POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
-  Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
+  Math.abs(POCKET_CORNER_MOUTH * CORNER_POCKET_RADIUS_SCALE - POCKET_VIS_R * 2) <=
+    POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
 );
 console.assert(
@@ -1269,7 +1272,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.23; // lower the cloth surface a touch more while keeping the rest of the table profile intact
+const CLOTH_DROP = BALL_R * 0.255; // lower the cloth surface just a bit more while keeping the rest of the table profile intact
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -7735,7 +7738,9 @@ export function Table3D(
     return center.clone().add(new THREE.Vector2(-pull, 0));
   });
   const sideRadiusScale =
-    POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
+    BASE_CORNER_POCKET_VIS_R > MICRO_EPS
+      ? (SIDE_POCKET_RADIUS / BASE_CORNER_POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE
+      : 1;
   const buildSurfaceShape = (holeRadius, edgeInset = 0, centers = pocketPositions) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
