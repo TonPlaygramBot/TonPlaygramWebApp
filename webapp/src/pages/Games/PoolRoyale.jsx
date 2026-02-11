@@ -8970,9 +8970,7 @@ export function Table3D(
   const createBrandPlateLabelTexture = ({
     width = 2048,
     height = 512,
-    lines = [],
-    textGradientStops,
-    shadowColor = 'rgba(0,0,0,0.45)'
+    lines = []
   } = {}) => {
     if (typeof document === 'undefined') return null;
     const canvas = document.createElement('canvas');
@@ -8987,19 +8985,9 @@ export function Table3D(
     ctx.textBaseline = 'middle';
     const fontFamily = '"Inter", "Segoe UI", Arial, sans-serif';
     const textGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    const resolvedGradientStops = Array.isArray(textGradientStops) && textGradientStops.length
-      ? textGradientStops
-      : [
-          { offset: 0, color: '#fff3d0' },
-          { offset: 0.45, color: '#d3b15a' },
-          { offset: 1, color: '#f7e5ba' }
-        ];
-    resolvedGradientStops.forEach(({ offset, color }) => {
-      textGradient.addColorStop(
-        THREE.MathUtils.clamp(Number.isFinite(offset) ? offset : 0, 0, 1),
-        color || '#ffffff'
-      );
-    });
+    textGradient.addColorStop(0, '#fff3d0');
+    textGradient.addColorStop(0.45, '#d3b15a');
+    textGradient.addColorStop(1, '#f7e5ba');
     const payload = Array.isArray(lines) && lines.length
       ? lines
       : [{ text: 'TonPlaygram', size: 0.34, weight: '800' }];
@@ -9009,7 +8997,7 @@ export function Table3D(
       const y = canvas.height * (0.5 + (idx - (payload.length - 1) / 2) * 0.32);
       ctx.font = `${weight} ${size}px ${fontFamily}`;
       ctx.fillStyle = textGradient;
-      ctx.shadowColor = shadowColor;
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
       ctx.shadowBlur = canvas.height * 0.02;
       ctx.fillText(line.text ?? '', canvas.width / 2, y);
       ctx.shadowBlur = 0;
@@ -10021,17 +10009,6 @@ export function Table3D(
     height: 520,
     lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }]
   });
-  const shortRailDiagonalWordmarkTexture = createBrandPlateLabelTexture({
-    width: 1440,
-    height: 360,
-    lines: [{ text: 'TonPlaygram', size: 0.4, weight: '850' }],
-    textGradientStops: [
-      { offset: 0, color: '#ffffff' },
-      { offset: 0.5, color: '#f5f8ff' },
-      { offset: 1, color: '#e9eefb' }
-    ],
-    shadowColor: 'rgba(0,0,0,0.9)'
-  });
   if (shortRailWordmarkTexture) {
     const logoWidth = Math.min(PLAY_W * 0.44, Math.max(BALL_R * 13.5, PLAY_W * 0.34));
     const logoHeight = Math.max(BALL_R * 1.4, railH * 0.18);
@@ -10532,54 +10509,6 @@ export function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-
-  if (shortRailDiagonalWordmarkTexture) {
-    const diagonalWordmarkMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      map: shortRailDiagonalWordmarkTexture,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
-    const diagonalLabelHeight = Math.max(BALL_R * 1.1, railH * 0.13);
-    const diagonalLabelLift = Math.max(MICRO_EPS, railH * 0.44);
-    const diagonalInset = Math.max(BALL_R * 0.34, endRailW * 0.36);
-    const horizontalCushions = (table.userData.cushions || []).filter(
-      (group) => Boolean(group?.userData?.horizontal)
-    );
-    horizontalCushions.forEach((group) => {
-      const cushionLength = Math.max(MICRO_EPS, group.userData?.length ?? horizontalCushionLength);
-      const cutEnds = group.userData?.cutEnds || {};
-      const cutAnglesByEnd = group.userData?.cutAnglesByEnd || {};
-      [
-        { end: 'min', sign: -1 },
-        { end: 'max', sign: 1 }
-      ].forEach(({ end, sign }) => {
-        const cutLength = Math.max(BALL_R * 1.15, cutEnds[end] ?? BALL_R * 1.25);
-        const labelWidth = Math.max(BALL_R * 4.8, Math.min(cutLength * 2.05, cushionLength * 0.24));
-        const label = new THREE.Mesh(
-          new THREE.PlaneGeometry(labelWidth, diagonalLabelHeight),
-          diagonalWordmarkMaterial
-        );
-        label.position.set(
-          sign * (cushionLength / 2 - cutLength * 0.6),
-          diagonalLabelLift,
-          -diagonalInset
-        );
-        label.rotation.x = -Math.PI / 2;
-        const cutAngleDeg = Number.isFinite(cutAnglesByEnd[end])
-          ? cutAnglesByEnd[end]
-          : CUSHION_CUT_ANGLE;
-        label.rotation.y =
-          sign * THREE.MathUtils.degToRad(THREE.MathUtils.clamp(cutAngleDeg, 18, 68));
-        label.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.3;
-        label.castShadow = false;
-        label.receiveShadow = false;
-        group.add(label);
-        finishParts.trimMeshes.push(label);
-      });
-    });
-  }
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
