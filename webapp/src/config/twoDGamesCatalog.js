@@ -42,6 +42,41 @@ const twoDGamesCatalog = [
     description: 'Swipe quickly to slice fruits and build your score streak.'
   },
   {
+    name: 'Pool Royale 2D Classic',
+    href: '/pool-royale-2d.html',
+    slug: 'pool-royale-2d-classic',
+    image: '/assets/icons/pool-royale.svg',
+    description: 'Legacy 2D Pool Royale HTML demo restored as a classic mode.'
+  },
+  {
+    name: 'Bubble Smash Royal',
+    href: '/bubble-smash-royal.html',
+    slug: 'bubble-smash-royal',
+    image: '/assets/icons/file_00000000becc620a8755badc01cfefca.webp',
+    description: 'Tap and burst rising bubbles before the timer ends.'
+  },
+  {
+    name: 'Bubble Crush Royal',
+    href: '/bubble-crush-royal.html',
+    slug: 'bubble-crush-royal',
+    image: '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.webp',
+    description: 'Pop connected color clusters for combo-based scoring.'
+  },
+  {
+    name: 'Table Tennis Royal',
+    href: '/table-tennis-royal.html',
+    slug: 'table-tennis-royal',
+    image: '/assets/icons/air-hockey.svg',
+    description: 'Fast paddle rally versus AI in a portrait-friendly layout.'
+  },
+  {
+    name: 'Tennis 3D Battle Royal Classic',
+    href: '/tennis-3d-battle-royal.html',
+    slug: 'tennis-3d-battle-royal-classic',
+    image: '/assets/icons/goal_rush_card_1200x675.webp',
+    description: 'Retro perspective tennis duel inspired by early battle royale builds.'
+  },
+  {
     name: 'Roulette',
     href: '/roulette.html',
     slug: 'roulette',
