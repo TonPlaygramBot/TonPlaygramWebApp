@@ -1102,7 +1102,34 @@ const SFX = {
 
   /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
-const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
+function createRendererWithFallback() {
+  const attempts = [
+    { antialias: true, alpha: true, powerPreference: 'high-performance' },
+    { antialias: false, alpha: true, powerPreference: 'default' },
+    { antialias: false, alpha: true }
+  ];
+  let lastError = null;
+  for (const config of attempts) {
+    try {
+      return new THREE.WebGLRenderer(config);
+    } catch (error) {
+      lastError = error;
+      console.warn('Domino renderer init attempt failed', config, error);
+    }
+  }
+  throw lastError ?? new Error('Unable to initialize WebGL renderer');
+}
+
+let renderer = null;
+try {
+  renderer = createRendererWithFallback();
+} catch (error) {
+  console.error('Domino Royal renderer initialization failed', error);
+  if (app) {
+    app.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;color:#fff;text-align:center;background:#061219">Unable to initialize 3D graphics on this device. Please reload or lower graphics quality.</div>';
+  }
+  throw error;
+}
 const prefersUhd = urlParams.get('uhd') === '1';
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
@@ -1131,6 +1158,9 @@ function applyRendererQuality(quality = frameQuality) {
   setRendererSize(quality);
 }
 applyRendererQuality();
+if (!app) {
+  throw new Error('Domino Royal root container #app is missing');
+}
 app.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
 
