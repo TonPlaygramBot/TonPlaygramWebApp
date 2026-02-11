@@ -600,6 +600,7 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.065; // pull the corner fascia slig
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
+const CHROME_CORNER_OUTER_EDGE_RADIUS_SCALE = 0.12; // add a soft outer fillet so the exposed corner-pocket fascia edges look rounded instead of hard-cut
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
@@ -660,6 +661,39 @@ function buildChromePlateGeometry({
 
   const isSidePlate =
     typeof corner === 'string' && corner.toLowerCase().startsWith('side');
+  const outerEdgeRadius = Math.max(
+    0,
+    Math.min(
+      Math.min(width, height) * CHROME_CORNER_OUTER_EDGE_RADIUS_SCALE,
+      Math.max(0, r * 0.45)
+    )
+  );
+
+  const drawCornerPlatePath = (shapeRef, radii) => {
+    const tl = Math.max(0, Math.min(radii.tl ?? 0, hw, hh));
+    const tr = Math.max(0, Math.min(radii.tr ?? 0, hw, hh));
+    const br = Math.max(0, Math.min(radii.br ?? 0, hw, hh));
+    const bl = Math.max(0, Math.min(radii.bl ?? 0, hw, hh));
+
+    shapeRef.moveTo(-hw + tl, hh);
+    shapeRef.lineTo(hw - tr, hh);
+    if (tr > MICRO_EPS) {
+      shapeRef.absarc(hw - tr, hh - tr, tr, Math.PI / 2, 0, true);
+    }
+    shapeRef.lineTo(hw, -hh + br);
+    if (br > MICRO_EPS) {
+      shapeRef.absarc(hw - br, -hh + br, br, 0, -Math.PI / 2, true);
+    }
+    shapeRef.lineTo(-hw + bl, -hh);
+    if (bl > MICRO_EPS) {
+      shapeRef.absarc(-hw + bl, -hh + bl, bl, -Math.PI / 2, -Math.PI, true);
+    }
+    shapeRef.lineTo(-hw, hh - tl);
+    if (tl > MICRO_EPS) {
+      shapeRef.absarc(-hw + tl, hh - tl, tl, Math.PI, Math.PI / 2, true);
+    }
+    shapeRef.lineTo(-hw + tl, hh);
+  };
 
   if (isSidePlate) {
     const rectRadius = Math.max(
@@ -689,12 +723,12 @@ function buildChromePlateGeometry({
     switch (cornerKey) {
       case 'topleft': {
         if (r > MICRO_EPS) {
-          shape.moveTo(-hw + r, hh);
-          shape.lineTo(hw, hh);
-          shape.lineTo(hw, -hh);
-          shape.lineTo(-hw, -hh);
-          shape.lineTo(-hw, hh - r);
-          shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+          drawCornerPlatePath(shape, {
+            tl: r,
+            tr: outerEdgeRadius,
+            br: outerEdgeRadius,
+            bl: outerEdgeRadius
+          });
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
@@ -706,12 +740,12 @@ function buildChromePlateGeometry({
       }
       case 'topright': {
         if (r > MICRO_EPS) {
-          shape.moveTo(-hw, hh);
-          shape.lineTo(hw - r, hh);
-          shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
-          shape.lineTo(hw, -hh);
-          shape.lineTo(-hw, -hh);
-          shape.lineTo(-hw, hh);
+          drawCornerPlatePath(shape, {
+            tl: outerEdgeRadius,
+            tr: r,
+            br: outerEdgeRadius,
+            bl: outerEdgeRadius
+          });
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
@@ -723,12 +757,12 @@ function buildChromePlateGeometry({
       }
       case 'bottomright': {
         if (r > MICRO_EPS) {
-          shape.moveTo(-hw, hh);
-          shape.lineTo(hw, hh);
-          shape.lineTo(hw, -hh + r);
-          shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
-          shape.lineTo(-hw, -hh);
-          shape.lineTo(-hw, hh);
+          drawCornerPlatePath(shape, {
+            tl: outerEdgeRadius,
+            tr: outerEdgeRadius,
+            br: r,
+            bl: outerEdgeRadius
+          });
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
@@ -740,12 +774,12 @@ function buildChromePlateGeometry({
       }
       case 'bottomleft': {
         if (r > MICRO_EPS) {
-          shape.moveTo(-hw, hh);
-          shape.lineTo(hw, hh);
-          shape.lineTo(hw, -hh);
-          shape.lineTo(-hw + r, -hh);
-          shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
-          shape.lineTo(-hw, hh);
+          drawCornerPlatePath(shape, {
+            tl: outerEdgeRadius,
+            tr: outerEdgeRadius,
+            br: outerEdgeRadius,
+            bl: r
+          });
         } else {
           shape.moveTo(TL.x, TL.y);
           shape.lineTo(TR.x, TR.y);
