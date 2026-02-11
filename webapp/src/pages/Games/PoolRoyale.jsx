@@ -9008,6 +9008,46 @@ export function Table3D(
     return texture;
   };
 
+  const createCushionWordmarkTexture = ({
+    width = 2048,
+    height = 420,
+    text = 'TonPlaygram'
+  } = {}) => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(64, Math.floor(width));
+    canvas.height = Math.max(64, Math.floor(height));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontSize = canvas.height * 0.58;
+    ctx.font = `800 ${fontSize}px "Inter", "Segoe UI", Arial, sans-serif`;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.lineWidth = Math.max(8, canvas.height * 0.06);
+    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.42)';
+    ctx.shadowBlur = canvas.height * 0.06;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.shadowBlur = 0;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    applySRGBColorSpace(texture);
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+    return texture;
+  };
+
   const buildBrandPlateTopMaterial = (baseMaterial, labelTexture) => {
     if (!baseMaterial) return null;
     const mat = baseMaterial.clone();
@@ -10468,6 +10508,7 @@ export function Table3D(
     }
 
     group.userData = group.userData || {};
+    group.userData.mesh = mesh;
     group.userData.horizontal = horizontal;
     group.userData.side = side;
     group.userData.cutLengths = cutLengths;
@@ -10509,6 +10550,48 @@ export function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+
+  const shortRailCushionWordmarkTexture = createCushionWordmarkTexture({
+    width: 2048,
+    height: 420,
+    text: 'TonPlaygram'
+  });
+  if (shortRailCushionWordmarkTexture) {
+    const shortRailWordmarkMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: shortRailCushionWordmarkTexture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2
+    });
+    const shortRailBackY = (longRailW * FACE_SHRINK_LONG) / 2;
+    const shortRailFrontY = shortRailBackY - longRailW * FACE_SHRINK_LONG * NOSE_REDUCTION;
+    const shortRailHeightScale = Math.max(0.001, cushionScaleBase);
+    const cushionTopY = Math.max(MICRO_EPS, railH * shortRailHeightScale);
+    const wordmarkY = cushionTopY * 0.79;
+    const wordmarkZ = -THREE.MathUtils.lerp(shortRailBackY, shortRailFrontY, 0.72);
+    const wordmarkWidth = Math.min(horizontalCushionLength * 0.56, PLAY_W * 0.48);
+    const wordmarkHeight = Math.max(BALL_R * 1.38, wordmarkWidth * 0.085);
+    const cushionTilt = THREE.MathUtils.degToRad(18);
+    table.userData.cushions
+      .filter((cushionGroup) => cushionGroup?.userData?.horizontal)
+      .forEach((cushionGroup) => {
+        const wordmark = new THREE.Mesh(
+          new THREE.PlaneGeometry(wordmarkWidth, wordmarkHeight),
+          shortRailWordmarkMaterial
+        );
+        wordmark.position.set(0, wordmarkY, wordmarkZ);
+        wordmark.rotation.x = cushionTilt;
+        wordmark.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.3;
+        wordmark.castShadow = false;
+        wordmark.receiveShadow = false;
+        cushionGroup.add(wordmark);
+        finishParts.trimMeshes.push(wordmark);
+      });
+  }
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
