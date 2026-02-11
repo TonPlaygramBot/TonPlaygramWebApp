@@ -95,6 +95,7 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'uhd120';
 
 const MODEL_SCALE = 0.75;
+const CHARACTER_PROPORTION_SCALE = 1.35;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
 
@@ -1251,26 +1252,42 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
-function createCharacterCards({ handLift = 0.96, cardCount = 3, playerColor = '#1d4ed8' } = {}) {
-  const cards = new THREE.Group();
-  const safeCount = Math.min(Math.max(Math.round(cardCount || 0), 2), 5);
-  const cardGeometry = new THREE.PlaneGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE);
-  const baseMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.38,
-    metalness: 0.03,
-    side: THREE.DoubleSide
+function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8' } = {}) {
+  const cardsGroup = new THREE.Group();
+  const handCards = Array.isArray(handCardsInput) && handCardsInput.length
+    ? handCardsInput.slice(0, 5)
+    : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
+  const safeCount = Math.max(handCards.length, 2);
+  const cardGeometry = new THREE.BoxGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE, 0.012 * MODEL_SCALE);
+  const edgeMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
+    roughness: 0.55,
+    metalness: 0.1
   });
-  const accentMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(playerColor),
-    roughness: 0.34,
-    metalness: 0.08,
-    side: THREE.DoubleSide
-  });
+  const backTexture = makeCardBackTexture(cardTheme);
+  const managedTextures = [backTexture];
+  const managedMaterials = [edgeMaterial];
 
   const spread = 0.12 * MODEL_SCALE;
   for (let idx = 0; idx < safeCount; idx++) {
-    const card = new THREE.Mesh(cardGeometry, idx === safeCount - 1 ? accentMaterial : baseMaterial);
+    const handCard = handCards[idx] || handCards[handCards.length - 1];
+    const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, 256, 360);
+    managedTextures.push(faceTexture);
+    const frontMaterial = new THREE.MeshStandardMaterial({
+      map: faceTexture,
+      color: new THREE.Color('#ffffff'),
+      roughness: 0.36,
+      metalness: 0.08
+    });
+    const backMaterial = new THREE.MeshStandardMaterial({
+      map: backTexture,
+      color: new THREE.Color(idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'),
+      roughness: 0.6,
+      metalness: 0.15
+    });
+    managedMaterials.push(frontMaterial, backMaterial);
+    const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
+    const card = new THREE.Mesh(cardGeometry, sideMaterials);
     const centered = idx - (safeCount - 1) / 2;
     card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
@@ -1280,15 +1297,15 @@ function createCharacterCards({ handLift = 0.96, cardCount = 3, playerColor = '#
     );
     card.castShadow = true;
     card.receiveShadow = true;
-    cards.add(card);
+    cardsGroup.add(card);
   }
 
-  cards.userData.dispose = () => {
+  cardsGroup.userData.dispose = () => {
     cardGeometry.dispose();
-    baseMaterial.dispose();
-    accentMaterial.dispose();
+    managedMaterials.forEach((material) => material.dispose());
+    managedTextures.forEach((texture) => texture.dispose());
   };
-  return cards;
+  return cardsGroup;
 }
 
 function normalizeCharacterPivot(characterRoot) {
@@ -1323,7 +1340,7 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex) {
+function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme) {
   const hips = findBoneByHints(instance, ['hips', 'pelvis']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
   const head = findBoneByHints(instance, ['head', 'neck']);
@@ -1340,11 +1357,13 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 
   const heldCards = createCharacterCards({
     handLift: characterTheme.handLift ?? 0.94,
-    cardCount: player?.hand?.length ?? 3,
+    handCardsInput: player?.hand ?? [],
+    cardTheme,
     playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8'
   });
 
   heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
+  heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
   if (leftHand) {
     leftHand.add(heldCards);
@@ -1428,12 +1447,14 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   return rig;
 }
 
-function refreshRigHeldCards(rig, cardCount, playerColor) {
+function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme) {
   if (!rig) return;
-  const safeCount = Math.min(Math.max(Math.round(cardCount || 0), 2), 5);
+  const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
-  if (currentCount === safeCount && !colorChanged) return;
+  const cardsSignature = safeCards.map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
+  const cardsChanged = rig.heldCards?.userData?.cardsSignature !== cardsSignature;
+  if (currentCount === Math.max(safeCards.length, 2) && !colorChanged && !cardsChanged) return;
 
   const parent = rig.heldCards?.parent || null;
   rig.heldCards?.userData?.dispose?.();
@@ -1441,10 +1462,12 @@ function refreshRigHeldCards(rig, cardCount, playerColor) {
 
   const nextCards = createCharacterCards({
     handLift: 0.94,
-    cardCount: safeCount,
+    handCardsInput: safeCards,
+    cardTheme,
     playerColor
   });
   nextCards.userData.playerColor = playerColor;
+  nextCards.userData.cardsSignature = cardsSignature;
 
   if (rig.bones?.leftHand) {
     rig.bones.leftHand.add(nextCards);
@@ -1505,7 +1528,7 @@ function createThrownCardMesh(color = '#f8fafc') {
   return card;
 }
 
-function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0 }) {
+function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme }) {
   if (!template || !seatConfig?.chair) return;
   const instance = cloneSkeleton(template);
   instance.traverse((obj) => {
@@ -1516,7 +1539,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
-  seatRoot.scale.multiplyScalar(characterTheme.scale ?? 0.82);
+  seatRoot.scale.multiplyScalar((characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE);
   seatRoot.position.set(
     0,
     characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38,
@@ -1530,7 +1553,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     rig?.heldCards?.userData?.dispose?.();
   };
 
-  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex);
+  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme);
   seatConfig.characterRig = rig;
   seatConfig.characterRoot = seatRoot;
   if (!store.characterRigs) store.characterRigs = new Map();
@@ -2992,8 +3015,9 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seat) return;
       refreshRigHeldCards(
         seat.characterRig,
-        player.hand?.length ?? 0,
-        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8'
+        player.hand ?? [],
+        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
+        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
       );
       const cards = player.hand;
       const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : 0);
@@ -3271,7 +3295,8 @@ export default function MurlanRoyaleArena({ search }) {
           characterTheme: safe,
           store,
           player: currentPlayers[seatIndex] ?? null,
-          playerIndex: seatIndex
+          playerIndex: seatIndex,
+          cardTheme: CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0]
         });
       });
     },
@@ -3953,7 +3978,8 @@ export default function MurlanRoyaleArena({ search }) {
             characterTheme,
             store: threeStateRef.current,
             player,
-            playerIndex: i
+            playerIndex: i,
+            cardTheme
           });
         }
       } catch (error) {
