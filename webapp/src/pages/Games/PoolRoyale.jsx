@@ -1103,7 +1103,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.98; // extend all jaw bodies slightly so the inside profile reads a touch longer
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.102; // lower all six jaws slightly while keeping enough lip to prevent hop-outs
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a touch more so the jaw mouths sit visibly farther down
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // side-pocket jaw bottom clearance (keep middle-pocket jaw height unchanged)
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // reduce only corner-pocket bottom clearance so corner jaws extend farther downward
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
@@ -1281,7 +1281,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.148; // lift the balls a touch so they read higher while still rolling on the cloth surface
+const BALL_CENTER_LIFT = BALL_R * 0.172; // lift the balls slightly more so the bottom tangent sits on the cloth instead of dipping below it
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1677,7 +1677,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.16 + CUE_TIP_CLEARANCE; // pull the cue tip farther away so the blue tip is visible before impact
+const CUE_TIP_GAP = BALL_R * 1.22 + CUE_TIP_CLEARANCE; // pull the cue tip a bit farther from the cue ball so it does not look too close in aim view
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -22319,7 +22319,18 @@ const powerRef = useRef(hud.power);
         return false;
       };
 
-      const allowFullTableInHand = () => !isBreakRestrictedInHand();
+      const isOpeningInHandPlacement = () => {
+        const currentHud = hudRef.current;
+        return Boolean(
+          currentHud?.inHand &&
+            (currentHud?.turn ?? 0) === 0 &&
+            turnCycle === 0 &&
+            !cueBallPlacedFromHandRef.current
+        );
+      };
+
+      const allowFullTableInHand = () =>
+        !isBreakRestrictedInHand() && !isOpeningInHandPlacement();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
