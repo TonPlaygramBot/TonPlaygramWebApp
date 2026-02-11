@@ -2,10 +2,106 @@ import * as THREE from "https://esm.sh/three@0.160.0";
 import { OrbitControls } from "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/RGBELoader.js";
-import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
 import "./flag-emojis.js";
+
+const GLTF_LOADER_IMPORTS = Object.freeze([
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+  'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js?module'
+]);
+const DRACO_LOADER_IMPORTS = Object.freeze([
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js',
+  'https://unpkg.com/three@0.160.0/examples/jsm/loaders/DRACOLoader.js?module'
+]);
+const RGBE_LOADER_IMPORTS = Object.freeze([
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/RGBELoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/RGBELoader.js',
+  'https://unpkg.com/three@0.160.0/examples/jsm/loaders/RGBELoader.js?module'
+]);
+const DRACO_DECODER_PATHS = Object.freeze([
+  'https://www.gstatic.com/draco/v1/decoders/',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/'
+]);
+
+let gltfSupportPromise = null;
+let rgbeLoaderPromise = null;
+
+async function importFirst(urls) {
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      return await import(url);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Module import failed');
+}
+
+async function getGltfSupport() {
+  if (gltfSupportPromise) return gltfSupportPromise;
+  gltfSupportPromise = (async () => {
+    const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
+      importFirst(GLTF_LOADER_IMPORTS),
+      importFirst(DRACO_LOADER_IMPORTS)
+    ]);
+    return { GLTFLoader, DRACOLoader };
+  })().catch((error) => {
+    gltfSupportPromise = null;
+    throw error;
+  });
+  return gltfSupportPromise;
+}
+
+function configureDracoLoader(draco) {
+  for (const decoderPath of DRACO_DECODER_PATHS) {
+    try {
+      draco.setDecoderPath(decoderPath);
+      return;
+    } catch (error) {
+      // try next decoder mirror
+    }
+  }
+}
+
+async function createConfiguredGltfLoader() {
+  const { GLTFLoader, DRACOLoader } = await getGltfSupport();
+  const loader = new GLTFLoader();
+  let draco = null;
+  try {
+    draco = new DRACOLoader();
+    configureDracoLoader(draco);
+    loader.setDRACOLoader(draco);
+  } catch (error) {
+    console.warn('Domino Royal Draco loader unavailable, loading uncompressed models only', error);
+    draco = null;
+  }
+  loader.setCrossOrigin('anonymous');
+  return {
+    loader,
+    dispose: () => {
+      if (draco && typeof draco.dispose === 'function') {
+        draco.dispose();
+      }
+    }
+  };
+}
+
+async function getHdriLoader() {
+  if (rgbeLoaderPromise) return rgbeLoaderPromise;
+  rgbeLoaderPromise = importFirst(RGBE_LOADER_IMPORTS)
+    .then(({ RGBELoader }) => {
+      const loader = new RGBELoader();
+      loader.setCrossOrigin?.('anonymous');
+      return loader;
+    })
+    .catch((error) => {
+      rgbeLoaderPromise = null;
+      throw error;
+    });
+  return rgbeLoaderPromise;
+}
 
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -1168,7 +1264,6 @@ const scene = new THREE.Scene();
 const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
 const pmrem = new THREE.PMREMGenerator(renderer);
-const hdriLoader = new RGBELoader();
 const hdriTextureCache = new Map();
 let hdriBackground = null;
 let environmentApplyToken = 0;
@@ -1839,11 +1934,7 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-  loader.setCrossOrigin('anonymous');
-  loader.setDRACOLoader(draco);
+  const { loader, dispose } = await createConfiguredGltfLoader();
 
   const candidates = [
     `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
@@ -1860,6 +1951,7 @@ async function loadPolyhavenModel(assetId) {
       lastError = error;
     }
   }
+  dispose();
   if (!gltf) {
     throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
   }
@@ -1947,11 +2039,7 @@ async function ensureMurlanChairTemplate(theme = null) {
       chairTemplateBounds = new THREE.Box3().setFromObject(model);
       return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
     }
-    const loader = new GLTFLoader();
-    const draco = new DRACOLoader();
-    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-    loader.setCrossOrigin('anonymous');
-    loader.setDRACOLoader(draco);
+    const { loader, dispose } = await createConfiguredGltfLoader();
 
     let gltf = null;
     let lastError = null;
@@ -1963,6 +2051,7 @@ async function ensureMurlanChairTemplate(theme = null) {
         lastError = error;
       }
     }
+    dispose();
     if (!gltf) {
       throw lastError || new Error("Failed to load chair model");
     }
@@ -2908,6 +2997,11 @@ let activeEnvironmentHdri = null;
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
   if (!shouldLoadExternalHdri()) return null;
+  const hdriLoader = await getHdriLoader().catch((error) => {
+    console.warn('Domino Royal HDRI loader unavailable, using fallback environment', error);
+    return null;
+  });
+  if (!hdriLoader) return null;
   const allowedResolutions = resolveHdriResolutionOrder();
   const preferred = Array.isArray(variant.preferredResolutions)
     ? variant.preferredResolutions.filter((res) => allowedResolutions.includes(res))
