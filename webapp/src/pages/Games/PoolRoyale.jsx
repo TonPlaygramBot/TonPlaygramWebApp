@@ -1065,7 +1065,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
-const FIXED_RAIL_REPLAY_CAMERA = true;
+const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
@@ -1236,7 +1236,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const BASE_CORNER_POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const CORNER_POCKET_RADIUS_SCALE = 0.97; // trim only the corner pocket radius slightly while keeping middle pockets untouched
+const CORNER_POCKET_RADIUS_SCALE = 0.962; // trim only the corner pocket radius a bit more while keeping middle pockets untouched
 const POCKET_VIS_R = BASE_CORNER_POCKET_VIS_R * CORNER_POCKET_RADIUS_SCALE;
 const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior diameter tight at the rim for slightly smaller pocket openings
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1272,7 +1272,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.255; // lower the cloth surface just a bit more while keeping the rest of the table profile intact
+const CLOTH_DROP = BALL_R * 0.268; // lower the cloth surface a touch more while keeping the rest of the table profile intact
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -5120,7 +5120,7 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the standing view dip slightly lower while still staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // let the standing view dip a little lower while still staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -8307,7 +8307,7 @@ export function Table3D(
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
-  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.02; // keep short-rail cushions level with the side rails
+  const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -19017,7 +19017,7 @@ const powerRef = useRef(hud.power);
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = Boolean(railNormal);
+          const preferRailOverhead = true;
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -26203,8 +26203,6 @@ const powerRef = useRef(hud.power);
                 } else {
                   playback.pocketCameraCutoff = null;
                 }
-                const shouldCut =
-                  Boolean(cameraKeyA) && Boolean(cameraKeyB) && cameraKeyA !== cameraKeyB;
                 if (
                   isPocketCamera &&
                   Number.isFinite(playback.pocketCameraCutoff) &&
@@ -26212,10 +26210,11 @@ const powerRef = useRef(hud.power);
                 ) {
                   replayFrameCameraRef.current = null;
                 } else {
+                  const lockedFrameCamera = frameCameraA ?? frameCameraB;
                   replayFrameCameraRef.current = {
-                    frameA: frameCameraA ?? frameCameraB,
-                    frameB: frameCameraB ?? frameCameraA,
-                    alpha: shouldCut ? 0 : alpha
+                    frameA: lockedFrameCamera,
+                    frameB: lockedFrameCamera,
+                    alpha: 0
                   };
                 }
               }
