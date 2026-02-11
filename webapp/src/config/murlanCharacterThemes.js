@@ -1,4 +1,4 @@
-import { khronosThumb, swatchThumbnail } from './storeThumbnails.js';
+import { khronosThumb } from './storeThumbnails.js';
 
 export const MURLAN_CHARACTER_THEMES = Object.freeze([
   {
@@ -10,75 +10,13 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     description: 'Open-source Cesium sample character with original PBR textures.',
     url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb',
     thumbnail: khronosThumb('CesiumMan'),
-    scale: 0.78,
+    scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
-    seatPitch: -0.62,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: -0.92,
     seatYaw: Math.PI,
-    handLift: 0.96
-  },
-  {
-    id: 'rigged-simple',
-    label: 'Rigged Simple',
-    source: 'khronos-sample-models',
-    license: 'CC-BY-4.0',
-    price: 340,
-    description: 'Rigged humanoid from Khronos samples, tuned for seated card posture.',
-    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/RiggedSimple/glTF-Binary/RiggedSimple.glb',
-    thumbnail: swatchThumbnail(['#0f766e', '#082f2a', '#ecfeff']),
-    scale: 0.82,
-    seatOffsetY: -0.86,
-    seatOffsetZ: -0.2,
-    seatPitch: -0.58,
-    seatYaw: Math.PI,
-    handLift: 0.94
-  },
-  {
-    id: 'rigged-figure',
-    label: 'Rigged Figure',
-    source: 'khronos-sample-models',
-    license: 'CC-BY-4.0',
-    price: 360,
-    description: 'Detailed Khronos rigged character with original glTF texture set.',
-    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/RiggedFigure/glTF-Binary/RiggedFigure.glb',
-    thumbnail: swatchThumbnail(['#7c3aed', '#1e1b4b', '#e9d5ff']),
-    scale: 0.8,
-    seatOffsetY: -0.88,
-    seatOffsetZ: -0.2,
-    seatPitch: -0.6,
-    seatYaw: Math.PI,
-    handLift: 0.95
-  },
-  {
-    id: 'michelle',
-    label: 'Michelle',
-    source: 'threejs-examples',
-    license: 'MIT-compatible (three.js examples asset)',
-    price: 420,
-    description: 'Textured Michelle character model adapted to table seating.',
-    url: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Michelle.glb',
-    thumbnail: swatchThumbnail(['#b45309', '#451a03', '#fde68a']),
-    scale: 0.76,
-    seatOffsetY: -0.83,
-    seatOffsetZ: -0.21,
-    seatPitch: -0.56,
-    seatYaw: Math.PI,
-    handLift: 0.98
-  },
-  {
-    id: 'soldier',
-    label: 'Soldier',
-    source: 'threejs-examples',
-    license: 'MIT-compatible (three.js examples asset)',
-    price: 440,
-    description: 'Combat-uniform human model with full textures and seated card stance.',
-    url: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb',
-    thumbnail: swatchThumbnail(['#334155', '#0f172a', '#94a3b8']),
-    scale: 0.8,
-    seatOffsetY: -0.86,
-    seatOffsetZ: -0.23,
-    seatPitch: -0.62,
-    seatYaw: Math.PI,
-    handLift: 0.96
+    handLift: 1.04
   }
 ]);
