@@ -633,9 +633,10 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut 
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.088; // increase the middle-pocket chrome cut radius a tiny bit while keeping the same rounded shape
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 1.006; // push only the wooden corner rounded cut slightly outward while leaving the rest of the rail unchanged
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.03; // enlarge middle rail rounded cuts a touch to follow the widened middle chrome arc
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
@@ -1090,7 +1091,7 @@ const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.68; // raise rails slightly so the cushions sit higher
+const RAIL_HEIGHT = TABLE.THICK * 1.76; // lift rails a bit more so all cushions sit visibly higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1103,7 +1104,8 @@ const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner j
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.98; // extend all jaw bodies slightly so the inside profile reads a touch longer
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.125; // lift jaws to match the cushion top so balls can't hop the pocket edge
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // extend jaws farther downward so corner jaws look taller from the bottom while keeping top height unchanged
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // side-pocket jaw bottom clearance (keep middle-pocket jaw height unchanged)
+const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // reduce only corner-pocket bottom clearance so corner jaws extend farther downward
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -1675,7 +1677,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_GAP = BALL_R * 1.16 + CUE_TIP_CLEARANCE; // pull the cue tip farther away so the blue tip is visible before impact
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -5367,6 +5369,9 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 190; // start replay cue motion slightly earlier so pullback is visible at replay start
+const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
+const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -8729,11 +8734,18 @@ export function Table3D(
       });
     });
   };
-  const scaleWoodRailCornerPocketCut = (mp) =>
-    scalePocketCutMP(
+  const scaleWoodRailCornerPocketCut = (mp, sx = 1, sz = 1) => {
+    const scaled = scalePocketCutMP(
       scaleChromeCornerPocketCut(mp),
       WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE
     );
+    return translatePocketCutMP(
+      scaled,
+      Math.sign(sx) || 1,
+      Math.sign(sz) || 1,
+      TABLE.THICK * WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE
+    );
+  };
   const scaleWoodRailSidePocketCut = (mp, sx = 1) => {
     const scaled = scalePocketCutMP(
       scaleChromeSidePocketCut(mp),
@@ -9412,7 +9424,10 @@ export function Table3D(
       MICRO_EPS,
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
-    const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
+    const clearance = Math.max(
+      0,
+      isMiddle ? POCKET_JAW_BOTTOM_CLEARANCE : POCKET_JAW_CORNER_BOTTOM_CLEARANCE
+    );
     const pocketFloorY =
       pocketTopY -
       TABLE.THICK +
@@ -9672,25 +9687,25 @@ export function Table3D(
   openingMP = safePolygonUnion(
     openingMP,
     ...translatePocketCutMP(
-      scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
+      scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1), 1, 1),
       1,
       1,
       CORNER_RAIL_NOTCH_INSET
     ),
     ...translatePocketCutMP(
-      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, 1)),
+      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, 1), -1, 1),
       -1,
       1,
       CORNER_RAIL_NOTCH_INSET
     ),
     ...translatePocketCutMP(
-      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1)),
+      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1), -1, -1),
       -1,
       -1,
       CORNER_RAIL_NOTCH_INSET
     ),
     ...translatePocketCutMP(
-      scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1)),
+      scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1), 1, -1),
       1,
       -1,
       CORNER_RAIL_NOTCH_INSET
@@ -19765,16 +19780,22 @@ const powerRef = useRef(hud.power);
           }
           const replayScale = REPLAY_CUE_STROKE_SLOWDOWN;
           const pullback =
-            Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale;
+            Math.max(
+              REPLAY_CUE_MIN_PULLBACK_MS,
+              Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale
+            );
           const release =
             Math.max(
-              1e-6,
-              stroke.release ??
-                stroke.releaseDuration ??
-                stroke.forward ??
-                stroke.forwardDuration ??
-                0
-            ) * replayScale;
+              REPLAY_CUE_MIN_RELEASE_MS,
+              Math.max(
+                0,
+                stroke.release ??
+                  stroke.releaseDuration ??
+                  stroke.forward ??
+                  stroke.forwardDuration ??
+                  0
+              ) * replayScale
+            );
           const followTime =
             Math.max(
               0,
@@ -19794,7 +19815,7 @@ const powerRef = useRef(hud.power);
                 0
             ) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
-          const localTime = targetTime - startOffset;
+          const localTime = targetTime - Math.max(0, startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
           const pullEnd = pullback;
           const impactEnd = pullEnd + release;
           const followEnd = impactEnd + followTime;
