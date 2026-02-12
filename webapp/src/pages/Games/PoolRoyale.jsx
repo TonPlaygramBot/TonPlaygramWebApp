@@ -1410,7 +1410,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(4.8); // flatten holder slope so potted balls roll level instead of downhill
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
   x: (0.08 / 27) * 0.7 / 2,
@@ -1442,7 +1442,7 @@ const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.28, BALL_DIAMETER * 7.2); // pull the holder run slightly inward toward the pocket
 const POCKET_GUIDE_DROP = BALL_R * 0.06;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.62; // spread side chrome rails farther away from the middle rail
+const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
@@ -1463,7 +1463,6 @@ const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section 
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap so it meets the raised holder rails
-const POCKET_STRAP_HEIGHT_SCALE = 0.84; // shorten the leather strap so the three chrome rails stay visually straight/level
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -6517,9 +6516,7 @@ function applySpinController(ball, stepScale, airborne = false) {
     return false;
   }
   if (ball.id === 'cue' && !ball.impacted) {
-    // Keep cue-ball travel exactly on the aiming line until first impact.
-    // Spin effects are deferred to the first collision (ball/cushion).
-    return false;
+    return decaySpin(ball, stepScale, airborne);
   }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
@@ -8198,9 +8195,7 @@ export function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
-      const strapHeight =
-        Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72) *
-        POCKET_STRAP_HEIGHT_SCALE;
+      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72);
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         strapHeight,
@@ -9892,7 +9887,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.82;
+  const brandPlateOutwardShift = endRailW * 0.66;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9931,7 +9926,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.08;
+  const railMarkerOutset = longRailW * 0.2;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -10059,7 +10054,7 @@ export function Table3D(
     const logoWidth = Math.min(PLAY_W * 0.44, Math.max(BALL_R * 13.5, PLAY_W * 0.34));
     const logoHeight = Math.max(BALL_R * 1.4, railH * 0.18);
     const logoY = railsTopY - railH * 0.34;
-    const logoInset = Math.max(MICRO_EPS, endRailW * 0.03);
+    const logoInset = Math.max(MICRO_EPS, endRailW * 0.07);
     const logoZ = halfH + endRailW - logoInset;
     const logoMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -25400,38 +25395,6 @@ const powerRef = useRef(hud.power);
           return dir.normalize();
         };
 
-        const isAimDirectionLegitTarget = (dir) => {
-          if (!dir || !cue?.active) return false;
-          const normalized = dir.clone();
-          if (normalized.lengthSq() < 1e-6) return false;
-          normalized.normalize();
-          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          const activeBalls = Array.isArray(ballsList)
-            ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
-            : [];
-          if (activeBalls.length === 0) return false;
-          const frameSnapshot = frameRef.current ?? frameState;
-          const contact = calcTarget(cue, normalized, activeBalls);
-          const firstBall = contact?.targetBall ?? null;
-          if (!firstBall) return false;
-          const activeVariantId =
-            frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
-          const targetOrder = resolveTargetPriorities(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
-          );
-          const legalTargetsRaw =
-            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
-              ? frameSnapshot.ballOn
-              : targetOrder;
-          const legalTargets = legalTargetsRaw
-            .map((entry) => normalizeTargetId(entry))
-            .filter((entry) => entry && isBallTargetId(entry));
-          if (legalTargets.length === 0) return true;
-          return legalTargets.some((target) => matchesTargetId(firstBall, target));
-        };
-
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
           const plan = options.bestPot ?? null;
@@ -26490,22 +26453,14 @@ const powerRef = useRef(hud.power);
         const previewingAiShot = aiShotPreviewRef.current;
         const aiCueViewActive = aiShotCueViewRef.current;
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
-        const shouldLockAiAim = isAiTurn && activeAiPlan?.aimDir;
-        const canAssistAim =
-          !inHandPlacementModeRef.current &&
-          !shooting &&
-          cue?.active &&
-          allStopped(balls);
+        const shouldLockAiAim =
+          isAiTurn && activeAiPlan?.aimDir && (previewingAiShot || aiCueViewActive);
         const shouldAutoAimPlayer =
           isPlayerTurn &&
-          canAssistAim &&
-          (autoAimRequestRef.current || !isAimDirectionLegitTarget(aimDir));
-        const shouldAutoAimAi =
-          isAiTurn &&
-          canAssistAim &&
-          !shouldLockAiAim;
-        const autoAimDir =
-          shouldAutoAimPlayer || shouldAutoAimAi ? resolveAutoAimDirection() : null;
+          autoAimRequestRef.current &&
+          !inHandPlacementModeRef.current &&
+          !shooting;
+        const autoAimDir = shouldAutoAimPlayer ? resolveAutoAimDirection() : null;
         if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
@@ -26513,8 +26468,7 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
-            const assistLerp = shouldAutoAimPlayer ? aimLerpFactor * 0.9 : aimLerpFactor;
-            aimDir.lerp(autoAimDir, assistLerp);
+            aimDir.lerp(autoAimDir, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
