@@ -35,7 +35,18 @@ import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
 import useProfileLock from '../hooks/useProfileLock.js';
 import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
 
-import { FiCopy } from 'react-icons/fi';
+import {
+  FiBell,
+  FiCheckCircle,
+  FiCopy,
+  FiEdit3,
+  FiExternalLink,
+  FiLock,
+  FiLogOut,
+  FiMessageCircle,
+  FiShield,
+  FiUser
+} from 'react-icons/fi';
 
 export default function MyAccount() {
   const [telegramId, setTelegramId] = useState(() => {
@@ -327,6 +338,16 @@ export default function MyAccount() {
   }
 
   const photoToShow = photoUrl || getTelegramPhotoUrl() || googleProfile?.photo || '';
+  const hasTelegram = Boolean(telegramId);
+  const profileFullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Player';
+  const profileChecklist = [
+    { label: 'Display name', done: Boolean(profile.firstName || profile.nickname) },
+    { label: 'Avatar selected', done: Boolean(photoToShow) },
+    { label: 'Telegram linked', done: hasTelegram },
+    { label: 'Google linked', done: googleLinked }
+  ];
+  const completedChecklistCount = profileChecklist.filter((item) => item.done).length;
+  const profileCompletion = Math.round((completedChecklistCount / profileChecklist.length) * 100);
 
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
@@ -471,8 +492,10 @@ export default function MyAccount() {
     }
   };
 
+  const handleCopyAccountId = () => navigator.clipboard.writeText(String(profile.accountId));
+
   return (
-    <div className="relative p-4 space-y-4 text-text wide-card">
+    <div className="relative p-3 sm:p-4 space-y-4 text-text wide-card max-w-4xl mx-auto">
       <ProfileLockOverlay
         locked={profileLocked}
         onUnlockSecret={unlockWithSecret}
@@ -516,83 +539,132 @@ export default function MyAccount() {
         </div>
       )}
 
-      <div className="flex items-center space-x-2">
-        <h2 className="text-xl font-bold">My Account</h2>
+      <div className="rounded-2xl border border-border bg-gradient-to-br from-surface via-surface/90 to-background/90 p-4 sm:p-5 shadow-lg">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            {photoToShow ? (
+              <img
+                src={getAvatarUrl(photoToShow)}
+                alt="avatar"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-border"
+              />
+            ) : (
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-background/70 border border-border flex items-center justify-center">
+                <FiUser className="w-7 h-7 text-subtext" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold leading-tight">{profileFullName}</h2>
+              <p className="text-xs sm:text-sm text-subtext mt-1">Professional profile hub · optimized for mobile play</p>
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-background/70 border border-border px-3 py-1 text-xs sm:text-sm">
+                <span className="text-subtext">Account ID</span>
+                <span className="font-semibold text-yellow-400">{profile.accountId}</span>
+                <button onClick={handleCopyAccountId} aria-label="Copy account ID">
+                  <FiCopy className="w-4 h-4 text-subtext hover:text-text" />
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-500/90 hover:bg-red-600 text-white rounded-lg text-xs sm:text-sm font-semibold"
+            >
+              <FiLogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-xl border border-border bg-background/60 p-2.5">
+              <p className="text-[11px] uppercase tracking-wide text-subtext">Completion</p>
+              <p className="text-lg font-semibold">{profileCompletion}%</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background/60 p-2.5">
+              <p className="text-[11px] uppercase tracking-wide text-subtext">Telegram</p>
+              <p className={`text-sm font-semibold ${hasTelegram ? 'text-green-400' : 'text-amber-300'}`}>{hasTelegram ? 'Connected' : 'Pending'}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background/60 p-2.5">
+              <p className="text-[11px] uppercase tracking-wide text-subtext">Google</p>
+              <p className={`text-sm font-semibold ${googleLinked ? 'text-green-400' : 'text-amber-300'}`}>{googleLinked ? 'Connected' : 'Optional'}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background/60 p-2.5">
+              <p className="text-[11px] uppercase tracking-wide text-subtext">Messages</p>
+              <Link to="/messages" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                <FiMessageCircle className="w-4 h-4" />
+                {unread > 0 ? `${unread} unread` : 'Open'}
+              </Link>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-subtext">
+              <span>Profile setup progress</span>
+              <span>{completedChecklistCount}/{profileChecklist.length} completed</span>
+            </div>
+            <div className="h-2 rounded-full bg-background/80 overflow-hidden border border-border/60">
+              <div className="h-full bg-primary" style={{ width: `${profileCompletion}%` }} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {profileChecklist.map((item) => (
+                <div key={item.label} className="flex items-center gap-2 text-xs sm:text-sm rounded-lg bg-background/50 border border-border px-2.5 py-2">
+                  <FiCheckCircle className={`w-4 h-4 ${item.done ? 'text-green-400' : 'text-subtext'}`} />
+                  <span className={item.done ? 'text-text' : 'text-subtext'}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowAvatarPicker(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-semibold text-background"
+            >
+              <FiEdit3 className="w-4 h-4" />
+              Change Avatar
+            </button>
+            <button
+              onClick={async () => {
+                const url = getTelegramPhotoUrl();
+                const updated = await updateProfile({ telegramId, photo: url });
+                localStorage.removeItem('profilePhoto');
+                setProfile(updated);
+                setShowSaved(true);
+                setTimeout(() => setShowSaved(false), 1500);
+                window.dispatchEvent(new Event('profilePhotoUpdated'));
+              }}
+              className="px-3 py-2 border border-border hover:bg-background/70 rounded-lg text-sm"
+            >
+              Use Telegram Photo
+            </button>
+            <Link
+              to="/messages"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-border hover:bg-background/70 rounded-lg text-sm"
+            >
+              <FiBell className="w-4 h-4" />
+              Inbox
+            </Link>
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center space-x-4">
-        {photoToShow && (
-          <img
-            src={getAvatarUrl(photoToShow)}
-            alt="avatar"
-            className="w-14 h-14 rounded-full object-cover"
-          />
-        )}
-        <div>
-          <p className="font-semibold text-yellow-400 text-outline-black">
-            {profile.firstName} {profile.lastName}
-          </p>
-          <div className="text-sm flex items-center space-x-1">
-            <span className="text-white-shadow">Account:</span>
-            <span className="text-yellow-400 text-outline-black">
-              {profile.accountId}
-            </span>
-            <FiCopy
-              className="w-4 h-4 cursor-pointer"
-              onClick={() =>
-                navigator.clipboard.writeText(String(profile.accountId))
-              }
-            />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
+            <div>
+              <p className="font-semibold">Social links and sync</p>
+              <p className="text-xs text-subtext">Connect social identity so rewards and profile data stay consistent across platforms.</p>
+            </div>
           </div>
-          <button
-            onClick={() => setShowAvatarPicker(true)}
-            className="mt-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-          >
-            Change Avatar
-          </button>
-          <button
-            onClick={async () => {
-              const url = getTelegramPhotoUrl();
-              const updated = await updateProfile({ telegramId, photo: url });
-              localStorage.removeItem('profilePhoto');
-              setProfile(updated);
-              setShowSaved(true);
-              setTimeout(() => setShowSaved(false), 1500);
-              window.dispatchEvent(new Event('profilePhotoUpdated'));
-            }}
-            className="mt-2 ml-2 px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-          >
-            Use Telegram Photo
-          </button>
-          <div className="mt-2">
-            <a
-              href="/messages"
-              className="underline text-red-600 text-outline-white relative"
-            >
-              Messages
-              {unread > 0 && (
-                <span className="absolute -top-1 -right-3 bg-red-600 text-background text-xs rounded-full px-1">
-                  {unread}
-                </span>
-              )}
-            </a>
-          </div>
+
           {telegramId && !googleLinked && (
-            <div className="mt-2">
-              <p className="text-sm mb-1 text-white-shadow">
-                Link your Google account:
-              </p>
-              <LinkGoogleButton
-                telegramId={telegramId}
-                onLinked={() => setGoogleLinked(true)}
-              />
+            <div className="space-y-2">
+              <p className="text-sm text-subtext">Link your Google account:</p>
+              <LinkGoogleButton telegramId={telegramId} onLinked={() => setGoogleLinked(true)} />
             </div>
           )}
           {!telegramId && googleProfile?.id && (
-            <div className="mt-3 space-y-2">
-              <p className="text-sm text-white-shadow">
-                Link your Telegram account to sync rewards across Chrome and the mini app.
-              </p>
+            <div className="space-y-2">
+              <p className="text-sm text-subtext">Link Telegram to sync rewards across Chrome and Telegram mini app.</p>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <input
                   type="text"
@@ -612,46 +684,32 @@ export default function MyAccount() {
               {linkFeedback && <p className="text-xs text-amber-200">{linkFeedback}</p>}
             </div>
           )}
+
           {profile.social?.twitter && (
-            <p className="text-sm mt-2">
-              <span className="text-white text-outline-black">Linked X:</span> @
-              {profile.social.twitter}{' '}
-              <button
-                onClick={handleClearTwitter}
-                className="underline text-primary ml-1"
-              >
-                Clear
-              </button>
+            <p className="text-sm">
+              <span className="text-subtext">Linked X:</span> @{profile.social.twitter}
+              <button onClick={handleClearTwitter} className="underline text-primary ml-2 text-xs">Clear</button>
             </p>
           )}
-          <div className="mt-2 flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <input
               type="text"
               placeholder="X profile link"
               value={twitterLink}
               onChange={(e) => setTwitterLink(e.target.value)}
-              className="border p-1 rounded text-black flex-grow"
+              className="border p-2 rounded text-black flex-grow"
             />
-            <button
-              onClick={handleSaveTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-            >
-              Save
-            </button>
-            <button
-              onClick={handleConnectTwitter}
-              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
-            >
-              Connect
-            </button>
+            <div className="flex gap-2">
+              <button onClick={handleSaveTwitter} className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow">Save</button>
+              <button onClick={handleConnectTwitter} className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm">Connect</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="bg-surface border border-border rounded-xl p-3 space-y-3">
+        <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="font-semibold text-white">Profile protection</p>
+          <div className="space-y-1">
+            <p className="font-semibold text-white inline-flex items-center gap-2"><FiShield className="w-4 h-4 text-primary" />Profile protection</p>
             <p className="text-xs text-subtext">
               Lock this page with a PIN, pattern, password, or device biometrics/passkey. Unlocking works across browsers, with
               recovery codes for emergencies.
@@ -662,24 +720,20 @@ export default function MyAccount() {
               <li>Store recovery codes offline to avoid lockouts.</li>
             </ul>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-          >
-            Sign out
-          </button>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
             onClick={() => handleSecretLock({ method: 'pin', label: 'PIN / Pattern lock' })}
           >
+            <FiLock className="inline w-3.5 h-3.5 mr-1" />
             Set PIN / Pattern
           </button>
           <button
             className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
             onClick={() => handleSecretLock({ method: 'password', label: 'Password lock' })}
           >
+            <FiLock className="inline w-3.5 h-3.5 mr-1" />
             Set Password
           </button>
           <button
@@ -734,6 +788,7 @@ export default function MyAccount() {
             </p>
           </div>
         )}
+      </div>
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
