@@ -1833,55 +1833,6 @@ const CHAIR_MODEL_URLS = [
 ];
 const polyhavenModelCache = new Map();
 
-function cloneTextureForInstance(texture, textureCache) {
-  if (!texture?.isTexture) return texture;
-  if (textureCache.has(texture)) {
-    return textureCache.get(texture);
-  }
-  const clone = texture.clone();
-  clone.needsUpdate = true;
-  textureCache.set(texture, clone);
-  return clone;
-}
-
-function cloneMaterialForInstance(material, textureCache) {
-  if (!material?.isMaterial) return material;
-  const clone = material.clone();
-  for (const key of Object.keys(clone)) {
-    const value = clone[key];
-    if (value?.isTexture) {
-      clone[key] = cloneTextureForInstance(value, textureCache);
-    }
-  }
-  return clone;
-}
-
-function cloneModelForInstance(root) {
-  const clone = root.clone(true);
-  const sourceMeshes = [];
-  const cloneMeshes = [];
-  const textureCache = new Map();
-
-  root.traverse((node) => {
-    if (node?.isMesh) sourceMeshes.push(node);
-  });
-
-  clone.traverse((node) => {
-    if (node?.isMesh) cloneMeshes.push(node);
-  });
-
-  const count = Math.min(sourceMeshes.length, cloneMeshes.length);
-  for (let i = 0; i < count; i += 1) {
-    const sourceMesh = sourceMeshes[i];
-    const cloneMesh = cloneMeshes[i];
-    const sourceMaterials = Array.isArray(sourceMesh.material) ? sourceMesh.material : [sourceMesh.material];
-    const clonedMaterials = sourceMaterials.map((material) => cloneMaterialForInstance(material, textureCache));
-    cloneMesh.material = Array.isArray(sourceMesh.material) ? clonedMaterials : clonedMaterials[0];
-  }
-
-  return clone;
-}
-
 function createPolyhavenGltfLoader({ assetId, resolution }) {
   const manager = new THREE.LoadingManager();
   manager.setURLModifier((url) => {
@@ -1905,7 +1856,7 @@ async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
   if (polyhavenModelCache.has(assetId)) {
     const cached = polyhavenModelCache.get(assetId);
-    return cloneModelForInstance(cached);
+    return cached.clone(true);
   }
   const candidates = [
     { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`, resolution: '2k' },
@@ -1939,7 +1890,7 @@ async function loadPolyhavenModel(assetId) {
     });
   });
   polyhavenModelCache.set(assetId, root);
-  return cloneModelForInstance(root);
+  return root.clone(true);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
