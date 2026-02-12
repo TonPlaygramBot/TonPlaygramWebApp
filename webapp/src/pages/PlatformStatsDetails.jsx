@@ -187,7 +187,7 @@ export default function PlatformStatsDetails() {
       'tasksCompleted'
     ]);
 
-    const liveGames = pickNumber(stats, ['activeMatches', 'games.active', 'matchesLive']);
+    const liveGames = pickNumber(stats, ['matchesLive', 'activeMatches', 'games.active']);
     const gamesPlayed = pickNumber(stats, ['gamesPlayed', 'matchesPlayed', 'games.total', 'matches.total']);
 
     const transferCount = pickNumber(stats, [
@@ -301,20 +301,28 @@ export default function PlatformStatsDetails() {
     });
 
   const transactionHighlights = useMemo(() => {
-    const gameVolume = gameTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
-    const miningVolume = miningTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
-    const transferVolumeLive = transferTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+    const gameVolumeFromFeed = gameTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+    const miningVolumeFromFeed = miningTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+    const transferVolumeFromFeed = transferTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+
+    const gameCountFromStats = pickNumber(stats, ['gameTransactionsCount']);
+    const gameVolumeFromStats = pickNumber(stats, ['gameTransactionsVolume']);
+    const miningCountFromStats = pickNumber(stats, ['miningTransactionsCount']);
+    const miningVolumeFromStats = pickNumber(stats, ['miningTransactionsVolume']);
+    const transferCountFromStats = pickNumber(stats, ['transferCount']);
+    const transferVolumeFromStats = pickNumber(stats, ['transferVolume']);
 
     return {
-      gameCount: gameTransactions.length,
-      miningCount: miningTransactions.length,
-      transferCount: transferTotalCount ?? transferTransactions.length,
-      gameVolume,
-      miningVolume,
-      transferVolumeLive,
-      transferPreview: transferTransactions.slice(0, 8)
+      gameCount: gameCountFromStats ?? gameTransactions.length,
+      miningCount: miningCountFromStats ?? miningTransactions.length,
+      transferCount: transferCountFromStats ?? transferTotalCount ?? transferTransactions.length,
+      gameVolume: gameVolumeFromStats ?? gameVolumeFromFeed,
+      miningVolume: miningVolumeFromStats ?? miningVolumeFromFeed,
+      transferVolume: transferVolumeFromStats ?? transferVolumeFromFeed,
+      transferPreview: transferTransactions.slice(0, 8),
+      intelligenceGeneratedAt: stats?.intelligenceGeneratedAt || null
     };
-  }, [gameTransactions, miningTransactions, transferTransactions, transferTotalCount]);
+  }, [gameTransactions, miningTransactions, transferTransactions, transferTotalCount, stats]);
 
   const trustCards = [
     {
@@ -395,11 +403,20 @@ export default function PlatformStatsDetails() {
           <StatCard
             label="User transfers"
             value={formatStat(transactionHighlights.transferCount)}
-            helper={`${formatValue(transactionHighlights.transferVolumeLive)} TPC sent`}
+            helper={`${formatValue(transactionHighlights.transferVolume)} TPC sent`}
             icon={FaExchangeAlt}
             iconClass="text-cyan-300"
           />
         </div>
+        {transactionHighlights.intelligenceGeneratedAt ? (
+          <p className="mt-2 text-[11px] text-subtext">
+            Full-history totals synced at{' '}
+            {new Date(transactionHighlights.intelligenceGeneratedAt).toLocaleString(undefined, {
+              hour12: false
+            })}
+            .
+          </p>
+        ) : null}
         <div className="mt-3 max-h-56 space-y-2 overflow-y-auto">
           {transactionHighlights.transferPreview.length === 0 ? (
             <p className="rounded-md border border-white/10 bg-black/20 p-3 text-xs text-subtext">

@@ -138,7 +138,7 @@ export default function PlatformStatsCard() {
     ]);
 
     const activeMatches =
-      firstNumber(stats, ['activeUsers', 'activeMatches', 'matchesLive', 'games.active']);
+      firstNumber(stats, ['matchesLive', 'activeUsers', 'activeMatches', 'games.active']);
 
     const socialActions =
       firstNumber(stats, [
