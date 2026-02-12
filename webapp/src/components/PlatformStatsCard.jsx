@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FaCoins, FaFireAlt, FaGamepad, FaLayerGroup, FaStore, FaUsers } from 'react-icons/fa';
 import { GiToken } from 'react-icons/gi';
 
@@ -223,8 +224,16 @@ export default function PlatformStatsCard() {
       />
       <div className="relative z-10">
         <div className="mb-3">
-          <h3 className="text-lg font-bold text-white text-center">Platform stats</h3>
-          <p className="text-xs text-subtext text-center">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-lg font-bold text-white text-center flex-1">Platform stats</h3>
+            <Link
+              to="/platform-stats"
+              className="shrink-0 rounded-md border border-sky-400/70 bg-sky-500/20 px-2 py-1 text-[11px] font-semibold text-sky-200"
+            >
+              Open
+            </Link>
+          </div>
+          <p className="text-xs text-subtext text-center mt-1">
             {loading
               ? 'Syncing latest ecosystem metrics...'
               : 'Numbers are sourced from /api/stats with no seeded placeholders.'}

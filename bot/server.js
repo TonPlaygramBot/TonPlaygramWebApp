@@ -59,6 +59,13 @@ import {
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
+const AUTHENTIC_ACCOUNT_QUERY = {
+  isBanned: { $ne: true },
+  $or: [
+    { telegramId: { $exists: true, $ne: null } },
+    { googleId: { $exists: true, $nin: ['', null] } }
+  ]
+};
 
 function logFatal(event, err) {
   const message = err?.stack || err?.message || String(err);
@@ -787,8 +794,11 @@ function unseatTableSocket(accountId, tableId, socketId) {
 
 app.get('/api/stats', async (req, res) => {
   try {
+    const authenticIds = await User.find(AUTHENTIC_ACCOUNT_QUERY, { _id: 1 }).lean();
+    const authenticUserIds = authenticIds.map((entry) => entry._id);
     const [{ totalBalance = 0, totalMined = 0, nftCount = 0 } = {}] =
       await User.aggregate([
+        { $match: { _id: { $in: authenticUserIds } } },
         {
           $project: {
             balance: 1,
@@ -813,13 +823,23 @@ app.get('/api/stats', async (req, res) => {
           }
         }
       ]);
-    const [accounts, telegramAccounts, googleAccounts] = await Promise.all([
-      User.countDocuments(),
-      User.countDocuments({ telegramId: { $exists: true, $ne: null } }),
-      User.countDocuments({ googleId: { $exists: true, $ne: '' } })
+    const [accounts, telegramAccounts, googleAccounts, unauthenticatedAccounts, bannedAccounts] = await Promise.all([
+      User.countDocuments(AUTHENTIC_ACCOUNT_QUERY),
+      User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, telegramId: { $exists: true, $ne: null } }),
+      User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, googleId: { $exists: true, $nin: ['', null] } }),
+      User.countDocuments({
+        $and: [
+          { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
+          { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
+        ]
+      }),
+      User.countDocuments({ isBanned: true })
     ]);
     const active = await countOnline();
-    const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
+    const users = await User.find(
+      { _id: { $in: authenticUserIds } },
+      { transactions: 1, gifts: 1 }
+    ).lean();
     let giftSends = 0;
     let bundlesSold = 0;
     let tonRaised = 0;
@@ -856,6 +876,8 @@ app.get('/api/stats', async (req, res) => {
       accounts,
       telegramAccounts,
       googleAccounts,
+      unauthenticatedAccounts,
+      bannedAccounts,
       activeUsers: active,
       nftsCreated: currentNfts,
       nftStoreItems,
@@ -870,6 +892,121 @@ app.get('/api/stats', async (req, res) => {
   } catch (err) {
     console.error('Failed to compute stats:', err.message);
     res.status(500).json({ error: 'failed to compute stats' });
+  }
+});
+
+app.get('/api/stats/detailed', async (_req, res) => {
+  try {
+    const [
+      authenticAccounts,
+      telegramAccounts,
+      googleAccounts,
+      unauthenticatedAccounts,
+      bannedAccounts,
+      suspiciousPreview
+    ] = await Promise.all([
+      User.countDocuments(AUTHENTIC_ACCOUNT_QUERY),
+      User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, telegramId: { $exists: true, $ne: null } }),
+      User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, googleId: { $exists: true, $nin: ['', null] } }),
+      User.countDocuments({
+        isBanned: { $ne: true },
+        $and: [
+          { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
+          { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
+        ]
+      }),
+      User.countDocuments({ isBanned: true }),
+      User.find(
+        {
+          isBanned: { $ne: true },
+          $and: [
+            { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
+            { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
+          ]
+        },
+        {
+          accountId: 1,
+          walletAddress: 1,
+          createdAt: 1,
+          balance: 1,
+          transactions: 1,
+          gifts: 1,
+          isMining: 1
+        }
+      )
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean()
+    ]);
+
+    res.json({
+      summary: {
+        authenticAccounts,
+        telegramAccounts,
+        googleAccounts,
+        unauthenticatedAccounts,
+        bannedAccounts
+      },
+      suspiciousPreview: suspiciousPreview.map((user) => ({
+        accountId: user.accountId,
+        createdAt: user.createdAt,
+        walletAddress: user.walletAddress,
+        balance: user.balance || 0,
+        transactionCount: Array.isArray(user.transactions) ? user.transactions.length : 0,
+        nftCount: Array.isArray(user.gifts) ? user.gifts.filter((g) => g?.nftTokenId).length : 0,
+        isMining: Boolean(user.isMining)
+      }))
+    });
+  } catch (err) {
+    console.error('Failed to compute detailed stats:', err.message);
+    res.status(500).json({ error: 'failed to compute detailed stats' });
+  }
+});
+
+app.post('/api/admin/accounts/cleanup-fake', authenticate, async (req, res) => {
+  if (!req.auth?.apiToken) return res.status(403).json({ error: 'forbidden' });
+  const { mode = 'preview' } = req.body || {};
+  const fakeFilter = {
+    isBanned: { $ne: true },
+    balance: { $lte: 0 },
+    isMining: { $ne: true },
+    $and: [
+      { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
+      { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
+    ],
+    $expr: {
+      $and: [
+        { $eq: [{ $size: { $ifNull: ['$transactions', []] } }, 0] },
+        { $eq: [{ $size: { $ifNull: ['$gifts', []] } }, 0] }
+      ]
+    }
+  };
+
+  try {
+    const matched = await User.countDocuments(fakeFilter);
+    if (mode !== 'execute') {
+      return res.json({
+        mode: 'preview',
+        matched,
+        message: 'Set mode=execute to ban and delete these fake guest accounts.'
+      });
+    }
+
+    const fakeUsers = await User.find(fakeFilter, { _id: 1 }).lean();
+    const ids = fakeUsers.map((entry) => entry._id);
+    const [banResult, deleteResult] = await Promise.all([
+      User.updateMany({ _id: { $in: ids } }, { $set: { isBanned: true } }),
+      User.deleteMany({ _id: { $in: ids } })
+    ]);
+    res.json({
+      mode: 'execute',
+      matched,
+      banned: banResult.modifiedCount || 0,
+      deleted: deleteResult.deletedCount || 0
+    });
+  } catch (err) {
+    console.error('Failed fake account cleanup:', err.message);
+    res.status(500).json({ error: 'failed fake account cleanup' });
   }
 });
 
