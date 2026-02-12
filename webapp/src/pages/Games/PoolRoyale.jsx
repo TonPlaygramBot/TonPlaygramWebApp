@@ -25691,6 +25691,63 @@ const powerRef = useRef(hud.power);
           if (dir.lengthSq() < 1e-6) return null;
           return dir.normalize();
         };
+        const resolveLegalPlayerAimDirection = (baseDir = null) => {
+          if (!cue?.active) return baseDir;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const activeBalls = Array.isArray(ballsList)
+            ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
+            : [];
+          if (activeBalls.length === 0) return baseDir;
+          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const targetOrder = resolveTargetPriorities(
+            frameSnapshot,
+            activeVariantId,
+            activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
+          );
+          const isLegalTargetBall = (ball) => {
+            if (!ball || legalTargets.size === 0) return true;
+            return Array.from(legalTargets).some((target) =>
+              matchesTargetId(ball, target)
+            );
+          };
+          const normalizedBase =
+            baseDir && baseDir.lengthSq() > 1e-6
+              ? baseDir.clone().normalize()
+              : null;
+          if (normalizedBase) {
+            const contact = calcTarget(cue, normalizedBase, activeBalls);
+            if (contact?.targetBall && isLegalTargetBall(contact.targetBall)) {
+              return normalizedBase;
+            }
+          }
+          const autoDir = resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: false });
+          if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
+          const cuePos = cue?.pos ? new THREE.Vector2(cue.pos.x, cue.pos.y) : null;
+          if (!cuePos) return normalizedBase;
+          const nearestBall = activeBalls.reduce((best, ball) => {
+            if (!isLegalTargetBall(ball) || !ball?.pos) return best;
+            if (!best) return ball;
+            return cuePos.distanceToSquared(ball.pos) < cuePos.distanceToSquared(best.pos)
+              ? ball
+              : best;
+          }, null);
+          if (!nearestBall) return normalizedBase;
+          const fallback = new THREE.Vector2(
+            nearestBall.pos.x - cuePos.x,
+            nearestBall.pos.y - cuePos.y
+          );
+          return fallback.lengthSq() > 1e-6 ? fallback.normalize() : normalizedBase;
+        };
 
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
@@ -25908,12 +25965,14 @@ const powerRef = useRef(hud.power);
               };
             }
             const frameSnapshot = frameRef.current ?? frameState;
-            const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
+            const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
+            const isOpeningBreak = breakInProgress || (frameSnapshot?.currentBreak ?? 0) === 0;
             const aiTurnActive = currentHud?.turn === 1;
             const aiWonBreak = breakWinnerSeatRef.current === 'B';
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
               isOpeningBreak &&
+              breakInProgress &&
               aiTurnActive &&
               (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
@@ -26813,6 +26872,15 @@ const powerRef = useRef(hud.power);
             aimDir.lerp(tmpAim, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
+            }
+            if (isPlayerTurn) {
+              const legalDir = resolveLegalPlayerAimDirection(aimDir);
+              if (legalDir && legalDir.lengthSq() > 1e-6) {
+                aimDir.lerp(legalDir, 0.5);
+                if (aimDir.lengthSq() > 1e-6) {
+                  aimDir.normalize();
+                }
+              }
             }
           }
         }
