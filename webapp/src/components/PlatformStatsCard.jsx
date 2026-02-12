@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FaFireAlt, FaGamepad, FaLayerGroup, FaUsers } from 'react-icons/fa';
+import { FaCoins, FaFireAlt, FaGamepad, FaLayerGroup, FaUsers } from 'react-icons/fa';
 import { GiToken } from 'react-icons/gi';
 
 import { getAppStats } from '../utils/api.js';
@@ -47,15 +47,6 @@ function formatCompact(value) {
   return compactFormatter.format(value);
 }
 
-const fallbackStats = {
-  users: 12840,
-  tpcCirculating: 8750000,
-  nftMinted: 4820,
-  nftBurned: 640,
-  activeMatches: 312,
-  socialActions: 18790
-};
-
 export default function PlatformStatsCard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,43 +71,42 @@ export default function PlatformStatsCard() {
   }, []);
 
   const normalizedStats = useMemo(() => {
-    const users =
-      firstNumber(stats, ['users', 'totalUsers', 'accounts', 'community.users']) ??
-      fallbackStats.users;
+    const users = firstNumber(stats, ['accounts', 'users', 'totalUsers', 'community.users']);
 
-    const tpcCirculating =
-      firstNumber(stats, [
-        'tpcCirculating',
-        'circulatingSupply',
-        'token.circulating',
-        'balances.circulating'
-      ]) ?? fallbackStats.tpcCirculating;
+    const tpcCirculating = firstNumber(stats, [
+      'appClaimed',
+      'tpcCirculating',
+      'circulatingSupply',
+      'token.circulating',
+      'balances.circulating'
+    ]);
 
     const nftMinted =
-      firstNumber(stats, ['nftMinted', 'nftsMinted', 'nft.minted', 'nfts.total']) ??
-      fallbackStats.nftMinted;
+      firstNumber(stats, ['nftsCreated', 'nftMinted', 'nftsMinted', 'nft.minted', 'nfts.total']);
 
     const nftBurned =
-      firstNumber(stats, ['nftBurned', 'nftsBurned', 'nft.burned', 'nfts.retired']) ??
-      fallbackStats.nftBurned;
+      firstNumber(stats, ['nftsBurned', 'nftBurned', 'nft.burned', 'nfts.retired']);
 
     const activeMatches =
-      firstNumber(stats, ['activeMatches', 'matchesLive', 'games.active']) ??
-      fallbackStats.activeMatches;
+      firstNumber(stats, ['activeUsers', 'activeMatches', 'matchesLive', 'games.active']);
 
     const socialActions =
       firstNumber(stats, [
+        'bundlesSold',
         'socialActions',
         'engagements',
         'social.totalActions',
         'tasksCompleted'
-      ]) ?? fallbackStats.socialActions;
+      ]);
 
-    const burnRate = nftMinted > 0 ? (nftBurned / nftMinted) * 100 : 0;
+    const mintedSupply = firstNumber(stats, ['minted', 'token.minted', 'supply.total']);
+
+    const burnRate = nftMinted && nftBurned && nftMinted > 0 ? (nftBurned / nftMinted) * 100 : 0;
 
     return {
       users,
       tpcCirculating,
+      mintedSupply,
       nftMinted,
       nftBurned,
       activeMatches,
@@ -129,21 +119,31 @@ export default function PlatformStatsCard() {
     {
       label: 'Registered users',
       value: formatStat(normalizedStats.users),
-      helper: 'Verified Telegram accounts',
+      helper: 'Total accounts on the platform',
       icon: FaUsers,
       iconClass: 'text-sky-300'
     },
     {
       label: 'TPC in circulation',
       value: formatStat(normalizedStats.tpcCirculating),
-      helper: `~${formatCompact(normalizedStats.tpcCirculating)} TPC live`,
+      helper:
+        normalizedStats.tpcCirculating === null
+          ? 'Pulled from /api/stats appClaimed'
+          : `~${formatCompact(normalizedStats.tpcCirculating)} TPC live`,
       icon: GiToken,
       iconClass: 'text-yellow-300'
     },
     {
-      label: 'NFTs minted',
+      label: 'TPC minted',
+      value: formatStat(normalizedStats.mintedSupply),
+      helper: 'Lifetime mined + distributed supply',
+      icon: FaCoins,
+      iconClass: 'text-amber-300'
+    },
+    {
+      label: 'NFTs active',
       value: formatStat(normalizedStats.nftMinted),
-      helper: 'Across games + campaigns',
+      helper: 'NFT gifts currently in wallets',
       icon: FaLayerGroup,
       iconClass: 'text-purple-300'
     },
@@ -157,14 +157,14 @@ export default function PlatformStatsCard() {
     {
       label: 'Live matches',
       value: formatStat(normalizedStats.activeMatches),
-      helper: 'Real-time multiplayer rooms',
+      helper: 'Currently online players',
       icon: FaGamepad,
       iconClass: 'text-emerald-300'
     },
     {
-      label: 'Social actions',
+      label: 'Bundles sold',
       value: formatStat(normalizedStats.socialActions),
-      helper: 'Invites, follows, and quests',
+      helper: 'Store purchases recorded in history',
       icon: FaUsers,
       iconClass: 'text-indigo-300'
     }
@@ -186,7 +186,7 @@ export default function PlatformStatsCard() {
           <p className="text-xs text-subtext text-center">
             {loading
               ? 'Syncing latest ecosystem metrics...'
-              : 'Live indicators from network, gameplay, and social activity.'}
+              : 'Numbers are sourced from /api/stats with no seeded placeholders.'}
           </p>
         </div>
 
