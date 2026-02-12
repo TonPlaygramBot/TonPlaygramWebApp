@@ -707,6 +707,40 @@ router.get('/transactions/public', async (req, res) => {
   res.json({ transactions });
 });
 
+// List all public wallet transfers between users
+router.get('/transfers/public', async (req, res) => {
+  const limitParam = Number(req.query.limit) || 100;
+  const limit = Math.min(Math.max(limitParam, 1), 1000);
+  const transactions = await User.aggregate([
+    { $unwind: '$transactions' },
+    {
+      $match: {
+        'transactions.type': 'send',
+        'transactions.toAccount': { $exists: true, $ne: '' },
+        'transactions.amount': { $lt: 0 }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        amount: { $abs: '$transactions.amount' },
+        token: { $ifNull: ['$transactions.token', 'TPC'] },
+        date: '$transactions.date',
+        note: '$transactions.detail',
+        fromAccount: '$accountId',
+        fromName: { $ifNull: ['$nickname', '$firstName'] },
+        fromPhoto: '$photo',
+        toAccount: '$transactions.toAccount',
+        toName: '$transactions.toName'
+      }
+    },
+    { $sort: { date: -1 } },
+    { $limit: limit }
+  ]);
+
+  res.json({ transactions });
+});
+
 // Deposit rewards into account
 router.post('/deposit', authenticate, async (req, res) => {
   const { accountId, amount, game } = req.body;

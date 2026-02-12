@@ -663,6 +663,10 @@ export function getMiningTransactions(limit = 1000) {
   return get(`/api/mining/transactions?limit=${limit}`);
 }
 
+export function getPublicTransfers(limit = 1000) {
+  return get(`/api/account/transfers/public?limit=${limit}`);
+}
+
 export function depositAccount(accountId, amount, extra = {}) {
   return post(
     '/api/account/deposit',

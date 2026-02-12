@@ -13,7 +13,13 @@ import {
 } from 'react-icons/fa';
 
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
-import { getAppStats, getDetailedAppStats } from '../utils/api.js';
+import {
+  getAppStats,
+  getDetailedAppStats,
+  getGameTransactions,
+  getMiningTransactions,
+  getPublicTransfers
+} from '../utils/api.js';
 
 const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 const compactFormatter = new Intl.NumberFormat('en-US', {
@@ -81,6 +87,9 @@ export default function PlatformStatsDetails() {
   const [stats, setStats] = useState(null);
   const [detailed, setDetailed] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [gameTransactions, setGameTransactions] = useState([]);
+  const [miningTransactions, setMiningTransactions] = useState([]);
+  const [transferTransactions, setTransferTransactions] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -92,11 +101,20 @@ export default function PlatformStatsDetails() {
       return result.value;
     };
 
-    Promise.allSettled([getAppStats(), getDetailedAppStats()])
-      .then(([statsRes, detailRes]) => {
+    Promise.allSettled([
+      getAppStats(),
+      getDetailedAppStats(),
+      getGameTransactions(200),
+      getMiningTransactions(200),
+      getPublicTransfers(200)
+    ])
+      .then(([statsRes, detailRes, gamesRes, miningRes, transferRes]) => {
         if (!mounted) return;
         setStats(safePayload(statsRes, {}));
         setDetailed(safePayload(detailRes, { summary: {}, suspiciousPreview: [] }));
+        setGameTransactions(safePayload(gamesRes, { transactions: [] }).transactions || []);
+        setMiningTransactions(safePayload(miningRes, { transactions: [] }).transactions || []);
+        setTransferTransactions(safePayload(transferRes, { transactions: [] }).transactions || []);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -267,6 +285,29 @@ export default function PlatformStatsDetails() {
     }
   ];
 
+
+  const formatValue = (value) =>
+    Number(value || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+  const transactionHighlights = useMemo(() => {
+    const gameVolume = gameTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+    const miningVolume = miningTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+    const transferVolumeLive = transferTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0);
+
+    return {
+      gameCount: gameTransactions.length,
+      miningCount: miningTransactions.length,
+      transferCount: transferTransactions.length,
+      gameVolume,
+      miningVolume,
+      transferVolumeLive,
+      transferPreview: transferTransactions.slice(0, 8)
+    };
+  }, [gameTransactions, miningTransactions, transferTransactions]);
+
   const trustCards = [
     {
       label: 'Authenticated accounts',
@@ -319,6 +360,56 @@ export default function PlatformStatsDetails() {
           {operationsCards.map((card) => (
             <StatCard key={card.label} {...card} />
           ))}
+        </div>
+      </section>
+
+
+      <section className="rounded-xl border border-white/10 bg-surface/80 p-3">
+        <h3 className="text-sm font-semibold text-white">Transactions intelligence feed</h3>
+        <p className="mt-1 text-[11px] text-subtext">
+          Live rollup of game rewards, mining rewards, and user-to-user wallet transfers.
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <StatCard
+            label="Game transactions"
+            value={formatStat(transactionHighlights.gameCount)}
+            helper={`${formatValue(transactionHighlights.gameVolume)} TPC moved`}
+            icon={FaGamepad}
+            iconClass="text-indigo-300"
+          />
+          <StatCard
+            label="Mining transactions"
+            value={formatStat(transactionHighlights.miningCount)}
+            helper={`${formatValue(transactionHighlights.miningVolume)} TPC rewarded`}
+            icon={FaBolt}
+            iconClass="text-emerald-300"
+          />
+          <StatCard
+            label="User transfers"
+            value={formatStat(transactionHighlights.transferCount)}
+            helper={`${formatValue(transactionHighlights.transferVolumeLive)} TPC sent`}
+            icon={FaExchangeAlt}
+            iconClass="text-cyan-300"
+          />
+        </div>
+        <div className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+          {transactionHighlights.transferPreview.length === 0 ? (
+            <p className="rounded-md border border-white/10 bg-black/20 p-3 text-xs text-subtext">
+              No public wallet transfers detected yet.
+            </p>
+          ) : (
+            transactionHighlights.transferPreview.map((tx, index) => (
+              <div key={`${tx.fromAccount}-${tx.toAccount}-${tx.date || index}`} className="rounded-md border border-white/10 bg-black/20 p-2 text-xs">
+                <div className="font-semibold text-white">
+                  {(tx.fromName || tx.fromAccount || 'Unknown')} → {(tx.toName || tx.toAccount || 'Unknown')}
+                </div>
+                <div className="text-subtext">
+                  {formatValue(tx.amount)} {(tx.token || 'TPC').toUpperCase()} • {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : 'unknown date'}
+                </div>
+                {tx.note ? <div className="text-subtext">Note: {tx.note}</div> : null}
+              </div>
+            ))
+          )}
         </div>
       </section>
 
