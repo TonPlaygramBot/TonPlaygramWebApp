@@ -15,17 +15,9 @@ export default function DominoRoyalArena() {
       document.head.appendChild(styleTag);
     }
 
-    const staleScript = document.querySelector(GAME_SCRIPT_SELECTOR);
-    const hasRuntime = typeof window !== 'undefined' && typeof window.__dominoRoyalRuntime?.destroy === 'function';
-    if (staleScript && !hasRuntime) {
-      staleScript.remove();
-    }
-
     const existingScript = document.querySelector(GAME_SCRIPT_SELECTOR);
     if (existingScript) {
-      return () => {
-        window.__dominoRoyalRuntime?.destroy?.('arena unmount');
-      };
+      return undefined;
     }
 
     const script = document.createElement('script');
@@ -35,7 +27,6 @@ export default function DominoRoyalArena() {
     document.body.appendChild(script);
 
     return () => {
-      window.__dominoRoyalRuntime?.destroy?.('arena unmount');
       script.remove();
     };
   }, []);
