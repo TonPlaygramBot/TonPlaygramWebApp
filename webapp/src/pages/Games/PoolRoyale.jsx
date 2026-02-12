@@ -1064,7 +1064,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   pockets: false
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = true;
+const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
@@ -1702,7 +1702,6 @@ const PLAYER_CUE_STRIKE_MAX_MS = 1400;
 const PLAYER_CUE_FORWARD_MIN_MS = 520;
 const PLAYER_CUE_FORWARD_MAX_MS = 920;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
-const PLAYER_CUE_STROKE_SLOWDOWN = 2.1; // strongly slow cue-stick pull/push so both phases are clearly visible during live shots on mobile
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
@@ -17942,7 +17941,8 @@ const powerRef = useRef(hud.power);
           const cameraHoldActive =
             shooting &&
             powerImpactHoldRef.current &&
-            performance.now() < powerImpactHoldRef.current;
+            performance.now() < powerImpactHoldRef.current &&
+            !cueAnimating;
           const galleryState = cueGalleryStateRef.current;
           if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
@@ -23137,15 +23137,11 @@ const powerRef = useRef(hud.power);
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        const shotFrame = frameRef.current ?? frameState;
-        const isOpeningBreakShot = (shotFrame?.currentBreak ?? 0) === 0;
-        if (!isOpeningBreakShot) {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-          cancelCameraBlendTween();
-          const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-          applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
-          updateCamera();
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
+        cancelCameraBlendTween();
+        const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
+        updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
@@ -23269,7 +23265,7 @@ const powerRef = useRef(hud.power);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = isOpeningBreakShot;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
@@ -23503,16 +23499,12 @@ const powerRef = useRef(hud.power);
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const baseForwardDuration = THREE.MathUtils.lerp(
+          const forwardDuration = THREE.MathUtils.lerp(
             PLAYER_CUE_FORWARD_MAX_MS,
             PLAYER_CUE_FORWARD_MIN_MS,
             forwardBlend
           );
-          const forwardDuration = baseForwardDuration * PLAYER_CUE_STROKE_SLOWDOWN;
-          const pullbackDuration = Math.max(
-            120,
-            baseForwardDuration * 0.65 * PLAYER_CUE_STROKE_SLOWDOWN
-          );
+          const pullbackDuration = Math.max(120, forwardDuration * 0.65);
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
@@ -23527,16 +23519,13 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             powerStrength
           );
-          const baseFollowDuration = THREE.MathUtils.clamp(
+          const followDuration = THREE.MathUtils.clamp(
             (followThrough / Math.max(followSpeed, 1e-6)) * 1000,
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
-          const followDurationResolved = baseFollowDuration * PLAYER_CUE_STROKE_SLOWDOWN;
-          const recoverDuration = Math.max(
-            120,
-            baseFollowDuration * 0.6 * PLAYER_CUE_STROKE_SLOWDOWN
-          );
+          const followDurationResolved = followDuration;
+          const recoverDuration = Math.max(120, followDurationResolved * 0.6);
           const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
             impactTime +
