@@ -23350,7 +23350,6 @@ const powerRef = useRef(hud.power);
         const inHandPlacementActive = Boolean(
           currentHud?.inHand && !fullTableHandPlacement
         );
-        if (breakRollPending) return;
         if (
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
@@ -29004,7 +29003,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive && !breakRollPending;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -29048,9 +29047,9 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && !breakRollPending;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
-    !hud.over && !replayActive && !breakRollPending && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -29596,7 +29595,7 @@ const powerRef = useRef(hud.power);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive && !breakRollPending;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
   const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
