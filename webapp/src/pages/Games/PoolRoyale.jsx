@@ -1489,9 +1489,9 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  // Lift pocket cameras a bit higher so pocket closeups read more top-down.
-  heightOffset: BALL_R * 2.18,
-  heightOffsetShortMultiplier: 1.24,
+  // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
+  heightOffset: BALL_R * 2.32,
+  heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -6514,12 +6514,12 @@ function applySpinController(ball, stepScale, airborne = false) {
     ball.swervePowerStrength = 0;
     return false;
   }
+  if (ball.id === 'cue' && !ball.impacted) {
+    return decaySpin(ball, stepScale, airborne);
+  }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
-    if (ball.id === 'cue' && !ball.impacted) {
-      forwardSpin = 0;
-    }
     const powerScale = resolveSpinPowerScale(speed);
     let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale;
     if (forwardSpin < 0) {
@@ -22433,28 +22433,6 @@ const powerRef = useRef(hud.power);
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const isBreakRestrictedInHand = () => {
-        const frameSnapshot = frameRef.current ?? frameState;
-        const meta = frameSnapshot?.meta;
-        if (!meta || typeof meta !== 'object') return false;
-        if (meta.variant === 'uk') {
-          return Boolean(
-            meta.state?.mustPlayFromBaulk ??
-              meta.state?.breakInProgress ??
-              meta.breakInProgress
-          );
-        }
-        if (meta.variant === 'american') {
-          return Boolean(
-            meta.state?.breakInProgress ??
-              meta.breakInProgress
-          );
-        }
-        if (meta.variant === '9ball') {
-          return Boolean(meta.breakInProgress);
-        }
-        return false;
-      };
 
       const isOpeningInHandPlacement = () => {
         const currentHud = hudRef.current;
@@ -22466,8 +22444,7 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const allowFullTableInHand = () =>
-        !isBreakRestrictedInHand() && !isOpeningInHandPlacement();
+      const allowFullTableInHand = () => !isOpeningInHandPlacement();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -22489,7 +22466,7 @@ const powerRef = useRef(hud.power);
           const limitZ = PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
-          const maxForward = baulkZ + BALL_R * 0.1;
+          const maxForward = baulkZ;
           if (clamped.y > maxForward) clamped.y = maxForward;
           const deltaY = clamped.y - baulkZ;
           const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
