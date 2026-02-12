@@ -5367,9 +5367,9 @@ const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_SCALE = 0.72;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_STROKE_TIME_SCALE = 1;
-const PLAYER_FORWARD_SLOWDOWN = 1;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
+const PLAYER_STROKE_TIME_SCALE = 2.1; // make live player/AI cue stroke clearly readable (pull + push)
+const PLAYER_FORWARD_SLOWDOWN = 1.8; // slow the forward drive so the cue push remains visible before impact
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.95;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
@@ -20278,10 +20278,10 @@ const powerRef = useRef(hud.power);
             ? activeCamera.fov
             : camera.fov;
           const overheadReplayCamera =
-            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
+            FIXED_RAIL_REPLAY_CAMERA
               ? resolveRailOverheadReplayCamera({
-                focusOverride: storedTarget,
-                minTargetY
+                  focusOverride: storedTarget,
+                  minTargetY
                 })
               : null;
           if (overheadReplayCamera?.position) {
@@ -20404,17 +20404,7 @@ const powerRef = useRef(hud.power);
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
           primeReplayCueStick(replayPlayback);
-          const path = replayPlayback.cuePath ?? [];
-          if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
-            const initialCamera = trimmed.frames?.[0]?.camera ?? null;
-            if (initialCamera) {
-              replayFrameCameraRef.current = {
-                frameA: initialCamera,
-                frameB: initialCamera,
-                alpha: 0
-              };
-            }
-          }
+          replayFrameCameraRef.current = null;
         };
 
         const waitMs = (ms = 0) =>
@@ -23499,12 +23489,18 @@ const powerRef = useRef(hud.power);
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const forwardDuration = THREE.MathUtils.lerp(
+          const baseForwardDuration = THREE.MathUtils.lerp(
             PLAYER_CUE_FORWARD_MAX_MS,
             PLAYER_CUE_FORWARD_MIN_MS,
             forwardBlend
           );
-          const pullbackDuration = Math.max(120, forwardDuration * 0.65);
+          const liveStrokeScale = PLAYER_STROKE_TIME_SCALE;
+          const forwardDuration =
+            baseForwardDuration * PLAYER_FORWARD_SLOWDOWN * liveStrokeScale;
+          const pullbackDuration = Math.max(
+            120,
+            baseForwardDuration * PLAYER_STROKE_PULLBACK_FACTOR * liveStrokeScale
+          );
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
@@ -23519,20 +23515,18 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             powerStrength
           );
-          const followDuration = THREE.MathUtils.clamp(
+          const baseFollowDuration = THREE.MathUtils.clamp(
             (followThrough / Math.max(followSpeed, 1e-6)) * 1000,
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
-          const followDurationResolved = followDuration;
-          const recoverDuration = Math.max(120, followDurationResolved * 0.6);
+          const followDurationResolved = baseFollowDuration * liveStrokeScale;
+          const recoverDuration = Math.max(120, baseFollowDuration * 0.85 * liveStrokeScale);
+          const strokeVisibleDuration =
+            pullbackDuration + forwardDuration + followDurationResolved + recoverDuration;
           const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
-            impactTime +
-            Math.min(
-              followDurationResolved,
-              Math.max(420, forwardDuration * 1.25)
-            );
+            startTime + strokeVisibleDuration + Math.max(180, forwardDuration * 0.3);
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
@@ -23599,7 +23593,9 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
-          openingShotViewSuppressedRef.current = false;
+          if (!isBreakShot) {
+            openingShotViewSuppressedRef.current = false;
+          }
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
@@ -25702,18 +25698,25 @@ const powerRef = useRef(hud.power);
               clearTimeout(aiShotCueDropTimeoutRef.current);
               aiShotCueDropTimeoutRef.current = null;
             }
+            const lockOpeningBreakCamera = openingShotViewSuppressedRef.current;
             const previewDelayMs = resolveAiPreviewDelay();
-            const dropDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
-            const shotDelay = Math.max(
-              previewDelayMs,
-              dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS + AI_SPIN_ADJUST_DELAY_MS
-            );
+            const dropDelay = lockOpeningBreakCamera
+              ? 0
+              : Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
+            const shotDelay = lockOpeningBreakCamera
+              ? previewDelayMs
+              : Math.max(
+                  previewDelayMs,
+                  dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS + AI_SPIN_ADJUST_DELAY_MS
+                );
             const beginCueView = () => {
-              setAiShotCueViewActive(true);
+              setAiShotCueViewActive(!lockOpeningBreakCamera);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
               aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
-              tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
+              if (!lockOpeningBreakCamera) {
+                tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
+              }
               animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
@@ -25721,7 +25724,9 @@ const powerRef = useRef(hud.power);
               const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
-                applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
+                applyCameraBlend(
+                  lockOpeningBreakCamera ? 1 : aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND
+                );
                 updateCamera();
                 fire();
               }, remaining);
@@ -26337,41 +26342,7 @@ const powerRef = useRef(hud.power);
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
-            if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
-              const frameCameraA = frameA?.camera ?? null;
-              const frameCameraB = frameB?.camera ?? frameCameraA;
-              if (frameCameraA || frameCameraB) {
-                const cameraKeyA = frameCameraA?.key ?? null;
-                const cameraKeyB = frameCameraB?.key ?? cameraKeyA;
-                const isPocketKey = (key) =>
-                  typeof key === 'string' && key.startsWith('pocket:');
-                const isPocketCamera = isPocketKey(cameraKeyA) || isPocketKey(cameraKeyB);
-                if (isPocketCamera) {
-                  if (!Number.isFinite(playback.pocketCameraCutoff)) {
-                    playback.pocketCameraCutoff =
-                      frameA.t + REPLAY_POCKET_CAMERA_HOLD_MS;
-                  }
-                } else {
-                  playback.pocketCameraCutoff = null;
-                }
-                if (
-                  isPocketCamera &&
-                  Number.isFinite(playback.pocketCameraCutoff) &&
-                  targetTime >= playback.pocketCameraCutoff
-                ) {
-                  replayFrameCameraRef.current = null;
-                } else {
-                  const lockedFrameCamera = frameCameraA ?? frameCameraB;
-                  replayFrameCameraRef.current = {
-                    frameA: lockedFrameCamera,
-                    frameB: lockedFrameCamera,
-                    alpha: 0
-                  };
-                }
-              }
-            } else {
-              replayFrameCameraRef.current = null;
-            }
+            replayFrameCameraRef.current = null;
             const frameCamera = updateCamera();
             if (cueStick?.visible) {
               cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
