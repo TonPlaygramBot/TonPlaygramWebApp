@@ -66,6 +66,21 @@ const AUTHENTIC_ACCOUNT_QUERY = {
     { googleId: { $exists: true, $nin: ['', null] } }
   ]
 };
+const UNAUTHENTIC_ACCOUNT_QUERY = {
+  isBanned: { $ne: true },
+  $and: [
+    { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
+    { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
+  ]
+};
+
+async function banUnauthenticatedAccounts() {
+  const { modifiedCount = 0 } = await User.updateMany(
+    UNAUTHENTIC_ACCOUNT_QUERY,
+    { $set: { isBanned: true, currentTableId: null, isMining: false } }
+  );
+  return modifiedCount;
+}
 
 function logFatal(event, err) {
   const message = err?.stack || err?.message || String(err);
@@ -794,6 +809,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
 
 app.get('/api/stats', async (req, res) => {
   try {
+    await banUnauthenticatedAccounts();
     const authenticIds = await User.find(AUTHENTIC_ACCOUNT_QUERY, { _id: 1 }).lean();
     const authenticUserIds = authenticIds.map((entry) => entry._id);
     const [{ totalBalance = 0, totalMined = 0, nftCount = 0 } = {}] =
@@ -827,13 +843,7 @@ app.get('/api/stats', async (req, res) => {
       User.countDocuments(AUTHENTIC_ACCOUNT_QUERY),
       User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, telegramId: { $exists: true, $ne: null } }),
       User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, googleId: { $exists: true, $nin: ['', null] } }),
-      User.countDocuments({
-        isBanned: { $ne: true },
-        $and: [
-          { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
-          { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
-        ]
-      }),
+      User.countDocuments(UNAUTHENTIC_ACCOUNT_QUERY),
       User.countDocuments({ isBanned: true })
     ]);
     const active = await countOnline();
@@ -898,6 +908,7 @@ app.get('/api/stats', async (req, res) => {
 
 app.get('/api/stats/detailed', async (_req, res) => {
   try {
+    await banUnauthenticatedAccounts();
     const [
       authenticAccounts,
       telegramAccounts,
@@ -909,22 +920,10 @@ app.get('/api/stats/detailed', async (_req, res) => {
       User.countDocuments(AUTHENTIC_ACCOUNT_QUERY),
       User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, telegramId: { $exists: true, $ne: null } }),
       User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, googleId: { $exists: true, $nin: ['', null] } }),
-      User.countDocuments({
-        isBanned: { $ne: true },
-        $and: [
-          { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
-          { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
-        ]
-      }),
+      User.countDocuments(UNAUTHENTIC_ACCOUNT_QUERY),
       User.countDocuments({ isBanned: true }),
       User.find(
-        {
-          isBanned: { $ne: true },
-          $and: [
-            { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
-            { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
-          ]
-        },
+        UNAUTHENTIC_ACCOUNT_QUERY,
         {
           accountId: 1,
           walletAddress: 1,
