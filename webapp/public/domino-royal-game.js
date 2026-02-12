@@ -4018,7 +4018,7 @@ function updateTableMaterials() {
 }
 updateTableMaterials();
 
-function disposeObjectResources(object) {
+function disposeObjectResources(object, { disposeTextures = true } = {}) {
   if (!object) return;
   object.traverse((child) => {
     if (!child.isMesh) return;
@@ -4026,7 +4026,7 @@ function disposeObjectResources(object) {
     const mats = Array.isArray(child.material) ? child.material : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.map && mat.map.dispose) {
+      if (disposeTextures && mat.map && mat.map.dispose) {
         mat.map.dispose();
       }
       mat.dispose?.();
@@ -4067,7 +4067,7 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
-    disposeObjectResources(child);
+    disposeObjectResources(child, { disposeTextures: false });
     child?.removeFromParent?.();
   }
   const token = ++tableThemeToken;
@@ -4082,7 +4082,7 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
     if (token !== tableThemeToken || !model) {
-      disposeObjectResources(model);
+      disposeObjectResources(model, { disposeTextures: false });
       return;
     }
     fitTableModelToFootprint(model);
