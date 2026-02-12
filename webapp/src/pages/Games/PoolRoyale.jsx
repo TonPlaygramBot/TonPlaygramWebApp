@@ -1410,7 +1410,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(3.2); // reduce downhill slope so potted balls roll straighter across the holder rails
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
   x: (0.08 / 27) * 0.7 / 2,
@@ -1442,18 +1442,18 @@ const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.28, BALL_DIAMETER * 7.2); // pull the holder run slightly inward toward the pocket
 const POCKET_GUIDE_DROP = BALL_R * 0.06;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.62;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.08; // flatten the centre rail floor so the three chrome rails stay closer to the same level
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.01; // lift the chrome holder rails so the short L segments sit higher near the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
-const POCKET_SIDE_GUIDE_STRAP_PULL = BALL_R * 0.08; // push only the side rails toward the leather strap
+const POCKET_SIDE_GUIDE_STRAP_PULL = BALL_R * 0.02; // keep side rails straighter by reducing strap-side pull
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.04; // keep balls flush without overlap as they settle against the strap
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.45; // pull the resting spot inward toward the pocket and strap
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.98; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.72; // reduce rest drop so holder travel reads level instead of downhill
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1462,7 +1462,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.24; // shorten the leather strap height to keep the holder assembly visually straight
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -9887,7 +9887,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.66;
+  const brandPlateOutwardShift = endRailW * 0.76;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9926,7 +9926,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.2;
+  const railMarkerOutset = longRailW * 0.12;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -13325,6 +13325,10 @@ function PoolRoyaleGame({
   const stopAiThinkingRef = useRef(() => {});
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
+  const autoAimCycleRef = useRef({
+    player: { index: 0, lastTargetId: null },
+    ai: { index: 0, lastTargetId: null }
+  });
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
 const initialHudInHand = useMemo(
@@ -13345,6 +13349,8 @@ const [turnCycle, setTurnCycle] = useState(0);
 useEffect(() => {
   if (lastTurnRef.current !== hud.turn) {
     aiTurnShotCountRef.current = 0;
+    autoAimCycleRef.current.player = { index: 0, lastTargetId: null };
+    autoAimCycleRef.current.ai = { index: 0, lastTargetId: null };
     lastTurnRef.current = hud.turn;
   }
 }, [hud.turn]);
@@ -25209,7 +25215,7 @@ const powerRef = useRef(hud.power);
           };
           think();
         };
-        const resolveAutoAimDirection = () => {
+        const resolveAutoAimDirection = (options = {}) => {
           if (!cue?.active) return null;
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -25219,6 +25225,9 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector2(cue.pos.x, cue.pos.y)
             : null;
           if (!cuePos) return null;
+
+          const turnOwner = options?.turnOwner === 'ai' ? 'ai' : 'player';
+          const cycleToNext = Boolean(options?.cycleToNext);
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
@@ -25384,6 +25393,47 @@ const powerRef = useRef(hud.power);
               pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
+          }
+
+          if (cycleToNext) {
+            const rankedLegalBalls = candidateBalls
+              .filter((ball) =>
+                combinedTargets.length === 0 ||
+                combinedTargets.some((targetId) => matchesTargetId(ball, targetId))
+              )
+              .sort((a, b) => {
+                const scoreA =
+                  scoreBallForAim(a, cuePos) * (isDirectLaneOpen(a) ? 1 : 0.35);
+                const scoreB =
+                  scoreBallForAim(b, cuePos) * (isDirectLaneOpen(b) ? 1 : 0.35);
+                return scoreB - scoreA;
+              });
+            const rotationPool = rankedLegalBalls.length > 0 ? rankedLegalBalls : candidateBalls;
+            if (rotationPool.length > 0) {
+              const cycleState = autoAimCycleRef.current[turnOwner] ?? {
+                index: 0,
+                lastTargetId: null
+              };
+              const lastIdx = cycleState.lastTargetId != null
+                ? rotationPool.findIndex(
+                    (ball) => String(ball.id) === String(cycleState.lastTargetId)
+                  )
+                : -1;
+              const nextIdx =
+                rotationPool.length > 1
+                  ? (lastIdx + 1 + rotationPool.length) % rotationPool.length
+                  : 0;
+              targetBall = rotationPool[nextIdx] ?? targetBall;
+              autoAimCycleRef.current[turnOwner] = {
+                index: nextIdx,
+                lastTargetId: targetBall?.id ?? null
+              };
+            }
+          } else if (targetBall) {
+            autoAimCycleRef.current[turnOwner] = {
+              index: 0,
+              lastTargetId: targetBall.id
+            };
           }
 
           if (!targetBall) return null;
@@ -26460,7 +26510,16 @@ const powerRef = useRef(hud.power);
           autoAimRequestRef.current &&
           !inHandPlacementModeRef.current &&
           !shooting;
-        const autoAimDir = shouldAutoAimPlayer ? resolveAutoAimDirection() : null;
+        const shouldAutoAimAi =
+          isAiTurn &&
+          !inHandPlacementModeRef.current &&
+          !shooting &&
+          !shouldLockAiAim;
+        const autoAimDir = shouldAutoAimPlayer
+          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: true })
+          : shouldAutoAimAi
+            ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
+            : null;
         if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
@@ -26468,6 +26527,9 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
+            if (shouldAutoAimPlayer) {
+              autoAimRequestRef.current = false;
+            }
             aimDir.lerp(autoAimDir, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
