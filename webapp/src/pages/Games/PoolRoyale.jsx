@@ -25910,11 +25910,13 @@ const powerRef = useRef(hud.power);
             }
             const frameSnapshot = frameRef.current ?? frameState;
             const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
-            const openingPlayer = frameSnapshot?.activePlayer ?? (currentHud?.turn === 1 ? 'B' : 'A');
+            const aiTurnActive = currentHud?.turn === 1;
+            const aiWonBreak = breakWinnerSeatRef.current === 'B';
+            const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
-              breakRollState === 'done' &&
               isOpeningBreak &&
-              openingPlayer === 'B';
+              aiTurnActive &&
+              (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
@@ -25942,6 +25944,15 @@ const powerRef = useRef(hud.power);
                   target: 'rack'
                 };
                 setBreakRollMessage('AI won the roll and is taking a maximum-power break.');
+              } else {
+                plan = {
+                  ...plan,
+                  type: 'break',
+                  aimDir: new THREE.Vector2(0, 1),
+                  power: 1,
+                  spin: { x: 0, y: 0 },
+                  target: 'rack'
+                };
               }
             }
             aiPlanRef.current = plan;
