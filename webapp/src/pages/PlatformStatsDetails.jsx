@@ -28,7 +28,7 @@ export default function PlatformStatsDetails() {
       { label: 'Authentic accounts', value: summary.authenticAccounts ?? stats?.accounts ?? 0 },
       { label: 'Telegram accounts', value: summary.telegramAccounts ?? stats?.telegramAccounts ?? 0 },
       { label: 'Google accounts', value: summary.googleAccounts ?? stats?.googleAccounts ?? 0 },
-      { label: 'Unauthenticated accounts', value: summary.unauthenticatedAccounts ?? stats?.unauthenticatedAccounts ?? 0 },
+      { label: 'Unauthenticated accounts (active)', value: summary.unauthenticatedAccounts ?? stats?.unauthenticatedAccounts ?? 0 },
       { label: 'Banned accounts', value: summary.bannedAccounts ?? stats?.bannedAccounts ?? 0 },
       { label: 'Active users now', value: stats?.activeUsers ?? 0 }
     ],
@@ -39,7 +39,7 @@ export default function PlatformStatsDetails() {
     <div className="space-y-4 text-text pb-4">
       <h2 className="text-2xl font-bold text-center mt-4">Platform Stats Details</h2>
       <p className="text-xs text-subtext text-center">
-        Home now only counts authentic Telegram/Google accounts. Guest-only accounts are tracked here for fraud review.
+        Home now only counts authentic Telegram/Google accounts. Any guest-only accounts should be moved into the banned pool.
       </p>
 
       <div className="grid grid-cols-2 gap-2">

@@ -4,6 +4,15 @@ import { FaCoins, FaFireAlt, FaGamepad, FaLayerGroup, FaStore, FaUsers } from 'r
 import { GiToken } from 'react-icons/gi';
 
 import { getAppStats } from '../utils/api.js';
+import { POOL_ROYALE_STORE_ITEMS } from '../config/poolRoyaleInventoryConfig.js';
+import { SNOOKER_ROYALE_STORE_ITEMS } from '../config/snookerRoyalInventoryConfig.js';
+import { AIR_HOCKEY_STORE_ITEMS } from '../config/airHockeyInventoryConfig.js';
+import { CHESS_BATTLE_STORE_ITEMS } from '../config/chessBattleInventoryConfig.js';
+import { LUDO_BATTLE_STORE_ITEMS } from '../config/ludoBattleInventoryConfig.js';
+import { MURLAN_ROYALE_STORE_ITEMS } from '../config/murlanInventoryConfig.js';
+import { DOMINO_ROYAL_STORE_ITEMS } from '../config/dominoRoyalInventoryConfig.js';
+import { SNAKE_STORE_ITEMS } from '../config/snakeInventoryConfig.js';
+import { TEXAS_HOLDEM_STORE_ITEMS } from '../config/texasHoldemInventoryConfig.js';
 
 const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
@@ -11,6 +20,18 @@ const compactFormatter = new Intl.NumberFormat('en-US', {
   notation: 'compact',
   maximumFractionDigits: 1
 });
+
+const TOTAL_STORE_ITEMS = [
+  POOL_ROYALE_STORE_ITEMS,
+  SNOOKER_ROYALE_STORE_ITEMS,
+  AIR_HOCKEY_STORE_ITEMS,
+  CHESS_BATTLE_STORE_ITEMS,
+  LUDO_BATTLE_STORE_ITEMS,
+  MURLAN_ROYALE_STORE_ITEMS,
+  DOMINO_ROYAL_STORE_ITEMS,
+  SNAKE_STORE_ITEMS,
+  TEXAS_HOLDEM_STORE_ITEMS
+].reduce((sum, items) => sum + (Array.isArray(items) ? items.length : 0), 0);
 
 function toNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -98,12 +119,16 @@ export default function PlatformStatsCard() {
     const nftBurned =
       firstNumber(stats, ['nftsBurned', 'nftBurned', 'nft.burned', 'nfts.retired']);
 
-    const nftStoreItems = firstNumber(stats, [
+    const nftStoreItemsFromApi = firstNumber(stats, [
       'nftStoreItems',
       'storeNfts',
       'store.nftItems',
       'nfts.store'
     ]);
+    const nftStoreItems =
+      nftStoreItemsFromApi !== null && nftStoreItemsFromApi > 0
+        ? nftStoreItemsFromApi
+        : TOTAL_STORE_ITEMS;
 
     const totalNftItems = firstNumber(stats, [
       'totalNftItems',
@@ -199,7 +224,7 @@ export default function PlatformStatsCard() {
     {
       label: 'Store NFTs',
       value: formatStat(normalizedStats.nftStoreItems),
-      helper: 'Total NFT cosmetics sold in the storefront',
+      helper: 'Total NFT cosmetics listed in the storefront',
       icon: FaStore,
       iconClass: 'text-indigo-300'
     },
