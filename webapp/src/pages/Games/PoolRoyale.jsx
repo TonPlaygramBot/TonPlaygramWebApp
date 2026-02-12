@@ -23948,7 +23948,7 @@ const powerRef = useRef(hud.power);
           Math.hypot(PLAY_W, PLAY_H) + Math.max(PLAY_W, PLAY_H);
         const computePowerFromDistance = (dist) => {
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
-          return THREE.MathUtils.lerp(0.35, 0.9, n);
+          return THREE.MathUtils.lerp(0.26, 0.78, n);
         };
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
@@ -25264,6 +25264,7 @@ const powerRef = useRef(hud.power);
               (ball) =>
                 ball?.active &&
                 String(ball.id) !== 'cue' &&
+                Number(ball.id) !== 0 &&
                 isLegalTargetBall(ball)
             );
             if (!cuePos || candidates.length === 0) return null;
@@ -25477,7 +25478,7 @@ const powerRef = useRef(hud.power);
           const cycleToNext = Boolean(options?.cycleToNext);
 
           const activeBalls = ballsList.filter(
-            (ball) => ball.active && String(ball.id) !== 'cue'
+            (ball) => ball.active && String(ball.id) !== 'cue' && Number(ball.id) !== 0
           );
           if (activeBalls.length === 0) return null;
           const clearance = BALL_R * 1.5;
@@ -25701,7 +25702,9 @@ const powerRef = useRef(hud.power);
           const frameSnapshot = frameRef.current ?? frameState;
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const activeBalls = Array.isArray(ballsList)
-            ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
+            ? ballsList.filter(
+                (ball) => ball?.active && String(ball.id) !== 'cue' && Number(ball.id) !== 0
+              )
             : [];
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
           const targetOrder = resolveTargetPriorities(
@@ -25972,7 +25975,13 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            const aiPower = clampPower(plan.power, 0.6);
+            const isBreakPlan = plan.type === 'break';
+            const normalizedPlanPower = Number.isFinite(plan.power)
+              ? plan.power
+              : computePowerFromDistance(BALL_R * 12);
+            const aiPower = isBreakPlan
+              ? 1
+              : clampPower(Math.min(normalizedPlanPower, 0.86), 0.22);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
