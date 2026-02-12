@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FaCoins, FaFireAlt, FaGamepad, FaLayerGroup, FaUsers } from 'react-icons/fa';
+import { FaCoins, FaFireAlt, FaGamepad, FaLayerGroup, FaStore, FaUsers } from 'react-icons/fa';
 import { GiToken } from 'react-icons/gi';
 
 import { getAppStats } from '../utils/api.js';
@@ -72,6 +72,16 @@ export default function PlatformStatsCard() {
 
   const normalizedStats = useMemo(() => {
     const users = firstNumber(stats, ['accounts', 'users', 'totalUsers', 'community.users']);
+    const telegramUsers = firstNumber(stats, [
+      'telegramAccounts',
+      'usersByProvider.telegram',
+      'accountsByProvider.telegram'
+    ]);
+    const googleUsers = firstNumber(stats, [
+      'googleAccounts',
+      'usersByProvider.google',
+      'accountsByProvider.google'
+    ]);
 
     const tpcCirculating = firstNumber(stats, [
       'appClaimed',
@@ -86,6 +96,20 @@ export default function PlatformStatsCard() {
 
     const nftBurned =
       firstNumber(stats, ['nftsBurned', 'nftBurned', 'nft.burned', 'nfts.retired']);
+
+    const nftStoreItems = firstNumber(stats, [
+      'nftStoreItems',
+      'storeNfts',
+      'store.nftItems',
+      'nfts.store'
+    ]);
+
+    const totalNftItems = firstNumber(stats, [
+      'totalNftItems',
+      'nftsTotal',
+      'nfts.totalItems',
+      'nft.total'
+    ]);
 
     const activeMatches =
       firstNumber(stats, ['activeUsers', 'activeMatches', 'matchesLive', 'games.active']);
@@ -105,10 +129,14 @@ export default function PlatformStatsCard() {
 
     return {
       users,
+      telegramUsers,
+      googleUsers,
       tpcCirculating,
       mintedSupply,
       nftMinted,
       nftBurned,
+      nftStoreItems,
+      totalNftItems,
       activeMatches,
       socialActions,
       burnRate
@@ -119,7 +147,10 @@ export default function PlatformStatsCard() {
     {
       label: 'Registered users',
       value: formatStat(normalizedStats.users),
-      helper: 'Total accounts on the platform',
+      helper:
+        normalizedStats.telegramUsers === null && normalizedStats.googleUsers === null
+          ? 'Total accounts on the platform'
+          : `Telegram: ${formatStat(normalizedStats.telegramUsers)} • Google: ${formatStat(normalizedStats.googleUsers)}`,
       icon: FaUsers,
       iconClass: 'text-sky-300'
     },
@@ -142,8 +173,11 @@ export default function PlatformStatsCard() {
     },
     {
       label: 'NFTs active',
-      value: formatStat(normalizedStats.nftMinted),
-      helper: 'NFT gifts currently in wallets',
+      value: formatStat(normalizedStats.totalNftItems ?? normalizedStats.nftMinted),
+      helper:
+        normalizedStats.nftStoreItems === null
+          ? 'NFT gifts currently in wallets'
+          : `Wallet gifts + store items (${formatStat(normalizedStats.nftStoreItems)} store NFTs)`,
       icon: FaLayerGroup,
       iconClass: 'text-purple-300'
     },
@@ -160,6 +194,13 @@ export default function PlatformStatsCard() {
       helper: 'Currently online players',
       icon: FaGamepad,
       iconClass: 'text-emerald-300'
+    },
+    {
+      label: 'Store NFTs',
+      value: formatStat(normalizedStats.nftStoreItems),
+      helper: 'Total NFT cosmetics sold in the storefront',
+      icon: FaStore,
+      iconClass: 'text-indigo-300'
     },
     {
       label: 'Bundles sold',

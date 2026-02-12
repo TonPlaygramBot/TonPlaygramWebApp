@@ -17,7 +17,18 @@ const transactionSchema = new mongoose.Schema(
     detail: String,
     category: String,
     txHash: String,
-    giftId: String
+    giftId: String,
+    items: {
+      type: [
+        {
+          slug: String,
+          type: String,
+          optionId: String,
+          price: Number
+        }
+      ],
+      default: undefined
+    }
   },
   { _id: false }
 );

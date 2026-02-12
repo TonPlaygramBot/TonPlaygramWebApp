@@ -813,7 +813,11 @@ app.get('/api/stats', async (req, res) => {
           }
         }
       ]);
-    const accounts = await User.countDocuments();
+    const [accounts, telegramAccounts, googleAccounts] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ telegramId: { $exists: true, $ne: null } }),
+      User.countDocuments({ googleId: { $exists: true, $ne: '' } })
+    ]);
     const active = await countOnline();
     const users = await User.find({}, { transactions: 1, gifts: 1 }).lean();
     let giftSends = 0;
@@ -823,6 +827,7 @@ app.get('/api/stats', async (req, res) => {
     let nftValue = 0;
     let appClaimed = 0;
     let externalClaimed = 0;
+    let nftStoreItems = 0;
     for (const u of users) {
       const nftGifts = (u.gifts || []).filter((g) => g.nftTokenId);
       currentNfts += nftGifts.length;
@@ -837,16 +842,24 @@ app.get('/api/stats', async (req, res) => {
             tonRaised += BUNDLE_TON_MAP[tx.detail];
           }
         }
+        if (tx.type === 'storefront') {
+          nftStoreItems += Array.isArray(tx.items) ? tx.items.length : 0;
+        }
         if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
     }
     const nftsBurned = giftSends - currentNfts;
+    const totalNftItems = currentNfts + nftStoreItems;
     res.json({
       minted: totalBalance + totalMined,
       accounts,
+      telegramAccounts,
+      googleAccounts,
       activeUsers: active,
       nftsCreated: currentNfts,
+      nftStoreItems,
+      totalNftItems,
       nftsBurned,
       bundlesSold,
       tonRaised,
