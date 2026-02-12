@@ -1490,7 +1490,7 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras a bit higher so pocket closeups read more top-down.
-  heightOffset: BALL_R * 2.32,
+  heightOffset: BALL_R * 2.18,
   heightOffsetShortMultiplier: 1.24,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -6512,9 +6512,6 @@ function applySpinController(ball, stepScale, airborne = false) {
     ball.spinMode = 'standard';
     ball.swerveStrength = 0;
     ball.swervePowerStrength = 0;
-    return false;
-  }
-  if (ball.id === 'cue' && !ball.impacted) {
     return false;
   }
   const { forward, speed } = resolveSpinFrame(ball);
@@ -22436,6 +22433,29 @@ const powerRef = useRef(hud.power);
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
+      const isBreakRestrictedInHand = () => {
+        const frameSnapshot = frameRef.current ?? frameState;
+        const meta = frameSnapshot?.meta;
+        if (!meta || typeof meta !== 'object') return false;
+        if (meta.variant === 'uk') {
+          return Boolean(
+            meta.state?.mustPlayFromBaulk ??
+              meta.state?.breakInProgress ??
+              meta.breakInProgress
+          );
+        }
+        if (meta.variant === 'american') {
+          return Boolean(
+            meta.state?.breakInProgress ??
+              meta.breakInProgress
+          );
+        }
+        if (meta.variant === '9ball') {
+          return Boolean(meta.breakInProgress);
+        }
+        return false;
+      };
+
       const isOpeningInHandPlacement = () => {
         const currentHud = hudRef.current;
         return Boolean(
@@ -22446,7 +22466,8 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const allowFullTableInHand = () => !isOpeningInHandPlacement();
+      const allowFullTableInHand = () =>
+        !isBreakRestrictedInHand() && !isOpeningInHandPlacement();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -22468,8 +22489,16 @@ const powerRef = useRef(hud.power);
           const limitZ = PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
-          const maxForward = baulkZ - BALL_R * 0.05;
+          const maxForward = baulkZ + BALL_R * 0.1;
           if (clamped.y > maxForward) clamped.y = maxForward;
+          const deltaY = clamped.y - baulkZ;
+          const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+          const insideSq = clamped.x * clamped.x + deltaY * deltaY;
+          if (insideSq > maxRadius * maxRadius) {
+            const angle = Math.atan2(deltaY, clamped.x);
+            clamped.x = Math.cos(angle) * maxRadius;
+            clamped.y = baulkZ + Math.sin(angle) * maxRadius;
+          }
         }
         return clamped;
       };
@@ -27355,8 +27384,7 @@ const powerRef = useRef(hud.power);
             }
             if (!hasLift) {
               const dt = SPIN_FIXED_DT * stepScale;
-              const enableSpinTransfer = !isCue || b.impacted;
-              if (b.omega && enableSpinTransfer) {
+              if (b.omega) {
                 TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
                 TMP_VEC3_B.set(0, -BALL_R, 0);
                 TMP_VEC3_C.copy(b.omega);
