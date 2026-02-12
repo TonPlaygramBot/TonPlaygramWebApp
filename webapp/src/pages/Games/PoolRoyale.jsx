@@ -5299,8 +5299,8 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
-const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
+const RAIL_OVERHEAD_AIM_ZOOM = 1; // keep rail overhead framing fixed while aiming
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0; // keep rail overhead framing fixed while aiming
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -13859,14 +13859,15 @@ const powerRef = useRef(hud.power);
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
     if (tournamentMode) {
       const search = location.search && location.search.length ? location.search : '';
-      window.location.assign(`/pool-royale-bracket.html${search}`);
+      navigate(`/pool-royale-bracket.html${search}`);
       return;
     }
-    const lobbyUrl = winnerParam
-      ? `/games/poolroyale/lobby?winner=${winnerParam}`
-      : '/games/poolroyale/lobby';
-    window.location.assign(lobbyUrl);
-  }, [frameState.winner, location.search, tournamentMode]);
+    navigate(
+      winnerParam
+        ? `/games/poolroyale/lobby?winner=${winnerParam}`
+        : '/games/poolroyale/lobby'
+    );
+  }, [frameState.winner, location.search, navigate, tournamentMode]);
   const resetTableLayoutForRematch = useCallback(() => {
     if (skipReplayRef.current) {
       skipReplayRef.current();
@@ -17846,10 +17847,10 @@ const powerRef = useRef(hud.power);
           if (!head) return null;
           const position = head.getWorldPosition(new THREE.Vector3());
           const target =
-            focusOverride?.clone?.() ??
-            rig.userData?.focus?.clone?.() ??
             rig.defaultFocusWorld?.clone?.() ??
             rig.defaultFocus?.clone?.() ??
+            rig.userData?.focus?.clone?.() ??
+            focusOverride?.clone?.() ??
             null;
           if (target && Number.isFinite(minTargetY)) {
             target.y = Math.max(target.y ?? minTargetY, minTargetY);
@@ -23299,6 +23300,7 @@ const powerRef = useRef(hud.power);
           }
           const suppressOpeningShotViews = openingShotViewSuppressedRef.current;
           const allowLongShotCameraSwitch =
+            !isBreakShot &&
             !suppressOpeningShotViews &&
             !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             !isShortShot &&
@@ -23306,7 +23308,7 @@ const powerRef = useRef(hud.power);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
-            suppressOpeningShotViews || broadcastSystem?.avoidPocketCameras;
+            isBreakShot || suppressOpeningShotViews || broadcastSystem?.avoidPocketCameras;
           const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
