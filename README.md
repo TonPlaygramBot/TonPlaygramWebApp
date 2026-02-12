@@ -66,11 +66,16 @@
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and
    stores their Google ID alongside any Telegram information when calling
+   `/api/profile/register-google`.
+
+   If Google shows `Error 401: invalid_client` / `The OAuth client was not found`,
+   the build is using an invalid or deleted client ID. Regenerate a **Web application**
+   OAuth client in Google Cloud Console, set it as `VITE_GOOGLE_CLIENT_ID`, and add
+   your deployed site origin to **Authorized JavaScript origins**.
 
 The main developer wallet belongs to **Tur.Alimadhi** and has account ID
 `5ffe7c43-c0ae-48f6-ab8c-9e065ca95466`. All developer earnings are deposited to
 this account.
-   `/api/profile/register-google`.
 
 ⚠️ Misconfiguring these may prevent the wallet from loading correctly.
 

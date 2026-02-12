@@ -7,12 +7,18 @@ export default function LinkGoogleButton({
   telegramId,
   onLinked,
   onAuthenticated,
+  onError,
   label = 'Link Google'
 }) {
   const [ready, setReady] = useState(false);
   const initialized = useRef(false);
 
+  const emitError = (message, details) => {
+    if (onError) onError({ message, details });
+  };
+
   useEffect(() => {
+
     function handleCredential(res) {
       try {
         const profile = decodeGoogleCredential(res?.credential);
@@ -38,6 +44,7 @@ export default function LinkGoogleButton({
         }
       } catch (err) {
         console.error('Failed to link Google account', err);
+        emitError('Google login failed. Please try again.', err?.message || String(err));
       }
     }
 
@@ -52,7 +59,11 @@ export default function LinkGoogleButton({
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCredential,
-        ux_mode: 'popup'
+        ux_mode: 'popup',
+        error_callback: (error) => {
+          const reason = error?.type || error?.message || 'unknown';
+          emitError('Google authorization failed before login completed.', reason);
+        }
       });
       initialized.current = true;
       setReady(true);
@@ -65,11 +76,32 @@ export default function LinkGoogleButton({
       }, 500);
       return () => clearInterval(id);
     }
-  }, [telegramId, onLinked, onAuthenticated]);
+  }, [telegramId, onLinked, onAuthenticated, onError]);
 
   function handleClick() {
     if (window.google && initialized.current) {
-      window.google.accounts.id.prompt();
+      window.google.accounts.id.prompt((notification) => {
+        const notDisplayed = notification?.isNotDisplayed?.();
+        const skipped = notification?.isSkippedMoment?.();
+
+        if (!notDisplayed && !skipped) return;
+
+        const reason = notDisplayed
+          ? notification?.getNotDisplayedReason?.()
+          : notification?.getSkippedReason?.();
+
+        if (reason === 'invalid_client') {
+          emitError(
+            'Google sign-in is not configured correctly for this app build.',
+            'OAuth client not found. Ask support to verify VITE_GOOGLE_CLIENT_ID and authorized web origins in Google Cloud Console.'
+          );
+          return;
+        }
+
+        if (reason) {
+          emitError('Google sign-in could not be started.', reason);
+        }
+      });
     }
   }
 
