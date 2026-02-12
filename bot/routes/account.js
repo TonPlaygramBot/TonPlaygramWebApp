@@ -711,34 +711,42 @@ router.get('/transactions/public', async (req, res) => {
 router.get('/transfers/public', async (req, res) => {
   const limitParam = Number(req.query.limit) || 100;
   const limit = Math.min(Math.max(limitParam, 1), 1000);
-  const transactions = await User.aggregate([
-    { $unwind: '$transactions' },
-    {
-      $match: {
-        'transactions.type': 'send',
-        'transactions.toAccount': { $exists: true, $ne: '' },
-        'transactions.amount': { $lt: 0 }
-      }
-    },
-    {
-      $project: {
-        _id: 0,
-        amount: { $abs: '$transactions.amount' },
-        token: { $ifNull: ['$transactions.token', 'TPC'] },
-        date: '$transactions.date',
-        note: '$transactions.detail',
-        fromAccount: '$accountId',
-        fromName: { $ifNull: ['$nickname', '$firstName'] },
-        fromPhoto: '$photo',
-        toAccount: '$transactions.toAccount',
-        toName: '$transactions.toName'
-      }
-    },
-    { $sort: { date: -1 } },
-    { $limit: limit }
+  const transferMatch = {
+    'transactions.type': 'send',
+    'transactions.toAccount': { $exists: true, $ne: '' },
+    'transactions.amount': { $lt: 0 }
+  };
+  const [transactions, totalResult] = await Promise.all([
+    User.aggregate([
+      { $unwind: '$transactions' },
+      { $match: transferMatch },
+      {
+        $project: {
+          _id: 0,
+          amount: { $abs: '$transactions.amount' },
+          token: { $ifNull: ['$transactions.token', 'TPC'] },
+          date: '$transactions.date',
+          note: '$transactions.detail',
+          fromAccount: '$accountId',
+          fromName: { $ifNull: ['$nickname', '$firstName'] },
+          fromPhoto: '$photo',
+          toAccount: '$transactions.toAccount',
+          toName: '$transactions.toName'
+        }
+      },
+      { $sort: { date: -1 } },
+      { $limit: limit }
+    ]),
+    User.aggregate([
+      { $unwind: '$transactions' },
+      { $match: transferMatch },
+      { $count: 'totalCount' }
+    ])
   ]);
 
-  res.json({ transactions });
+  const totalCount = totalResult[0]?.totalCount || 0;
+
+  res.json({ transactions, totalCount });
 });
 
 // Deposit rewards into account

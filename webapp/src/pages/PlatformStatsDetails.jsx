@@ -90,6 +90,11 @@ export default function PlatformStatsDetails() {
   const [gameTransactions, setGameTransactions] = useState([]);
   const [miningTransactions, setMiningTransactions] = useState([]);
   const [transferTransactions, setTransferTransactions] = useState([]);
+  const [transferTotalCount, setTransferTotalCount] = useState(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -114,7 +119,10 @@ export default function PlatformStatsDetails() {
         setDetailed(safePayload(detailRes, { summary: {}, suspiciousPreview: [] }));
         setGameTransactions(safePayload(gamesRes, { transactions: [] }).transactions || []);
         setMiningTransactions(safePayload(miningRes, { transactions: [] }).transactions || []);
-        setTransferTransactions(safePayload(transferRes, { transactions: [] }).transactions || []);
+        const transferPayload = safePayload(transferRes, { transactions: [], totalCount: null });
+        setTransferTransactions(transferPayload.transactions || []);
+        const parsedTransferTotal = toNumber(transferPayload.totalCount);
+        setTransferTotalCount(parsedTransferTotal);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -300,13 +308,13 @@ export default function PlatformStatsDetails() {
     return {
       gameCount: gameTransactions.length,
       miningCount: miningTransactions.length,
-      transferCount: transferTransactions.length,
+      transferCount: transferTotalCount ?? transferTransactions.length,
       gameVolume,
       miningVolume,
       transferVolumeLive,
       transferPreview: transferTransactions.slice(0, 8)
     };
-  }, [gameTransactions, miningTransactions, transferTransactions]);
+  }, [gameTransactions, miningTransactions, transferTransactions, transferTotalCount]);
 
   const trustCards = [
     {
