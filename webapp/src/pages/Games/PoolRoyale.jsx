@@ -1490,8 +1490,8 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras a bit higher so pocket closeups read more top-down.
-  heightOffset: BALL_R * 2.34,
-  heightOffsetShortMultiplier: 1.3,
+  heightOffset: BALL_R * 2.18,
+  heightOffsetShortMultiplier: 1.24,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -6738,13 +6738,8 @@ function resolveCueFollowPreview({
   const spinMagnitude = Math.hypot(spinX, spinY);
   const backspinWeight = Math.max(0, -spinY);
   const topspinWeight = Math.max(0, spinY);
-  const allowPreImpactSpinDeflection = SPIN_AFTER_IMPACT_DEFLECTION_SCALE > 0;
-  const backspinLerp = allowPreImpactSpinDeflection
-    ? resolveBackspinPreviewLerp(backspinWeight)
-    : 0;
-  const topspinLerp = allowPreImpactSpinDeflection
-    ? Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35)
-    : 0;
+  const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
+  const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
   const previewDir = spinAdjusted.clone();
   const backwards = aimVec.clone().multiplyScalar(-1);
   const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
@@ -6765,7 +6760,6 @@ function resolveCueFollowPreview({
     previewDir.lerp(aimVec, followBlend);
   }
   const sideInfluence =
-    (allowPreImpactSpinDeflection ? 1 : 0) *
     Math.min(Math.abs(spinX), 1) *
     (0.18 + impactPower * 0.22) *
     (1 - cutPenalty * 0.3);
@@ -10568,7 +10562,6 @@ export function Table3D(
       map: shortRailCushionWordmarkTexture,
       transparent: true,
       side: THREE.DoubleSide,
-      depthTest: false,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -2,
@@ -10578,10 +10571,10 @@ export function Table3D(
     const shortRailFrontY = shortRailBackY - longRailW * FACE_SHRINK_LONG * NOSE_REDUCTION;
     const shortRailHeightScale = Math.max(0.001, cushionScaleBase);
     const cushionTopY = Math.max(MICRO_EPS, railH * shortRailHeightScale);
-    const wordmarkY = cushionTopY * 0.86;
-    const wordmarkZ = -THREE.MathUtils.lerp(shortRailBackY, shortRailFrontY, 0.54);
-    const wordmarkWidth = Math.min(horizontalCushionLength * 0.62, PLAY_W * 0.54);
-    const wordmarkHeight = Math.max(BALL_R * 1.56, wordmarkWidth * 0.095);
+    const wordmarkY = cushionTopY * 0.79;
+    const wordmarkZ = -THREE.MathUtils.lerp(shortRailBackY, shortRailFrontY, 0.72);
+    const wordmarkWidth = Math.min(horizontalCushionLength * 0.56, PLAY_W * 0.48);
+    const wordmarkHeight = Math.max(BALL_R * 1.38, wordmarkWidth * 0.085);
     const cushionTilt = THREE.MathUtils.degToRad(18);
     table.userData.cushions
       .filter((cushionGroup) => cushionGroup?.userData?.horizontal)
