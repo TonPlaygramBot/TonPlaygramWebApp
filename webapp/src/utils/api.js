@@ -690,3 +690,7 @@ export function getWatchCount(tableId) {
 export function getAppStats() {
   return get('/api/stats');
 }
+
+export function getDetailedAppStats() {
+  return get('/api/stats/detailed');
+}
