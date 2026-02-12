@@ -15,6 +15,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -228,6 +229,124 @@ const wait = (ms = 0) =>
     }
     window.setTimeout(resolve, ms);
   });
+
+function setBreakDiceOrientation(dice, val) {
+  const q = new THREE.Quaternion();
+  const eulers = {
+    1: new THREE.Euler(0, 0, 0),
+    2: new THREE.Euler(-Math.PI / 2, 0, 0),
+    3: new THREE.Euler(0, 0, Math.PI / 2),
+    4: new THREE.Euler(0, 0, -Math.PI / 2),
+    5: new THREE.Euler(Math.PI / 2, 0, 0),
+    6: new THREE.Euler(Math.PI, 0, 0)
+  };
+  q.setFromEuler(eulers[val] || eulers[1]);
+  dice.setRotationFromQuaternion(q);
+}
+
+function createBreakDice() {
+  const dice = new THREE.Group();
+  const dieMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0.25,
+    roughness: 0.35,
+    clearcoat: 1,
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.75,
+    envMapIntensity: 1.4
+  });
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1
+  });
+  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    emissive: 0x3a2a00,
+    emissiveIntensity: 0.55,
+    metalness: 1,
+    roughness: 0.18,
+    reflectivity: 1,
+    envMapIntensity: 1.35,
+    side: THREE.DoubleSide
+  });
+
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(BREAK_DICE_SIZE, BREAK_DICE_SIZE, BREAK_DICE_SIZE, 6, BREAK_DICE_CORNER_RADIUS),
+    dieMaterial
+  );
+  body.castShadow = true;
+  body.receiveShadow = true;
+  dice.add(body);
+
+  const pipGeo = new THREE.SphereGeometry(BREAK_DICE_PIP_RADIUS, 36, 24, 0, Math.PI * 2, 0, Math.PI);
+  pipGeo.rotateX(Math.PI);
+  const pipRimGeo = new THREE.RingGeometry(BREAK_DICE_PIP_RIM_INNER, BREAK_DICE_PIP_RIM_OUTER, 64);
+  const half = BREAK_DICE_SIZE / 2;
+  const faceDepth = half - BREAK_DICE_FACE_INSET * 0.6;
+  const spread = BREAK_DICE_PIP_SPREAD;
+  const faces = [
+    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
+    { normal: new THREE.Vector3(0, 0, 1), points: [[-spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(1, 0, 0), points: [[-spread, -spread], [0, 0], [spread, spread]] },
+    { normal: new THREE.Vector3(-1, 0, 0), points: [[-spread, -spread], [-spread, spread], [spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(0, 0, -1), points: [[-spread, -spread], [-spread, spread], [0, 0], [spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(0, -1, 0), points: [[-spread, -spread], [-spread, 0], [-spread, spread], [spread, -spread], [spread, 0], [spread, spread]] }
+  ];
+
+  faces.forEach(({ normal, points }) => {
+    const n = normal.clone().normalize();
+    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
+    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
+    points.forEach(([gx, gy]) => {
+      const base = new THREE.Vector3()
+        .addScaledVector(xAxis, gx)
+        .addScaledVector(yAxis, gy)
+        .addScaledVector(n, faceDepth - BREAK_DICE_PIP_DEPTH * 0.5);
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.position.copy(base).addScaledVector(n, BREAK_DICE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      dice.add(pip);
+      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
+      rim.position.copy(base).addScaledVector(n, BREAK_DICE_PIP_RIM_OFFSET);
+      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      dice.add(rim);
+    });
+  });
+
+  dice.userData.setValue = (v) => setBreakDiceOrientation(dice, v);
+  setBreakDiceOrientation(dice, 1);
+  return dice;
+}
+
+function spinBreakDice(dice, { duration = 900 } = {}) {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const startPos = dice.position.clone();
+    const spinVec = new THREE.Vector3(1.3 + Math.random(), 1.3 + Math.random(), 1.2 + Math.random());
+    const targetValue = 1 + Math.floor(Math.random() * 6);
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / Math.max(1, duration));
+      const eased = 1 - Math.pow(1 - t, 3);
+      const bounce = Math.sin(eased * Math.PI) * 0.055 * (1 - eased * 0.45);
+      dice.position.set(startPos.x, startPos.y + bounce, startPos.z);
+      dice.rotation.x += spinVec.x * 0.2;
+      dice.rotation.y += spinVec.y * 0.2;
+      dice.rotation.z += spinVec.z * 0.2;
+      if (t < 1) requestAnimationFrame(step);
+      else {
+        dice.position.copy(startPos);
+        setBreakDiceOrientation(dice, targetValue);
+        resolve(targetValue);
+      }
+    };
+    requestAnimationFrame(step);
+  });
+}
 
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
@@ -1679,7 +1798,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
-const CUE_TIP_GAP = BALL_R * 1.34 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
+const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1743,6 +1862,15 @@ const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
+const BREAK_DICE_SIZE = 0.076;
+const BREAK_DICE_CORNER_RADIUS = BREAK_DICE_SIZE * 0.17;
+const BREAK_DICE_PIP_RADIUS = BREAK_DICE_SIZE * 0.093;
+const BREAK_DICE_PIP_DEPTH = BREAK_DICE_SIZE * 0.018;
+const BREAK_DICE_PIP_SPREAD = BREAK_DICE_SIZE * 0.3;
+const BREAK_DICE_FACE_INSET = BREAK_DICE_SIZE * 0.064;
+const BREAK_DICE_PIP_RIM_INNER = BREAK_DICE_PIP_RADIUS * 0.78;
+const BREAK_DICE_PIP_RIM_OUTER = BREAK_DICE_PIP_RADIUS * 1.08;
+const BREAK_DICE_PIP_RIM_OFFSET = BREAK_DICE_SIZE * 0.0048;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
@@ -9886,7 +10014,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.76;
+  const brandPlateOutwardShift = endRailW * 0.84;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9925,7 +10053,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.12;
+  const railMarkerOutset = longRailW * 0.06;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -13229,6 +13357,27 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
+  useEffect(() => {
+    const world = worldRef.current;
+    if (!world || breakDiceRef.current) return;
+    const die = createBreakDice();
+    die.position.set(0, BALL_CENTER_Y + BREAK_DICE_SIZE * 0.52, 0);
+    die.visible = breakRoll.active || !breakRoll.resolved;
+    world.add(die);
+    breakDiceRef.current = die;
+    return () => {
+      if (breakDiceRef.current?.parent) {
+        breakDiceRef.current.parent.remove(breakDiceRef.current);
+      }
+      breakDiceRef.current = null;
+    };
+  }, [frameState, breakRoll.active, breakRoll.resolved]);
+
+  useEffect(() => {
+    const die = breakDiceRef.current;
+    if (!die) return;
+    die.visible = breakRoll.active || !breakRoll.resolved;
+  }, [breakRoll.active, breakRoll.resolved]);
   const opponentProfile = useMemo(
     () => (localSeat === 'A' ? frameState?.players?.B : frameState?.players?.A),
     [frameState?.players, localSeat]
@@ -13346,6 +13495,21 @@ const [hud, setHud] = useState({
   over: false
 });
 const [turnCycle, setTurnCycle] = useState(0);
+const [breakRoll, setBreakRoll] = useState({
+  active: aiOpponentEnabled && !isTraining,
+  phase: aiOpponentEnabled && !isTraining ? 'ai' : 'done',
+  ai: null,
+  user: null,
+  winner: null,
+  rolling: false,
+  resolved: !(aiOpponentEnabled && !isTraining)
+});
+const breakDiceRef = useRef(null);
+const rollBreakDie = useCallback(async () => {
+  const die = breakDiceRef.current;
+  if (!die) return 1 + Math.floor(Math.random() * 6);
+  return spinBreakDice(die, { duration: 920 });
+}, []);
 useEffect(() => {
   if (lastTurnRef.current !== hud.turn) {
     aiTurnShotCountRef.current = 0;
@@ -13354,6 +13518,37 @@ useEffect(() => {
     lastTurnRef.current = hud.turn;
   }
 }, [hud.turn]);
+
+useEffect(() => {
+  if (!breakRoll.active || breakRoll.resolved || breakRoll.rolling || breakRoll.phase !== 'ai') return;
+  let cancelled = false;
+  (async () => {
+    setBreakRoll((prev) => ({ ...prev, rolling: true }));
+    await wait(500);
+    const aiRoll = await rollBreakDie();
+    if (cancelled) return;
+    setBreakRoll((prev) => ({ ...prev, ai: aiRoll, rolling: false, phase: 'user' }));
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, [breakRoll.active, breakRoll.phase, breakRoll.resolved, breakRoll.rolling, rollBreakDie]);
+
+const handleUserBreakRoll = useCallback(async () => {
+  if (!breakRoll.active || breakRoll.phase !== 'user' || breakRoll.rolling) return;
+  setBreakRoll((prev) => ({ ...prev, rolling: true }));
+  const userRoll = await rollBreakDie();
+  setBreakRoll((prev) => {
+    const aiRoll = prev.ai ?? 0;
+    if (userRoll === aiRoll) {
+      return { ...prev, user: userRoll, ai: null, rolling: false, phase: 'ai' };
+    }
+    const winner = userRoll > aiRoll ? 'A' : 'B';
+    setHud((state) => ({ ...state, turn: winner === 'A' ? 0 : 1 }));
+    setFrameState((state) => ({ ...state, activePlayer: winner }));
+    return { ...prev, user: userRoll, winner, rolling: false, resolved: true, active: false, phase: 'done' };
+  });
+}, [breakRoll.active, breakRoll.phase, breakRoll.rolling, rollBreakDie]);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
 const lastPottedBySeatRef = useRef({ A: null, B: null });
 const lastAssignmentsRef = useRef({ A: null, B: null });
@@ -13432,6 +13627,15 @@ const powerRef = useRef(hud.power);
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
     setRuleToast(null);
+    setBreakRoll({
+      active: aiOpponentEnabled && !isTraining,
+      phase: aiOpponentEnabled && !isTraining ? 'ai' : 'done',
+      ai: null,
+      user: null,
+      winner: null,
+      rolling: false,
+      resolved: !(aiOpponentEnabled && !isTraining)
+    });
     setHud((prev) => ({
       ...prev,
       A: 0,
@@ -13615,7 +13819,7 @@ const powerRef = useRef(hud.power);
     if (!slider) return;
     const hudState = hudRef.current;
     const shouldLock =
-      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
+      hudState?.turn !== 0 || hudState?.over || shootingRef.current || !breakRoll.resolved;
     if (shouldLock) slider.lock();
     else slider.unlock();
   }, []);
@@ -13894,8 +14098,18 @@ const powerRef = useRef(hud.power);
         A: nextFrame.players.A.score ?? 0,
         B: nextFrame.players.B.score ?? 0,
         inHand: nextInHand,
-        over: false
+        over: false,
+        turn: aiOpponentEnabled && !isTraining ? 1 : prev.turn
       }));
+      setBreakRoll({
+        active: aiOpponentEnabled && !isTraining,
+        phase: aiOpponentEnabled && !isTraining ? 'ai' : 'done',
+        ai: null,
+        user: null,
+        winner: null,
+        rolling: false,
+        resolved: !(aiOpponentEnabled && !isTraining)
+      });
       powerRef.current = 0;
       setPottedBySeat({ A: [], B: [] });
       lastPottedBySeatRef.current = { A: null, B: null };
@@ -15446,7 +15660,7 @@ const powerRef = useRef(hud.power);
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
-    if (hud.over || isSoloTraining) return undefined;
+    if (hud.over || isSoloTraining || !breakRoll.resolved) return undefined;
     if (!aiOpponentEnabled && hud.turn === 1) {
       // In online matches, the remote player drives turn changes; skip AI countdowns.
       return undefined;
@@ -15481,10 +15695,10 @@ const powerRef = useRef(hud.power);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [aiOpponentEnabled, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [aiOpponentEnabled, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle, breakRoll.resolved]);
 
   useEffect(() => {
-    if (hud.over) {
+    if (hud.over || !breakRoll.resolved) {
       stopAiThinkingRef.current?.();
       setAiPlanning(null);
       aiPlanRef.current = null;
@@ -15505,23 +15719,23 @@ const powerRef = useRef(hud.power);
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [aiOpponentEnabled, hud.turn, hud.over]);
+  }, [aiOpponentEnabled, hud.turn, hud.over, breakRoll.resolved]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || !breakRoll.resolved) return;
     if (hud.turn === 0) {
       suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, breakRoll.resolved]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || !breakRoll.resolved) return;
     if (hud.turn === 1 && aiOpponentEnabled) {
       startAiThinkingRef.current?.();
     }
-  }, [aiOpponentEnabled, frameState, hud.turn, hud.over]);
+  }, [aiOpponentEnabled, frameState, hud.turn, hud.over, breakRoll.resolved]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -15781,6 +15995,9 @@ const powerRef = useRef(hud.power);
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
           maxPowerLiftTriggered = false;
+          if (openingShotViewSuppressedRef.current) {
+            openingShotViewSuppressedRef.current = false;
+          }
         }
         if (shotCameraHoldTimeoutRef.current) {
           clearTimeout(shotCameraHoldTimeoutRef.current);
@@ -23540,20 +23757,22 @@ const powerRef = useRef(hud.power);
               earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
             }
             earlyPocketView.pendingActivation = holdActive;
-            if (holdActive) {
-              queuedPocketView = earlyPocketView;
-              pocketViewActivated = true;
-            } else {
-              queuedPocketView = null;
-              updatePocketCameraState(true);
-              activeShotView = earlyPocketView;
-              pocketViewActivated = true;
+            if (!openingShotViewSuppressedRef.current) {
+              if (holdActive) {
+                queuedPocketView = earlyPocketView;
+                pocketViewActivated = true;
+              } else {
+                queuedPocketView = null;
+                updatePocketCameraState(true);
+                activeShotView = earlyPocketView;
+                pocketViewActivated = true;
+              }
             }
           }
           if (!pocketViewActivated && actionView) {
             const shouldActivateActionView =
               (!isLongShot || forceActionActivation) && !isMaxPowerShot;
-            if (shouldActivateActionView && !holdActive) {
+            if (!openingShotViewSuppressedRef.current && shouldActivateActionView && !holdActive) {
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
@@ -23570,7 +23789,6 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
-          openingShotViewSuppressedRef.current = false;
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
@@ -28727,7 +28945,7 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && breakRoll.resolved;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
@@ -30381,6 +30599,29 @@ const powerRef = useRef(hud.power);
             showInfo={false}
             showMute={false}
           />
+        </div>
+      )}
+
+      {breakRoll.active && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="pointer-events-auto rounded-2xl border border-white/30 bg-black/70 px-4 py-3 text-center text-white shadow-[0_14px_40px_rgba(0,0,0,0.45)] backdrop-blur">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-200">Break Dice Roll</p>
+            <p className="mt-1 text-xs text-white/80">AI rolls first, then you roll. Equal values reroll.</p>
+            <div className="mt-2 text-sm font-semibold">
+              <span className="mr-3">AI: {breakRoll.ai ?? '—'}</span>
+              <span>You: {breakRoll.user ?? '—'}</span>
+            </div>
+            {breakRoll.phase === 'user' && !breakRoll.rolling && (
+              <button
+                type="button"
+                onClick={handleUserBreakRoll}
+                className="mt-3 rounded-full border border-emerald-300 bg-emerald-400/20 px-4 py-1.5 text-xs font-semibold text-emerald-100"
+              >
+                Roll
+              </button>
+            )}
+            {breakRoll.rolling && <p className="mt-2 text-xs text-white/70">Rolling…</p>}
+          </div>
         </div>
       )}
 
