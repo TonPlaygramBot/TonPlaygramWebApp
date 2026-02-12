@@ -26873,15 +26873,6 @@ const powerRef = useRef(hud.power);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
-            if (isPlayerTurn) {
-              const legalDir = resolveLegalPlayerAimDirection(aimDir);
-              if (legalDir && legalDir.lengthSq() > 1e-6) {
-                aimDir.lerp(legalDir, 0.5);
-                if (aimDir.lengthSq() > 1e-6) {
-                  aimDir.normalize();
-                }
-              }
-            }
           }
         }
         const appliedSpin = applySpinConstraints(aimDir, true);

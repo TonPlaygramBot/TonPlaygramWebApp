@@ -53,6 +53,8 @@ describe('PoolRoyaleRules', () => {
     expect(initialMeta?.breakInProgress).toBe(true);
     expect(initialMeta?.state?.ballInHand).toBe(true);
     expect(initialMeta?.hud?.next).toBe('open table');
+    expect(initialMeta?.hud?.phase).toBe('open');
+    expect(initialMeta?.state?.assignments?.A).toBeNull();
     expect(initialFrame.ballOn).toEqual(['SOLID', 'STRIPE']);
 
     const breakEvents: ShotEvent[] = [
@@ -69,7 +71,10 @@ describe('PoolRoyaleRules', () => {
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
     expect(cleared.ballOn).toEqual(['SOLID']);
+    expect(clearedMeta?.state?.assignments?.A).toBe('SOLID');
+    expect(clearedMeta?.state?.assignments?.B).toBe('STRIPE');
     expect(clearedMeta?.hud?.next).toBe('solid');
+    expect(clearedMeta?.hud?.phase).toBe('groups');
     expect(cleared.players.A.score).toBe(1);
 
     const scratchEvents: ShotEvent[] = [
