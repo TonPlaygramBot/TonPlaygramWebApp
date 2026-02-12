@@ -489,7 +489,10 @@ export class PoolRoyaleRules {
       phase: frameOver ? 'complete' : 'run',
       scores
     };
-    const breakInProgress = Boolean(snapshot.breakInProgress);
+    const breakInProgress =
+      Boolean(previous?.state?.breakInProgress) && Boolean(result.foul)
+        ? true
+        : Boolean(snapshot.breakInProgress);
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
