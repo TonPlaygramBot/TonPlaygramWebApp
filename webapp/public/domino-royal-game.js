@@ -10,8 +10,17 @@ import "./flag-emojis.js";
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'mobileSafe';
 const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'mobileSafe',
+    label: 'Mobile Safe (60 Hz)',
+    fps: 60,
+    renderScale: 0.85,
+    pixelRatioCap: 1,
+    resolution: 'Safe render • DPR 1.0 cap',
+    description: 'Telegram-safe profile with reduced render resolution to prevent WebView crashes.'
+  },
   {
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
@@ -187,7 +196,7 @@ function detectPreferredFrameRateId() {
     return DEFAULT_FRAME_RATE_ID;
   }
   if (IS_TELEGRAM_RUNTIME) {
-    return 'fhd60';
+    return 'mobileSafe';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -228,7 +237,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'fhd60';
+  return 'mobileSafe';
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -248,7 +257,7 @@ function buildFrameQuality(optionId) {
       : 60;
   const renderScale =
     typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
-      ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
+      ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1.6)
       : 1;
   const pixelRatioCap =
     typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
@@ -1146,7 +1155,7 @@ try {
   throw error;
 }
 const prefersUhd = urlParams.get('uhd') === '1';
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !IS_TELEGRAM_RUNTIME;
 renderer.shadowMap.autoUpdate = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
@@ -1168,7 +1177,7 @@ function applyRendererQuality(quality = frameQuality) {
     typeof quality?.pixelRatioCap === 'number' && Number.isFinite(quality.pixelRatioCap)
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
-  const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
+  const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 2) : pixelRatioCap;
   const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
   if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
@@ -1878,11 +1887,15 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const candidates = [
-    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`, resolution: '2k' },
-    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`, resolution: '1k' },
-    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`, resolution: '4k' }
-  ];
+  const resolutionOrder = isLowProfileDevice
+    ? ['1k', '2k']
+    : prefersUhd
+      ? ['4k', '2k', '1k']
+      : ['2k', '1k', '4k'];
+  const candidates = resolutionOrder.map((resolution) => ({
+    url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
+    resolution
+  }));
   let gltf = null;
   let lastError = null;
   for (const candidate of candidates) {
