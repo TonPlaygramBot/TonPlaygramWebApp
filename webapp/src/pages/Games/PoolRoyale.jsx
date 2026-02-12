@@ -13599,6 +13599,16 @@ const powerRef = useRef(hud.power);
     rollBreakDie('ai');
   }, [breakRollLoadReady, breakRollState, rollBreakDie]);
 
+  useEffect(() => {
+    if (breakRollState !== 'user' || breakRollBusyRef.current || !breakRollLoadReady) return;
+    const autoRollTimer = window.setTimeout(() => {
+      if (!breakRollBusyRef.current && breakRollState === 'user') {
+        rollBreakDie('user');
+      }
+    }, 500);
+    return () => window.clearTimeout(autoRollTimer);
+  }, [breakRollLoadReady, breakRollState, rollBreakDie]);
+
 
   useEffect(() => {
     const meshes = breakDiceMeshesRef.current;
