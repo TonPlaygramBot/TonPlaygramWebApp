@@ -1490,8 +1490,8 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras a bit higher so pocket closeups read more top-down.
-  heightOffset: BALL_R * 2.3,
-  heightOffsetShortMultiplier: 1.3,
+  heightOffset: BALL_R * 2.18,
+  heightOffsetShortMultiplier: 1.24,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -6506,7 +6506,6 @@ function decaySpin(ball, stepScale, airborne = false) {
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
-  if (ball.id === 'cue' && !ball.impacted) return false;
   if (airborne && ball.id === 'cue') {
     ball.spin.set(0, 0);
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
