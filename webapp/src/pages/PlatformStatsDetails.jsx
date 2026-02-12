@@ -138,8 +138,10 @@ export default function PlatformStatsDetails() {
 
   const normalized = useMemo(() => {
     const totalUsers =
+      pickNumber(stats, ['totalUsers', 'users', 'community.users']) ??
+      pickNumber(stats, ['accounts']) ??
       pickNumber(summary, ['authenticAccounts']) ??
-      pickNumber(stats, ['accounts', 'users', 'totalUsers', 'community.users']);
+      pickNumber(stats, ['totalUsers', 'accounts', 'users', 'community.users']);
     const telegramUsers =
       pickNumber(summary, ['telegramAccounts']) ??
       pickNumber(stats, [
@@ -206,6 +208,12 @@ export default function PlatformStatsDetails() {
     const nftMinted = pickNumber(stats, ['nftsCreated', 'nftMinted', 'nftsMinted', 'nfts.total']);
     const nftBurned = pickNumber(stats, ['nftsBurned', 'nftBurned', 'nfts.retired']);
 
+    const gameTransactions = pickNumber(stats, ['gameTransactions']);
+    const gameVolume = pickNumber(stats, ['gameVolume']);
+    const miningTransactionsCount = pickNumber(stats, ['miningTransactions']);
+    const miningVolume = pickNumber(stats, ['miningVolume']);
+    const integrityGap = pickNumber(stats, ['integrity.ledgerGap']);
+
     const userActivityRatio =
       totalUsers > 0 && activeUsers !== null ? (activeUsers / totalUsers) * 100 : null;
     const authCoverage =
@@ -231,6 +239,11 @@ export default function PlatformStatsDetails() {
       transferVolume,
       nftMinted,
       nftBurned,
+      gameTransactions,
+      gameVolume,
+      miningTransactionsCount,
+      miningVolume,
+      integrityGap,
       burnRate
     };
   }, [stats, summary]);
@@ -280,9 +293,16 @@ export default function PlatformStatsDetails() {
     {
       label: 'Bundles sold',
       value: formatStat(normalized.bundleSales),
-      helper: 'Store and social monetization actions',
+      helper: 'Store conversion count (bundle purchases)',
       icon: FaGlobe,
       iconClass: 'text-violet-300'
+    },
+    {
+      label: 'Ledger integrity gap',
+      value: formatStat(normalized.integrityGap),
+      helper: 'Minted-from-ledger minus claimed distribution',
+      icon: FaShieldAlt,
+      iconClass: 'text-amber-300'
     },
     {
       label: 'NFT lifecycle',
@@ -380,15 +400,15 @@ export default function PlatformStatsDetails() {
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <StatCard
             label="Game transactions"
-            value={formatStat(transactionHighlights.gameCount)}
-            helper={`${formatValue(transactionHighlights.gameVolume)} TPC moved`}
+            value={formatStat(normalized.gameTransactions ?? transactionHighlights.gameCount)}
+            helper={`${formatValue(normalized.gameVolume ?? transactionHighlights.gameVolume)} TPC moved`}
             icon={FaGamepad}
             iconClass="text-indigo-300"
           />
           <StatCard
             label="Mining transactions"
-            value={formatStat(transactionHighlights.miningCount)}
-            helper={`${formatValue(transactionHighlights.miningVolume)} TPC rewarded`}
+            value={formatStat(normalized.miningTransactionsCount ?? transactionHighlights.miningCount)}
+            helper={`${formatValue(normalized.miningVolume ?? transactionHighlights.miningVolume)} TPC rewarded`}
             icon={FaBolt}
             iconClass="text-emerald-300"
           />
@@ -471,7 +491,7 @@ export default function PlatformStatsDetails() {
       </section>
 
       <p className="text-center text-[11px] text-subtext">
-        {loading ? 'Syncing live platform telemetry…' : 'Telemetry synced. Values shown are direct API outputs with computed ratios.'}
+        {loading ? 'Syncing live platform telemetry…' : 'Telemetry synced. Counts are sourced from persisted ledger aggregates with computed ratios.'}
       </p>
     </div>
   );

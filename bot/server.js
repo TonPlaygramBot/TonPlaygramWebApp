@@ -859,6 +859,17 @@ app.get('/api/stats', async (req, res) => {
     let appClaimed = 0;
     let externalClaimed = 0;
     let nftStoreItems = 0;
+    let transferCount = 0;
+    let transferVolume = 0;
+    let gameTransactions = 0;
+    let gameVolume = 0;
+    let miningTransactions = 0;
+    let miningVolume = 0;
+    let claimTransactions = 0;
+    let withdrawTransactions = 0;
+    let giftedOutValue = 0;
+    let giftRedemptions = 0;
+    let giftRedemptionValue = 0;
     for (const u of users) {
       const nftGifts = (u.gifts || []).filter((g) => g.nftTokenId);
       currentNfts += nftGifts.length;
@@ -866,7 +877,11 @@ app.get('/api/stats', async (req, res) => {
         nftValue += g.price || 0;
       }
       for (const tx of u.transactions || []) {
-        if (tx.type === 'gift') giftSends++;
+        const txAmountAbs = Math.abs(Number(tx.amount) || 0);
+        if (tx.type === 'gift') {
+          giftSends++;
+          giftedOutValue += txAmountAbs;
+        }
         if (tx.type === 'store') {
           bundlesSold++;
           if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
@@ -876,29 +891,74 @@ app.get('/api/stats', async (req, res) => {
         if (tx.type === 'storefront') {
           nftStoreItems += Array.isArray(tx.items) ? tx.items.length : 0;
         }
-        if (tx.type === 'claim') appClaimed += Math.abs(tx.amount || 0);
-        if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
+        if (tx.type === 'claim') {
+          appClaimed += txAmountAbs;
+          claimTransactions++;
+        }
+        if (tx.type === 'withdraw') {
+          externalClaimed += txAmountAbs;
+          withdrawTransactions++;
+        }
+        if (tx.type === 'send' && tx.toAccount) {
+          transferCount++;
+          transferVolume += txAmountAbs;
+        }
+        if (tx.game) {
+          gameTransactions++;
+          gameVolume += txAmountAbs;
+        }
+        if (['daily', 'spin', 'lucky', 'task'].includes(tx.type) && tx.amount > 0) {
+          miningTransactions++;
+          miningVolume += txAmountAbs;
+        }
+        if (tx.type === 'gift-receive' && tx.status === 'delivered' && tx.giftId) {
+          giftRedemptions++;
+          giftRedemptionValue += txAmountAbs;
+        }
       }
     }
-    const nftsBurned = giftSends - currentNfts;
+    const nftsBurned = Math.max(giftSends - currentNfts, 0);
     const totalNftItems = currentNfts + nftStoreItems;
+    const totalUsers = accounts + unauthenticatedAccounts;
+    const activeRate = totalUsers > 0 ? (active / totalUsers) * 100 : 0;
+
     res.json({
       minted: totalBalance + totalMined,
       accounts,
+      totalUsers,
       telegramAccounts,
       googleAccounts,
       unauthenticatedAccounts,
       bannedAccounts,
       activeUsers: active,
+      activeRate,
       nftsCreated: currentNfts,
       nftStoreItems,
       totalNftItems,
       nftsBurned,
       bundlesSold,
       tonRaised,
-      appClaimed: totalBalance,
+      appClaimed,
       externalClaimed,
-      nftValue
+      transferCount,
+      transferVolume,
+      gameTransactions,
+      gameVolume,
+      miningTransactions,
+      miningVolume,
+      claimTransactions,
+      withdrawTransactions,
+      giftedOutValue,
+      giftRedemptions,
+      giftRedemptionValue,
+      nftValue,
+      integrity: {
+        mintedFromLedger: totalBalance + totalMined,
+        circulatingFromBalances: totalBalance,
+        distributedFromClaims: appClaimed,
+        ledgerGap: (totalBalance + totalMined) - appClaimed,
+        note: 'mintedFromLedger is computed from user balances + pending mined rewards; distributedFromClaims is sum of claim transactions.'
+      }
     });
   } catch (err) {
     console.error('Failed to compute stats:', err.message);

@@ -93,7 +93,7 @@ export default function PlatformStatsCard() {
   }, []);
 
   const normalizedStats = useMemo(() => {
-    const users = firstNumber(stats, ['accounts', 'users', 'totalUsers', 'community.users']);
+    const users = firstNumber(stats, ['totalUsers', 'accounts', 'users', 'community.users']);
     const telegramUsers = firstNumber(stats, [
       'telegramAccounts',
       'usersByProvider.telegram',
@@ -138,11 +138,12 @@ export default function PlatformStatsCard() {
     ]);
 
     const activeMatches =
-      firstNumber(stats, ['activeUsers', 'activeMatches', 'matchesLive', 'games.active']);
+      firstNumber(stats, ['activeMatches', 'matchesLive', 'games.active', 'activeUsers']);
 
     const socialActions =
       firstNumber(stats, [
         'bundlesSold',
+        'claimTransactions',
         'socialActions',
         'engagements',
         'social.totalActions',
@@ -175,7 +176,7 @@ export default function PlatformStatsCard() {
       value: formatStat(normalizedStats.users),
       helper:
         normalizedStats.telegramUsers === null && normalizedStats.googleUsers === null
-          ? 'Total accounts on the platform'
+          ? 'Total authenticated + guest accounts on the platform'
           : `Telegram: ${formatStat(normalizedStats.telegramUsers)} • Google: ${formatStat(normalizedStats.googleUsers)}`,
       icon: FaUsers,
       iconClass: 'text-sky-300'
@@ -217,7 +218,7 @@ export default function PlatformStatsCard() {
     {
       label: 'Live matches',
       value: formatStat(normalizedStats.activeMatches),
-      helper: 'Currently online players',
+      helper: 'Current in-progress games or active sessions',
       icon: FaGamepad,
       iconClass: 'text-emerald-300'
     },
