@@ -1103,7 +1103,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.98; // extend all jaw bodies slightly so the inside profile reads a touch longer
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a touch more so the jaw mouths sit visibly farther down
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.086; // lower all six jaws a little further down so the jaw mouths sit visibly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // side-pocket jaw bottom clearance (keep middle-pocket jaw height unchanged)
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // reduce only corner-pocket bottom clearance so corner jaws extend farther downward
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
@@ -1680,7 +1680,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
-const CUE_TIP_GAP = BALL_R * 1.26 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
+const CUE_TIP_GAP = BALL_R * 1.34 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -3116,6 +3116,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true;
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -19271,7 +19272,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -19858,10 +19858,11 @@ const powerRef = useRef(hud.power);
                 cuePos.y,
                 cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
               );
+              const followDistance = Math.max(BALL_R * 0.16, CUE_TIP_GAP - fallbackForward);
               const followPos = tmpReplayCueA.set(
-                cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
+                cuePos.x - TMP_VEC3_CUE_DIR.x * followDistance,
                 cuePos.y,
-                cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
+                cuePos.z - TMP_VEC3_CUE_DIR.z * followDistance
               );
               if (targetTime <= pullbackTime && pullbackTime > 0) {
                 const t = THREE.MathUtils.clamp(targetTime / pullbackTime, 0, 1);
@@ -22466,16 +22467,8 @@ const powerRef = useRef(hud.power);
           const limitZ = PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
-          const maxForward = baulkZ;
-          if (clamped.y > maxForward) clamped.y = maxForward;
-          const deltaY = clamped.y - baulkZ;
-          const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
-          const insideSq = clamped.x * clamped.x + deltaY * deltaY;
-          if (insideSq > maxRadius * maxRadius) {
-            const angle = Math.atan2(deltaY, clamped.x);
-            clamped.x = Math.cos(angle) * maxRadius;
-            clamped.y = baulkZ + Math.sin(angle) * maxRadius;
-          }
+          const limitZ = PLAY_H / 2 - BALL_R;
+          clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, baulkZ);
         }
         return clamped;
       };
@@ -23294,6 +23287,7 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
           }
           const allowLongShotCameraSwitch =
+            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const broadcastSystem =
