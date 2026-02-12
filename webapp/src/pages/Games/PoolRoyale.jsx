@@ -1410,7 +1410,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(1.2); // keep the holder nearly level so potted balls roll straight instead of downhill
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
   x: (0.08 / 27) * 0.7 / 2,
@@ -1442,7 +1442,7 @@ const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.28, BALL_DIAMETER * 7.2); // pull the holder run slightly inward toward the pocket
 const POCKET_GUIDE_DROP = BALL_R * 0.06;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.58; // move side holder rails farther from the middle rail for a cleaner three-rail split
+const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
@@ -8195,7 +8195,7 @@ export function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
-      const strapHeight = Math.max(BALL_DIAMETER * 2.15, pocketStrapLength * 0.58); // shorten leather strap so the holder assembly stays visually straight
+      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72);
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         strapHeight,
@@ -9887,7 +9887,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.74; // push branding plates farther away from table center
+  const brandPlateOutwardShift = endRailW * 0.66;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9926,7 +9926,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.08; // pull diamond markers slightly inward toward table center
+  const railMarkerOutset = longRailW * 0.2;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -23061,14 +23061,12 @@ const powerRef = useRef(hud.power);
         };
         cue.vel.copy(base);
         if (cue.spin) {
-          cue.spin.set(0, 0);
-        }
-        if (cue.pendingSpin) {
-          cue.pendingSpin.set(offsetScaled.x, offsetScaled.y);
+          cue.spin.set(offsetScaled.x, offsetScaled.y);
         }
         if (cue.omega) {
           cue.omega.set(0, 0, 0);
         }
+        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
@@ -23378,7 +23376,8 @@ const powerRef = useRef(hud.power);
             TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
             cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
           }
-            cue.spinMode = 'standard';
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
           cue.swerveStrength = 0;
           cue.swervePowerStrength = 0;
           resetSpinRef.current?.();
@@ -25210,38 +25209,7 @@ const powerRef = useRef(hud.power);
           };
           think();
         };
-        const pickAutoAimBall = ({
-          candidates = [],
-          cuePos,
-          baseDir = null,
-          requireDirect = false,
-          isDirectLaneOpen
-        }) => {
-          if (!Array.isArray(candidates) || candidates.length === 0 || !cuePos) return null;
-          const normalizedBase =
-            baseDir && typeof baseDir.lengthSq === 'function' && baseDir.lengthSq() > 1e-6
-              ? baseDir.clone().normalize()
-              : null;
-          const scored = candidates
-            .filter((ball) => !requireDirect || isDirectLaneOpen(ball))
-            .map((ball) => {
-              const toBall = ball.pos.clone().sub(cuePos);
-              if (toBall.lengthSq() < 1e-8) return null;
-              const dir = toBall.clone().normalize();
-              const baseScore = scoreBallForAim(ball, cuePos);
-              const alignScore = normalizedBase ? Math.max(-1, Math.min(1, normalizedBase.dot(dir))) : 0;
-              const laneScore = isDirectLaneOpen(ball) ? 0.28 : 0;
-              return {
-                ball,
-                score: baseScore + alignScore * 0.4 + laneScore
-              };
-            })
-            .filter(Boolean)
-            .sort((a, b) => b.score - a.score);
-          return scored[0]?.ball ?? null;
-        };
-
-        const resolveAutoAimDirection = (options = {}) => {
+        const resolveAutoAimDirection = () => {
           if (!cue?.active) return null;
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -25251,10 +25219,6 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector2(cue.pos.x, cue.pos.y)
             : null;
           if (!cuePos) return null;
-          const preferredAim =
-            options?.baseDir && typeof options.baseDir.lengthSq === 'function'
-              ? options.baseDir
-              : aimDirRef.current;
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
@@ -25329,25 +25293,28 @@ const powerRef = useRef(hud.power);
               ? preferredActiveBalls
               : activeBalls;
           const pickFallbackBall = () =>
-            pickAutoAimBall({
-              candidates: candidateBalls,
-              cuePos,
-              baseDir: preferredAim,
-              requireDirect: false,
-              isDirectLaneOpen
-            });
+            candidateBalls.reduce((best, ball) => {
+              if (!best) return ball;
+              const bestScore =
+                scoreBallForAim(best, cuePos) *
+                (isDirectLaneOpen(best) ? 1 : 0.35);
+              const score =
+                scoreBallForAim(ball, cuePos) *
+                (isDirectLaneOpen(ball) ? 1 : 0.35);
+              return score > bestScore ? ball : best;
+            }, null);
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
-              const matches = candidateBalls.filter((ball) => matchesTargetId(ball, targetId));
+              const matches = candidateBalls.filter(
+                (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
+              );
               if (matches.length > 0) {
-                const picked = pickAutoAimBall({
-                  candidates: matches,
-                  cuePos,
-                  baseDir: preferredAim,
-                  requireDirect: true,
-                  isDirectLaneOpen
-                });
-                if (picked) return picked;
+                return matches.reduce((best, ball) => {
+                  if (!best) return ball;
+                  const bestScore = scoreBallForAim(best, cuePos);
+                  const score = scoreBallForAim(ball, cuePos);
+                  return score > bestScore ? ball : best;
+                }, null);
               }
             }
             return null;
@@ -25420,7 +25387,10 @@ const powerRef = useRef(hud.power);
           }
 
           if (!targetBall) return null;
-          const dir = new THREE.Vector2(targetBall.pos.x - cuePos.x, targetBall.pos.y - cuePos.y);
+          const dir = new THREE.Vector2(
+            targetBall.pos.x - cuePos.x,
+            targetBall.pos.y - cuePos.y
+          );
           if (dir.lengthSq() < 1e-6) return null;
           return dir.normalize();
         };
@@ -26490,15 +26460,7 @@ const powerRef = useRef(hud.power);
           autoAimRequestRef.current &&
           !inHandPlacementModeRef.current &&
           !shooting;
-        const shouldAutoAimAi =
-          isAiTurn &&
-          !shouldLockAiAim &&
-          !shooting &&
-          !inHandPlacementModeRef.current;
-        const autoAimDir =
-          shouldAutoAimPlayer || shouldAutoAimAi
-            ? resolveAutoAimDirection({ baseDir: aimDir })
-            : null;
+        const autoAimDir = shouldAutoAimPlayer ? resolveAutoAimDirection() : null;
         if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
@@ -27465,13 +27427,7 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') {
-              b.impacted = true;
-              if (b.pendingSpin && b.pendingSpin.lengthSq() > 1e-8 && b.spin) {
-                b.spin.copy(b.pendingSpin);
-                b.pendingSpin.set(0, 0);
-              }
-            }
+            if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
@@ -27631,12 +27587,8 @@ const powerRef = useRef(hud.power);
                 ) {
                   activeShotView.hitConfirmed = true;
                 }
-                if (cueBall) {
+                if (cueBall && cueBall.omega?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  if (cueBall.pendingSpin && cueBall.pendingSpin.lengthSq() > 1e-8 && cueBall.spin) {
-                    cueBall.spin.copy(cueBall.pendingSpin);
-                    cueBall.pendingSpin.set(0, 0);
-                  }
                 }
               }
             }
