@@ -4,6 +4,26 @@ import { startMining, stopMining, claimRewards, updateMiningRewards } from '../u
 import { fetchTelegramInfo } from '../utils/telegram.js';
 
 const router = Router();
+const AUTHENTIC_LEADERBOARD_QUERY = {
+  isBanned: { $ne: true },
+  $or: [
+    { telegramId: { $exists: true, $ne: null } },
+    { googleId: { $exists: true, $nin: ['', null] } }
+  ]
+};
+const UNAUTHENTIC_ACCOUNT_QUERY = {
+  isBanned: { $ne: true },
+  $and: [
+    { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
+    { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
+  ]
+};
+
+async function banUnauthenticatedAccounts() {
+  await User.updateMany(UNAUTHENTIC_ACCOUNT_QUERY, {
+    $set: { isBanned: true, currentTableId: null, isMining: false }
+  });
+}
 
 async function getUser(req, res, next) {
   const { telegramId } = req.body;
@@ -47,13 +67,14 @@ router.post('/status', getUser, async (req, res) => {
 
 router.post('/leaderboard', async (req, res) => {
   const { telegramId, accountId } = req.body || {};
+  await banUnauthenticatedAccounts();
   const tableMap = req.app.get('tableMap') || new Map();
   const gameManager = req.app.get('gameManager');
   const activeTables = new Set([
     ...tableMap.keys(),
     ...(gameManager ? [...gameManager.rooms.keys()] : [])
   ]);
-  const users = await User.find()
+  const users = await User.find(AUTHENTIC_LEADERBOARD_QUERY)
     .sort({ balance: -1 })
     .limit(100)
     .select('telegramId accountId balance nickname firstName lastName photo currentTableId')
@@ -61,7 +82,7 @@ router.post('/leaderboard', async (req, res) => {
 
   await Promise.all(
     users.map(async (u) => {
-      if (!u.firstName || !u.lastName || !u.photo) {
+      if (u.telegramId && (!u.firstName || !u.lastName || !u.photo)) {
         const info = await fetchTelegramInfo(u.telegramId);
         if (info) {
           await User.updateOne(
@@ -89,9 +110,9 @@ router.post('/leaderboard', async (req, res) => {
   let rank = null;
   const queryId = telegramId ? { telegramId } : accountId ? { accountId } : null;
   if (queryId) {
-    const user = await User.findOne(queryId);
-    if (user) {
-      rank = (await User.countDocuments({ balance: { $gt: user.balance } })) + 1;
+    const user = await User.findOne({ ...AUTHENTIC_LEADERBOARD_QUERY, ...queryId });
+    if (user && !user.isBanned) {
+      rank = (await User.countDocuments({ ...AUTHENTIC_LEADERBOARD_QUERY, balance: { $gt: user.balance } })) + 1;
     }
   }
 

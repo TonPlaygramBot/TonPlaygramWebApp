@@ -28,7 +28,7 @@ export default function PlatformStatsDetails() {
       { label: 'Authentic accounts', value: summary.authenticAccounts ?? stats?.accounts ?? 0 },
       { label: 'Telegram accounts', value: summary.telegramAccounts ?? stats?.telegramAccounts ?? 0 },
       { label: 'Google accounts', value: summary.googleAccounts ?? stats?.googleAccounts ?? 0 },
-      { label: 'Unauthenticated accounts (active)', value: summary.unauthenticatedAccounts ?? stats?.unauthenticatedAccounts ?? 0 },
+      { label: 'Unauthenticated accounts (remaining)', value: summary.unauthenticatedAccounts ?? stats?.unauthenticatedAccounts ?? 0 },
       { label: 'Banned accounts', value: summary.bannedAccounts ?? stats?.bannedAccounts ?? 0 },
       { label: 'Active users now', value: stats?.activeUsers ?? 0 }
     ],
@@ -39,7 +39,7 @@ export default function PlatformStatsDetails() {
     <div className="space-y-4 text-text pb-4">
       <h2 className="text-2xl font-bold text-center mt-4">Platform Stats Details</h2>
       <p className="text-xs text-subtext text-center">
-        Home now only counts authentic Telegram/Google accounts. Any guest-only accounts should be moved into the banned pool.
+        Home, platform stats, and leaderboard now auto-ban guest-only accounts and exclude them from rankings.
       </p>
 
       <div className="grid grid-cols-2 gap-2">
@@ -54,7 +54,7 @@ export default function PlatformStatsDetails() {
       <div className="rounded-xl border border-border bg-surface p-3">
         <h3 className="font-semibold text-white">Suspicious accounts preview</h3>
         <p className="text-xs text-subtext mt-1">
-          These accounts have no Telegram/Google identity and should be reviewed with
+          These accounts have no Telegram/Google identity. They are auto-banned, and this preview helps admins audit them via
           <code className="mx-1">POST /api/admin/accounts/cleanup-fake</code>
           (preview first, then execute with API token).
         </p>
