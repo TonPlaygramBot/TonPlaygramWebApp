@@ -4,7 +4,7 @@ import { UkPool } from '../lib/poolUk8Ball.js';
 import { selectShot, recordShotOutcome, __resetShotMemory } from '../lib/poolUkAdvancedAi.js';
 import planShot from '../lib/poolAi.js';
 
-test('scratch on break gives opponent ball in hand', () => {
+test('scratch on break gives opponent full-table ball in hand', () => {
   const game = new UkPool();
   game.startBreak();
   const res = game.shotTaken({
@@ -17,7 +17,7 @@ test('scratch on break gives opponent ball in hand', () => {
   assert.equal(res.foul, true);
   assert.equal(res.nextPlayer, 'B');
   assert.equal(res.shotsRemainingNext, 1);
-  assert.equal(game.state.mustPlayFromBaulk, true);
+  assert.equal(game.state.mustPlayFromBaulk, false);
 });
 
 test('after foul player must hit a valid colour first', () => {
@@ -227,7 +227,7 @@ test('potting black when one colour cleared on open table is legal', () => {
   assert.equal(res.winner, 'A');
 });
 
-test('after foul cue must be played from baulk', () => {
+test('after foul cue can be played from anywhere on table', () => {
   const game = new UkPool();
   game.shotTaken({
     contactOrder: ['blue'],
@@ -243,8 +243,7 @@ test('after foul cue must be played from baulk', () => {
     noCushionAfterContact: false,
     placedFromHand: false
   });
-  assert.equal(res.foul, true);
-  assert.equal(res.reason, 'must play from baulk');
+  assert.equal(res.foul, false);
 });
 
 test('shots after frame end are not fouls', () => {
