@@ -140,12 +140,70 @@ export default function Mining() {
   return (
     <>
       <div className="mining-page-content">
-        <DailyCheckIn />
-        <SpinGame />
-        <LuckyNumber />
-        <RouletteMini />
+        <section className="relative bg-surface border border-border rounded-xl p-4 space-y-3 text-text overflow-hidden wide-card">
+          <img
+            src="/assets/icons/snakes_and_ladders.webp"
+            className="background-behind-board object-cover"
+            alt=""
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <div className="flex items-center justify-center gap-2 text-yellow-300">
+            <FaCircle className="w-2 h-2" />
+            <span className="text-xs uppercase tracking-wide font-semibold">Mining Hub</span>
+            <FaCircle className="w-2 h-2" />
+          </div>
+          <h1 className="text-2xl font-bold text-center text-white text-outline-black">Mine, Boost, Claim</h1>
+          <p className="text-sm text-subtext text-center">
+            Start a 12-hour mining cycle, increase your reward with referrals, and track progress live.
+            Complete check-ins and mini-games below to accelerate your growth.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div className="bg-black/20 rounded-lg border border-border p-2 text-center">
+              <p className="text-subtext">Cycle</p>
+              <p className="text-white font-semibold">12 Hours</p>
+            </div>
+            <div className="bg-black/20 rounded-lg border border-border p-2 text-center">
+              <p className="text-subtext">Base Reward</p>
+              <p className="text-white font-semibold">Up to 1000 TPC</p>
+            </div>
+            <div className="bg-black/20 rounded-lg border border-border p-2 text-center">
+              <p className="text-subtext">Online Now</p>
+              <p className="text-white font-semibold">{onlineCount}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3 wide-card">
+          <h2 className="text-lg font-semibold text-white text-outline-black">Core Mining Loop</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            {[
+              { title: '1) Start', detail: 'Tap Start Mining to begin your 12-hour session.' },
+              { title: '2) Boost', detail: 'Invite friends and activate store boosts for faster earnings.' },
+              { title: '3) Claim', detail: 'Session auto-finishes in 12h. Restart quickly to keep momentum.' },
+            ].map((step) => (
+              <div key={step.title} className="bg-surface border border-border rounded-xl p-3">
+                <p className="text-white font-semibold">{step.title}</p>
+                <p className="text-subtext mt-1">{step.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <MiningCard />
         <MiningTransactionsCard />
+
+        <section className="space-y-3 wide-card">
+          <h2 className="text-lg font-semibold text-white text-outline-black">Daily Boost Actions</h2>
+          <p className="text-xs text-subtext">
+            These actions improve your consistency and help you compound mining rewards every day.
+          </p>
+          <DailyCheckIn />
+          <SpinGame />
+          <LuckyNumber />
+          <RouletteMini />
+        </section>
 
         <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden wide-card">
           <img
@@ -156,7 +214,7 @@ export default function Mining() {
               e.currentTarget.style.display = 'none';
             }}
           />
-          <h2 className="text-xl font-bold text-center text-white">Mining</h2>
+          <h2 className="text-xl font-bold text-center text-white">Community & Referral Center</h2>
 
           {friendRequests.length > 0 && (
             <section className="space-y-1">
@@ -181,7 +239,7 @@ export default function Mining() {
           )}
 
           <section className="space-y-1">
-            <h3 className="text-lg font-semibold">Referral</h3>
+            <h3 className="text-lg font-semibold">Referral Stats</h3>
             <p className="text-white text-outline-black">
               Invited friends:{' '}
               <span className="text-yellow-400 text-outline-black">
@@ -211,7 +269,10 @@ export default function Mining() {
           </section>
 
           <section className="space-y-1">
-            <h3 className="text-lg font-semibold">Referral</h3>
+            <h3 className="text-lg font-semibold">Share Your Invite Link</h3>
+            <p className="text-xs text-subtext">
+              Send this link to friends. When they join and mine, your boost increases.
+            </p>
             <div className="flex items-center space-x-2">
               <input
                 type="text"
@@ -260,6 +321,9 @@ export default function Mining() {
 
           <section className="space-y-1">
             <h3 className="text-lg font-semibold text-center">Add Friends</h3>
+            <p className="text-xs text-subtext text-center">
+              Search players and connect to grow your network and unlock more social rewards.
+            </p>
             <UserSearchBar />
           </section>
         </div>
