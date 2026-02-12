@@ -11,6 +11,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   const [status, setStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
   const [tonStatus, setTonStatus] = useState('idle');
+  const [googleAuthError, setGoogleAuthError] = useState('');
   const tonAddress = useTonAddress();
   const isChrome = useMemo(() => {
     if (typeof navigator === 'undefined') return false;
@@ -19,6 +20,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   }, []);
 
   const handleAuthenticated = (profile) => {
+    setGoogleAuthError('');
     setGoogleProfile(profile);
     if (onAuthenticated) onAuthenticated(profile);
   };
@@ -128,7 +130,14 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
             telegramId={null}
             label="Continue with Google"
             onAuthenticated={handleAuthenticated}
+            onError={({ message, details }) => {
+              const suffix = details ? ` (${details})` : '';
+              setGoogleAuthError(`${message}${suffix}`);
+            }}
           />
+          {googleAuthError && (
+            <p className="text-red-300 text-xs">{googleAuthError}</p>
+          )}
           {googleProfile?.email && (
             <p className="text-green-400 text-xs">
               Signed in as {googleProfile.email}. Completing your TPC profile…
