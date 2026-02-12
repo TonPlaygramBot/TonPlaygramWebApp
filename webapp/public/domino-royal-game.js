@@ -60,6 +60,30 @@ const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
+function isTelegramMiniApp() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    if (window.Telegram?.WebApp) {
+      return true;
+    }
+  } catch (error) {
+    // ignore
+  }
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent ?? '' : '';
+  return /Telegram/i.test(ua);
+}
+
+function isAndroidTelegramMiniApp() {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+  return isTelegramMiniApp() && /Android/i.test(navigator.userAgent ?? '');
+}
+
+const constrainedGraphicsMode = isAndroidTelegramMiniApp();
+
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
     return false;
@@ -268,6 +292,9 @@ function resolveInitialFrameRateId() {
   const urlPreset = urlParams.get('frameRateId') || urlParams.get('graphics');
   if (urlPreset && FRAME_RATE_OPTIONS_BY_ID[urlPreset]) {
     return urlPreset;
+  }
+  if (constrainedGraphicsMode) {
+    return 'fhd60';
   }
   if (typeof window !== 'undefined') {
     try {
@@ -1103,11 +1130,17 @@ const SFX = {
   /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 function createRendererWithFallback() {
-  const attempts = [
-    { antialias: true, alpha: true, powerPreference: 'high-performance' },
-    { antialias: false, alpha: true, powerPreference: 'default' },
-    { antialias: false, alpha: true }
-  ];
+  const attempts = constrainedGraphicsMode
+    ? [
+        { antialias: false, alpha: true, powerPreference: 'low-power', precision: 'mediump' },
+        { antialias: false, alpha: true, powerPreference: 'default', precision: 'mediump' },
+        { antialias: false, alpha: true }
+      ]
+    : [
+        { antialias: true, alpha: true, powerPreference: 'high-performance' },
+        { antialias: false, alpha: true, powerPreference: 'default' },
+        { antialias: false, alpha: true }
+      ];
   let lastError = null;
   for (const config of attempts) {
     try {
@@ -1131,13 +1164,13 @@ try {
   throw error;
 }
 const prefersUhd = urlParams.get('uhd') === '1';
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.autoUpdate = true;
+renderer.shadowMap.enabled = !constrainedGraphicsMode;
+renderer.shadowMap.autoUpdate = !constrainedGraphicsMode;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.physicallyCorrectLights = true;
+renderer.physicallyCorrectLights = !constrainedGraphicsMode;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.85;
+renderer.toneMappingExposure = constrainedGraphicsMode ? 1.65 : 1.85;
 function setRendererSize(quality = frameQuality){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
   const scale = typeof quality?.renderScale === 'number' ? quality.renderScale : 1;
@@ -1154,7 +1187,8 @@ function applyRendererQuality(quality = frameQuality) {
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
-  renderer.setPixelRatio(Math.min(cappedRatio, dpr));
+  const runtimeCap = constrainedGraphicsMode ? Math.min(1, cappedRatio) : cappedRatio;
+  renderer.setPixelRatio(Math.min(runtimeCap, dpr));
   setRendererSize(quality);
 }
 applyRendererQuality();
@@ -5548,16 +5582,55 @@ function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} â€
 
 let contextLost = false;
 let contextLossReloadTimer = null;
-const CONTEXT_LOSS_RELOAD_DELAY_MS = 1500;
+const CONTEXT_LOSS_RELOAD_DELAY_MS = 1800;
+const CONTEXT_LOSS_RELOAD_LIMIT = 1;
+
+function readContextLossReloadCount() {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const raw = window.sessionStorage?.getItem('dominoRoyalContextReloadCount') ?? '0';
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
+  } catch (error) {
+    return 0;
+  }
+}
+
+function writeContextLossReloadCount(value) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage?.setItem('dominoRoyalContextReloadCount', String(Math.max(0, value | 0)));
+  } catch (error) {
+    // ignore
+  }
+}
 
 function scheduleContextLossRecovery(reason = '') {
-  if (contextLossReloadTimer || typeof window === 'undefined') return;
-  const message = reason ? `Graphics reset (${reason}). Reloading...` : 'Graphics reset. Reloading...';
+  if (typeof window === 'undefined') return;
+  const message = reason ? `Graphics reset (${reason}). Stabilizing...` : 'Graphics reset. Stabilizing...';
   setStatus(message);
-  contextLossReloadTimer = window.setTimeout(() => {
-    if (contextLost) {
-      window.location.reload();
+
+  if (constrainedGraphicsMode) {
+    if (contextLossReloadTimer) {
+      window.clearTimeout(contextLossReloadTimer);
+      contextLossReloadTimer = null;
     }
+    return;
+  }
+
+  if (contextLossReloadTimer) return;
+  contextLossReloadTimer = window.setTimeout(() => {
+    contextLossReloadTimer = null;
+    if (!contextLost) {
+      return;
+    }
+    const reloadCount = readContextLossReloadCount();
+    if (reloadCount >= CONTEXT_LOSS_RELOAD_LIMIT) {
+      setStatus('Graphics paused. Close and reopen the game.');
+      return;
+    }
+    writeContextLossReloadCount(reloadCount + 1);
+    window.location.reload();
   }, CONTEXT_LOSS_RELOAD_DELAY_MS);
 }
 
@@ -5570,8 +5643,13 @@ function handleWebglContextLoss(event) {
 
 function handleWebglContextRestored() {
   contextLost = false;
-  setControlEnabled(false);
-  scheduleContextLossRecovery('restored');
+  if (contextLossReloadTimer && typeof window !== 'undefined') {
+    window.clearTimeout(contextLossReloadTimer);
+    contextLossReloadTimer = null;
+  }
+  writeContextLossReloadCount(0);
+  setStatus('Graphics restored');
+  setControlEnabled(current === human && !gameFinished);
 }
 
 renderer.domElement.addEventListener('webglcontextlost', handleWebglContextLoss, { passive: false });
