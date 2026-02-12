@@ -60,6 +60,15 @@ const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
+function isTelegramRuntime() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  return /Telegram/i.test(navigator.userAgent || '') || Boolean(window?.Telegram?.WebApp);
+}
+
+const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
+
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
     return false;
@@ -177,6 +186,9 @@ function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return DEFAULT_FRAME_RATE_ID;
   }
+  if (IS_TELEGRAM_RUNTIME) {
+    return 'fhd60';
+  }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
@@ -280,6 +292,9 @@ function resolveInitialFrameRateId() {
     }
   }
   const detected = detectPreferredFrameRateId();
+  if (IS_TELEGRAM_RUNTIME) {
+    return 'fhd60';
+  }
   if (FRAME_RATE_OPTIONS_BY_ID[detected]) {
     return detected;
   }
@@ -1154,8 +1169,13 @@ function applyRendererQuality(quality = frameQuality) {
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
-  renderer.setPixelRatio(Math.min(cappedRatio, dpr));
-  setRendererSize(quality);
+  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
+  renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
+  if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
+    setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 1) });
+  } else {
+    setRendererSize(quality);
+  }
 }
 applyRendererQuality();
 if (!app) {
@@ -2892,7 +2912,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 }
 
 const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
-const isTelegramWebView = /Telegram/i.test(navigator.userAgent || '') || Boolean(window?.Telegram?.WebApp);
+const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
@@ -5549,16 +5569,33 @@ function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} �
 let contextLost = false;
 let contextLossReloadTimer = null;
 const CONTEXT_LOSS_RELOAD_DELAY_MS = 1500;
+const CONTEXT_LOSS_RESTORE_GRACE_MS = 8000;
+
+function clearContextLossTimer() {
+  if (!contextLossReloadTimer || typeof window === 'undefined') return;
+  window.clearTimeout(contextLossReloadTimer);
+  contextLossReloadTimer = null;
+}
 
 function scheduleContextLossRecovery(reason = '') {
   if (contextLossReloadTimer || typeof window === 'undefined') return;
-  const message = reason ? `Graphics reset (${reason}). Reloading...` : 'Graphics reset. Reloading...';
+  const autoReloadEnabled = !IS_TELEGRAM_RUNTIME;
+  const message = autoReloadEnabled
+    ? (reason ? `Graphics reset (${reason}). Reloading...` : 'Graphics reset. Reloading...')
+    : (reason ? `Graphics reset (${reason}). Reconnecting renderer…` : 'Graphics reset. Reconnecting renderer…');
   setStatus(message);
   contextLossReloadTimer = window.setTimeout(() => {
-    if (contextLost) {
-      window.location.reload();
+    if (!contextLost) {
+      clearContextLossTimer();
+      return;
     }
-  }, CONTEXT_LOSS_RELOAD_DELAY_MS);
+    if (autoReloadEnabled) {
+      window.location.reload();
+      return;
+    }
+    setStatus('Graphics paused to protect Telegram stability. Reopen the game if visuals do not recover.');
+    clearContextLossTimer();
+  }, autoReloadEnabled ? CONTEXT_LOSS_RELOAD_DELAY_MS : CONTEXT_LOSS_RESTORE_GRACE_MS);
 }
 
 function handleWebglContextLoss(event) {
@@ -5570,8 +5607,13 @@ function handleWebglContextLoss(event) {
 
 function handleWebglContextRestored() {
   contextLost = false;
+  clearContextLossTimer();
+  const fallbackFrameRateId = findFallbackFrameRateId(frameQuality?.id);
+  if (fallbackFrameRateId && fallbackFrameRateId !== frameQuality?.id) {
+    applyFrameRateById(fallbackFrameRateId, { persist: true, announce: false });
+  }
+  setStatus('Graphics restored.');
   setControlEnabled(false);
-  scheduleContextLossRecovery('restored');
 }
 
 renderer.domElement.addEventListener('webglcontextlost', handleWebglContextLoss, { passive: false });
