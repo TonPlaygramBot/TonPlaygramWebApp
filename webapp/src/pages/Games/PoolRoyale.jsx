@@ -1069,7 +1069,6 @@ const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
-const REPLAY_POCKET_CAMERA_HOLD_MS = 420;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -5372,7 +5371,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 260; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
 const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
@@ -13791,7 +13790,6 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const replayCameraLockRef = useRef({ key: null, snapshot: null });
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -19514,50 +19512,24 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const pocketActive = pocketCameraStateRef.current && activeShotView?.mode === 'pocket';
-          const pocketKey = pocketActive
-            ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
-            : null;
-          const cameraKey = pocketKey ?? 'broadcast';
-          const lock = replayCameraLockRef.current;
-          if (lock.key === cameraKey && lock.snapshot) {
-            return lock.snapshot;
-          }
-          const overheadReplayCamera = pocketActive
-            ? null
-            : resolveRailOverheadReplayCamera({
-                focusOverride: targetSnapshot,
-                minTargetY
-              });
-          let resolvedPosition = null;
-          let resolvedTarget = null;
-          let resolvedFov = fovSnapshot;
-          let resolvedMinTargetY = null;
-          if (!pocketActive && !overheadReplayCamera) {
-            return null;
-          }
-          resolvedPosition = pocketActive
-            ? activeCamera?.position?.clone?.() ?? null
-            : overheadReplayCamera?.position?.clone?.() ?? null;
-          resolvedTarget = pocketActive
-            ? targetSnapshot
-            : overheadReplayCamera?.target?.clone?.() ?? targetSnapshot;
-          resolvedFov = Number.isFinite(overheadReplayCamera?.fov)
-            ? overheadReplayCamera.fov
-            : fovSnapshot;
-          resolvedMinTargetY = minTargetY;
+          const cameraMode =
+            pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
+              ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
+              : 'broadcast';
+          const resolvedPosition = activeCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = targetSnapshot;
+          const resolvedFov = fovSnapshot;
+          const resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
             fov: resolvedFov,
-            key: cameraKey
+            key: cameraMode
           };
           if (Number.isFinite(resolvedMinTargetY)) {
             snapshot.minTargetY = resolvedMinTargetY;
           }
-          lock.key = cameraKey;
-          lock.snapshot = snapshot;
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -23279,7 +23251,6 @@ const powerRef = useRef(hud.power);
               frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
                 ? frameTiming.targetMs
                 : 1000 / 60;
-            replayCameraLockRef.current = { key: null, snapshot: null };
             shotRecording = {
               longShot: replayTags.has('long'),
               targetBallId: shotPrediction.ballId ?? null,
@@ -26341,33 +26312,11 @@ const powerRef = useRef(hud.power);
               const frameCameraA = frameA?.camera ?? null;
               const frameCameraB = frameB?.camera ?? frameCameraA;
               if (frameCameraA || frameCameraB) {
-                const cameraKeyA = frameCameraA?.key ?? null;
-                const cameraKeyB = frameCameraB?.key ?? cameraKeyA;
-                const isPocketKey = (key) =>
-                  typeof key === 'string' && key.startsWith('pocket:');
-                const isPocketCamera = isPocketKey(cameraKeyA) || isPocketKey(cameraKeyB);
-                if (isPocketCamera) {
-                  if (!Number.isFinite(playback.pocketCameraCutoff)) {
-                    playback.pocketCameraCutoff =
-                      frameA.t + REPLAY_POCKET_CAMERA_HOLD_MS;
-                  }
-                } else {
-                  playback.pocketCameraCutoff = null;
-                }
-                if (
-                  isPocketCamera &&
-                  Number.isFinite(playback.pocketCameraCutoff) &&
-                  targetTime >= playback.pocketCameraCutoff
-                ) {
-                  replayFrameCameraRef.current = null;
-                } else {
-                  const lockedFrameCamera = frameCameraA ?? frameCameraB;
-                  replayFrameCameraRef.current = {
-                    frameA: lockedFrameCamera,
-                    frameB: lockedFrameCamera,
-                    alpha: 0
-                  };
-                }
+                replayFrameCameraRef.current = {
+                  frameA: frameCameraA ?? frameCameraB,
+                  frameB: frameCameraB ?? frameCameraA,
+                  alpha
+                };
               }
             } else {
               replayFrameCameraRef.current = null;
