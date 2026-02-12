@@ -25108,6 +25108,7 @@ const powerRef = useRef(hud.power);
             ? frameSnapshot.ballOn[0]
             : frameSnapshot?.ballOn ?? null;
           const normalizedBallOn = normalizeAiGroup(rawBallOn);
+          const breakInProgress = Boolean(metaState?.breakInProgress);
           const aiState = {
             balls: aiBalls,
             pockets,
@@ -25117,7 +25118,8 @@ const powerRef = useRef(hud.power);
             friction: FRICTION,
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
-            ballOn: normalizedBallOn ?? null
+            ballOn: normalizedBallOn ?? null,
+            breakInProgress
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -25153,7 +25155,9 @@ const powerRef = useRef(hud.power);
               : null;
           const pocketCenter =
             pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
-          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
+          const power = breakInProgress
+            ? 1
+            : THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
           const sideSpin = decision.spin?.side ?? 0;
           const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
           const spin = {
