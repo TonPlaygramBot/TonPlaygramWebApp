@@ -13331,6 +13331,7 @@ function PoolRoyaleGame({
   });
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
+  const openingShotViewSuppressedRef = useRef(true);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -13425,6 +13426,7 @@ const powerRef = useRef(hud.power);
   }, [localSeat]);
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
+    openingShotViewSuppressedRef.current = true;
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
     lastAssignmentsRef.current = { A: null, B: null };
@@ -13884,6 +13886,7 @@ const powerRef = useRef(hud.power);
     ({ broadcast = false } = {}) => {
       const nextFrame = initialFrame;
       const nextInHand = deriveInHandFromFrame(nextFrame);
+      openingShotViewSuppressedRef.current = true;
       frameRef.current = nextFrame;
       setFrameState(nextFrame);
       setTurnCycle((value) => value + 1);
@@ -18464,6 +18467,7 @@ const powerRef = useRef(hud.power);
               );
             }
             const pocketCenter = activeShotView.pocketCenter;
+            const pocketCenter2D = pocketCenter.clone();
             const anchorType =
               activeShotView.anchorType ??
               (activeShotView.isSidePocket ? 'side' : 'short');
@@ -18545,7 +18549,6 @@ const powerRef = useRef(hud.power);
             if (!pocketCamEntry) {
               pocketCamEntry = getPocketCameraEntry(anchorId) ?? null;
             }
-            const pocketCenter2D = pocketCenter.clone();
             const outward = activeShotView.anchorOutward
               ? activeShotView.anchorOutward.clone()
               : getPocketCameraOutward(anchorId) ?? pocketCenter2D.clone();
@@ -22871,7 +22874,9 @@ const powerRef = useRef(hud.power);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition({ forceCenter: true });
+        const startPos = isOpeningInHandPlacement()
+          ? defaultInHandPosition({ forceBaulk: true })
+          : defaultInHandPosition({ forceCenter: true });
         if (startPos && cue) {
           cue.active = false;
           updateCuePlacement(startPos);
@@ -23292,13 +23297,16 @@ const powerRef = useRef(hud.power);
             shotRecording = null;
             shotReplayRef.current = null;
           }
+          const suppressOpeningShotViews = openingShotViewSuppressedRef.current;
           const allowLongShotCameraSwitch =
+            !suppressOpeningShotViews &&
             !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
-          const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
+          const suppressPocketCameras =
+            suppressOpeningShotViews || broadcastSystem?.avoidPocketCameras;
           const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
@@ -23591,6 +23599,7 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
+          openingShotViewSuppressedRef.current = false;
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
@@ -27748,6 +27757,7 @@ const powerRef = useRef(hud.power);
           }
         }
         const suppressPocketCameras =
+          openingShotViewSuppressedRef.current ||
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
         const earlyPocketIntent = pocketSwitchIntentRef.current;
