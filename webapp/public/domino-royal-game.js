@@ -68,23 +68,6 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
-const IS_MOBILE_UA = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-const IS_LOW_MEMORY_DEVICE = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-const IS_LOW_CORE_DEVICE = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
-const IS_LOW_PROFILE_DEVICE = IS_TELEGRAM_RUNTIME || IS_MOBILE_UA || IS_LOW_MEMORY_DEVICE || IS_LOW_CORE_DEVICE;
-const MURLAN_SAFE_GRAPHICS_PROFILE = IS_LOW_PROFILE_DEVICE;
-
-function getMaxTextureAnisotropy() {
-  const maxDeviceAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-  const cap = MURLAN_SAFE_GRAPHICS_PROFILE ? 4 : 16;
-  return Math.min(maxDeviceAnisotropy, cap);
-}
-
-function getAdaptiveTextureSize(size, fallback = 1024) {
-  const base = Number.isFinite(size) ? size : fallback;
-  const cap = MURLAN_SAFE_GRAPHICS_PROFILE ? 1024 : 3072;
-  return Math.min(base, cap);
-}
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -1135,12 +1118,7 @@ const SFX = {
   /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 function createRendererWithFallback() {
-  const attempts = MURLAN_SAFE_GRAPHICS_PROFILE
-    ? [
-      { antialias: false, alpha: true, powerPreference: 'default' },
-      { antialias: false, alpha: true }
-    ]
-    : [
+  const attempts = [
     { antialias: true, alpha: true, powerPreference: 'high-performance' },
     { antialias: false, alpha: true, powerPreference: 'default' },
     { antialias: false, alpha: true }
@@ -1168,13 +1146,13 @@ try {
   throw error;
 }
 const prefersUhd = urlParams.get('uhd') === '1';
-renderer.shadowMap.enabled = !MURLAN_SAFE_GRAPHICS_PROFILE;
+renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = MURLAN_SAFE_GRAPHICS_PROFILE ? 1.65 : 1.85;
+renderer.toneMappingExposure = 1.85;
 function setRendererSize(quality = frameQuality){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
   const scale = typeof quality?.renderScale === 'number' ? quality.renderScale : 1;
@@ -1191,10 +1169,10 @@ function applyRendererQuality(quality = frameQuality) {
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
-  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 0.9) : cappedRatio;
+  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
   if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
-    setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 0.9) });
+    setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 1) });
   } else {
     setRendererSize(quality);
   }
@@ -1739,7 +1717,7 @@ const getPoolCarpetTextures = (() => {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = getMaxTextureAnisotropy();
+    texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
@@ -1900,16 +1878,11 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const candidates = MURLAN_SAFE_GRAPHICS_PROFILE
-    ? [
-      { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`, resolution: '1k' },
-      { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`, resolution: '2k' }
-    ]
-    : [
-      { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`, resolution: '2k' },
-      { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`, resolution: '1k' },
-      { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`, resolution: '4k' }
-    ];
+  const candidates = [
+    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`, resolution: '2k' },
+    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`, resolution: '1k' },
+    { url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`, resolution: '4k' }
+  ];
   let gltf = null;
   let lastError = null;
   for (const candidate of candidates) {
@@ -2243,7 +2216,7 @@ function makeNaturalWoodTexture(width, height, hue, sat, light, contrast) {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = getMaxTextureAnisotropy();
+  texture.anisotropy = 16;
   texture.needsUpdate = true;
   return texture;
 }
@@ -2939,14 +2912,19 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 }
 
 const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
-const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : IS_LOW_PROFILE_DEVICE ? 1 : 2;
+const isTelegramWebView = IS_TELEGRAM_RUNTIME;
+const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   if (prefersUhd) return ['4k', '2k'];
-  if (IS_LOW_PROFILE_DEVICE) return ['1k'];
+  if (isLowProfileDevice) return ['1k'];
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
-  return !MURLAN_SAFE_GRAPHICS_PROFILE;
+  return true;
 }
 function pruneHdriCache() {
   if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
@@ -3120,7 +3098,7 @@ function createCarbonFiberTexture(
     (renderer?.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
       ? renderer.capabilities.getMaxAnisotropy()
       : renderer?.capabilities?.anisotropy) || 4;
-  texture.anisotropy = Math.min(maxAnisotropy, getMaxTextureAnisotropy());
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
@@ -3223,7 +3201,7 @@ function createChairClothTexture(option, renderer) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(CHAIR_CLOTH_REPEAT, CHAIR_CLOTH_REPEAT);
-  texture.anisotropy = getMaxTextureAnisotropy();
+  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
@@ -3971,7 +3949,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
     renderer?.capabilities?.getMaxAnisotropy?.() ??
     renderer?.capabilities?.anisotropy ??
     4;
-  texture.anisotropy = Math.min(maxAnisotropy, getMaxTextureAnisotropy());
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
@@ -4016,7 +3994,7 @@ function updateTableMaterials() {
     contrast: preset.contrast,
     repeat: grain?.frame?.repeat ?? grain?.rail?.repeat ?? { x: 0.24, y: 0.38 },
     rotation: grain?.frame?.rotation ?? 0,
-    textureSize: getAdaptiveTextureSize(grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE),
+    textureSize: grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessBase: 0.16,
     roughnessVariance: 0.28,
     sharedKey
@@ -4028,7 +4006,7 @@ function updateTableMaterials() {
     contrast: preset.contrast,
     repeat: grain?.rail?.repeat ?? grain?.frame?.repeat ?? { x: 0.12, y: 0.62 },
     rotation: grain?.rail?.rotation ?? 0,
-    textureSize: getAdaptiveTextureSize(grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE),
+    textureSize: grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessBase: 0.18,
     roughnessVariance: 0.32,
     sharedKey
