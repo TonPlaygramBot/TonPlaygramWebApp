@@ -1702,7 +1702,6 @@ const PLAYER_CUE_STRIKE_MAX_MS = 1400;
 const PLAYER_CUE_FORWARD_MIN_MS = 520;
 const PLAYER_CUE_FORWARD_MAX_MS = 920;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
-const PLAYER_CUE_STROKE_SLOWDOWN = 1.35; // slow down cue-stick motion so pullback/strike/follow-through read clearly on mobile screens
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
@@ -23500,16 +23499,12 @@ const powerRef = useRef(hud.power);
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const baseForwardDuration = THREE.MathUtils.lerp(
+          const forwardDuration = THREE.MathUtils.lerp(
             PLAYER_CUE_FORWARD_MAX_MS,
             PLAYER_CUE_FORWARD_MIN_MS,
             forwardBlend
           );
-          const forwardDuration = baseForwardDuration * PLAYER_CUE_STROKE_SLOWDOWN;
-          const pullbackDuration = Math.max(
-            120,
-            baseForwardDuration * 0.65 * PLAYER_CUE_STROKE_SLOWDOWN
-          );
+          const pullbackDuration = Math.max(120, forwardDuration * 0.65);
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
@@ -23524,16 +23519,13 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             powerStrength
           );
-          const baseFollowDuration = THREE.MathUtils.clamp(
+          const followDuration = THREE.MathUtils.clamp(
             (followThrough / Math.max(followSpeed, 1e-6)) * 1000,
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
-          const followDurationResolved = baseFollowDuration * PLAYER_CUE_STROKE_SLOWDOWN;
-          const recoverDuration = Math.max(
-            120,
-            baseFollowDuration * 0.6 * PLAYER_CUE_STROKE_SLOWDOWN
-          );
+          const followDurationResolved = followDuration;
+          const recoverDuration = Math.max(120, followDurationResolved * 0.6);
           const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
             impactTime +
