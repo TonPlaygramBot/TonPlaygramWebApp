@@ -1410,7 +1410,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(3.5); // keep holder rails closer to level so potted balls roll straighter instead of downhill
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
   x: (0.08 / 27) * 0.7 / 2,
@@ -1442,7 +1442,7 @@ const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.28, BALL_DIAMETER * 7.2); // pull the holder run slightly inward toward the pocket
 const POCKET_GUIDE_DROP = BALL_R * 0.06;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.62; // move the two side chrome holder bars farther from the center bar
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
@@ -1462,7 +1462,8 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.28; // slightly reduce the strap rise to keep holder bars visually level
+const POCKET_STRAP_LENGTH_SCALE = 0.56; // shorten the leather strap so the holder assembly stays straighter
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -6516,7 +6517,9 @@ function applySpinController(ball, stepScale, airborne = false) {
     return false;
   }
   if (ball.id === 'cue' && !ball.impacted) {
-    return decaySpin(ball, stepScale, airborne);
+    // Keep cue-spin fully dormant until first object/cushion impact so the
+    // cue-ball path always follows the aiming line exactly.
+    return false;
   }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
@@ -8077,7 +8080,10 @@ export function Table3D(
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
-  const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
+  const pocketStrapLength = Math.max(
+    POCKET_GUIDE_LENGTH * POCKET_STRAP_LENGTH_SCALE,
+    BALL_DIAMETER * 5
+  );
   const pocketStrapWidth = BALL_R * 1.8;
   const pocketStrapThickness = BALL_R * 0.12;
   const pocketRingGeometry = new THREE.TorusGeometry(
@@ -9887,7 +9893,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.66;
+  const brandPlateOutwardShift = endRailW * 0.74;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9926,7 +9932,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.2;
+  const railMarkerOutset = longRailW * 0.12;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -25209,7 +25215,32 @@ const powerRef = useRef(hud.power);
           };
           think();
         };
-        const resolveAutoAimDirection = () => {
+        const buildLegalTargetValidator = (frameSnapshot, activeBalls = []) => {
+          const activeVariantId =
+            frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
+          const targetOrder = resolveTargetPriorities(
+            frameSnapshot,
+            activeVariantId,
+            activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
+          );
+          return (ball) => {
+            if (!ball || legalTargets.size === 0) return true;
+            return Array.from(legalTargets).some((target) =>
+              matchesTargetId(ball, target)
+            );
+          };
+        };
+
+        const resolveAutoAimDirection = (preferredDir = null) => {
           if (!cue?.active) return null;
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -25219,6 +25250,12 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector2(cue.pos.x, cue.pos.y)
             : null;
           if (!cuePos) return null;
+          const referenceDir =
+            preferredDir && preferredDir.lengthSq?.() > 1e-6
+              ? preferredDir.clone().normalize()
+              : aimDirRef.current?.lengthSq?.() > 1e-6
+                ? aimDirRef.current.clone().normalize()
+                : null;
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
@@ -25292,15 +25329,24 @@ const powerRef = useRef(hud.power);
             assignmentTargets.length > 0 && preferredActiveBalls.length > 0
               ? preferredActiveBalls
               : activeBalls;
+          const scoreWithAlignment = (ball) => {
+            if (!ball) return -Infinity;
+            const quality = scoreBallForAim(ball, cuePos) * (isDirectLaneOpen(ball) ? 1 : 0.35);
+            if (!referenceDir || !ball?.pos) return quality;
+            const candidateDir = new THREE.Vector2(
+              ball.pos.x - cuePos.x,
+              ball.pos.y - cuePos.y
+            );
+            if (candidateDir.lengthSq() < 1e-6) return quality;
+            candidateDir.normalize();
+            const alignment = THREE.MathUtils.clamp(referenceDir.dot(candidateDir), -1, 1);
+            return quality * (0.85 + 0.3 * Math.max(0, alignment));
+          };
           const pickFallbackBall = () =>
             candidateBalls.reduce((best, ball) => {
               if (!best) return ball;
-              const bestScore =
-                scoreBallForAim(best, cuePos) *
-                (isDirectLaneOpen(best) ? 1 : 0.35);
-              const score =
-                scoreBallForAim(ball, cuePos) *
-                (isDirectLaneOpen(ball) ? 1 : 0.35);
+              const bestScore = scoreWithAlignment(best);
+              const score = scoreWithAlignment(ball);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
@@ -25311,8 +25357,8 @@ const powerRef = useRef(hud.power);
               if (matches.length > 0) {
                 return matches.reduce((best, ball) => {
                   if (!best) return ball;
-                  const bestScore = scoreBallForAim(best, cuePos);
-                  const score = scoreBallForAim(ball, cuePos);
+                  const bestScore = scoreWithAlignment(best);
+                  const score = scoreWithAlignment(ball);
                   return score > bestScore ? ball : best;
                 }, null);
               }
@@ -25406,27 +25452,7 @@ const powerRef = useRef(hud.power);
           const activeBalls = Array.isArray(ballsList)
             ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
             : [];
-          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const targetOrder = resolveTargetPriorities(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
-          );
-          const legalTargetsRaw =
-            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
-              ? frameSnapshot.ballOn
-              : targetOrder;
-          const legalTargets = new Set(
-            legalTargetsRaw
-              .map((entry) => normalizeTargetId(entry))
-              .filter((entry) => entry && isBallTargetId(entry))
-          );
-          const isLegalTargetBall = (ball) => {
-            if (!ball || legalTargets.size === 0) return true;
-            return Array.from(legalTargets).some((target) =>
-              matchesTargetId(ball, target)
-            );
-          };
+          const isLegalTargetBall = buildLegalTargetValidator(frameSnapshot, activeBalls);
           const resolvePlayerAimTarget = (dir) => {
             if (!dir || !cue?.pos) return dir;
             const normalized = dir.clone().normalize();
@@ -25435,7 +25461,7 @@ const powerRef = useRef(hud.power);
             if (contact?.targetBall && isLegalTargetBall(contact.targetBall)) {
               return normalized;
             }
-            const autoDir = resolveAutoAimDirection();
+            const autoDir = resolveAutoAimDirection(normalized);
             if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
             const cuePos = new THREE.Vector2(cue.pos.x, cue.pos.y);
             const nearestBall = activeBalls.reduce((best, ball) => {
@@ -25466,7 +25492,7 @@ const powerRef = useRef(hud.power);
           };
           const applyAutoAimFallback = () => {
             suggestionAimKeyRef.current = null;
-            const autoDir = resolveAutoAimDirection();
+            const autoDir = resolveAutoAimDirection(aimDirRef.current);
             if (applyAimDirection(autoDir, null)) return true;
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
@@ -26453,14 +26479,33 @@ const powerRef = useRef(hud.power);
         const previewingAiShot = aiShotPreviewRef.current;
         const aiCueViewActive = aiShotCueViewRef.current;
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
-        const shouldLockAiAim =
-          isAiTurn && activeAiPlan?.aimDir && (previewingAiShot || aiCueViewActive);
+        const shouldLockAiAim = isAiTurn && activeAiPlan?.aimDir;
+        const hasIllegalCurrentAim = (() => {
+          if ((!isPlayerTurn && !isAiTurn) || !cue?.active || !cue?.pos) return false;
+          const ballsList =
+            ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const activeBalls = Array.isArray(ballsList)
+            ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
+            : [];
+          if (activeBalls.length === 0) return false;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const isLegalTargetBall = buildLegalTargetValidator(frameSnapshot, activeBalls);
+          const currentAim = aimDirRef.current;
+          if (!currentAim || currentAim.lengthSq() < 1e-6) return true;
+          const contact = calcTarget(cue, currentAim.clone().normalize(), activeBalls);
+          return !(contact?.targetBall && isLegalTargetBall(contact.targetBall));
+        })();
         const shouldAutoAimPlayer =
           isPlayerTurn &&
-          autoAimRequestRef.current &&
+          (autoAimRequestRef.current || hasIllegalCurrentAim) &&
           !inHandPlacementModeRef.current &&
           !shooting;
-        const autoAimDir = shouldAutoAimPlayer ? resolveAutoAimDirection() : null;
+        const shouldAutoAimAi =
+          isAiTurn && hasIllegalCurrentAim && !shooting && !inHandPlacementModeRef.current;
+        const autoAimDir =
+          shouldAutoAimPlayer || shouldAutoAimAi
+            ? resolveAutoAimDirection(aimDirRef.current)
+            : null;
         if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
