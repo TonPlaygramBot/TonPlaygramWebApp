@@ -16,6 +16,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -1679,7 +1680,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
-const CUE_TIP_GAP = BALL_R * 1.34 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
+const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -5373,6 +5374,154 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 260; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
+const BREAK_DICE_ROLL_DELAY_MS = 560;
+const BREAK_DICE_RESULT_PAUSE_MS = 720;
+const BREAK_DIE_SIZE = BALL_R * 1.48;
+const BREAK_DIE_CORNER_RADIUS = BREAK_DIE_SIZE * 0.17;
+const BREAK_DIE_PIP_RADIUS = BREAK_DIE_SIZE * 0.095;
+const BREAK_DIE_PIP_DEPTH = BREAK_DIE_SIZE * 0.018;
+const BREAK_DIE_PIP_SPREAD = BREAK_DIE_SIZE * 0.3;
+const BREAK_DIE_FACE_INSET = BREAK_DIE_SIZE * 0.064;
+const BREAK_DIE_BASE_LIFT = BREAK_DIE_SIZE * 0.5 + BALL_R * 0.1;
+
+function setBreakDieOrientation(die, value) {
+  const q = new THREE.Quaternion();
+  const eulers = {
+    1: new THREE.Euler(0, 0, 0),
+    2: new THREE.Euler(-Math.PI / 2, 0, 0),
+    3: new THREE.Euler(0, 0, Math.PI / 2),
+    4: new THREE.Euler(0, 0, -Math.PI / 2),
+    5: new THREE.Euler(Math.PI / 2, 0, 0),
+    6: new THREE.Euler(Math.PI, 0, 0)
+  };
+  q.setFromEuler(eulers[value] || eulers[1]);
+  die.setRotationFromQuaternion(q);
+}
+
+function createBreakDieMesh() {
+  const die = new THREE.Group();
+  const shellMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0.25,
+    roughness: 0.35,
+    clearcoat: 1,
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.75,
+    envMapIntensity: 1.4
+  });
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1
+  });
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(
+      BREAK_DIE_SIZE,
+      BREAK_DIE_SIZE,
+      BREAK_DIE_SIZE,
+      6,
+      BREAK_DIE_CORNER_RADIUS
+    ),
+    shellMaterial
+  );
+  body.castShadow = true;
+  body.receiveShadow = true;
+  die.add(body);
+
+  const pipGeo = new THREE.SphereGeometry(BREAK_DIE_PIP_RADIUS, 24, 16, 0, Math.PI * 2, 0, Math.PI);
+  pipGeo.rotateX(Math.PI);
+  pipGeo.computeVertexNormals();
+  const faceDepth = BREAK_DIE_SIZE / 2 - BREAK_DIE_FACE_INSET * 0.6;
+  const spread = BREAK_DIE_PIP_SPREAD;
+  const faces = [
+    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
+    { normal: new THREE.Vector3(0, 0, 1), points: [[-spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(1, 0, 0), points: [[-spread, -spread], [0, 0], [spread, spread]] },
+    { normal: new THREE.Vector3(-1, 0, 0), points: [[-spread, -spread], [-spread, spread], [spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(0, 0, -1), points: [[-spread, -spread], [-spread, spread], [0, 0], [spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(0, -1, 0), points: [[-spread, -spread], [-spread, 0], [-spread, spread], [spread, -spread], [spread, 0], [spread, spread]] }
+  ];
+
+  faces.forEach(({ normal, points }) => {
+    const n = normal.clone().normalize();
+    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
+    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
+    points.forEach(([gx, gy]) => {
+      const base = new THREE.Vector3()
+        .addScaledVector(xAxis, gx)
+        .addScaledVector(yAxis, gy)
+        .addScaledVector(n, faceDepth - BREAK_DIE_PIP_DEPTH * 0.5);
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.castShadow = true;
+      pip.receiveShadow = true;
+      pip.position.copy(base).addScaledVector(n, BREAK_DIE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      die.add(pip);
+    });
+  });
+
+  die.userData.setValue = (value) => {
+    die.userData.currentValue = value;
+    setBreakDieOrientation(die, value);
+  };
+  die.userData.currentValue = 1;
+  return die;
+}
+
+function rollBreakDieAnimation(
+  die,
+  { startPosition, targetPosition, duration = 920, bounceHeight = BREAK_DIE_SIZE * 0.75 } = {}
+) {
+  return new Promise((resolve) => {
+    if (!die || !startPosition || !targetPosition) {
+      resolve(1 + Math.floor(Math.random() * 6));
+      return;
+    }
+    const start = performance.now();
+    const spinVec = new THREE.Vector3(
+      1.2 + Math.random() * 0.7,
+      1.35 + Math.random() * 0.65,
+      1.05 + Math.random() * 0.75
+    );
+    const wobble = new THREE.Vector3((Math.random() - 0.5) * BREAK_DIE_SIZE, 0, (Math.random() - 0.5) * BREAK_DIE_SIZE);
+    const targetValue = 1 + Math.floor(Math.random() * 6);
+
+    const step = () => {
+      const now = performance.now();
+      const t = Math.min(1, (now - start) / Math.max(1, duration));
+      const eased = 1 - Math.pow(1 - t, 3);
+      const position = startPosition.clone().lerp(targetPosition, eased);
+      const wobbleStrength = Math.sin(eased * Math.PI);
+      position.addScaledVector(wobble, wobbleStrength * 0.32);
+      const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
+      position.y = THREE.MathUtils.lerp(startPosition.y, targetPosition.y, eased) + bounce;
+      die.position.copy(position);
+
+      const spinFactor = 1 - eased * 0.28;
+      die.rotation.x += spinVec.x * spinFactor * 0.22;
+      die.rotation.y += spinVec.y * spinFactor * 0.22;
+      die.rotation.z += spinVec.z * spinFactor * 0.22;
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        if (typeof die.userData?.setValue === 'function') {
+          die.userData.setValue(targetValue);
+        } else {
+          setBreakDieOrientation(die, targetValue);
+        }
+        die.position.copy(targetPosition);
+        resolve(targetValue);
+      }
+    };
+
+    requestAnimationFrame(step);
+  });
+}
 const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
@@ -9886,7 +10035,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.76;
+  const brandPlateOutwardShift = endRailW * 0.82;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9925,7 +10074,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.12;
+  const railMarkerOutset = longRailW * 0.08;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -13224,7 +13373,7 @@ function PoolRoyaleGame({
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
-  }, [initialFrame]);
+  }, [initialFrame, resetBreakDiceOnLine]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -13331,6 +13480,17 @@ function PoolRoyaleGame({
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
+  const [breakRollState, setBreakRollState] = useState('ai');
+  const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
+  const [breakRollMessage, setBreakRollMessage] = useState('AI rolls first for the break.');
+  const breakRollBusyRef = useRef(false);
+  const breakDiceMeshesRef = useRef({ ai: null, user: null });
+  const breakDiceLaneRef = useRef({
+    aiStart: new THREE.Vector3(),
+    aiEnd: new THREE.Vector3(),
+    userStart: new THREE.Vector3(),
+    userEnd: new THREE.Vector3()
+  });
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -13406,6 +13566,113 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const breakDiceValuesRef = useRef({ ai: null, user: null });
+  useEffect(() => {
+    breakDiceValuesRef.current = breakDiceValues;
+  }, [breakDiceValues]);
+
+  const breakRollPending = breakRollState !== 'done';
+  const resetBreakDiceOnLine = useCallback(() => {
+    const diceMeshes = breakDiceMeshesRef.current;
+    const lane = breakDiceLaneRef.current;
+    if (diceMeshes?.ai && lane?.aiStart) {
+      diceMeshes.ai.position.copy(lane.aiStart);
+      setBreakDieOrientation(diceMeshes.ai, 1);
+    }
+    if (diceMeshes?.user && lane?.userStart) {
+      diceMeshes.user.position.copy(lane.userStart);
+      setBreakDieOrientation(diceMeshes.user, 1);
+    }
+  }, []);
+
+  const rollVisualBreakDie = useCallback(async (seat = 'ai') => {
+    const die = breakDiceMeshesRef.current?.[seat] ?? null;
+    const lane = breakDiceLaneRef.current;
+    const startPosition = seat === 'ai' ? lane.aiStart : lane.userStart;
+    const targetPosition = seat === 'ai' ? lane.aiEnd : lane.userEnd;
+    if (!die || !startPosition || !targetPosition) {
+      return 1 + Math.floor(Math.random() * 6);
+    }
+    return rollBreakDieAnimation(die, {
+      startPosition: startPosition.clone(),
+      targetPosition: targetPosition.clone(),
+      duration: seat === 'ai' ? 980 : 920,
+      bounceHeight: BREAK_DIE_SIZE * 0.78
+    });
+  }, []);
+
+  const rollBreakDie = useCallback(
+    async (seat = 'ai') => {
+      if (breakRollBusyRef.current || breakRollState === 'done') return;
+      breakRollBusyRef.current = true;
+      const seatLabel = seat === 'ai' ? 'AI' : 'You';
+      setBreakRollMessage(`${seatLabel} rolling...`);
+      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_ROLL_DELAY_MS));
+      const value = await rollVisualBreakDie(seat);
+      setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
+      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
+      if (value % 2 === 0) {
+        setBreakRollMessage(`${seatLabel} rolled ${value} (even). Roll again.`);
+        setBreakRollState(seat);
+        breakRollBusyRef.current = false;
+        if (seat === 'ai') {
+          window.setTimeout(() => {
+            rollBreakDie('ai');
+          }, 220);
+        }
+        return;
+      }
+      if (seat === 'ai') {
+        setBreakRollState('user');
+        setBreakRollMessage(`AI rolled ${value}. Tap Get to roll to respond.`);
+        breakRollBusyRef.current = false;
+        return;
+      }
+      const aiValue = breakDiceValuesRef.current?.ai;
+      if (!Number.isFinite(aiValue)) {
+        setBreakRollState('ai');
+        setBreakRollMessage('AI value missing. Restarting break roll.');
+        setBreakDiceValues({ ai: null, user: null });
+        resetBreakDiceOnLine();
+        breakRollBusyRef.current = false;
+        return;
+      }
+      if (aiValue === value) {
+        setBreakRollState('ai');
+        setBreakRollMessage(`Tie at ${value}. AI rolls again.`);
+        setBreakDiceValues({ ai: null, user: null });
+        resetBreakDiceOnLine();
+        breakRollBusyRef.current = false;
+        return;
+      }
+      const breakerSeat = aiValue > value ? 'B' : 'A';
+      const breakerLabel = breakerSeat === 'A' ? 'You' : 'AI';
+      setBreakRollState('done');
+      setBreakRollMessage(`${breakerLabel} wins (${aiValue}-${value}) and breaks.`);
+      setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
+      setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
+      breakRollBusyRef.current = false;
+    },
+    [breakRollState, resetBreakDiceOnLine, rollVisualBreakDie]
+  );
+
+  useEffect(() => {
+    if (breakRollState !== 'ai' || breakRollBusyRef.current) return;
+    rollBreakDie('ai');
+  }, [breakRollState, rollBreakDie]);
+
+  useEffect(() => {
+    const diceMeshes = breakDiceMeshesRef.current;
+    if (!diceMeshes) return;
+    const visible = breakRollState !== 'done' && !hud.over;
+    if (diceMeshes.ai) diceMeshes.ai.visible = visible;
+    if (diceMeshes.user) diceMeshes.user.visible = visible;
+  }, [breakRollState, hud.over]);
+
+  useEffect(() => () => {
+    breakDiceMeshesRef.current = { ai: null, user: null };
+  }, []);
+
   useEffect(
     () => () => {
       if (ruleToastTimeoutRef.current) {
@@ -13432,6 +13699,11 @@ const powerRef = useRef(hud.power);
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
     setRuleToast(null);
+    breakRollBusyRef.current = false;
+    setBreakDiceValues({ ai: null, user: null });
+    resetBreakDiceOnLine();
+    setBreakRollState('ai');
+    setBreakRollMessage('AI rolls first for the break.');
     setHud((prev) => ({
       ...prev,
       A: 0,
@@ -20965,6 +21237,30 @@ const powerRef = useRef(hud.power);
         rendererRef.current
       );
       const SPOTS = spotPositions(baulkZ);
+      const breakDiceGroup = new THREE.Group();
+      breakDiceGroup.name = 'break-dice-group';
+      table.add(breakDiceGroup);
+      const aiBreakDie = createBreakDieMesh();
+      const userBreakDie = createBreakDieMesh();
+      breakDiceGroup.add(aiBreakDie);
+      breakDiceGroup.add(userBreakDie);
+      const breakDieY = BALL_CENTER_Y + BREAK_DIE_BASE_LIFT;
+      const breakLaneStartZ = baulkZ - BALL_R * 12;
+      const breakLaneEndZ = 0;
+      const breakLaneX = BALL_R * 6.2;
+      breakDiceLaneRef.current = {
+        aiStart: new THREE.Vector3(-breakLaneX, breakDieY, breakLaneStartZ),
+        aiEnd: new THREE.Vector3(-BALL_R * 2.4, breakDieY, breakLaneEndZ),
+        userStart: new THREE.Vector3(breakLaneX, breakDieY, breakLaneStartZ),
+        userEnd: new THREE.Vector3(BALL_R * 2.4, breakDieY, breakLaneEndZ)
+      };
+      aiBreakDie.position.copy(breakDiceLaneRef.current.aiStart);
+      userBreakDie.position.copy(breakDiceLaneRef.current.userStart);
+      setBreakDieOrientation(aiBreakDie, 1);
+      setBreakDieOrientation(userBreakDie, 1);
+      aiBreakDie.visible = true;
+      userBreakDie.visible = true;
+      breakDiceMeshesRef.current = { ai: aiBreakDie, user: userBreakDie };
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
@@ -23087,6 +23383,7 @@ const powerRef = useRef(hud.power);
         const inHandPlacementActive = Boolean(
           currentHud?.inHand && !fullTableHandPlacement
         );
+        if (breakRollPending) return;
         if (
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
@@ -25640,11 +25937,43 @@ const powerRef = useRef(hud.power);
                 spin: { x: 0, y: 0 }
               };
             }
+            const snapshotForBreak = frameRef.current ?? frameState;
+            const isOpeningBreak = (snapshotForBreak?.currentBreak ?? 0) === 0;
+            if (isOpeningBreak && cue?.pos) {
+              const activeBalls = (ballsRef.current?.length ? ballsRef.current : balls).filter(
+                (ball) => ball?.active && String(ball.id) !== 'cue'
+              );
+              const rackApex = activeBalls.reduce((best, ball) => {
+                if (!best) return ball;
+                if (ball.pos.y > best.pos.y + 1e-6) return ball;
+                if (Math.abs(ball.pos.y - best.pos.y) < 1e-6 && Math.abs(ball.pos.x) < Math.abs(best.pos.x)) return ball;
+                return best;
+              }, null);
+              if (rackApex?.pos) {
+                const breakAim = new THREE.Vector2(
+                  rackApex.pos.x - cue.pos.x,
+                  rackApex.pos.y - cue.pos.y
+                );
+                if (breakAim.lengthSq() > 1e-6) {
+                  breakAim.normalize();
+                  plan = {
+                    ...plan,
+                    type: 'break',
+                    aimDir: breakAim,
+                    targetBall: rackApex,
+                    power: 1,
+                    spin: { x: 0, y: 0 }
+                  };
+                }
+              }
+            }
             aiPlanRef.current = plan;
             clearEarlyAiShot();
             stopAiThinking();
             setAiPlanning(null);
             const dir = plan.aimDir.clone().normalize();
+            const frameSnapshot = frameRef.current ?? frameState;
+            const isAiBreakShot = (frameSnapshot?.currentBreak ?? 0) === 0;
             aimDirRef.current.copy(dir);
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -25658,7 +25987,7 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            const aiPower = clampPower(plan.power, 0.6);
+            const aiPower = isAiBreakShot ? 1 : clampPower(plan.power, 0.6);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -25680,6 +26009,20 @@ const powerRef = useRef(hud.power);
               dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS + AI_SPIN_ADJUST_DELAY_MS
             );
             const beginCueView = () => {
+              if (isAiBreakShot) {
+                setAiShotCueViewActive(false);
+                setAiShotPreviewActive(false);
+                if (aiShotTimeoutRef.current) {
+                  clearTimeout(aiShotTimeoutRef.current);
+                }
+                aiShotTimeoutRef.current = window.setTimeout(() => {
+                  aiShotTimeoutRef.current = null;
+                  applyCameraBlend(1);
+                  updateCamera();
+                  fire();
+                }, Math.max(0, shotDelay - dropDelay));
+                return;
+              }
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -28683,7 +29026,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive;
+  const showPowerSlider = !hud.over && !replayActive && !breakRollPending;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -28727,9 +29070,9 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && !breakRollPending;
   const showSpinController =
-    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && !breakRollPending && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -29275,7 +29618,7 @@ const powerRef = useRef(hud.power);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive && !breakRollPending;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
   const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
@@ -29350,6 +29693,39 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {breakRollState !== 'done' && !hud.over && (
+        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
+          <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
+            <div className="mt-3 flex items-center justify-center gap-5 text-white">
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[10px] uppercase tracking-[0.18em] text-white/70">AI</span>
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-xl font-black">
+                  {breakDiceValues.ai ?? '🎲'}
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[10px] uppercase tracking-[0.18em] text-white/70">You</span>
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-xl font-black">
+                  {breakDiceValues.user ?? '🎲'}
+                </span>
+              </div>
+            </div>
+            <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
+            {breakRollState === 'user' && (
+              <button
+                type="button"
+                onClick={() => rollBreakDie('user')}
+                disabled={breakRollBusyRef.current}
+                className="mt-4 rounded-full border border-cyan-200 bg-cyan-200 px-5 py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.45)] transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                Get to roll
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
