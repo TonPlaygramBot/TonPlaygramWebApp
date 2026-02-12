@@ -17,7 +17,9 @@ const transactionSchema = new mongoose.Schema(
     detail: String,
     category: String,
     txHash: String,
-    giftId: String
+    giftId: String,
+    // External TON address involved in the transaction (e.g. withdraw/claim)
+    address: String
   },
   { _id: false }
 );
@@ -54,6 +56,9 @@ const userSchema = new mongoose.Schema({
 
   walletAddress: { type: String, unique: true, sparse: true },
   walletPublicKey: { type: String },
+
+  // Latest TPC jetton wallet address used by the user
+  tpcAccountAddress: { type: String },
 
 
   accountId: { type: String, unique: true },
