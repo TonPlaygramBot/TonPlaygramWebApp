@@ -13454,8 +13454,19 @@ function PoolRoyaleGame({
   const [breakRollState, setBreakRollState] = useState('ai');
   const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
   const [breakRollMessage, setBreakRollMessage] = useState('AI rolls first for the break.');
+  const [breakRollLoadReady, setBreakRollLoadReady] = useState(false);
   const breakRollBusyRef = useRef(false);
   const breakWinnerSeatRef = useRef(null);
+  const breakRollLoadStateRef = useRef({ table: false, hdri: false });
+  const markBreakRollLoadReady = useCallback((part, ready = true) => {
+    const current = breakRollLoadStateRef.current || { table: false, hdri: false };
+    const next = {
+      ...current,
+      [part]: Boolean(ready)
+    };
+    breakRollLoadStateRef.current = next;
+    setBreakRollLoadReady(Boolean(next.table && next.hdri));
+  }, []);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -13593,9 +13604,9 @@ const powerRef = useRef(hud.power);
   );
 
   useEffect(() => {
-    if (breakRollState !== 'ai' || breakRollBusyRef.current) return;
+    if (breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
     rollBreakDie('ai');
-  }, [breakRollState, rollBreakDie]);
+  }, [breakRollLoadReady, breakRollState, rollBreakDie]);
 
 
   useEffect(() => {
@@ -15790,6 +15801,8 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    breakRollLoadStateRef.current = { table: false, hdri: false };
+    setBreakRollLoadReady(false);
     setErr(null);
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
@@ -15970,7 +15983,11 @@ const powerRef = useRef(hud.power);
         }
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
-      void applyHdriEnvironment(activeEnvironmentVariantRef.current);
+      void applyHdriEnvironment(activeEnvironmentVariantRef.current).finally(() => {
+        if (!disposed) {
+          markBreakRollLoadReady('hdri', true);
+        }
+      });
       let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       let cue;
       let clothMat;
@@ -21219,6 +21236,7 @@ const powerRef = useRef(hud.power);
           bounceHeight: BREAK_DIE_SIZE * 0.78
         });
       };
+      markBreakRollLoadReady('table', true);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
@@ -25899,10 +25917,12 @@ const powerRef = useRef(hud.power);
               };
             }
             const frameSnapshot = frameRef.current ?? frameState;
+            const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
+            const openingPlayer = frameSnapshot?.activePlayer ?? (currentHud?.turn === 1 ? 'B' : 'A');
             const shouldForceAiBreak =
-              breakWinnerSeatRef.current === 'B' &&
-              (frameSnapshot?.currentBreak ?? 0) === 0 &&
-              breakRollState === 'done';
+              breakRollState === 'done' &&
+              isOpeningBreak &&
+              openingPlayer === 'B';
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
