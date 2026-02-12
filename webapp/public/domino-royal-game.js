@@ -1832,6 +1832,24 @@ const CHAIR_MODEL_URLS = [
   "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb"
 ];
 const polyhavenModelCache = new Map();
+const POLYHAVEN_SHARED_FLAG = '__polyhavenShared';
+
+function markPolyhavenSharedResources(root) {
+  root?.traverse?.((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      mat.userData = mat.userData || {};
+      mat.userData[POLYHAVEN_SHARED_FLAG] = true;
+      Object.values(mat).forEach((value) => {
+        if (!value?.isTexture) return;
+        value.userData = value.userData || {};
+        value.userData[POLYHAVEN_SHARED_FLAG] = true;
+      });
+    });
+  });
+}
 
 function createPolyhavenGltfLoader({ assetId, resolution }) {
   const manager = new THREE.LoadingManager();
@@ -1889,6 +1907,7 @@ async function loadPolyhavenModel(assetId) {
       if (mat?.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
     });
   });
+  markPolyhavenSharedResources(root);
   polyhavenModelCache.set(assetId, root);
   return root.clone(true);
 }
@@ -4026,9 +4045,12 @@ function disposeObjectResources(object) {
     const mats = Array.isArray(child.material) ? child.material : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.map && mat.map.dispose) {
-        mat.map.dispose();
-      }
+      Object.values(mat).forEach((value) => {
+        if (!value?.isTexture || !value.dispose) return;
+        if (value.userData?.[POLYHAVEN_SHARED_FLAG]) return;
+        value.dispose();
+      });
+      if (mat.userData?.[POLYHAVEN_SHARED_FLAG]) return;
       mat.dispose?.();
     });
   });
