@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import TasksCard from '../components/TasksCard.jsx';
-import NftGiftCard from '../components/NftGiftCard.jsx';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
-import HomeGamesCard from '../components/HomeGamesCard.jsx';
-import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
+import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 
 import {
   FaArrowUp,
@@ -191,16 +188,11 @@ export default function Home() {
           </div>
 
           <HomeSocialHub />
-          <DailyCheckIn />
-          <NftGiftCard />
-          <HomeGamesCard />
+          <PlatformStatsCard />
         </div>
 
       </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          <TasksCard />
-        </div>
         <ProjectAchievementsCard />
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
