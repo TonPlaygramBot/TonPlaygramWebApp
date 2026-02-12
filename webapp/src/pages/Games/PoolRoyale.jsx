@@ -1679,7 +1679,7 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
-const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
+const CUE_TIP_GAP = BALL_R * 1.34 + CUE_TIP_CLEARANCE; // pull the cue tip farther back from the cue ball in aim view
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -5373,8 +5373,6 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 260; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
-const BREAK_DICE_ROLL_DELAY_MS = 560;
-const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
@@ -9888,7 +9886,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.82;
+  const brandPlateOutwardShift = endRailW * 0.76;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -9927,7 +9925,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.08;
+  const railMarkerOutset = longRailW * 0.12;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -13333,10 +13331,6 @@ function PoolRoyaleGame({
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
-  const [breakRollState, setBreakRollState] = useState('ai');
-  const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
-  const [breakRollMessage, setBreakRollMessage] = useState('AI rolls first for the break.');
-  const breakRollBusyRef = useRef(false);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -13412,71 +13406,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
-  const breakDiceValuesRef = useRef({ ai: null, user: null });
-  useEffect(() => {
-    breakDiceValuesRef.current = breakDiceValues;
-  }, [breakDiceValues]);
-
-  const breakRollPending = breakRollState !== 'done';
-  const rollBreakDie = useCallback(
-    async (seat = 'ai') => {
-      if (breakRollBusyRef.current || breakRollState === 'done') return;
-      breakRollBusyRef.current = true;
-      const seatLabel = seat === 'ai' ? 'AI' : 'You';
-      setBreakRollMessage(`${seatLabel} rolling...`);
-      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_ROLL_DELAY_MS));
-      const value = 1 + Math.floor(Math.random() * 6);
-      setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
-      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
-      if (value % 2 === 0) {
-        setBreakRollMessage(`${seatLabel} rolled ${value} (even). Roll again.`);
-        setBreakRollState(seat);
-        breakRollBusyRef.current = false;
-        if (seat === 'ai') {
-          window.setTimeout(() => {
-            rollBreakDie('ai');
-          }, 220);
-        }
-        return;
-      }
-      if (seat === 'ai') {
-        setBreakRollState('user');
-        setBreakRollMessage(`AI rolled ${value}. Tap Roll to respond.`);
-        breakRollBusyRef.current = false;
-        return;
-      }
-      const aiValue = breakDiceValuesRef.current?.ai;
-      if (!Number.isFinite(aiValue)) {
-        setBreakRollState('ai');
-        setBreakRollMessage('AI value missing. Restarting break roll.');
-        setBreakDiceValues({ ai: null, user: null });
-        breakRollBusyRef.current = false;
-        return;
-      }
-      if (aiValue === value) {
-        setBreakRollState('ai');
-        setBreakRollMessage(`Tie at ${value}. AI rolls again.`);
-        setBreakDiceValues({ ai: null, user: null });
-        breakRollBusyRef.current = false;
-        return;
-      }
-      const breakerSeat = aiValue > value ? 'B' : 'A';
-      const breakerLabel = breakerSeat === 'A' ? 'You' : 'AI';
-      setBreakRollState('done');
-      setBreakRollMessage(`${breakerLabel} wins (${aiValue}-${value}) and breaks.`);
-      setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
-      setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
-      breakRollBusyRef.current = false;
-    },
-    [breakRollState]
-  );
-
-  useEffect(() => {
-    if (breakRollState !== 'ai' || breakRollBusyRef.current) return;
-    rollBreakDie('ai');
-  }, [breakRollState, rollBreakDie]);
-
-
   useEffect(
     () => () => {
       if (ruleToastTimeoutRef.current) {
@@ -13503,10 +13432,6 @@ const powerRef = useRef(hud.power);
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
     setRuleToast(null);
-    breakRollBusyRef.current = false;
-    setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState('ai');
-    setBreakRollMessage('AI rolls first for the break.');
     setHud((prev) => ({
       ...prev,
       A: 0,
@@ -23162,7 +23087,6 @@ const powerRef = useRef(hud.power);
         const inHandPlacementActive = Boolean(
           currentHud?.inHand && !fullTableHandPlacement
         );
-        if (breakRollPending) return;
         if (
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
@@ -28759,7 +28683,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive && !breakRollPending;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -28803,9 +28727,9 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && !breakRollPending;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
-    !hud.over && !replayActive && !breakRollPending && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -29351,7 +29275,7 @@ const powerRef = useRef(hud.power);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive && !breakRollPending;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
   const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
@@ -29426,39 +29350,6 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {breakRollState !== 'done' && !hud.over && (
-        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
-          <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
-            <div className="mt-3 flex items-center justify-center gap-5 text-white">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[10px] uppercase tracking-[0.18em] text-white/70">AI</span>
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-xl font-black">
-                  {breakDiceValues.ai ?? '🎲'}
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[10px] uppercase tracking-[0.18em] text-white/70">You</span>
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-xl font-black">
-                  {breakDiceValues.user ?? '🎲'}
-                </span>
-              </div>
-            </div>
-            <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
-            {breakRollState === 'user' && (
-              <button
-                type="button"
-                onClick={() => rollBreakDie('user')}
-                disabled={breakRollBusyRef.current}
-                className="mt-4 rounded-full border border-cyan-200 bg-cyan-200 px-5 py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.45)] transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                Roll
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
