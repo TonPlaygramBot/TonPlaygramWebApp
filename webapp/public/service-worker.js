@@ -251,10 +251,24 @@ const staleWhileRevalidate = async request => {
       await cacheResponse(RUNTIME_CACHE, request, response);
       return response.clone();
     })
-    .catch(() => cached);
+    .catch(error => {
+      if (cached) return cached;
+      throw error;
+    });
 
-  const response = cached || (await fetchPromise);
-  return response || fetchPromise;
+  if (cached) {
+    fetchPromise.catch(() => {});
+    return cached;
+  }
+
+  try {
+    const response = await fetchPromise;
+    if (response) return response;
+  } catch (error) {
+    // fall through to deterministic error response
+  }
+
+  return Response.error();
 };
 
 const handleNavigationRequest = event => {
