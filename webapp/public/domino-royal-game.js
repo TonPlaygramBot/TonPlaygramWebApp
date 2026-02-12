@@ -7,6 +7,14 @@ import { RGBELoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/RG
 import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
 import "./flag-emojis.js";
 
+if (typeof window !== 'undefined' && window.__dominoRoyalRuntime?.destroy) {
+  try {
+    window.__dominoRoyalRuntime.destroy('re-initialize');
+  } catch (error) {
+    console.warn('Failed to dispose previous Domino Royal runtime', error);
+  }
+}
+
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
@@ -299,6 +307,8 @@ let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
 let slowFrameAccumulatorMs = 0;
 let lastFailsafeTimestamp = 0;
+let dominoRoyalDestroyed = false;
+let tickFrameHandle = 0;
 
 function persistFrameRateSelection(id) {
   if (typeof window === 'undefined') return;
@@ -7173,8 +7183,11 @@ function monitorFrameHealth(elapsedMs, timing) {
 
 /* ---------- Loop & Resize ---------- */
 function tick(now){
+  if (dominoRoyalDestroyed) {
+    return;
+  }
   const current = Number.isFinite(now) ? now : performance.now();
-  requestAnimationFrame(tick);
+  tickFrameHandle = requestAnimationFrame(tick);
   if (contextLost || renderer.getContext?.()?.isContextLost?.()) {
     lastFrameTime = current;
     return;
@@ -7206,8 +7219,11 @@ function tick(now){
   }
 }
 let lastFrameTime = performance.now();
-requestAnimationFrame(tick);
+tickFrameHandle = requestAnimationFrame(tick);
 function onResize(){
+  if (dominoRoyalDestroyed) {
+    return;
+  }
   applyRendererQuality(frameQuality);
   if (entrySequenceActive) {
     fitCamera();
@@ -7233,9 +7249,46 @@ function onResize(){
   updateSeatBadgePositions();
 }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
-document.addEventListener('visibilitychange', () => {
+const onVisibilityChange = () => {
   slowFrameAccumulatorMs = 0;
-});
+};
+document.addEventListener('visibilitychange', onVisibilityChange);
+
+if (typeof window !== 'undefined') {
+  window.__dominoRoyalRuntime = {
+    destroy(reason = 'manual') {
+      if (dominoRoyalDestroyed) {
+        return;
+      }
+      dominoRoyalDestroyed = true;
+      if (tickFrameHandle) {
+        cancelAnimationFrame(tickFrameHandle);
+        tickFrameHandle = 0;
+      }
+      removeEventListener('resize', onResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', onResize);
+      }
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      try {
+        controls?.dispose?.();
+      } catch {}
+      try {
+        renderer?.setAnimationLoop?.(null);
+      } catch {}
+      try {
+        renderer?.dispose?.();
+      } catch {}
+      try {
+        renderer?.domElement?.remove?.();
+      } catch {}
+      try {
+        seatOverlay?.remove?.();
+      } catch {}
+      console.info(`Domino Royal runtime disposed (${reason})`);
+    }
+  };
+}
 
 if (shouldRunHallwayEntry) {
   startHallwayEntry();
