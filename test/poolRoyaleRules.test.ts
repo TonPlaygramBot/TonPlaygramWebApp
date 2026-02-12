@@ -81,6 +81,7 @@ describe('PoolRoyaleRules', () => {
     const scratchMeta = scratch.meta as any;
 
     expect(scratch.foul?.reason).toBe('scratch');
+    expect(scratchMeta?.breakInProgress).toBe(false);
     expect(scratchMeta?.state?.ballInHand).toBe(true);
     expect(scratch.activePlayer).toBe('B');
     expect(scratch.ballOn).toEqual(['STRIPE']);
