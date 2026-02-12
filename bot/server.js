@@ -880,6 +880,88 @@ app.get('/api/stats', async (req, res) => {
         if (tx.type === 'withdraw') externalClaimed += Math.abs(tx.amount || 0);
       }
     }
+
+    const [transactionIntelligence = {}] = await User.aggregate([
+      { $unwind: '$transactions' },
+      {
+        $group: {
+          _id: null,
+          transferCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$transactions.type', 'send'] },
+                    { $gt: [{ $strLenCP: { $ifNull: ['$transactions.toAccount', ''] } }, 0] },
+                    { $lt: ['$transactions.amount', 0] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          transferVolume: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$transactions.type', 'send'] },
+                    { $gt: [{ $strLenCP: { $ifNull: ['$transactions.toAccount', ''] } }, 0] },
+                    { $lt: ['$transactions.amount', 0] }
+                  ]
+                },
+                { $abs: '$transactions.amount' },
+                0
+              ]
+            }
+          },
+          gameTransactionsCount: {
+            $sum: {
+              $cond: [{ $ifNull: ['$transactions.game', false] }, 1, 0]
+            }
+          },
+          gameTransactionsVolume: {
+            $sum: {
+              $cond: [
+                { $ifNull: ['$transactions.game', false] },
+                { $abs: '$transactions.amount' },
+                0
+              ]
+            }
+          },
+          miningTransactionsCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $in: ['$transactions.type', ['daily', 'spin', 'lucky', 'task']] },
+                    { $gt: ['$transactions.amount', 0] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          miningTransactionsVolume: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $in: ['$transactions.type', ['daily', 'spin', 'lucky', 'task']] },
+                    { $gt: ['$transactions.amount', 0] }
+                  ]
+                },
+                '$transactions.amount',
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
     const nftsBurned = giftSends - currentNfts;
     const totalNftItems = currentNfts + nftStoreItems;
     res.json({
@@ -895,10 +977,18 @@ app.get('/api/stats', async (req, res) => {
       totalNftItems,
       nftsBurned,
       bundlesSold,
+      matchesLive: tableMap.size,
       tonRaised,
       appClaimed: totalBalance,
       externalClaimed,
-      nftValue
+      nftValue,
+      transferCount: transactionIntelligence.transferCount || 0,
+      transferVolume: transactionIntelligence.transferVolume || 0,
+      gameTransactionsCount: transactionIntelligence.gameTransactionsCount || 0,
+      gameTransactionsVolume: transactionIntelligence.gameTransactionsVolume || 0,
+      miningTransactionsCount: transactionIntelligence.miningTransactionsCount || 0,
+      miningTransactionsVolume: transactionIntelligence.miningTransactionsVolume || 0,
+      intelligenceGeneratedAt: new Date().toISOString()
     });
   } catch (err) {
     console.error('Failed to compute stats:', err.message);
