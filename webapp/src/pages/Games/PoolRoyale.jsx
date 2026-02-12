@@ -5368,7 +5368,7 @@ const AI_CUE_PULL_SCALE = 0.72;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 1;
-const PLAYER_FORWARD_SLOWDOWN = 1;
+const PLAYER_FORWARD_SLOWDOWN = 1.22;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
@@ -13451,9 +13451,9 @@ function PoolRoyaleGame({
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
-  const [breakRollState, setBreakRollState] = useState('ai');
+  const [breakRollState, setBreakRollState] = useState('user');
   const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
-  const [breakRollMessage, setBreakRollMessage] = useState('AI rolls first for the break.');
+  const [breakRollMessage, setBreakRollMessage] = useState('You roll first for the break.');
   const [breakRollLoadReady, setBreakRollLoadReady] = useState(false);
   const breakRollBusyRef = useRef(false);
   const breakWinnerSeatRef = useRef(null);
@@ -13558,44 +13558,35 @@ const powerRef = useRef(hud.power);
       const value = await rollBreakDie3DRef.current(seat);
       setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
       await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
-      if (value % 2 === 0) {
-        setBreakRollMessage(`${seatLabel} rolled ${value} (even). Roll again.`);
+      if (seat === 'user') {
+        setBreakRollState('ai');
+        setBreakRollMessage(`You rolled ${value}. AI rolling now...`);
         breakRollBusyRef.current = false;
-        if (seat === 'ai') {
-          window.setTimeout(() => {
-            rollBreakDie('ai');
-          }, 180);
-        } else {
-          setBreakRollState('user');
-        }
         return;
       }
-      if (seat === 'ai') {
+
+      const userValue = breakDiceValuesRef.current?.user;
+      if (!Number.isFinite(userValue)) {
         setBreakRollState('user');
-        setBreakRollMessage(`AI rolled ${value}. Tap Roll to throw your die.`);
-        breakRollBusyRef.current = false;
-        return;
-      }
-      const aiValue = breakDiceValuesRef.current?.ai;
-      if (!Number.isFinite(aiValue)) {
-        setBreakRollState('ai');
-        setBreakRollMessage('AI value missing. Restarting break roll.');
+        setBreakRollMessage('Your value is missing. Restarting break roll.');
         setBreakDiceValues({ ai: null, user: null });
         breakRollBusyRef.current = false;
         return;
       }
-      if (aiValue === value) {
-        setBreakRollState('ai');
-        setBreakRollMessage(`Tie at ${value}. AI rerolls first.`);
+
+      if (userValue === value) {
+        setBreakRollState('user');
+        setBreakRollMessage(`Tie at ${value}. You reroll first.`);
         setBreakDiceValues({ ai: null, user: null });
         breakRollBusyRef.current = false;
         return;
       }
-      const breakerSeat = aiValue > value ? 'B' : 'A';
+
+      const breakerSeat = userValue > value ? 'A' : 'B';
       const breakerLabel = breakerSeat === 'A' ? 'You' : 'AI';
       breakWinnerSeatRef.current = breakerSeat;
       setBreakRollState('done');
-      setBreakRollMessage(`${breakerLabel} wins (${aiValue}-${value}) and breaks.`);
+      setBreakRollMessage(`${breakerLabel} wins (${userValue}-${value}) and breaks.`);
       setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
       setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
       breakRollBusyRef.current = false;
@@ -13647,8 +13638,8 @@ const powerRef = useRef(hud.power);
     breakRollBusyRef.current = false;
     breakWinnerSeatRef.current = null;
     setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState('ai');
-    setBreakRollMessage('AI rolls first for the break.');
+    setBreakRollState('user');
+    setBreakRollMessage('You roll first for the break.');
     const anchors = breakDiceAnchorsRef.current;
     const meshes = breakDiceMeshesRef.current;
     if (anchors && meshes?.ai && meshes?.user) {
@@ -20203,7 +20194,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeInOutCubic(t);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -20323,7 +20314,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeInOutCubic(t);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             syncCueShadow();
             return true;
@@ -23746,11 +23737,12 @@ const powerRef = useRef(hud.power);
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const forwardDuration = THREE.MathUtils.lerp(
+          const baseForwardDuration = THREE.MathUtils.lerp(
             PLAYER_CUE_FORWARD_MAX_MS,
             PLAYER_CUE_FORWARD_MIN_MS,
             forwardBlend
           );
+          const forwardDuration = Math.max(220, baseForwardDuration * PLAYER_FORWARD_SLOWDOWN);
           const pullbackDuration = Math.max(120, forwardDuration * 0.65);
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.lerp(
