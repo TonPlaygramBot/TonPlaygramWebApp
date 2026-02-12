@@ -85,15 +85,18 @@ export default function PlatformStatsDetails() {
   useEffect(() => {
     let mounted = true;
 
+    const safePayload = (result, fallback) => {
+      if (result.status !== 'fulfilled') return fallback;
+      if (!result.value || typeof result.value !== 'object') return fallback;
+      if (result.value.error) return fallback;
+      return result.value;
+    };
+
     Promise.allSettled([getAppStats(), getDetailedAppStats()])
       .then(([statsRes, detailRes]) => {
         if (!mounted) return;
-        setStats(statsRes.status === 'fulfilled' ? statsRes.value || {} : {});
-        setDetailed(
-          detailRes.status === 'fulfilled'
-            ? detailRes.value || {}
-            : { summary: {}, suspiciousPreview: [] }
-        );
+        setStats(safePayload(statsRes, {}));
+        setDetailed(safePayload(detailRes, { summary: {}, suspiciousPreview: [] }));
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -108,41 +111,47 @@ export default function PlatformStatsDetails() {
   const suspiciousPreview = Array.isArray(detailed?.suspiciousPreview) ? detailed.suspiciousPreview : [];
 
   const normalized = useMemo(() => {
-    const totalUsers = pickNumber(stats, ['accounts', 'users', 'totalUsers', 'community.users'], 0);
-    const telegramUsers = pickNumber(stats, [
+    const totalUsers =
+      pickNumber(summary, ['authenticAccounts']) ??
+      pickNumber(stats, ['accounts', 'users', 'totalUsers', 'community.users']);
+    const telegramUsers =
+      pickNumber(summary, ['telegramAccounts']) ??
+      pickNumber(stats, [
       'telegramAccounts',
       'usersByProvider.telegram',
       'accountsByProvider.telegram'
-    ], 0);
-    const googleUsers = pickNumber(stats, [
+    ]);
+    const googleUsers =
+      pickNumber(summary, ['googleAccounts']) ??
+      pickNumber(stats, [
       'googleAccounts',
       'usersByProvider.google',
       'accountsByProvider.google'
-    ], 0);
+    ]);
 
     const authenticatedUsers =
       pickNumber(summary, ['authenticAccounts']) ??
       pickNumber(stats, ['authenticAccounts']) ??
-      telegramUsers + googleUsers;
+      (telegramUsers !== null && googleUsers !== null ? telegramUsers + googleUsers : null);
 
     const guestUsers =
       pickNumber(summary, ['unauthenticatedAccounts']) ??
       pickNumber(stats, ['unauthenticatedAccounts']) ??
-      Math.max(totalUsers - authenticatedUsers, 0);
+      (totalUsers !== null && authenticatedUsers !== null ? Math.max(totalUsers - authenticatedUsers, 0) : null);
 
     const bannedUsers =
-      pickNumber(summary, ['bannedAccounts']) ?? pickNumber(stats, ['bannedAccounts'], 0);
+      pickNumber(summary, ['bannedAccounts']) ?? pickNumber(stats, ['bannedAccounts']);
 
-    const activeUsers = pickNumber(stats, ['activeUsers', 'users.active'], 0);
+    const activeUsers = pickNumber(stats, ['activeUsers', 'users.active']);
 
     const circulatingTpc = pickNumber(stats, [
       'appClaimed',
       'tpcCirculating',
       'circulatingSupply',
       'token.circulating'
-    ], 0);
+    ]);
 
-    const mintedTpc = pickNumber(stats, ['minted', 'token.minted', 'supply.total'], 0);
+    const mintedTpc = pickNumber(stats, ['minted', 'token.minted', 'supply.total']);
 
     const bundleSales = pickNumber(stats, [
       'bundlesSold',
@@ -150,9 +159,9 @@ export default function PlatformStatsDetails() {
       'engagements',
       'social.totalActions',
       'tasksCompleted'
-    ], 0);
+    ]);
 
-    const liveGames = pickNumber(stats, ['activeMatches', 'games.active', 'matchesLive'], 0);
+    const liveGames = pickNumber(stats, ['activeMatches', 'games.active', 'matchesLive']);
     const gamesPlayed = pickNumber(stats, ['gamesPlayed', 'matchesPlayed', 'games.total', 'matches.total']);
 
     const transferCount = pickNumber(stats, [
@@ -168,12 +177,14 @@ export default function PlatformStatsDetails() {
       'wallet.transfersVolume'
     ]);
 
-    const nftMinted = pickNumber(stats, ['nftsCreated', 'nftMinted', 'nftsMinted', 'nfts.total'], 0);
-    const nftBurned = pickNumber(stats, ['nftsBurned', 'nftBurned', 'nfts.retired'], 0);
+    const nftMinted = pickNumber(stats, ['nftsCreated', 'nftMinted', 'nftsMinted', 'nfts.total']);
+    const nftBurned = pickNumber(stats, ['nftsBurned', 'nftBurned', 'nfts.retired']);
 
-    const userActivityRatio = totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0;
-    const authCoverage = totalUsers > 0 ? (authenticatedUsers / totalUsers) * 100 : 0;
-    const burnRate = nftMinted > 0 ? (nftBurned / nftMinted) * 100 : 0;
+    const userActivityRatio =
+      totalUsers > 0 && activeUsers !== null ? (activeUsers / totalUsers) * 100 : null;
+    const authCoverage =
+      totalUsers > 0 && authenticatedUsers !== null ? (authenticatedUsers / totalUsers) * 100 : null;
+    const burnRate = nftMinted > 0 && nftBurned !== null ? (nftBurned / nftMinted) * 100 : null;
 
     return {
       totalUsers,
@@ -290,10 +301,6 @@ export default function PlatformStatsDetails() {
           <p className="mt-2 text-center text-xs text-slate-200/90">
             Fully transparent operations snapshot across users, transfers, games, token flow, and trust controls.
           </p>
-          <div className="mt-3 flex items-center justify-center gap-2 text-[11px] text-slate-300">
-            <span className="rounded-md border border-white/20 bg-white/5 px-2 py-1">Realtime: /api/stats</span>
-            <span className="rounded-md border border-white/20 bg-white/5 px-2 py-1">Audit: /api/stats/detailed</span>
-          </div>
         </div>
       </section>
 
