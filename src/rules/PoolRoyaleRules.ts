@@ -34,6 +34,7 @@ type AmericanSerializedState = {
   ballsOnTable: number[];
   currentPlayer: 'A' | 'B';
   scores: { A: number; B: number };
+  assignments: { A: 'SOLID' | 'STRIPE' | null; B: 'SOLID' | 'STRIPE' | null };
   ballInHand: boolean;
   foulStreak: { A: number; B: number };
   frameOver: boolean;
@@ -130,6 +131,10 @@ function serializeAmericanState(state: AmericanBilliards['state']): AmericanSeri
     ballsOnTable: Array.from(state.ballsOnTable.values()),
     currentPlayer: state.currentPlayer,
     scores: { ...state.scores },
+    assignments: {
+      A: state.assignments?.A ?? null,
+      B: state.assignments?.B ?? null
+    },
     ballInHand: state.ballInHand,
     foulStreak: { ...state.foulStreak },
     frameOver: state.frameOver,
@@ -143,6 +148,10 @@ function applyAmericanState(game: AmericanBilliards, snapshot: AmericanSerialize
     ballsOnTable: new Set(snapshot.ballsOnTable),
     currentPlayer: snapshot.currentPlayer,
     scores: { ...snapshot.scores },
+    assignments: {
+      A: snapshot.assignments?.A ?? null,
+      B: snapshot.assignments?.B ?? null
+    },
     ballInHand: snapshot.ballInHand,
     foulStreak: { ...snapshot.foulStreak },
     frameOver: snapshot.frameOver,
@@ -306,8 +315,13 @@ export class PoolRoyaleRules {
           frameOver: false
         };
         const hud: HudInfo = {
-          next: ballOn.length > 0 ? ballOn[0].toLowerCase().replace('ball_', 'ball ') : 'frame over',
-          phase: 'run',
+          next:
+            ballOn.includes('SOLID') && ballOn.includes('STRIPE')
+              ? 'open table'
+              : ballOn.length > 0
+                ? ballOn.join(' / ').toLowerCase()
+                : 'frame over',
+          phase: snapshot.assignments.A && snapshot.assignments.B ? 'groups' : 'open',
           scores
         };
         base.meta = {
@@ -483,10 +497,15 @@ export class PoolRoyaleRules {
     const nextLabel =
       ballOn.length === 0
         ? 'frame over'
-        : ballOn.map((entry) => entry.toLowerCase().replace('ball_', 'ball ')).join(' / ');
+        : ballOn.map((entry) => entry.toLowerCase().replace('_', ' ')).join(' / ');
     const hud: HudInfo = {
       next: frameOver ? 'frame over' : nextLabel,
-      phase: frameOver ? 'complete' : 'run',
+      phase:
+        frameOver
+          ? 'complete'
+          : snapshot.assignments.A && snapshot.assignments.B
+            ? 'groups'
+            : 'open',
       scores
     };
     const breakInProgress =
@@ -532,9 +551,26 @@ export class PoolRoyaleRules {
 
   private computeAmericanBallOn(state: AmericanSerializedState): string[] {
     if (state.frameOver) return [];
-    const lowest = lowestBall(state.ballsOnTable);
-    if (lowest == null) return [];
-    return [`BALL_${lowest}`];
+    const current = state.currentPlayer;
+    const assignment = state.assignments?.[current] ?? null;
+    const hasSolids = state.ballsOnTable.some((id) => id >= 1 && id <= 7);
+    const hasStripes = state.ballsOnTable.some((id) => id >= 9 && id <= 15);
+    const hasEight = state.ballsOnTable.includes(8);
+    if (!assignment) {
+      const open: string[] = [];
+      if (hasSolids) open.push('SOLID');
+      if (hasStripes) open.push('STRIPE');
+      return open;
+    }
+    if (assignment === 'SOLID') {
+      if (hasSolids) return ['SOLID'];
+      return hasEight ? ['BLACK'] : [];
+    }
+    if (assignment === 'STRIPE') {
+      if (hasStripes) return ['STRIPE'];
+      return hasEight ? ['BLACK'] : [];
+    }
+    return [];
   }
 
   private applyNineBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
