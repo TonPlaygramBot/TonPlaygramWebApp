@@ -828,6 +828,7 @@ app.get('/api/stats', async (req, res) => {
       User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, telegramId: { $exists: true, $ne: null } }),
       User.countDocuments({ ...AUTHENTIC_ACCOUNT_QUERY, googleId: { $exists: true, $nin: ['', null] } }),
       User.countDocuments({
+        isBanned: { $ne: true },
         $and: [
           { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
           { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
