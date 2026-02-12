@@ -10,23 +10,23 @@ import "./flag-emojis.js";
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'uhd120';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'fhd60',
-    label: 'Full HD (60 Hz)',
-    fps: 60,
+    id: 'hd50',
+    label: 'HD (50 Hz)',
+    fps: 50,
     renderScale: 1,
-    pixelRatioCap: 1.3,
-    resolution: 'Full HD render • DPR 1.3 cap',
-    description: 'Balanced 1080p profile tuned for stability on mobile and desktop.'
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Telegram-safe profile aligned with Murlan Royale mobile stability settings.'
   },
   {
     id: 'qhd90',
     label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 1.15,
-    pixelRatioCap: 1.5,
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
     resolution: 'QHD render • DPR 1.5 cap',
     description: 'Sharper 1440p render for capable 90 Hz devices with safer headroom.'
   },
@@ -34,19 +34,10 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.25,
-    pixelRatioCap: 1.8,
-    resolution: 'Ultra HD render • DPR 1.8 cap',
-    description: '4K-focused profile for 120 Hz flagships with controlled GPU load.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
     renderScale: 1.35,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD+ render • DPR 2.0 cap',
-    description: 'High clarity preset with safer limits for sustained sessions.'
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-focused profile for 120 Hz flagships with controlled GPU load.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -59,6 +50,16 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
+const IS_LOW_REFRESH_RUNTIME =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'].some((query) => {
+    try {
+      return window.matchMedia(query).matches;
+    } catch (err) {
+      return false;
+    }
+  });
 
 function isTelegramRuntime() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -68,6 +69,11 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
+const MOBILE_UA_PATTERN = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+const IS_MOBILE_RUNTIME = typeof navigator !== 'undefined' && MOBILE_UA_PATTERN.test(navigator.userAgent ?? '');
+const IS_LOW_MEMORY_RUNTIME = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+const IS_LOW_CORE_RUNTIME = typeof navigator !== 'undefined' && typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+const IS_LOW_PROFILE_RUNTIME = IS_TELEGRAM_RUNTIME || IS_MOBILE_RUNTIME || IS_LOW_MEMORY_RUNTIME || IS_LOW_CORE_RUNTIME;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -187,11 +193,11 @@ function detectPreferredFrameRateId() {
     return DEFAULT_FRAME_RATE_ID;
   }
   if (IS_TELEGRAM_RUNTIME) {
-    return 'fhd60';
+    return 'hd50';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobileUA = MOBILE_UA_PATTERN.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
@@ -199,9 +205,13 @@ function detectPreferredFrameRateId() {
   const highRefresh = detectHighRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
+  if (IS_LOW_REFRESH_RUNTIME) {
+    return 'hd50';
+  }
+
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -213,11 +223,7 @@ function detectPreferredFrameRateId() {
     ) {
       return 'qhd90';
     }
-    return 'fhd60';
-  }
-
-  if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return DEFAULT_FRAME_RATE_ID;
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -228,7 +234,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'fhd60';
+  return DEFAULT_FRAME_RATE_ID;
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -293,7 +299,7 @@ function resolveInitialFrameRateId() {
   }
   const detected = detectPreferredFrameRateId();
   if (IS_TELEGRAM_RUNTIME) {
-    return 'fhd60';
+    return 'hd50';
   }
   if (FRAME_RATE_OPTIONS_BY_ID[detected]) {
     return detected;
@@ -1146,9 +1152,9 @@ try {
   throw error;
 }
 const prefersUhd = urlParams.get('uhd') === '1';
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !IS_LOW_PROFILE_RUNTIME;
 renderer.shadowMap.autoUpdate = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = IS_LOW_PROFILE_RUNTIME ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1168,10 +1174,10 @@ function applyRendererQuality(quality = frameQuality) {
     typeof quality?.pixelRatioCap === 'number' && Number.isFinite(quality.pixelRatioCap)
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
-  const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
-  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
+  const uhdBoostCap = prefersUhd && !IS_LOW_PROFILE_RUNTIME ? Math.max(pixelRatioCap, 2.2) : pixelRatioCap;
+  const runtimePixelRatioCap = IS_LOW_PROFILE_RUNTIME ? Math.min(uhdBoostCap, 1) : uhdBoostCap;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
-  if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
+  if (IS_LOW_PROFILE_RUNTIME && quality && typeof quality === 'object') {
     setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 1) });
   } else {
     setRendererSize(quality);
@@ -1183,6 +1189,12 @@ if (!app) {
 }
 app.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
+
+const MAX_TEXTURE_ANISOTROPY = IS_LOW_PROFILE_RUNTIME ? 4 : 8;
+const getTextureAnisotropyCap = () => {
+  const rendererMax = renderer?.capabilities?.getMaxAnisotropy?.() ?? MAX_TEXTURE_ANISOTROPY;
+  return Math.min(rendererMax, MAX_TEXTURE_ANISOTROPY);
+};
 
 const scene = new THREE.Scene();
 const textureLoader = new THREE.TextureLoader();
@@ -2216,7 +2228,7 @@ function makeNaturalWoodTexture(width, height, hue, sat, light, contrast) {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 16;
+  texture.anisotropy = getTextureAnisotropyCap();
   texture.needsUpdate = true;
   return texture;
 }
@@ -2911,16 +2923,11 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
-const isTelegramWebView = IS_TELEGRAM_RUNTIME;
-const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
-const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
-const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
+const isLowProfileDevice = IS_LOW_PROFILE_RUNTIME;
+const MAX_HDRI_CACHE_SIZE = prefersUhd && !isLowProfileDevice ? 3 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k', '2k'];
   if (isLowProfileDevice) return ['1k'];
+  if (prefersUhd) return ['4k', '2k'];
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
@@ -3098,7 +3105,7 @@ function createCarbonFiberTexture(
     (renderer?.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
       ? renderer.capabilities.getMaxAnisotropy()
       : renderer?.capabilities?.anisotropy) || 4;
-  texture.anisotropy = Math.min(maxAnisotropy, 16);
+  texture.anisotropy = Math.min(maxAnisotropy, getTextureAnisotropyCap());
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
@@ -3949,7 +3956,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
     renderer?.capabilities?.getMaxAnisotropy?.() ??
     renderer?.capabilities?.anisotropy ??
     4;
-  texture.anisotropy = Math.min(maxAnisotropy, 16);
+  texture.anisotropy = Math.min(maxAnisotropy, getTextureAnisotropyCap());
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
