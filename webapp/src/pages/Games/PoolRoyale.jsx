@@ -1064,7 +1064,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   pockets: false
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = false;
+const LOCK_REPLAY_CAMERA = false; // replay uses recorded live camera frames so framing matches exactly what player/broadcast saw
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
@@ -1702,6 +1702,7 @@ const PLAYER_CUE_STRIKE_MAX_MS = 1400;
 const PLAYER_CUE_FORWARD_MIN_MS = 520;
 const PLAYER_CUE_FORWARD_MAX_MS = 920;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
+const PLAYER_CUE_STROKE_SLOWDOWN = 2.2; // stronger slowdown so pullback and forward push are clearly readable in live player/AI shots
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
@@ -20278,7 +20279,7 @@ const powerRef = useRef(hud.power);
             ? activeCamera.fov
             : camera.fov;
           const overheadReplayCamera =
-            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
+            FIXED_RAIL_REPLAY_CAMERA
               ? resolveRailOverheadReplayCamera({
                 focusOverride: storedTarget,
                 minTargetY
@@ -23499,12 +23500,16 @@ const powerRef = useRef(hud.power);
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const forwardDuration = THREE.MathUtils.lerp(
+          const baseForwardDuration = THREE.MathUtils.lerp(
             PLAYER_CUE_FORWARD_MAX_MS,
             PLAYER_CUE_FORWARD_MIN_MS,
             forwardBlend
           );
-          const pullbackDuration = Math.max(120, forwardDuration * 0.65);
+          const forwardDuration = baseForwardDuration * PLAYER_CUE_STROKE_SLOWDOWN;
+          const pullbackDuration = Math.max(
+            120,
+            baseForwardDuration * 0.65 * PLAYER_CUE_STROKE_SLOWDOWN
+          );
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
@@ -23519,13 +23524,16 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             powerStrength
           );
-          const followDuration = THREE.MathUtils.clamp(
+          const baseFollowDuration = THREE.MathUtils.clamp(
             (followThrough / Math.max(followSpeed, 1e-6)) * 1000,
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
-          const followDurationResolved = followDuration;
-          const recoverDuration = Math.max(120, followDurationResolved * 0.6);
+          const followDurationResolved = baseFollowDuration * PLAYER_CUE_STROKE_SLOWDOWN;
+          const recoverDuration = Math.max(
+            120,
+            baseFollowDuration * 0.6 * PLAYER_CUE_STROKE_SLOWDOWN
+          );
           const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
             impactTime +
@@ -23599,7 +23607,8 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
-          openingShotViewSuppressedRef.current = false;
+          // Keep the opening break on the stable standing camera; enable dynamic shot cameras from the next shot onward.
+          openingShotViewSuppressedRef.current = Boolean(isBreakShot);
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
@@ -26256,7 +26265,7 @@ const powerRef = useRef(hud.power);
               startAiThinkingRef.current?.();
             }
           }, 0);
-          if (cameraRef.current && sphRef.current) {
+          if (cameraRef.current && sphRef.current && !openingShotViewSuppressedRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
               : new THREE.Vector2();
@@ -27769,7 +27778,8 @@ const powerRef = useRef(hud.power);
               cueBall?.vel && typeof cueBall.vel.length === 'function'
                 ? cueBall.vel.length() * frameScale
                 : 0;
-            if (earlyPocketIntent.allowEarly && cueSpeed > STOP_EPS) {
+            const strokeAnimating = Boolean(cueStrokeStateRef.current);
+            if (earlyPocketIntent.allowEarly && cueSpeed > STOP_EPS && !strokeAnimating) {
               powerImpactHoldRef.current = 0;
             }
           }
