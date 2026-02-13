@@ -20503,13 +20503,29 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
+          const replayFrameCamera =
+            shotRecording?.frames
+              ?.slice()
+              .reverse()
+              .find((frame) => frame?.camera)?.camera ?? null;
+          if (replayFrameCamera?.position) {
+            storedPosition = replayFrameCamera.position.clone();
+            if (replayFrameCamera?.target) {
+              storedTarget.copy(replayFrameCamera.target);
+            }
+            if (Number.isFinite(replayFrameCamera?.fov)) {
+              storedFov = replayFrameCamera.fov;
+            }
+          }
           const overheadReplayCamera =
-            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
-              ? resolveRailOverheadReplayCamera({
-                focusOverride: storedTarget,
-                minTargetY
-                })
-              : null;
+            replayFrameCamera || LOCK_REPLAY_CAMERA
+              ? null
+              : FIXED_RAIL_REPLAY_CAMERA
+                ? resolveRailOverheadReplayCamera({
+                  focusOverride: storedTarget,
+                  minTargetY
+                  })
+                : null;
           if (overheadReplayCamera?.position) {
             storedPosition = overheadReplayCamera.position.clone();
             if (overheadReplayCamera?.target) {
@@ -23429,10 +23445,14 @@ const powerRef = useRef(hud.power);
           }
         };
         setShootingState(true);
-        powerImpactHoldRef.current = Math.max(
-          powerImpactHoldRef.current || 0,
-          shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
-        );
+        if (!RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY) {
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
+          );
+        } else {
+          powerImpactHoldRef.current = 0;
+        }
         activeShotView = null;
         queuedPocketView = null;
         aimFocusRef.current = null;
@@ -23542,13 +23562,17 @@ const powerRef = useRef(hud.power);
           const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          if (isMaxPowerShot) {
+          if (isMaxPowerShot && !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + MAX_POWER_CAMERA_HOLD_MS
             );
           }
-          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
+          if (
+            aiOpponentEnabled &&
+            hudRef.current?.turn === 1 &&
+            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY
+          ) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
@@ -24252,7 +24276,7 @@ const powerRef = useRef(hud.power);
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
-                .filter((b) => b.id !== 0)
+                .filter((b) => b.id !== 'cue' && b.id !== 0)
                 .reduce(
                   (best, ball) => (best == null || ball.id < best.id ? ball : best),
                   null
@@ -25124,11 +25148,11 @@ const powerRef = useRef(hud.power);
           const pockets = pocketsLocal.map((center) => toAi(center));
           const mapBallId = (ball) => {
             if (!ball) return null;
-            if (ball === cueBall) return 0;
+            if (ball === cueBall) return 'cue';
             if (typeof ball.id === 'number') return ball.id;
             if (typeof ball.id === 'string') {
               const lower = ball.id.toLowerCase();
-              if (lower === 'cue' || lower === 'cue_ball') return 0;
+              if (lower === 'cue' || lower === 'cue_ball') return 'cue';
               const match = lower.match(/\d+/);
               if (match) return Number(match[0]);
             }
@@ -25148,7 +25172,7 @@ const powerRef = useRef(hud.power);
               pocketed: !ball.active
             });
           });
-          if (!aiBalls.some((ball) => ball.id === 0 && !ball.pocketed)) {
+          if (!aiBalls.some((ball) => (ball.id === 'cue' || ball.id === 0) && !ball.pocketed)) {
             return null;
           }
           const metaState = frameSnapshot?.meta?.state ?? null;
@@ -26036,7 +26060,7 @@ const powerRef = useRef(hud.power);
               breakInProgress &&
               (aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
-              const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
+              const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0 && ball.id !== 'cue');
               if (rackBalls.length > 0) {
                 const rackCenter = rackBalls.reduce(
                   (acc, ball) => {
