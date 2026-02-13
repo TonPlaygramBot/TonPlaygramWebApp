@@ -20503,29 +20503,13 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const replayFrameCamera =
-            shotRecording?.frames
-              ?.slice()
-              .reverse()
-              .find((frame) => frame?.camera)?.camera ?? null;
-          if (replayFrameCamera?.position) {
-            storedPosition = replayFrameCamera.position.clone();
-            if (replayFrameCamera?.target) {
-              storedTarget.copy(replayFrameCamera.target);
-            }
-            if (Number.isFinite(replayFrameCamera?.fov)) {
-              storedFov = replayFrameCamera.fov;
-            }
-          }
           const overheadReplayCamera =
-            replayFrameCamera || LOCK_REPLAY_CAMERA
-              ? null
-              : FIXED_RAIL_REPLAY_CAMERA
-                ? resolveRailOverheadReplayCamera({
-                  focusOverride: storedTarget,
-                  minTargetY
-                  })
-                : null;
+            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
+              ? resolveRailOverheadReplayCamera({
+                focusOverride: storedTarget,
+                minTargetY
+                })
+              : null;
           if (overheadReplayCamera?.position) {
             storedPosition = overheadReplayCamera.position.clone();
             if (overheadReplayCamera?.target) {
@@ -23445,14 +23429,10 @@ const powerRef = useRef(hud.power);
           }
         };
         setShootingState(true);
-        if (!RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY) {
-          powerImpactHoldRef.current = Math.max(
-            powerImpactHoldRef.current || 0,
-            shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
-          );
-        } else {
-          powerImpactHoldRef.current = 0;
-        }
+        powerImpactHoldRef.current = Math.max(
+          powerImpactHoldRef.current || 0,
+          shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
+        );
         activeShotView = null;
         queuedPocketView = null;
         aimFocusRef.current = null;
@@ -23562,17 +23542,13 @@ const powerRef = useRef(hud.power);
           const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          if (isMaxPowerShot && !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY) {
+          if (isMaxPowerShot) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + MAX_POWER_CAMERA_HOLD_MS
             );
           }
-          if (
-            aiOpponentEnabled &&
-            hudRef.current?.turn === 1 &&
-            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY
-          ) {
+          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
