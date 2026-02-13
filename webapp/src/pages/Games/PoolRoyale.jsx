@@ -22612,74 +22612,6 @@ const powerRef = useRef(hud.power);
         return projectFromClient(client.x, client.y);
       };
 
-      const resolvePlayerAssistAimDirection = (
-        baseDir,
-        { snapStrength = 1 } = {}
-      ) => {
-        if (!baseDir || typeof baseDir.lengthSq !== 'function') return baseDir;
-        const normalized = baseDir.lengthSq() > 1e-6
-          ? baseDir.clone().normalize()
-          : null;
-        if (!normalized || !cue?.active) return normalized;
-        const currentHud = hudRef.current;
-        if ((currentHud?.turn ?? null) !== 0 || currentHud?.inHand || shooting) {
-          return normalized;
-        }
-        const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
-        const activeBalls = Array.isArray(ballsList)
-          ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
-          : [];
-        if (activeBalls.length === 0) return normalized;
-        const frameSnapshot = frameRef.current ?? frameState;
-        const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-        const targetOrder = resolveTargetPriorities(
-          frameSnapshot,
-          activeVariantId,
-          activeBalls
-        );
-        const legalTargetsRaw =
-          Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
-            ? frameSnapshot.ballOn
-            : targetOrder;
-        const legalTargets = new Set(
-          legalTargetsRaw
-            .map((entry) => normalizeTargetId(entry))
-            .filter((entry) => entry && isBallTargetId(entry))
-        );
-        const isLegalTargetBall = (ball) => {
-          if (!ball || legalTargets.size === 0) return true;
-          return Array.from(legalTargets).some((target) =>
-            matchesTargetId(ball, target)
-          );
-        };
-        const contact = calcTarget(cue, normalized, activeBalls);
-        if (contact?.targetBall && isLegalTargetBall(contact.targetBall)) {
-          return normalized;
-        }
-        const cuePos = cue?.pos ? new THREE.Vector2(cue.pos.x, cue.pos.y) : null;
-        if (!cuePos) return normalized;
-        let bestDir = null;
-        let bestDot = -Infinity;
-        activeBalls.forEach((ball) => {
-          if (!isLegalTargetBall(ball) || !ball?.pos) return;
-          const candidate = new THREE.Vector2(
-            ball.pos.x - cuePos.x,
-            ball.pos.y - cuePos.y
-          );
-          if (candidate.lengthSq() <= 1e-6) return;
-          candidate.normalize();
-          const dot = normalized.dot(candidate);
-          if (dot > bestDot) {
-            bestDot = dot;
-            bestDir = candidate;
-          }
-        });
-        if (!bestDir) return normalized;
-        const resolvedStrength = THREE.MathUtils.clamp(snapStrength, 0, 1);
-        if (resolvedStrength >= 0.999) return bestDir;
-        return normalized.clone().lerp(bestDir, resolvedStrength).normalize();
-      };
-
       const updateTopViewAimFromPointer = (ev) => {
         const cueBall = cueRef.current || cue;
         if (!cueBall?.active) return false;
@@ -22690,9 +22622,7 @@ const powerRef = useRef(hud.power);
           .sub(new THREE.Vector2(cueBall.pos.x, cueBall.pos.y));
         if (dir.lengthSq() < 1e-6) return false;
         dir.normalize();
-        const assistedDir = resolvePlayerAssistAimDirection(dir, { snapStrength: 1 });
-        if (!assistedDir || assistedDir.lengthSq() < 1e-6) return false;
-        aimDirRef.current.copy(assistedDir);
+        aimDirRef.current.copy(dir);
         cameraUpdateRef.current?.();
         return true;
       };
@@ -23614,7 +23544,7 @@ const powerRef = useRef(hud.power);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
-            broadcastSystem?.avoidPocketCameras;
+            suppressOpeningShotViews || broadcastSystem?.avoidPocketCameras;
           const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
@@ -26933,10 +26863,7 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else {
-            const playerAssistDir = isPlayerTurn
-              ? resolvePlayerAssistAimDirection(tmpAim, { snapStrength: 0.55 })
-              : tmpAim;
-            aimDir.lerp(playerAssistDir, aimLerpFactor);
+            aimDir.lerp(tmpAim, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
@@ -28149,6 +28076,7 @@ const powerRef = useRef(hud.power);
           }
         }
         const suppressPocketCameras =
+          openingShotViewSuppressedRef.current ||
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
         const earlyPocketIntent = pocketSwitchIntentRef.current;
