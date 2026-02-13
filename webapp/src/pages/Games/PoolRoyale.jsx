@@ -1621,7 +1621,6 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_ADJUSTMENT *
   SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const AI_NON_BREAK_MAX_POWER = 0.8;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -6086,7 +6085,6 @@ const getPocketCenterById = (id) => {
   }
 };
 const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
-const CORNER_POCKET_IDS = new Set(['TL', 'TR', 'BL', 'BR']);
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -19529,12 +19527,9 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          const isCornerPocket = CORNER_POCKET_IDS.has(anchorPocketId);
-          if (!forceCornerCapture && !isCornerPocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
-          if (!forceCornerCapture && !isGuaranteedPocket) return null;
           if (!forceCornerCapture && best.dist > triggerDistance) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
@@ -24157,38 +24152,6 @@ const powerRef = useRef(hud.power);
           }
           return order;
         };
-        const buildLegalTargetsSet = (frameSnapshot, activeVariantId, activeBalls = []) => {
-          const targets = new Set();
-          const push = (entry) => {
-            const normalized = normalizeTargetId(entry);
-            if (!normalized || !isBallTargetId(normalized)) return;
-            targets.add(normalized);
-            const numericGroup = mapNumberToGroup(normalized);
-            if (numericGroup) targets.add(numericGroup);
-          };
-          const metaState = frameSnapshot?.meta?.state ?? null;
-          const shooterSeat =
-            metaState?.currentPlayer ?? frameSnapshot?.activePlayer ?? null;
-          const assignments = metaState?.assignments ?? {};
-          const assignmentTargets = mapAssignmentToTargets(
-            shooterSeat ? assignments[shooterSeat] : null,
-            activeVariantId
-          );
-          assignmentTargets.forEach(push);
-          const targetOrder = resolveTargetPriorities(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
-          );
-          targetOrder.forEach(push);
-          const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
-            ? frameSnapshot.ballOn
-            : frameSnapshot?.ballOn != null
-              ? [frameSnapshot.ballOn]
-              : [];
-          legalTargetsRaw.forEach(push);
-          return targets;
-        };
         const pocketCentersCached = pocketEntranceCenters();
         const scoreBallForAim = (ball, cuePos) => {
           if (!ball || !cuePos) return -Infinity;
@@ -24234,10 +24197,16 @@ const powerRef = useRef(hud.power);
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
-          const legalTargets = buildLegalTargetsSet(
-            state,
-            activeVariantId,
-            activeBalls
+          const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
+          const legalTargetsRaw = Array.isArray(state?.ballOn) && state.ballOn.length > 0
+            ? state.ballOn
+            : targetOrder.length > 0
+              ? targetOrder
+              : ['RED'];
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
@@ -25197,9 +25166,7 @@ const powerRef = useRef(hud.power);
               : null;
           const pocketCenter =
             pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
-          const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
-          const maxPower = isOpeningBreak ? 1 : AI_NON_BREAK_MAX_POWER;
-          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, maxPower);
+          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
           const sideSpin = decision.spin?.side ?? 0;
           const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
           const spin = {
@@ -25284,10 +25251,19 @@ const powerRef = useRef(hud.power);
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const frameSnapshot = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const legalTargets = buildLegalTargetsSet(
+          const targetOrder = resolveTargetPriorities(
             frameSnapshot,
             activeVariantId,
             activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
           const isLegalTargetBall = (ball) => {
             if (!ball) return false;
@@ -26068,13 +26044,7 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            const isPlannedBreakShot = plan?.type === 'break' || isOpeningBreak;
-            const aiPower = clampPower(
-              isPlannedBreakShot
-                ? plan.power
-                : Math.min(plan.power ?? 0.6, AI_NON_BREAK_MAX_POWER),
-              0.6
-            );
+            const aiPower = clampPower(plan.power, 0.6);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -27186,9 +27156,15 @@ const powerRef = useRef(hud.power);
             }
           }
           const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
-          const frameSnapshot = frameRef.current ?? frameState;
-          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const legalTargets = buildLegalTargetsSet(frameSnapshot, activeVariantId, ballsRef.current || []);
+          const legalTargetsRaw =
+            frameRef.current?.ballOn ?? frameState.ballOn ?? [];
+          const legalTargets = Array.isArray(legalTargetsRaw)
+            ? legalTargetsRaw
+                .map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+                .filter(Boolean)
+            : [];
           const suggestionPlan = userSuggestionPlanRef.current;
           const suggestionMatchesTarget =
             suggestionPlan?.targetBall &&
@@ -27204,8 +27180,8 @@ const powerRef = useRef(hud.power);
             targetBall &&
             !railNormal &&
             targetBallColor &&
-            legalTargets.size > 0 &&
-            !Array.from(legalTargets).some((target) => matchesTargetId(targetBall, target));
+            legalTargets.length > 0 &&
+            !legalTargets.includes(targetBallColor);
           const primaryColor = aimingWrong
             ? 0xff3333
             : targetBall && !railNormal
