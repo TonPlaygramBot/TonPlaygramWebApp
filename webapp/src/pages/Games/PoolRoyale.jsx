@@ -19502,7 +19502,7 @@ const powerRef = useRef(hud.power);
             predictedAlignment != null &&
             predictedAlignment >= POCKET_EARLY_ALIGNMENT &&
             isDirectPrediction;
-          const allowEarly = forceCornerCapture || isEarlyPocket;
+          const allowEarly = forceCornerCapture || forceEarly || isEarlyPocket;
           if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
@@ -19607,7 +19607,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly: Boolean(isEarlyPocket)
+            forcedEarly: Boolean(forceEarly || isEarlyPocket)
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -23611,7 +23611,9 @@ const powerRef = useRef(hud.power);
             : null;
           const earlyPocketView =
             !suppressPocketCameras && shotPrediction.ballId && followView
-              ? makePocketCameraView(shotPrediction.ballId, followView)
+              ? makePocketCameraView(shotPrediction.ballId, followView, {
+                  forceEarly: true
+                })
               : null;
           if (actionView && cameraRef.current) {
             actionView.smoothedPos = cameraRef.current.position.clone();
@@ -25032,6 +25034,44 @@ const powerRef = useRef(hud.power);
               ) ||
               null;
             const targetColor = mapAiColourToTargetId(plan.targetBall);
+            const legalTargets = new Set();
+            const legalBallOnRaw = Array.isArray(frameSnapshot?.ballOn)
+              ? frameSnapshot.ballOn
+              : frameSnapshot?.ballOn != null
+                ? [frameSnapshot.ballOn]
+                : [];
+            legalBallOnRaw.forEach((entry) => {
+              const normalized = normalizeTargetId(entry);
+              if (normalized && isBallTargetId(normalized)) {
+                legalTargets.add(normalized);
+                const numericGroup = mapNumberToGroup(normalized);
+                if (numericGroup) legalTargets.add(numericGroup);
+              }
+            });
+            const legalAssignmentTargets = mapAssignmentToTargets(
+              snapshot.assignments?.[snapshot.currentPlayer],
+              'uk'
+            );
+            legalAssignmentTargets.forEach((entry) => {
+              const normalized = normalizeTargetId(entry);
+              if (normalized && isBallTargetId(normalized)) legalTargets.add(normalized);
+            });
+            const targetIsLegal =
+              legalTargets.size === 0 ||
+              (targetBall
+                ? Array.from(legalTargets).some((target) =>
+                    matchesTargetId(targetBall, target)
+                  )
+                : (() => {
+                    const normalizedTarget = normalizeTargetId(targetColor);
+                    if (!normalizedTarget) return false;
+                    return Array.from(legalTargets).some(
+                      (target) => target === normalizedTarget
+                    );
+                  })());
+            if (!targetIsLegal) {
+              return null;
+            }
             const localPocketId = mapAiPocketToLocal(plan.pocket);
             const pocketIndex =
               localPocketId != null ? POCKET_IDS.indexOf(localPocketId) : -1;
