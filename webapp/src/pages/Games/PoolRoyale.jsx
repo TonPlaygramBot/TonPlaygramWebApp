@@ -10006,7 +10006,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.82;
+  const brandPlateOutwardShift = endRailW * 0.92;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -10046,6 +10046,7 @@ export function Table3D(
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
   const railMarkerOutset = longRailW * 0.08;
+  const railMarkerInwardShift = Math.max(BALL_R * 0.35, longRailW * 0.08);
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -10138,8 +10139,8 @@ export function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW + railMarkerOutset;
-    const shortRailZ = halfH + endRailW + railMarkerOutset;
+    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
+    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
@@ -23786,7 +23787,7 @@ const powerRef = useRef(hud.power);
           }
           const holdActive = holdUntil > now;
           let pocketViewActivated = false;
-          if (earlyPocketView && !isMaxPowerShot) {
+          if (earlyPocketView) {
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
               const cam = cameraRef.current;
@@ -23802,20 +23803,13 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            if (holdUntil > 0) {
-              const baseDelay = earlyPocketView.activationDelay ?? 0;
-              earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
-            }
-            earlyPocketView.pendingActivation = holdActive;
-            if (holdActive) {
-              queuedPocketView = earlyPocketView;
-              pocketViewActivated = true;
-            } else {
-              queuedPocketView = null;
-              updatePocketCameraState(true);
-              activeShotView = earlyPocketView;
-              pocketViewActivated = true;
-            }
+            queuedPocketView = null;
+            earlyPocketView.pendingActivation = false;
+            earlyPocketView.activationDelay = null;
+            powerImpactHoldRef.current = 0;
+            updatePocketCameraState(true);
+            activeShotView = earlyPocketView;
+            pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
             const shouldActivateActionView =
