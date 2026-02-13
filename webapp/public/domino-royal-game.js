@@ -10,7 +10,7 @@ import "./flag-emojis.js";
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'mobileSafe';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'mobileSafe',
@@ -196,7 +196,7 @@ function detectPreferredFrameRateId() {
     return DEFAULT_FRAME_RATE_ID;
   }
   if (IS_TELEGRAM_RUNTIME) {
-    return 'fhd60';
+    return 'mobileSafe';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -1763,7 +1763,7 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 1024;
+const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "crimsonVelvet",
@@ -2159,7 +2159,7 @@ const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
 );
 
 const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'estateBands';
-const DEFAULT_WOOD_TEXTURE_SIZE = 2048;
+const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
 const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
 const WOOD_TEXTURE_BASE_CACHE = new Map();
 
@@ -2458,26 +2458,26 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
     assetId: 'neon_photostudio',
-    preferredResolutions: ['2k', '4k'],
-    fallbackResolution: '2k',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
     exposure: 1.18,
     environmentIntensity: 1.12,
     backgroundIntensity: 1.06
   },
-  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
-  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
-  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
-  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
-  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
-  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
-  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
-  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
-  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
-  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
-  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
-  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['2k', '4k'], fallbackResolution: '2k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
+  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
+  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
+  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
+  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
+  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
+  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
+  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
+  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
+  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
+  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
+  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
 ]);
 
 const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
@@ -2932,9 +2932,9 @@ const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && nav
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['2k', '4k'];
-  if (isLowProfileDevice) return ['2k', '1k'];
-  return ['2k', '4k', '1k'];
+  if (prefersUhd) return ['4k', '2k'];
+  if (isLowProfileDevice) return ['1k'];
+  return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
   return true;
