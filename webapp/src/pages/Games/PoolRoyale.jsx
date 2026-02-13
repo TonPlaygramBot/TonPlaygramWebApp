@@ -19490,12 +19490,20 @@ const powerRef = useRef(hud.power);
               : forceCornerCapture
                 ? 1
                 : null;
+          const isDirectPrediction =
+            shotPrediction?.ballId === ballId &&
+            (shotPrediction?.railNormal === null ||
+              shotPrediction?.railNormal === undefined);
           const isGuaranteedPocket =
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          const allowEarly = Boolean(forceCornerCapture);
-          if (!forceCornerCapture && !isGuaranteedPocket) return null;
+          const isEarlyPocket =
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_EARLY_ALIGNMENT &&
+            isDirectPrediction;
+          const allowEarly = forceCornerCapture || isEarlyPocket;
+          if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
@@ -19519,7 +19527,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -24029,11 +24036,8 @@ const powerRef = useRef(hud.power);
           }
         };
         const normalizeTargetId = (value) => {
-          if (typeof value !== 'string') return null;
-          const normalized = value.toUpperCase();
-          if (normalized === 'SOLIDS') return 'SOLID';
-          if (normalized === 'STRIPES') return 'STRIPE';
-          return normalized;
+          if (typeof value === 'string') return value.toUpperCase();
+          return null;
         };
         const isBallTargetId = (id) =>
           typeof id === 'string' &&
@@ -24147,22 +24151,6 @@ const powerRef = useRef(hud.power);
             pushTargetId('BLACK');
           }
           return order;
-        };
-        const buildLegalTargetSet = (frameSnapshot, activeVariantId, activeBalls = []) => {
-          const targetOrder = resolveTargetPriorities(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
-          );
-          const legalTargetsRaw =
-            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
-              ? frameSnapshot.ballOn
-              : targetOrder;
-          return new Set(
-            legalTargetsRaw
-              .map((entry) => normalizeTargetId(entry))
-              .filter((entry) => entry && isBallTargetId(entry))
-          );
         };
         const pocketCentersCached = pocketEntranceCenters();
         const scoreBallForAim = (ball, cuePos) => {
@@ -25142,8 +25130,7 @@ const powerRef = useRef(hud.power);
             friction: FRICTION,
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
-            ballOn: normalizedBallOn ?? null,
-            breakInProgress: Boolean(metaState?.breakInProgress)
+            ballOn: normalizedBallOn ?? null
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -25179,9 +25166,7 @@ const powerRef = useRef(hud.power);
               : null;
           const pocketCenter =
             pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
-          const isBreakShot = Boolean(metaState?.breakInProgress);
-          const maxAiPower = isBreakShot ? 0.95 : 0.78;
-          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, maxAiPower);
+          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
           const sideSpin = decision.spin?.side ?? 0;
           const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
           const spin = {
@@ -25266,10 +25251,19 @@ const powerRef = useRef(hud.power);
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const frameSnapshot = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const legalTargets = buildLegalTargetSet(
+          const targetOrder = resolveTargetPriorities(
             frameSnapshot,
             activeVariantId,
             activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
           const isLegalTargetBall = (ball) => {
             if (!ball) return false;
@@ -25533,6 +25527,11 @@ const powerRef = useRef(hud.power);
                   activeVariantId
                 )
               : [];
+          const targetOrder = resolveTargetPriorities(
+            frameSnapshot,
+            activeVariantId,
+            activeBalls
+          );
           const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
             ? frameSnapshot.ballOn
             : [];
@@ -25715,10 +25714,19 @@ const powerRef = useRef(hud.power);
             : [];
           if (activeBalls.length === 0) return baseDir;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const legalTargets = buildLegalTargetSet(
+          const targetOrder = resolveTargetPriorities(
             frameSnapshot,
             activeVariantId,
             activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
           const isLegalTargetBall = (ball) => {
             if (!ball || legalTargets.size === 0) return true;
@@ -25772,10 +25780,14 @@ const powerRef = useRef(hud.power);
             activeVariantId,
             activeBalls
           );
-          const legalTargets = buildLegalTargetSet(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
           const isLegalTargetBall = (ball) => {
             if (!ball || legalTargets.size === 0) return true;
