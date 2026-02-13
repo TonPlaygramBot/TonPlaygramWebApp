@@ -19518,12 +19518,6 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
-          const isCornerPocket =
-            anchorPocketId === 'TL' ||
-            anchorPocketId === 'TR' ||
-            anchorPocketId === 'BL' ||
-            anchorPocketId === 'BR';
-          if (!isCornerPocket) return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -25136,8 +25130,7 @@ const powerRef = useRef(hud.power);
             friction: FRICTION,
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
-            ballOn: normalizedBallOn ?? null,
-            breakInProgress: (frameSnapshot?.currentBreak ?? 0) === 0
+            ballOn: normalizedBallOn ?? null
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -25990,10 +25983,11 @@ const powerRef = useRef(hud.power);
             const isOpeningBreak = breakInProgress || (frameSnapshot?.currentBreak ?? 0) === 0;
             const aiTurnActive = currentHud?.turn === 1;
             const aiWonBreak = breakWinnerSeatRef.current === 'B';
+            const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
               isOpeningBreak &&
               aiTurnActive &&
-              aiWonBreak;
+              (aiWonBreak || openingPlayer === 'B' || breakRollState === 'done' || breakInProgress);
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
@@ -26050,10 +26044,7 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            const isBreakPlan = plan?.type === 'break';
-            const aiPower = isBreakPlan
-              ? 1
-              : clampPower(plan.power, 0.6);
+            const aiPower = clampPower(plan.power, 0.6);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -26891,15 +26882,7 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else {
-            const shouldUseLegalAssist = isPlayerTurn && autoAimRequestRef.current;
-            const legalPlayerAim = shouldUseLegalAssist
-              ? resolveLegalPlayerAimDirection(tmpAim)
-              : tmpAim;
-            const desiredAim =
-              legalPlayerAim && legalPlayerAim.lengthSq() > 1e-6
-                ? legalPlayerAim
-                : tmpAim;
-            aimDir.lerp(desiredAim, aimLerpFactor);
+            aimDir.lerp(tmpAim, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
