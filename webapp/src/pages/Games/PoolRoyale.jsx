@@ -24252,7 +24252,7 @@ const powerRef = useRef(hud.power);
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
-                .filter((b) => b.id !== 0)
+                .filter((b) => String(b?.id).toLowerCase() !== 'cue')
                 .reduce(
                   (best, ball) => (best == null || ball.id < best.id ? ball : best),
                   null
@@ -25122,13 +25122,14 @@ const powerRef = useRef(hud.power);
           const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
           const pocketsLocal = pocketEntranceCenters();
           const pockets = pocketsLocal.map((center) => toAi(center));
+          const cueBallId = 16;
           const mapBallId = (ball) => {
             if (!ball) return null;
-            if (ball === cueBall) return 0;
+            if (ball === cueBall) return cueBallId;
             if (typeof ball.id === 'number') return ball.id;
             if (typeof ball.id === 'string') {
               const lower = ball.id.toLowerCase();
-              if (lower === 'cue' || lower === 'cue_ball') return 0;
+              if (lower === 'cue' || lower === 'cue_ball') return cueBallId;
               const match = lower.match(/\d+/);
               if (match) return Number(match[0]);
             }
@@ -25148,7 +25149,7 @@ const powerRef = useRef(hud.power);
               pocketed: !ball.active
             });
           });
-          if (!aiBalls.some((ball) => ball.id === 0 && !ball.pocketed)) {
+          if (!aiBalls.some((ball) => ball.id === cueBallId && !ball.pocketed)) {
             return null;
           }
           const metaState = frameSnapshot?.meta?.state ?? null;
@@ -25169,6 +25170,7 @@ const powerRef = useRef(hud.power);
             height,
             ballRadius: BALL_R,
             friction: FRICTION,
+            cueBallId,
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
             ballOn: normalizedBallOn ?? null,
@@ -26036,7 +26038,9 @@ const powerRef = useRef(hud.power);
               breakInProgress &&
               (aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
-              const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
+              const rackBalls = ballsList.filter(
+                (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
+              );
               if (rackBalls.length > 0) {
                 const rackCenter = rackBalls.reduce(
                   (acc, ball) => {
