@@ -6825,13 +6825,14 @@ function resolveCueFollowPreview({
   spin,
   powerStrength,
   cuePowerStrength,
-  _liftStrength = 0
+  liftStrength = 0
 }) {
   const normalizedSpin = normalizeSpinInput(spin);
   const clampedPower = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
   const clampedCuePower = Number.isFinite(cuePowerStrength)
     ? THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1)
     : clampedPower;
+  const impactPower = clampedCuePower;
   const baseDir = cueDir ? cueDir.clone() : null;
   if (!baseDir || baseDir.lengthSq() < 1e-8) {
     baseDir?.set(0, 0, 1);
@@ -6844,11 +6845,51 @@ function resolveCueFollowPreview({
   } else {
     aimVec.normalize();
   }
+  const spinAdjusted =
+    resolveTargetSpinDeflection(
+      baseDir ?? aimVec,
+      aimVec,
+      normalizedSpin,
+      impactPower,
+      liftStrength
+    ) ?? baseDir ?? aimVec;
+  const spinX = normalizedSpin?.x ?? 0;
   const spinY = normalizedSpin?.y ?? 0;
-  const spinMagnitude = Math.hypot(normalizedSpin?.x ?? 0, spinY);
+  const spinMagnitude = Math.hypot(spinX, spinY);
   const backspinWeight = Math.max(0, -spinY);
   const topspinWeight = Math.max(0, spinY);
-  const previewDir = aimVec.clone();
+  const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
+  const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
+  const previewDir = spinAdjusted.clone();
+  const backwards = aimVec.clone().multiplyScalar(-1);
+  const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
+  const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
+  if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
+    const drawBlend = THREE.MathUtils.clamp(
+      backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
+      0,
+      1
+    );
+    previewDir.lerp(backwards, drawBlend);
+  } else if (topspinLerp > 1e-4) {
+    const followBlend = THREE.MathUtils.clamp(
+      topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
+      0,
+      1
+    );
+    previewDir.lerp(aimVec, followBlend);
+  }
+  const sideInfluence =
+    Math.min(Math.abs(spinX), 1) *
+    (0.18 + impactPower * 0.22) *
+    (1 - cutPenalty * 0.3);
+  if (sideInfluence > 1e-4) {
+    const perp = new THREE.Vector3(-previewDir.z, 0, previewDir.x);
+    if (perp.lengthSq() > 1e-8) {
+      perp.normalize();
+      previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
+    }
+  }
   if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
   const power = clampedPower;
   const cuePower = clampedCuePower;
@@ -6866,7 +6907,7 @@ function resolveCueFollowPreview({
   return {
     dir: previewDir,
     length,
-    backwards: false
+    backwards: previewDir.dot(aimVec) < 0
   };
 }
 
@@ -18748,7 +18789,11 @@ const powerRef = useRef(hud.power);
               activeShotView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.6;
+            const focusBallPos2D = focusBall?.active
+              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
+              : null;
             const focusPoint2D =
+              focusBallPos2D ??
               activeShotView.fixedTarget2D?.clone?.() ??
               activeShotView.lastBallPos?.clone?.() ??
               pocketCenter2D;
@@ -19462,7 +19507,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23549,17 +23593,23 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           const ranges = spinRangeRef.current || {};
+          const powerSpinScale = 0.55 + clampedPower * 0.45;
+          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
           const scaledSpin = {
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
           };
           const baseSide = scaledSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
           if (scaledSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (scaledSpin.y > 0) {
+            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
             spinTop *= TOPSPIN_MULTIPLIER;
+            if (Math.abs(baseSide) > 1e-6) {
+              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
+            }
           }
           cue.vel.copy(base);
           if (cue.spin) {
@@ -25916,8 +25966,9 @@ const powerRef = useRef(hud.power);
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
               isOpeningBreak &&
+              breakInProgress &&
               aiTurnActive &&
-              (breakInProgress || breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
+              (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
@@ -27695,35 +27746,30 @@ const powerRef = useRef(hud.power);
             if (!hasLift) {
               const dt = SPIN_FIXED_DT * stepScale;
               if (b.omega) {
-                if (isCue && !b.impacted) {
-                  const spinFactor = Math.max(0, 1 - SPIN_ANGULAR_DAMPING * dt);
-                  b.omega.multiplyScalar(spinFactor);
+                TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
+                TMP_VEC3_B.set(0, -BALL_R, 0);
+                TMP_VEC3_C.copy(b.omega);
+                TMP_VEC3_D.copy(TMP_VEC3_C).cross(TMP_VEC3_B);
+                TMP_VEC3_D.add(TMP_VEC3_A);
+                const relSpeed = TMP_VEC3_D.length();
+                if (relSpeed > SPIN_SLIDE_EPS) {
+                  TMP_VEC3_E.copy(TMP_VEC3_D).multiplyScalar(
+                    (-SPIN_KINETIC_FRICTION * BALL_MASS * SPIN_GRAVITY) / relSpeed
+                  );
+                  TMP_VEC3_A.addScaledVector(TMP_VEC3_E, dt / BALL_MASS);
+                  TMP_VEC3_C.addScaledVector(
+                    TMP_VEC3_D.copy(TMP_VEC3_B).cross(TMP_VEC3_E),
+                    dt / BALL_INERTIA
+                  );
                 } else {
-                  TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
-                  TMP_VEC3_B.set(0, -BALL_R, 0);
-                  TMP_VEC3_C.copy(b.omega);
-                  TMP_VEC3_D.copy(TMP_VEC3_C).cross(TMP_VEC3_B);
-                  TMP_VEC3_D.add(TMP_VEC3_A);
-                  const relSpeed = TMP_VEC3_D.length();
-                  if (relSpeed > SPIN_SLIDE_EPS) {
-                    TMP_VEC3_E.copy(TMP_VEC3_D).multiplyScalar(
-                      (-SPIN_KINETIC_FRICTION * BALL_MASS * SPIN_GRAVITY) / relSpeed
-                    );
-                    TMP_VEC3_A.addScaledVector(TMP_VEC3_E, dt / BALL_MASS);
-                    TMP_VEC3_C.addScaledVector(
-                      TMP_VEC3_D.copy(TMP_VEC3_B).cross(TMP_VEC3_E),
-                      dt / BALL_INERTIA
-                    );
-                  } else {
-                    const rollFactor = Math.max(0, 1 - SPIN_ROLL_DAMPING * dt);
-                    const spinFactor = Math.max(0, 1 - SPIN_ANGULAR_DAMPING * dt);
-                    TMP_VEC3_A.multiplyScalar(rollFactor);
-                    TMP_VEC3_C.multiplyScalar(spinFactor);
-                  }
-                  b.vel.x = TMP_VEC3_A.x;
-                  b.vel.y = TMP_VEC3_A.z;
-                  b.omega.copy(TMP_VEC3_C);
+                  const rollFactor = Math.max(0, 1 - SPIN_ROLL_DAMPING * dt);
+                  const spinFactor = Math.max(0, 1 - SPIN_ANGULAR_DAMPING * dt);
+                  TMP_VEC3_A.multiplyScalar(rollFactor);
+                  TMP_VEC3_C.multiplyScalar(spinFactor);
                 }
+                b.vel.x = TMP_VEC3_A.x;
+                b.vel.y = TMP_VEC3_A.z;
+                b.omega.copy(TMP_VEC3_C);
               }
             }
             if (
