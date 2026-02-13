@@ -18726,18 +18726,6 @@ const powerRef = useRef(hud.power);
             } else {
               railDir = activeShotView.railDir;
             }
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
-              : new THREE.Vector2(0, -railDir);
-            if (approachDir.lengthSq() < 1e-6) {
-              approachDir.set(0, -railDir);
-            }
-            approachDir.normalize();
-            if (activeShotView.approach) {
-              activeShotView.approach.copy(approachDir);
-            } else {
-              activeShotView.approach = approachDir.clone();
-            }
             let broadcastRailDir =
               activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
             const fallbackBroadcast = signed(
@@ -18768,6 +18756,18 @@ const powerRef = useRef(hud.power);
             };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
+            }
             const resolvedAnchorId = resolvePocketCameraAnchor(
               activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
               pocketCenter,
@@ -18811,11 +18811,13 @@ const powerRef = useRef(hud.power);
             const focusBallPos2D = focusBall?.active
               ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
               : null;
-            const focusPoint2D =
-              focusBallPos2D ??
-              activeShotView.fixedTarget2D?.clone?.() ??
-              activeShotView.lastBallPos?.clone?.() ??
-              pocketCenter2D;
+            if (!activeShotView.fixedTarget2D) {
+              activeShotView.fixedTarget2D =
+                focusBallPos2D?.clone?.() ??
+                activeShotView.lastBallPos?.clone?.() ??
+                pocketCenter2D.clone();
+            }
+            const focusPoint2D = activeShotView.fixedTarget2D.clone();
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
@@ -25989,16 +25991,17 @@ const powerRef = useRef(hud.power);
             }
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
-            const isOpeningBreak = breakInProgress || (frameSnapshot?.currentBreak ?? 0) === 0;
             const aiTurnActive = currentHud?.turn === 1;
             const aiWonBreak = breakWinnerSeatRef.current === 'B';
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
-              isOpeningBreak &&
               aiTurnActive &&
-              (breakInProgress || breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
+              breakInProgress &&
+              (aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
-              const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
+              const rackBalls = ballsList.filter(
+                (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
+              );
               if (rackBalls.length > 0) {
                 const rackCenter = rackBalls.reduce(
                   (acc, ball) => {
