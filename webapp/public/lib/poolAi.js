@@ -148,21 +148,6 @@ function pocketAlignment (pocket, target, width, height) {
   return Math.max(0, (approach.x / len) * normal.x + (approach.y / len) * normal.y)
 }
 
-function isCueBallId (id) {
-  if (id === 0) return true
-  if (typeof id !== 'string') return false
-  const normalized = id.trim().toLowerCase()
-  return normalized === 'cue' || normalized === 'cue_ball' || normalized === 'cueball'
-}
-
-function isCueBall (ball) {
-  return Boolean(ball) && isCueBallId(ball.id)
-}
-
-function findCueBall (balls = []) {
-  return balls.find(isCueBall)
-}
-
 function currentGroup (state) {
   let g = state.myGroup
   if (!g || g === 'UNASSIGNED') {
@@ -194,7 +179,7 @@ function parseBallOnIds (state) {
 }
 
 function chooseTargets (req) {
-  const balls = req.state.balls.filter(b => !b.pocketed && !isCueBall(b))
+  const balls = req.state.balls.filter(b => !b.pocketed && b.id !== 0)
   const ballOnIds = parseBallOnIds(req.state)
   if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
     if (ballOnIds.length > 0) {
@@ -225,7 +210,7 @@ function chooseTargets (req) {
 }
 
 function nextTargetsAfter (targetId, req) {
-  const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && !isCueBall(b))
+  const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && b.id !== 0)
   if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
     if (cloned.length === 0) return []
     const lowest = cloned.reduce((m, b) => (b.id < m.id ? b : m), cloned[0])
@@ -260,7 +245,7 @@ function nextTargetsAfter (targetId, req) {
 // preferring smaller cut angles and wider pocket views.
 function clearShotCandidates (req) {
   const r = req.state.ballRadius
-  const cue = findCueBall(req.state.balls)
+  const cue = req.state.balls.find(b => b.id === 0)
   const targets = chooseTargets(req)
   const pockets = req.state.pockets
   const maxCut = req.maxCutAngle ?? Math.PI / 4
@@ -287,10 +272,10 @@ function clearShotCandidates (req) {
 
       // check paths from cue->ghost and target->pocket are unobstructed
       if (
-        pathBlocked(cue, ghost, req.state.balls, [cue?.id, target.id], r, 1.1) ||
-        pathBlocked(target, entry, req.state.balls, [cue?.id, target.id], r) ||
+        pathBlocked(cue, ghost, req.state.balls, [0, target.id], r, 1.1) ||
+        pathBlocked(target, entry, req.state.balls, [0, target.id], r) ||
         req.state.balls.some(
-          b => !isCueBall(b) && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
+          b => b.id !== 0 && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
         )
       ) {
         continue
@@ -305,7 +290,7 @@ function clearShotCandidates (req) {
       const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
       const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
       const approachStraightness = 1 - Math.min(cut / (Math.PI / 2), 1)
-      const laneClearance = clearanceMargin(cue, target, req.state.balls, [cue?.id, target.id], r, 1.35)
+      const laneClearance = clearanceMargin(cue, target, req.state.balls, [0, target.id], r, 1.35)
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
       const clearanceScore = Math.max(0, Math.min((laneClearance - 0.4) / 0.8, 1))
@@ -369,7 +354,7 @@ function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
     if (next.id === targetId) {
       next.pocketed = true
     }
-    if (isCueBall(next)) {
+    if (next.id === 0) {
       next.x = clamped.x
       next.y = clamped.y
       next.vx = 0
@@ -400,8 +385,8 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
       g.y < r ||
       g.y > req.state.height - r
     ) continue
-    if (pathBlocked(cue, g, balls, [cue?.id, target.id], r, 1.1)) continue
-    if (pathBlocked(target, entry, balls, [cue?.id, target.id], r)) continue
+    if (pathBlocked(cue, g, balls, [0, target.id], r, 1.1)) continue
+    if (pathBlocked(target, entry, balls, [0, target.id], r)) continue
     // if jitter deviates too far from ideal contact, treat as miss
     if (dist(g, ghost) > r * 0.5) continue
     success++
@@ -413,7 +398,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng
   if (!req?.state || depth <= 0) return 0
   const nextBalls = cloneBallsForNextShot(balls, cueAfter, targetId, req.state)
   const nextReq = { ...req, state: { ...req.state, balls: nextBalls, ballInHand: false } }
-  const cue = findCueBall(nextBalls)
+  const cue = nextBalls.find(b => b.id === 0)
   if (!cue) return 0
   const candidates = clearShotCandidates(nextReq)
   if (!candidates.length) return 0
@@ -468,7 +453,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   ) {
     return null
   }
-  const laneClearance = clearanceMargin(cue, target, balls, [cue?.id, target.id], r, 1.3)
+  const laneClearance = clearanceMargin(cue, target, balls, [0, target.id], r, 1.3)
   if (laneClearance < 0.5) {
     return null
   }
@@ -476,9 +461,9 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   if (
-    pathBlocked(cue, ghost, balls, [cue?.id, target.id], r, 1.1) ||
-    pathBlocked(target, entry, balls, [cue?.id, target.id], r) ||
-    balls.some(b => !isCueBall(b) && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
+    pathBlocked(cue, ghost, balls, [0, target.id], r, 1.1) ||
+    pathBlocked(target, entry, balls, [0, target.id], r) ||
+    balls.some(b => b.id !== 0 && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
   ) {
     return null
   }
@@ -551,7 +536,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
 }
 
 function safetyShot (req) {
-  const cue = findCueBall(req.state.balls)
+  const cue = req.state.balls.find(b => b.id === 0)
   const corners = [
     { x: 0, y: 0 },
     { x: req.state.width, y: 0 },
@@ -570,7 +555,7 @@ function safetyShot (req) {
 }
 
 function fallbackAimAtTarget (req) {
-  const cue = findCueBall(req.state.balls)
+  const cue = req.state.balls.find(b => b.id === 0)
   const targets = chooseTargets(req)
   if (!cue || targets.length === 0) return null
 
@@ -700,19 +685,19 @@ export function planShot (req) {
             continue
           }
           const overlap = req.state.balls.some(
-            b => !isCueBall(b) && !b.pocketed && dist(cand, b) < r * 2
+            b => b.id !== 0 && !b.pocketed && dist(cand, b) < r * 2
           )
           if (overlap) continue
           placements.push(cand)
         }
       } else {
-        const cue = findCueBall(req.state.balls)
+        const cue = req.state.balls.find(b => b.id === 0)
         placements.push({ x: cue.x, y: cue.y })
       }
 
       for (const cuePos of placements) {
         const balls = req.state.balls.map(b =>
-          isCueBall(b) ? { ...b, x: cuePos.x, y: cuePos.y } : b
+          b.id === 0 ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
 
         const powers = buildPowerOptions(req, cuePos, target)
