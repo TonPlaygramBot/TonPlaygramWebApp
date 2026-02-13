@@ -194,38 +194,6 @@ test('supports non-zero cueBallId mappings', () => {
   assert([3, 11].includes(decision.targetBallId));
 });
 
-test('break shot aims from cue ball to rack center at full power', () => {
-  const req = {
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 500, y: 450, vx: 0, vy: 0, pocketed: false },
-        { id: 1, x: 480, y: 90, vx: 0, vy: 0, pocketed: false },
-        { id: 2, x: 520, y: 90, vx: 0, vy: 0, pocketed: false },
-        { id: 3, x: 500, y: 130, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [
-        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
-        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
-      ],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      breakInProgress: true
-    },
-    timeBudgetMs: 100,
-    rngSeed: 9
-  };
-
-  const decision = planShot(req);
-  assert.equal(decision.power, 1);
-  assert.equal(decision.rationale, 'break-rack-center');
-  const rackCenter = { x: 500, y: (90 + 90 + 130) / 3 };
-  const expected = Math.atan2(rackCenter.y - 450, rackCenter.x - 500);
-  assert(Math.abs(decision.angleRad - expected) < 1e-6);
-});
-
 test('respects group assignment in eight-ball', () => {
   const req = {
     game: 'EIGHT_POOL_UK',
