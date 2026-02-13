@@ -6084,7 +6084,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -6104,8 +6104,9 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
+      return 'TM';
     case 'BM':
-      return null;
+      return 'BM';
     default:
       return pocketId;
   }
@@ -18811,13 +18812,11 @@ const powerRef = useRef(hud.power);
             const focusBallPos2D = focusBall?.active
               ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
               : null;
-            if (!activeShotView.fixedTarget2D) {
-              activeShotView.fixedTarget2D =
-                focusBallPos2D?.clone?.() ??
-                activeShotView.lastBallPos?.clone?.() ??
-                pocketCenter2D.clone();
-            }
-            const focusPoint2D = activeShotView.fixedTarget2D.clone();
+            const focusPoint2D =
+              focusBallPos2D ??
+              activeShotView.fixedTarget2D?.clone?.() ??
+              activeShotView.lastBallPos?.clone?.() ??
+              pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
@@ -19528,7 +19527,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23809,7 +23807,7 @@ const powerRef = useRef(hud.power);
           }
           const holdActive = holdUntil > now;
           let pocketViewActivated = false;
-          if (earlyPocketView) {
+          if (earlyPocketView && !isMaxPowerShot) {
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
               const cam = cameraRef.current;
@@ -23825,13 +23823,20 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            queuedPocketView = null;
-            earlyPocketView.pendingActivation = false;
-            earlyPocketView.activationDelay = null;
-            powerImpactHoldRef.current = 0;
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
+            if (holdUntil > 0) {
+              const baseDelay = earlyPocketView.activationDelay ?? 0;
+              earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
+            }
+            earlyPocketView.pendingActivation = holdActive;
+            if (holdActive) {
+              queuedPocketView = earlyPocketView;
+              pocketViewActivated = true;
+            } else {
+              queuedPocketView = null;
+              updatePocketCameraState(true);
+              activeShotView = earlyPocketView;
+              pocketViewActivated = true;
+            }
           }
           if (!pocketViewActivated && actionView) {
             const shouldActivateActionView =
