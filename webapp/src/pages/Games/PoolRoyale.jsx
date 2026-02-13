@@ -6084,7 +6084,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -6104,8 +6104,9 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
+      return 'TM';
     case 'BM':
-      return null;
+      return 'BM';
     default:
       return pocketId;
   }
@@ -18726,6 +18727,18 @@ const powerRef = useRef(hud.power);
             } else {
               railDir = activeShotView.railDir;
             }
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
+            }
             let broadcastRailDir =
               activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
             const fallbackBroadcast = signed(
@@ -18756,18 +18769,6 @@ const powerRef = useRef(hud.power);
             };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
-              : new THREE.Vector2(0, -railDir);
-            if (approachDir.lengthSq() < 1e-6) {
-              approachDir.set(0, -railDir);
-            }
-            approachDir.normalize();
-            if (activeShotView.approach) {
-              activeShotView.approach.copy(approachDir);
-            } else {
-              activeShotView.approach = approachDir.clone();
-            }
             const resolvedAnchorId = resolvePocketCameraAnchor(
               activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
               pocketCenter,
@@ -18811,13 +18812,11 @@ const powerRef = useRef(hud.power);
             const focusBallPos2D = focusBall?.active
               ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
               : null;
-            if (!activeShotView.fixedTarget2D) {
-              activeShotView.fixedTarget2D =
-                focusBallPos2D?.clone?.() ??
-                activeShotView.lastBallPos?.clone?.() ??
-                pocketCenter2D.clone();
-            }
-            const focusPoint2D = activeShotView.fixedTarget2D.clone();
+            const focusPoint2D =
+              focusBallPos2D ??
+              activeShotView.fixedTarget2D?.clone?.() ??
+              activeShotView.lastBallPos?.clone?.() ??
+              pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
@@ -19519,6 +19518,12 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
+          const isCornerPocket =
+            anchorPocketId === 'TL' ||
+            anchorPocketId === 'TR' ||
+            anchorPocketId === 'BL' ||
+            anchorPocketId === 'BR';
+          if (!isCornerPocket) return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -19528,7 +19533,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23487,15 +23491,50 @@ const powerRef = useRef(hud.power);
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
+          const isDirectHit =
+            shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
+          const predictedTargetBall =
+            shotPrediction.ballId != null
+              ? balls.find((ball) => String(ball.id) === String(shotPrediction.ballId))
+              : null;
+          const predictedTargetDir =
+            shotPrediction.dir && shotPrediction.dir.lengthSq() > 1e-6
+              ? shotPrediction.dir.clone().normalize()
+              : null;
+          let predictedCornerPocketId = null;
+          if (isDirectHit && predictedTargetBall?.active && predictedTargetDir) {
+            const candidatePocket = pocketCenters().reduce((best, center) => {
+              const toPocket = center.clone().sub(predictedTargetBall.pos);
+              const dist = toPocket.length();
+              if (dist < BALL_R * 1.5) return best;
+              const score = toPocket.normalize().dot(predictedTargetDir);
+              if (!best || score > best.score) {
+                return {
+                  center,
+                  score,
+                  id: pocketIdFromCenter(center)
+                };
+              }
+              return best;
+            }, null);
+            if (
+              candidatePocket &&
+              ['TL', 'TR', 'BL', 'BR'].includes(candidatePocket.id) &&
+              candidatePocket.score >= POCKET_EARLY_ALIGNMENT
+            ) {
+              predictedCornerPocketId = candidatePocket.id;
+            }
+          }
           if (shotPrediction.ballId && !isShortShot) {
-            const isDirectHit =
-              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
             pocketSwitchIntentRef.current = {
               ballId: shotPrediction.ballId,
-              allowEarly: isDirectHit,
-              forced: isDirectHit,
+              allowEarly: Boolean(predictedCornerPocketId),
+              forced: Boolean(predictedCornerPocketId),
               createdAt: intentTimestamp
             };
+            if (predictedCornerPocketId) {
+              powerImpactHoldRef.current = 0;
+            }
           } else {
             pocketSwitchIntentRef.current = null;
           }
