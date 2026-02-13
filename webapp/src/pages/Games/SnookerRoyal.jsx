@@ -11153,8 +11153,6 @@ function SnookerRoyalGame({
   useEffect(() => {
     const manager = THREE.DefaultLoadingManager;
     let cancelled = false;
-    const LOADER_STALL_TIMEOUT_MS = 12000;
-    let stallTimeoutId = null;
     const prev = {
       onStart: manager.onStart,
       onLoad: manager.onLoad,
@@ -11166,20 +11164,6 @@ function SnookerRoyalGame({
       const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
     };
-    const clearStallTimeout = () => {
-      if (stallTimeoutId != null) {
-        window.clearTimeout(stallTimeoutId);
-        stallTimeoutId = null;
-      }
-    };
-    const armStallTimeout = () => {
-      clearStallTimeout();
-      stallTimeoutId = window.setTimeout(() => {
-        if (cancelled) return;
-        console.warn('Snooker Royal loader stalled; continuing without loading overlay.');
-        setLoadingActive(false);
-      }, LOADER_STALL_TIMEOUT_MS);
-    };
     const syncManagerState = () => {
       const loaded = Number(manager.itemsLoaded || 0);
       const total = Number(manager.itemsTotal || 0);
@@ -11188,12 +11172,10 @@ function SnookerRoyalGame({
         if (loaded >= total) {
           setLoadingProgress(1);
           setLoadingActive(false);
-          clearStallTimeout();
         }
       } else {
         setLoadingProgress(0);
         setLoadingActive(false);
-        clearStallTimeout();
       }
     };
     manager.onStart = (url, loaded, total) => {
@@ -11201,19 +11183,16 @@ function SnookerRoyalGame({
       if (cancelled) return;
       setLoadingActive(true);
       updateProgress(loaded, total);
-      armStallTimeout();
     };
     manager.onProgress = (url, loaded, total) => {
       prev.onProgress?.(url, loaded, total);
       if (cancelled) return;
       updateProgress(loaded, total);
-      armStallTimeout();
     };
     manager.onLoad = () => {
       prev.onLoad?.();
       if (cancelled) return;
       setLoadingProgress(1);
-      clearStallTimeout();
       window.setTimeout(() => {
         if (!cancelled) setLoadingActive(false);
       }, 200);
@@ -11222,12 +11201,10 @@ function SnookerRoyalGame({
       prev.onError?.(url);
       if (cancelled) return;
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
-      armStallTimeout();
     };
     syncManagerState();
     return () => {
       cancelled = true;
-      clearStallTimeout();
       manager.onStart = prev.onStart;
       manager.onLoad = prev.onLoad;
       manager.onProgress = prev.onProgress;
