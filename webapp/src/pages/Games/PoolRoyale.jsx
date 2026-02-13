@@ -5305,6 +5305,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ba
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
+const POCKET_VIEW_STROKE_SWITCH_DELAY_MS = 55; // switch to pocket cam right after cue impact when a pot is predicted
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
@@ -10006,7 +10007,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.82;
+  const brandPlateOutwardShift = endRailW * 0.9;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -10045,7 +10046,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.08;
+  const railMarkerOutset = longRailW * 0.03;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -23777,9 +23778,14 @@ const powerRef = useRef(hud.power);
           );
           let holdUntil = powerImpactHoldRef.current || 0;
           const now = performance.now();
+          const strokeSwitchHold = impactTime + POCKET_VIEW_STROKE_SWITCH_DELAY_MS;
+          if (!holdUntil || holdUntil > strokeSwitchHold) {
+            holdUntil = strokeSwitchHold;
+            powerImpactHoldRef.current = strokeSwitchHold;
+          }
           if (earlyPocketView?.forcedEarly) {
             const earlyHold = now + POCKET_VIEW_EARLY_HOLD_MS;
-            if (!holdUntil || holdUntil > earlyHold) {
+            if (holdUntil > earlyHold) {
               holdUntil = earlyHold;
               powerImpactHoldRef.current = earlyHold;
             }
