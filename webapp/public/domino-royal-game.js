@@ -67,6 +67,7 @@ const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
 const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
+const MANUAL_GRAPHICS_LOCK_STORAGE_KEY = 'dominoRoyalGraphicsManualLock';
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function isTelegramRuntime() {
@@ -323,6 +324,54 @@ let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
 let slowFrameAccumulatorMs = 0;
 let lastFailsafeTimestamp = 0;
+let graphicsManualLock = false;
+
+function readGraphicsManualLock() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage?.getItem(MANUAL_GRAPHICS_LOCK_STORAGE_KEY) === '1';
+  } catch (error) {
+    console.warn('Failed to read Domino graphics lock', error);
+    return false;
+  }
+}
+
+function persistGraphicsManualLock(value) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value) {
+      window.localStorage?.setItem(MANUAL_GRAPHICS_LOCK_STORAGE_KEY, '1');
+    } else {
+      window.localStorage?.removeItem(MANUAL_GRAPHICS_LOCK_STORAGE_KEY);
+    }
+  } catch (error) {
+    console.warn('Failed to persist Domino graphics lock', error);
+  }
+}
+
+graphicsManualLock = readGraphicsManualLock();
+
+function resolveTextureQualityTier() {
+  const id = frameQuality?.id || frameRateId;
+  if (id === 'ultra144') return 'ultra';
+  if (id === 'uhd120' || id === 'qhd90') return 'high';
+  if (id === 'fhd60') return 'medium';
+  return 'safe';
+}
+
+function resolveProceduralTextureSize(type = 'cloth') {
+  const tier = resolveTextureQualityTier();
+  if (type === 'chair') {
+    if (tier === 'ultra') return 1536;
+    if (tier === 'high') return 1024;
+    if (tier === 'medium') return 768;
+    return 512;
+  }
+  if (tier === 'ultra') return 2048;
+  if (tier === 'high') return 1536;
+  if (tier === 'medium') return 1024;
+  return 768;
+}
 
 function persistFrameRateSelection(id) {
   if (typeof window === 'undefined') return;
@@ -1763,7 +1812,6 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "crimsonVelvet",
@@ -1887,11 +1935,14 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const resolutionOrder = isLowProfileDevice
-    ? ['1k', '2k']
-    : prefersUhd
-      ? ['4k', '2k', '1k']
-      : ['2k', '1k', '4k'];
+  const textureTier = resolveTextureQualityTier();
+  const resolutionOrder = textureTier === 'ultra'
+    ? ['4k', '2k', '1k']
+    : textureTier === 'high'
+      ? ['2k', '1k', '4k']
+      : isLowProfileDevice
+        ? ['1k', '2k']
+        : ['2k', '1k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
@@ -2932,8 +2983,12 @@ const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && nav
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k', '2k'];
-  if (isLowProfileDevice) return ['1k'];
+  const textureTier = resolveTextureQualityTier();
+  if (textureTier === 'ultra') return ['4k', '2k', '1k'];
+  if (textureTier === 'high') return ['2k', '1k', '4k'];
+  if (textureTier === 'medium') return ['2k', '1k'];
+  if (prefersUhd) return ['4k', '2k', '1k'];
+  if (isLowProfileDevice) return ['1k', '2k'];
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
@@ -3125,7 +3180,8 @@ function createChairClothTexture(option, renderer) {
   const accent = adjustHexColor(primary, -0.28);
   const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
+  const textureSize = resolveProceduralTextureSize('chair');
+  canvas.width = canvas.height = textureSize;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -3902,7 +3958,7 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
 }
 
 function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
-  const size = 512;
+  const size = resolveProceduralTextureSize('cloth');
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
@@ -4839,14 +4895,22 @@ function applyAppearanceChange({ refresh = true } = {}) {
   }
 }
 
-function applyFrameRateSelection(optionId, { refreshUi = true } = {}) {
+function applyFrameRateSelection(optionId, { refreshUi = true, source = 'auto' } = {}) {
   const resolvedId = FRAME_RATE_OPTIONS_BY_ID[optionId] ? optionId : DEFAULT_FRAME_RATE_ID;
   frameRateId = resolvedId;
   frameQuality = buildFrameQuality(resolvedId);
   frameTiming = buildFrameTiming(frameQuality);
+  if (source === 'user') {
+    graphicsManualLock = true;
+    persistGraphicsManualLock(true);
+  } else if (source === 'auto' && resolvedId === DEFAULT_FRAME_RATE_ID) {
+    graphicsManualLock = false;
+    persistGraphicsManualLock(false);
+  }
   persistFrameRateSelection(resolvedId);
   applyRendererQuality(frameQuality);
   applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
+  applyAppearanceChange({ refresh: false });
   if (refreshUi) {
     refreshConfigUI();
   }
@@ -5207,7 +5271,7 @@ function refreshConfigUI() {
     }
     button.addEventListener('click', () => {
       if (frameRateId === option.id) return;
-      applyFrameRateSelection(option.id, { refreshUi: false });
+      applyFrameRateSelection(option.id, { refreshUi: false, source: 'user' });
       refreshConfigUI();
     });
     graphicsGrid.appendChild(button);
@@ -5622,8 +5686,8 @@ function handleWebglContextRestored() {
   contextLost = false;
   clearContextLossTimer();
   const fallbackFrameRateId = findFallbackFrameRateId(frameQuality?.id);
-  if (fallbackFrameRateId && fallbackFrameRateId !== frameQuality?.id) {
-    applyFrameRateById(fallbackFrameRateId, { persist: true, announce: false });
+  if (!graphicsManualLock && fallbackFrameRateId && fallbackFrameRateId !== frameQuality?.id) {
+    applyFrameRateSelection(fallbackFrameRateId, { refreshUi: false, source: 'auto' });
   }
   setStatus('Graphics restored.');
   setControlEnabled(false);
@@ -7215,10 +7279,13 @@ function monitorFrameHealth(elapsedMs, timing) {
     slowFrameAccumulatorMs = Math.max(0, slowFrameAccumulatorMs - targetMs * 0.5);
   }
   const now = performance.now();
+  if (graphicsManualLock) {
+    return;
+  }
   if (slowFrameAccumulatorMs >= FRAME_DROP_WINDOW_MS && now - lastFailsafeTimestamp > FRAME_FAILSAFE_COOLDOWN_MS) {
     const fallbackId = findFallbackFrameRateId(frameRateId);
     if (fallbackId && fallbackId !== frameRateId) {
-      applyFrameRateSelection(fallbackId);
+      applyFrameRateSelection(fallbackId, { source: 'auto' });
       setStatus('Lowered quality for smoother play');
       slowFrameAccumulatorMs = 0;
       lastFailsafeTimestamp = now;
