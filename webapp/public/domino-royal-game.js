@@ -68,6 +68,20 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
+const MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE = Object.freeze({
+  hdri: {
+    default: Object.freeze(['2k', '1k']),
+    uhd: Object.freeze(['4k', '2k']),
+    lowProfile: Object.freeze(['2k', '1k'])
+  },
+  models: {
+    default: Object.freeze(['2k', '1k', '4k']),
+    uhd: Object.freeze(['4k', '2k', '1k']),
+    lowProfile: Object.freeze(['2k', '1k'])
+  },
+  chairTextureSize: 1024,
+  woodTextureSize: 2048
+});
 
 function isTelegramRuntime() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -1763,7 +1777,7 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
+const CHAIR_CLOTH_TEXTURE_SIZE = MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.chairTextureSize;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "crimsonVelvet",
@@ -1888,10 +1902,10 @@ async function loadPolyhavenModel(assetId) {
     return cached.clone(true);
   }
   const resolutionOrder = isLowProfileDevice
-    ? ['1k', '2k']
+    ? MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.models.lowProfile
     : prefersUhd
-      ? ['4k', '2k', '1k']
-      : ['2k', '1k', '4k'];
+      ? MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.models.uhd
+      : MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.models.default;
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
@@ -2159,7 +2173,7 @@ const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
 );
 
 const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'estateBands';
-const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
+const DEFAULT_WOOD_TEXTURE_SIZE = MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.woodTextureSize;
 const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
 const WOOD_TEXTURE_BASE_CACHE = new Map();
 
@@ -2932,9 +2946,9 @@ const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && nav
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k', '2k'];
-  if (isLowProfileDevice) return ['1k'];
-  return ['2k', '1k'];
+  if (prefersUhd) return [...MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.hdri.uhd];
+  if (isLowProfileDevice) return [...MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.hdri.lowProfile];
+  return [...MURLAN_ROYALE_ASSET_RESOLUTION_PROFILE.hdri.default];
 }
 function shouldLoadExternalHdri() {
   return true;
