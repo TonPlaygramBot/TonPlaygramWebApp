@@ -1178,9 +1178,13 @@ function applyRendererQuality(quality = frameQuality) {
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 2) : pixelRatioCap;
-  const runtimePixelRatioCap = cappedRatio;
+  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
-  setRendererSize(quality);
+  if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
+    setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 1) });
+  } else {
+    setRendererSize(quality);
+  }
 }
 applyRendererQuality();
 if (!app) {
@@ -1759,7 +1763,7 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 1024;
+const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "crimsonVelvet",
@@ -2928,8 +2932,7 @@ const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && nav
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd || frameQuality?.id === 'uhd120' || frameQuality?.id === 'ultra144') return ['4k', '2k'];
-  if (frameQuality?.id === 'qhd90') return ['2k', '1k'];
+  if (prefersUhd) return ['4k', '2k'];
   if (isLowProfileDevice) return ['1k'];
   return ['2k', '1k'];
 }
@@ -3899,7 +3902,7 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
 }
 
 function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
-  const size = 1024;
+  const size = 512;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
