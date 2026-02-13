@@ -1763,7 +1763,7 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
+const CHAIR_CLOTH_TEXTURE_SIZE = 1024;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "crimsonVelvet",
@@ -1887,11 +1887,9 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const resolutionOrder = isLowProfileDevice
-    ? ['1k', '2k']
-    : prefersUhd
-      ? ['4k', '2k', '1k']
-      : ['2k', '1k', '4k'];
+  // Keep Poly Haven chair/table model resolution aligned with Murlan Royale.
+  // Murlan uses 2k primary with 1k fallback for stable quality/perf balance.
+  const resolutionOrder = ['2k', '1k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
@@ -2159,8 +2157,8 @@ const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
 );
 
 const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'estateBands';
-const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
-const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
+const DEFAULT_WOOD_TEXTURE_SIZE = 2048;
+const DEFAULT_WOOD_ROUGHNESS_SIZE = 1024;
 const WOOD_TEXTURE_BASE_CACHE = new Map();
 
 function makeCacheKey({
@@ -2924,7 +2922,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
@@ -2932,9 +2930,8 @@ const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && nav
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k', '2k'];
-  if (isLowProfileDevice) return ['1k'];
-  return ['2k', '1k'];
+  // Match Murlan Royale HDRI setup (fixed 4k variant selection).
+  return HDRI_RESOLUTION_ORDER;
 }
 function shouldLoadExternalHdri() {
   return true;
@@ -3902,7 +3899,8 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
 }
 
 function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
-  const size = 512;
+  // Murlan table cloth texture size parity.
+  const size = 1024;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
