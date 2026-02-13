@@ -607,19 +607,15 @@ function fallbackAimAtTarget (req) {
 
 function buildPowerOptions (req, cuePos, target) {
   const r = req.state.ballRadius
-  const isBreakShot = Boolean(req.state.breakInProgress)
   const shotDist = dist(cuePos, target)
-  const normalMax = 0.78
-  const breakMax = 0.98
-  const maxPower = isBreakShot ? breakMax : normalMax
-  const base = clamp(shotDist / (r * 32), 0.4, maxPower)
+  const base = clamp(shotDist / (r * 32), 0.4, 0.92)
   const candidates = [
     base - 0.14,
     base - 0.06,
     base,
     base + 0.08,
     base + 0.18
-  ].map(value => clamp(value, 0.35, maxPower))
+  ].map(value => clamp(value, 0.35, 0.98))
   return Array.from(new Set(candidates.map(v => Number(v.toFixed(3)))))
 }
 
