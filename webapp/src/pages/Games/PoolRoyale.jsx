@@ -6084,7 +6084,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -6104,9 +6104,8 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
-      return 'TM';
     case 'BM':
-      return 'BM';
+      return null;
     default:
       return pocketId;
   }
@@ -18707,6 +18706,18 @@ const powerRef = useRef(hud.power);
             } else {
               railDir = activeShotView.railDir;
             }
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
+            }
             let broadcastRailDir =
               activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
             const fallbackBroadcast = signed(
@@ -18737,18 +18748,6 @@ const powerRef = useRef(hud.power);
             };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
-              : new THREE.Vector2(0, -railDir);
-            if (approachDir.lengthSq() < 1e-6) {
-              approachDir.set(0, -railDir);
-            }
-            approachDir.normalize();
-            if (activeShotView.approach) {
-              activeShotView.approach.copy(approachDir);
-            } else {
-              activeShotView.approach = approachDir.clone();
-            }
             const resolvedAnchorId = resolvePocketCameraAnchor(
               activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
               pocketCenter,
@@ -19498,6 +19497,7 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
+          if (anchorPocketId === 'TM' || anchorPocketId === 'BM') return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -25966,9 +25966,8 @@ const powerRef = useRef(hud.power);
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
               isOpeningBreak &&
-              breakInProgress &&
               aiTurnActive &&
-              (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
+              (breakInProgress || breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
@@ -27745,7 +27744,8 @@ const powerRef = useRef(hud.power);
             }
             if (!hasLift) {
               const dt = SPIN_FIXED_DT * stepScale;
-              if (b.omega) {
+              const allowPreImpactSpinCoupling = !(isCue && !b.impacted);
+              if (b.omega && allowPreImpactSpinCoupling) {
                 TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
                 TMP_VEC3_B.set(0, -BALL_R, 0);
                 TMP_VEC3_C.copy(b.omega);
