@@ -23491,15 +23491,50 @@ const powerRef = useRef(hud.power);
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
+          const isDirectHit =
+            shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
+          const predictedTargetBall =
+            shotPrediction.ballId != null
+              ? balls.find((ball) => String(ball.id) === String(shotPrediction.ballId))
+              : null;
+          const predictedTargetDir =
+            shotPrediction.dir && shotPrediction.dir.lengthSq() > 1e-6
+              ? shotPrediction.dir.clone().normalize()
+              : null;
+          let predictedCornerPocketId = null;
+          if (isDirectHit && predictedTargetBall?.active && predictedTargetDir) {
+            const candidatePocket = pocketCenters().reduce((best, center) => {
+              const toPocket = center.clone().sub(predictedTargetBall.pos);
+              const dist = toPocket.length();
+              if (dist < BALL_R * 1.5) return best;
+              const score = toPocket.normalize().dot(predictedTargetDir);
+              if (!best || score > best.score) {
+                return {
+                  center,
+                  score,
+                  id: pocketIdFromCenter(center)
+                };
+              }
+              return best;
+            }, null);
+            if (
+              candidatePocket &&
+              ['TL', 'TR', 'BL', 'BR'].includes(candidatePocket.id) &&
+              candidatePocket.score >= POCKET_EARLY_ALIGNMENT
+            ) {
+              predictedCornerPocketId = candidatePocket.id;
+            }
+          }
           if (shotPrediction.ballId && !isShortShot) {
-            const isDirectHit =
-              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
             pocketSwitchIntentRef.current = {
               ballId: shotPrediction.ballId,
-              allowEarly: isDirectHit,
-              forced: isDirectHit,
+              allowEarly: Boolean(predictedCornerPocketId),
+              forced: Boolean(predictedCornerPocketId),
               createdAt: intentTimestamp
             };
+            if (predictedCornerPocketId) {
+              powerImpactHoldRef.current = 0;
+            }
           } else {
             pocketSwitchIntentRef.current = null;
           }
@@ -25559,16 +25594,22 @@ const powerRef = useRef(hud.power);
             .forEach((entry) => {
               if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
             });
-          const preferredActiveBalls =
-            assignmentTargets.length > 0
+          const legalCandidateBalls =
+            combinedTargets.length > 0
               ? activeBalls.filter((ball) =>
-                  assignmentTargets.some((target) => matchesTargetId(ball, target))
+                  combinedTargets.some((target) => matchesTargetId(ball, target))
                 )
               : activeBalls;
+          const preferredActiveBalls =
+            assignmentTargets.length > 0
+              ? legalCandidateBalls.filter((ball) =>
+                  assignmentTargets.some((target) => matchesTargetId(ball, target))
+                )
+              : legalCandidateBalls;
           const candidateBalls =
             assignmentTargets.length > 0 && preferredActiveBalls.length > 0
               ? preferredActiveBalls
-              : activeBalls;
+              : legalCandidateBalls;
           const pickFallbackBall = () =>
             candidateBalls.reduce((best, ball) => {
               if (!best) return ball;
@@ -25617,7 +25658,7 @@ const powerRef = useRef(hud.power);
           if (!targetBall && combinedTargets.length > 0) {
             targetBall =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, activeBalls, cuePos);
+              pickPreferredBall(combinedTargets, candidateBalls, cuePos);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -25633,20 +25674,20 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length > 0) {
               targetBall =
                 pickDirectPreferredBall(preferredColours) ||
-                pickPreferredBall(preferredColours, activeBalls, cuePos);
+                pickPreferredBall(preferredColours, candidateBalls, cuePos);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
+            targetBall = pickPreferredBall(['BLACK'], candidateBalls, cuePos);
           }
 
           if (!targetBall) {
             targetBall = pickPreferredBall(
-              activeBalls
+              candidateBalls
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
-              activeBalls,
+              candidateBalls,
               cuePos
             );
           }
@@ -25658,7 +25699,7 @@ const powerRef = useRef(hud.power);
           if (targetBall && !isDirectLaneOpen(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
+              pickPreferredBall(combinedTargets, candidateBalls, cuePos) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
           }
