@@ -1887,7 +1887,11 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const resolutionOrder = ['2k', '1k'];
+  const resolutionOrder = isLowProfileDevice
+    ? ['1k', '2k']
+    : prefersUhd
+      ? ['4k', '2k', '1k']
+      : ['2k', '1k', '4k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
@@ -2920,15 +2924,17 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
 const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
-const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 2 : 3;
+const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  return [...HDRI_RESOLUTION_ORDER];
+  if (prefersUhd) return ['4k', '2k'];
+  if (isLowProfileDevice) return ['1k'];
+  return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
   return true;
