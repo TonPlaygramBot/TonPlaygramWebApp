@@ -6924,6 +6924,26 @@ function calcTarget(cue, dir, balls) {
     };
   }
   const cuePos = cue.pos.clone();
+  if (!Number.isFinite(cuePos.x) || !Number.isFinite(cuePos.y)) {
+    return {
+      impact: new THREE.Vector2(),
+      targetDir: null,
+      cueDir: null,
+      targetBall: null,
+      railNormal: null,
+      tHit: 0
+    };
+  }
+  if (!Number.isFinite(dir?.x) || !Number.isFinite(dir?.y)) {
+    return {
+      impact: cuePos.clone(),
+      targetDir: null,
+      cueDir: null,
+      targetBall: null,
+      railNormal: null,
+      tHit: 0
+    };
+  }
   if (!dir || dir.lengthSq() < 1e-8) {
     return {
       impact: cuePos.clone(),
@@ -25966,9 +25986,8 @@ const powerRef = useRef(hud.power);
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
               isOpeningBreak &&
-              breakInProgress &&
               aiTurnActive &&
-              (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
+              (aiWonBreak || openingPlayer === 'B' || breakRollState === 'done' || breakInProgress);
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
@@ -27743,7 +27762,8 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
-            if (!hasLift) {
+            const preImpactCueSpinLocked = isCue && !b.impacted;
+            if (!hasLift && !preImpactCueSpinLocked) {
               const dt = SPIN_FIXED_DT * stepScale;
               if (b.omega) {
                 TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
@@ -27977,7 +27997,7 @@ const powerRef = useRef(hud.power);
                 ) {
                   activeShotView.hitConfirmed = true;
                 }
-                if (cueBall && cueBall.omega?.lengthSq() > 0) {
+                if (cueBall) {
                   cueBall.impacted = true;
                 }
               }
