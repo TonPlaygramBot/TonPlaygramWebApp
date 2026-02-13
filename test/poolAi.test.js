@@ -296,3 +296,62 @@ test('avoids unnecessary spin when natural position is good', () => {
   assert.equal(decision.power, 0.5);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
+
+test('opening break targets rack apex with max power', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 700, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 720, y: 240, vx: 0, vy: 0, pocketed: false },
+        { id: 3, x: 720, y: 260, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      breakInProgress: true
+    },
+    timeBudgetMs: 50
+  };
+
+  const decision = planShot(req);
+  assert.equal(decision.targetBallId, 1);
+  assert.equal(decision.power, 1);
+  assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
+  assert.equal(decision.rationale, 'opening-break-rack-max-power');
+});
+
+test('middle pocket alignment edge case keeps aim finite', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 100, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 500, y: 0, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 50,
+    rngSeed: 7
+  };
+
+  const decision = planShot(req);
+  assert(Number.isFinite(decision.angleRad));
+  if (decision.aimPoint) {
+    assert(Number.isFinite(decision.aimPoint.x));
+    assert(Number.isFinite(decision.aimPoint.y));
+  }
+});

@@ -57,6 +57,21 @@ function dist (a, b) {
   return Math.hypot(dx, dy)
 }
 
+function safeDistance (a, b, fallback = 1e-6) {
+  const d = dist(a, b)
+  if (!Number.isFinite(d) || d <= 0) return fallback
+  return d
+}
+
+function ghostBallForEntry (target, entry, diameter) {
+  const targetToEntry = safeDistance(target, entry)
+  const scale = diameter / targetToEntry
+  return {
+    x: target.x - (entry.x - target.x) * scale,
+    y: target.y - (entry.y - target.y) * scale
+  }
+}
+
 function clamp (value, min, max) {
   return Math.min(Math.max(value, min), max)
 }
@@ -146,6 +161,35 @@ function pocketAlignment (pocket, target, width, height) {
   const len = Math.hypot(approach.x, approach.y) || 1
   const normal = pocketNormal(pocket, width, height)
   return Math.max(0, (approach.x / len) * normal.x + (approach.y / len) * normal.y)
+}
+
+function openingBreakShot (req) {
+  if (!req?.state?.breakInProgress) return null
+  const cue = req.state.balls.find(b => b.id === 0 && !b.pocketed)
+  if (!cue) return null
+  const objectBalls = req.state.balls.filter(b => b.id !== 0)
+  if (objectBalls.length === 0 || objectBalls.some(b => b.pocketed)) return null
+
+  let apex = objectBalls[0]
+  let bestDist = dist(cue, apex)
+  for (let i = 1; i < objectBalls.length; i++) {
+    const candidate = objectBalls[i]
+    const candidateDist = dist(cue, candidate)
+    if (candidateDist < bestDist) {
+      bestDist = candidateDist
+      apex = candidate
+    }
+  }
+
+  return {
+    angleRad: Math.atan2(apex.y - cue.y, apex.x - cue.x),
+    power: 1,
+    spin: { top: 0, side: 0, back: 0 },
+    targetBallId: apex.id,
+    aimPoint: { x: apex.x, y: apex.y },
+    quality: 0.5,
+    rationale: 'opening-break-rack-max-power'
+  }
 }
 
 function currentGroup (state) {
@@ -255,10 +299,7 @@ function clearShotCandidates (req) {
   for (const target of targets) {
     for (const pocket of pockets) {
       const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
-      const ghost = {
-        x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
-        y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
-      }
+      const ghost = ghostBallForEntry(target, entry, r * 2)
 
       // ensure ghost is within table bounds
       if (
@@ -285,7 +326,7 @@ function clearShotCandidates (req) {
       const potVec = { x: entry.x - target.x, y: entry.y - target.y }
       let cut = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
       if (cut > Math.PI) cut = Math.abs(cut - Math.PI * 2)
-      const viewAngle = Math.atan2(r * 2, dist(target, entry))
+      const viewAngle = Math.atan2(r * 2, safeDistance(target, entry))
       const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
       const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
       const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
@@ -440,10 +481,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const rng = options.rng ?? Math.random
   const balls = ballsOverride || req.state.balls
   const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
-  const ghost = {
-    x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
-    y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
-  }
+  const ghost = ghostBallForEntry(target, entry, r * 2)
   // if ghost lies outside playable area, shot is impossible
   if (
     ghost.x < r ||
@@ -485,8 +523,9 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
   if (cutAngle > Math.PI) cutAngle = Math.abs(cutAngle - Math.PI * 2)
   const centerAlign = 1 - Math.min(cutAngle / (Math.PI / 2), 1)
-  const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
-  const viewAngle = Math.atan2(r * 2, dist(target, entry))
+  const targetToEntry = safeDistance(target, entry)
+  const nearHole = 1 - Math.min(targetToEntry / (r * 20), 1)
+  const viewAngle = Math.atan2(r * 2, targetToEntry)
   const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
   const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
   const pocketOpen = viewScore * (0.7 + 0.3 * entryAlignment)
@@ -572,10 +611,7 @@ function fallbackAimAtTarget (req) {
     }
     if (!bestPocket) continue
     const entry = pocketEntry(bestPocket, req.state.ballRadius, req.state.width, req.state.height, target)
-    const ghost = {
-      x: target.x - (entry.x - target.x) * (req.state.ballRadius * 2 / dist(target, entry)),
-      y: target.y - (entry.y - target.y) * (req.state.ballRadius * 2 / dist(target, entry))
-    }
+    const ghost = ghostBallForEntry(target, entry, req.state.ballRadius * 2)
     if (
       ghost.x < req.state.ballRadius ||
       ghost.x > req.state.width - req.state.ballRadius ||
@@ -624,6 +660,9 @@ function buildPowerOptions (req, cuePos, target) {
  * @returns {ShotDecision}
  */
 export function planShot (req) {
+  const breakShot = openingBreakShot(req)
+  if (breakShot) return breakShot
+
   const r = req.state.ballRadius
   const start = Date.now()
   const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
@@ -659,8 +698,8 @@ export function planShot (req) {
         const distTP = Math.hypot(toPocket.x, toPocket.y) || 1
         const dir = { x: target.x - entry.x, y: target.y - entry.y }
         const ghost = {
-          x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
-          y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
+          x: target.x - (entry.x - target.x) * (r * 2 / safeDistance(target, entry)),
+          y: target.y - (entry.y - target.y) * (r * 2 / safeDistance(target, entry))
         }
         const dists = [4, 6, 8, 10, 12].map(m => m * r)
         for (const d of dists) {
