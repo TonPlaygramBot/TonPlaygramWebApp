@@ -1178,10 +1178,16 @@ function applyRendererQuality(quality = frameQuality) {
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 2) : pixelRatioCap;
-  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
+  const telegramPixelRatioCap = quality?.id === 'mobileSafe'
+    ? Math.min(cappedRatio, 1)
+    : Math.min(cappedRatio, 1.6);
+  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? telegramPixelRatioCap : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
   if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
-    setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 1) });
+    const telegramRenderScale = quality.id === 'mobileSafe'
+      ? Math.min(quality.renderScale || 1, 1)
+      : Math.min(quality.renderScale || 1, 1.2);
+    setRendererSize({ ...quality, renderScale: telegramRenderScale });
   } else {
     setRendererSize(quality);
   }
@@ -1763,7 +1769,8 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
+const CHAIR_CLOTH_TEXTURE_SIZE = 1024;
+const TABLE_CLOTH_TEXTURE_SIZE = 1024;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "crimsonVelvet",
@@ -2929,20 +2936,32 @@ const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
-const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
-const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
+const isLowProfileDevice = isLowMemoryDevice || isLowCoreDevice;
+function resolveHdriCacheSize() {
+  if (prefersUhd || frameRateId === 'ultra144' || frameRateId === 'uhd120') return 4;
+  if (isLowProfileDevice || frameRateId === 'mobileSafe') return 1;
+  return 2;
+}
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k', '2k'];
-  if (isLowProfileDevice) return ['1k'];
+  if (prefersUhd || frameRateId === 'ultra144' || frameRateId === 'uhd120') {
+    return ['4k', '2k', '1k'];
+  }
+  if (isLowProfileDevice || frameRateId === 'mobileSafe') {
+    return ['1k'];
+  }
+  if (frameRateId === 'qhd90') {
+    return ['4k', '2k', '1k'];
+  }
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
   return true;
 }
 function pruneHdriCache() {
-  if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
+  const maxHdriCacheSize = resolveHdriCacheSize();
+  if (hdriTextureCache.size <= maxHdriCacheSize) return;
   const entries = [...hdriTextureCache.entries()];
-  const overflow = Math.max(0, entries.length - MAX_HDRI_CACHE_SIZE);
+  const overflow = Math.max(0, entries.length - maxHdriCacheSize);
   for (let i = 0; i < overflow; i += 1) {
     const [key, texture] = entries[i];
     hdriTextureCache.delete(key);
@@ -3902,7 +3921,7 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
 }
 
 function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
-  const size = 512;
+  const size = TABLE_CLOTH_TEXTURE_SIZE;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
