@@ -19490,12 +19490,20 @@ const powerRef = useRef(hud.power);
               : forceCornerCapture
                 ? 1
                 : null;
+          const isDirectPrediction =
+            shotPrediction?.ballId === ballId &&
+            (shotPrediction?.railNormal === null ||
+              shotPrediction?.railNormal === undefined);
           const isGuaranteedPocket =
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          const allowEarly = forceCornerCapture;
-          if (!forceCornerCapture && !isGuaranteedPocket) return null;
+          const isEarlyPocket =
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_EARLY_ALIGNMENT &&
+            isDirectPrediction;
+          const allowEarly = forceCornerCapture || isEarlyPocket;
+          if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
@@ -19510,12 +19518,6 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
-          const isCornerPocket =
-            anchorPocketId === 'TL' ||
-            anchorPocketId === 'TR' ||
-            anchorPocketId === 'BL' ||
-            anchorPocketId === 'BR';
-          if (!isCornerPocket) return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -19599,7 +19601,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly: false
+            forcedEarly: Boolean(isEarlyPocket)
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -25128,8 +25130,7 @@ const powerRef = useRef(hud.power);
             friction: FRICTION,
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
-            ballOn: normalizedBallOn ?? null,
-            breakInProgress: (frameSnapshot?.currentBreak ?? 0) === 0
+            ballOn: normalizedBallOn ?? null
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -26043,10 +26044,7 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            const isBreakPlan = plan?.type === 'break';
-            const aiPower = isBreakPlan
-              ? 1
-              : THREE.MathUtils.clamp(clampPower(plan.power, 0.58), 0.35, 0.78);
+            const aiPower = clampPower(plan.power, 0.6);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -26884,14 +26882,7 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else {
-            const legalPlayerAim = isPlayerTurn
-              ? resolveLegalPlayerAimDirection(tmpAim)
-              : tmpAim;
-            const desiredAim =
-              legalPlayerAim && legalPlayerAim.lengthSq() > 1e-6
-                ? legalPlayerAim
-                : tmpAim;
-            aimDir.lerp(desiredAim, aimLerpFactor);
+            aimDir.lerp(tmpAim, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
