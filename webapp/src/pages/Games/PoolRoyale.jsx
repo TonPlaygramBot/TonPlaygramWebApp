@@ -1607,7 +1607,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale shot power by 20%
+const SHOT_POWER_ADJUSTMENT = 0.9; // reduce overall Pool Royale power by 10% for a slightly faster pace
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -24939,7 +24939,7 @@ const powerRef = useRef(hud.power);
           if (!value) return undefined;
           const normalized = String(value).toUpperCase();
           if (['SOLID', 'SOLIDS', 'RED'].includes(normalized)) return 'SOLIDS';
-          if (['STRIPE', 'STRIPES', 'BLUE', 'YELLOW'].includes(normalized)) return 'STRIPES';
+          if (['STRIPE', 'STRIPES', 'BLUE'].includes(normalized)) return 'STRIPES';
           return undefined;
         };
 
@@ -25135,7 +25135,7 @@ const powerRef = useRef(hud.power);
         const computeOpenSourcePlan = (allBalls, cueBall, frameSnapshot) => {
           if (!cueBall?.active) return null;
           const variantId = activeVariantRef.current?.id ?? variantKey;
-          if (variantId !== 'american' && variantId !== '9ball' && variantId !== 'uk') return null;
+          if (variantId !== 'american' && variantId !== '9ball') return null;
           const width = PLAY_W;
           const height = PLAY_H;
           const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
@@ -25190,21 +25190,13 @@ const powerRef = useRef(hud.power);
             ballRadius: BALL_R,
             friction: FRICTION,
             cueBallId,
-            ballInHand: Boolean(metaState?.ballInHand || metaState?.mustPlayFromBaulk),
+            ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
             ballOn: normalizedBallOn ?? null,
-            mustPlayFromBaulk: Boolean(metaState?.mustPlayFromBaulk),
-            breakInProgress: Boolean(metaState?.breakInProgress),
-            breakPlacementRestricted: Boolean(metaState?.breakInProgress)
-
+            breakInProgress: Boolean(metaState?.breakInProgress)
           };
           const decision = planShot({
-            game:
-              variantId === 'american'
-                ? 'AMERICAN_BILLIARDS'
-                : variantId === 'uk'
-                  ? 'EIGHT_POOL_UK'
-                  : 'NINE_BALL',
+            game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
             state: aiState,
             timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
           });
@@ -25281,17 +25273,16 @@ const powerRef = useRef(hud.power);
             const stateSnapshot = frameRef.current ?? frameState;
             if (variantId === 'uk' && cue?.active) {
               const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
-              if (advancedPlan) {
-                const result = { ...baseline };
-                if (advancedPlan.type === 'pot') {
-                  result.bestPot = advancedPlan;
-                  if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
-                } else {
-                  result.bestSafety = advancedPlan;
-                  if (!result.bestPot) result.bestPot = baseline.bestPot;
-                }
-                return result;
+              if (!advancedPlan) return baseline;
+              const result = { ...baseline };
+              if (advancedPlan.type === 'pot') {
+                result.bestPot = advancedPlan;
+                if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
+              } else {
+                result.bestSafety = advancedPlan;
+                if (!result.bestPot) result.bestPot = baseline.bestPot;
               }
+              return result;
             }
             if (!cue?.active) return baseline;
             const openSourcePlan = computeOpenSourcePlan(balls, cue, stateSnapshot);
