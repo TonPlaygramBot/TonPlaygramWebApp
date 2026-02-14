@@ -1607,7 +1607,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.9; // reduce overall Pool Royale power by 10% for a slightly faster pace
+const SHOT_POWER_ADJUSTMENT = 0.8; // reduce overall Pool Royale power by 20% to lower stroke force
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -25577,6 +25577,27 @@ const powerRef = useRef(hud.power);
             }
             return true;
           };
+          const hasPocketLane = (target) => {
+            if (!target?.pos) return false;
+            return POCKET_ENTRANCES.some((entryPoint) => {
+              const lane = entryPoint.clone().sub(target.pos);
+              const lenSq = lane.lengthSq();
+              if (lenSq < 1e-6) return false;
+              const len = Math.sqrt(lenSq);
+              const unit = lane.divideScalar(len);
+              for (const ball of activeBalls) {
+                if (!ball?.active) continue;
+                if (ball.id === target.id || String(ball.id) === 'cue') continue;
+                const rel = ball.pos.clone().sub(target.pos);
+                const proj = THREE.MathUtils.clamp(rel.dot(unit), 0, len);
+                const closest = target.pos.clone().add(unit.clone().multiplyScalar(proj));
+                if (ball.pos.distanceToSquared(closest) < clearance * clearance) {
+                  return false;
+                }
+              }
+              return true;
+            });
+          };
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
@@ -25636,10 +25657,12 @@ const powerRef = useRef(hud.power);
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
-                (isDirectLaneOpen(best) ? 1 : 0.35);
+                (isDirectLaneOpen(best) ? 1 : 0.35) *
+                (hasPocketLane(best) ? 1 : 0.75);
               const score =
                 scoreBallForAim(ball, cuePos) *
-                (isDirectLaneOpen(ball) ? 1 : 0.35);
+                (isDirectLaneOpen(ball) ? 1 : 0.35) *
+                (hasPocketLane(ball) ? 1 : 0.75);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
@@ -25733,9 +25756,13 @@ const powerRef = useRef(hud.power);
               )
               .sort((a, b) => {
                 const scoreA =
-                  scoreBallForAim(a, cuePos) * (isDirectLaneOpen(a) ? 1 : 0.35);
+                  scoreBallForAim(a, cuePos) *
+                  (isDirectLaneOpen(a) ? 1 : 0.35) *
+                  (hasPocketLane(a) ? 1 : 0.75);
                 const scoreB =
-                  scoreBallForAim(b, cuePos) * (isDirectLaneOpen(b) ? 1 : 0.35);
+                  scoreBallForAim(b, cuePos) *
+                  (isDirectLaneOpen(b) ? 1 : 0.35) *
+                  (hasPocketLane(b) ? 1 : 0.75);
                 return scoreB - scoreA;
               });
             const rotationPool = rankedLegalBalls.length > 0 ? rankedLegalBalls : candidateBalls;
