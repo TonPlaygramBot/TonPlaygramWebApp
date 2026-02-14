@@ -1607,7 +1607,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.72; // apply an additional 20% reduction from the current tuning
+const SHOT_POWER_ADJUSTMENT = 0.9; // reduce overall Pool Royale power by 10% for a slightly faster pace
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
