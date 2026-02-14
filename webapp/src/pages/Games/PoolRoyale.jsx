@@ -5307,8 +5307,8 @@ const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
-const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
-const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
+const LONG_SHOT_ACTIVATION_DELAY_MS = 0;
+const LONG_SHOT_ACTIVATION_TRAVEL = 0;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
@@ -5379,6 +5379,7 @@ const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
+const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = STOP_EPS;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
@@ -23527,7 +23528,7 @@ const powerRef = useRef(hud.power);
               : null;
             pocketSwitchIntentRef.current = {
               ballId: shotPrediction.ballId,
-              allowEarly: isDirectHit,
+              allowEarly: true,
               forced: isDirectHit,
               preferredPocketId:
                 cornerIntent && cornerIntent.score >= POCKET_CAM.dotThreshold
@@ -28083,6 +28084,10 @@ const powerRef = useRef(hud.power);
             const delayReady =
               !suspendedActionView.activationDelay ||
               now >= suspendedActionView.activationDelay;
+            const cueSpeed = cueBall.vel.length() * frameScale;
+            if (cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED) {
+              powerImpactHoldRef.current = 0;
+            }
             const holdReady =
               !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
             if (travelReady && delayReady && holdReady) {
