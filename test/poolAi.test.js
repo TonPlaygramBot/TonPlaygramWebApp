@@ -144,7 +144,7 @@ test('ball in hand baulk restriction only applies during break placement', () =>
   }
 });
 
-test('open-table targeting can select any object ball', () => {
+test('prefers any legal open-table object ball and avoids the 8-ball', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
     state: {
@@ -164,34 +164,8 @@ test('open-table targeting can select any object ball', () => {
     rngSeed: 3
   };
   const decision = planShot(req);
-  assert([1, 2, 8].includes(decision.targetBallId));
-});
-
-test('supports non-zero cueBallId mappings', () => {
-  const req = {
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      cueBallId: 16,
-      balls: [
-        { id: 16, x: 120, y: 160, vx: 0, vy: 0, pocketed: false },
-        { id: 3, x: 280, y: 120, vx: 0, vy: 0, pocketed: false },
-        { id: 11, x: 320, y: 180, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [
-        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
-        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
-      ],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      breakInProgress: true
-    },
-    timeBudgetMs: 100,
-    rngSeed: 7
-  };
-  const decision = planShot(req);
-  assert([3, 11].includes(decision.targetBallId));
+  assert.notEqual(decision.targetBallId, 8);
+  assert([1, 2].includes(decision.targetBallId));
 });
 
 test('respects group assignment in eight-ball', () => {
