@@ -6085,6 +6085,7 @@ const getPocketCenterById = (id) => {
   }
 };
 const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
@@ -6095,6 +6096,28 @@ const POCKET_CAMERA_OUTWARD = Object.freeze({
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
+const getCornerPocketCenterById = (id) => {
+  if (!CORNER_POCKET_CAMERA_IDS.includes(id)) return null;
+  return getPocketCenterById(id);
+};
+const resolveCornerPocketIntent = ({ ball, direction }) => {
+  if (!ball || !direction || direction.lengthSq() < 1e-6) return null;
+  const dir = direction.clone().normalize();
+  let best = null;
+  for (const pocketId of CORNER_POCKET_CAMERA_IDS) {
+    const center = getCornerPocketCenterById(pocketId);
+    if (!center) continue;
+    const toPocket = center.clone().sub(ball.pos);
+    const dist = toPocket.length();
+    if (!Number.isFinite(dist) || dist < BALL_R) continue;
+    const pocketDir = toPocket.clone().normalize();
+    const score = pocketDir.dot(dir);
+    if (!best || score > best.score) {
+      best = { pocketId, score };
+    }
+  }
+  return best;
+};
 const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
   if (!pocketId) return null;
   switch (pocketId) {
@@ -19441,7 +19464,8 @@ const powerRef = useRef(hud.power);
           const {
             forceEarly = false,
             forceCornerCapture = false,
-            pocketCenterOverride = null
+            pocketCenterOverride = null,
+            preferredPocketId = null
           } = options;
           if (shotPrediction?.railNormal) return null;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
@@ -19471,7 +19495,13 @@ const powerRef = useRef(hud.power);
             bestScore = 1;
             best = { center: pocketCenterOverride.clone(), dist, pocketDir };
           } else {
-            for (const center of centers) {
+            const preferredCenter = preferredPocketId
+              ? getPocketCenterById(preferredPocketId)
+              : null;
+            const orderedCenters = preferredCenter
+              ? [preferredCenter, ...centers.filter((center) => !center.equals(preferredCenter))]
+              : centers;
+            for (const center of orderedCenters) {
               const toPocket = center.clone().sub(pos);
               const dist = toPocket.length();
               if (dist < BALL_R * 1.5) continue;
@@ -23488,10 +23518,21 @@ const powerRef = useRef(hud.power);
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
               shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
+            const predictedBall = balls.find((b) => b.id === shotPrediction.ballId) ?? null;
+            const cornerIntent = predictedBall
+              ? resolveCornerPocketIntent({
+                  ball: predictedBall,
+                  direction: shotPrediction.dir ?? new THREE.Vector2()
+                })
+              : null;
             pocketSwitchIntentRef.current = {
               ballId: shotPrediction.ballId,
               allowEarly: isDirectHit,
               forced: isDirectHit,
+              preferredPocketId:
+                cornerIntent && cornerIntent.score >= POCKET_CAM.dotThreshold
+                  ? cornerIntent.pocketId
+                  : null,
               createdAt: intentTimestamp
             };
           } else {
@@ -23564,7 +23605,7 @@ const powerRef = useRef(hud.power);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
-            suppressOpeningShotViews || broadcastSystem?.avoidPocketCameras;
+            broadcastSystem?.avoidPocketCameras;
           const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
@@ -28119,7 +28160,6 @@ const powerRef = useRef(hud.power);
           }
         }
         const suppressPocketCameras =
-          openingShotViewSuppressedRef.current ||
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
         const earlyPocketIntent = pocketSwitchIntentRef.current;
@@ -28195,7 +28235,8 @@ const powerRef = useRef(hud.power);
               const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
               const matchesIntent = pocketIntent?.ballId === ball.id;
               const candidate = makePocketCameraView(ball.id, resumeView, {
-                forceEarly: matchesIntent && pocketIntent?.allowEarly
+                forceEarly: matchesIntent && pocketIntent?.allowEarly,
+                preferredPocketId: matchesIntent ? pocketIntent?.preferredPocketId : null
               });
               if (!candidate) continue;
               const matchesPrediction = shotPrediction?.ballId === ball.id;
