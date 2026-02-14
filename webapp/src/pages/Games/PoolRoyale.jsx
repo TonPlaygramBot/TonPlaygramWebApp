@@ -18657,14 +18657,9 @@ const powerRef = useRef(hud.power);
                 lerp: lerpT
               };
               if (activeShotView.preferRailOverhead) {
-                const overheadFocusTarget =
-                  activeShotView.lockOverheadFocusWorld ??
-                  focusTargetVec3 ??
-                  lookTarget ??
-                  broadcastArgs.focusWorld;
                 const railReplayCamera = resolveRailOverheadReplayCamera({
-                  focusOverride: overheadFocusTarget,
-                  minTargetY: overheadFocusTarget?.y ?? baseSurfaceWorldY
+                  focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                  minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
                 });
                 if (railReplayCamera) {
                   broadcastArgs.focusWorld =
@@ -18690,18 +18685,12 @@ const powerRef = useRef(hud.power);
               }
               if (focusTargetVec3 && desiredPosition) {
                 if (useOverheadBroadcast) {
-                  const overheadFocusTarget =
-                    activeShotView.lockOverheadFocusWorld ??
-                    focusTargetVec3 ??
-                    lookTarget ??
-                    broadcastArgs.focusWorld;
                   const railReplayCamera = resolveRailOverheadReplayCamera({
-                    focusOverride: overheadFocusTarget,
-                    minTargetY: overheadFocusTarget?.y ?? baseSurfaceWorldY
+                    focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                    minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
                   });
                   if (railReplayCamera?.position) {
                     const resolvedTarget =
-                      activeShotView.lockOverheadFocusWorld ??
                       railReplayCamera.target ??
                       focusTargetVec3 ??
                       lookTarget ??
@@ -18761,15 +18750,6 @@ const powerRef = useRef(hud.power);
             } else {
               railDir = activeShotView.railDir;
             }
-            const heightScale =
-              activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
-              : new THREE.Vector2(0, -railDir);
-            if (approachDir.lengthSq() < 1e-6) {
-              approachDir.set(0, -railDir);
-            }
-            approachDir.normalize();
             let broadcastRailDir =
               activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
             const fallbackBroadcast = signed(
@@ -18798,6 +18778,15 @@ const powerRef = useRef(hud.power);
               focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
               lerp: 0.25
             };
+            const heightScale =
+              activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
             if (activeShotView.approach) {
               activeShotView.approach.copy(approachDir);
             } else {
@@ -19392,7 +19381,7 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0, isBreakShot = false } = {}
+          { longShot = false, travelDistance = 0 } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -19426,9 +19415,6 @@ const powerRef = useRef(hud.power);
           });
           const preferRailOverhead = true;
           const now = performance.now();
-          const lockedOverheadFocus = isBreakShot
-            ? broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null
-            : null;
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
@@ -19462,7 +19448,6 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocusWorld: lockedOverheadFocus,
             longShot,
             travelDistance,
             activationDelay,
@@ -19535,12 +19520,21 @@ const powerRef = useRef(hud.power);
               : forceCornerCapture
                 ? 1
                 : null;
+          const isDirectPrediction =
+            shotPrediction?.ballId === ballId &&
+            (shotPrediction?.railNormal === null ||
+              shotPrediction?.railNormal === undefined);
           const isGuaranteedPocket =
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          if (!forceCornerCapture && !isGuaranteedPocket) return null;
-          if (!forceCornerCapture && bestScore < POCKET_CAM.dotThreshold) return null;
+          const isEarlyPocket =
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_EARLY_ALIGNMENT &&
+            isDirectPrediction;
+          const allowEarly = forceCornerCapture || isEarlyPocket;
+          if (!forceCornerCapture && !isGuaranteedPocket && !allowEarly) return null;
+          if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
@@ -19563,7 +19557,7 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          const triggerDistance = forceCornerCapture
+          const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
           if (!forceCornerCapture && best.dist > triggerDistance) return null;
@@ -19637,7 +19631,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly: false
+            forcedEarly: Boolean(isEarlyPocket)
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -23646,16 +23640,12 @@ const powerRef = useRef(hud.power);
                 shotPrediction.railNormal,
                 {
                   longShot: isLongShot,
-                  travelDistance: predictedTravel,
-                  isBreakShot
+                  travelDistance: predictedTravel
                 }
               )
             : null;
           const earlyPocketView =
-            !isBreakShot &&
-            !suppressPocketCameras &&
-            shotPrediction.ballId &&
-            followView
+            !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView)
               : null;
           if (actionView && cameraRef.current) {
@@ -26041,7 +26031,12 @@ const powerRef = useRef(hud.power);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
             const aiTurnActive = currentHud?.turn === 1;
-            const shouldForceAiBreak = aiTurnActive && breakInProgress;
+            const aiWonBreak = breakWinnerSeatRef.current === 'B';
+            const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
+            const shouldForceAiBreak =
+              aiTurnActive &&
+              breakInProgress &&
+              (aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter(
                 (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
