@@ -322,3 +322,50 @@ test('avoids unnecessary spin when natural position is good', () => {
   assert.equal(decision.power, 0.5);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
+
+test('rejects lines where an illegal ball is hit first', () => {
+  const req = {
+    game: 'NINE_BALL',
+    state: {
+      balls: [
+        { id: 0, x: 100, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 600, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 350, y: 250, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [{ x: 1000, y: 250 }, { x: 0, y: 250 }],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 50,
+    rngSeed: 5
+  };
+  const decision = planShot(req);
+  assert.notEqual(decision.targetBallId, 1);
+});
+
+test('returns next legal target suggestion metadata', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 420, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 680, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 3, x: 680, y: 120, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [{ x: 1000, y: 250 }, { x: 1000, y: 0 }],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 50,
+    rngSeed: 11
+  };
+  const decision = planShot(req);
+  assert.equal(typeof decision.nextLegalTargetBallId, 'number');
+  assert.ok(decision.nextLegalTargetBallId !== decision.targetBallId);
+  assert.ok(decision.nextLegalAimPoint);
+});
