@@ -1469,7 +1469,7 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3.2; // push middle-pocket cameras farther outward so side-pocket cams sit at a similar pocket distance as corner cams
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -17750,6 +17750,14 @@ const powerRef = useRef(hud.power);
             ? CAMERA.maxR
             : Math.min(CAMERA.maxR, orbitRadiusLimitRef.current ?? CAMERA.maxR);
 
+        const shouldActivateActionViewImmediately = (view, cueBall, now) => {
+          if (!view || view.mode !== 'action' || !cueBall?.active) return false;
+          const cueSpeed = cueBall.vel.length() * frameScale;
+          if (cueSpeed <= STOP_EPS) return false;
+          if (view.immediateOnCueMove) return true;
+          return !view.activationDelay || now >= view.activationDelay;
+        };
+
         const clampOrbitRadius = (value, minRadius = CAMERA.minR) => {
           const maxRadius = getMaxOrbitRadius();
           const min = Math.min(minRadius, maxRadius);
@@ -18870,7 +18878,7 @@ const powerRef = useRef(hud.power);
               (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) * distanceScale;
             const sideEdgeShift =
               anchorType === 'side'
-                ? POCKET_CAM_SIDE_EDGE_SHIFT *
+                ? -POCKET_CAM_SIDE_EDGE_SHIFT *
                   signed(
                     focusPoint2D.y - pocketCenter2D.y,
                     approachDir.y || 1
@@ -19389,7 +19397,12 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0, isBreakShot = false } = {}
+          {
+            longShot = false,
+            travelDistance = 0,
+            isBreakShot = false,
+            immediateOnCueMove = false
+          } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -19462,6 +19475,7 @@ const powerRef = useRef(hud.power);
             activationDelay,
             activationTravel,
             pendingActivation: longShot,
+            immediateOnCueMove,
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
@@ -23633,6 +23647,21 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
+          const isDirectPrediction =
+            shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
+          const earlyPocketView =
+            !isBreakShot &&
+            !suppressPocketCameras &&
+            shotPrediction.ballId &&
+            followView
+              ? makePocketCameraView(shotPrediction.ballId, followView)
+              : null;
+          const shouldKeepPocketCameraAtShotStart = Boolean(
+            earlyPocketView &&
+              isDirectPrediction &&
+              (earlyPocketView.predictedAlignment ?? earlyPocketView.score ?? 0) >=
+                POCKET_GUARANTEED_ALIGNMENT
+          );
           const actionView = allowLongShotCameraSwitch
             ? makeActionCameraView(
                 cue,
@@ -23642,17 +23671,11 @@ const powerRef = useRef(hud.power);
                 {
                   longShot: isLongShot,
                   travelDistance: predictedTravel,
-                  isBreakShot
+                  isBreakShot,
+                  immediateOnCueMove: isBreakShot || !shouldKeepPocketCameraAtShotStart
                 }
               )
             : null;
-          const earlyPocketView =
-            !isBreakShot &&
-            !suppressPocketCameras &&
-            shotPrediction.ballId &&
-            followView
-              ? makePocketCameraView(shotPrediction.ballId, followView)
-              : null;
           if (actionView && cameraRef.current) {
             actionView.smoothedPos = cameraRef.current.position.clone();
             const storedTarget = lastCameraTargetRef.current?.clone();
@@ -23853,7 +23876,7 @@ const powerRef = useRef(hud.power);
           }
           const holdActive = holdUntil > now;
           let pocketViewActivated = false;
-          if (earlyPocketView) {
+          if (earlyPocketView && shouldKeepPocketCameraAtShotStart) {
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
               const cam = cameraRef.current;
@@ -26036,7 +26059,10 @@ const powerRef = useRef(hud.power);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
             const aiTurnActive = currentHud?.turn === 1;
-            const shouldForceAiBreak = aiTurnActive && breakInProgress;
+            const shouldForceAiBreak =
+              aiTurnActive &&
+              breakInProgress &&
+              (frameSnapshot?.currentBreak ?? 0) === 0;
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter(
                 (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
@@ -28088,9 +28114,14 @@ const powerRef = useRef(hud.power);
             if (cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED) {
               powerImpactHoldRef.current = 0;
             }
+            const immediateReady = shouldActivateActionViewImmediately(
+              suspendedActionView,
+              cueBall,
+              now
+            );
             const holdReady =
               !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
-            if (travelReady && delayReady && holdReady) {
+            if ((immediateReady || (travelReady && delayReady)) && holdReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
               pending.activationDelay = null;
