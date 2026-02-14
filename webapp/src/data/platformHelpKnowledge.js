@@ -1,6 +1,4 @@
-import { GENERATED_PLATFORM_HELP_SCENARIOS } from './platformHelpScenarios.js';
-
-const BASE_PLATFORM_HELP_KNOWLEDGE = [
+export const PLATFORM_HELP_KNOWLEDGE = [
   {
     id: 'home-overview',
     title: 'TonPlaygram overview',
@@ -267,10 +265,4 @@ const BASE_PLATFORM_HELP_KNOWLEDGE = [
       'Support can only process requests with enough clear details.'
     ]
   }
-];
-
-
-export const PLATFORM_HELP_KNOWLEDGE = [
-  ...BASE_PLATFORM_HELP_KNOWLEDGE,
-  ...GENERATED_PLATFORM_HELP_SCENARIOS
 ];
