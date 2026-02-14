@@ -20,10 +20,7 @@
     "reset-tpc-balances": "node bot/scripts/resetTPCBalances.js",
     "reset-db": "node bot/scripts/resetDatabase.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\"",
-    "build:offline-assets": "node scripts/buildOfflineAssets.mjs",
-    "help:ingest": "node --loader ts-node/esm packages/ingestion-public/src/cli.ts",
-    "help:api": "node --loader ts-node/esm packages/api/src/server.ts",
-    "help:test": "jest test/platformHelpAgent --runInBand"
+    "build:offline-assets": "node scripts/buildOfflineAssets.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -58,7 +55,6 @@
     "prettier": "^3.6.2",
     "ts-jest": "^29.2.5",
     "typescript": "^5.6.3",
-    "vitest": "^1.5.0",
-    "ts-node": "^10.9.2"
+    "vitest": "^1.5.0"
   }
 }
