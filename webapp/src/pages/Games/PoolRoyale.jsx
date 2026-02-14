@@ -24211,7 +24211,7 @@ const powerRef = useRef(hud.power);
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
-                .filter((b) => String(b?.id).toLowerCase() !== 'cue')
+                .filter((b) => b.id !== 0)
                 .reduce(
                   (best, ball) => (best == null || ball.id < best.id ? ball : best),
                   null
@@ -25081,14 +25081,13 @@ const powerRef = useRef(hud.power);
           const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
           const pocketsLocal = pocketEntranceCenters();
           const pockets = pocketsLocal.map((center) => toAi(center));
-          const cueBallId = 16;
           const mapBallId = (ball) => {
             if (!ball) return null;
-            if (ball === cueBall) return cueBallId;
+            if (ball === cueBall) return 0;
             if (typeof ball.id === 'number') return ball.id;
             if (typeof ball.id === 'string') {
               const lower = ball.id.toLowerCase();
-              if (lower === 'cue' || lower === 'cue_ball') return cueBallId;
+              if (lower === 'cue' || lower === 'cue_ball') return 0;
               const match = lower.match(/\d+/);
               if (match) return Number(match[0]);
             }
@@ -25108,7 +25107,7 @@ const powerRef = useRef(hud.power);
               pocketed: !ball.active
             });
           });
-          if (!aiBalls.some((ball) => ball.id === cueBallId && !ball.pocketed)) {
+          if (!aiBalls.some((ball) => ball.id === 0 && !ball.pocketed)) {
             return null;
           }
           const metaState = frameSnapshot?.meta?.state ?? null;
@@ -25129,11 +25128,9 @@ const powerRef = useRef(hud.power);
             height,
             ballRadius: BALL_R,
             friction: FRICTION,
-            cueBallId,
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
-            ballOn: normalizedBallOn ?? null,
-            breakInProgress: Boolean(metaState?.breakInProgress)
+            ballOn: normalizedBallOn ?? null
           };
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
@@ -25555,22 +25552,16 @@ const powerRef = useRef(hud.power);
             .forEach((entry) => {
               if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
             });
-          const legalCandidateBalls =
-            combinedTargets.length > 0
-              ? activeBalls.filter((ball) =>
-                  combinedTargets.some((target) => matchesTargetId(ball, target))
-                )
-              : activeBalls;
           const preferredActiveBalls =
             assignmentTargets.length > 0
-              ? legalCandidateBalls.filter((ball) =>
+              ? activeBalls.filter((ball) =>
                   assignmentTargets.some((target) => matchesTargetId(ball, target))
                 )
-              : legalCandidateBalls;
+              : activeBalls;
           const candidateBalls =
             assignmentTargets.length > 0 && preferredActiveBalls.length > 0
               ? preferredActiveBalls
-              : legalCandidateBalls;
+              : activeBalls;
           const pickFallbackBall = () =>
             candidateBalls.reduce((best, ball) => {
               if (!best) return ball;
@@ -25619,7 +25610,7 @@ const powerRef = useRef(hud.power);
           if (!targetBall && combinedTargets.length > 0) {
             targetBall =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, candidateBalls, cuePos);
+              pickPreferredBall(combinedTargets, activeBalls, cuePos);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -25635,20 +25626,20 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length > 0) {
               targetBall =
                 pickDirectPreferredBall(preferredColours) ||
-                pickPreferredBall(preferredColours, candidateBalls, cuePos);
+                pickPreferredBall(preferredColours, activeBalls, cuePos);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], candidateBalls, cuePos);
+            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
           }
 
           if (!targetBall) {
             targetBall = pickPreferredBall(
-              candidateBalls
+              activeBalls
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
-              candidateBalls,
+              activeBalls,
               cuePos
             );
           }
@@ -25660,7 +25651,7 @@ const powerRef = useRef(hud.power);
           if (targetBall && !isDirectLaneOpen(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, candidateBalls, cuePos) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
           }
@@ -25989,17 +25980,16 @@ const powerRef = useRef(hud.power);
             }
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
+            const isOpeningBreak = breakInProgress || (frameSnapshot?.currentBreak ?? 0) === 0;
             const aiTurnActive = currentHud?.turn === 1;
             const aiWonBreak = breakWinnerSeatRef.current === 'B';
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
+              isOpeningBreak &&
               aiTurnActive &&
-              breakInProgress &&
-              (aiWonBreak || openingPlayer === 'B');
+              (aiWonBreak || openingPlayer === 'B' || breakRollState === 'done' || breakInProgress);
             if (shouldForceAiBreak && cue?.pos) {
-              const rackBalls = ballsList.filter(
-                (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
-              );
+              const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
                 const rackCenter = rackBalls.reduce(
                   (acc, ball) => {
@@ -26054,10 +26044,7 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            const isBreakPlan = plan?.type === 'break';
-            const aiPower = isBreakPlan
-              ? 1
-              : clampPower(plan.power, 0.6);
+            const aiPower = clampPower(plan.power, 0.6);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -26895,17 +26882,7 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else {
-            const shouldAssistLegalAim =
-              isPlayerTurn &&
-              (autoAimRequestRef.current || suggestionAimKeyRef.current != null);
-            const legalPlayerAim = shouldAssistLegalAim
-              ? resolveLegalPlayerAimDirection(tmpAim)
-              : tmpAim;
-            const desiredAim =
-              legalPlayerAim && legalPlayerAim.lengthSq() > 1e-6
-                ? legalPlayerAim
-                : tmpAim;
-            aimDir.lerp(desiredAim, aimLerpFactor);
+            aimDir.lerp(tmpAim, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
