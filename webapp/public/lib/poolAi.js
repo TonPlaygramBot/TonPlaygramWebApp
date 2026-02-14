@@ -35,6 +35,9 @@
  * @property {string} rationale
  * @property {{x:number,y:number}} [cueBallPosition]
  * @property {{x:number,y:number}} [aimPoint]
+ * @property {number} [suggestedTargetBallId]
+ * @property {{x:number,y:number}} [suggestedAimPoint]
+ * @property {Array<{targetBallId:number,aimPoint:{x:number,y:number}}>} [legalTargetSuggestions]
  */
 
 const LOOKAHEAD_DEPTH = 4
@@ -238,6 +241,24 @@ function nextTargetsAfter (targetId, req) {
     return cloned.filter(b => b.id !== 8)
   }
   return cloned
+}
+
+function buildLegalTargetSuggestions (req, cue, max = 5) {
+  if (!cue) return []
+  const radius = req.state.ballRadius
+  const legal = chooseTargets(req)
+  const ranked = []
+  for (const target of legal) {
+    const blocked = pathBlocked(cue, target, req.state.balls, [0, target.id], radius, 1.05)
+    const lane = clearanceMargin(cue, target, req.state.balls, [0, target.id], radius, 1.25)
+    const score = (blocked ? 0 : 1) * 1.2 + lane * 0.55 - dist(cue, target) / Math.max(req.state.width, req.state.height)
+    ranked.push({ target, score })
+  }
+  ranked.sort((a, b) => b.score - a.score)
+  return ranked.slice(0, max).map(({ target }) => ({
+    targetBallId: target.id,
+    aimPoint: { x: target.x, y: target.y }
+  }))
 }
 
 // Identify target/pocket pairs that satisfy core aiming criteria:
@@ -454,7 +475,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   const laneClearance = clearanceMargin(cue, target, balls, [0, target.id], r, 1.3)
-  if (laneClearance < 0.5) {
+  if (laneClearance < 0.62) {
     return null
   }
   if (scratchRiskAlongLine(cue, ghost, req.state.pockets || [], r)) {
@@ -479,7 +500,18 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     const next = nextTargets[0]
     nextScore = 1 - Math.min(dist(cueAfterClamped, next) / maxD, 1)
   }
-  const risk = req.state.pockets.some(p => dist(cueAfterClamped, p) < r * 1.4) ? 1 : 0
+  const pocketProximity = req.state.pockets.reduce((best, p) => Math.min(best, dist(cueAfterClamped, p)), Infinity)
+  const edgeProximity = Math.min(cueAfterClamped.x, req.state.width - cueAfterClamped.x, cueAfterClamped.y, req.state.height - cueAfterClamped.y)
+  const scratchRisk = pocketProximity < r * 1.6
+    ? Math.min(1, 1 - pocketProximity / (r * 1.6))
+    : 0
+  const railTrapRisk = edgeProximity < r * 1.7
+    ? Math.min(1, 1 - edgeProximity / (r * 1.7))
+    : 0
+  const risk = Math.min(1, scratchRisk * 0.75 + railTrapRisk * 0.35)
+  if (risk > 0.55) {
+    return null
+  }
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
   let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
@@ -584,6 +616,8 @@ function fallbackAimAtTarget (req) {
     ) {
       continue
     }
+    const blocked = pathBlocked(cue, ghost, req.state.balls, [0, target.id], req.state.ballRadius, 1.05)
+    if (blocked) continue
     const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
     const candidate = {
       angleRad: angle,
@@ -631,6 +665,8 @@ export function planShot (req) {
   let best = null
   let fallback = null
   let hasViableShot = false
+  const cueBall = req.state.balls.find((b) => b.id === 0)
+  const legalTargetSuggestions = buildLegalTargetSuggestions(req, cueBall)
 
   const spins = [
     { top: 0, side: 0, back: 0 },
@@ -757,13 +793,38 @@ export function planShot (req) {
   }
 
   if (best) {
-    if (best.quality >= 0.1) return best
-    if (hasViableShot) return best
+    const enriched = {
+      ...best,
+      legalTargetSuggestions,
+      suggestedTargetBallId: legalTargetSuggestions[0]?.targetBallId,
+      suggestedAimPoint: legalTargetSuggestions[0]?.aimPoint
+    }
+    if (best.quality >= 0.1) return enriched
+    if (hasViableShot) return enriched
   }
-  if (!hasViableShot) return safetyShot(req)
+  if (!hasViableShot) {
+    return {
+      ...safetyShot(req),
+      legalTargetSuggestions,
+      suggestedTargetBallId: legalTargetSuggestions[0]?.targetBallId,
+      suggestedAimPoint: legalTargetSuggestions[0]?.aimPoint
+    }
+  }
   fallback = fallbackAimAtTarget(req)
-  if (fallback) return fallback
-  return safetyShot(req)
+  if (fallback) {
+    return {
+      ...fallback,
+      legalTargetSuggestions,
+      suggestedTargetBallId: legalTargetSuggestions[0]?.targetBallId,
+      suggestedAimPoint: legalTargetSuggestions[0]?.aimPoint
+    }
+  }
+  return {
+    ...safetyShot(req),
+    legalTargetSuggestions,
+    suggestedTargetBallId: legalTargetSuggestions[0]?.targetBallId,
+    suggestedAimPoint: legalTargetSuggestions[0]?.aimPoint
+  }
 }
 
 export default planShot
