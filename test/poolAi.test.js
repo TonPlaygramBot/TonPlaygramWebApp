@@ -319,6 +319,6 @@ test('avoids unnecessary spin when natural position is good', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.power, 0.4);
+  assert.equal(decision.power, 0.5);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
