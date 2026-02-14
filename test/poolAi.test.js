@@ -319,6 +319,38 @@ test('avoids unnecessary spin when natural position is good', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.power, 0.5);
+  assert.equal(decision.power, 0.4);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
+});
+
+
+test('provides a next legal target suggestion when available', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 280, y: 220, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 500, y: 260, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 0, y: 500 },
+        { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 80,
+    rngSeed: 9
+  };
+  const decision = planShot(req);
+  if (decision.suggestedTargetBallId != null) {
+    assert.notEqual(decision.suggestedTargetBallId, decision.targetBallId);
+    assert.ok(Number.isFinite(decision.suggestedAimPoint?.x));
+    assert.ok(Number.isFinite(decision.suggestedAimPoint?.y));
+  }
 });

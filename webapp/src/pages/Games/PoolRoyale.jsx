@@ -25208,6 +25208,23 @@ const powerRef = useRef(hud.power);
           const aimDir = aimPoint.clone().sub(cueBall.pos);
           if (aimDir.lengthSq() < 1e-6) return null;
           aimDir.normalize();
+          const suggestedAimPointRaw = decision.suggestedAimPoint;
+          let suggestedAimDir = null;
+          if (
+            suggestedAimPointRaw &&
+            Number.isFinite(suggestedAimPointRaw.x) &&
+            Number.isFinite(suggestedAimPointRaw.y)
+          ) {
+            suggestedAimDir = new THREE.Vector2(
+              suggestedAimPointRaw.x - width / 2,
+              suggestedAimPointRaw.y - height / 2
+            ).sub(cueBall.pos);
+            if (suggestedAimDir.lengthSq() > 1e-6) {
+              suggestedAimDir.normalize();
+            } else {
+              suggestedAimDir = null;
+            }
+          }
           const targetBall = allBalls.find((ball) => {
             const mappedId = mapBallId(ball);
             return mappedId != null && mappedId === decision.targetBallId;
@@ -25258,6 +25275,14 @@ const powerRef = useRef(hud.power);
                 : 0,
             spin,
             quality,
+            suggestedAimDir:
+              suggestedAimDir && suggestedAimDir.lengthSq() > 1e-6
+                ? suggestedAimDir
+                : null,
+            suggestedTargetBallId:
+              Number.isFinite(decision.suggestedTargetBallId)
+                ? decision.suggestedTargetBallId
+                : null,
             aiMeta: {
               quality,
               rationale: decision.rationale ?? null,
@@ -25392,6 +25417,18 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
+          if (
+            plan.suggestedAimDir &&
+            typeof plan.suggestedAimDir.lengthSq === 'function' &&
+            plan.suggestedAimDir.lengthSq() > 1e-6
+          ) {
+            const suggestedContact = calcTarget(cueBall, plan.suggestedAimDir, activeBalls);
+            if (suggestedContact?.targetBall && isLegalTargetBall(suggestedContact.targetBall)) {
+              corrected = plan.suggestedAimDir.clone().normalize();
+              plan.targetBall = suggestedContact.targetBall;
+              plan.target = toBallColorId(suggestedContact.targetBall.id);
+            }
+          }
           if (!plan.targetBall && plan.target) {
             const targetBall = activeBalls.find(
               (ball) => ball?.active && matchesTargetId(ball, plan.target)
