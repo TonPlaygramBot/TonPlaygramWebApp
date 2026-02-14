@@ -6084,12 +6084,14 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize()
+  BR: new THREE.Vector2(1, 1).normalize(),
+  TM: new THREE.Vector2(-1, 0).normalize(),
+  BM: new THREE.Vector2(1, 0).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -6102,8 +6104,9 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
+      return 'TM';
     case 'BM':
-      return null;
+      return 'BM';
     default:
       return pocketId;
   }
@@ -6921,6 +6924,26 @@ function calcTarget(cue, dir, balls) {
     };
   }
   const cuePos = cue.pos.clone();
+  if (!Number.isFinite(cuePos.x) || !Number.isFinite(cuePos.y)) {
+    return {
+      impact: new THREE.Vector2(),
+      targetDir: null,
+      cueDir: null,
+      targetBall: null,
+      railNormal: null,
+      tHit: 0
+    };
+  }
+  if (!Number.isFinite(dir?.x) || !Number.isFinite(dir?.y)) {
+    return {
+      impact: cuePos.clone(),
+      targetDir: null,
+      cueDir: null,
+      targetBall: null,
+      railNormal: null,
+      tHit: 0
+    };
+  }
   if (!dir || dir.lengthSq() < 1e-8) {
     return {
       impact: cuePos.clone(),
@@ -7047,7 +7070,6 @@ function Guret(parent, id, color, x, y, options = {}) {
     swervePowerStrength: 0,
     impacted: false,
     launchDir: null,
-    launchSpeed: null,
     pendingSpin: new THREE.Vector2(),
     lift: 0,
     liftVel: 0,
@@ -17665,8 +17687,38 @@ const powerRef = useRef(hud.power);
           store.ballId = ball.id;
           store.target.set(ball.pos.x, BALL_CENTER_Y, ball.pos.y);
         };
-        const maybeForceShortRailPocketView = (_ball) => {
-          // Side-pocket camera views are intentionally disabled.
+
+        const maybeForceShortRailPocketView = (ball) => {
+          if (!ball?.active) return;
+          const posY = ball.pos?.y;
+          if (!Number.isFinite(posY)) return;
+          if (Math.abs(posY) < SHORT_RAIL_POCKET_TRIGGER) return;
+          TMP_VEC2_VIEW.set(ball.vel?.x ?? 0, ball.vel?.y ?? 0);
+          if (TMP_VEC2_VIEW.lengthSq() < 1e-6 && ball.launchDir) {
+            TMP_VEC2_VIEW.copy(ball.launchDir);
+          }
+          if (TMP_VEC2_VIEW.lengthSq() < 1e-6) return;
+          const forward = TMP_VEC2_VIEW.y;
+          if (!Number.isFinite(forward) || forward === 0) return;
+          const travelSign = forward > 0 ? 1 : -1;
+          const railSign = posY > 0 ? 1 : posY < 0 ? -1 : travelSign;
+          if (travelSign !== railSign) return;
+          const now = performance.now();
+          const currentIntent = pocketSwitchIntentRef.current;
+          if (currentIntent?.ballId === ball.id && currentIntent.forced) {
+            if (
+              currentIntent.createdAt &&
+              now - currentIntent.createdAt < SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS
+            ) {
+              return;
+            }
+          }
+          pocketSwitchIntentRef.current = {
+            ballId: ball.id,
+            forced: true,
+            allowEarly: true,
+            createdAt: now
+          };
         };
 
         const getMaxOrbitRadius = () =>
@@ -19420,8 +19472,6 @@ const powerRef = useRef(hud.power);
             best = { center: pocketCenterOverride.clone(), dist, pocketDir };
           } else {
             for (const center of centers) {
-              const centerPocketId = pocketIdFromCenter(center);
-              if (centerPocketId === 'TM' || centerPocketId === 'BM') continue;
               const toPocket = center.clone().sub(pos);
               const dist = toPocket.length();
               if (dist < BALL_R * 1.5) continue;
@@ -19477,7 +19527,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -19746,7 +19795,6 @@ const powerRef = useRef(hud.power);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
-            ball.launchSpeed = null;
             ball.pos.set(state.pos.x, state.pos.y);
             const meshState = state.mesh;
             if (ball.mesh && meshState) {
@@ -19836,7 +19884,6 @@ const powerRef = useRef(hud.power);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
-            ball.launchSpeed = null;
             const meshA = aState.mesh ?? {};
             const meshB = bState?.mesh ?? meshA;
             if (ball.mesh) {
@@ -23610,7 +23657,6 @@ const powerRef = useRef(hud.power);
           cueLiftRef.current.startLift = 0;
           cue.impacted = false;
           cue.launchDir = shotAimDir.clone().normalize();
-          cue.launchSpeed = base.length();
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
@@ -25941,7 +25987,7 @@ const powerRef = useRef(hud.power);
             const shouldForceAiBreak =
               isOpeningBreak &&
               aiTurnActive &&
-              (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
+              (aiWonBreak || openingPlayer === 'B' || breakRollState === 'done' || breakInProgress);
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
@@ -26472,7 +26518,6 @@ const powerRef = useRef(hud.power);
               cue.swervePowerStrength = 0;
               cue.impacted = false;
               cue.launchDir = null;
-              cue.launchSpeed = null;
               cueBallPlacedFromHandRef.current = false;
               pendingInHandResetRef.current = true;
             }
@@ -27717,7 +27762,8 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
-            if (!hasLift) {
+            const preImpactCueSpinLocked = isCue && !b.impacted;
+            if (!hasLift && !preImpactCueSpinLocked) {
               const dt = SPIN_FIXED_DT * stepScale;
               if (b.omega) {
                 TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
@@ -27746,15 +27792,16 @@ const powerRef = useRef(hud.power);
                 b.omega.copy(TMP_VEC3_C);
               }
             }
-            if (isCue && !b.impacted && b.launchDir) {
-              const launchSpeed = Number.isFinite(b.launchSpeed) ? b.launchSpeed : null;
+            if (
+              isCue &&
+              !b.impacted &&
+              b.launchDir &&
+              (b.spin?.y ?? 0) < -1e-4
+            ) {
               const forwardDot = b.vel.dot(b.launchDir);
-              const clampedForward = clamp(
-                forwardDot,
-                0,
-                launchSpeed != null ? launchSpeed : Math.max(forwardDot, 0)
-              );
-              b.vel.copy(TMP_VEC2_POWER.copy(b.launchDir).multiplyScalar(clampedForward));
+              if (forwardDot < 0) {
+                b.vel.addScaledVector(b.launchDir, -forwardDot);
+              }
             }
             if (!hasLift) {
               const rollingDt = SPIN_FIXED_DT * stepScale;
@@ -27788,7 +27835,6 @@ const powerRef = useRef(hud.power);
                 b.swervePowerStrength = 0;
               }
               b.launchDir = null;
-              b.launchSpeed = null;
             }
             const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
@@ -27951,7 +27997,7 @@ const powerRef = useRef(hud.power);
                 ) {
                   activeShotView.hitConfirmed = true;
                 }
-                if (cueBall && cueBall.omega?.lengthSq() > 0) {
+                if (cueBall) {
                   cueBall.impacted = true;
                 }
               }
@@ -28236,7 +28282,6 @@ const powerRef = useRef(hud.power);
                   b.swerveStrength = 0;
                   b.swervePowerStrength = 0;
                   b.impacted = false;
-                  b.launchSpeed = null;
                   inHandDragRef.current.lastPos = fallback.clone();
                 } else if (b.mesh) {
                   b.mesh.visible = true;
@@ -28310,7 +28355,6 @@ const powerRef = useRef(hud.power);
               b.swerveStrength = 0;
               b.swervePowerStrength = 0;
               b.launchDir = null;
-              b.launchSpeed = null;
               if (b.id === 'cue') b.impacted = false;
               if (isCueBall) {
                 const fallback = defaultInHandPosition({ forceCenter: true });
@@ -28581,7 +28625,6 @@ const powerRef = useRef(hud.power);
                 if (ball.omega) ball.omega.set(0, 0, 0);
                 if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
                 ball.launchDir = null;
-                ball.launchSpeed = null;
                 ball.impacted = false;
               });
               resolve();
