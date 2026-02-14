@@ -30,7 +30,7 @@ export function normalizeHelpQuery(query) {
 
 function scoreItem(query, item) {
   const tokens = query.split(' ').filter(Boolean);
-  const hay = `${item.title} ${item.answer} ${item.tags.join(' ')} ${item.slug}`.toLowerCase();
+  const hay = `${item.title} ${item.question || ''} ${item.answer} ${item.tags.join(' ')} ${item.slug}`.toLowerCase();
   let score = 0;
   tokens.forEach((token) => {
     if (hay.includes(token)) score += token.length > 4 ? 2 : 1;

@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
-import { getSpeechSynthesis, speakCommentaryLines } from '../utils/textToSpeech.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { getSpeechSupport, getSpeechSynthesis, onSpeechSupportChange, speakCommentaryLines } from '../utils/textToSpeech.js';
 import {
   buildStructuredResponse,
   isSensitiveHelpRequest,
   searchLocalHelp
 } from '../utils/platformHelpLocalSearch.js';
+import { GENERATED_PLATFORM_HELP_SCENARIOS } from '../data/platformHelpScenarios.js';
 
 const SPEECH_RECOGNITION_ERROR =
   'Voice input is unavailable on this device/browser. You can still type your question.';
@@ -29,6 +30,7 @@ export default function PlatformHelpAgentCard() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeakingEnabled, setIsSpeakingEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [speechStatus, setSpeechStatus] = useState(() => getSpeechSupport());
 
   const recognitionRef = useRef(null);
 
@@ -100,6 +102,25 @@ export default function PlatformHelpAgentCard() {
     await runAgentReply(text);
   };
 
+  useEffect(() => {
+    const unsubscribe = onSpeechSupportChange((supported) => setSpeechStatus(Boolean(supported)));
+    setSpeechStatus(getSpeechSupport());
+    return unsubscribe;
+  }, []);
+
+  const runVoiceTest = async () => {
+    if (!speechStatus) {
+      setAnswer('Voice output is not available in this WebView/browser. Keep Voice ON, use text replies, and update Telegram/WebView to the latest version.');
+      return;
+    }
+    await speakCommentaryLines([
+      {
+        speaker: 'Lena',
+        text: 'Voice test successful. If audio is low in Telegram mobile, raise media volume and keep the app in foreground while listening.'
+      }
+    ]);
+  };
+
   const startVoiceInput = () => {
     if (!canUseSpeechInput) {
       setAnswer(SPEECH_RECOGNITION_ERROR);
@@ -140,7 +161,7 @@ export default function PlatformHelpAgentCard() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-white">TonPlaygram Live Help Agent</h3>
-          <p className="text-xs text-subtext">Public-only guidance • Live knowledge index • Voice + text replies</p>
+          <p className="text-xs text-subtext">Public-only guidance • {GENERATED_PLATFORM_HELP_SCENARIOS.length.toLocaleString()} generated scenarios • Voice + text replies</p>
         </div>
         <button
           type="button"
@@ -176,7 +197,21 @@ export default function PlatformHelpAgentCard() {
         >
           {isListening ? 'Listening…' : '🎤 Speak'}
         </button>
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
+          disabled={!isSpeakingEnabled || isLoading}
+          onClick={() => void runVoiceTest()}
+        >
+          🔊 Voice Test
+        </button>
       </div>
+
+      {!speechStatus && isSpeakingEnabled && (
+        <p className="text-xs text-yellow-300">
+          Voice output is limited in some Telegram mobile WebViews. Use Voice Test after tapping the screen, keep media volume high, and keep TonPlaygram in foreground.
+        </p>
+      )}
 
       <div className="rounded-lg border border-border bg-background/70 p-3">
         <p className="text-sm text-white whitespace-pre-line">{answer}</p>
