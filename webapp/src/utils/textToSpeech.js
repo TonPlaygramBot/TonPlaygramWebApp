@@ -286,42 +286,6 @@ const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
   return voices[0] || null;
 };
 
-
-const splitTextForSpeech = (text, maxLength = 220) => {
-  const content = String(text || '').trim();
-  if (!content) return [];
-  if (content.length <= maxLength) return [content];
-
-  const sentences = content.split(/(?<=[.!?])\s+/).filter(Boolean);
-  const chunks = [];
-  let current = '';
-
-  const pushCurrent = () => {
-    if (current.trim()) chunks.push(current.trim());
-    current = '';
-  };
-
-  for (const sentence of sentences) {
-    if (!sentence) continue;
-    if ((current + ' ' + sentence).trim().length <= maxLength) {
-      current = `${current} ${sentence}`.trim();
-      continue;
-    }
-    pushCurrent();
-    if (sentence.length <= maxLength) {
-      current = sentence.trim();
-      continue;
-    }
-    const words = sentence.split(/\s+/).filter(Boolean);
-    for (const word of words) {
-      if ((current + ' ' + word).trim().length > maxLength) pushCurrent();
-      current = `${current} ${word}`.trim();
-    }
-  }
-  pushCurrent();
-  return chunks;
-};
-
 const resolveHintedLanguage = (hints = [], fallback) => {
   const normalizedHints = hints.map((hint) => String(hint || '').trim()).filter(Boolean);
   const matched = normalizedHints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(hint));
@@ -363,54 +327,49 @@ export const speakCommentaryLines = async (
     ensureSpeechUnlocked(synth);
     const speaker = line.speaker || 'Mason';
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
+    const utterance = new UtteranceClass(line.text);
     const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
     const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
-    const chunks = splitTextForSpeech(line.text);
 
-    for (const chunk of chunks) {
-      const utterance = new UtteranceClass(chunk);
-
-      if (voice) {
-        utterance.voice = voice;
-        if (voice.lang) utterance.lang = voice.lang;
-      } else {
-        utterance.lang = fallbackLang;
-      }
-      utterance.rate = settings.rate;
-      utterance.pitch = settings.pitch;
-      utterance.volume = settings.volume;
-
-      await new Promise((resolve) => {
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          resolve();
-        };
-        const fallbackMs = Math.max(1600, chunk.length * 65);
-        const timeoutId = setTimeout(finish, fallbackMs);
-        utterance.onend = () => {
-          clearTimeout(timeoutId);
-          finish();
-        };
-        utterance.onerror = () => {
-          clearTimeout(timeoutId);
-          finish();
-        };
-        if (synth.speaking || synth.pending) {
-          try {
-            synth.cancel();
-          } catch {}
-        }
-        try {
-          ensureSpeechUnlocked(synth);
-          synth.speak(utterance);
-          setTimeout(() => ensureSpeechUnlocked(synth), 0);
-        } catch {
-          clearTimeout(timeoutId);
-          finish();
-        }
-      });
+    if (voice) {
+      utterance.voice = voice;
+      if (voice.lang) utterance.lang = voice.lang;
+    } else {
+      utterance.lang = fallbackLang;
     }
+    utterance.rate = settings.rate;
+    utterance.pitch = settings.pitch;
+    utterance.volume = settings.volume;
+
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const fallbackMs = Math.max(1800, line.text.length * 60);
+      const timeoutId = setTimeout(finish, fallbackMs);
+      utterance.onend = () => {
+        clearTimeout(timeoutId);
+        finish();
+      };
+      utterance.onerror = () => {
+        clearTimeout(timeoutId);
+        finish();
+      };
+      if (synth.speaking || synth.pending) {
+        try {
+          synth.cancel();
+        } catch {}
+      }
+      try {
+        synth.speak(utterance);
+        setTimeout(() => ensureSpeechUnlocked(synth), 0);
+      } catch {
+        clearTimeout(timeoutId);
+        finish();
+      }
+    });
   }
 };
