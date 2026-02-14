@@ -18675,6 +18675,18 @@ const powerRef = useRef(hud.power);
             } else {
               railDir = activeShotView.railDir;
             }
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
+            }
             let broadcastRailDir =
               activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
             const fallbackBroadcast = signed(
@@ -18705,18 +18717,6 @@ const powerRef = useRef(hud.power);
             };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
-              : new THREE.Vector2(0, -railDir);
-            if (approachDir.lengthSq() < 1e-6) {
-              approachDir.set(0, -railDir);
-            }
-            approachDir.normalize();
-            if (activeShotView.approach) {
-              activeShotView.approach.copy(approachDir);
-            } else {
-              activeShotView.approach = approachDir.clone();
-            }
             const resolvedAnchorId = resolvePocketCameraAnchor(
               activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
               pocketCenter,
@@ -25941,7 +25941,7 @@ const powerRef = useRef(hud.power);
             const shouldForceAiBreak =
               isOpeningBreak &&
               aiTurnActive &&
-              (breakRollState === 'done' || aiWonBreak || openingPlayer === 'B');
+              (aiWonBreak || (breakInProgress && openingPlayer === 'B'));
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter((ball) => ball?.active && ball.id !== 0);
               if (rackBalls.length > 0) {
