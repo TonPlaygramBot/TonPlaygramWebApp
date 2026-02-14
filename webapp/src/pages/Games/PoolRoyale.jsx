@@ -1470,7 +1470,6 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1.72; // push middle-pocket cameras toward the side-rail edges and farther from table center for corner-like pocket distance
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1529,8 +1528,8 @@ const ACTION_CAM = Object.freeze({
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
   heightOffset: BALL_R * 9.2,
-  smoothingTime: 0.24,
-  followSmoothingTime: 0.18,
+  smoothingTime: 0.32,
+  followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
   followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
@@ -19589,8 +19588,7 @@ const powerRef = useRef(hud.power);
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const cameraDistance =
-            minOutside * (isSidePocket ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER : 1);
+          const cameraDistance = minOutside;
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
@@ -23880,14 +23878,8 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            const requiresCueBallMovementTrigger =
-              isBreakShot ||
-              Boolean(shotPrediction?.railNormal) ||
-              (!earlyPocketView && !suppressPocketCameras);
             const shouldActivateActionView =
-              !requiresCueBallMovementTrigger &&
-              (!isLongShot || forceActionActivation) &&
-              !isMaxPowerShot;
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
             if (shouldActivateActionView && !holdActive) {
               suspendedActionView = null;
               activeShotView = actionView;
@@ -23895,18 +23887,12 @@ const powerRef = useRef(hud.power);
             } else {
               actionView.pendingActivation = true;
               const baseDelay = actionView.activationDelay ?? null;
-              const delayed = requiresCueBallMovementTrigger
-                ? baseDelay ?? 0
-                : Math.max(baseDelay ?? 0, holdUntil ?? 0);
+              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
               actionView.activationDelay = delayed > 0 ? delayed : null;
               const baseTravel = actionView.activationTravel ?? 0;
               actionView.activationTravel = Math.max(
                 baseTravel,
-                requiresCueBallMovementTrigger
-                  ? BALL_R * 0.2
-                  : isMaxPowerShot
-                    ? BALL_R * 6
-                    : 0
+                isMaxPowerShot ? BALL_R * 6 : 0
               );
               suspendedActionView = actionView;
             }
@@ -26050,31 +26036,23 @@ const powerRef = useRef(hud.power);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
             const aiTurnActive = currentHud?.turn === 1;
-            const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
-            const shouldForceAiBreak = aiTurnActive && breakInProgress && isOpeningBreak;
+            const shouldForceAiBreak = aiTurnActive && breakInProgress;
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter(
                 (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
               );
               if (rackBalls.length > 0) {
-                const rackTargetBall = rackBalls.reduce((best, ball) => {
-                  const ballPos = ball?.pos;
-                  if (!ballPos) return best;
-                  if (!best) return ball;
-                  const bestPos = best?.pos;
-                  if (!bestPos) return ball;
-                  const distBall = cue.pos.distanceToSquared(ballPos);
-                  const distBest = cue.pos.distanceToSquared(bestPos);
-                  if (distBall + 1e-6 < distBest) return ball;
-                  if (Math.abs(distBall - distBest) < 1e-6 && Math.abs(ballPos.x) < Math.abs(bestPos.x)) {
-                    return ball;
-                  }
-                  return best;
-                }, null);
-                const targetPos = rackTargetBall?.pos ?? null;
-                const breakDir = targetPos
-                  ? new THREE.Vector2(targetPos.x - cue.pos.x, targetPos.y - cue.pos.y)
-                  : new THREE.Vector2(0, 1);
+                const rackCenter = rackBalls.reduce(
+                  (acc, ball) => {
+                    acc.x += ball.pos?.x ?? 0;
+                    acc.y += ball.pos?.y ?? 0;
+                    return acc;
+                  },
+                  { x: 0, y: 0 }
+                );
+                rackCenter.x /= rackBalls.length;
+                rackCenter.y /= rackBalls.length;
+                const breakDir = new THREE.Vector2(rackCenter.x - cue.pos.x, rackCenter.y - cue.pos.y);
                 if (breakDir.lengthSq() < 1e-6) {
                   breakDir.set(0, 1);
                 }
@@ -26320,19 +26298,13 @@ const powerRef = useRef(hud.power);
           };
         }
         if (safeState?.foul) {
-          const foulNextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
             safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
           if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: foulNextPlayer,
-              ballInHand: true
-            };
+            nextMeta.state = { ...nextMeta.state, ballInHand: true };
           }
           safeState = {
             ...safeState,
-            activePlayer: foulNextPlayer,
             meta: nextMeta ?? safeState.meta
           };
         }
@@ -28223,28 +28195,21 @@ const powerRef = useRef(hud.power);
           !topViewRef.current
         ) {
           if (!pocketHoldActive && queuedPocketView) {
-            const cueBall = cueRef.current;
-            const cueSpeed =
-              cueBall?.vel && typeof cueBall.vel.length === 'function'
-                ? cueBall.vel.length() * frameScale
-                : 0;
-            if (cueSpeed > STOP_EPS) {
-              const view = queuedPocketView;
-              queuedPocketView = null;
-              view.pendingActivation = false;
-              view.activationDelay = null;
-              view.lastUpdate = performance.now();
-              if (cameraRef.current) {
-                const cam = cameraRef.current;
-                view.smoothedPos = cam.position.clone();
-                const storedTarget = lastCameraTargetRef.current?.clone();
-                if (storedTarget) {
-                  view.smoothedTarget = storedTarget;
-                }
+            const view = queuedPocketView;
+            queuedPocketView = null;
+            view.pendingActivation = false;
+            view.activationDelay = null;
+            view.lastUpdate = performance.now();
+            if (cameraRef.current) {
+              const cam = cameraRef.current;
+              view.smoothedPos = cam.position.clone();
+              const storedTarget = lastCameraTargetRef.current?.clone();
+              if (storedTarget) {
+                view.smoothedTarget = storedTarget;
               }
-              updatePocketCameraState(true);
-              activeShotView = view;
             }
+            updatePocketCameraState(true);
+            activeShotView = view;
           } else if (!pocketHoldActive && (activeShotView?.mode !== 'pocket' || !activeShotView)) {
             const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
             const sph = sphRef.current;
