@@ -18,6 +18,7 @@
  * @typedef {Object} AimRequest
  * @property {GameType} game
  * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean,mustPlayFromBaulk?:boolean,baulkLineY?:number,breakInProgress?:boolean,breakPlacementRestricted?:boolean}} state
+ * @property {number} [state.cueBallId]
  * @property {number} [timeBudgetMs]
  * @property {number} [rngSeed]
  * @property {number} [maxCutAngle] maximum allowed cut angle in radians for a shot candidate
@@ -35,11 +36,13 @@
  * @property {string} rationale
  * @property {{x:number,y:number}} [cueBallPosition]
  * @property {{x:number,y:number}} [aimPoint]
+ * @property {number} [nextLegalTargetBallId]
+ * @property {{x:number,y:number}} [nextLegalAimPoint]
  */
 
-const LOOKAHEAD_DEPTH = 4
-const LOOKAHEAD_CANDIDATES = 6
-const MONTE_CARLO_BASE_SAMPLES = 55
+const LOOKAHEAD_DEPTH = 2
+const LOOKAHEAD_CANDIDATES = 3
+const MONTE_CARLO_BASE_SAMPLES = 28
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -55,10 +58,6 @@ function dist (a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
   return Math.hypot(dx, dy)
-}
-
-function clamp (value, min, max) {
-  return Math.min(Math.max(value, min), max)
 }
 
 function lineIntersectsBall (a, b, ball, radius) {
@@ -79,6 +78,27 @@ function pathBlocked (a, b, balls, ignoreIds, radius, margin = 1) {
       !ignoreIds.includes(ball.id) &&
       lineIntersectsBall(a, b, ball, radius * margin)
   )
+}
+
+function firstBallHitAlongLine (cue, aimPoint, balls, cueBallId, radius) {
+  const dirX = aimPoint.x - cue.x
+  const dirY = aimPoint.y - cue.y
+  const len = Math.hypot(dirX, dirY)
+  if (len <= 1e-6) return null
+  const nx = dirX / len
+  const ny = dirY / len
+  let closest = null
+  for (const ball of balls) {
+    if (!ball || ball.pocketed || ball.id === cueBallId) continue
+    const relX = ball.x - cue.x
+    const relY = ball.y - cue.y
+    const t = relX * nx + relY * ny
+    if (t <= 0 || t >= len) continue
+    const perp = Math.abs(relX * ny - relY * nx)
+    if (perp > radius * 2.05) continue
+    if (!closest || t < closest.t) closest = { ball, t }
+  }
+  return closest?.ball ?? null
 }
 
 function clearanceMargin (a, b, balls, ignoreIds, radius, multiplier = 1.35) {
@@ -159,35 +179,40 @@ function currentGroup (state) {
   // Map the textual colour assignment to the corresponding group.
   if (norm === 'RED') return 'SOLIDS'
   if (norm === 'BLUE') return 'STRIPES'
-  if (norm === 'YELLOW') return 'SOLIDS'
   if (norm === 'SOLIDS' || norm === 'STRIPES') return norm
   return undefined
 }
 
-function parseBallOnIds (state) {
-  const raw = state?.ballOn
-  const entries = Array.isArray(raw) ? raw : raw ? [raw] : []
-  const ids = entries
-    .map(value => {
-      if (typeof value === 'number') return value
-      if (typeof value !== 'string') return null
-      const match = value.match(/(\d+)/)
-      return match ? Number(match[1]) : null
-    })
-    .filter(id => Number.isFinite(id))
-  return Array.from(new Set(ids))
+function resolveCueBallId (state) {
+  if (Number.isFinite(state?.cueBallId)) return state.cueBallId
+  const cue = state?.balls?.find(b => b?.isCue === true)
+  if (cue && Number.isFinite(cue.id)) return cue.id
+  return 0
 }
 
 function chooseTargets (req) {
-  const balls = req.state.balls.filter(b => !b.pocketed && b.id !== 0)
-  const ballOnIds = parseBallOnIds(req.state)
-  if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
-    if (ballOnIds.length > 0) {
-      const restricted = balls.filter(b => ballOnIds.includes(b.id))
-      if (restricted.length > 0) return restricted
-    }
+  const cueBallId = resolveCueBallId(req.state)
+  const balls = req.state.balls.filter(b => !b.pocketed && b.id !== cueBallId)
+  if (req.game === 'NINE_BALL') {
     const lowest = balls.reduce((m, b) => (b.id < m.id ? b : m), balls[0])
     return lowest ? [lowest] : []
+  }
+  if (req.game === 'AMERICAN_BILLIARDS') {
+    const solids = balls.filter(b => b.id >= 1 && b.id <= 7)
+    const stripes = balls.filter(b => b.id >= 9 && b.id <= 15)
+    const eight = balls.find(b => b.id === 8)
+    const group = currentGroup(req.state)
+    if (group === 'SOLIDS') {
+      if (solids.length > 0) return solids
+      if (eight) return [eight]
+      return []
+    }
+    if (group === 'STRIPES') {
+      if (stripes.length > 0) return stripes
+      if (eight) return [eight]
+      return []
+    }
+    return balls
   }
   if (req.game === 'EIGHT_POOL_UK') {
     const solids = balls.filter(b => b.id >= 1 && b.id <= 7)
@@ -210,11 +235,33 @@ function chooseTargets (req) {
 }
 
 function nextTargetsAfter (targetId, req) {
-  const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && b.id !== 0)
-  if (req.game === 'NINE_BALL' || req.game === 'AMERICAN_BILLIARDS') {
+  const cueBallId = resolveCueBallId(req.state)
+  const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && b.id !== cueBallId)
+  if (req.game === 'NINE_BALL') {
     if (cloned.length === 0) return []
     const lowest = cloned.reduce((m, b) => (b.id < m.id ? b : m), cloned[0])
     return lowest ? [lowest] : []
+  }
+  if (req.game === 'AMERICAN_BILLIARDS') {
+    const solids = cloned.filter(b => b.id >= 1 && b.id <= 7)
+    const stripes = cloned.filter(b => b.id >= 9 && b.id <= 15)
+    const eight = cloned.find(b => b.id === 8)
+    let group = currentGroup(req.state)
+    if (!group || group === 'UNASSIGNED') {
+      if (targetId >= 1 && targetId <= 7) group = 'SOLIDS'
+      else if (targetId >= 9 && targetId <= 15) group = 'STRIPES'
+    }
+    if (group === 'SOLIDS') {
+      if (solids.length > 0) return solids
+      if (eight) return [eight]
+      return []
+    }
+    if (group === 'STRIPES') {
+      if (stripes.length > 0) return stripes
+      if (eight) return [eight]
+      return []
+    }
+    return cloned
   }
   if (req.game === 'EIGHT_POOL_UK') {
     const solids = cloned.filter(b => b.id >= 1 && b.id <= 7)
@@ -245,7 +292,8 @@ function nextTargetsAfter (targetId, req) {
 // preferring smaller cut angles and wider pocket views.
 function clearShotCandidates (req) {
   const r = req.state.ballRadius
-  const cue = req.state.balls.find(b => b.id === 0)
+  const cueBallId = resolveCueBallId(req.state)
+  const cue = req.state.balls.find(b => b.id === cueBallId)
   const targets = chooseTargets(req)
   const pockets = req.state.pockets
   const maxCut = req.maxCutAngle ?? Math.PI / 4
@@ -272,10 +320,10 @@ function clearShotCandidates (req) {
 
       // check paths from cue->ghost and target->pocket are unobstructed
       if (
-        pathBlocked(cue, ghost, req.state.balls, [0, target.id], r, 1.1) ||
-        pathBlocked(target, entry, req.state.balls, [0, target.id], r) ||
+        pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1) ||
+        pathBlocked(target, entry, req.state.balls, [cueBallId, target.id], r) ||
         req.state.balls.some(
-          b => b.id !== 0 && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
+          b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
         )
       ) {
         continue
@@ -290,18 +338,12 @@ function clearShotCandidates (req) {
       const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
       const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
       const approachStraightness = 1 - Math.min(cut / (Math.PI / 2), 1)
-      const laneClearance = clearanceMargin(cue, target, req.state.balls, [0, target.id], r, 1.35)
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
-      const clearanceScore = Math.max(0, Math.min((laneClearance - 0.4) / 0.8, 1))
-      const rank =
-        weightedView * 0.45 +
-        approachStraightness * 0.25 +
-        distanceScore * 0.2 +
-        clearanceScore * 0.1
+      const rank = weightedView * 0.5 + approachStraightness * 0.3 + distanceScore * 0.2
 
       // require fairly central hit and open pocket view
-      if (cut <= maxCut && weightedView >= minView && laneClearance >= 0.4) {
+      if (cut <= maxCut && weightedView >= minView) {
         candidates.push({ target, pocket, cut, view: weightedView, rank })
       }
     }
@@ -309,6 +351,55 @@ function clearShotCandidates (req) {
 
   candidates.sort((a, b) => b.rank - a.rank || a.cut - b.cut || b.view - a.view)
   return candidates
+}
+
+function nextLegalSuggestion (req, excludeBallId = null) {
+  const candidates = clearShotCandidates(req)
+  for (const { target, pocket } of candidates) {
+    if (excludeBallId != null && target.id === excludeBallId) continue
+    const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
+    const ghost = {
+      x: target.x - (entry.x - target.x) * (req.state.ballRadius * 2 / dist(target, entry)),
+      y: target.y - (entry.y - target.y) * (req.state.ballRadius * 2 / dist(target, entry))
+    }
+    return {
+      nextLegalTargetBallId: target.id,
+      nextLegalAimPoint: ghost,
+      nextLegalTargetPocket: entry
+    }
+  }
+
+  const cueBallId = resolveCueBallId(req.state)
+  const cue = req.state.balls.find(b => b.id === cueBallId)
+  const targets = chooseTargets(req).filter(target => target.id !== excludeBallId)
+  if (!cue || targets.length === 0) return null
+  let fallback = null
+  for (const target of targets) {
+    for (const pocket of req.state.pockets) {
+      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
+      const ghost = {
+        x: target.x - (entry.x - target.x) * (req.state.ballRadius * 2 / dist(target, entry)),
+        y: target.y - (entry.y - target.y) * (req.state.ballRadius * 2 / dist(target, entry))
+      }
+      if (
+        ghost.x < req.state.ballRadius ||
+        ghost.x > req.state.width - req.state.ballRadius ||
+        ghost.y < req.state.ballRadius ||
+        ghost.y > req.state.height - req.state.ballRadius
+      ) continue
+      const align = pocketAlignment(pocket, target, req.state.width, req.state.height)
+      if (!fallback || align > fallback.align) {
+        fallback = { target, entry, ghost, align }
+      }
+    }
+  }
+
+  if (!fallback) return null
+  return {
+    nextLegalTargetBallId: fallback.target.id,
+    nextLegalAimPoint: fallback.ghost,
+    nextLegalTargetPocket: fallback.entry
+  }
 }
 
 export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
@@ -348,13 +439,14 @@ function clampPointToTable (point, table, margin = 1) {
 }
 
 function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
+  const cueBallId = resolveCueBallId(state)
   const clamped = clampPointToTable(cueAfter, state, 1.1)
   return balls.map(ball => {
     const next = { ...ball }
     if (next.id === targetId) {
       next.pocketed = true
     }
-    if (next.id === 0) {
+    if (next.id === cueBallId) {
       next.x = clamped.x
       next.y = clamped.y
       next.vx = 0
@@ -369,12 +461,13 @@ function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
 // imprecision and rewards shorter, straighter shots.
 function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20, rng = Math.random) {
   const r = req.state.ballRadius
+  const cueBallId = resolveCueBallId(req.state)
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   const distCG = dist(cue, ghost)
   const shotLength = dist(cue, target)
   const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
   const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor)))
-  const jitterScale = 0.012 + 0.02 * distanceFactor
+  const jitterScale = 0.015 + 0.025 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
     const a = baseAngle + (rng() - 0.5) * jitterScale
@@ -385,8 +478,8 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
       g.y < r ||
       g.y > req.state.height - r
     ) continue
-    if (pathBlocked(cue, g, balls, [0, target.id], r, 1.1)) continue
-    if (pathBlocked(target, entry, balls, [0, target.id], r)) continue
+    if (pathBlocked(cue, g, balls, [cueBallId, target.id], r, 1.1)) continue
+    if (pathBlocked(target, entry, balls, [cueBallId, target.id], r)) continue
     // if jitter deviates too far from ideal contact, treat as miss
     if (dist(g, ghost) > r * 0.5) continue
     success++
@@ -396,9 +489,10 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
 
 function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng = Math.random) {
   if (!req?.state || depth <= 0) return 0
+  const cueBallId = resolveCueBallId(req.state)
   const nextBalls = cloneBallsForNextShot(balls, cueAfter, targetId, req.state)
   const nextReq = { ...req, state: { ...req.state, balls: nextBalls, ballInHand: false } }
-  const cue = nextBalls.find(b => b.id === 0)
+  const cue = nextBalls.find(b => b.id === cueBallId)
   if (!cue) return 0
   const candidates = clearShotCandidates(nextReq)
   if (!candidates.length) return 0
@@ -437,6 +531,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng
 
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
   const r = req.state.ballRadius
+  const cueBallId = resolveCueBallId(req.state)
   const rng = options.rng ?? Math.random
   const balls = ballsOverride || req.state.balls
   const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
@@ -453,7 +548,11 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   ) {
     return null
   }
-  const laneClearance = clearanceMargin(cue, target, balls, [0, target.id], r, 1.3)
+  const firstHit = firstBallHitAlongLine(cue, ghost, balls, cueBallId, r)
+  if (firstHit && firstHit.id !== target.id) {
+    return null
+  }
+  const laneClearance = clearanceMargin(cue, target, balls, [cueBallId, target.id], r, 1.3)
   if (laneClearance < 0.5) {
     return null
   }
@@ -461,25 +560,24 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   if (
-    pathBlocked(cue, ghost, balls, [0, target.id], r, 1.1) ||
-    pathBlocked(target, entry, balls, [0, target.id], r) ||
-    balls.some(b => b.id !== 0 && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
+    pathBlocked(cue, ghost, balls, [cueBallId, target.id], r, 1.1) ||
+    pathBlocked(target, entry, balls, [cueBallId, target.id], r) ||
+    balls.some(b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
   ) {
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
   const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls, 20, rng)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
-  const cueAfterClamped = clampPointToTable(cueAfter, req.state, 1.1)
   const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
   let nextScore = 0
   let hasNext = false
   if (nextTargets.length > 0) {
     hasNext = true
     const next = nextTargets[0]
-    nextScore = 1 - Math.min(dist(cueAfterClamped, next) / maxD, 1)
+    nextScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
   }
-  const risk = req.state.pockets.some(p => dist(cueAfterClamped, p) < r * 1.4) ? 1 : 0
+  const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
   let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
@@ -504,7 +602,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     : LOOKAHEAD_DEPTH
   const runoutPotential = options.skipLookahead
     ? 0
-    : estimateRunoutPotential(req, cueAfterClamped, target.id, balls, lookaheadDepth, rng)
+    : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth, rng)
   const quality = Math.max(
     0,
     Math.min(
@@ -536,7 +634,8 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
 }
 
 function safetyShot (req) {
-  const cue = req.state.balls.find(b => b.id === 0)
+  const cueBallId = resolveCueBallId(req.state)
+  const cue = req.state.balls.find(b => b.id === cueBallId)
   const corners = [
     { x: 0, y: 0 },
     { x: req.state.width, y: 0 },
@@ -555,7 +654,8 @@ function safetyShot (req) {
 }
 
 function fallbackAimAtTarget (req) {
-  const cue = req.state.balls.find(b => b.id === 0)
+  const cueBallId = resolveCueBallId(req.state)
+  const cue = req.state.balls.find(b => b.id === cueBallId)
   const targets = chooseTargets(req)
   if (!cue || targets.length === 0) return null
 
@@ -605,26 +705,13 @@ function fallbackAimAtTarget (req) {
   return rest
 }
 
-function buildPowerOptions (req, cuePos, target) {
-  const r = req.state.ballRadius
-  const shotDist = dist(cuePos, target)
-  const base = clamp(shotDist / (r * 32), 0.4, 0.92)
-  const candidates = [
-    base - 0.14,
-    base - 0.06,
-    base,
-    base + 0.08,
-    base + 0.18
-  ].map(value => clamp(value, 0.35, 0.98))
-  return Array.from(new Set(candidates.map(v => Number(v.toFixed(3)))))
-}
-
 /**
  * @param {AimRequest} req
  * @returns {ShotDecision}
  */
 export function planShot (req) {
   const r = req.state.ballRadius
+  const cueBallId = resolveCueBallId(req.state)
   const start = Date.now()
   const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
   const rng = Number.isFinite(req.rngSeed) ? createRng(req.rngSeed) : Math.random
@@ -632,12 +719,13 @@ export function planShot (req) {
   let fallback = null
   let hasViableShot = false
 
+  const powers = req.state?.breakInProgress ? [1] : [0.5, 0.7, 0.85]
   const spins = [
     { top: 0, side: 0, back: 0 },
-    { top: 0.2, side: 0, back: -0.2 },
-    { top: -0.2, side: 0, back: 0 },
-    { top: 0, side: 0.18, back: 0 },
-    { top: 0, side: -0.18, back: 0 }
+    { top: 0.3, side: 0, back: -0.3 },
+    { top: -0.3, side: 0.3, back: 0 },
+    { top: -0.3, side: -0.3, back: 0 },
+    { top: 0, side: 0.3, back: 0 }
   ]
 
   // first, gather candidate target/pocket pairs meeting strict criteria
@@ -685,29 +773,27 @@ export function planShot (req) {
             continue
           }
           const overlap = req.state.balls.some(
-            b => b.id !== 0 && !b.pocketed && dist(cand, b) < r * 2
+            b => b.id !== cueBallId && !b.pocketed && dist(cand, b) < r * 2
           )
           if (overlap) continue
           placements.push(cand)
         }
       } else {
-        const cue = req.state.balls.find(b => b.id === 0)
+        const cue = req.state.balls.find(b => b.id === cueBallId)
         placements.push({ x: cue.x, y: cue.y })
       }
 
       for (const cuePos of placements) {
         const balls = req.state.balls.map(b =>
-          b.id === 0 ? { ...b, x: cuePos.x, y: cuePos.y } : b
+          b.id === cueBallId ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
 
-        const powers = buildPowerOptions(req, cuePos, target)
-        const basePower = powers[Math.floor(powers.length / 2)] ?? powers[0]
         const baseCand = evaluate(
           req,
           cuePos,
           target,
           pocket,
-          basePower,
+          powers[0],
           spins[0],
           balls,
           strict,
@@ -727,7 +813,7 @@ export function planShot (req) {
 
         for (const power of powers) {
           for (const spin of spins) {
-            if (power === basePower && spin === spins[0]) continue
+            if (power === powers[0] && spin === spins[0]) continue
             if (Date.now() > deadline) {
               return best && best.quality >= 0.1 ? best : fallbackAimAtTarget(req) || safetyShot(req)
             }
@@ -757,12 +843,17 @@ export function planShot (req) {
   }
 
   if (best) {
+    const suggestion = nextLegalSuggestion(req, best.targetBallId)
+    if (suggestion) best = { ...best, ...suggestion }
     if (best.quality >= 0.1) return best
     if (hasViableShot) return best
   }
   if (!hasViableShot) return safetyShot(req)
   fallback = fallbackAimAtTarget(req)
-  if (fallback) return fallback
+  if (fallback) {
+    const suggestion = nextLegalSuggestion(req, fallback.targetBallId)
+    return suggestion ? { ...fallback, ...suggestion } : fallback
+  }
   return safetyShot(req)
 }
 

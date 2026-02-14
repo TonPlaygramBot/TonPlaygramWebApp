@@ -23573,7 +23573,7 @@ const powerRef = useRef(hud.power);
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(speedBase * powerScale * 0.8);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
