@@ -1470,7 +1470,6 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1.24; // move middle-pocket cameras farther outside so their pocket distance matches the corner-pocket camera feel
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1529,8 +1528,8 @@ const ACTION_CAM = Object.freeze({
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
   heightOffset: BALL_R * 9.2,
-  smoothingTime: 0.24,
-  followSmoothingTime: 0.18,
+  smoothingTime: 0.32,
+  followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
   followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
@@ -19589,8 +19588,7 @@ const powerRef = useRef(hud.power);
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const cameraDistance =
-            minOutside * (isSidePocket ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER : 1);
+          const cameraDistance = minOutside;
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
@@ -23880,12 +23878,8 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            const requiresCueBallMovementTrigger =
-              isBreakShot || (!earlyPocketView && !suppressPocketCameras);
             const shouldActivateActionView =
-              !requiresCueBallMovementTrigger &&
-              (!isLongShot || forceActionActivation) &&
-              !isMaxPowerShot;
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
             if (shouldActivateActionView && !holdActive) {
               suspendedActionView = null;
               activeShotView = actionView;
@@ -23893,18 +23887,12 @@ const powerRef = useRef(hud.power);
             } else {
               actionView.pendingActivation = true;
               const baseDelay = actionView.activationDelay ?? null;
-              const delayed = requiresCueBallMovementTrigger
-                ? baseDelay ?? 0
-                : Math.max(baseDelay ?? 0, holdUntil ?? 0);
+              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
               actionView.activationDelay = delayed > 0 ? delayed : null;
               const baseTravel = actionView.activationTravel ?? 0;
               actionView.activationTravel = Math.max(
                 baseTravel,
-                requiresCueBallMovementTrigger
-                  ? BALL_R * 0.2
-                  : isMaxPowerShot
-                    ? BALL_R * 6
-                    : 0
+                isMaxPowerShot ? BALL_R * 6 : 0
               );
               suspendedActionView = actionView;
             }
@@ -26048,8 +26036,7 @@ const powerRef = useRef(hud.power);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
             const aiTurnActive = currentHud?.turn === 1;
-            const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
-            const shouldForceAiBreak = aiTurnActive && breakInProgress && isOpeningBreak;
+            const shouldForceAiBreak = aiTurnActive && breakInProgress;
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter(
                 (ball) => ball?.active && String(ball?.id).toLowerCase() !== 'cue'
