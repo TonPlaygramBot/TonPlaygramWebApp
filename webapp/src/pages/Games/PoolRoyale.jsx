@@ -23491,50 +23491,15 @@ const powerRef = useRef(hud.power);
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
-          const isDirectHit =
-            shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
-          const predictedTargetBall =
-            shotPrediction.ballId != null
-              ? balls.find((ball) => String(ball.id) === String(shotPrediction.ballId))
-              : null;
-          const predictedTargetDir =
-            shotPrediction.dir && shotPrediction.dir.lengthSq() > 1e-6
-              ? shotPrediction.dir.clone().normalize()
-              : null;
-          let predictedCornerPocketId = null;
-          if (isDirectHit && predictedTargetBall?.active && predictedTargetDir) {
-            const candidatePocket = pocketCenters().reduce((best, center) => {
-              const toPocket = center.clone().sub(predictedTargetBall.pos);
-              const dist = toPocket.length();
-              if (dist < BALL_R * 1.5) return best;
-              const score = toPocket.normalize().dot(predictedTargetDir);
-              if (!best || score > best.score) {
-                return {
-                  center,
-                  score,
-                  id: pocketIdFromCenter(center)
-                };
-              }
-              return best;
-            }, null);
-            if (
-              candidatePocket &&
-              ['TL', 'TR', 'BL', 'BR'].includes(candidatePocket.id) &&
-              candidatePocket.score >= POCKET_EARLY_ALIGNMENT
-            ) {
-              predictedCornerPocketId = candidatePocket.id;
-            }
-          }
           if (shotPrediction.ballId && !isShortShot) {
+            const isDirectHit =
+              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
             pocketSwitchIntentRef.current = {
               ballId: shotPrediction.ballId,
-              allowEarly: Boolean(predictedCornerPocketId),
-              forced: Boolean(predictedCornerPocketId),
+              allowEarly: isDirectHit,
+              forced: isDirectHit,
               createdAt: intentTimestamp
             };
-            if (predictedCornerPocketId) {
-              powerImpactHoldRef.current = 0;
-            }
           } else {
             pocketSwitchIntentRef.current = null;
           }
