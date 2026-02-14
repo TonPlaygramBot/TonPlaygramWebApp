@@ -19557,6 +19557,9 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) {
+            return null;
+          }
           const triggerDistance = allowEarly
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23645,7 +23648,7 @@ const powerRef = useRef(hud.power);
               )
             : null;
           const earlyPocketView =
-            !suppressPocketCameras && shotPrediction.ballId && followView
+            !suppressPocketCameras && !isBreakShot && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView)
               : null;
           if (actionView && cameraRef.current) {
@@ -26030,12 +26033,14 @@ const powerRef = useRef(hud.power);
             }
             const frameSnapshot = frameRef.current ?? frameState;
             const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
+            const isOpeningBreak = (frameSnapshot?.currentBreak ?? 0) === 0;
             const aiTurnActive = currentHud?.turn === 1;
             const aiWonBreak = breakWinnerSeatRef.current === 'B';
             const openingPlayer = frameSnapshot?.activePlayer ?? (aiTurnActive ? 'B' : 'A');
             const shouldForceAiBreak =
               aiTurnActive &&
               breakInProgress &&
+              isOpeningBreak &&
               (aiWonBreak || openingPlayer === 'B');
             if (shouldForceAiBreak && cue?.pos) {
               const rackBalls = ballsList.filter(
@@ -28162,6 +28167,8 @@ const powerRef = useRef(hud.power);
         const suppressPocketCameras =
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
+        const frameSnapshot = frameRef.current ?? frameState;
+        const breakInProgress = Boolean(frameSnapshot?.meta?.state?.breakInProgress);
         const earlyPocketIntent = pocketSwitchIntentRef.current;
         if (earlyPocketIntent && earlyPocketIntent.createdAt) {
           const now = performance.now();
@@ -28187,6 +28194,7 @@ const powerRef = useRef(hud.power);
         }
         if (
           !suppressPocketCameras &&
+          !breakInProgress &&
           shooting &&
           !topViewRef.current
         ) {
