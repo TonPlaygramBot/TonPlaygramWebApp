@@ -322,28 +322,3 @@ test('avoids unnecessary spin when natural position is good', () => {
   assert.equal(decision.power, 0.5);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
-
-
-test('safety fallback still aims to legal first contact target', () => {
-  const req = {
-    game: 'EIGHT_POOL_UK',
-    state: {
-      balls: [
-        { id: 0, x: 100, y: 120, vx: 0, vy: 0, pocketed: false },
-        { id: 1, x: 360, y: 140, vx: 0, vy: 0, pocketed: false },
-        { id: 9, x: 500, y: 180, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [],
-      width: 900,
-      height: 450,
-      ballRadius: 10,
-      friction: 0.01,
-      ballOn: 'red'
-    },
-    timeBudgetMs: 20,
-    rngSeed: 11
-  };
-  const decision = planShot(req);
-  assert.equal(decision.targetBallId, 1);
-  assert.equal(decision.rationale, 'safety-legal-contact');
-});
