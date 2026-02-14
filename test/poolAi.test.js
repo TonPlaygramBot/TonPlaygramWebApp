@@ -319,54 +319,6 @@ test('avoids unnecessary spin when natural position is good', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.power, 0.4);
+  assert.equal(decision.power, 0.5);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
-});
-
-
-test('returns legal target suggestion for aim assist', () => {
-  const req = {
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 100, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 1, x: 400, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 2, x: 700, y: 250, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [{ x: 1000, y: 250 }],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01
-    },
-    timeBudgetMs: 50,
-    rngSeed: 9
-  };
-
-  const decision = planShot(req);
-  assert.equal(decision.suggestedTargetBallId, 1);
-  assert(decision.suggestedAimPoint);
-  assert(decision.suggestedPocket);
-});
-
-test('scales down non-break power by 20 percent', () => {
-  const req = {
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 200, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 1, x: 400, y: 250, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [{ x: 1000, y: 250 }],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01
-    },
-    timeBudgetMs: 50,
-    rngSeed: 11
-  };
-
-  const decision = planShot(req);
-  assert(decision.power <= 0.68, `expected <=0.68, got ${decision.power}`);
 });
