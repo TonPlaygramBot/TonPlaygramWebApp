@@ -497,9 +497,7 @@ export class PoolRoyaleRules {
     const nextLabel =
       ballOn.length === 0
         ? 'frame over'
-        : ballOn.includes('SOLID') && ballOn.includes('STRIPE')
-          ? 'open table'
-          : ballOn.map((entry) => entry.toLowerCase().replace('_', ' ')).join(' / ');
+        : ballOn.map((entry) => entry.toLowerCase().replace('_', ' ')).join(' / ');
     const hud: HudInfo = {
       next: frameOver ? 'frame over' : nextLabel,
       phase:
@@ -510,7 +508,10 @@ export class PoolRoyaleRules {
             : 'open',
       scores
     };
-    const breakInProgress = Boolean(snapshot.breakInProgress);
+    const breakInProgress =
+      Boolean(previous?.state?.breakInProgress) && Boolean(result.foul)
+        ? true
+        : Boolean(snapshot.breakInProgress);
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,

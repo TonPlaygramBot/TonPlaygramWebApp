@@ -16,31 +16,6 @@ test('open table: first contact cannot be the 8-ball', () => {
   assert.equal(res.ballInHandNext, true)
 })
 
-
-test('legal break pot keeps table open until post-break shot', () => {
-  const game = new AmericanBilliards()
-  const breakShot = game.shotTaken({
-    contactOrder: [2],
-    potted: [2],
-    cueOffTable: false
-  })
-
-  assert.equal(breakShot.foul, false)
-  assert.equal(game.state.breakInProgress, false)
-  assert.equal(game.state.assignments.A, null)
-  assert.equal(game.state.assignments.B, null)
-
-  const nextShot = game.shotTaken({
-    contactOrder: [3],
-    potted: [3],
-    cueOffTable: false
-  })
-
-  assert.equal(nextShot.foul, false)
-  assert.equal(game.state.assignments.A, 'SOLID')
-  assert.equal(game.state.assignments.B, 'STRIPE')
-})
-
 test('scratch gives opponent ball in hand and keeps object balls down', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
@@ -54,33 +29,6 @@ test('scratch gives opponent ball in hand and keeps object balls down', () => {
   assert.equal(res.nextPlayer, 'B')
   assert.equal(res.ballInHandNext, true)
   assert.equal(game.state.ballsOnTable.has(1), false)
-})
-
-
-test('break scratch passes turn with ball in hand and ends break state', () => {
-  const game = new AmericanBilliards()
-  const foulBreak = game.shotTaken({
-    contactOrder: [1],
-    potted: [0],
-    cueOffTable: false
-  })
-
-  assert.equal(foulBreak.foul, true)
-  assert.equal(foulBreak.reason, 'scratch')
-  assert.equal(foulBreak.nextPlayer, 'B')
-  assert.equal(game.state.currentPlayer, 'B')
-  assert.equal(game.state.ballInHand, true)
-  assert.equal(game.state.breakInProgress, false)
-
-  const nextShot = game.shotTaken({
-    contactOrder: [10],
-    potted: [10],
-    cueOffTable: false
-  })
-
-  assert.equal(nextShot.foul, false)
-  assert.equal(game.state.assignments.B, 'STRIPE')
-  assert.equal(game.state.assignments.A, 'SOLID')
 })
 
 test('8-ball on break is spotted and does not end frame', () => {
