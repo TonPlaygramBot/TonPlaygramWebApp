@@ -1284,7 +1284,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.24; // lift balls a bit more so they roll clearly on the cloth top surface
+const BALL_CENTER_LIFT = BALL_R * 0.27; // lift balls a touch more so they sit cleanly above the cloth and roll without visual clipping
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1631,7 +1631,7 @@ const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
-const BALL_HIT_VOLUME_SCALE = 0.72; // match Snooker Royale ball-hit volume
+const BALL_HIT_VOLUME_SCALE = 0.82; // raise pool ball-hit loudness so collisions read at the same perceived level as Snooker Royale
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
@@ -6089,7 +6089,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
@@ -6131,10 +6131,6 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BL':
     case 'BR':
       return pocketId;
-    case 'TM':
-      return 'TM';
-    case 'BM':
-      return 'BM';
     default:
       return pocketId;
   }
@@ -19562,6 +19558,7 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23398,7 +23395,8 @@ const powerRef = useRef(hud.power);
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
           currentHud?.over ||
-          replayPlaybackRef.current
+          replayPlaybackRef.current ||
+          breakRollPending
         )
           return;
         if (breakWinnerSeatRef.current === 'A') {
@@ -23596,9 +23594,10 @@ const powerRef = useRef(hud.power);
             (!isShortShot &&
               (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
           const allowLongShotCameraSwitch =
-            (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
-            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
-            allowRailOverheadActionView;
+            forceImmediateRailOverheadView ||
+            ((forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
+              !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
+              allowRailOverheadActionView);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
@@ -29881,7 +29880,7 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {breakRollState !== 'done' && !hud.over && (
-        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center translate-y-[12vh]">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>

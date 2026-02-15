@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NineBall } from '../lib/nineBall.js';
 
-test('must hit lowest ball first or foul', () => {
+test('must hit lowest ball first or foul after the break', () => {
   const game = new NineBall();
+  game.state.breakInProgress = false;
   const res = game.shotTaken({
     contactOrder: [2],
     potted: [],
@@ -29,8 +30,9 @@ test('potting nine after legal contact wins', () => {
   assert.equal(res.winner, 'A');
 });
 
-test('scratch gives opponent ball in hand', () => {
+test('scratch gives opponent ball in hand after the break', () => {
   const game = new NineBall();
+  game.state.breakInProgress = false;
   const res1 = game.shotTaken({
     contactOrder: [1],
     potted: [0],
