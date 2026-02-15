@@ -1537,7 +1537,6 @@ const ACTION_CAM = Object.freeze({
   followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
 });
-const ENABLE_DYNAMIC_SHOT_CAMERAS = false; // lock the gameplay camera in place so it no longer follows the cue ball after shots
 /**
  * Pool Camera Direction
  *
@@ -1625,7 +1624,7 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_ADJUSTMENT *
   SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * 0.85; // reduce live shot speed by an additional 15%
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
@@ -5269,7 +5268,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.02; // nudge the rail overhead camera slightly closer to the table
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -5305,7 +5304,7 @@ const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while th
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.055; // tilt the rail overhead camera a touch further down toward the cloth
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -23632,7 +23631,7 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const actionView = ENABLE_DYNAMIC_SHOT_CAMERAS && allowLongShotCameraSwitch
+          const actionView = allowLongShotCameraSwitch
             ? makeActionCameraView(
                 cue,
                 shotPrediction.ballId,
@@ -23646,7 +23645,6 @@ const powerRef = useRef(hud.power);
               )
             : null;
           const earlyPocketView =
-            ENABLE_DYNAMIC_SHOT_CAMERAS &&
             !isBreakShot &&
             !suppressPocketCameras &&
             shotPrediction.ballId &&
@@ -29864,8 +29862,6 @@ const powerRef = useRef(hud.power);
           ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
           : '0 6px 14px rgba(0,0,0,0.35)'
       };
-  const breakRollOverlayOffsetClass = isPortrait ? 'pt-[30vh]' : 'pt-[18vh]';
-
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -29887,7 +29883,7 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {breakRollState !== 'done' && !hud.over && (
-        <div className={`pointer-events-none absolute inset-0 z-[95] flex items-start justify-center ${breakRollOverlayOffsetClass}`}>
+        <div className="pointer-events-none absolute inset-0 z-[95] flex items-start justify-center pt-[18vh]">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
