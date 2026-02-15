@@ -173,6 +173,12 @@ public class CueCamera : MonoBehaviour
     public float pocketCameraDistanceInset = 0.2f;
     // Nudge the pocket camera look target downward for a slightly steeper angle.
     public float pocketCameraLookDownOffset = 0.03f;
+    // Sideways push applied when the target action happens around the middle
+    // pockets so the framing sits farther from the table centre line.
+    public float pocketCameraMiddleSideOffset = 0.18f;
+    // Portion of the half table length treated as the middle pocket zone.
+    [Range(0f, 1f)]
+    public float pocketCameraMiddleZone = 0.32f;
 
     [Header("Ball in hand view")]
     // Start the match in a locked standing camera view for ball-in-hand placement.
@@ -769,8 +775,29 @@ public class CueCamera : MonoBehaviour
         Vector3 forward = rotation * Vector3.forward;
 
         Bounds broadcastBounds = GetBroadcastBounds(focus);
+        Vector3 sourceFocus = focus;
         focus.x = 0f;
         focus.z = broadcastBounds.center.z;
+
+        if (isPocketCamera)
+        {
+            float halfLength = Mathf.Max(0.0001f, tableBounds.extents.z);
+            float middleZone = Mathf.Clamp01(pocketCameraMiddleZone) * halfLength;
+            float zFromCenter = Mathf.Abs(sourceFocus.z - tableBounds.center.z);
+            bool isMiddlePocketBand = zFromCenter <= middleZone;
+            if (isMiddlePocketBand)
+            {
+                float sideSign = Mathf.Sign(sourceFocus.x);
+                if (Mathf.Approximately(sideSign, 0f))
+                {
+                    sideSign = 1f;
+                }
+
+                float maxX = Mathf.Max(0f, tableBounds.extents.x - broadcastFrameMargin);
+                float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraMiddleSideOffset), 0f, maxX);
+                focus.x = Mathf.Clamp(sideSign * sideOffset, -maxX, maxX);
+            }
+        }
 
         float distance = useStandingCameraForBroadcast && cachedStandingCamera
             ? Mathf.Max(standingCameraDistance - Mathf.Max(0f, standingCameraDistanceInset), broadcastMinDistance)
