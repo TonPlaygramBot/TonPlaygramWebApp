@@ -43,3 +43,18 @@ test('scratch gives opponent ball in hand', () => {
   assert.equal(res1.nextPlayer, 'B');
   assert.equal(game.state.currentPlayer, 'B');
 });
+
+
+test('opening break without contact is legal and passes turn', () => {
+  const game = new NineBall();
+  const res = game.shotTaken({
+    contactOrder: [],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: true,
+    placedFromHand: false
+  });
+  assert.equal(res.foul, false);
+  assert.equal(res.nextPlayer, 'B');
+  assert.equal(res.ballInHandNext, false);
+});
