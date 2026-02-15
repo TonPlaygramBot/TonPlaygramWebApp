@@ -177,7 +177,10 @@ public class CueCamera : MonoBehaviour
     public float pocketCameraMiddleHeightOffset = 0.04f;
     // Sideways push applied when the target action happens around the middle
     // pockets so the framing sits farther from the table centre line.
-    public float pocketCameraMiddleSideOffset = 0.28f;
+    public float pocketCameraMiddleSideOffset = 0.32f;
+    // Sideways push for corner-pocket camera framing. Keep this lower than the
+    // middle-pocket offset so corner shots sit a touch closer to table centre.
+    public float pocketCameraCornerSideOffset = 0.2f;
     // Portion of the half table length treated as the middle pocket zone.
     [Range(0f, 1f)]
     public float pocketCameraMiddleZone = 0.32f;
@@ -794,19 +797,25 @@ public class CueCamera : MonoBehaviour
             float middleZone = Mathf.Clamp01(pocketCameraMiddleZone) * halfLength;
             float zFromCenter = Mathf.Abs(sourceFocus.z - tableBounds.center.z);
             bool isMiddlePocketBand = zFromCenter <= middleZone;
+            float maxX = Mathf.Max(0f, tableBounds.extents.x - broadcastFrameMargin);
+            float sideSign = Mathf.Sign(sourceFocus.x);
+            if (Mathf.Approximately(sideSign, 0f))
+            {
+                sideSign = 1f;
+            }
+
             if (isMiddlePocketBand)
             {
-                float sideSign = Mathf.Sign(sourceFocus.x);
-                if (Mathf.Approximately(sideSign, 0f))
-                {
-                    sideSign = 1f;
-                }
-
-                float maxX = Mathf.Max(0f, tableBounds.extents.x - broadcastFrameMargin);
                 float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraMiddleSideOffset), 0f, maxX);
                 focus.x = Mathf.Clamp(sideSign * sideOffset, -maxX, maxX);
                 focus.z = sourceFocus.z;
                 height += Mathf.Max(0f, pocketCameraMiddleHeightOffset);
+            }
+            else
+            {
+                float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraCornerSideOffset), 0f, maxX);
+                focus.x = Mathf.Clamp(sideSign * sideOffset, -maxX, maxX);
+                focus.z = sourceFocus.z;
             }
         }
 
