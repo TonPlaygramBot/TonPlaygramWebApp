@@ -12609,7 +12609,7 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (isTopDownView) {
       topViewLockedRef.current = true;
-      topViewControlsRef.current.enter?.(false, { variant: 'rail' });
+      topViewControlsRef.current.enter?.(false, { variant: 'top' });
     } else {
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
@@ -13833,7 +13833,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('rail');
+  const overheadBroadcastVariantRef = useRef('top');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -18815,7 +18815,7 @@ const powerRef = useRef(hud.power);
             } else {
               aimFocusRef.current = null;
               const store = ensureOrbitFocus();
-              if (store.ballId && !shooting) {
+              if (store.ballId) {
                 const ballsList =
                   ballsRef.current?.length > 0 ? ballsRef.current : balls;
                 const focusBall = ballsList.find((b) => b.id === store.ballId);
@@ -18839,11 +18839,11 @@ const powerRef = useRef(hud.power);
             ORBIT_FOCUS_BASE_Y,
             TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
-          const overheadVariant = overheadBroadcastVariantRef.current ?? 'rail';
+          const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
-          if (overheadVariant === 'replay' || overheadVariant === 'rail') {
+          if (overheadVariant === 'replay') {
             const overheadCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
               minTargetY
@@ -18871,17 +18871,31 @@ const powerRef = useRef(hud.power);
             }
           }
           if (!overheadApplied) {
-            const fallbackTarget =
-              lastCameraTargetRef.current?.clone?.() ?? topFocusTarget.clone();
-            camera.up.set(0, 1, 0);
-            camera.lookAt(fallbackTarget);
+            const topRadiusBase =
+              fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+            const topRadius = clampOrbitRadius(
+              Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+            );
+            const topTheta = Math.PI;
+            const topPhi = TOP_VIEW_RESOLVED_PHI;
+            TMP_SPH.set(topRadius, topPhi, topTheta);
+            camera.up.set(0, 0, 1);
+            camera.position.setFromSpherical(TMP_SPH);
+            camera.position.add(topFocusTarget);
+            const resolvedTarget = topFocusTarget.clone();
+            const resolvedPosition = camera.position.clone();
+            lookTarget = resolvedTarget;
+            lastCameraTargetRef.current.copy(resolvedTarget);
+            camera.updateProjectionMatrix();
+            camera.lookAt(resolvedTarget);
             renderCamera = camera;
-            lookTarget = fallbackTarget;
-            lastCameraTargetRef.current.copy(fallbackTarget);
-            broadcastArgs.focusWorld = fallbackTarget.clone();
-            broadcastArgs.targetWorld = fallbackTarget.clone();
-            broadcastArgs.orbitWorld = camera.position.clone();
-            broadcastArgs.lerp = 0;
+            broadcastArgs.focusWorld = resolvedTarget.clone();
+            broadcastArgs.targetWorld = resolvedTarget.clone();
+            broadcastArgs.orbitWorld = resolvedPosition.clone();
+            if (broadcastCamerasRef.current) {
+              broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+            }
+            broadcastArgs.lerp = 0.12;
           }
         } else {
           camera.up.set(0, 1, 0);
@@ -20579,7 +20593,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          overheadBroadcastVariantRef.current = 'rail';
+          overheadBroadcastVariantRef.current = 'top';
           setReplayActive(false);
           setReplayFoul(null);
         };
@@ -20600,7 +20614,7 @@ const powerRef = useRef(hud.power);
         };
         skipReplayRef.current = skipReplay;
 
-        const enterTopView = (immediate = false, { variant = 'rail' } = {}) => {
+        const enterTopView = (immediate = false, { variant = 'top' } = {}) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
           overheadBroadcastVariantRef.current = variant;
