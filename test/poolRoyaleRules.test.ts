@@ -105,13 +105,22 @@ describe('PoolRoyaleRules', () => {
     expect(initialFrame.ballOn).toEqual(['BALL_1']);
     expect(initialMeta?.hud?.next).toBe('ball 1');
 
+    const breakEvents: ShotEvent[] = [{ type: 'HIT', firstContact: 2, ballId: 2 }];
+    const postBreak = rules.applyShot(initialFrame, breakEvents, { contactMade: true });
+    const postBreakMeta = postBreak.meta as any;
+
+    expect(postBreak.foul).toBeUndefined();
+    expect(postBreakMeta?.breakInProgress).toBe(false);
+    expect(postBreak.activePlayer).toBe('B');
+    expect(postBreak.ballOn).toEqual(['BALL_1']);
+
     const foulEvents: ShotEvent[] = [{ type: 'HIT', firstContact: 2, ballId: 2 }];
-    const foulState = rules.applyShot(initialFrame, foulEvents, { contactMade: true });
+    const foulState = rules.applyShot(postBreak, foulEvents, { contactMade: true });
     const foulMeta = foulState.meta as any;
 
     expect(foulState.foul?.reason).toBe('wrong first contact');
     expect(foulMeta?.state?.ballInHand).toBe(true);
-    expect(foulState.activePlayer).toBe('B');
+    expect(foulState.activePlayer).toBe('A');
     expect(foulState.ballOn).toEqual(['BALL_1']);
 
     const recoveryEvents: ShotEvent[] = [
