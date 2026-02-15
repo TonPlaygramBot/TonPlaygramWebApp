@@ -1284,7 +1284,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.28; // lift balls a touch more so they sit slightly higher and roll cleanly on the cloth
+const BALL_CENTER_LIFT = BALL_R * 0.24; // lift balls a bit more so they roll clearly on the cloth top surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1631,7 +1631,7 @@ const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
-const BALL_HIT_VOLUME_SCALE = 1; // raise ball-hit loudness to Snooker Royale parity
+const BALL_HIT_VOLUME_SCALE = 0.72; // match Snooker Royale ball-hit volume
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
@@ -6089,13 +6089,15 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize()
+  BR: new THREE.Vector2(1, 1).normalize(),
+  TM: new THREE.Vector2(-1, -POCKET_CAM_SIDE_LATERAL_BIAS).normalize(),
+  BM: new THREE.Vector2(1, POCKET_CAM_SIDE_LATERAL_BIAS).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -13499,10 +13501,6 @@ function PoolRoyaleGame({
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
   const [breakRollState, setBreakRollState] = useState('user');
-  const breakRollStateRef = useRef('user');
-  useEffect(() => {
-    breakRollStateRef.current = breakRollState;
-  }, [breakRollState]);
   const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
   const [breakRollMessage, setBreakRollMessage] = useState('You roll first for the break.');
   const [breakRollLoadReady, setBreakRollLoadReady] = useState(false);
@@ -23397,7 +23395,6 @@ const powerRef = useRef(hud.power);
         );
         if (
           !cue?.active ||
-          breakRollStateRef.current !== 'done' ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
           currentHud?.over ||
@@ -23600,6 +23597,7 @@ const powerRef = useRef(hud.power);
               (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
+            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             allowRailOverheadActionView;
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
@@ -26061,7 +26059,7 @@ const powerRef = useRef(hud.power);
             }, 200);
             return;
           }
-          if (breakRollStateRef.current !== 'done' || currentHud?.over || currentHud?.inHand || shooting) return;
+          if (currentHud?.over || currentHud?.inHand || shooting) return;
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -29258,9 +29256,9 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && breakRollState === 'done';
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
-    !hud.over && !replayActive && breakRollState === 'done' && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -29883,7 +29881,7 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {breakRollState !== 'done' && !hud.over && (
-        <div className="pointer-events-none absolute inset-0 z-[95] flex items-start justify-center pt-[18vh]">
+        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>

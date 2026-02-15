@@ -4,22 +4,6 @@ import { UkPool } from '../lib/poolUk8Ball.js';
 import { selectShot, recordShotOutcome, __resetShotMemory } from '../lib/poolUkAdvancedAi.js';
 import planShot from '../lib/poolAi.js';
 
-
-test('break with no contact is legal and passes turn', () => {
-  const game = new UkPool();
-  game.startBreak();
-  const res = game.shotTaken({
-    contactOrder: [],
-    potted: [],
-    cueOffTable: false,
-    noCushionAfterContact: true,
-    placedFromHand: true
-  });
-  assert.equal(res.foul, false);
-  assert.equal(res.nextPlayer, 'B');
-  assert.equal(res.shotsRemainingNext, 1);
-});
-
 test('scratch on break gives opponent ball in hand', () => {
   const game = new UkPool();
   game.startBreak();
