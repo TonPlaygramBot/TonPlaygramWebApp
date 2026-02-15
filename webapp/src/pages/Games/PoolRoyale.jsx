@@ -1056,6 +1056,7 @@ const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'e
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
+const DISABLE_DYNAMIC_SHOT_CAMERA = true;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
@@ -19247,6 +19248,7 @@ const powerRef = useRef(hud.power);
           railNormal,
           { longShot = false, travelDistance = 0, isBreakShot = false } = {}
         ) => {
+          if (DISABLE_DYNAMIC_SHOT_CAMERA) return null;
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
           const targetBall =
@@ -19325,6 +19327,7 @@ const powerRef = useRef(hud.power);
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
+          if (DISABLE_DYNAMIC_SHOT_CAMERA) return null;
           if (!followView) return null;
           const {
             forceEarly = false,
