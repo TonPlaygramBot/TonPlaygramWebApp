@@ -1414,7 +1414,7 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 4.1; // push middle-pocket cameras farther toward the corner-side edges
 const POCKET_CAM_DISTANCE_PULL = BALL_DIAMETER * 7; // pull pocket cameras inward by ~7 balls (adds ~3 balls more)
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1436,7 +1436,7 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 1.15 + BALL_DIAMETER * 3,
-  heightOffsetShortMultiplier: 0.9,
+  heightOffsetShortMultiplier: 1,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -17252,8 +17252,9 @@ const powerRef = useRef(hud.power);
                 orbitWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
                 lerp: lerpT
               };
+              let railReplayCamera = null;
               if (activeShotView.preferRailOverhead) {
-                const railReplayCamera = resolveRailOverheadReplayCamera({
+                railReplayCamera = resolveRailOverheadReplayCamera({
                   focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
                   minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
                 });
@@ -17279,7 +17280,14 @@ const powerRef = useRef(hud.power);
                   broadcastArgs.orbitWorld = defaultFocus;
                 }
               }
-              if (focusTargetVec3 && desiredPosition) {
+              if (activeShotView.preferRailOverhead && railReplayCamera?.position) {
+                const overheadTarget =
+                  railReplayCamera.target?.clone?.() ?? focusTargetVec3 ?? lookTarget;
+                camera.position.copy(railReplayCamera.position);
+                camera.lookAt(overheadTarget);
+                lookTarget = overheadTarget;
+                renderCamera = camera;
+              } else if (focusTargetVec3 && desiredPosition) {
                 if (!activeShotView.smoothedPos) {
                   activeShotView.smoothedPos = desiredPosition.clone();
                 } else {
@@ -20925,7 +20933,9 @@ const powerRef = useRef(hud.power);
       const inHandDrag = {
         active: false,
         pointerId: null,
-        lastPos: null
+        lastPos: null,
+        pointerTablePos: null,
+        cueOffset: null
       };
       const updateCuePlacement = (pos) => {
         if (!cue || !pos) return;
@@ -20939,18 +20949,50 @@ const powerRef = useRef(hud.power);
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
       };
+      const resolveNearestFreeInHandSpot = (raw) => {
+        const clamped = clampInHandPosition(raw);
+        if (!clamped) return null;
+        if (isSpotFree(clamped)) return clamped;
+        const step = BALL_R * 0.3;
+        const maxSteps = 10;
+        const dirs = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+          [Math.SQRT1_2, Math.SQRT1_2],
+          [Math.SQRT1_2, -Math.SQRT1_2],
+          [-Math.SQRT1_2, Math.SQRT1_2],
+          [-Math.SQRT1_2, -Math.SQRT1_2]
+        ];
+        for (let stepIdx = 1; stepIdx <= maxSteps; stepIdx++) {
+          for (const [dx, dz] of dirs) {
+            const candidate = clampInHandPosition(
+              new THREE.Vector2(
+                clamped.x + dx * step * stepIdx,
+                clamped.y + dz * step * stepIdx
+              )
+            );
+            if (candidate && isSpotFree(candidate, 2)) {
+              return candidate;
+            }
+          }
+        }
+        return null;
+      };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const clamped = clampInHandPosition(raw);
-        if (!clamped) return false;
-        if (!isSpotFree(clamped)) return false;
+        const resolved = resolveNearestFreeInHandSpot(raw);
+        if (!resolved) return false;
         cue.active = false;
-        updateCuePlacement(clamped);
-        inHandDrag.lastPos = clamped;
+        updateCuePlacement(resolved);
+        inHandDrag.lastPos = resolved;
       if (commit) {
         cue.active = true;
         inHandDrag.lastPos = null;
+        inHandDrag.pointerTablePos = null;
+        inHandDrag.cueOffset = null;
         cueBallPlacedFromHandRef.current = true;
         if (hudRef.current?.inHand) {
           const nextHud = { ...hudRef.current, inHand: false };
@@ -21145,7 +21187,10 @@ const powerRef = useRef(hud.power);
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
-        if (!tryUpdatePlacement(p, false)) return;
+        const cuePos = cue?.pos ? new THREE.Vector2(cue.pos.x, cue.pos.y) : p.clone();
+        inHandDrag.cueOffset = cuePos.clone().sub(p);
+        inHandDrag.pointerTablePos = p.clone();
+        if (!tryUpdatePlacement(cuePos, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
         if (e.pointerId != null && dom.setPointerCapture) {
@@ -21165,7 +21210,13 @@ const powerRef = useRef(hud.power);
           return;
         }
         const p = project(e);
-        if (p) tryUpdatePlacement(p, false);
+        if (p) {
+          inHandDrag.pointerTablePos = p.clone();
+          const nextPos = inHandDrag.cueOffset
+            ? p.clone().add(inHandDrag.cueOffset)
+            : p;
+          tryUpdatePlacement(nextPos, false);
+        }
         e.preventDefault?.();
       };
       const endInHandDrag = (e) => {
@@ -21183,6 +21234,8 @@ const powerRef = useRef(hud.power);
           } catch {}
         }
         inHandDrag.active = false;
+        inHandDrag.pointerTablePos = null;
+        inHandDrag.cueOffset = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -23337,7 +23390,8 @@ const powerRef = useRef(hud.power);
             }, null);
 
           let targetBall = null;
-          if ((frameSnapshot?.currentBreak ?? 0) === 0) {
+          const breakInProgress = Boolean(frameSnapshot?.meta?.breakInProgress);
+          if (breakInProgress) {
             targetBall = findRackApex();
           }
 
