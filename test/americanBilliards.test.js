@@ -119,3 +119,18 @@ test('legal group clearance then 8-ball wins frame', () => {
   assert.equal(res.frameOver, true)
   assert.equal(res.winner, 'A')
 })
+
+
+test('dry break without contact is legal and passes turn', () => {
+  const game = new AmericanBilliards()
+  const res = game.shotTaken({
+    contactOrder: [],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: true
+  })
+
+  assert.equal(res.foul, false)
+  assert.equal(res.nextPlayer, 'B')
+  assert.equal(res.ballInHandNext, false)
+})
