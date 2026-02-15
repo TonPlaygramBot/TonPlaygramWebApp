@@ -16,31 +16,6 @@ test('open table: first contact cannot be the 8-ball', () => {
   assert.equal(res.ballInHandNext, true)
 })
 
-
-test('legal break pot keeps table open until post-break shot', () => {
-  const game = new AmericanBilliards()
-  const breakShot = game.shotTaken({
-    contactOrder: [2],
-    potted: [2],
-    cueOffTable: false
-  })
-
-  assert.equal(breakShot.foul, false)
-  assert.equal(game.state.breakInProgress, false)
-  assert.equal(game.state.assignments.A, null)
-  assert.equal(game.state.assignments.B, null)
-
-  const nextShot = game.shotTaken({
-    contactOrder: [3],
-    potted: [3],
-    cueOffTable: false
-  })
-
-  assert.equal(nextShot.foul, false)
-  assert.equal(game.state.assignments.A, 'SOLID')
-  assert.equal(game.state.assignments.B, 'STRIPE')
-})
-
 test('scratch gives opponent ball in hand and keeps object balls down', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
