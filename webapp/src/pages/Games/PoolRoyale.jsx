@@ -1064,7 +1064,6 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   jaws: false,
   pockets: false
 });
-const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
@@ -1284,7 +1283,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.24; // lift balls a bit more so they roll clearly on the cloth top surface
+const BALL_CENTER_LIFT = BALL_R * 0.27; // lift balls a touch more so they roll cleanly on top of the cloth
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1631,7 +1630,7 @@ const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
-const BALL_HIT_VOLUME_SCALE = 0.72; // match Snooker Royale ball-hit volume
+const BALL_HIT_VOLUME_SCALE = 0.88; // raise ball-hit level so impacts match Snooker Royale loudness
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
@@ -4640,48 +4639,7 @@ function createBroadcastCameras({
   group.name = 'broadcastCameras';
   const cameras = {};
 
-  const darkMetal = new THREE.MeshStandardMaterial({
-    color: 0x1f2937,
-    metalness: 0.65,
-    roughness: 0.32
-  });
-  const lightMetal = new THREE.MeshStandardMaterial({
-    color: 0x334155,
-    metalness: 0.58,
-    roughness: 0.36
-  });
-  const plastic = new THREE.MeshStandardMaterial({
-    color: 0x1b2533,
-    metalness: 0.24,
-    roughness: 0.42
-  });
-  const rubber = new THREE.MeshStandardMaterial({
-    color: 0x080c14,
-    metalness: 0.0,
-    roughness: 0.94
-  });
-  const glass = new THREE.MeshStandardMaterial({
-    color: 0x97c6ff,
-    metalness: 0.0,
-    roughness: 0.08,
-    transparent: true,
-    opacity: 0.42,
-    envMapIntensity: 1.1
-  });
-
-  const footRadius = Math.min(0.85, PLAY_W * 0.22);
   const headHeight = Math.max(1.45, cameraHeight - floorY);
-  const hubHeight = Math.max(1.08, headHeight - 0.52);
-  const columnHeight = Math.max(0.42, headHeight - hubHeight);
-  const legLength = Math.sqrt(footRadius * footRadius + hubHeight * hubHeight);
-  const legGeo = new THREE.CylinderGeometry(0.034, 0.022, legLength, 14);
-  const footHeight = 0.045;
-  const footGeo = new THREE.CylinderGeometry(0.07, 0.07, footHeight, 16);
-  const columnGeo = new THREE.CylinderGeometry(0.052, 0.05, columnHeight, 16);
-  const hubGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.08, 18);
-  const headBaseGeo = new THREE.CylinderGeometry(0.11, 0.13, 0.05, 18);
-  const panBarGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.32, 12);
-  const gripGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.2, 12);
 
   const defaultFocus = new THREE.Vector3(
     0,
@@ -4725,103 +4683,6 @@ function createBroadcastCameras({
 
     const cameraAssembly = new THREE.Group();
     headPivot.add(cameraAssembly);
-
-    if (SHOW_SHORT_RAIL_TRIPODS) {
-      const tripod = new THREE.Group();
-      slider.add(tripod);
-
-      const top = new THREE.Vector3(0, hubHeight, 0);
-      [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3].forEach((angle) => {
-        const foot = new THREE.Vector3(
-          Math.cos(angle) * footRadius,
-          0,
-          Math.sin(angle) * footRadius
-        );
-        const mid = top.clone().add(foot).multiplyScalar(0.5);
-        const up = top.clone().sub(foot).normalize();
-        const leg = new THREE.Mesh(legGeo, darkMetal);
-        leg.position.copy(mid);
-        leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        tripod.add(leg);
-
-        const footPad = new THREE.Mesh(footGeo, rubber);
-        footPad.position.set(foot.x, footHeight / 2, foot.z);
-        footPad.receiveShadow = true;
-        tripod.add(footPad);
-      });
-
-      const column = new THREE.Mesh(columnGeo, lightMetal);
-      column.position.y = hubHeight + columnHeight / 2;
-      column.castShadow = true;
-      column.receiveShadow = true;
-      slider.add(column);
-
-      const hub = new THREE.Mesh(hubGeo, lightMetal);
-      hub.position.y = hubHeight;
-      hub.castShadow = true;
-      hub.receiveShadow = true;
-      slider.add(hub);
-
-      const headBase = new THREE.Mesh(headBaseGeo, darkMetal);
-      headBase.position.y = headHeight;
-      headBase.castShadow = true;
-      slider.add(headBase);
-
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      cameraAssembly.add(body);
-
-      const lensHousing = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
-        darkMetal
-      );
-      lensHousing.rotation.x = Math.PI / 2;
-      lensHousing.position.set(0, 0, -0.2);
-      lensHousing.castShadow = true;
-      cameraAssembly.add(lensHousing);
-
-      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
-      hood.position.set(0, 0, -0.32);
-      hood.castShadow = true;
-      cameraAssembly.add(hood);
-
-      const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
-      lensGlass.rotation.x = Math.PI / 2;
-      lensGlass.position.set(0, 0, -0.29);
-      cameraAssembly.add(lensGlass);
-
-      const topHandle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
-        rubber
-      );
-      topHandle.rotation.z = Math.PI / 2;
-      topHandle.position.set(0, 0.16, 0);
-      topHandle.castShadow = true;
-      cameraAssembly.add(topHandle);
-
-      const viewfinder = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.1, 0.08),
-        lightMetal
-      );
-      viewfinder.position.set(-0.22, 0.06, 0.05);
-      viewfinder.castShadow = true;
-      cameraAssembly.add(viewfinder);
-
-      const panBar = new THREE.Mesh(panBarGeo, lightMetal);
-      panBar.rotation.z = Math.PI / 2.3;
-      panBar.position.set(0.26, -0.08, 0);
-      panBar.castShadow = true;
-      headPivot.add(panBar);
-
-      const grip = new THREE.Mesh(gripGeo, rubber);
-      grip.rotation.z = Math.PI / 2.3;
-      grip.position.set(0.37, -0.12, 0);
-      grip.castShadow = true;
-      headPivot.add(grip);
-    }
 
     headPivot.lookAt(defaultFocus);
     headPivot.rotateY(Math.PI);
@@ -13597,6 +13458,7 @@ const powerRef = useRef(hud.power);
   }, [breakDiceValues]);
 
   const breakRollPending = breakRollState !== 'done';
+  const breakRollPendingRef = useRef(breakRollPending);
   const rollBreakDie = useCallback(
     async (seat = 'ai') => {
       if (breakRollBusyRef.current || breakRollState === 'done') return;
@@ -13642,6 +13504,10 @@ const powerRef = useRef(hud.power);
     },
     [breakRollState]
   );
+
+  useEffect(() => {
+    breakRollPendingRef.current = breakRollPending;
+  }, [breakRollPending]);
 
   useEffect(() => {
     if (breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
@@ -19562,6 +19428,7 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23395,6 +23262,7 @@ const powerRef = useRef(hud.power);
         );
         if (
           !cue?.active ||
+          breakRollPendingRef.current ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
           currentHud?.over ||
@@ -23705,9 +23573,14 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
+            if (forceImmediateRailOverheadView) {
+              enterTopView(true, { variant: 'top' });
+              setIsTopDownView(true);
+            } else {
+              topViewRef.current = false;
+              topViewLockedRef.current = false;
+              setIsTopDownView(false);
+            }
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -26059,7 +25932,7 @@ const powerRef = useRef(hud.power);
             }, 200);
             return;
           }
-          if (currentHud?.over || currentHud?.inHand || shooting) return;
+          if (breakRollPendingRef.current || currentHud?.over || currentHud?.inHand || shooting) return;
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -29881,7 +29754,7 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {breakRollState !== 'done' && !hud.over && (
-        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-[95] flex items-start justify-center pt-[18vh]">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
