@@ -1065,7 +1065,6 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   pockets: false
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const SHOW_SHORT_RAIL_STANDING_CAMERAS = false; // hide standing cameras on both short rails while keeping rail camera transforms available for framing logic
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
@@ -1471,7 +1470,7 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket cameras centered between the two corner-pocket cameras on each long side
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1; // keep middle-pocket camera rail distance identical to corner-pocket camera distance
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1.28; // push middle-pocket cameras farther outside so they sit clearly off-table
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -4703,7 +4702,7 @@ function createBroadcastCameras({
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
     const base = new THREE.Group();
-    base.visible = SHOW_SHORT_RAIL_STANDING_CAMERAS;
+    base.visible = false;
     const centeredZ = direction * cameraCenterZOffset * cameraProximityScale;
     base.position.set(0, floorY, centeredZ);
     const horizontalFocus = defaultFocus.clone();
@@ -23585,8 +23584,10 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
           }
           const suppressOpeningShotViews = openingShotViewSuppressedRef.current;
+          const forceImmediateRailOverheadView =
+            isBreakShot || Boolean(shotPrediction?.railNormal);
           const allowLongShotCameraSwitch =
-            !suppressOpeningShotViews &&
+            (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
             !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
@@ -23866,14 +23867,17 @@ const powerRef = useRef(hud.power);
           }
           if (!pocketViewActivated && actionView) {
             const requiresCueBallMovementTrigger =
-              isBreakShot ||
-              Boolean(shotPrediction?.railNormal) ||
+              forceImmediateRailOverheadView ||
               (!earlyPocketView && !suppressPocketCameras);
             const shouldActivateActionView =
-              !requiresCueBallMovementTrigger &&
-              (!isLongShot || forceActionActivation) &&
-              !isMaxPowerShot;
-            if (shouldActivateActionView && !holdActive) {
+              forceImmediateRailOverheadView ||
+              (!requiresCueBallMovementTrigger &&
+                (!isLongShot || forceActionActivation) &&
+                !isMaxPowerShot);
+            if (shouldActivateActionView && (!holdActive || forceImmediateRailOverheadView)) {
+              actionView.pendingActivation = false;
+              actionView.activationDelay = null;
+              actionView.activationTravel = 0;
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
