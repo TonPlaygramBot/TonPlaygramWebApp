@@ -206,12 +206,6 @@ public class CueCamera : MonoBehaviour
     private bool usingTargetCamera;
     private float targetViewYaw;
     private Vector3 targetViewFocus;
-    private Vector3 lockedBroadcastFocus;
-    private Vector3 lockedBroadcastLookTarget;
-    private Vector3 lockedBroadcastForward = Vector3.forward;
-    private float lockedBroadcastDistance;
-    private float lockedBroadcastHeight;
-    private float lockedBroadcastMinimumHeightOffset;
     private int defaultShortRailSign = 1;
     private int cueAimSideSign = 1;
     private int broadcastSideSign = -1;
@@ -289,7 +283,6 @@ public class CueCamera : MonoBehaviour
         }
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
         yaw = targetViewYaw;
-        CacheLockedBroadcastCamera();
 
         nextShotIsAi = false;
     }
@@ -644,14 +637,8 @@ public class CueCamera : MonoBehaviour
     private void UpdateBroadcastCamera()
     {
         currentBall = CueBall;
-        yaw = targetViewYaw;
-        ApplyShortRailCamera(
-            lockedBroadcastFocus,
-            lockedBroadcastForward,
-            lockedBroadcastDistance,
-            lockedBroadcastHeight,
-            lockedBroadcastMinimumHeightOffset,
-            lockedBroadcastLookTarget);
+        yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
+        ApplyBroadcastCamera(targetViewFocus, false);
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -660,35 +647,6 @@ public class CueCamera : MonoBehaviour
             EndShot();
             UpdateCueAimCamera();
         }
-    }
-
-    private void CacheLockedBroadcastCamera()
-    {
-        lockedBroadcastFocus = targetViewFocus;
-
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
-        float baseHeight = Mathf.Max(broadcastHeight, lockedBroadcastFocus.y + minimumHeightAboveFocus);
-        float heightOffset = baseHeight;
-        if (useStandingCameraForBroadcast && cachedStandingCamera)
-        {
-            heightOffset = Mathf.Max(standingCameraHeight + standingCameraHeightOffset, minimumHeightAboveFocus);
-        }
-
-        float heightPadding = useStandingCameraForBroadcast && cachedStandingCamera
-            ? 0f
-            : Mathf.Max(0f, broadcastHeightPadding);
-        lockedBroadcastHeight = Mathf.Max(heightOffset + heightPadding, minRailHeight);
-
-        lockedBroadcastDistance = useStandingCameraForBroadcast && cachedStandingCamera
-            ? Mathf.Max(standingCameraDistance - Mathf.Max(0f, standingCameraDistanceInset), broadcastMinDistance)
-            : Mathf.Clamp(broadcastDistance, broadcastMinDistance, broadcastMaxDistance);
-
-        Quaternion rotation = Quaternion.Euler(0f, targetViewYaw, 0f);
-        lockedBroadcastForward = rotation * Vector3.forward;
-        lockedBroadcastLookTarget = lockedBroadcastFocus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
-        lockedBroadcastMinimumHeightOffset = Mathf.Max(
-            minimumHeightAboveFocus,
-            lockedBroadcastHeight - lockedBroadcastFocus.y);
     }
 
     public void SetNextShooterIsAi(bool value)
