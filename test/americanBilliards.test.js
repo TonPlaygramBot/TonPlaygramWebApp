@@ -75,3 +75,45 @@ test('legal group clearance then 8-ball wins frame', () => {
   assert.equal(res.frameOver, true)
   assert.equal(res.winner, 'A')
 })
+
+test('break pot keeps table open until next legal non-break shot', () => {
+  const game = new AmericanBilliards()
+
+  const breakShot = game.shotTaken({
+    contactOrder: [1],
+    potted: [1],
+    cueOffTable: false
+  })
+
+  assert.equal(breakShot.foul, false)
+  assert.equal(game.state.breakInProgress, false)
+  assert.equal(game.state.assignments.A, null)
+  assert.equal(game.state.assignments.B, null)
+
+  const postBreakShot = game.shotTaken({
+    contactOrder: [2],
+    potted: [2],
+    cueOffTable: false
+  })
+
+  assert.equal(postBreakShot.foul, false)
+  assert.equal(game.state.assignments.A, 'SOLID')
+  assert.equal(game.state.assignments.B, 'STRIPE')
+})
+
+test('break foul still ends break phase and gives opponent ball in hand on open table', () => {
+  const game = new AmericanBilliards()
+
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [0],
+    cueOffTable: false
+  })
+
+  assert.equal(res.foul, true)
+  assert.equal(res.ballInHandNext, true)
+  assert.equal(game.state.breakInProgress, false)
+  assert.equal(game.state.currentPlayer, 'B')
+  assert.equal(game.state.assignments.A, null)
+  assert.equal(game.state.assignments.B, null)
+})
