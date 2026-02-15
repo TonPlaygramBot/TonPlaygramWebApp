@@ -22733,17 +22733,12 @@ const powerRef = useRef(hud.power);
 
       // In-hand placement
 
-      const isOpeningInHandPlacement = () => {
-        const currentHud = hudRef.current;
-        return Boolean(
-          currentHud?.inHand &&
-            (currentHud?.turn ?? 0) === 0 &&
-            turnCycle === 0 &&
-            !cueBallPlacedFromHandRef.current
-        );
+      const allowFullTableInHand = () => {
+        const frameSnapshot = frameRef.current ?? frameState;
+        const variant =
+          frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
+        return variant !== 'uk';
       };
-
-      const allowFullTableInHand = () => !isOpeningInHandPlacement();
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -23163,15 +23158,6 @@ const powerRef = useRef(hud.power);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = isOpeningInHandPlacement()
-          ? defaultInHandPosition({ forceBaulk: true })
-          : defaultInHandPosition({ forceCenter: true });
-        if (startPos && cue) {
-          cue.active = false;
-          updateCuePlacement(startPos);
-          cue.active = true;
-          cueBallPlacedFromHandRef.current = false;
-        }
         if (allowFullTableInHand()) {
           const focusStore = ensureOrbitFocus();
           focusStore.target.set(0, BALL_CENTER_Y, 0);
@@ -25709,7 +25695,8 @@ const powerRef = useRef(hud.power);
             }, null);
 
           let targetBall = null;
-          if ((frameSnapshot?.currentBreak ?? 0) === 0) {
+          const breakInProgress = Boolean(frameSnapshot?.meta?.breakInProgress);
+          if (breakInProgress) {
             targetBall = findRackApex();
           }
 
@@ -26641,12 +26628,7 @@ const powerRef = useRef(hud.power);
             if (cueBallPotted) {
               cue.active = false;
               removePocketDropEntry(cue.id);
-              const fallback = defaultInHandPosition({ forceCenter: true });
-              if (fallback) {
-                updateCuePlacement(fallback);
-              } else {
-                cue.mesh.visible = true;
-              }
+              cue.mesh.visible = true;
               cue.active = true;
               cue.vel.set(0, 0);
               cue.spin?.set(0, 0);
@@ -26872,13 +26854,7 @@ const powerRef = useRef(hud.power);
         }
         if (pendingInHandResetRef.current && hudRef.current?.inHand) {
           pendingInHandResetRef.current = false;
-          const startPos = defaultInHandPosition({ forceCenter: true });
-          if (startPos && cue) {
-            cue.active = false;
-            updateCuePlacement(startPos);
-            cue.active = true;
-            cueBallPlacedFromHandRef.current = false;
-          }
+          cueBallPlacedFromHandRef.current = false;
         }
         const pendingImpact = pendingImpactRef.current;
         if (pendingImpact && nowMs >= pendingImpact.time) {
@@ -28430,21 +28406,16 @@ const powerRef = useRef(hud.power);
               const inHandActive = Boolean(hudRef.current?.inHand);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               if (isCueBall && inHandActive) {
-                const fallback = defaultInHandPosition({ forceCenter: true });
-                if (fallback) {
-                  updateCuePlacement(fallback);
-                  b.mesh.visible = true;
-                  b.vel.set(0, 0);
-                  b.spin?.set(0, 0);
-                  b.pendingSpin?.set(0, 0);
-                  b.spinMode = 'standard';
-                  b.swerveStrength = 0;
-                  b.swervePowerStrength = 0;
-                  b.impacted = false;
-                  inHandDragRef.current.lastPos = fallback.clone();
-                } else if (b.mesh) {
+                if (b.mesh) {
                   b.mesh.visible = true;
                 }
+                b.vel.set(0, 0);
+                b.spin?.set(0, 0);
+                b.pendingSpin?.set(0, 0);
+                b.spinMode = 'standard';
+                b.swerveStrength = 0;
+                b.swervePowerStrength = 0;
+                b.impacted = false;
                 b.active = true;
                 if (!hudRef.current?.inHand) {
                   hudRef.current = { ...hudRef.current, inHand: true };
@@ -28516,21 +28487,16 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               if (isCueBall) {
-                const fallback = defaultInHandPosition({ forceCenter: true });
-                if (fallback) {
-                  updateCuePlacement(fallback);
-                  b.mesh.visible = true;
-                  b.vel.set(0, 0);
-                  b.spin?.set(0, 0);
-                  b.pendingSpin?.set(0, 0);
-                  b.spinMode = 'standard';
-                  b.swerveStrength = 0;
-                  b.swervePowerStrength = 0;
-                  b.impacted = false;
-                  inHandDragRef.current.lastPos = fallback.clone();
-                } else if (b.mesh) {
+                if (b.mesh) {
                   b.mesh.visible = true;
                 }
+                b.vel.set(0, 0);
+                b.spin?.set(0, 0);
+                b.pendingSpin?.set(0, 0);
+                b.spinMode = 'standard';
+                b.swerveStrength = 0;
+                b.swervePowerStrength = 0;
+                b.impacted = false;
                 b.active = true;
                 removePocketDropEntry(b.id);
                 if (!hudRef.current?.inHand) {
