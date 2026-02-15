@@ -1470,7 +1470,7 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket cameras centered between the two corner-pocket cameras on each long side
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.6; // push middle-pocket cameras much farther outside so middle-pocket closeups stay clearly beyond the wooden side rails on portrait screens
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1.28; // push middle-pocket cameras farther outside so they sit clearly off-table
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
