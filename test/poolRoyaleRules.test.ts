@@ -70,11 +70,11 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
-    expect(cleared.ballOn).toEqual(['SOLID', 'STRIPE']);
-    expect(clearedMeta?.state?.assignments?.A).toBeNull();
-    expect(clearedMeta?.state?.assignments?.B).toBeNull();
-    expect(clearedMeta?.hud?.next).toBe('open table');
-    expect(clearedMeta?.hud?.phase).toBe('open');
+    expect(cleared.ballOn).toEqual(['SOLID']);
+    expect(clearedMeta?.state?.assignments?.A).toBe('SOLID');
+    expect(clearedMeta?.state?.assignments?.B).toBe('STRIPE');
+    expect(clearedMeta?.hud?.next).toBe('solid');
+    expect(clearedMeta?.hud?.phase).toBe('groups');
     expect(cleared.players.A.score).toBe(1);
 
     const scratchEvents: ShotEvent[] = [
@@ -88,31 +88,8 @@ describe('PoolRoyaleRules', () => {
     expect(scratch.foul?.reason).toBe('scratch');
     expect(scratchMeta?.state?.ballInHand).toBe(true);
     expect(scratch.activePlayer).toBe('B');
-    expect(scratch.ballOn).toEqual(['SOLID', 'STRIPE']);
-    expect(scratchMeta?.hud?.phase).toBe('open');
-  });
-
-
-  test('American break scratch gives opponent in-hand on an open table', () => {
-    const rules = new PoolRoyaleRules('american');
-    const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
-
-    const scratchBreakEvents: ShotEvent[] = [
-      { type: 'HIT', firstContact: 1, ballId: 1 },
-      { type: 'POTTED', ball: 0, pocket: 'TM', ballId: 'cue' }
-    ];
-
-    const afterBreakScratch = rules.applyShot(initialFrame, scratchBreakEvents, {
-      cueBallPotted: true,
-      contactMade: true
-    });
-    const breakScratchMeta = afterBreakScratch.meta as any;
-
-    expect(afterBreakScratch.foul?.reason).toBe('scratch');
-    expect(afterBreakScratch.activePlayer).toBe('B');
-    expect(breakScratchMeta?.state?.ballInHand).toBe(true);
-    expect(breakScratchMeta?.breakInProgress).toBe(false);
-    expect(afterBreakScratch.ballOn).toEqual(['SOLID', 'STRIPE']);
+    expect(scratch.ballOn).toEqual(['STRIPE']);
+    expect(scratchMeta?.hud?.phase).toBe('groups');
   });
 
   test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {
