@@ -1065,6 +1065,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   pockets: false
 });
 const SHOW_SHORT_RAIL_TRIPODS = false;
+const SHOW_SHORT_RAIL_STANDING_CAMERAS = false; // hide standing cameras on both short rails while keeping rail camera transforms available for framing logic
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
@@ -1469,8 +1470,8 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.05; // push middle-pocket cameras farther toward side-rail edges and away from table center for stronger corner-like distance
+const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket cameras centered between the two corner-pocket cameras on each long side
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1; // keep middle-pocket camera rail distance identical to corner-pocket camera distance
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -4702,6 +4703,7 @@ function createBroadcastCameras({
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
     const base = new THREE.Group();
+    base.visible = SHOW_SHORT_RAIL_STANDING_CAMERAS;
     const centeredZ = direction * cameraCenterZOffset * cameraProximityScale;
     base.position.set(0, floorY, centeredZ);
     const horizontalFocus = defaultFocus.clone();
@@ -19566,9 +19568,7 @@ const powerRef = useRef(hud.power);
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
-          const heightOffset = isSidePocket
-            ? baseHeightOffset * 0.92
-            : baseHeightOffset * shortPocketHeightMultiplier;
+          const heightOffset = baseHeightOffset * shortPocketHeightMultiplier;
           const railDir = isSidePocket
             ? signed(best.center.x, 1)
             : signed(best.center.y, 1);
@@ -19589,8 +19589,7 @@ const powerRef = useRef(hud.power);
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const cameraDistance =
-            minOutside * (isSidePocket ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER : 1);
+          const cameraDistance = minOutside * POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER;
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
