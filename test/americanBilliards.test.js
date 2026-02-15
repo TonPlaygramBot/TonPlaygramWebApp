@@ -4,6 +4,7 @@ import { AmericanBilliards } from '../lib/americanBilliards.js'
 
 test('open table: first contact cannot be the 8-ball', () => {
   const game = new AmericanBilliards()
+  game.state.breakInProgress = false
   const res = game.shotTaken({
     contactOrder: [8],
     potted: [],
@@ -42,7 +43,7 @@ test('legal break pot keeps table open until post-break shot', () => {
 })
 
 
-test('break scratch ends break, passes turn, and grants ball in hand', () => {
+test('break scratch does not foul and hands turn over with no ball in hand', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
     contactOrder: [1],
@@ -50,10 +51,10 @@ test('break scratch ends break, passes turn, and grants ball in hand', () => {
     cueOffTable: false
   })
 
-  assert.equal(res.foul, true)
-  assert.equal(res.reason, 'scratch')
+  assert.equal(res.foul, false)
+  assert.equal(res.reason, undefined)
   assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, true)
+  assert.equal(res.ballInHandNext, false)
   assert.equal(game.state.currentPlayer, 'B')
   assert.equal(game.state.breakInProgress, false)
   assert.equal(game.state.assignments.A, null)
@@ -62,6 +63,7 @@ test('break scratch ends break, passes turn, and grants ball in hand', () => {
 
 test('scratch gives opponent ball in hand and keeps object balls down', () => {
   const game = new AmericanBilliards()
+  game.state.breakInProgress = false
   const res = game.shotTaken({
     contactOrder: [1],
     potted: [1, 0],
