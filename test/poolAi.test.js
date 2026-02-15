@@ -167,6 +167,34 @@ test('open-table targeting can select any object ball', () => {
   assert([1, 2, 8].includes(decision.targetBallId));
 });
 
+
+
+test('uses helper marker numbers for red/yellow balls when ids are hidden', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 100, y: 100, vx: 0, vy: 0, pocketed: false },
+        { id: 'r3', colour: 'red', helperNumber: 3, x: 280, y: 120, vx: 0, vy: 0, pocketed: false },
+        { id: 'y3', colour: 'yellow', helperNumber: 3, x: 420, y: 120, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      myGroup: 'SOLIDS'
+    },
+    timeBudgetMs: 80,
+    rngSeed: 9
+  };
+  const decision = planShot(req);
+  assert.equal(decision.targetBallId, 3);
+});
+
 test('supports non-zero cueBallId mappings', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
