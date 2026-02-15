@@ -1470,7 +1470,8 @@ const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket cameras centered between the two corner-pocket cameras on each long side
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 1.28; // push middle-pocket cameras farther outside so they sit clearly off-table
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.6; // push only middle-pocket cameras much farther outside so they clearly stay beyond the wooden side rail on portrait view
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.28; // keep corner-pocket camera outside distance at the original morning baseline
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1505,7 +1506,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.35;
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -5142,8 +5143,8 @@ const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
   nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
   landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
-  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
+  portrait: Object.freeze({ cue: 0.82, broadcast: 1, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 1, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -19588,7 +19589,10 @@ const powerRef = useRef(hud.power);
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const cameraDistance = minOutside * POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER;
+          const outsideDistanceMultiplier = isSidePocket
+            ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER
+            : POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER;
+          const cameraDistance = minOutside * outsideDistanceMultiplier;
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
