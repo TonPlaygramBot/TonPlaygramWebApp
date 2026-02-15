@@ -1469,9 +1469,10 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket cameras centered between the two corner-pocket cameras on each long side
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.4; // slide middle-pocket cameras farther toward the table edges so they stay away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.6; // push only middle-pocket cameras much farther outside so they clearly stay beyond the wooden side rail on portrait view
 const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.28; // keep corner-pocket camera outside distance at the original morning baseline
+const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -6095,8 +6096,8 @@ const POCKET_CAMERA_OUTWARD = Object.freeze({
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-1, 1).normalize(),
   BR: new THREE.Vector2(1, 1).normalize(),
-  TM: new THREE.Vector2(-1, 0).normalize(),
-  BM: new THREE.Vector2(1, 0).normalize()
+  TM: new THREE.Vector2(-1, -POCKET_CAM_SIDE_LATERAL_BIAS).normalize(),
+  BM: new THREE.Vector2(1, POCKET_CAM_SIDE_LATERAL_BIAS).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -23590,11 +23591,14 @@ const powerRef = useRef(hud.power);
           const suppressOpeningShotViews = openingShotViewSuppressedRef.current;
           const forceImmediateRailOverheadView =
             isBreakShot || Boolean(shotPrediction?.railNormal);
+          const allowRailOverheadActionView =
+            isBreakShot ||
+            (!isShortShot &&
+              (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
             !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
-            !isShortShot &&
-            (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
+            allowRailOverheadActionView;
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
