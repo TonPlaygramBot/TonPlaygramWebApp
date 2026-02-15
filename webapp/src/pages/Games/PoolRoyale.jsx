@@ -1608,7 +1608,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.9; // reduce overall Pool Royale power by 10% for a slightly faster pace
+const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -5979,6 +5979,27 @@ const resolveCornerPocketIntent = ({ ball, direction }) => {
     const score = pocketDir.dot(dir);
     if (!best || score > best.score) {
       best = { pocketId, score };
+    }
+  }
+  return best;
+};
+const resolveLikelyPocketIntent = ({ ball, direction }) => {
+  if (!ball || !direction || direction.lengthSq() < 1e-6) return null;
+  const dir = direction.clone().normalize();
+  const centers = pocketCenters();
+  let best = null;
+  for (const center of centers) {
+    const toPocket = center.clone().sub(ball.pos);
+    const dist = toPocket.length();
+    if (!Number.isFinite(dist) || dist < BALL_R) continue;
+    const pocketDir = toPocket.clone().normalize();
+    const score = pocketDir.dot(dir);
+    if (!best || score > best.score) {
+      best = {
+        score,
+        pocketId: pocketIdFromCenter(center),
+        pocketCenter: center.clone()
+      };
     }
   }
   return best;
@@ -19204,7 +19225,7 @@ const powerRef = useRef(hud.power);
           if (cueMoving || pocketView?.completed) {
             activeShotView = null;
             suspendedActionView = null;
-            restoreOrbitCamera(pocketView, true);
+            enterTopView(true, { variant: 'rail' });
             return;
           }
           const resumeAction =
@@ -19392,6 +19413,7 @@ const powerRef = useRef(hud.power);
               : null;
           if (
             !forceCornerCapture &&
+            !isGuaranteedPocket &&
             ((predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
               best.dist < SHORT_SHOT_CAMERA_DISTANCE)
@@ -19408,9 +19430,12 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
-            : POCKET_CAM.triggerDist;
+            : isGuaranteedPocket
+              ? POCKET_CAM_EARLY_TRIGGER_DIST
+              : POCKET_CAM.triggerDist;
           if (!forceCornerCapture && best.dist > triggerDistance) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
@@ -23435,8 +23460,25 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
           }
           const suppressOpeningShotViews = openingShotViewSuppressedRef.current;
+          const targetBallForPrediction =
+            shotPrediction?.ballId != null
+              ? balls.find((b) => b.id === shotPrediction.ballId) ?? null
+              : null;
+          const likelyPocketIntent = resolveLikelyPocketIntent({
+            ball: targetBallForPrediction,
+            direction: shotPrediction?.dir ?? null
+          });
+          const isMiddlePocketIntent =
+            likelyPocketIntent?.pocketId === 'TM' || likelyPocketIntent?.pocketId === 'BM';
+          const cueVsTargetAlignment =
+            shotAimDir && shotPrediction?.dir
+              ? shotAimDir.clone().normalize().dot(shotPrediction.dir.clone().normalize())
+              : 1;
+          const hasCueTargetDirectionSplit = cueVsTargetAlignment < 0.45;
           const forceImmediateRailOverheadView =
-            isBreakShot || Boolean(shotPrediction?.railNormal);
+            isBreakShot ||
+            Boolean(shotPrediction?.railNormal) ||
+            (isMiddlePocketIntent && hasCueTargetDirectionSplit);
           const allowRailOverheadActionView =
             isBreakShot ||
             (!isShortShot &&
@@ -28548,6 +28590,15 @@ const powerRef = useRef(hud.power);
               pocketView.holdUntil = now + POCKET_VIEW_POST_POT_HOLD_MS;
             }
             if (now >= pocketView.holdUntil) {
+              resumeAfterPocket(pocketView, now);
+            }
+          } else if (pocketView.completed) {
+            const holdTarget = Math.max(
+              pocketView.holdUntil ?? now,
+              now + POCKET_VIEW_POST_POT_HOLD_MS
+            );
+            pocketView.holdUntil = holdTarget;
+            if (now >= holdTarget || maxHoldReached) {
               resumeAfterPocket(pocketView, now);
             }
           } else {
