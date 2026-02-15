@@ -354,3 +354,31 @@ test('provides a next legal target suggestion when available', () => {
     assert.ok(Number.isFinite(decision.suggestedAimPoint?.y));
   }
 });
+
+
+test('uses hidden helper numbers/colours when ids are missing', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { isCue: true, colour: 'cue', x: 120, y: 160, vx: 0, vy: 0, pocketed: false },
+        { markerNumber: 3, colour: 'red', x: 280, y: 120, vx: 0, vy: 0, pocketed: false },
+        { markerNumber: 11, colour: 'yellow', x: 320, y: 180, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      myGroup: 'SOLIDS'
+    },
+    timeBudgetMs: 100,
+    rngSeed: 9
+  }
+
+  const decision = planShot(req)
+  assert.equal(decision.targetBallId, 3)
+})
