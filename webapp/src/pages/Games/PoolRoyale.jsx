@@ -1055,7 +1055,6 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
-const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
@@ -1064,7 +1063,6 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   jaws: false,
   pockets: false
 });
-const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = true;
@@ -1284,7 +1282,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.24; // lift balls a bit more so they roll clearly on the cloth top surface
+const BALL_CENTER_LIFT = BALL_R * 0.26; // lift balls a touch more so they roll cleanly on the cloth top surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1631,7 +1629,7 @@ const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
-const BALL_HIT_VOLUME_SCALE = 0.72; // match Snooker Royale ball-hit volume
+const BALL_HIT_VOLUME_SCALE = 1; // raise ball-hit loudness to match Snooker Royale playback level
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
@@ -4726,103 +4724,6 @@ function createBroadcastCameras({
     const cameraAssembly = new THREE.Group();
     headPivot.add(cameraAssembly);
 
-    if (SHOW_SHORT_RAIL_TRIPODS) {
-      const tripod = new THREE.Group();
-      slider.add(tripod);
-
-      const top = new THREE.Vector3(0, hubHeight, 0);
-      [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3].forEach((angle) => {
-        const foot = new THREE.Vector3(
-          Math.cos(angle) * footRadius,
-          0,
-          Math.sin(angle) * footRadius
-        );
-        const mid = top.clone().add(foot).multiplyScalar(0.5);
-        const up = top.clone().sub(foot).normalize();
-        const leg = new THREE.Mesh(legGeo, darkMetal);
-        leg.position.copy(mid);
-        leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        tripod.add(leg);
-
-        const footPad = new THREE.Mesh(footGeo, rubber);
-        footPad.position.set(foot.x, footHeight / 2, foot.z);
-        footPad.receiveShadow = true;
-        tripod.add(footPad);
-      });
-
-      const column = new THREE.Mesh(columnGeo, lightMetal);
-      column.position.y = hubHeight + columnHeight / 2;
-      column.castShadow = true;
-      column.receiveShadow = true;
-      slider.add(column);
-
-      const hub = new THREE.Mesh(hubGeo, lightMetal);
-      hub.position.y = hubHeight;
-      hub.castShadow = true;
-      hub.receiveShadow = true;
-      slider.add(hub);
-
-      const headBase = new THREE.Mesh(headBaseGeo, darkMetal);
-      headBase.position.y = headHeight;
-      headBase.castShadow = true;
-      slider.add(headBase);
-
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      cameraAssembly.add(body);
-
-      const lensHousing = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
-        darkMetal
-      );
-      lensHousing.rotation.x = Math.PI / 2;
-      lensHousing.position.set(0, 0, -0.2);
-      lensHousing.castShadow = true;
-      cameraAssembly.add(lensHousing);
-
-      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
-      hood.position.set(0, 0, -0.32);
-      hood.castShadow = true;
-      cameraAssembly.add(hood);
-
-      const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
-      lensGlass.rotation.x = Math.PI / 2;
-      lensGlass.position.set(0, 0, -0.29);
-      cameraAssembly.add(lensGlass);
-
-      const topHandle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
-        rubber
-      );
-      topHandle.rotation.z = Math.PI / 2;
-      topHandle.position.set(0, 0.16, 0);
-      topHandle.castShadow = true;
-      cameraAssembly.add(topHandle);
-
-      const viewfinder = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.1, 0.08),
-        lightMetal
-      );
-      viewfinder.position.set(-0.22, 0.06, 0.05);
-      viewfinder.castShadow = true;
-      cameraAssembly.add(viewfinder);
-
-      const panBar = new THREE.Mesh(panBarGeo, lightMetal);
-      panBar.rotation.z = Math.PI / 2.3;
-      panBar.position.set(0.26, -0.08, 0);
-      panBar.castShadow = true;
-      headPivot.add(panBar);
-
-      const grip = new THREE.Mesh(gripGeo, rubber);
-      grip.rotation.z = Math.PI / 2.3;
-      grip.position.set(0.37, -0.12, 0);
-      grip.castShadow = true;
-      headPivot.add(grip);
-    }
-
     headPivot.lookAt(defaultFocus);
     headPivot.rotateY(Math.PI);
 
@@ -4843,184 +4744,6 @@ function createBroadcastCameras({
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
-
-const createTripodBroadcastCamera = (() => {
-  const metalDark = new THREE.MeshStandardMaterial({
-    color: 0x1f2937,
-    metalness: 0.7,
-    roughness: 0.35
-  });
-  const metalLite = new THREE.MeshStandardMaterial({
-    color: 0x374151,
-    metalness: 0.6,
-    roughness: 0.4
-  });
-  const plastic = new THREE.MeshStandardMaterial({
-    color: 0x0ea5e9,
-    metalness: 0.1,
-    roughness: 0.6
-  });
-  const rubber = new THREE.MeshStandardMaterial({
-    color: 0x0b1220,
-    metalness: 0.0,
-    roughness: 0.95
-  });
-  const glass = new THREE.MeshStandardMaterial({
-    color: 0x9bd3ff,
-    metalness: 0.0,
-    roughness: 0.05,
-    transparent: true,
-    opacity: 0.35,
-    envMapIntensity: 1.5
-  });
-
-  const hubGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.05, 16);
-  const legGeo = new THREE.CylinderGeometry(0.03, 0.015, 1.2, 12);
-  const footGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.02, 12);
-  const braceGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.7, 8);
-  const ballGeo = new THREE.SphereGeometry(0.07, 16, 16);
-  const plateGeo = new THREE.BoxGeometry(0.22, 0.02, 0.14);
-  const mountGeo = new THREE.BoxGeometry(0.2, 0.02, 0.12);
-  const handleGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.35, 8);
-  const gripGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.12, 10);
-  const bodyGeo = new THREE.BoxGeometry(0.42, 0.22, 0.2);
-  const lensTubeGeo = new THREE.CylinderGeometry(0.06, 0.065, 0.16, 24);
-  const lensGlassGeo = new THREE.CircleGeometry(0.058, 24);
-  const hoodGeo = new THREE.BoxGeometry(0.12, 0.09, 0.12);
-  const vfGeo = new THREE.BoxGeometry(0.14, 0.08, 0.08);
-  const topHandleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.24, 12);
-
-  const LEG_SPREAD = 0.45;
-  const LEG_TILT = 0.38;
-  const HUB_HEIGHT = 0.9;
-
-  return () => {
-    const group = new THREE.Group();
-    group.name = 'shortRailTripodCamera';
-    const base = new THREE.Group();
-    group.add(base);
-
-    const hub = new THREE.Mesh(hubGeo, metalLite);
-    hub.position.y = HUB_HEIGHT;
-    hub.castShadow = true;
-    hub.receiveShadow = true;
-    base.add(hub);
-
-    const legAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
-    legAngles.forEach((angle) => {
-      const leg = new THREE.Mesh(legGeo, metalDark);
-      leg.castShadow = true;
-      leg.receiveShadow = true;
-      const baseX = Math.cos(angle) * LEG_SPREAD;
-      const baseZ = Math.sin(angle) * LEG_SPREAD;
-      const tiltAxis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
-      leg.position.set(baseX * 0.2, HUB_HEIGHT - 0.6, baseZ * 0.2);
-      leg.quaternion.setFromAxisAngle(tiltAxis, LEG_TILT);
-      base.add(leg);
-
-      const foot = new THREE.Mesh(footGeo, rubber);
-      foot.position.set(Math.cos(angle) * 0.65, 0.01, Math.sin(angle) * 0.65);
-      foot.receiveShadow = true;
-      base.add(foot);
-
-      const brace = new THREE.Mesh(braceGeo, metalLite);
-      brace.castShadow = true;
-      const from = new THREE.Vector3(0, HUB_HEIGHT, 0);
-      const to = new THREE.Vector3(Math.cos(angle) * 0.65, 0.02, Math.sin(angle) * 0.65);
-      const dirVec = new THREE.Vector3().subVectors(to, from);
-      const len = dirVec.length();
-      brace.scale.set(1, len / 0.7, 1);
-      brace.position.copy(from.clone().add(to).multiplyScalar(0.5));
-      brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVec.clone().normalize());
-      base.add(brace);
-    });
-
-    const headPivot = new THREE.Group();
-    headPivot.position.set(0, HUB_HEIGHT, 0);
-    base.add(headPivot);
-
-    const cameraAssembly = new THREE.Group();
-    cameraAssembly.rotation.y = Math.PI / 2;
-    headPivot.add(cameraAssembly);
-
-    const ball = new THREE.Mesh(ballGeo, metalDark);
-    ball.position.set(0, 0.1, 0);
-    ball.castShadow = true;
-    ball.receiveShadow = true;
-    cameraAssembly.add(ball);
-
-    const plate = new THREE.Mesh(plateGeo, metalLite);
-    plate.position.set(0, 0.2, 0);
-    plate.castShadow = true;
-    plate.receiveShadow = true;
-    cameraAssembly.add(plate);
-
-    const mount = new THREE.Mesh(mountGeo, metalDark);
-    mount.position.set(0, 0.23, 0);
-    mount.castShadow = true;
-    mount.receiveShadow = true;
-    cameraAssembly.add(mount);
-
-    const handle = new THREE.Mesh(handleGeo, metalLite);
-    handle.castShadow = true;
-    handle.position.set(0.09, 0.16, 0);
-    handle.rotation.z = Math.PI * -0.25;
-    cameraAssembly.add(handle);
-
-    const grip = new THREE.Mesh(gripGeo, rubber);
-    grip.position.set(0.24, 0.07, -0.09);
-    grip.rotation.z = Math.PI * -0.25;
-    grip.castShadow = true;
-    cameraAssembly.add(grip);
-
-    const body = new THREE.Mesh(bodyGeo, plastic);
-    body.position.set(0, 0.32, 0);
-    body.castShadow = true;
-    body.receiveShadow = true;
-    cameraAssembly.add(body);
-
-    const lensTube = new THREE.Mesh(lensTubeGeo, metalDark);
-    lensTube.rotation.z = Math.PI / 2;
-    lensTube.position.set(0.25, 0.32, 0);
-    lensTube.castShadow = true;
-    cameraAssembly.add(lensTube);
-
-    const lensGlass = new THREE.Mesh(lensGlassGeo, glass);
-    lensGlass.rotation.y = Math.PI / 2;
-    lensGlass.position.set(0.33, 0.32, 0);
-    cameraAssembly.add(lensGlass);
-
-    const hood = new THREE.Mesh(hoodGeo, rubber);
-    hood.position.set(0.38, 0.32, 0);
-    hood.castShadow = true;
-    hood.receiveShadow = true;
-    cameraAssembly.add(hood);
-
-    const viewfinder = new THREE.Mesh(vfGeo, metalLite);
-    viewfinder.position.set(-0.2, 0.36, 0.06);
-    viewfinder.castShadow = true;
-    cameraAssembly.add(viewfinder);
-
-    const topHandle = new THREE.Mesh(topHandleGeo, rubber);
-    topHandle.rotation.z = Math.PI / 2;
-    topHandle.position.set(0, 0.43, 0);
-    topHandle.castShadow = true;
-    cameraAssembly.add(topHandle);
-
-    const cableCurve = new THREE.CubicBezierCurve3(
-      new THREE.Vector3(-0.05, 0.4, 0.1),
-      new THREE.Vector3(-0.1, 0.3, 0.2),
-      new THREE.Vector3(-0.2, 0.1, 0.15),
-      new THREE.Vector3(-0.25, 0.02, 0.0)
-    );
-    const cableGeo = new THREE.TubeGeometry(cableCurve, 20, 0.005, 6, false);
-    const cable = new THREE.Mesh(cableGeo, rubber);
-    cable.castShadow = true;
-    cameraAssembly.add(cable);
-
-    return { group, headPivot };
-  };
-})();
 
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
@@ -6089,15 +5812,13 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize(),
-  TM: new THREE.Vector2(-1, -POCKET_CAM_SIDE_LATERAL_BIAS).normalize(),
-  BM: new THREE.Vector2(1, POCKET_CAM_SIDE_LATERAL_BIAS).normalize()
+  BR: new THREE.Vector2(1, 1).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -6132,9 +5853,8 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
-      return 'TM';
     case 'BM':
-      return 'BM';
+      return null;
     default:
       return pocketId;
   }
@@ -16582,42 +16302,8 @@ const powerRef = useRef(hud.power);
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
-      if (ENABLE_TRIPOD_CAMERAS) {
-        const tripodHeightBoost = 1.04;
-        const tripodScale =
-          ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
-        const tripodTilt = THREE.MathUtils.degToRad(-12);
-        const tripodProximityPull = BALL_R * 2.5;
-        const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
-        const tripodDesiredZ =
-          Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
-          tripodExtra;
-        const tripodMaxZ = arenaHalfDepth - BALL_R * 4;
-        const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-        const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-        const tripodPositions = [
-          { x: 0, z: tripodZOffset },
-          { x: 0, z: -tripodZOffset }
-        ];
-        tripodPositions.forEach(({ x, z }) => {
-          const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
-          tripodGroup.scale.setScalar(tripodScale);
-          tripodGroup.position.set(x, floorY, z);
-          const toTarget = new THREE.Vector3()
-            .subVectors(tripodTarget, tripodGroup.position)
-            .setY(0);
-          if (toTarget.lengthSq() > 1e-6) {
-            const yaw = Math.atan2(toTarget.z, toTarget.x);
-            tripodGroup.rotation.y = yaw;
-          }
-          world.add(tripodGroup);
-          tripodGroup.updateWorldMatrix(true, false);
-          headPivot.up.set(0, 1, 0);
-          headPivot.lookAt(tripodTarget);
-          headPivot.rotateY(Math.PI);
-          headPivot.rotateX(tripodTilt);
-        });
-      }
+
+
 
       const DARTBOARD_TEXTURE_URL =
         'https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/dartboard/dartboard_diff_2k.jpg';
@@ -19562,6 +19248,7 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (!anchorId || isSidePocket) return null;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : POCKET_CAM.triggerDist;
@@ -23398,7 +23085,8 @@ const powerRef = useRef(hud.power);
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
           currentHud?.over ||
-          replayPlaybackRef.current
+          replayPlaybackRef.current ||
+          breakRollPending
         )
           return;
         if (breakWinnerSeatRef.current === 'A') {
@@ -23721,6 +23409,12 @@ const powerRef = useRef(hud.power);
               syncBlendToSpherical();
             }
             updateCamera();
+          }
+
+          if (forceImmediateRailOverheadView) {
+            topViewRef.current = true;
+            topViewLockedRef.current = true;
+            enterTopView(true, { variant: 'broadcast' });
           }
 
           // animate cue stick forward
@@ -28482,6 +28176,10 @@ const powerRef = useRef(hud.power);
                     activeShotView = forcedCornerView;
                   }
                 }
+              } else if (pocketIndex >= 4) {
+                topViewRef.current = true;
+                topViewLockedRef.current = true;
+                enterTopView(true, { variant: "broadcast" });
               }
               if (shotRecording) {
                 recordReplayFrame(performance.now());
@@ -29881,7 +29579,7 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {breakRollState !== 'done' && !hud.over && (
-        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-[95] flex items-start justify-center pt-[34vh]">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
