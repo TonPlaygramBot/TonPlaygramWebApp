@@ -1582,6 +1582,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 320;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 140;
 const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
+const POCKET_VIEW_SWITCH_TO_RAIL_MS = POCKET_DROP_RING_HOLD_MS + 90;
 const POCKET_VIEW_MAX_HOLD_MS = 900;
 const POCKET_VIEW_EARLY_HOLD_MS = 160;
 const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
@@ -4642,7 +4643,7 @@ function createBroadcastCameras({
 
   const defaultFocus = new THREE.Vector3(
     0,
-    TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+    TABLE_Y + TABLE.THICK + BALL_R * 2.5 - RAIL_OVERHEAD_FOCUS_DROP,
     0
   );
 
@@ -4656,7 +4657,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.6;
+  const cameraProximityScale = 0.58;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -5128,7 +5129,8 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.02; // keep the rail overhead framing a touch closer to the table
+const RAIL_OVERHEAD_FOCUS_DROP = BALL_R * 0.45; // tip the rail overhead heads slightly more downward toward the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -18776,6 +18778,9 @@ const powerRef = useRef(hud.power);
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
+              activeShotView.completedAt = null;
+              activeShotView.switchToRailAt = null;
+              activeShotView.switchedToRail = false;
               const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
               activeShotView.holdUntil =
                 activeShotView.holdUntil != null
@@ -18802,13 +18807,38 @@ const powerRef = useRef(hud.power);
             } else {
               activeShotView.smoothedTarget.copy(leveledTarget);
             }
-            if (pocketCamera) {
+            const switchToRailOverhead =
+              Boolean(activeShotView.completed) &&
+              activeShotView.switchToRailAt != null &&
+              now >= activeShotView.switchToRailAt;
+            if (switchToRailOverhead) {
+              activeShotView.switchedToRail = true;
+              const overheadTarget = activeShotView.smoothedTarget.clone();
+              overheadTarget.y = Math.max(overheadTarget.y, baseSurfaceWorldY);
+              const railReplayCamera = resolveRailOverheadReplayCamera({
+                focusOverride: overheadTarget,
+                minTargetY: baseSurfaceWorldY
+              });
+              if (railReplayCamera?.position) {
+                const resolvedTarget = railReplayCamera.target ?? overheadTarget;
+                camera.up.set(0, 1, 0);
+                camera.position.copy(railReplayCamera.position);
+                camera.lookAt(resolvedTarget);
+                renderCamera = camera;
+                lookTarget = resolvedTarget;
+                broadcastArgs.focusWorld = resolvedTarget.clone();
+                broadcastArgs.targetWorld = resolvedTarget.clone();
+                broadcastArgs.orbitWorld = railReplayCamera.position.clone();
+                broadcastArgs.lerp = 0.12;
+              }
+            }
+            if (renderCamera !== camera && pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
               pocketCamera.lookAt(activeShotView.smoothedTarget);
               pocketCamera.updateMatrixWorld();
               renderCamera = pocketCamera;
             }
-            lookTarget = activeShotView.smoothedTarget;
+            lookTarget = lookTarget ?? activeShotView.smoothedTarget;
           } else {
             const aimFocus =
               !shooting && cue?.active ? aimFocusRef.current : null;
@@ -19508,7 +19538,10 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly: false
+            forcedEarly: false,
+            switchToRailAt: null,
+            switchedToRail: false,
+            completedAt: null
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -28418,6 +28451,9 @@ const powerRef = useRef(hud.power);
                   const pocketView = activeShotView;
                   pocketView.completed = true;
                   const now = performance.now();
+                  pocketView.completedAt = now;
+                  pocketView.switchToRailAt = now + POCKET_VIEW_SWITCH_TO_RAIL_MS;
+                  pocketView.switchedToRail = false;
                   pocketView.holdUntil = Math.max(
                     pocketView.holdUntil ?? now,
                     now + POCKET_VIEW_POST_POT_HOLD_MS
@@ -28567,6 +28603,9 @@ const powerRef = useRef(hud.power);
                 const pocketView = activeShotView;
                 pocketView.completed = true;
                 const now = performance.now();
+                pocketView.completedAt = now;
+                pocketView.switchToRailAt = now + POCKET_VIEW_SWITCH_TO_RAIL_MS;
+                pocketView.switchedToRail = false;
                 pocketView.holdUntil = Math.max(
                   pocketView.holdUntil ?? now,
                   now + POCKET_VIEW_POST_POT_HOLD_MS
