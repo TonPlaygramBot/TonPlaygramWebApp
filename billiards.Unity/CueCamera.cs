@@ -164,11 +164,9 @@ public class CueCamera : MonoBehaviour
     // Height offset above the table focus, captured on start.
     public float standingCameraHeight = 0.48f;
     // Pull the standing camera inward so the framing matches the Pool Royale view.
-    public float standingCameraDistanceInset = 0.16f;
+    public float standingCameraDistanceInset = 0.12f;
     // Additional height offset applied after caching the standing camera pose.
     public float standingCameraHeightOffset = -0.06f;
-    // Tilt the rail broadcast framing slightly further downward.
-    public float broadcastLookDownOffset = 0.02f;
 
     [Header("Pocket camera framing")]
     // Pull the pocket camera slightly inward for tighter pocket coverage.
@@ -183,15 +181,6 @@ public class CueCamera : MonoBehaviour
     // Portion of the half table length treated as the middle pocket zone.
     [Range(0f, 1f)]
     public float pocketCameraMiddleZone = 0.32f;
-    // Corner pocket detection zone as a fraction of half-table dimensions.
-    [Range(0.05f, 0.8f)]
-    public float cornerPocketZone = 0.26f;
-    // Keep the pocket camera live briefly after the target disappears so we can
-    // still capture the ball dropping into the pocket.
-    public float pocketCameraDropHoldSeconds = 0.24f;
-    // After the pocket drop cut, hold the rail broadcast frame over the same
-    // pocket before resuming regular table tracking.
-    public float pocketBroadcastHoldSeconds = 0.42f;
 
     [Header("Ball in hand view")]
     // Start the match in a locked standing camera view for ball-in-hand placement.
@@ -223,11 +212,6 @@ public class CueCamera : MonoBehaviour
     private bool nextShotIsAi;
     private bool ballInHandActive;
     private bool cachedStandingCamera;
-    private bool pocketDropHoldActive;
-    private float pocketDropHoldUntil;
-    private float pocketBroadcastHoldUntil;
-    private Vector3 lastPocketFocus;
-    private bool lastPocketWasCorner;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -301,11 +285,6 @@ public class CueCamera : MonoBehaviour
         yaw = targetViewYaw;
 
         nextShotIsAi = false;
-        pocketDropHoldActive = false;
-        pocketDropHoldUntil = 0f;
-        pocketBroadcastHoldUntil = 0f;
-        lastPocketFocus = targetViewFocus;
-        lastPocketWasCorner = false;
     }
 
     private void Awake()
@@ -658,25 +637,6 @@ public class CueCamera : MonoBehaviour
     private void UpdateBroadcastCamera()
     {
         currentBall = CueBall;
-        if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
-        {
-            targetViewFocus = GetBroadcastFocus(TargetBall.position);
-            bool nearCornerPocket = IsNearCornerPocket(TargetBall.position);
-            if (nearCornerPocket)
-            {
-                usingTargetCamera = true;
-                pocketDropHoldActive = false;
-                lastPocketWasCorner = true;
-                lastPocketFocus = targetViewFocus;
-                return;
-            }
-        }
-
-        if (Time.time < pocketBroadcastHoldUntil)
-        {
-            targetViewFocus = lastPocketFocus;
-        }
-
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
         ApplyBroadcastCamera(targetViewFocus, false);
 
@@ -706,13 +666,6 @@ public class CueCamera : MonoBehaviour
         {
             targetViewFocus = GetBroadcastFocus(TargetBall.position);
             currentBall = TargetBall;
-            bool nearCornerPocket = IsNearCornerPocket(TargetBall.position);
-            lastPocketWasCorner = nearCornerPocket;
-            if (nearCornerPocket)
-            {
-                lastPocketFocus = targetViewFocus;
-            }
-            pocketDropHoldActive = false;
         }
 
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
@@ -722,23 +675,6 @@ public class CueCamera : MonoBehaviour
         bool targetVisible = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
         if (!targetVisible)
         {
-            if (lastPocketWasCorner)
-            {
-                if (!pocketDropHoldActive)
-                {
-                    pocketDropHoldActive = true;
-                    pocketDropHoldUntil = Time.time + Mathf.Max(0f, pocketCameraDropHoldSeconds);
-                }
-
-                if (Time.time < pocketDropHoldUntil)
-                {
-                    return;
-                }
-
-                pocketDropHoldActive = false;
-                pocketBroadcastHoldUntil = Time.time + Mathf.Max(0f, pocketBroadcastHoldSeconds);
-            }
-
             usingTargetCamera = false;
             currentBall = CueBall;
             return;
@@ -884,7 +820,6 @@ public class CueCamera : MonoBehaviour
         distance = Mathf.Clamp(distance, broadcastMinDistance, broadcastMaxDistance);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
-        lookTarget.y -= Mathf.Max(0f, broadcastLookDownOffset);
         if (isPocketCamera)
         {
             lookTarget.y -= Mathf.Max(0f, pocketCameraLookDownOffset);
@@ -1175,21 +1110,6 @@ public class CueCamera : MonoBehaviour
         broadcastSideSign = -cueAimSideSign;
         yaw = GetShortRailYaw(cueAimSideSign);
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
-        pocketDropHoldActive = false;
-        pocketDropHoldUntil = 0f;
-        pocketBroadcastHoldUntil = 0f;
-        lastPocketWasCorner = false;
-    }
-
-    private bool IsNearCornerPocket(Vector3 position)
-    {
-        float zone = Mathf.Clamp01(cornerPocketZone);
-        float xThreshold = tableBounds.extents.x * (1f - zone);
-        float zThreshold = tableBounds.extents.z * (1f - zone);
-        float xDistance = Mathf.Abs(position.x - tableBounds.center.x);
-        float zDistance = Mathf.Abs(position.z - tableBounds.center.z);
-
-        return xDistance >= xThreshold && zDistance >= zThreshold;
     }
 
     private static float GetShortRailYaw(int sideSign)
