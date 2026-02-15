@@ -49,7 +49,6 @@ type NineSerializedState = {
   foulStreak: { A: number; B: number };
   gameOver: boolean;
   winner: 'A' | 'B' | null;
-  breakInProgress: boolean;
 };
 
 type PoolMeta =
@@ -168,8 +167,7 @@ function serializeNineState(state: NineBall['state']): NineSerializedState {
     ballInHand: state.ballInHand,
     foulStreak: { ...state.foulStreak },
     gameOver: state.gameOver,
-    winner: state.winner,
-    breakInProgress: Boolean(state.breakInProgress)
+    winner: state.winner
   };
 }
 
@@ -180,8 +178,7 @@ function applyNineState(game: NineBall, snapshot: NineSerializedState) {
     ballInHand: snapshot.ballInHand,
     foulStreak: { ...snapshot.foulStreak },
     gameOver: snapshot.gameOver,
-    winner: snapshot.winner,
-    breakInProgress: Boolean(snapshot.breakInProgress)
+    winner: snapshot.winner
   };
 }
 
@@ -639,7 +636,7 @@ export class PoolRoyaleRules {
         variant: '9ball',
         state: snapshot,
         hud,
-        breakInProgress: Boolean(snapshot.breakInProgress)
+        breakInProgress: false
       } satisfies PoolMeta
     };
     return nextState;

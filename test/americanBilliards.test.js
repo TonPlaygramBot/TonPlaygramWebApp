@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { AmericanBilliards } from '../lib/americanBilliards.js'
 
-test('break shot ignores first-contact foul checks and just passes turn when nothing drops', () => {
+test('open table: first contact cannot be the 8-ball', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
     contactOrder: [8],
@@ -10,10 +10,10 @@ test('break shot ignores first-contact foul checks and just passes turn when not
     cueOffTable: false
   })
 
-  assert.equal(res.foul, false)
+  assert.equal(res.foul, true)
+  assert.equal(res.reason, 'wrong first contact')
   assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, false)
-  assert.equal(game.state.breakInProgress, false)
+  assert.equal(res.ballInHandNext, true)
 })
 
 
@@ -42,7 +42,7 @@ test('legal break pot keeps table open until post-break shot', () => {
 })
 
 
-test('break scratch is treated as a legal break and still passes turn', () => {
+test('break scratch ends break, passes turn, and grants ball in hand', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
     contactOrder: [1],
@@ -50,18 +50,18 @@ test('break scratch is treated as a legal break and still passes turn', () => {
     cueOffTable: false
   })
 
-  assert.equal(res.foul, false)
+  assert.equal(res.foul, true)
+  assert.equal(res.reason, 'scratch')
   assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, false)
+  assert.equal(res.ballInHandNext, true)
   assert.equal(game.state.currentPlayer, 'B')
   assert.equal(game.state.breakInProgress, false)
   assert.equal(game.state.assignments.A, null)
   assert.equal(game.state.assignments.B, null)
 })
 
-test('post-break scratch gives opponent ball in hand and keeps object balls down', () => {
+test('scratch gives opponent ball in hand and keeps object balls down', () => {
   const game = new AmericanBilliards()
-  game.state.breakInProgress = false
   const res = game.shotTaken({
     contactOrder: [1],
     potted: [1, 0],
