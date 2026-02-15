@@ -375,12 +375,16 @@ export class PoolRoyaleRules {
         }
       }
     }
+    const isBreakShot =
+      (state.currentBreak ?? 0) === 0 &&
+      (game.state.lastEvent === 'BREAK_START' || game.state.lastEvent == null);
     const shotResult = game.shotTaken({
       contactOrder,
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       noCushionAfterContact: Boolean(context.noCushionAfterContact),
-      placedFromHand: Boolean(context.placedFromHand)
+      placedFromHand: Boolean(context.placedFromHand),
+      breakNoFoulGrace: isBreakShot
     });
     const pottedCount = potted.filter((colour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
@@ -487,7 +491,8 @@ export class PoolRoyaleRules {
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      breakNoFoulGrace: Boolean(previous?.state?.breakInProgress)
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeAmericanState(game.state);
@@ -575,6 +580,7 @@ export class PoolRoyaleRules {
   private applyNineBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
     const previous = meta && meta.variant === '9ball' && meta.state ? meta : null;
+    const breakInProgress = previous ? Boolean(previous.breakInProgress) : true;
     const game = new NineBall();
     if (previous) {
       applyNineState(game, previous.state);
@@ -602,7 +608,9 @@ export class PoolRoyaleRules {
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      isBreak: breakInProgress,
+      breakNoFoulGrace: breakInProgress
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeNineState(game.state);
