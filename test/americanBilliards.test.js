@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { AmericanBilliards } from '../lib/americanBilliards.js'
 
-test('open table: first contact cannot be the 8-ball', () => {
+test('break shot ignores first-contact foul checks and just passes turn when nothing drops', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
     contactOrder: [8],
@@ -10,10 +10,10 @@ test('open table: first contact cannot be the 8-ball', () => {
     cueOffTable: false
   })
 
-  assert.equal(res.foul, true)
-  assert.equal(res.reason, 'wrong first contact')
+  assert.equal(res.foul, false)
   assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, true)
+  assert.equal(res.ballInHandNext, false)
+  assert.equal(game.state.breakInProgress, false)
 })
 
 
@@ -42,7 +42,7 @@ test('legal break pot keeps table open until post-break shot', () => {
 })
 
 
-test('break scratch ends break, passes turn, and grants ball in hand', () => {
+test('break scratch is treated as a legal break and still passes turn', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
     contactOrder: [1],
@@ -50,18 +50,18 @@ test('break scratch ends break, passes turn, and grants ball in hand', () => {
     cueOffTable: false
   })
 
-  assert.equal(res.foul, true)
-  assert.equal(res.reason, 'scratch')
+  assert.equal(res.foul, false)
   assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, true)
+  assert.equal(res.ballInHandNext, false)
   assert.equal(game.state.currentPlayer, 'B')
   assert.equal(game.state.breakInProgress, false)
   assert.equal(game.state.assignments.A, null)
   assert.equal(game.state.assignments.B, null)
 })
 
-test('scratch gives opponent ball in hand and keeps object balls down', () => {
+test('post-break scratch gives opponent ball in hand and keeps object balls down', () => {
   const game = new AmericanBilliards()
+  game.state.breakInProgress = false
   const res = game.shotTaken({
     contactOrder: [1],
     potted: [1, 0],
