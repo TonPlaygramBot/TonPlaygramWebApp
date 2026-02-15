@@ -1521,6 +1521,7 @@ const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.85;
 const POCKET_EARLY_ALIGNMENT = 0.7;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
+const DYNAMIC_SHOT_CAMERA_ENABLED = false;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
   pairMaxDistance: BALL_R * 72,
@@ -19247,6 +19248,7 @@ const powerRef = useRef(hud.power);
           railNormal,
           { longShot = false, travelDistance = 0, isBreakShot = false } = {}
         ) => {
+          if (!DYNAMIC_SHOT_CAMERA_ENABLED) return null;
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
           const targetBall =
@@ -19325,6 +19327,7 @@ const powerRef = useRef(hud.power);
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
+          if (!DYNAMIC_SHOT_CAMERA_ENABLED) return null;
           if (!followView) return null;
           const {
             forceEarly = false,
