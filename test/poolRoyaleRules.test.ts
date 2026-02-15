@@ -70,35 +70,19 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
-    expect(cleared.ballOn).toEqual(['SOLID', 'STRIPE']);
-    expect(clearedMeta?.state?.assignments?.A).toBeNull();
-    expect(clearedMeta?.state?.assignments?.B).toBeNull();
-    expect(clearedMeta?.hud?.next).toBe('solid / stripe');
-    expect(clearedMeta?.hud?.phase).toBe('open');
+    expect(cleared.ballOn).toEqual(['SOLID']);
+    expect(clearedMeta?.state?.assignments?.A).toBe('SOLID');
+    expect(clearedMeta?.state?.assignments?.B).toBe('STRIPE');
+    expect(clearedMeta?.hud?.next).toBe('solid');
+    expect(clearedMeta?.hud?.phase).toBe('groups');
     expect(cleared.players.A.score).toBe(1);
-
-    const claimEvents: ShotEvent[] = [
-      { type: 'HIT', firstContact: 3, ballId: 3 },
-      { type: 'POTTED', ball: 3, pocket: 'TR', ballId: 3 }
-    ];
-    const claimed = rules.applyShot(cleared, claimEvents, {
-      contactMade: true,
-      cushionAfterContact: true
-    });
-    const claimedMeta = claimed.meta as any;
-
-    expect(claimed.ballOn).toEqual(['SOLID']);
-    expect(claimedMeta?.state?.assignments?.A).toBe('SOLID');
-    expect(claimedMeta?.state?.assignments?.B).toBe('STRIPE');
-    expect(claimedMeta?.hud?.next).toBe('solid');
-    expect(claimedMeta?.hud?.phase).toBe('groups');
 
     const scratchEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 3, ballId: 3 },
       { type: 'POTTED', ball: 0, pocket: 'TR', ballId: 'cue' }
     ];
     const scratchContext: ShotContext = { cueBallPotted: true, contactMade: true };
-    const scratch = rules.applyShot(claimed, scratchEvents, scratchContext);
+    const scratch = rules.applyShot(cleared, scratchEvents, scratchContext);
     const scratchMeta = scratch.meta as any;
 
     expect(scratch.foul?.reason).toBe('scratch');

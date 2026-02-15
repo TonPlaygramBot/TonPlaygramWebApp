@@ -1469,7 +1469,7 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 4.35; // push middle-pocket cameras farther toward the side edges (away from center)
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 3; // push middle-pocket cameras toward the corner-side edges
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.05; // push middle-pocket cameras farther toward side-rail edges and away from table center for stronger corner-like distance
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1492,7 +1492,7 @@ const POCKET_CAM = Object.freeze({
   maxOutside: BALL_R * 30,
   // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
   heightOffset: BALL_R * 2.32,
-  heightOffsetShortMultiplier: 1.52,
+  heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -19358,12 +19358,32 @@ const powerRef = useRef(hud.power);
             restoreOrbitCamera(pocketView, true);
             return;
           }
-          // Skip the intermediate standing/action resume camera after a pocket
-          // event so we cut directly from pocket close-up back to the locked
-          // rail-overhead broadcast framing.
-          activeShotView = null;
-          suspendedActionView = null;
-          restoreOrbitCamera(pocketView);
+          const resumeAction =
+            pocketView?.resumeAction?.mode === 'action'
+              ? pocketView.resumeAction
+              : suspendedActionView?.mode === 'action'
+                ? suspendedActionView
+                : null;
+          if (resumeAction) {
+            resumeAction.stage = 'pair';
+            resumeAction.lastUpdate = now;
+            resumeAction.holdUntil = now + ACTION_CAM.followHoldMs;
+            resumeAction.pendingActivation = false;
+            resumeAction.activationDelay = null;
+            resumeAction.activationTravel = 0;
+            if (cameraRef.current) {
+              resumeAction.smoothedPos = cameraRef.current.position.clone();
+              const storedTarget = lastCameraTargetRef.current?.clone();
+              if (storedTarget) {
+                resumeAction.smoothedTarget = storedTarget;
+              }
+            }
+            activeShotView = resumeAction;
+            suspendedActionView = null;
+          } else {
+            activeShotView = null;
+            restoreOrbitCamera(pocketView);
+          }
         };
         const makeActionCameraView = (
           cueBall,
@@ -22797,7 +22817,6 @@ const powerRef = useRef(hud.power);
         return clampInHandPosition(target, { ignoreBaulk: forceCenter });
       };
       const inHandDrag = inHandDragRef.current;
-      const IN_HAND_DRAG_RESPONSE = 1.32;
       const updateCuePlacement = (pos) => {
         if (!cue || !pos) return;
         cue.mesh.visible = true;
@@ -22827,20 +22846,8 @@ const powerRef = useRef(hud.power);
       const resolveInHandDragPosition = (e) => {
         const client = getPointerClient(e);
         if (!client) return null;
-        let currentProjected = projectFromClient(client.x, client.y);
+        const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
-        const lastScreen = inHandDrag.lastScreen;
-        const lastPlaced = inHandDrag.lastPos;
-        if (lastScreen && lastPlaced) {
-          const previousProjected = projectFromClient(lastScreen.x, lastScreen.y);
-          if (previousProjected) {
-            const projectedDelta = currentProjected.clone().sub(previousProjected);
-            currentProjected = lastPlaced.clone().addScaledVector(
-              projectedDelta,
-              IN_HAND_DRAG_RESPONSE
-            );
-          }
-        }
         inHandDrag.lastScreen = client;
         return currentProjected;
       };
@@ -27005,6 +27012,9 @@ const powerRef = useRef(hud.power);
               aimDir.normalize();
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
+            if (shouldAutoAimPlayer) {
+              autoAimRequestRef.current = false;
+            }
             aimDir.lerp(autoAimDir, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
