@@ -1469,9 +1469,9 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.4; // slide middle-pocket cameras farther toward the table edges so they stay away from center framing
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.6; // push only middle-pocket cameras much farther outside so they clearly stay beyond the wooden side rail on portrait view
-const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.28; // keep corner-pocket camera outside distance at the original morning baseline
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.18; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
 const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
