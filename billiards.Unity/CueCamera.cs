@@ -176,11 +176,6 @@ public class CueCamera : MonoBehaviour
     // Sideways push applied when the target action happens around the middle
     // pockets so the framing sits farther from the table centre line.
     public float pocketCameraMiddleSideOffset = 0.18f;
-    // Extra outward push for middle pocket cameras so they sit clearly on the
-    // side lanes instead of drifting back toward table centre.
-    public float pocketCameraMiddleSideExtra = 0.08f;
-    // Additional height lift for middle pocket cameras.
-    public float pocketCameraMiddleHeightLift = 0.04f;
     // Portion of the half table length treated as the middle pocket zone.
     [Range(0f, 1f)]
     public float pocketCameraMiddleZone = 0.32f;
@@ -215,7 +210,6 @@ public class CueCamera : MonoBehaviour
     private bool nextShotIsAi;
     private bool ballInHandActive;
     private bool cachedStandingCamera;
-    private bool cueMovedAfterShot;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -287,11 +281,6 @@ public class CueCamera : MonoBehaviour
         }
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
         yaw = targetViewYaw;
-        cueMovedAfterShot = false;
-
-        // Cut immediately to the overhead short-rail broadcast framing as soon
-        // as the shot is triggered.
-        ApplyBroadcastCamera(targetViewFocus, target != null);
 
         nextShotIsAi = false;
     }
@@ -646,13 +635,13 @@ public class CueCamera : MonoBehaviour
     private void UpdateBroadcastCamera()
     {
         currentBall = CueBall;
-        yaw = targetViewYaw;
-        ApplyBroadcastCamera(targetViewFocus, false);
+        yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
+        Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
+        ApplyBroadcastCamera(GetBroadcastFocus(focus), false);
 
         bool cueMoving = IsMoving(CueBall);
-        cueMovedAfterShot = cueMovedAfterShot || cueMoving;
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
-        if (cueMovedAfterShot && !cueMoving && !targetMoving)
+        if (!cueMoving && !targetMoving)
         {
             EndShot();
             UpdateCueAimCamera();
@@ -672,18 +661,13 @@ public class CueCamera : MonoBehaviour
 
     private void UpdateTargetCamera()
     {
-        bool targetPocketed = TargetBall == null || !TargetBall.gameObject.activeInHierarchy;
-        if (targetPocketed)
+        if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
         {
-            // Once a ball drops, immediately return to the rail overhead camera.
-            usingTargetCamera = false;
-            currentBall = CueBall;
-            ApplyBroadcastCamera(targetViewFocus, false);
-            return;
+            targetViewFocus = GetBroadcastFocus(TargetBall.position);
+            currentBall = TargetBall;
         }
 
-        currentBall = TargetBall;
-        yaw = targetViewYaw;
+        yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
         ApplyBroadcastCamera(targetViewFocus, true);
 
@@ -780,7 +764,11 @@ public class CueCamera : MonoBehaviour
         float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
         float baseHeight = Mathf.Max(broadcastHeight, focus.y + minimumHeightAboveFocus);
         float heightOffset = baseHeight;
-        float heightPadding = Mathf.Max(0f, broadcastHeightPadding);
+        if (useStandingCameraForBroadcast && cachedStandingCamera)
+        {
+            heightOffset = Mathf.Max(standingCameraHeight + standingCameraHeightOffset, minimumHeightAboveFocus);
+        }
+        float heightPadding = useStandingCameraForBroadcast && cachedStandingCamera ? 0f : Mathf.Max(0f, broadcastHeightPadding);
         float height = Mathf.Max(heightOffset + heightPadding, minRailHeight);
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
@@ -806,13 +794,14 @@ public class CueCamera : MonoBehaviour
                 }
 
                 float maxX = Mathf.Max(0f, tableBounds.extents.x - broadcastFrameMargin);
-                float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraMiddleSideOffset) + Mathf.Abs(pocketCameraMiddleSideExtra), 0f, maxX);
+                float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraMiddleSideOffset), 0f, maxX);
                 focus.x = Mathf.Clamp(sideSign * sideOffset, -maxX, maxX);
-                height += Mathf.Max(0f, pocketCameraMiddleHeightLift);
             }
         }
 
-        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+        float distance = useStandingCameraForBroadcast && cachedStandingCamera
+            ? Mathf.Max(standingCameraDistance - Mathf.Max(0f, standingCameraDistanceInset), broadcastMinDistance)
+            : ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
         if (isPocketCamera)
         {
             distance = Mathf.Max(distance - Mathf.Max(0f, pocketCameraDistanceInset), broadcastMinDistance);
@@ -1110,7 +1099,6 @@ public class CueCamera : MonoBehaviour
         broadcastSideSign = -cueAimSideSign;
         yaw = GetShortRailYaw(cueAimSideSign);
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
-        cueMovedAfterShot = false;
     }
 
     private static float GetShortRailYaw(int sideSign)
