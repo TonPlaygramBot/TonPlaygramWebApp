@@ -164,6 +164,120 @@ const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
 type GraphicsQuality = "low" | "medium" | "high";
 
+type PaddleOption = {
+  id: string;
+  label: string;
+  source: string;
+  thumbnail: string;
+  frontHex: number;
+  backHex: number;
+  edgeHex?: number;
+};
+
+type CommentaryPreset = {
+  id: string;
+  label: string;
+  language: string;
+  description: string;
+  voiceHints: string[];
+};
+
+const TABLE_TENNIS_PADDLE_OPTIONS: PaddleOption[] = Object.freeze([
+  {
+    id: "stiga-carbon",
+    label: "Stiga Carbon",
+    source: "Wikimedia Commons",
+    thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Table_tennis_bat_and_ball.jpg/640px-Table_tennis_bat_and_ball.jpg",
+    frontHex: 0xe11d48,
+    backHex: 0x111827,
+  },
+  {
+    id: "yinhe-pro",
+    label: "Yinhe Pro Grip",
+    source: "Pixabay",
+    thumbnail: "https://cdn.pixabay.com/photo/2016/11/29/09/16/table-tennis-1867164_1280.jpg",
+    frontHex: 0xdc2626,
+    backHex: 0x1f2937,
+  },
+  {
+    id: "butterfly-viscaria",
+    label: "Butterfly Viscaria",
+    source: "Pexels",
+    thumbnail: "https://images.pexels.com/photos/6203521/pexels-photo-6203521.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    frontHex: 0xb91c1c,
+    backHex: 0x0f172a,
+  },
+  {
+    id: "donic-legend",
+    label: "Donic Legend",
+    source: "Unsplash",
+    thumbnail: "https://images.unsplash.com/photo-1626272739289-42444ea0f97d?auto=format&fit=crop&w=1200&q=80",
+    frontHex: 0xf43f5e,
+    backHex: 0x1e293b,
+  },
+  {
+    id: "joola-rally",
+    label: "JOOLA Rally",
+    source: "Openverse",
+    thumbnail: "https://live.staticflickr.com/65535/51570422543_220f63f0af_k.jpg",
+    frontHex: 0xef4444,
+    backHex: 0x020617,
+  },
+  {
+    id: "victas-japan",
+    label: "Victas Japan",
+    source: "Wikimedia Commons",
+    thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Table_tennis_racket_and_ball.jpg/640px-Table_tennis_racket_and_ball.jpg",
+    frontHex: 0xfb7185,
+    backHex: 0x111827,
+  },
+  {
+    id: "andro-kinetic",
+    label: "Andro Kinetic",
+    source: "Pexels",
+    thumbnail: "https://images.pexels.com/photos/11175838/pexels-photo-11175838.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    frontHex: 0xbe123c,
+    backHex: 0x0f172a,
+  },
+  {
+    id: "nittaku-acoustic",
+    label: "Nittaku Acoustic",
+    source: "Pixabay",
+    thumbnail: "https://cdn.pixabay.com/photo/2016/03/27/20/57/sports-1284271_1280.jpg",
+    frontHex: 0xb91c1c,
+    backHex: 0x030712,
+  },
+  {
+    id: "tibhar-evolution",
+    label: "Tibhar Evolution",
+    source: "Unsplash",
+    thumbnail: "https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?auto=format&fit=crop&w=1200&q=80",
+    frontHex: 0xf87171,
+    backHex: 0x111827,
+  },
+  {
+    id: "dhs-hurricane",
+    label: "DHS Hurricane",
+    source: "Flickr CC",
+    thumbnail: "https://live.staticflickr.com/65535/53292882895_8f5c054be8_b.jpg",
+    frontHex: 0xdc2626,
+    backHex: 0x020617,
+  },
+]);
+
+const TABLE_TENNIS_COMMENTARY_PRESETS: CommentaryPreset[] = Object.freeze([
+  { id: "english", label: "English", language: "en", description: "English commentary with crisp rally calls", voiceHints: ["en-US", "en-GB", "English"] },
+  { id: "hindi", label: "हिन्दी", language: "hi", description: "Hindi commentary with lively pacing", voiceHints: ["hi-IN", "Hindi"] },
+  { id: "russian", label: "Русский", language: "ru", description: "Russian commentary with steady cadence", voiceHints: ["ru-RU", "Russian"] },
+  { id: "spanish", label: "Español", language: "es", description: "Spanish commentary with energetic rhythm", voiceHints: ["es-ES", "es-MX", "Spanish"] },
+  { id: "french", label: "Français", language: "fr", description: "French commentary with polished tone", voiceHints: ["fr-FR", "French"] },
+  { id: "shqip", label: "Shqip", language: "sq-AL", description: "Shqip commentary with native cadence", voiceHints: ["sq-AL", "Albanian", "Shqip"] },
+  { id: "italian", label: "Italiano", language: "it-IT", description: "Italian commentary with tactical phrasing", voiceHints: ["it-IT", "Italian"] },
+]);
+
+const DEFAULT_PADDLE_ID = TABLE_TENNIS_PADDLE_OPTIONS[0]?.id || "stiga-carbon";
+const DEFAULT_COMMENTARY_PRESET_ID = TABLE_TENNIS_COMMENTARY_PRESETS[0]?.id || "english";
+
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const sgn = (v: number) => (v >= 0 ? 1 : -1);
@@ -261,6 +375,55 @@ function serveSpeedFromSwipe(g: Gesture) {
 function hitSpeedFromSwipe(g: Gesture) {
   const t = clamp(swipeMag(g) / 2.2, 0, 1);
   return lerp(POWER.hitSpeedBase, POWER.hitSpeedMax, t);
+}
+
+function pickCommentaryVoice(voices: SpeechSynthesisVoice[], hints: string[]) {
+  if (!voices?.length) return null;
+  const needles = hints.map((hint) => hint.toLowerCase());
+  const exact = voices.find((voice) => needles.some((hint) => voice.lang?.toLowerCase() === hint));
+  if (exact) return exact;
+  const partial = voices.find((voice) => {
+    const lang = voice.lang?.toLowerCase() || "";
+    const name = voice.name?.toLowerCase() || "";
+    return needles.some((hint) => lang.includes(hint) || name.includes(hint));
+  });
+  return partial || voices[0] || null;
+}
+
+function commentaryForCall(call: Call, winner: Side | null, locale: string) {
+  const lang = String(locale || "en").toLowerCase();
+  const isSq = lang.includes("sq");
+  const isHi = lang.startsWith("hi");
+  const isRu = lang.startsWith("ru");
+  const isEs = lang.startsWith("es");
+  const isFr = lang.startsWith("fr");
+  const isIt = lang.startsWith("it");
+
+  if (call === "SERVE") {
+    if (isSq) return "Shërbimi fillon tani";
+    if (isHi) return "सर्विस शुरू";
+    if (isRu) return "Подача началась";
+    if (isEs) return "Servicio en juego";
+    if (isFr) return "Service en cours";
+    if (isIt) return "Servizio in corso";
+    return "Serve is on";
+  }
+
+  if (winner) {
+    if (isSq) return winner === "player" ? "Pikë për ty" : "Pikë për kundërshtarin";
+    if (isHi) return winner === "player" ? "आपके लिए अंक" : "प्रतिद्वंदी के लिए अंक";
+    if (isRu) return winner === "player" ? "Очко вам" : "Очко сопернику";
+    if (isEs) return winner === "player" ? "Punto para ti" : "Punto para el rival";
+    if (isFr) return winner === "player" ? "Point pour vous" : "Point pour l'adversaire";
+    if (isIt) return winner === "player" ? "Punto per te" : "Punto per l'avversario";
+    return winner === "player" ? "Point for you" : "Point for opponent";
+  }
+
+  if (call === "NET") return isFr ? "Filet" : isEs ? "Red" : isRu ? "Сетка" : isHi ? "नेट" : isIt ? "Rete" : isSq ? "Rrjetë" : "Net touch";
+  if (call === "OUT") return isFr ? "Dehors" : isEs ? "Fuera" : isRu ? "Аут" : isHi ? "बाहर" : isIt ? "Fuori" : isSq ? "Jashtë" : "Out";
+  if (call === "DOUBLE") return isFr ? "Double rebond" : isEs ? "Doble bote" : isRu ? "Двойной отскок" : isHi ? "डबल बाउंस" : isIt ? "Doppio rimbalzo" : isSq ? "Dy kërcime" : "Double bounce";
+  if (call === "FAULT" || call === "MISS") return isFr ? "Faute" : isEs ? "Falta" : isRu ? "Ошибка" : isHi ? "फॉल्ट" : isIt ? "Fallo" : isSq ? "Gabim" : "Fault";
+  return "";
 }
 
 function pickAiSideTarget(diff: Difficulty) {
@@ -502,7 +665,7 @@ function buildTableLikeSnippet() {
   return { group: g, materials: m };
 }
 
-function buildCurvedPaddle(frontHex: number, backHex: number, woodMat: THREE.Material) {
+function buildCurvedPaddle(frontHex: number, backHex: number, woodMat: THREE.Material, edgeHex = 0x222222) {
   const group = new THREE.Group();
 
   const headRadius = BASE_HEAD_RADIUS;
@@ -511,7 +674,7 @@ function buildCurvedPaddle(frontHex: number, backHex: number, woodMat: THREE.Mat
 
   const headFrontMat = new THREE.MeshStandardMaterial({ color: frontHex, roughness: 0.7, metalness: 0.05 });
   const headBackMat = new THREE.MeshStandardMaterial({ color: backHex, roughness: 0.7, metalness: 0.05 });
-  const edgeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, metalness: 0.2 });
+  const edgeMat = new THREE.MeshStandardMaterial({ color: edgeHex, roughness: 0.8, metalness: 0.2 });
 
   const headFront = new THREE.Mesh(
     new THREE.ExtrudeGeometry(sh, { depth: 0.006, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.003, curveSegments: 64, steps: 1 }),
@@ -566,6 +729,10 @@ export default function TableTennisRoyal() {
   const [frameRateId, setFrameRateId] = useState<FrameRateId>("fhd90");
   const [environmentHdriId, setEnvironmentHdriId] = useState<string>(POOL_ROYALE_DEFAULT_HDRI_ID);
   const [showTableMenu, setShowTableMenu] = useState(false);
+  const [selectedPaddleId, setSelectedPaddleId] = useState<string>(DEFAULT_PADDLE_ID);
+  const [commentaryPresetId, setCommentaryPresetId] = useState<string>(DEFAULT_COMMENTARY_PRESET_ID);
+  const [commentaryMuted, setCommentaryMuted] = useState(false);
+  const [commentarySupported, setCommentarySupported] = useState<boolean>(() => typeof window !== "undefined" && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance !== "undefined");
   const difficultyRef = useRef<Difficulty>(DEFAULT_DIFFICULTY);
   const graphicsQualityRef = useRef<GraphicsQuality>("high");
   const frameRateRef = useRef<(typeof FRAME_RATE_OPTIONS)[number]>(FRAME_RATE_MAP.fhd90);
@@ -585,12 +752,35 @@ export default function TableTennisRoyal() {
     const avatar = params.get("opponentAvatar") || "/assets/icons/profile.svg";
     return { username, avatar };
   }, []);
+  const selectedPaddleOption = useMemo(
+    () => TABLE_TENNIS_PADDLE_OPTIONS.find((option) => option.id === selectedPaddleId) || TABLE_TENNIS_PADDLE_OPTIONS[0],
+    [selectedPaddleId]
+  );
+  const activeCommentaryPreset = useMemo(
+    () => TABLE_TENNIS_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) || TABLE_TENNIS_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
   useEffect(() => {
     graphicsQualityRef.current = graphicsQuality;
   }, [graphicsQuality]);
   useEffect(() => {
     frameRateRef.current = FRAME_RATE_MAP[frameRateId] ?? FRAME_RATE_OPTIONS[0];
   }, [frameRateId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("table-tennis-paddle-id", selectedPaddleId);
+  }, [selectedPaddleId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("table-tennis-commentary-preset", commentaryPresetId);
+  }, [commentaryPresetId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("table-tennis-commentary-muted", commentaryMuted ? "1" : "0");
+  }, [commentaryMuted]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -603,6 +793,18 @@ export default function TableTennisRoyal() {
     if (fps && FRAME_RATE_MAP[fps as FrameRateId]) {
       setFrameRateId(fps as FrameRateId);
     }
+
+    const savedPaddle = window.localStorage.getItem("table-tennis-paddle-id");
+    if (savedPaddle && TABLE_TENNIS_PADDLE_OPTIONS.some((option) => option.id === savedPaddle)) {
+      setSelectedPaddleId(savedPaddle);
+    }
+
+    const savedPreset = window.localStorage.getItem("table-tennis-commentary-preset");
+    if (savedPreset && TABLE_TENNIS_COMMENTARY_PRESETS.some((preset) => preset.id === savedPreset)) {
+      setCommentaryPresetId(savedPreset);
+    }
+    const savedMute = window.localStorage.getItem("table-tennis-commentary-muted");
+    if (savedMute === "1") setCommentaryMuted(true);
   }, []);
 
   const [ui, setUi] = useState<{ phase: Phase; score: Score; call: Call; hint: string }>({
@@ -621,6 +823,8 @@ export default function TableTennisRoyal() {
   const lastFrameAtRef = useRef<number>(0);
   const lightRig = useRef<{ ambient: THREE.AmbientLight; key: THREE.DirectionalLight } | null>(null);
   const hdriHandle = useRef<{ envMap: THREE.Texture | null; bgMap: THREE.Texture | null } | null>(null);
+  const commentaryVoicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const commentaryLastAtRef = useRef(0);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
     phase: "ready",
@@ -687,6 +891,58 @@ export default function TableTennisRoyal() {
     else if (ui.call === "FAULT" || ui.call === "DOUBLE" || ui.call === "MISS") showAnnouncement("FOUL");
   }, [showAnnouncement, ui.call]);
 
+  const speakCommentary = useCallback((text: string) => {
+    if (!text || commentaryMuted || !commentarySupported || typeof window === "undefined") return;
+    const now = performance.now();
+    if (now - commentaryLastAtRef.current < 260) return;
+    commentaryLastAtRef.current = now;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth || typeof window.SpeechSynthesisUtterance === "undefined") return;
+      const utterance = new window.SpeechSynthesisUtterance(text);
+      const voice = pickCommentaryVoice(commentaryVoicesRef.current, activeCommentaryPreset?.voiceHints || []);
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      } else {
+        utterance.lang = activeCommentaryPreset?.language || "en";
+      }
+      utterance.rate = 1.04;
+      utterance.pitch = 1.0;
+      utterance.volume = 0.92;
+      synth.cancel();
+      synth.speak(utterance);
+    } catch {
+      // no-op
+    }
+  }, [activeCommentaryPreset?.language, activeCommentaryPreset?.voiceHints, commentaryMuted, commentarySupported]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (!synth) {
+      setCommentarySupported(false);
+      return;
+    }
+    const refresh = () => {
+      try {
+        commentaryVoicesRef.current = synth.getVoices() || [];
+      } catch {
+        commentaryVoicesRef.current = [];
+      }
+    };
+    refresh();
+    synth.onvoiceschanged = refresh;
+    return () => {
+      if (synth.onvoiceschanged === refresh) synth.onvoiceschanged = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (commentaryMuted || typeof window === "undefined") return;
+    speakCommentary(commentaryForCall(ui.call, null, activeCommentaryPreset?.language || "en"));
+  }, [activeCommentaryPreset?.language, commentaryMuted, speakCommentary, ui.call]);
+
   const syncUiFromSim = useCallback(() => {
     const s = sim.current;
     setUi({ phase: s.phase, score: { ...s.score }, call: s.call, hint: s.hint });
@@ -739,6 +995,7 @@ export default function TableTennisRoyal() {
       s.score.pointsPlayed += 1;
 
       showAnnouncement(winner === "player" ? "POINT YOU" : "POINT AI");
+      speakCommentary(commentaryForCall(call, winner, activeCommentaryPreset?.language || "en"));
 
       s.call = call;
 
@@ -751,7 +1008,7 @@ export default function TableTennisRoyal() {
       s.score.server = nextServer(s.score);
       placeForServe(s.score.server);
     },
-    [placeForServe, showAnnouncement]
+    [activeCommentaryPreset?.language, placeForServe, showAnnouncement, speakCommentary]
   );
 
   const serve = useCallback(() => {
@@ -763,6 +1020,7 @@ export default function TableTennisRoyal() {
     s.phase = "serving";
     s.call = "SERVE";
     s.hint = "";
+    speakCommentary(commentaryForCall("SERVE", null, activeCommentaryPreset?.language || "en"));
 
     const targetX = lerp(-TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18), g.current.lastX);
     const targetZ = -TABLE.L / 2 + POWER.targetZPad;
@@ -782,7 +1040,7 @@ export default function TableTennisRoyal() {
     b.spin.set(-swipeY * POWER.swipeYToSpin, swipeX * POWER.swipeXToSpin, 0);
 
     b.served = true;
-  }, [g]);
+  }, [activeCommentaryPreset?.language, g, speakCommentary]);
 
   const reset = useCallback(() => {
     const s = sim.current;
@@ -851,7 +1109,12 @@ export default function TableTennisRoyal() {
       scene.add(table);
 
       const playerPaddle = new THREE.Group();
-      const pFancy = buildCurvedPaddle(0xff4d6d, 0x333333, materials.woodMat);
+      const pFancy = buildCurvedPaddle(
+        selectedPaddleOption.frontHex,
+        selectedPaddleOption.backHex,
+        materials.woodMat,
+        selectedPaddleOption.edgeHex
+      );
       const pWrist = new THREE.Group();
       pWrist.rotation.set(THREE.MathUtils.degToRad(-18), 0, THREE.MathUtils.degToRad(12));
       pWrist.add(pFancy);
@@ -860,7 +1123,7 @@ export default function TableTennisRoyal() {
       table.add(playerPaddle);
 
       const aiPaddle = new THREE.Group();
-      const aFancy = buildCurvedPaddle(0x49dcb1, 0x333333, materials.woodMat);
+      const aFancy = buildCurvedPaddle(0x49dcb1, 0x333333, materials.woodMat, 0x111827);
       const aWrist = new THREE.Group();
       aWrist.rotation.set(THREE.MathUtils.degToRad(-22), 0, THREE.MathUtils.degToRad(-12));
       aWrist.add(aFancy);
@@ -1164,7 +1427,7 @@ export default function TableTennisRoyal() {
       return;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [awardPoint, difficultyRef, g, placeForServe, serve, setCallRef]);
+  }, [awardPoint, difficultyRef, g, placeForServe, selectedPaddleOption, serve, setCallRef]);
 
 
   useEffect(() => {
@@ -1351,39 +1614,165 @@ export default function TableTennisRoyal() {
             ⚙️
           </button>
           {showTableMenu && (
-            <div style={{ marginTop: 8, width: 220, background: "rgba(5,10,20,0.92)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, padding: 10, color: "#fff", fontSize: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Table Setup</div>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-                <span>Graphics</span>
-                <select value={graphicsQuality} onChange={(e) => setGraphicsQuality(e.target.value as GraphicsQuality)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-                <span>FPS profile</span>
-                <select value={frameRateId} onChange={(e) => setFrameRateId(e.target.value as FrameRateId)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
-                  {FRAME_RATE_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-                <span>Venue HDRI</span>
-                <select value={environmentHdriId} onChange={(e) => setEnvironmentHdriId(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
-                  {POOL_ROYALE_HDRI_VARIANTS.map((variant) => (
-                    <option key={variant.id} value={variant.id}>
-                      {variant.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button onClick={reset} style={{ width: "100%", padding: "6px 10px", borderRadius: 8, fontSize: 12 }}>
-                Reset match
-              </button>
+            <div className="mt-2 w-[22rem] max-w-[92vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">Table Setup</span>
+                <button
+                  type="button"
+                  onClick={() => setShowTableMenu(false)}
+                  className="rounded-full p-1 text-white/70 transition-colors duration-150 hover:text-white"
+                  aria-label="Close setup"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mt-4 max-h-[58vh] space-y-4 overflow-y-auto pr-1">
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Paddles</h3>
+                  <p className="mt-1 text-[0.68rem] text-white/60">10 realistic open-source paddle thumbnails from free media libraries.</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {TABLE_TENNIS_PADDLE_OPTIONS.map((option) => {
+                      const active = option.id === selectedPaddleId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setSelectedPaddleId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? "border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]"
+                              : "border-white/10 bg-white/5 hover:border-white/20 text-white/80"
+                          }`}
+                        >
+                          <span className="block h-16 overflow-hidden rounded-xl border border-white/15 bg-black/20">
+                            <img src={option.thumbnail} alt={option.label} className="h-full w-full object-cover" loading="lazy" />
+                          </span>
+                          <span className="mt-2 block text-[10px] font-semibold uppercase tracking-[0.2em] text-white">{option.label}</span>
+                          <span className="mt-1 block text-[9px] uppercase tracking-[0.2em] text-white/60">{option.source}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Commentary language</h3>
+                  <div className="mt-2 grid gap-2">
+                    {TABLE_TENNIS_COMMENTARY_PRESETS.map((preset) => {
+                      const active = preset.id === commentaryPresetId;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setCommentaryPresetId(preset.id)}
+                          aria-pressed={active}
+                          disabled={!commentarySupported}
+                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                          } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                        >
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">{preset.description}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCommentaryMuted((prev) => !prev)}
+                    aria-pressed={commentaryMuted}
+                    disabled={!commentarySupported}
+                    className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 ${
+                      commentaryMuted
+                        ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                        : 'bg-white/10 text-white/80 hover:bg-white/20'
+                    } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                  >
+                    <span>Mute commentary</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${commentaryMuted ? 'border-black/30 text-black/70' : 'border-white/30 text-white/70'}`}>
+                      {commentaryMuted ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                  {!commentarySupported && <p className="mt-2 text-[0.65rem] text-white/60">Voice commentary requires Web Speech support.</p>}
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Graphics</h3>
+                  <div className="mt-2 grid gap-2">
+                    {(["low", "medium", "high"] as GraphicsQuality[]).map((quality) => {
+                      const active = graphicsQuality === quality;
+                      return (
+                        <button
+                          key={quality}
+                          type="button"
+                          onClick={() => setGraphicsQuality(quality)}
+                          aria-pressed={active}
+                          className={`w-full rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          {quality}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">FPS profile</h3>
+                  <div className="mt-2 grid gap-2">
+                    {FRAME_RATE_OPTIONS.map((option) => {
+                      const active = option.id === frameRateId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setFrameRateId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">{option.label}</span>
+                            <span className="text-xs font-semibold tracking-wide">{option.fps} FPS</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Venue HDRI</span>
+                  <select
+                    value={environmentHdriId}
+                    onChange={(e) => setEnvironmentHdriId(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs text-white"
+                  >
+                    {POOL_ROYALE_HDRI_VARIANTS.map((variant) => (
+                      <option key={variant.id} value={variant.id}>
+                        {variant.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="w-full rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-500 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.28em] text-white"
+                >
+                  Reset match
+                </button>
+              </div>
             </div>
           )}
         </div>
