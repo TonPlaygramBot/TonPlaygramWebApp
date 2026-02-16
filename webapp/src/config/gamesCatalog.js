@@ -13,6 +13,14 @@ const gamesCatalog = [
     image: '/assets/icons/Domino%20battle%20Royal%20logo.png',
     description: 'Classic domino strategy with modern 3D flair.'
   },
+
+  {
+    name: 'Table Tennis Royal',
+    route: '/games/tabletennisroyal/lobby',
+    slug: 'tabletennisroyal',
+    image: '/assets/icons/pool-royale.svg',
+    description: 'Fast 3D table tennis rallies with royal custom arenas.'
+  },
   {
     name: 'Pool Royale',
     route: '/games/poolroyale/lobby',
