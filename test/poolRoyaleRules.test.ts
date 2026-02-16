@@ -76,6 +76,7 @@ describe('PoolRoyaleRules', () => {
     expect(clearedMeta?.hud?.next).toBe('open table');
     expect(clearedMeta?.hud?.phase).toBe('open');
     expect(cleared.players.A.score).toBe(1);
+    expect(cleared.activePlayer).toBe('A');
 
     const scratchEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 3, ballId: 3 },
@@ -105,27 +106,30 @@ describe('PoolRoyaleRules', () => {
     expect(initialFrame.ballOn).toEqual(['BALL_1']);
     expect(initialMeta?.hud?.next).toBe('ball 1');
 
-    const breakEvents: ShotEvent[] = [{ type: 'HIT', firstContact: 2, ballId: 2 }];
+    const breakEvents: ShotEvent[] = [
+      { type: 'HIT', firstContact: 1, ballId: 1 },
+      { type: 'POTTED', ball: 1, pocket: 'TM', ballId: 1 }
+    ];
     const postBreak = rules.applyShot(initialFrame, breakEvents, { contactMade: true });
     const postBreakMeta = postBreak.meta as any;
 
     expect(postBreak.foul).toBeUndefined();
     expect(postBreakMeta?.breakInProgress).toBe(false);
-    expect(postBreak.activePlayer).toBe('B');
-    expect(postBreak.ballOn).toEqual(['BALL_1']);
+    expect(postBreak.activePlayer).toBe('A');
+    expect(postBreak.ballOn).toEqual(['BALL_2']);
 
-    const foulEvents: ShotEvent[] = [{ type: 'HIT', firstContact: 2, ballId: 2 }];
+    const foulEvents: ShotEvent[] = [{ type: 'HIT', firstContact: 3, ballId: 3 }];
     const foulState = rules.applyShot(postBreak, foulEvents, { contactMade: true });
     const foulMeta = foulState.meta as any;
 
     expect(foulState.foul?.reason).toBe('wrong first contact');
     expect(foulMeta?.state?.ballInHand).toBe(true);
-    expect(foulState.activePlayer).toBe('A');
-    expect(foulState.ballOn).toEqual(['BALL_1']);
+    expect(foulState.activePlayer).toBe('B');
+    expect(foulState.ballOn).toEqual(['BALL_2']);
 
     const recoveryEvents: ShotEvent[] = [
-      { type: 'HIT', firstContact: 1, ballId: 1 },
-      { type: 'POTTED', ball: 1, pocket: 'TM', ballId: 1 }
+      { type: 'HIT', firstContact: 2, ballId: 2 },
+      { type: 'POTTED', ball: 2, pocket: 'TM', ballId: 2 }
     ];
     const recoveryContext: ShotContext = { placedFromHand: true, contactMade: true };
     const recoveryState = rules.applyShot(foulState, recoveryEvents, recoveryContext);
@@ -133,7 +137,7 @@ describe('PoolRoyaleRules', () => {
 
     expect(recoveryMeta?.breakInProgress).toBe(false);
     expect(recoveryMeta?.state?.ballInHand).toBe(false);
-    expect(recoveryState.ballOn).toEqual(['BALL_2']);
-    expect(recoveryMeta?.hud?.next).toBe('ball 2');
+    expect(recoveryState.ballOn).toEqual(['BALL_3']);
+    expect(recoveryMeta?.hud?.next).toBe('ball 3');
   });
 });

@@ -43,3 +43,20 @@ test('scratch gives opponent ball in hand', () => {
   assert.equal(res1.nextPlayer, 'B');
   assert.equal(game.state.currentPlayer, 'B');
 });
+
+
+test('legal break that pots an object ball keeps breaker shooting', () => {
+  const game = new NineBall();
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [1],
+    cueOffTable: false,
+    placedFromHand: false
+  });
+
+  assert.equal(res.foul, false);
+  assert.equal(res.nextPlayer, 'A');
+  assert.equal(game.state.currentPlayer, 'A');
+  assert.equal(game.state.breakInProgress, false);
+  assert.equal(game.state.ballsOnTable.has(1), false);
+});
