@@ -12,8 +12,6 @@ export default function TableTennisRoyalLobby() {
   useTelegramBackButton();
   const [avatar, setAvatar] = useState('');
   const [mode, setMode] = useState('ai');
-  const [graphics, setGraphics] = useState('high');
-  const [fps, setFps] = useState('fhd90');
 
   useEffect(() => {
     try {
@@ -27,8 +25,6 @@ export default function TableTennisRoyalLobby() {
   const startGame = () => {
     const params = new URLSearchParams();
     params.set('mode', mode);
-    params.set('graphics', graphics);
-    params.set('fps', fps);
     navigate(`/games/tabletennisroyal?${params.toString()}`);
   };
 
@@ -51,15 +47,15 @@ export default function TableTennisRoyalLobby() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
-              { id: 'ai', label: 'Vs AI', icon: '🤖' },
-              { id: 'online', label: '1v1 Online', icon: '🌐', disabled: true }
+              { id: 'ai', label: 'Vs AI', desc: 'Practice rallies', icon: '🤖' },
+              { id: 'online', label: '1v1 Online', desc: 'Live matchmaking', icon: '🌐', disabled: true }
             ].map((item) => (
               <button
                 key={item.id}
@@ -74,51 +70,19 @@ export default function TableTennisRoyalLobby() {
                 </div>
                 <div className="text-center">
                   <p className="lobby-option-label">{item.label}</p>
+                  <p className="lobby-option-subtitle">{item.disabled ? 'Coming soon' : item.desc}</p>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">FPS profile</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Frame rate</span>
-          </div>
-          <div className="mt-3 grid grid-cols-1 gap-3">
-            {[
-              { id: 'hd50', label: 'HD Performance (50 Hz)' },
-              { id: 'fhd90', label: 'Full HD (90 Hz)' },
-              { id: 'qhd105', label: 'Quad HD (105 Hz)' },
-              { id: 'uhd120', label: 'Ultra HD (120 Hz cap)' }
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setFps(item.id)}
-                className={`lobby-option-card ${fps === item.id ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
-              >
-                <p className="lobby-option-label">{item.label}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Graphics</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Quality</span>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            {['low', 'medium', 'high'].map((id) => (
-              <button
-                key={id}
-                onClick={() => setGraphics(id)}
-                className={`lobby-option-card ${graphics === id ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
-              >
-                <p className="lobby-option-label capitalize">{id}</p>
-              </button>
-            ))}
-          </div>
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4 text-sm text-white/75">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Table setup</p>
+          <p className="mt-2">
+            Graphics and FPS are now configured <span className="font-semibold text-white">inside the match</span> from the
+            table menu (⚙️).
+          </p>
         </div>
 
         <button
