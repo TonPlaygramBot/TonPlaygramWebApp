@@ -1,4 +1,4 @@
-import React, { Component, useCallback, useEffect, useRef, useState } from "react";
+import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 /**
@@ -100,11 +100,11 @@ const PHYS = {
 } as const;
 
 const POWER = {
-  serveSpeedBase: U(3.0),
-  serveSpeedMax: U(4.1),
+  serveSpeedBase: U(3.15),
+  serveSpeedMax: U(4.3),
   serveUpMin: U(1.05),
-  hitSpeedBase: U(2.35),
-  hitSpeedMax: U(7.6),
+  hitSpeedBase: U(2.5),
+  hitSpeedMax: U(7.95),
   targetZPad: U(0.45),
   swipeXToSpin: 0.00062,
   swipeYToSpin: 0.00046,
@@ -112,22 +112,41 @@ const POWER = {
 } as const;
 
 const AI = {
-  lerp: { easy: 0.10, medium: 0.15, hard: 0.19 },
-  react: { easy: 0.10, medium: 0.16, hard: 0.22 },
+  lerp: { easy: 0.11, medium: 0.16, hard: 0.21 },
+  react: { easy: 0.12, medium: 0.19, hard: 0.28 },
   jitter: { easy: U(0.10), medium: U(0.06), hard: U(0.04) },
-  hitChance: { easy: 0.86, medium: 0.93, hard: 0.97 },
+  hitChance: { easy: 0.88, medium: 0.95, hard: 0.985 },
   serveDelayMs: { easy: 900, medium: 750, hard: 620 },
-  sideBias: { easy: 0.60, medium: 0.75, hard: 0.88 },
-  aimStrength: { easy: 0.55, medium: 0.75, hard: 0.95 },
+  sideBias: { easy: 0.62, medium: 0.8, hard: 0.93 },
+  aimStrength: { easy: 0.58, medium: 0.8, hard: 0.98 },
   spinStrength: { easy: 0.55, medium: 0.75, hard: 0.95 },
-  hitPowerScale: { easy: 0.72, medium: 0.78, hard: 0.84 },
+  hitPowerScale: { easy: 0.76, medium: 0.84, hard: 0.92 },
+  powerMix: {
+    easy: [0.7, 0.84, 0.96],
+    medium: [0.82, 0.98, 1.1],
+    hard: [0.92, 1.08, 1.24],
+  },
+  sideTargets: {
+    easy: [-0.35, 0, 0.35],
+    medium: [-0.58, -0.14, 0.18, 0.62],
+    hard: [-0.75, -0.42, -0.05, 0.24, 0.54, 0.78],
+  },
 } as const;
 
 const CAM = {
   follow: 0.07,
   yBase: TABLE.H + U(0.72),
-  zBase: TABLE.L * 0.88,
+  zBase: TABLE.L * 0.98,
 } as const;
+
+const HDRI_PRESETS = {
+  off: { ambient: 0.52, key: 0.95, exposure: 1.0 },
+  sport: { ambient: 0.62, key: 1.2, exposure: 1.08 },
+  arena: { ambient: 0.74, key: 1.36, exposure: 1.17 },
+} as const;
+
+type GraphicsQuality = "low" | "medium" | "high";
+type HdriMode = keyof typeof HDRI_PRESETS;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -183,6 +202,17 @@ function serveSpeedFromSwipe(g: Gesture) {
 function hitSpeedFromSwipe(g: Gesture) {
   const t = clamp(swipeMag(g) / 2.2, 0, 1);
   return lerp(POWER.hitSpeedBase, POWER.hitSpeedMax, t);
+}
+
+function pickAiSideTarget(diff: Difficulty) {
+  const lanes = AI.sideTargets[diff];
+  const index = Math.floor(Math.random() * lanes.length);
+  return lanes[index];
+}
+
+function pickAiPowerFactor(diff: Difficulty) {
+  const options = AI.powerMix[diff];
+  return options[Math.floor(Math.random() * options.length)];
 }
 
 function useTouch(rootRef: React.RefObject<HTMLDivElement>) {
@@ -474,10 +504,37 @@ export default function TableTennisRoyal() {
   const { g, onDown, onMove, onUp } = useTouch(rootRef);
 
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>("high");
+  const [hdriMode, setHdriMode] = useState<HdriMode>("sport");
+  const [showTableMenu, setShowTableMenu] = useState(false);
   const difficultyRef = useRef<Difficulty>("medium");
+  const graphicsQualityRef = useRef<GraphicsQuality>("high");
+  const hdriModeRef = useRef<HdriMode>("sport");
+  const me = useMemo(() => {
+    if (typeof window === "undefined") return { username: "You", avatar: "/assets/icons/profile.svg" };
+    const params = new URLSearchParams(window.location.search);
+    const rawName = params.get("username") || params.get("player") || params.get("name") || "";
+    const username = rawName.trim() || "You";
+    const avatar = params.get("avatar") || "/assets/icons/profile.svg";
+    return { username, avatar };
+  }, []);
+  const rival = useMemo(() => {
+    if (typeof window === "undefined") return { username: "AI Bot", avatar: "/assets/icons/profile.svg" };
+    const params = new URLSearchParams(window.location.search);
+    const rawName = params.get("opponent") || params.get("opponentName") || params.get("aiName") || "AI Bot";
+    const username = rawName.trim() || "AI Bot";
+    const avatar = params.get("opponentAvatar") || "/assets/icons/profile.svg";
+    return { username, avatar };
+  }, []);
   useEffect(() => {
     difficultyRef.current = difficulty;
   }, [difficulty]);
+  useEffect(() => {
+    graphicsQualityRef.current = graphicsQuality;
+  }, [graphicsQuality]);
+  useEffect(() => {
+    hdriModeRef.current = hdriMode;
+  }, [hdriMode]);
 
   const [ui, setUi] = useState<{ phase: Phase; score: Score; call: Call; hint: string }>({
     phase: "ready",
@@ -490,6 +547,7 @@ export default function TableTennisRoyal() {
   const [fatal, setFatal] = useState<string>("");
 
   const aiServeAt = useRef<number>(0);
+  const lightRig = useRef<{ ambient: THREE.AmbientLight; key: THREE.DirectionalLight } | null>(null);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
     phase: "ready",
@@ -655,6 +713,9 @@ export default function TableTennisRoyal() {
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = HDRI_PRESETS[hdriModeRef.current].exposure;
       renderer.domElement.style.position = "absolute";
       renderer.domElement.style.inset = "0";
       renderer.domElement.style.width = "100%";
@@ -666,12 +727,15 @@ export default function TableTennisRoyal() {
       scene.background = new THREE.Color("#070b1a");
       const camera = new THREE.PerspectiveCamera(55, 1, 0.01, U(300));
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-      const key = new THREE.DirectionalLight(0xffffff, 1.0);
+      const hdriPreset = HDRI_PRESETS[hdriModeRef.current];
+      const ambient = new THREE.AmbientLight(0xffffff, hdriPreset.ambient);
+      scene.add(ambient);
+      const key = new THREE.DirectionalLight(0xffffff, hdriPreset.key);
       key.position.set(U(2.2), U(4.2), U(2.2));
-      key.castShadow = true;
-      key.shadow.mapSize.set(2048, 2048);
+      key.castShadow = graphicsQualityRef.current !== "low";
+      key.shadow.mapSize.set(graphicsQualityRef.current === "high" ? 2048 : 1024, graphicsQualityRef.current === "high" ? 2048 : 1024);
       scene.add(key);
+      lightRig.current = { ambient, key };
 
       const floor = new THREE.Mesh(new THREE.PlaneGeometry(U(30), U(30)), new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 }));
       floor.rotation.x = -Math.PI / 2;
@@ -716,6 +780,7 @@ export default function TableTennisRoyal() {
         const h = mount.clientHeight || 1;
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
+        camera.fov = w < h ? 58 : 55;
         camera.updateProjectionMatrix();
       };
 
@@ -777,13 +842,14 @@ export default function TableTennisRoyal() {
             s.call = "SERVE";
             s.hint = "";
 
+            const lane = pickAiSideTarget(diff);
             const wide = Math.random() < AI.sideBias[diff];
-            const mag = wide ? 0.75 : 0.45;
-            const targetX = clamp((Math.random() * 2 - 1) * (TABLE.W * mag), -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
+            const laneBlend = wide ? lane : lane * 0.6;
+            const targetX = clamp((TABLE.W * 0.5) * laneBlend, -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
             const targetZ = TABLE.L / 2 - POWER.targetZPad;
             tmpTarget.set(targetX, TABLE.H + U(0.14), targetZ);
 
-            const speed = POWER.serveSpeedBase * AI.hitPowerScale[diff];
+            const speed = POWER.serveSpeedBase * AI.hitPowerScale[diff] * pickAiPowerFactor(diff);
             tmpDir.subVectors(tmpTarget, b.p);
             if (tmpDir.lengthSq() > 1e-9) {
               tmpDir.normalize();
@@ -910,13 +976,17 @@ export default function TableTennisRoyal() {
               b.spin.x += (-g.current.vy * 1000) * POWER.swipeYToSpin;
               b.spin.y += (g.current.vx * 1000) * POWER.swipeXToSpin + edgeSpin;
             } else {
+              const lane = pickAiSideTarget(diff);
               const wide = Math.random() < AI.sideBias[diff];
-              const mag = wide ? 0.75 : 0.40;
-              const targetX = clamp((Math.random() * 2 - 1) * (TABLE.W * mag), -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
+              const targetLane = wide ? lane : lane * 0.52;
+              const targetX = clamp((TABLE.W * 0.5) * targetLane, -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
               const targetZ = TABLE.L / 2 - POWER.targetZPad;
               tmpTarget.set(targetX, TABLE.H + U(0.14), targetZ);
 
-              const base = lerp(POWER.hitSpeedBase, POWER.hitSpeedMax * 0.70, AI.aimStrength[diff]) * AI.hitPowerScale[diff];
+              const base =
+                lerp(POWER.hitSpeedBase, POWER.hitSpeedMax * 0.78, AI.aimStrength[diff]) *
+                AI.hitPowerScale[diff] *
+                pickAiPowerFactor(diff);
               tmpDir.subVectors(tmpTarget, b.p);
               if (tmpDir.lengthSq() > 1e-9) {
                 tmpDir.normalize();
@@ -972,6 +1042,7 @@ export default function TableTennisRoyal() {
           });
         }
         three.current = null;
+        lightRig.current = null;
       };
     } catch (e) {
       safeFail("Init error:", e);
@@ -979,6 +1050,24 @@ export default function TableTennisRoyal() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awardPoint, difficultyRef, g, placeForServe, serve, setCallRef]);
+
+
+  useEffect(() => {
+    const t = three.current;
+    const rig = lightRig.current;
+    if (!t || !rig) return;
+
+    const hdriPreset = HDRI_PRESETS[hdriMode];
+    rig.ambient.intensity = hdriPreset.ambient;
+    rig.key.intensity = hdriPreset.key;
+    t.renderer.toneMappingExposure = hdriPreset.exposure;
+
+    const pixelRatioCap = graphicsQuality === "high" ? 2 : graphicsQuality === "medium" ? 1.5 : 1;
+    t.renderer.setPixelRatio(Math.min(pixelRatioCap, window.devicePixelRatio || 1));
+    rig.key.castShadow = graphicsQuality !== "low";
+    const shadowSize = graphicsQuality === "high" ? 2048 : graphicsQuality === "medium" ? 1024 : 512;
+    rig.key.shadow.mapSize.set(shadowSize, shadowSize);
+  }, [graphicsQuality, hdriMode]);
 
   const phaseLabel = ui.phase === "ready" ? "READY" : ui.phase === "serving" ? "SERVE" : ui.phase === "rally" ? "RALLY" : "GAME";
   const serverLabel = ui.score.server === "player" ? "YOU" : "AI";
@@ -1004,15 +1093,57 @@ export default function TableTennisRoyal() {
           </div>
         )}
 
-        <div style={{ position: "absolute", left: 0, right: 0, top: 8, display: "flex", justifyContent: "center" }}>
-          <div style={{ background: "rgba(0,0,0,0.65)", color: "#fff", fontSize: 12, padding: "8px 12px", borderRadius: 16, display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ fontWeight: 800 }}>YOU {ui.score.player}</span>
-            <span>•</span>
-            <span style={{ fontWeight: 800 }}>AI {ui.score.ai}</span>
-            <span style={{ opacity: 0.85 }}>SERVER {serverLabel}</span>
-            <span style={{ opacity: 0.85 }}>{phaseLabel}</span>
-            {ui.call && <span style={{ fontWeight: 800 }}>• {ui.call}</span>}
+        <div style={{ position: "absolute", left: 0, right: 0, top: 8, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+          <div
+            style={{
+              background: "linear-gradient(180deg, rgba(23,28,40,0.96), rgba(7,9,16,0.93))",
+              border: "1px solid rgba(255,255,255,0.18)",
+              color: "#fff",
+              fontSize: 12,
+              padding: "8px 12px",
+              borderRadius: 16,
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              boxShadow: "0 12px 30px rgba(0,0,0,0.45)",
+              width: "min(94vw, 560px)",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <img src={me.avatar} alt={`${me.username} avatar`} style={{ width: 26, height: 26, borderRadius: 99, border: "2px solid rgba(255,255,255,0.65)", objectFit: "cover" }} />
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span style={{ fontSize: 10, opacity: 0.72 }}>PLAYER</span>
+                <span style={{ fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>{me.username}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, letterSpacing: 0.3 }}>
+              <span>{ui.score.player}</span>
+              <span style={{ opacity: 0.65 }}>:</span>
+              <span>{ui.score.ai}</span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", minWidth: 0 }}>
+                <span style={{ fontSize: 10, opacity: 0.72 }}>OPPONENT</span>
+                <span style={{ fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>{rival.username}</span>
+              </div>
+              <img src={rival.avatar} alt={`${rival.username} avatar`} style={{ width: 26, height: 26, borderRadius: 99, border: "2px solid rgba(255,255,255,0.65)", objectFit: "cover" }} />
+            </div>
           </div>
+        </div>
+
+        <div style={{ position: "absolute", right: 8, top: 66, display: "flex", gap: 8, alignItems: "center", background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12 }}>
+          <span style={{ opacity: 0.85 }}>SERVER {serverLabel}</span>
+          <span style={{ opacity: 0.55 }}>•</span>
+          <span style={{ opacity: 0.85 }}>{phaseLabel}</span>
+          {ui.call && (
+            <>
+              <span style={{ opacity: 0.55 }}>•</span>
+              <span style={{ fontWeight: 800 }}>{ui.call}</span>
+            </>
+          )}
         </div>
 
         {ui.hint && (
@@ -1021,15 +1152,56 @@ export default function TableTennisRoyal() {
           </div>
         )}
 
-        <div style={{ position: "absolute", left: 8, bottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
-          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)} style={{ padding: "6px 8px", borderRadius: 10, fontSize: 12 }}>
-            <option value="easy">AI easy</option>
-            <option value="medium">AI medium</option>
-            <option value="hard">AI hard</option>
-          </select>
-          <button onClick={reset} style={{ padding: "6px 10px", borderRadius: 10, fontSize: 12 }}>
-            Reset
+        <div style={{ position: "absolute", left: 8, top: 8, zIndex: 20 }}>
+          <button
+            onClick={() => setShowTableMenu((v) => !v)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.28)",
+              background: "rgba(0,0,0,0.66)",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: 18,
+            }}
+            aria-label="Open table menu"
+            title="Table menu"
+          >
+            ⚙️
           </button>
+          {showTableMenu && (
+            <div style={{ marginTop: 8, width: 220, background: "rgba(5,10,20,0.92)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, padding: 10, color: "#fff", fontSize: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Table Menu</div>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                <span>AI difficulty</span>
+                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                <span>Graphics</span>
+                <select value={graphicsQuality} onChange={(e) => setGraphicsQuality(e.target.value as GraphicsQuality)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+                <span>HDRI lighting</span>
+                <select value={hdriMode} onChange={(e) => setHdriMode(e.target.value as HdriMode)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
+                  <option value="off">Off</option>
+                  <option value="sport">Sport hall</option>
+                  <option value="arena">Arena bright</option>
+                </select>
+              </label>
+              <button onClick={reset} style={{ width: "100%", padding: "6px 10px", borderRadius: 8, fontSize: 12 }}>
+                Reset match
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ position: "absolute", right: 8, bottom: 8, maxWidth: 560, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: 12, padding: "8px 10px", borderRadius: 14 }}>
