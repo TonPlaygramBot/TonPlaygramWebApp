@@ -43,7 +43,7 @@ test('legal break pot keeps table open until post-break shot', () => {
 })
 
 
-test('break scratch does not foul and hands turn over with no ball in hand', () => {
+test('break scratch is a foul and gives opponent ball in hand', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
     contactOrder: [1],
@@ -51,10 +51,10 @@ test('break scratch does not foul and hands turn over with no ball in hand', () 
     cueOffTable: false
   })
 
-  assert.equal(res.foul, false)
-  assert.equal(res.reason, undefined)
+  assert.equal(res.foul, true)
+  assert.equal(res.reason, 'scratch')
   assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, false)
+  assert.equal(res.ballInHandNext, true)
   assert.equal(game.state.currentPlayer, 'B')
   assert.equal(game.state.breakInProgress, false)
   assert.equal(game.state.assignments.A, null)
