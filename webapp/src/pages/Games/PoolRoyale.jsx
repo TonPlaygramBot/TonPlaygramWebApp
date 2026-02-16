@@ -1060,9 +1060,9 @@ const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
   field: false,
-  cushions: false,
-  jaws: false,
-  pockets: false
+  cushions: true,
+  jaws: true,
+  pockets: true
 });
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
@@ -6868,6 +6868,31 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
+  const hasCushionSegments =
+    Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
+  if (hasCushionSegments) {
+    CUSHION_SEGMENTS.forEach((segment) => {
+      if (!segment?.start || !segment?.end || !segment?.normal) return;
+      TMP_VEC2_A.copy(segment.end).sub(segment.start);
+      const segLenSq = TMP_VEC2_A.lengthSq();
+      if (segLenSq < 1e-8) return;
+      const towardRail = dirNorm.dot(segment.normal);
+      if (towardRail >= -1e-7) return;
+      const segPerp = TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x);
+      const denom = dirNorm.dot(segPerp);
+      if (Math.abs(denom) < 1e-8) return;
+      TMP_VEC2_C.copy(segment.start).sub(cuePos);
+      const t = TMP_VEC2_C.dot(segPerp) / denom;
+      if (!(t >= 0 && t < tHit)) return;
+      const hitPoint = TMP_VEC2_D.copy(dirNorm).multiplyScalar(t).add(cuePos);
+      const u = TMP_VEC2_C.copy(hitPoint).sub(segment.start).dot(TMP_VEC2_A) / segLenSq;
+      if (u < -1e-4 || u > 1 + 1e-4) return;
+      tHit = t;
+      railNormal = segment.normal.clone().normalize();
+      targetBall = null;
+    });
+  }
+
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const checkRail = (t, normal) => {
@@ -6878,14 +6903,16 @@ function calcTarget(cue, dir, balls) {
     }
   };
 
-  if (dirNorm.x < -1e-8)
-    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
-  if (dirNorm.x > 1e-8)
-    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
-  if (dirNorm.y < -1e-8)
-    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
-  if (dirNorm.y > 1e-8)
-    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  if (!hasCushionSegments) {
+    if (dirNorm.x < -1e-8)
+      checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
+    if (dirNorm.x > 1e-8)
+      checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
+    if (dirNorm.y < -1e-8)
+      checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
+    if (dirNorm.y > 1e-8)
+      checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  }
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -23266,6 +23293,7 @@ const powerRef = useRef(hud.power);
         );
         if (
           !cue?.active ||
+          breakRollPending ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
           currentHud?.over ||
@@ -27204,11 +27232,21 @@ const powerRef = useRef(hud.power);
           ) {
             sidePocketAimRef.current = true;
           }
+          const breakInProgress = Boolean(
+            frameRef.current?.meta?.breakInProgress ||
+              frameRef.current?.meta?.state?.breakInProgress ||
+              frameState?.meta?.breakInProgress ||
+              frameState?.meta?.state?.breakInProgress
+          );
+          const openTableAim =
+            legalTargets.includes('SOLID') && legalTargets.includes('STRIPE');
           const aimingWrong =
             targetBall &&
             !railNormal &&
             targetBallColor &&
             legalTargets.length > 0 &&
+            !openTableAim &&
+            !breakInProgress &&
             !legalTargets.includes(targetBallColor);
           const primaryColor = aimingWrong
             ? 0xff3333
