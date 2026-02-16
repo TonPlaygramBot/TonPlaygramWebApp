@@ -490,7 +490,9 @@ export class PoolRoyaleRules {
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      breakLegal: context.breakLegal,
+      breakRailContacts: context.breakRailContacts
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeAmericanState(game.state);
@@ -605,7 +607,9 @@ export class PoolRoyaleRules {
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      breakLegal: context.breakLegal,
+      breakRailContacts: context.breakRailContacts
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeNineState(game.state);
