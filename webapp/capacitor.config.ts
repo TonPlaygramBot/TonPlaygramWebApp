@@ -23,8 +23,14 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: 'https',
-    hostname: 'tonplaygram.com',
-    allowNavigation: ['tonplaygram.com', 'api.tonplaygram.com'],
+    // Production host used by the Android shell.
+    hostname: 'tonplaygram-bot.onrender.com',
+    allowNavigation: [
+      'tonplaygram-bot.onrender.com',
+      // Keep existing production domains for future migrations.
+      'tonplaygram.com',
+      'api.tonplaygram.com'
+    ],
     urlScheme: 'tonplaygram',
     urlHostname: 'tonplaygram'
   }
