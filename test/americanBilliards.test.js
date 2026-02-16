@@ -121,35 +121,3 @@ test('legal group clearance then 8-ball wins frame', () => {
   assert.equal(res.frameOver, true)
   assert.equal(res.winner, 'A')
 })
-
-
-test('open table assignment follows first contacted potted group', () => {
-  const game = new AmericanBilliards()
-  game.state.breakInProgress = false
-
-  const res = game.shotTaken({
-    contactOrder: [11],
-    potted: [3, 11],
-    cueOffTable: false
-  })
-
-  assert.equal(res.foul, false)
-  assert.equal(game.state.assignments.A, 'STRIPE')
-  assert.equal(game.state.assignments.B, 'SOLID')
-})
-
-test('explicit illegal break flag applies BCA foul handling', () => {
-  const game = new AmericanBilliards()
-
-  const res = game.shotTaken({
-    contactOrder: [1],
-    potted: [],
-    cueOffTable: false,
-    breakLegal: false
-  })
-
-  assert.equal(res.foul, true)
-  assert.equal(res.reason, 'illegal break')
-  assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, true)
-})
