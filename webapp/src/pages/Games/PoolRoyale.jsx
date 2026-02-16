@@ -1059,10 +1059,10 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
-  field: false,
-  cushions: false,
-  jaws: false,
-  pockets: false
+  field: true,
+  cushions: true,
+  jaws: true,
+  pockets: true
 });
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
@@ -6868,8 +6868,7 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
-  const limX = RAIL_LIMIT_X;
-  const limY = RAIL_LIMIT_Y;
+  const segmentList = Array.isArray(CUSHION_SEGMENTS) ? CUSHION_SEGMENTS : [];
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -6877,15 +6876,45 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
+  const intersectRayWithSegment = (origin, direction, segmentStart, segmentEnd) => {
+    const v1x = origin.x - segmentStart.x;
+    const v1y = origin.y - segmentStart.y;
+    const v2x = segmentEnd.x - segmentStart.x;
+    const v2y = segmentEnd.y - segmentStart.y;
+    const cross = direction.x * v2y - direction.y * v2x;
+    if (Math.abs(cross) < 1e-8) return null;
+    const t = (v2x * v1y - v2y * v1x) / cross;
+    const u = (direction.x * v1y - direction.y * v1x) / cross;
+    if (t < 0 || u < 0 || u > 1) return null;
+    return t;
+  };
 
-  if (dirNorm.x < -1e-8)
-    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
-  if (dirNorm.x > 1e-8)
-    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
-  if (dirNorm.y < -1e-8)
-    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
-  if (dirNorm.y > 1e-8)
-    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  if (segmentList.length > 0) {
+    segmentList.forEach((segment) => {
+      if (!segment?.start || !segment?.end || !segment?.normal) return;
+      const segType = segment.type ?? 'rail';
+      if (segType !== 'rail' && segType !== 'cut' && segType !== 'jaw') return;
+      const normal = segment.normal.clone();
+      if (normal.lengthSq() < 1e-8) return;
+      normal.normalize();
+      const start = segment.start.clone().sub(normal.clone().multiplyScalar(BALL_R));
+      const end = segment.end.clone().sub(normal.clone().multiplyScalar(BALL_R));
+      const t = intersectRayWithSegment(cuePos, dirNorm, start, end);
+      if (t == null) return;
+      checkRail(t, normal);
+    });
+  } else {
+    const limX = RAIL_LIMIT_X;
+    const limY = RAIL_LIMIT_Y;
+    if (dirNorm.x < -1e-8)
+      checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
+    if (dirNorm.x > 1e-8)
+      checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
+    if (dirNorm.y < -1e-8)
+      checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
+    if (dirNorm.y > 1e-8)
+      checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  }
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -13382,6 +13411,7 @@ function PoolRoyaleGame({
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
   const [breakRollState, setBreakRollState] = useState('user');
+  const breakRollStateRef = useRef('user');
   const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
   const [breakRollMessage, setBreakRollMessage] = useState('You roll first for the break.');
   const [breakRollLoadReady, setBreakRollLoadReady] = useState(false);
@@ -13476,6 +13506,10 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     breakDiceValuesRef.current = breakDiceValues;
   }, [breakDiceValues]);
+
+  useEffect(() => {
+    breakRollStateRef.current = breakRollState;
+  }, [breakRollState]);
 
   const breakRollPending = breakRollState !== 'done';
   const rollBreakDie = useCallback(
@@ -13763,13 +13797,16 @@ const powerRef = useRef(hud.power);
     if (!slider) return;
     const hudState = hudRef.current;
     const shouldLock =
-      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
+      breakRollState !== 'done' ||
+      hudState?.turn !== 0 ||
+      hudState?.over ||
+      shootingRef.current;
     if (shouldLock) slider.lock();
     else slider.unlock();
-  }, []);
+  }, [breakRollState]);
   useEffect(() => {
     applySliderLock();
-  }, [applySliderLock, hud.turn, hud.over, shotActive]);
+  }, [applySliderLock, breakRollState, hud.turn, hud.over, shotActive]);
 
   const applyLightingPreset = useCallback(
     (presetId = lightingId) => {
@@ -23265,6 +23302,7 @@ const powerRef = useRef(hud.power);
           currentHud?.inHand && !fullTableHandPlacement
         );
         if (
+          breakRollStateRef.current !== 'done' ||
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
@@ -27204,12 +27242,31 @@ const powerRef = useRef(hud.power);
           ) {
             sidePocketAimRef.current = true;
           }
+          const breakInProgress = Boolean(
+            frameRef.current?.meta?.breakInProgress ??
+              frameRef.current?.meta?.state?.breakInProgress ??
+              frameState.meta?.breakInProgress ??
+              frameState.meta?.state?.breakInProgress
+          );
+          const mapTargetToLegalIds = (targetId) => {
+            if (typeof targetId !== 'string') return [targetId];
+            const match = /^BALL_(\d+)$/i.exec(targetId);
+            if (!match) return [targetId];
+            const num = Number.parseInt(match[1], 10);
+            if (!Number.isFinite(num)) return [targetId];
+            if (num === 8) return ['BALL_8', 'BLACK'];
+            return num >= 9 ? ['BALL_' + num, 'STRIPE'] : ['BALL_' + num, 'SOLID'];
+          };
+          const legalTargetHit =
+            targetBallColor &&
+            legalTargets.some((target) => mapTargetToLegalIds(targetBallColor).includes(target));
           const aimingWrong =
+            !breakInProgress &&
             targetBall &&
             !railNormal &&
             targetBallColor &&
             legalTargets.length > 0 &&
-            !legalTargets.includes(targetBallColor);
+            !legalTargetHit;
           const primaryColor = aimingWrong
             ? 0xff3333
             : targetBall && !railNormal
