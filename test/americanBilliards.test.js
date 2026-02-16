@@ -43,6 +43,22 @@ test('legal break pot keeps table open until post-break shot', () => {
 })
 
 
+
+test('dry break with no rail is illegal under BCA handling', () => {
+  const game = new AmericanBilliards()
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [],
+    cueOffTable: false,
+    noCushionAfterContact: true
+  })
+
+  assert.equal(res.foul, true)
+  assert.equal(res.reason, 'illegal break')
+  assert.equal(res.nextPlayer, 'B')
+  assert.equal(res.ballInHandNext, true)
+})
+
 test('break scratch is a foul and gives opponent ball in hand', () => {
   const game = new AmericanBilliards()
   const res = game.shotTaken({
@@ -120,4 +136,33 @@ test('legal group clearance then 8-ball wins frame', () => {
   assert.equal(res.foul, false)
   assert.equal(res.frameOver, true)
   assert.equal(res.winner, 'A')
+})
+
+
+test('8-ball on break plus scratch is loss of frame (BCA)', () => {
+  const game = new AmericanBilliards()
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [8, 0],
+    cueOffTable: false
+  })
+
+  assert.equal(res.frameOver, true)
+  assert.equal(res.foul, true)
+  assert.equal(res.winner, 'B')
+})
+
+test('lone 8-ball on break is spotted and turn passes', () => {
+  const game = new AmericanBilliards()
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [8],
+    cueOffTable: false
+  })
+
+  assert.equal(res.frameOver, false)
+  assert.equal(res.foul, false)
+  assert.equal(res.nextPlayer, 'B')
+  assert.equal(game.state.currentPlayer, 'B')
+  assert.equal(game.state.ballsOnTable.has(8), true)
 })
