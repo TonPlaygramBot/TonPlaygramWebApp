@@ -493,12 +493,7 @@ export class PoolRoyaleRules {
       noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
-    const wasBreakShot = Boolean(previous?.state?.breakInProgress ?? true);
     const snapshot = serializeAmericanState(game.state);
-    if (wasBreakShot && pottedCount > 0 && !result.foul && !snapshot.frameOver) {
-      snapshot.currentPlayer = state.activePlayer;
-      game.state.currentPlayer = state.activePlayer;
-    }
     const ballOn = this.computeAmericanBallOn(snapshot);
     const scores = this.computeAmericanScores(snapshot);
     const frameOver = snapshot.frameOver;
@@ -613,12 +608,7 @@ export class PoolRoyaleRules {
       noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
-    const wasBreakShot = Boolean(previous?.state?.breakInProgress ?? true);
     const snapshot = serializeNineState(game.state);
-    if (wasBreakShot && pottedCount > 0 && !result.foul && !snapshot.gameOver) {
-      snapshot.currentPlayer = state.activePlayer;
-      game.state.currentPlayer = state.activePlayer;
-    }
     const lowest = lowestBall(snapshot.ballsOnTable);
     const hud: HudInfo = {
       next: snapshot.gameOver ? 'frame over' : lowest != null ? `ball ${lowest}` : 'nine',
