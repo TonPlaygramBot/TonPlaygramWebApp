@@ -1,5 +1,3 @@
-import { isTelegramWebView, unlockTelegramAudio } from './telegramAudioUnlock.js';
-
 const DEFAULT_VOICE_HINTS = {
   Mason: ['en-US', 'English', 'Male', 'Google US English Male', 'David', 'Guy'],
   Lena: ['en-GB', 'English', 'Female', 'Google UK English Female', 'Sonia', 'Hazel']
@@ -309,62 +307,7 @@ export const speakCommentaryLines = async (
 ) => {
   const synth = getSpeechSynthesis();
   const UtteranceClass = getSpeechUtteranceClass();
-  if (!Array.isArray(lines) || lines.length === 0) return;
-
-  // Telegram Android WebView often blocks or breaks speechSynthesis audio output.
-  // Best-effort fallback: request server-side TTS audio and play it.
-  if (isTelegramWebView()) {
-    const ok = await unlockTelegramAudio();
-    if (!ok) {
-      // If we cannot unlock audio yet, bail silently; next user tap should unlock.
-      return;
-    }
-
-    const baseUrl = import.meta?.env?.VITE_API_BASE_URL || '';
-    const endpoint = `${baseUrl}/api/tts/speak`;
-
-    for (const line of lines) {
-      const speaker = line.speaker || 'Mason';
-      const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
-      const text = String(line.text || '').trim();
-      if (!text) continue;
-
-      try {
-        const resp = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
-          },
-          body: JSON.stringify({
-            text,
-            voice: speaker === 'Lena' ? 'alloy' : 'alloy',
-            speed: Math.max(0.8, Math.min(1.2, settings.rate || 1))
-          })
-        });
-
-        if (!resp.ok) continue;
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.volume = Math.max(0, Math.min(1, settings.volume ?? 1));
-
-        await new Promise((resolve) => {
-          const done = () => {
-            try { URL.revokeObjectURL(url); } catch {}
-            resolve();
-          };
-          audio.onended = done;
-          audio.onerror = done;
-          audio.play().catch(done);
-        });
-      } catch {
-        // Ignore and fall back to native speech synthesis below if available.
-      }
-    }
-
-    return;
-  }
+  if (!synth || !UtteranceClass || !Array.isArray(lines) || lines.length === 0) return;
 
   const voices = await loadVoices(synth);
   const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Mason'))];
