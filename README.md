@@ -173,6 +173,21 @@ npm test
 
 `./.github/workflows/native-build.yml` performs a build of the web assets, runs `cap sync`, and produces unsigned debug Android APK/AAB plus an iOS archive (code signing disabled). Trigger it via **Workflow dispatch** when you need fresh artifacts without touching UI layout or gameplay code.
 
+### Store thumbnails (auto screenshots)
+
+We can generate real in-game screenshots for Store items.
+
+- Build the webapp, start a local preview server, then run:
+
+```bash
+npm --prefix webapp run build
+npm --prefix webapp run preview -- --host 127.0.0.1 --port 5173
+THUMB_BASE_URL=http://127.0.0.1:5173 THUMB_LIMIT=3 npm run thumbs:pool-table-finishes
+```
+
+Generated PNGs are written under:
+- `webapp/public/store-thumbs/poolRoyale/tableFinish/*.png`
+
 ### Render deploy (single-service)
 
 If you deploy only the backend service on Render (recommended for simplicity), the backend will serve the built webapp from `webapp/dist`.

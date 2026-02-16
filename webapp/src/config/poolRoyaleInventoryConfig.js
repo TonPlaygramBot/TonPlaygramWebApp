@@ -444,7 +444,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Wood Peeling Paint Weathered Finish',
     price: 980,
     description: 'Weathered peeling paint wood rails with a reclaimed finish.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.peelingPaintWeathered
+    thumbnail: '/store-thumbs/poolRoyale/tableFinish/peelingPaintWeathered.png'
   },
   {
     id: 'finish-oakVeneer01',
@@ -453,7 +453,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Oak Veneer 01 Finish',
     price: 990,
     description: 'Warm oak veneer rails with smooth satin polish.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01
+    thumbnail: '/store-thumbs/poolRoyale/tableFinish/oakVeneer01.png'
   },
   {
     id: 'finish-woodTable001',
@@ -462,7 +462,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Wood Table 001 Finish',
     price: 1000,
     description: 'Balanced walnut-brown rails inspired by classic table slabs.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.woodTable001
+    thumbnail: '/store-thumbs/poolRoyale/tableFinish/woodTable001.png'
   },
   {
     id: 'finish-darkWood',

@@ -46,6 +46,8 @@ import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
 import TableTennisRoyalLobby from './pages/Games/TableTennisRoyalLobby.jsx';
 
+import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
+
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -177,6 +179,12 @@ export default function App() {
             <Route path="/account" element={<MyAccount />} />
             <Route path="/nfts" element={<Nfts />} />
             <Route path="/platform-stats" element={<PlatformStatsDetails />} />
+
+            {/* Internal tools (used for automated store thumbnail generation) */}
+            <Route
+              path="/tools/store-thumb/poolroyale/table-finish/:finishId"
+              element={<StoreThumbnailStudioPoolRoyale />}
+            />
           </Routes>
         </Layout>
       </TonConnectUIProvider>
