@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
 import { proxyAgent } from './utils/proxyAgent.js';
-
+import ownerOnly from './middleware/ownerOnly.js';
 
 // Commands
 import registerStart from './commands/start.js';
@@ -16,6 +16,10 @@ import registerModeration from './middleware/moderation.js';
 const bot = new Telegraf(process.env.BOT_TOKEN, {
   telegram: { agent: proxyAgent }
 });
+
+// If OWNER_TELEGRAM_ID is set, only respond to that Telegram user id.
+ownerOnly(bot);
+
 registerStart(bot);
 registerMine(bot);
 registerWatch(bot);
