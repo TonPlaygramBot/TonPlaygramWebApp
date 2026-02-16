@@ -1,10 +1,10 @@
-import * as THREE from "https://esm.sh/three@0.160.0";
-import { OrbitControls } from "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js";
-import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/RGBELoader.js";
-import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
+import * as THREE from "/vendor/three/build/three.module.js";
+import { OrbitControls } from "/vendor/three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "/vendor/three/examples/jsm/environments/RoomEnvironment.js";
+import { RoundedBoxGeometry } from "/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { GLTFLoader } from "/vendor/three/examples/jsm/loaders/GLTFLoader.js";
+import { RGBELoader } from "/vendor/three/examples/jsm/loaders/RGBELoader.js";
+import { DRACOLoader } from "/vendor/three/examples/jsm/loaders/DRACOLoader.js";
 import "./flag-emojis.js";
 
 const urlParams = new URLSearchParams(window.location.search);
