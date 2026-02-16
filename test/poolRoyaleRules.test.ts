@@ -70,6 +70,7 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
+    expect(cleared.activePlayer).toBe('A');
     expect(cleared.ballOn).toEqual(['SOLID', 'STRIPE']);
     expect(clearedMeta?.state?.assignments?.A).toBeNull();
     expect(clearedMeta?.state?.assignments?.B).toBeNull();
@@ -92,6 +93,30 @@ describe('PoolRoyaleRules', () => {
     expect(scratch.ballOn).toEqual(['SOLID', 'STRIPE']);
     expect(scratchMeta?.hud?.next).toBe('open table');
     expect(scratchMeta?.hud?.phase).toBe('open');
+  });
+
+
+  test('Nine-ball break pot keeps the breaker at the table', () => {
+    const rules = new PoolRoyaleRules('9ball');
+    const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
+
+    const breakPotEvents: ShotEvent[] = [
+      { type: 'HIT', firstContact: 1, ballId: 1 },
+      { type: 'POTTED', ball: 1, pocket: 'TM', ballId: 1 }
+    ];
+
+    const afterBreakPot = rules.applyShot(initialFrame, breakPotEvents, {
+      placedFromHand: true,
+      contactMade: true,
+      cushionAfterContact: true
+    });
+    const breakMeta = afterBreakPot.meta as any;
+
+    expect(afterBreakPot.foul).toBeUndefined();
+    expect(afterBreakPot.activePlayer).toBe('A');
+    expect(breakMeta?.state?.currentPlayer).toBe('A');
+    expect(breakMeta?.state?.breakInProgress).toBe(false);
+    expect(afterBreakPot.ballOn).toEqual(['BALL_2']);
   });
 
   test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {

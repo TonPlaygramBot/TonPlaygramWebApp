@@ -8007,7 +8007,8 @@ export function Table3D(
   const markingMat = new THREE.MeshBasicMaterial({
     color: palette.markings,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0,
+    depthWrite: false,
     side: THREE.DoubleSide
   });
   const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
@@ -26937,7 +26938,7 @@ const powerRef = useRef(hud.power);
           isAiTurn && activeAiPlan?.aimDir && (previewingAiShot || aiCueViewActive);
         const shouldAutoAimPlayer =
           isPlayerTurn &&
-          autoAimRequestRef.current &&
+          (autoAimRequestRef.current || suggestionAimKeyRef.current != null) &&
           !inHandPlacementModeRef.current &&
           !shooting;
         const shouldAutoAimAi =
@@ -26946,7 +26947,10 @@ const powerRef = useRef(hud.power);
           !shooting &&
           !shouldLockAiAim;
         const autoAimDir = shouldAutoAimPlayer
-          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: true })
+          ? resolveAutoAimDirection({
+              turnOwner: 'player',
+              cycleToNext: Boolean(autoAimRequestRef.current)
+            })
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
