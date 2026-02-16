@@ -1,7 +1,5 @@
 import React, { Component, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { getTelegramFirstName, getTelegramPhotoUrl } from "../../utils/telegram.js";
-import { loadAvatar } from "../../utils/avatarUtils.js";
 
 /**
  * File: src/TableTennis3D_VanillaThree.tsx
@@ -44,8 +42,6 @@ class ErrorBoundary extends Component<{ children?: React.ReactNode }, ErrState> 
 
 type Side = "player" | "ai";
 type Difficulty = "easy" | "medium" | "hard";
-type GraphicsMode = "low" | "medium" | "high";
-type HdriMode = "arena" | "night" | "classic";
 type Phase = "ready" | "serving" | "rally" | "gameOver";
 type Call = "" | "SERVE" | "FAULT" | "LET" | "NET" | "OUT" | "DOUBLE" | "MISS";
 
@@ -104,11 +100,11 @@ const PHYS = {
 } as const;
 
 const POWER = {
-  serveSpeedBase: U(3.12),
-  serveSpeedMax: U(4.3),
+  serveSpeedBase: U(3.0),
+  serveSpeedMax: U(4.1),
   serveUpMin: U(1.05),
-  hitSpeedBase: U(2.5),
-  hitSpeedMax: U(7.9),
+  hitSpeedBase: U(2.35),
+  hitSpeedMax: U(7.6),
   targetZPad: U(0.45),
   swipeXToSpin: 0.00062,
   swipeYToSpin: 0.00046,
@@ -121,29 +117,17 @@ const AI = {
   jitter: { easy: U(0.10), medium: U(0.06), hard: U(0.04) },
   hitChance: { easy: 0.86, medium: 0.93, hard: 0.97 },
   serveDelayMs: { easy: 900, medium: 750, hard: 620 },
-  sideBias: { easy: 0.64, medium: 0.82, hard: 0.92 },
+  sideBias: { easy: 0.60, medium: 0.75, hard: 0.88 },
   aimStrength: { easy: 0.55, medium: 0.75, hard: 0.95 },
   spinStrength: { easy: 0.55, medium: 0.75, hard: 0.95 },
-  hitPowerScale: { easy: 0.74, medium: 0.84, hard: 0.94 },
+  hitPowerScale: { easy: 0.72, medium: 0.78, hard: 0.84 },
 } as const;
 
 const CAM = {
   follow: 0.07,
-  yBase: TABLE.H + U(0.76),
-  zBase: TABLE.L * 0.98,
+  yBase: TABLE.H + U(0.72),
+  zBase: TABLE.L * 0.88,
 } as const;
-
-const HDRI_PRESETS: Record<HdriMode, { bg: string; key: number; ambient: number; floor: number }> = {
-  arena: { bg: "#070b1a", key: 1.05, ambient: 0.58, floor: 0x0f1222 },
-  night: { bg: "#04070f", key: 0.88, ambient: 0.44, floor: 0x0a1020 },
-  classic: { bg: "#10203a", key: 1.12, ambient: 0.62, floor: 0x1a1f33 },
-};
-
-const GRAPHICS_PRESETS: Record<GraphicsMode, { pixelRatio: number; shadows: boolean }> = {
-  low: { pixelRatio: 1, shadows: false },
-  medium: { pixelRatio: 1.35, shadows: true },
-  high: { pixelRatio: 2, shadows: true },
-};
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -490,38 +474,10 @@ export default function TableTennisRoyal() {
   const { g, onDown, onMove, onUp } = useTouch(rootRef);
 
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-  const [graphics, setGraphics] = useState<GraphicsMode>("high");
-  const [hdri, setHdri] = useState<HdriMode>("arena");
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [playerName, setPlayerName] = useState("You");
-  const [playerAvatar, setPlayerAvatar] = useState("");
   const difficultyRef = useRef<Difficulty>("medium");
-  const graphicsRef = useRef<GraphicsMode>("high");
-  const hdriRef = useRef<HdriMode>("arena");
   useEffect(() => {
     difficultyRef.current = difficulty;
   }, [difficulty]);
-  useEffect(() => {
-    graphicsRef.current = graphics;
-  }, [graphics]);
-  useEffect(() => {
-    hdriRef.current = hdri;
-  }, [hdri]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const g = params.get("graphics");
-    if (g === "low" || g === "medium" || g === "high") setGraphics(g);
-  }, []);
-
-  useEffect(() => {
-    setPlayerName(getTelegramFirstName() || "You");
-    try {
-      setPlayerAvatar(loadAvatar() || getTelegramPhotoUrl() || "");
-    } catch {
-      setPlayerAvatar(getTelegramPhotoUrl() || "");
-    }
-  }, []);
 
   const [ui, setUi] = useState<{ phase: Phase; score: Score; call: Call; hint: string }>({
     phase: "ready",
@@ -696,9 +652,8 @@ export default function TableTennisRoyal() {
 
       setBoot("Creating renderer…");
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-      const qualityPreset = GRAPHICS_PRESETS[graphicsRef.current];
-      renderer.setPixelRatio(Math.min(qualityPreset.pixelRatio, window.devicePixelRatio || 1));
-      renderer.shadowMap.enabled = qualityPreset.shadows;
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.position = "absolute";
       renderer.domElement.style.inset = "0";
@@ -708,22 +663,19 @@ export default function TableTennisRoyal() {
 
       setBoot("Building scene…");
       const scene = new THREE.Scene();
-      const hdriPreset = HDRI_PRESETS[hdriRef.current];
-      scene.background = new THREE.Color(hdriPreset.bg);
+      scene.background = new THREE.Color("#070b1a");
       const camera = new THREE.PerspectiveCamera(55, 1, 0.01, U(300));
 
-      const ambient = new THREE.AmbientLight(0xffffff, hdriPreset.ambient);
-      scene.add(ambient);
-      const key = new THREE.DirectionalLight(0xffffff, hdriPreset.key);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      const key = new THREE.DirectionalLight(0xffffff, 1.0);
       key.position.set(U(2.2), U(4.2), U(2.2));
       key.castShadow = true;
       key.shadow.mapSize.set(2048, 2048);
       scene.add(key);
 
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(U(30), U(30)), new THREE.MeshStandardMaterial({ color: hdriPreset.floor, roughness: 0.95, metalness: 0.05 }));
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(U(30), U(30)), new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 }));
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = 0;
-      floor.userData.isArenaFloor = true;
       floor.receiveShadow = true;
       scene.add(floor);
 
@@ -1028,32 +980,6 @@ export default function TableTennisRoyal() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awardPoint, difficultyRef, g, placeForServe, serve, setCallRef]);
 
-  useEffect(() => {
-    const t = three.current;
-    if (!t) return;
-    const qualityPreset = GRAPHICS_PRESETS[graphics];
-    t.renderer.setPixelRatio(Math.min(qualityPreset.pixelRatio, window.devicePixelRatio || 1));
-    t.renderer.shadowMap.enabled = qualityPreset.shadows;
-    const w = mountRef.current?.clientWidth || 1;
-    const h = mountRef.current?.clientHeight || 1;
-    t.renderer.setSize(w, h, false);
-  }, [graphics]);
-
-  useEffect(() => {
-    const t = three.current;
-    if (!t) return;
-    const p = HDRI_PRESETS[hdri];
-    t.scene.background = new THREE.Color(p.bg);
-    t.scene.traverse((obj) => {
-      if (obj instanceof THREE.AmbientLight) obj.intensity = p.ambient;
-      if (obj instanceof THREE.DirectionalLight) obj.intensity = p.key;
-      if (obj instanceof THREE.Mesh && obj.userData?.isArenaFloor) {
-        const mat = obj.material as THREE.MeshStandardMaterial;
-        if (mat?.color) mat.color.setHex(p.floor);
-      }
-    });
-  }, [hdri]);
-
   const phaseLabel = ui.phase === "ready" ? "READY" : ui.phase === "serving" ? "SERVE" : ui.phase === "rally" ? "RALLY" : "GAME";
   const serverLabel = ui.score.server === "player" ? "YOU" : "AI";
 
@@ -1078,50 +1004,11 @@ export default function TableTennisRoyal() {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setSettingsOpen((v) => !v)}
-          style={{ position: "absolute", left: 8, top: 8, zIndex: 3, width: 36, height: 36, borderRadius: 999, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.62)", color: "#fff", fontSize: 18 }}
-          aria-label="Open table tennis menu"
-        >
-          ☰
-        </button>
-
-        {settingsOpen && (
-          <div style={{ position: "absolute", left: 8, top: 52, zIndex: 3, width: 210, background: "rgba(7,12,28,0.95)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 14, padding: 10, color: "#fff", fontSize: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 700, letterSpacing: 0.4 }}>Game Menu</div>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span>Graphics</span>
-              <select value={graphics} onChange={(e) => setGraphics(e.target.value as GraphicsMode)} style={{ padding: "6px 8px", borderRadius: 8, color: "#000" }}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span>HDRI</span>
-              <select value={hdri} onChange={(e) => setHdri(e.target.value as HdriMode)} style={{ padding: "6px 8px", borderRadius: 8, color: "#000" }}>
-                <option value="arena">Arena</option>
-                <option value="night">Night</option>
-                <option value="classic">Classic</option>
-              </select>
-            </label>
-          </div>
-        )}
-
-        <div style={{ position: "absolute", left: 0, right: 0, top: 8, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ background: "rgba(0,0,0,0.65)", color: "#fff", fontSize: 12, padding: "8px 12px", borderRadius: 16, display: "flex", gap: 10, alignItems: "center", border: "1px solid rgba(255,255,255,0.14)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 20, height: 20, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
-                {playerAvatar ? <img src={playerAvatar} alt={`${playerName} avatar`} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
-              </div>
-              <span style={{ fontWeight: 800 }}>{playerName} {ui.score.player}</span>
-            </div>
-            <span>:</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "linear-gradient(135deg,#4ade80,#22d3ee)", border: "1px solid rgba(255,255,255,0.25)", display: "grid", placeItems: "center", fontSize: 10 }}>AI</div>
-              <span style={{ fontWeight: 800 }}>Royal Bot {ui.score.ai}</span>
-            </div>
+        <div style={{ position: "absolute", left: 0, right: 0, top: 8, display: "flex", justifyContent: "center" }}>
+          <div style={{ background: "rgba(0,0,0,0.65)", color: "#fff", fontSize: 12, padding: "8px 12px", borderRadius: 16, display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontWeight: 800 }}>YOU {ui.score.player}</span>
+            <span>•</span>
+            <span style={{ fontWeight: 800 }}>AI {ui.score.ai}</span>
             <span style={{ opacity: 0.85 }}>SERVER {serverLabel}</span>
             <span style={{ opacity: 0.85 }}>{phaseLabel}</span>
             {ui.call && <span style={{ fontWeight: 800 }}>• {ui.call}</span>}
