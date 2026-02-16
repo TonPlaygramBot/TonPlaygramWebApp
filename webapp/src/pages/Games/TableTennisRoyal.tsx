@@ -838,10 +838,7 @@ export default function TableTennisRoyal() {
       scene.add(key);
       lightRig.current = { ambient, key };
 
-      const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(U(30), U(30)),
-        new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.24 })
-      );
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(U(30), U(30)), new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 }));
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = 0;
       floor.receiveShadow = true;
