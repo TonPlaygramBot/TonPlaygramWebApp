@@ -61,7 +61,7 @@
      the main account receives 9% and this account receives 2%.
    - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
      endpoints outside Telegram.
-   - `VITE_LAUNCHER_URL` – HTTPS link to the signed `tonplaygram-launcher.apk` hosted on your CDN/object storage so `Home.jsx` links to the correct binary.
+   - `VITE_LAUNCHER_URL` – HTTPS link to the signed `tonplaygram-launcher.apk` hosted on your CDN/object storage (or GitHub Releases) so `Home.jsx` links to the correct binary.
 
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and

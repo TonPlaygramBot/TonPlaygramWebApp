@@ -1,0 +1,63 @@
+name: Android APK (launcher)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. launcher-v1)"
+        required: true
+        default: "launcher-latest"
+      prerelease:
+        description: "Mark as prerelease"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm run install-all
+
+      - name: Build webapp
+        run: npm --prefix webapp run build
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: webapp/android
+        run: ./gradlew assembleDebug
+
+      - name: Prepare APK
+        run: |
+          cp webapp/android/app/build/outputs/apk/debug/app-debug.apk tonplaygram-launcher.apk
+          ls -la tonplaygram-launcher.apk
+
+      - name: Create/Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: TonPlaygram Android Launcher
+          prerelease: ${{ inputs.prerelease }}
+          files: tonplaygram-launcher.apk
+          fail_on_unmatched_files: true
