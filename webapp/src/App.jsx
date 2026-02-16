@@ -43,6 +43,8 @@ import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
+import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
+import TableTennisRoyalLobby from './pages/Games/TableTennisRoyalLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
@@ -149,6 +151,11 @@ export default function App() {
               element={<SnookerRoyalLobby />}
             />
             <Route path="/games/snookerroyale" element={<SnookerRoyal />} />
+            <Route
+              path="/games/tabletennisroyal/lobby"
+              element={<TableTennisRoyalLobby />}
+            />
+            <Route path="/games/tabletennisroyal" element={<TableTennisRoyal />} />
             <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}

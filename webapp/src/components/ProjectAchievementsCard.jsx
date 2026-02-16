@@ -334,6 +334,10 @@ export default function ProjectAchievementsCard() {
       info:
         'American Billiards is available with table physics tuned for the ruleset; ranked matchmaking and tournaments are still planned.',
     },
+    'Table Tennis Royal': {
+      info:
+        'Table Tennis Royal is live with a full 3D rally loop, fast swipe controls, and the same cosmetics pipeline used by Pool Royale.',
+    },
   };
   const getGameInfo = (game) =>
     liveGameDetails[game.name]?.info

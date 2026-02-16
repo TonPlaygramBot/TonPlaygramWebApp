@@ -642,6 +642,14 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
+  tabletennisroyal: {
+    name: 'Table Tennis Royal',
+    items: POOL_ROYALE_STORE_ITEMS,
+    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
+    labels: POOL_ROYALE_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   snookerroyale: {
     name: 'Snooker Royal',
     items: SNOOKER_ROYALE_STORE_ITEMS,
@@ -868,6 +876,7 @@ export default function Store() {
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
+      tabletennisroyal: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tabletennisroyal' })),
       snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerroyale' })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
@@ -883,6 +892,7 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
+      tabletennisroyal: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
       snookerroyale: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
@@ -898,6 +908,7 @@ export default function Store() {
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      tabletennisroyal: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snookerroyale: (item) => SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -913,6 +924,7 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
+      tabletennisroyal: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
@@ -1418,7 +1430,7 @@ export default function Store() {
 
       for (const [slug, group] of Object.entries(groupedBySlug)) {
         for (const entry of group.items) {
-          if (slug === 'poolroyale') {
+          if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
             const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
             setPoolOwned(updated);
           } else if (slug === 'snookerroyale') {
