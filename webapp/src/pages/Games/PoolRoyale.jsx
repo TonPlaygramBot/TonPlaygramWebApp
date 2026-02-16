@@ -579,7 +579,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 0.958;
+const POCKET_VISUAL_EXPANSION = 1;
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
@@ -1138,7 +1138,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.986; // trim corner-jaw collision arc slightly to stop overlap on angled cuts while preserving pocket mapping
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs identical to the rendered jaw geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1189,8 +1189,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE =
-  1.1545 * 0.85 * 0.9 * 1.07 * 1.03 * 0.95 * 0.95 * 0.95 * 1.05; // increase balls by 5% while preserving the table mapping scale
+const BALL_SIZE_SCALE = 1; // lock ball size to the official 57.15mm reference diameter
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1230,12 +1229,12 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.962; // shrink side pocket cut radius slightly to tighten all six openings
+const SIDE_POCKET_CUT_SCALE = 1; // keep side pocket cut radius identical to the physical mouth geometry
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const BASE_CORNER_POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const CORNER_POCKET_RADIUS_SCALE = 0.962; // trim only the corner pocket radius a bit more while keeping middle pockets untouched
+const CORNER_POCKET_RADIUS_SCALE = 1; // keep corner pocket radius identical to the physical mouth geometry
 const POCKET_VIS_R = BASE_CORNER_POCKET_VIS_R * CORNER_POCKET_RADIUS_SCALE;
 const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior diameter tight at the rim for slightly smaller pocket openings
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1283,7 +1282,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.24; // lift balls a bit more so they roll clearly on the cloth top surface
+const BALL_CENTER_LIFT = 0; // keep ball centers exactly one radius above the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -12658,7 +12657,7 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (isTopDownView) {
       topViewLockedRef.current = true;
-      topViewControlsRef.current.enter?.(false, { variant: 'rail' });
+      topViewControlsRef.current.enter?.(false, { variant: 'top' });
     } else {
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
@@ -18923,17 +18922,45 @@ const powerRef = useRef(hud.power);
             }
           }
           if (!overheadApplied) {
-            const fallbackTarget =
-              lastCameraTargetRef.current?.clone?.() ?? topFocusTarget.clone();
-            camera.up.set(0, 1, 0);
-            camera.lookAt(fallbackTarget);
-            renderCamera = camera;
-            lookTarget = fallbackTarget;
-            lastCameraTargetRef.current.copy(fallbackTarget);
-            broadcastArgs.focusWorld = fallbackTarget.clone();
-            broadcastArgs.targetWorld = fallbackTarget.clone();
-            broadcastArgs.orbitWorld = camera.position.clone();
-            broadcastArgs.lerp = 0;
+            if (overheadVariant === 'top') {
+              const topRadiusBase =
+                fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+              const topRadius = clampOrbitRadius(
+                Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+              );
+              const topTheta = Math.PI;
+              const topPhi = TOP_VIEW_RESOLVED_PHI;
+              TMP_SPH.set(topRadius, topPhi, topTheta);
+              camera.up.set(0, 0, 1);
+              camera.position.setFromSpherical(TMP_SPH);
+              camera.position.add(topFocusTarget);
+              const resolvedTarget = topFocusTarget.clone();
+              const resolvedPosition = camera.position.clone();
+              lookTarget = resolvedTarget;
+              lastCameraTargetRef.current.copy(resolvedTarget);
+              camera.updateProjectionMatrix();
+              camera.lookAt(resolvedTarget);
+              renderCamera = camera;
+              broadcastArgs.focusWorld = resolvedTarget.clone();
+              broadcastArgs.targetWorld = resolvedTarget.clone();
+              broadcastArgs.orbitWorld = resolvedPosition.clone();
+              if (broadcastCamerasRef.current) {
+                broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+              }
+              broadcastArgs.lerp = 0.12;
+            } else {
+              const fallbackTarget =
+                lastCameraTargetRef.current?.clone?.() ?? topFocusTarget.clone();
+              camera.up.set(0, 1, 0);
+              camera.lookAt(fallbackTarget);
+              renderCamera = camera;
+              lookTarget = fallbackTarget;
+              lastCameraTargetRef.current.copy(fallbackTarget);
+              broadcastArgs.focusWorld = fallbackTarget.clone();
+              broadcastArgs.targetWorld = fallbackTarget.clone();
+              broadcastArgs.orbitWorld = camera.position.clone();
+              broadcastArgs.lerp = 0;
+            }
           }
         } else {
           camera.up.set(0, 1, 0);
