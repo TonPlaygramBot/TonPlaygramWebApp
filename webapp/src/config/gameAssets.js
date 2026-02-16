@@ -14,7 +14,6 @@ export const gameThumbnails = {
   texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
   'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
-  tabletennisroyal: '/assets/icons/pool-royale.svg',
   snookerroyale: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
   goalrush: '/assets/icons/Goal%20rush%20logo.png',
   airhockey: '/assets/icons/Air%20hockey%20game%20logo.png',
@@ -52,17 +51,6 @@ export const lobbyOptionIcons = {
     'mode-online': 'lobby/pool-royale/mode-online.webp'
   },
   poolroyale: {
-    'type-regular': 'lobby/pool-royale/type-regular.webp',
-    'type-tournament': 'lobby/pool-royale/type-tournament.webp',
-    'mode-ai': 'lobby/pool-royale/mode-ai.webp',
-    'mode-online': 'lobby/pool-royale/mode-online.webp',
-    'variant-uk': '/assets/icons/8ballrack.png',
-    'variant-american': '/assets/icons/American%20Billiards%20.png',
-    'variant-9ball': '/assets/icons/9ballrack.png',
-    'ball-uk': '/assets/icons/8ballrack.png',
-    'ball-american': '/assets/icons/American%20Billiards%20.png'
-  },
-  tabletennisroyal: {
     'type-regular': 'lobby/pool-royale/type-regular.webp',
     'type-tournament': 'lobby/pool-royale/type-tournament.webp',
     'mode-ai': 'lobby/pool-royale/mode-ai.webp',
@@ -157,11 +145,6 @@ export const lobbyOptionIcons = {
 
 export const variantThumbnails = {
   poolroyale: {
-    uk: '/assets/icons/8ballrack.png',
-    american: '/assets/icons/American%20Billiards%20.png',
-    '9ball': '/assets/icons/9ballrack.png'
-  },
-  tabletennisroyal: {
     uk: '/assets/icons/8ballrack.png',
     american: '/assets/icons/American%20Billiards%20.png',
     '9ball': '/assets/icons/9ballrack.png'
