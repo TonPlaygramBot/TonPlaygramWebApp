@@ -15,7 +15,7 @@ function getGameFromTableId(id) {
       'snake',
       'goalrush',
       'poolroyale',
-      'tabletennisroyal',
+      'poolroyale',
     ].includes(prefix)
   )
     return prefix;
@@ -177,11 +177,6 @@ export default function PlayerInvitePopup({
                   id: 'poolroyale',
                   src: '/assets/icons/pool-royale.svg',
                   alt: 'Pool Royale',
-                },
-                {
-                  id: 'tabletennisroyal',
-                  src: '/assets/icons/pool-royale.svg',
-                  alt: 'Table Tennis Royal',
                 },
                 {
                   id: 'snookerroyale',
