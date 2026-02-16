@@ -1058,7 +1058,6 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
-const TABLE_MAPPING_MARKINGS_OPACITY = 0;
 const TABLE_MAPPING_VISUALS = Object.freeze({
   field: true,
   cushions: true,
@@ -11244,28 +11243,28 @@ export function Table3D(
     const fieldLineMaterial = new THREE.LineBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: TABLE_MAPPING_MARKINGS_OPACITY,
+      opacity: 0.6,
       depthTest: false,
       depthWrite: false
     });
     const cushionLineMaterial = new THREE.LineBasicMaterial({
       color: 0xff3b30,
       transparent: true,
-      opacity: TABLE_MAPPING_MARKINGS_OPACITY,
+      opacity: 0.9,
       depthTest: false,
       depthWrite: false
     });
     const pocketLineMaterial = new THREE.LineBasicMaterial({
       color: 0xf5d547,
       transparent: true,
-      opacity: TABLE_MAPPING_MARKINGS_OPACITY,
+      opacity: 0.9,
       depthTest: false,
       depthWrite: false
     });
     const jawLineMaterial = new THREE.LineBasicMaterial({
       color: 0x2f7bff,
       transparent: true,
-      opacity: TABLE_MAPPING_MARKINGS_OPACITY,
+      opacity: 0.9,
       depthTest: false,
       depthWrite: false
     });
@@ -26314,33 +26313,6 @@ const powerRef = useRef(hud.power);
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
-        const beforeMetaState =
-          currentState && typeof currentState.meta === 'object'
-            ? currentState.meta.state
-            : null;
-        const breakWasInProgress = Boolean(
-          beforeMetaState?.breakInProgress ||
-            (currentState && typeof currentState.meta === 'object'
-              ? currentState.meta.breakInProgress
-              : false)
-        );
-        const objectBallPotted = potted.some((entry) => entry.id !== 'cue');
-        const shooterOnThisShot = currentState?.activePlayer === 'B' ? 'B' : 'A';
-        if (!safeState?.foul && breakWasInProgress && objectBallPotted) {
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: shooterOnThisShot
-            };
-          }
-          safeState = {
-            ...safeState,
-            activePlayer: shooterOnThisShot,
-            meta: nextMeta ?? safeState.meta
-          };
-        }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
@@ -26722,16 +26694,14 @@ const powerRef = useRef(hud.power);
           aiPlanCacheRef.current = { key: null, plan: null };
           clearEarlyAiShot();
           setAiPlanning(null);
-          const localSeat = localSeatRef.current === 'B' ? 'B' : 'A';
-          const nextSeat = safeState?.activePlayer === 'B' ? 'B' : 'A';
-          const nextTurnIsLocal = !safeState?.frameOver && nextSeat === localSeat;
           window.setTimeout(() => {
-            if (nextTurnIsLocal) {
+            const hudState = hudRef.current;
+            if (hudState?.turn === 0 && !hudState.over) {
               autoAimRequestRef.current = true;
               suggestionAimKeyRef.current = null;
               startUserSuggestionRef.current?.();
             }
-            if (aiOpponentEnabled && !nextTurnIsLocal && !safeState?.frameOver) {
+            if (aiOpponentEnabled && hudState?.turn === 1 && !hudState.over) {
               startAiThinkingRef.current?.();
             }
           }, 0);
