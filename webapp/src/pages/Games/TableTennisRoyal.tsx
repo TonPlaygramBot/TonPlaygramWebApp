@@ -838,7 +838,10 @@ export default function TableTennisRoyal() {
       scene.add(key);
       lightRig.current = { ambient, key };
 
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(U(30), U(30)), new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 }));
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(U(30), U(30)),
+        new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.24 })
+      );
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = 0;
       floor.receiveShadow = true;
@@ -1343,13 +1346,13 @@ export default function TableTennisRoyal() {
               fontSize: 18,
             }}
             aria-label="Open table menu"
-            title="Table menu"
+            title="Table setup"
           >
             ⚙️
           </button>
           {showTableMenu && (
             <div style={{ marginTop: 8, width: 220, background: "rgba(5,10,20,0.92)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, padding: 10, color: "#fff", fontSize: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Table Menu</div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Table Setup</div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
                 <span>Graphics</span>
                 <select value={graphicsQuality} onChange={(e) => setGraphicsQuality(e.target.value as GraphicsQuality)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
