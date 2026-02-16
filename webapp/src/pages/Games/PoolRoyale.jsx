@@ -1059,10 +1059,10 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
-  field: false,
-  cushions: false,
-  jaws: false,
-  pockets: false
+  field: true,
+  cushions: true,
+  jaws: true,
+  pockets: true
 });
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
@@ -26300,15 +26300,6 @@ const powerRef = useRef(hud.power);
         } catch (err) {
           console.error('Pool Royale shot resolution failed:', err);
         }
-        const preShotMeta =
-          currentState && typeof currentState.meta === 'object' ? currentState.meta : null;
-        const preShotBreakInProgress =
-          !isTraining &&
-          (variantId === 'american' || variantId === '9ball') &&
-          Boolean(preShotMeta?.breakInProgress ?? preShotMeta?.state?.breakInProgress);
-        const pottedObjectOnBreak = potted.some(
-          (entry) => entry && entry.id !== 'cue' && entry.color !== 'CUE'
-        );
         if (isTraining) {
           if (!trainingRulesRef.current) {
             safeState = {
@@ -26321,24 +26312,6 @@ const powerRef = useRef(hud.power);
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
-        }
-        if (preShotBreakInProgress && pottedObjectOnBreak && !safeState?.foul) {
-          const breaker = currentState?.activePlayer === 'B' ? 'B' : 'A';
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: breaker,
-              ballInHand: false
-            };
-          }
-          safeState = {
-            ...safeState,
-            activePlayer: breaker,
-            foul: undefined,
-            meta: nextMeta ?? safeState.meta
-          };
         }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
@@ -26986,10 +26959,8 @@ const powerRef = useRef(hud.power);
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
             if (shouldAutoAimPlayer) {
               autoAimRequestRef.current = false;
-              aimDir.copy(autoAimDir);
-            } else {
-              aimDir.lerp(autoAimDir, aimLerpFactor);
             }
+            aimDir.lerp(autoAimDir, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
