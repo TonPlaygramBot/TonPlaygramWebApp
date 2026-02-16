@@ -63,6 +63,13 @@ const gamesCatalog = [
     description: 'Strategic chess showdowns with royal flair.'
   },
   {
+    name: 'Table Tennis Royal',
+    route: '/games/tabletennisroyal/lobby',
+    slug: 'tabletennisroyal',
+    image: '/assets/icons/Pool%20Royal%20game%20logo.png',
+    description: 'Fast 3D table-tennis rallies with royal visuals.'
+  },
+  {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
