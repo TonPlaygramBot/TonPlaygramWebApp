@@ -13,6 +13,7 @@ export default function TableTennisRoyalLobby() {
   const [avatar, setAvatar] = useState('');
   const [mode, setMode] = useState('ai');
   const [graphics, setGraphics] = useState('high');
+  const [fps, setFps] = useState('fhd90');
 
   useEffect(() => {
     try {
@@ -27,6 +28,7 @@ export default function TableTennisRoyalLobby() {
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('graphics', graphics);
+    params.set('fps', fps);
     navigate(`/games/tabletennisroyal?${params.toString()}`);
   };
 
@@ -73,6 +75,29 @@ export default function TableTennisRoyalLobby() {
                 <div className="text-center">
                   <p className="lobby-option-label">{item.label}</p>
                 </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">FPS profile</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Frame rate</span>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3">
+            {[
+              { id: 'hd50', label: 'HD Performance (50 Hz)' },
+              { id: 'fhd90', label: 'Full HD (90 Hz)' },
+              { id: 'qhd105', label: 'Quad HD (105 Hz)' },
+              { id: 'uhd120', label: 'Ultra HD (120 Hz cap)' }
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setFps(item.id)}
+                className={`lobby-option-card ${fps === item.id ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
+              >
+                <p className="lobby-option-label">{item.label}</p>
               </button>
             ))}
           </div>
