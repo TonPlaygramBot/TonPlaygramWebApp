@@ -145,6 +145,12 @@ public class CueCamera : MonoBehaviour
     // Additional height applied when the broadcast camera needs to rise to keep
     // the far short rail within frame.
     public float broadcastHeightPadding = 0.08f;
+    // Extra inward push for the short-rail broadcast camera so it sits a bit
+    // closer to the table action.
+    public float broadcastDistanceInset = 0.08f;
+    // Additional downward look offset to tilt the broadcast camera a little more
+    // toward the cloth.
+    public float broadcastLookDownOffset = 0.02f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
     // How quickly the camera aligns to the stored shot angle.
@@ -181,6 +187,17 @@ public class CueCamera : MonoBehaviour
     // Portion of the half table length treated as the middle pocket zone.
     [Range(0f, 1f)]
     public float pocketCameraMiddleZone = 0.32f;
+    // Radius around each corner pocket used to start the dedicated pocket camera.
+    public float cornerPocketCameraRadius = 0.24f;
+    // Depth below the rail lip that counts as the ball having dropped into the
+    // pocket before we cut back to the rail broadcast view.
+    public float pocketDropDepth = 0.05f;
+    // Time to keep the pocket camera after detecting the drop so the cut lands
+    // right before the potted ball could rise back above the pocket lip.
+    public float pocketDropHoldTime = 0.08f;
+    // Safety timeout so the pocket camera does not get stuck when a near-miss
+    // never actually falls.
+    public float pocketCameraMaxHoldTime = 1.6f;
 
     [Header("Ball in hand view")]
     // Start the match in a locked standing camera view for ball-in-hand placement.
@@ -212,6 +229,11 @@ public class CueCamera : MonoBehaviour
     private bool nextShotIsAi;
     private bool ballInHandActive;
     private bool cachedStandingCamera;
+    private bool pocketCameraAwaitingDrop;
+    private bool pocketDropDetected;
+    private float pocketCameraStartTime;
+    private float pocketCameraReleaseTime;
+    private Vector3 trackedCornerPocket;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -638,6 +660,24 @@ public class CueCamera : MonoBehaviour
     {
         currentBall = CueBall;
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
+
+        Vector3 cornerPocket;
+        bool shouldUsePocketCamera = TargetBall != null
+            && TargetBall.gameObject.activeInHierarchy
+            && TryGetCornerPocketForBall(TargetBall.position, out cornerPocket);
+        if (shouldUsePocketCamera)
+        {
+            usingTargetCamera = true;
+            pocketCameraAwaitingDrop = true;
+            pocketDropDetected = false;
+            pocketCameraStartTime = Time.time;
+            pocketCameraReleaseTime = float.PositiveInfinity;
+            trackedCornerPocket = cornerPocket;
+            targetViewFocus = GetBroadcastFocus(TargetBall.position);
+            UpdateTargetCamera();
+            return;
+        }
+
         ApplyBroadcastCamera(targetViewFocus, false);
 
         bool cueMoving = IsMoving(CueBall);
@@ -672,10 +712,47 @@ public class CueCamera : MonoBehaviour
 
         ApplyBroadcastCamera(targetViewFocus, true);
 
+        if (pocketCameraAwaitingDrop)
+        {
+            bool targetVisibleForPocket = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
+            bool dropped = !targetVisibleForPocket;
+
+            if (!dropped && targetVisibleForPocket)
+            {
+                dropped = HasDroppedIntoTrackedPocket(TargetBall.position);
+            }
+
+            if (dropped && !pocketDropDetected)
+            {
+                pocketDropDetected = true;
+                pocketCameraReleaseTime = Time.time + Mathf.Max(0f, pocketDropHoldTime);
+            }
+
+            if (pocketDropDetected && Time.time >= pocketCameraReleaseTime)
+            {
+                usingTargetCamera = false;
+                pocketCameraAwaitingDrop = false;
+                currentBall = CueBall;
+                return;
+            }
+
+            if (!pocketDropDetected)
+            {
+                float heldFor = Time.time - pocketCameraStartTime;
+                if (heldFor <= Mathf.Max(0.1f, pocketCameraMaxHoldTime))
+                {
+                    return;
+                }
+
+                pocketCameraAwaitingDrop = false;
+            }
+        }
+
         bool targetVisible = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
         if (!targetVisible)
         {
             usingTargetCamera = false;
+            pocketCameraAwaitingDrop = false;
             currentBall = CueBall;
             return;
         }
@@ -689,6 +766,7 @@ public class CueCamera : MonoBehaviour
         if (!CueBallInView())
         {
             usingTargetCamera = false;
+            pocketCameraAwaitingDrop = false;
             currentBall = CueBall;
             return;
         }
@@ -817,12 +895,20 @@ public class CueCamera : MonoBehaviour
         {
             distance = Mathf.Max(distance - Mathf.Max(0f, pocketCameraDistanceInset), broadcastMinDistance);
         }
+        else
+        {
+            distance = Mathf.Max(distance - Mathf.Max(0f, broadcastDistanceInset), broadcastMinDistance);
+        }
         distance = Mathf.Clamp(distance, broadcastMinDistance, broadcastMaxDistance);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
         if (isPocketCamera)
         {
             lookTarget.y -= Mathf.Max(0f, pocketCameraLookDownOffset);
+        }
+        else
+        {
+            lookTarget.y -= Mathf.Max(0f, broadcastLookDownOffset);
         }
 
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
@@ -1104,12 +1190,70 @@ public class CueCamera : MonoBehaviour
     {
         shotInProgress = false;
         usingTargetCamera = false;
+        pocketCameraAwaitingDrop = false;
+        pocketDropDetected = false;
+        pocketCameraStartTime = 0f;
+        pocketCameraReleaseTime = 0f;
         currentBall = CueBall;
         TargetBall = null;
         cueAimSideSign = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         broadcastSideSign = -cueAimSideSign;
         yaw = GetShortRailYaw(cueAimSideSign);
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
+    }
+
+    private bool TryGetCornerPocketForBall(Vector3 ballPosition, out Vector3 pocket)
+    {
+        pocket = Vector3.zero;
+        float radius = Mathf.Max(0.01f, cornerPocketCameraRadius);
+        float radiusSq = radius * radius;
+
+        Vector3 min = tableBounds.min;
+        Vector3 max = tableBounds.max;
+        float pocketY = tableBounds.center.y;
+
+        Vector3[] corners =
+        {
+            new Vector3(min.x, pocketY, min.z),
+            new Vector3(max.x, pocketY, min.z),
+            new Vector3(min.x, pocketY, max.z),
+            new Vector3(max.x, pocketY, max.z)
+        };
+
+        Vector2 ballXZ = new Vector2(ballPosition.x, ballPosition.z);
+        float bestSq = float.PositiveInfinity;
+        bool found = false;
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector3 corner = corners[i];
+            Vector2 cornerXZ = new Vector2(corner.x, corner.z);
+            float sq = (ballXZ - cornerXZ).sqrMagnitude;
+            if (sq > radiusSq || sq >= bestSq)
+            {
+                continue;
+            }
+
+            bestSq = sq;
+            pocket = corner;
+            found = true;
+        }
+
+        return found;
+    }
+
+    private bool HasDroppedIntoTrackedPocket(Vector3 ballPosition)
+    {
+        Vector2 ballXZ = new Vector2(ballPosition.x, ballPosition.z);
+        Vector2 pocketXZ = new Vector2(trackedCornerPocket.x, trackedCornerPocket.z);
+        float pocketRadius = Mathf.Max(0.01f, cornerPocketCameraRadius);
+        bool closeToPocket = (ballXZ - pocketXZ).sqrMagnitude <= pocketRadius * pocketRadius;
+        if (!closeToPocket)
+        {
+            return false;
+        }
+
+        float dropThreshold = railHeight - Mathf.Max(0f, pocketDropDepth);
+        return ballPosition.y <= dropThreshold;
     }
 
     private static float GetShortRailYaw(int sideSign)
