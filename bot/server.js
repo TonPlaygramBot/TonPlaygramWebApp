@@ -28,6 +28,7 @@ import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
 import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import pushRoutes from './routes/push.js';
+import ttsRoutes from './routes/tts.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -242,6 +243,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/tts', ttsRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);
 }

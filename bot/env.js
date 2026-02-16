@@ -47,6 +47,10 @@ export function validateEnv() {
   // Token used for privileged server-to-server calls (optional but useful).
   warnMissing('API_AUTH_TOKEN');
 
+  // Server-side TTS fallback (recommended for Telegram WebView where speechSynthesis may not output audio).
+  warnMissing('OPENAI_API_KEY', 'required for /api/tts/speak');
+  warnMissing('OPENAI_TTS_MODEL', "optional (default: gpt-4o-mini-tts)");
+
   return {
     isProd,
     withdrawEnabled
