@@ -173,6 +173,22 @@ npm test
 
 `./.github/workflows/native-build.yml` performs a build of the web assets, runs `cap sync`, and produces unsigned debug Android APK/AAB plus an iOS archive (code signing disabled). Trigger it via **Workflow dispatch** when you need fresh artifacts without touching UI layout or gameplay code.
 
+### Render deploy (single-service)
+
+If you deploy only the backend service on Render (recommended for simplicity), the backend will serve the built webapp from `webapp/dist`.
+
+**Render env vars (set in the Render dashboard / env group):**
+- `BOT_TOKEN`
+- `MONGO_URI`
+- `ALLOWED_ORIGINS` (comma-separated). Suggested starting value:
+  - `https://tonplaygram-bot.onrender.com,https://web.telegram.org,https://t.me`
+- (optional) `API_AUTH_TOKEN` for trusted server-to-server calls.
+- (optional) TON claim keys if withdrawals/claim are enabled:
+  - `WITHDRAW_ENABLED=true`
+  - `CLAIM_CONTRACT_ADDRESS`
+  - `CLAIM_WALLET_MNEMONIC`
+  - `RPC_URL`
+
 ### Local development
 
 Run both the API server and the webapp together while developing:

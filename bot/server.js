@@ -1,4 +1,5 @@
 import './loadEnv.js';
+import { validateEnv } from './env.js';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
@@ -56,6 +57,8 @@ import {
   countOnline,
   listOnline
 } from './services/connectionService.js';
+
+validateEnv();
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();

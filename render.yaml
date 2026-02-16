@@ -11,12 +11,17 @@ services:
         fromSecret: MONGO_URI
       - key: BOT_TOKEN
         fromSecret: BOT_TOKEN
-
-  - type: web
-    runtime: static
-    name: tonplaygram-fe
-    branch: main
-    rootDir: webapp
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+      # Recommended (set these in Render, even if some are optional):
+      - key: ALLOWED_ORIGINS
+        fromSecret: ALLOWED_ORIGINS
+      - key: API_AUTH_TOKEN
+        fromSecret: API_AUTH_TOKEN
+      - key: WITHDRAW_ENABLED
+        fromSecret: WITHDRAW_ENABLED
+      - key: CLAIM_CONTRACT_ADDRESS
+        fromSecret: CLAIM_CONTRACT_ADDRESS
+      - key: CLAIM_WALLET_MNEMONIC
+        fromSecret: CLAIM_WALLET_MNEMONIC
+      - key: RPC_URL
+        fromSecret: RPC_URL
 
