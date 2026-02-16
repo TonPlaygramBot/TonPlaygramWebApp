@@ -1,5 +1,11 @@
 import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+} from "../../config/poolRoyaleInventoryConfig.js";
 
 /**
  * File: src/TableTennis3D_VanillaThree.tsx
@@ -67,8 +73,9 @@ const U = (m: number) => m * M2U;
 const TIME_SCALE = 0.62;
 
 const TABLE = {
-  L: U(2.74),
-  W: U(1.525),
+  // Match the Pool Royale 9ft footprint so venue placement and framing align.
+  L: U(2.54),
+  W: U(1.27),
   H: U(0.76),
   THICK: U(0.03),
   APRON_H: U(0.10),
@@ -91,20 +98,20 @@ const PADDLE = {
 const PHYS = {
   g: -9.81 * M2U,
   dtClamp: 1 / 50,
-  airDrag: 0.9996,
-  tableRest: 0.82,
+  airDrag: 0.9989,
+  tableRest: 0.86,
   netRest: 0.18,
-  magnus: 0.00115,
-  spinDamp: 0.9978,
-  maxSpeed: U(11.0),
+  magnus: 0.00082,
+  spinDamp: 0.995,
+  maxSpeed: U(9.8),
 } as const;
 
 const POWER = {
   serveSpeedBase: U(3.15),
-  serveSpeedMax: U(4.3),
+  serveSpeedMax: U(4.1),
   serveUpMin: U(1.05),
   hitSpeedBase: U(2.5),
-  hitSpeedMax: U(7.95),
+  hitSpeedMax: U(7.3),
   targetZPad: U(0.45),
   swipeXToSpin: 0.00062,
   swipeYToSpin: 0.00046,
@@ -136,17 +143,26 @@ const AI = {
 const CAM = {
   follow: 0.07,
   yBase: TABLE.H + U(0.72),
-  zBase: TABLE.L * 0.98,
+  zBase: TABLE.L * 1.06,
 } as const;
 
-const HDRI_PRESETS = {
-  off: { ambient: 0.52, key: 0.95, exposure: 1.0 },
-  sport: { ambient: 0.62, key: 1.2, exposure: 1.08 },
-  arena: { ambient: 0.74, key: 1.36, exposure: 1.17 },
-} as const;
+const FRAME_RATE_OPTIONS = Object.freeze([
+  { id: "hd50", label: "HD Performance (50 Hz)", fps: 50, pixelRatioCap: 1.35 },
+  { id: "fhd90", label: "Full HD (90 Hz)", fps: 90, pixelRatioCap: 1.55 },
+  { id: "qhd105", label: "Quad HD (105 Hz)", fps: 105, pixelRatioCap: 1.72 },
+  { id: "uhd120", label: "Ultra HD (120 Hz cap)", fps: 120, pixelRatioCap: 1.85 },
+] as const);
+type FrameRateId = (typeof FRAME_RATE_OPTIONS)[number]["id"];
+const FRAME_RATE_MAP = Object.freeze(
+  FRAME_RATE_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {} as Record<FrameRateId, (typeof FRAME_RATE_OPTIONS)[number]>)
+);
+
+const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
 type GraphicsQuality = "low" | "medium" | "high";
-type HdriMode = keyof typeof HDRI_PRESETS;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -158,6 +174,49 @@ function hasWebGL(): boolean {
     return !!(c.getContext("webgl") || (c.getContext as any)("experimental-webgl"));
   } catch {
     return false;
+  }
+}
+
+function pickPolyHavenHdriUrl(apiJson: unknown, preferredResolutions: string[] = []) {
+  const urls: string[] = [];
+  const walk = (value: unknown) => {
+    if (!value) return;
+    if (typeof value === "string") {
+      if (value.startsWith("http") && value.toLowerCase().includes(".hdr")) urls.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === "object") {
+      Object.values(value as Record<string, unknown>).forEach(walk);
+    }
+  };
+  walk(apiJson);
+  const lower = urls.map((u) => u.toLowerCase());
+  for (const res of preferredResolutions) {
+    const match = lower.find((u) => u.includes(`_${res}.`));
+    if (match) return urls[lower.indexOf(match)] ?? null;
+  }
+  return urls[0] ?? null;
+}
+
+async function resolvePolyHavenHdriUrl(config: any = {}) {
+  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    ? config.preferredResolutions
+    : ["2k"];
+  const fallbackRes = config?.fallbackResolution || preferred[0] || "2k";
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? "neon_photostudio"}_${fallbackRes}.hdr`;
+  if (typeof config?.assetUrl === "string" && config.assetUrl.length) return config.assetUrl;
+  if (!config?.assetId || typeof fetch !== "function") return fallbackUrl;
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    if (!response?.ok) return fallbackUrl;
+    const json = await response.json();
+    return pickPolyHavenHdriUrl(json, preferred) || fallbackUrl;
+  } catch {
+    return fallbackUrl;
   }
 }
 
@@ -503,13 +562,13 @@ export default function TableTennisRoyal() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const { g, onDown, onMove, onUp } = useTouch(rootRef);
 
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>("high");
-  const [hdriMode, setHdriMode] = useState<HdriMode>("sport");
+  const [frameRateId, setFrameRateId] = useState<FrameRateId>("fhd90");
+  const [environmentHdriId, setEnvironmentHdriId] = useState<string>(POOL_ROYALE_DEFAULT_HDRI_ID);
   const [showTableMenu, setShowTableMenu] = useState(false);
-  const difficultyRef = useRef<Difficulty>("medium");
+  const difficultyRef = useRef<Difficulty>(DEFAULT_DIFFICULTY);
   const graphicsQualityRef = useRef<GraphicsQuality>("high");
-  const hdriModeRef = useRef<HdriMode>("sport");
+  const frameRateRef = useRef<(typeof FRAME_RATE_OPTIONS)[number]>(FRAME_RATE_MAP.fhd90);
   const me = useMemo(() => {
     if (typeof window === "undefined") return { username: "You", avatar: "/assets/icons/profile.svg" };
     const params = new URLSearchParams(window.location.search);
@@ -527,14 +586,24 @@ export default function TableTennisRoyal() {
     return { username, avatar };
   }, []);
   useEffect(() => {
-    difficultyRef.current = difficulty;
-  }, [difficulty]);
-  useEffect(() => {
     graphicsQualityRef.current = graphicsQuality;
   }, [graphicsQuality]);
   useEffect(() => {
-    hdriModeRef.current = hdriMode;
-  }, [hdriMode]);
+    frameRateRef.current = FRAME_RATE_MAP[frameRateId] ?? FRAME_RATE_OPTIONS[0];
+  }, [frameRateId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const gfx = params.get("graphics") as GraphicsQuality | null;
+    if (gfx === "low" || gfx === "medium" || gfx === "high") {
+      setGraphicsQuality(gfx);
+    }
+    const fps = params.get("fps");
+    if (fps && FRAME_RATE_MAP[fps as FrameRateId]) {
+      setFrameRateId(fps as FrameRateId);
+    }
+  }, []);
 
   const [ui, setUi] = useState<{ phase: Phase; score: Score; call: Call; hint: string }>({
     phase: "ready",
@@ -545,9 +614,13 @@ export default function TableTennisRoyal() {
 
   const [boot, setBoot] = useState<string>("Booting…");
   const [fatal, setFatal] = useState<string>("");
+  const [announcement, setAnnouncement] = useState<string>("");
+  const announcementTimeoutRef = useRef<number | null>(null);
 
   const aiServeAt = useRef<number>(0);
+  const lastFrameAtRef = useRef<number>(0);
   const lightRig = useRef<{ ambient: THREE.AmbientLight; key: THREE.DirectionalLight } | null>(null);
+  const hdriHandle = useRef<{ envMap: THREE.Texture | null; bgMap: THREE.Texture | null } | null>(null);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
     phase: "ready",
@@ -586,6 +659,33 @@ export default function TableTennisRoyal() {
     sim.current.call = c;
     if (c === "NET") sim.current.callCooldownUntil = now + 250;
   }, []);
+
+  const showAnnouncement = useCallback((text: string) => {
+    if (!text) return;
+    setAnnouncement(text);
+    if (announcementTimeoutRef.current) {
+      window.clearTimeout(announcementTimeoutRef.current);
+    }
+    announcementTimeoutRef.current = window.setTimeout(() => {
+      setAnnouncement("");
+      announcementTimeoutRef.current = null;
+    }, 1300);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (announcementTimeoutRef.current) {
+        window.clearTimeout(announcementTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ui.call) return;
+    if (ui.call === "NET") showAnnouncement("NET");
+    else if (ui.call === "OUT") showAnnouncement("OUT");
+    else if (ui.call === "FAULT" || ui.call === "DOUBLE" || ui.call === "MISS") showAnnouncement("FOUL");
+  }, [showAnnouncement, ui.call]);
 
   const syncUiFromSim = useCallback(() => {
     const s = sim.current;
@@ -638,6 +738,8 @@ export default function TableTennisRoyal() {
       else s.score.ai += 1;
       s.score.pointsPlayed += 1;
 
+      showAnnouncement(winner === "player" ? "POINT YOU" : "POINT AI");
+
       s.call = call;
 
       if (isGameOver(s.score)) {
@@ -649,7 +751,7 @@ export default function TableTennisRoyal() {
       s.score.server = nextServer(s.score);
       placeForServe(s.score.server);
     },
-    [placeForServe]
+    [placeForServe, showAnnouncement]
   );
 
   const serve = useCallback(() => {
@@ -710,12 +812,12 @@ export default function TableTennisRoyal() {
 
       setBoot("Creating renderer…");
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.setPixelRatio(Math.min(frameRateRef.current.pixelRatioCap, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = HDRI_PRESETS[hdriModeRef.current].exposure;
+      renderer.toneMappingExposure = 1.04;
       renderer.domElement.style.position = "absolute";
       renderer.domElement.style.inset = "0";
       renderer.domElement.style.width = "100%";
@@ -727,10 +829,9 @@ export default function TableTennisRoyal() {
       scene.background = new THREE.Color("#070b1a");
       const camera = new THREE.PerspectiveCamera(55, 1, 0.01, U(300));
 
-      const hdriPreset = HDRI_PRESETS[hdriModeRef.current];
-      const ambient = new THREE.AmbientLight(0xffffff, hdriPreset.ambient);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.7);
       scene.add(ambient);
-      const key = new THREE.DirectionalLight(0xffffff, hdriPreset.key);
+      const key = new THREE.DirectionalLight(0xffffff, 1.25);
       key.position.set(U(2.2), U(4.2), U(2.2));
       key.castShadow = graphicsQualityRef.current !== "low";
       key.shadow.mapSize.set(graphicsQualityRef.current === "high" ? 2048 : 1024, graphicsQualityRef.current === "high" ? 2048 : 1024);
@@ -800,6 +901,14 @@ export default function TableTennisRoyal() {
         try {
           const t = three.current;
           if (!t) return;
+
+          const nowMs = performance.now();
+          const targetIntervalMs = 1000 / Math.max(30, frameRateRef.current.fps || 60);
+          if (nowMs - lastFrameAtRef.current < targetIntervalMs) {
+            t.raf = requestAnimationFrame(tick);
+            return;
+          }
+          lastFrameAtRef.current = nowMs;
 
           const dtRaw = Math.min(t.clock.getDelta(), PHYS.dtClamp);
           const dt = dtRaw * TIME_SCALE;
@@ -1041,6 +1150,9 @@ export default function TableTennisRoyal() {
             }
           });
         }
+        if (hdriHandle.current?.envMap) hdriHandle.current.envMap.dispose();
+        if (hdriHandle.current?.bgMap) hdriHandle.current.bgMap.dispose();
+        hdriHandle.current = null;
         three.current = null;
         lightRig.current = null;
       };
@@ -1057,17 +1169,58 @@ export default function TableTennisRoyal() {
     const rig = lightRig.current;
     if (!t || !rig) return;
 
-    const hdriPreset = HDRI_PRESETS[hdriMode];
-    rig.ambient.intensity = hdriPreset.ambient;
-    rig.key.intensity = hdriPreset.key;
-    t.renderer.toneMappingExposure = hdriPreset.exposure;
-
-    const pixelRatioCap = graphicsQuality === "high" ? 2 : graphicsQuality === "medium" ? 1.5 : 1;
-    t.renderer.setPixelRatio(Math.min(pixelRatioCap, window.devicePixelRatio || 1));
+    const frameProfile = FRAME_RATE_MAP[frameRateId] ?? FRAME_RATE_OPTIONS[0];
+    const qualityCap = graphicsQuality === "high" ? 2 : graphicsQuality === "medium" ? 1.5 : 1;
+    t.renderer.setPixelRatio(Math.min(qualityCap, frameProfile.pixelRatioCap, window.devicePixelRatio || 1));
     rig.key.castShadow = graphicsQuality !== "low";
     const shadowSize = graphicsQuality === "high" ? 2048 : graphicsQuality === "medium" ? 1024 : 512;
     rig.key.shadow.mapSize.set(shadowSize, shadowSize);
-  }, [graphicsQuality, hdriMode]);
+  }, [frameRateId, graphicsQuality]);
+
+  useEffect(() => {
+    const t = three.current;
+    if (!t) return;
+    let disposed = false;
+    const variant = POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ?? POOL_ROYALE_HDRI_VARIANTS[0];
+    const applyFallback = () => {
+      t.scene.environment = null;
+      t.scene.background = new THREE.Color("#070b1a");
+      t.renderer.toneMappingExposure = 1.04;
+    };
+
+    resolvePolyHavenHdriUrl(variant)
+      .then(
+        (url) =>
+          new Promise<THREE.Texture>((resolve, reject) => {
+            const loader = new RGBELoader();
+            loader.setCrossOrigin?.("anonymous");
+            loader.load(url, resolve, undefined, reject);
+          })
+      )
+      .then((texture) => {
+        if (disposed) {
+          texture.dispose();
+          return;
+        }
+        const pmrem = new THREE.PMREMGenerator(t.renderer);
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        pmrem.dispose();
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        t.scene.environment = envMap;
+        t.scene.background = texture;
+        t.renderer.toneMappingExposure = Number.isFinite(variant?.exposure) ? variant.exposure : 1.04;
+        if (hdriHandle.current?.envMap) hdriHandle.current.envMap.dispose();
+        if (hdriHandle.current?.bgMap) hdriHandle.current.bgMap.dispose();
+        hdriHandle.current = { envMap, bgMap: texture };
+      })
+      .catch(() => {
+        if (!disposed) applyFallback();
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [environmentHdriId]);
 
   const phaseLabel = ui.phase === "ready" ? "READY" : ui.phase === "serving" ? "SERVE" : ui.phase === "rally" ? "RALLY" : "GAME";
   const serverLabel = ui.score.server === "player" ? "YOU" : "AI";
@@ -1152,6 +1305,30 @@ export default function TableTennisRoyal() {
           </div>
         )}
 
+        {announcement && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "46%",
+              transform: "translate(-50%, -50%)",
+              padding: "12px 20px",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.35)",
+              background: "rgba(6,8,18,0.78)",
+              color: "#fff",
+              fontSize: "clamp(26px, 7vw, 56px)",
+              fontWeight: 900,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              textShadow: "0 8px 18px rgba(0,0,0,0.7)",
+              pointerEvents: "none",
+            }}
+          >
+            {announcement}
+          </div>
+        )}
+
         <div style={{ position: "absolute", left: 8, top: 8, zIndex: 20 }}>
           <button
             onClick={() => setShowTableMenu((v) => !v)}
@@ -1174,14 +1351,6 @@ export default function TableTennisRoyal() {
             <div style={{ marginTop: 8, width: 220, background: "rgba(5,10,20,0.92)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, padding: 10, color: "#fff", fontSize: 12 }}>
               <div style={{ fontWeight: 800, marginBottom: 8 }}>Table Menu</div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-                <span>AI difficulty</span>
-                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
                 <span>Graphics</span>
                 <select value={graphicsQuality} onChange={(e) => setGraphicsQuality(e.target.value as GraphicsQuality)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
                   <option value="low">Low</option>
@@ -1190,11 +1359,23 @@ export default function TableTennisRoyal() {
                 </select>
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-                <span>HDRI lighting</span>
-                <select value={hdriMode} onChange={(e) => setHdriMode(e.target.value as HdriMode)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
-                  <option value="off">Off</option>
-                  <option value="sport">Sport hall</option>
-                  <option value="arena">Arena bright</option>
+                <span>FPS profile</span>
+                <select value={frameRateId} onChange={(e) => setFrameRateId(e.target.value as FrameRateId)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
+                  {FRAME_RATE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+                <span>Venue HDRI</span>
+                <select value={environmentHdriId} onChange={(e) => setEnvironmentHdriId(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, fontSize: 12 }}>
+                  {POOL_ROYALE_HDRI_VARIANTS.map((variant) => (
+                    <option key={variant.id} value={variant.id}>
+                      {variant.name}
+                    </option>
+                  ))}
                 </select>
               </label>
               <button onClick={reset} style={{ width: "100%", padding: "6px 10px", borderRadius: 8, fontSize: 12 }}>
