@@ -8007,7 +8007,7 @@ export function Table3D(
   const markingMat = new THREE.MeshBasicMaterial({
     color: palette.markings,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0,
     side: THREE.DoubleSide
   });
   const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
@@ -26946,7 +26946,7 @@ const powerRef = useRef(hud.power);
           !shooting &&
           !shouldLockAiAim;
         const autoAimDir = shouldAutoAimPlayer
-          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: true })
+          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: false })
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
