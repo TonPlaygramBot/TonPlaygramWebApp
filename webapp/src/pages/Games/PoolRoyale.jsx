@@ -1059,10 +1059,10 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
 const ENABLE_TABLE_MAPPING_LINES = true;
 const TABLE_MAPPING_VISUALS = Object.freeze({
-  field: true,
-  cushions: true,
-  jaws: true,
-  pockets: true
+  field: false,
+  cushions: false,
+  jaws: false,
+  pockets: false
 });
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
@@ -26959,8 +26959,10 @@ const powerRef = useRef(hud.power);
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
             if (shouldAutoAimPlayer) {
               autoAimRequestRef.current = false;
+              aimDir.copy(autoAimDir);
+            } else {
+              aimDir.lerp(autoAimDir, aimLerpFactor);
             }
-            aimDir.lerp(autoAimDir, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
             }
