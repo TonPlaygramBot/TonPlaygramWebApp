@@ -1313,14 +1313,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.989,
+  restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.996;
+const FRICTION = 0.995;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1331,7 +1331,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0135;
+const ROLLING_RESISTANCE = 0.014;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.012;
@@ -1371,7 +1371,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.8; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1720,16 +1720,16 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.05;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 9.5;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.78;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.8;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
-const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.68;
+const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.52;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.16, CUE_TIP_RADIUS * 1.7);
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.12, CUE_TIP_RADIUS * 1.55);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4984,7 +4984,7 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.07; // let the standing view dip a little lower while still staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // let the standing view dip a little lower while still staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -5127,7 +5127,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.02; // pull the broadcast overhead camera back for fuller table framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -5137,7 +5137,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.03; // keep the cue camera slightly higher before it bottoms out
+const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -5163,7 +5163,7 @@ const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while th
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.02; // add a touch more overhead bias while holding the rail angle
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;

@@ -45,8 +45,6 @@ export interface ShotContext {
   contactMade?: boolean;
   cushionAfterContact?: boolean;
   noCushionAfterContact?: boolean;
-  breakLegal?: boolean;
-  breakRailContacts?: number;
   nominatedBall?: BallColor|string;
   declaredBall?: BallColor|string;
   freeBall?: boolean;
