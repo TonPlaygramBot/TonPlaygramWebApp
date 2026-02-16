@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NineBall } from '../lib/nineBall.js';
 
-test('must hit lowest ball first or foul', () => {
+test('break remains open: wrong first contact alone is not a foul', () => {
   const game = new NineBall();
   const res = game.shotTaken({
     contactOrder: [2],
@@ -10,9 +10,9 @@ test('must hit lowest ball first or foul', () => {
     cueOffTable: false,
     placedFromHand: false
   });
-  assert.equal(res.foul, true);
-  assert.equal(res.reason, 'wrong first contact');
-  assert.equal(res.ballInHandNext, true);
+  assert.equal(res.foul, false);
+  assert.equal(res.reason, undefined);
+  assert.equal(res.ballInHandNext, false);
   assert.equal(res.nextPlayer, 'B');
 });
 
