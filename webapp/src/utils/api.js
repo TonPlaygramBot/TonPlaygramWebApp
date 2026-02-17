@@ -637,12 +637,12 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
   return post('/api/account/create', body);
 }
 
-export function getAccountBalance(accountId) {
-  return post('/api/account/balance', { accountId });
+export function getAccountBalance(accountId, access = {}) {
+  return post('/api/account/balance', { accountId, ...access });
 }
 
-export function getAccountInfo(accountId) {
-  return post('/api/account/info', { accountId });
+export function getAccountInfo(accountId, access = {}) {
+  return post('/api/account/info', { accountId, ...access });
 }
 
 export function sendAccountTpc(fromAccount, toAccount, amount, note) {
@@ -651,8 +651,13 @@ export function sendAccountTpc(fromAccount, toAccount, amount, note) {
   return post('/api/account/send', body);
 }
 
-export function getAccountTransactions(accountId) {
-  return post('/api/account/transactions', { accountId });
+export function getAccountTransactions(accountId, access = {}) {
+  return post('/api/account/transactions', { accountId, ...access });
+}
+
+export function getExchangeCoinDetails(coinId) {
+  const id = encodeURIComponent(String(coinId || '').trim());
+  return get(`/api/exchange/coin/${id}`);
 }
 
 export function getGameTransactions(limit = 1000) {

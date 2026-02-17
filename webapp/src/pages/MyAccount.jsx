@@ -161,7 +161,7 @@ export default function MyAccount() {
         setTonWalletAddress(walletToStore);
       }
 
-      const data = await getAccountInfo(accountPayload.accountId);
+      const data = await getAccountInfo(accountPayload.accountId, { googleId: googleProfile?.id, walletAddress: tonWalletAddress || connectedTonAddress });
       if (!data || data?.error) {
         throw new Error(data?.error || 'Unable to fetch your profile.');
       }
@@ -642,6 +642,26 @@ export default function MyAccount() {
               <FiBell className="w-4 h-4" />
               Inbox
             </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
+        <h3 className="text-base font-semibold text-white">Profile hubs</h3>
+        <p className="text-xs text-subtext">1) TPC Hub for all token/account actions. 2) Social Hub for messaging + community actions.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Link to="/hub" className="rounded-lg border border-border bg-background/60 p-3">
+            <p className="text-sm font-semibold text-white">1. TPC Hub</p>
+            <p className="text-[11px] text-subtext mt-1">Wallet status, account statements, exchange and core TPC tools.</p>
+          </Link>
+          <div className="rounded-lg border border-border bg-background/60 p-3">
+            <p className="text-sm font-semibold text-white">2. Social Hub</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <Link to="/messages" className="px-2 py-1 rounded border border-border">Messages</Link>
+              <Link to="/notifications" className="px-2 py-1 rounded border border-border">Notifications</Link>
+              <Link to="/trending" className="px-2 py-1 rounded border border-border">Trending</Link>
+              <Link to="/referral" className="px-2 py-1 rounded border border-border">Referral</Link>
+            </div>
           </div>
         </div>
       </div>

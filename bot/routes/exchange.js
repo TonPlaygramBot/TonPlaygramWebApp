@@ -47,6 +47,52 @@ async function fetchFromCoinCap() {
   }));
 }
 
+
+async function fetchCoinDetails(coinId) {
+  const encodedId = encodeURIComponent(String(coinId || '').trim());
+  if (!encodedId) {
+    throw new Error('coin id required');
+  }
+
+  const [detailRes, chartRes] = await Promise.all([
+    fetch(`https://api.coingecko.com/api/v3/coins/${encodedId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false`, { headers: { accept: 'application/json' } }),
+    fetch(`https://api.coingecko.com/api/v3/coins/${encodedId}/market_chart?vs_currency=usd&days=7&interval=hourly`, { headers: { accept: 'application/json' } })
+  ]);
+
+  if (!detailRes.ok) throw new Error(`Coin details failed: ${detailRes.status}`);
+  if (!chartRes.ok) throw new Error(`Coin chart failed: ${chartRes.status}`);
+
+  const detail = await detailRes.json();
+  const chart = await chartRes.json();
+  const points = Array.isArray(chart?.prices)
+    ? chart.prices
+      .filter((p) => Array.isArray(p) && p.length >= 2)
+      .map((p) => ({ at: p[0], priceUsd: normalizeNumber(p[1]) }))
+    : [];
+
+  return {
+    id: detail.id,
+    symbol: String(detail.symbol || '').toUpperCase(),
+    name: detail.name,
+    image: detail.image?.large || detail.image?.small || '',
+    homepage: Array.isArray(detail.links?.homepage) ? detail.links.homepage.find(Boolean) || '' : '',
+    description: detail.description?.en || '',
+    marketCapRank: normalizeNumber(detail.market_cap_rank, 9999),
+    currentPriceUsd: normalizeNumber(detail.market_data?.current_price?.usd),
+    marketCapUsd: normalizeNumber(detail.market_data?.market_cap?.usd),
+    volume24hUsd: normalizeNumber(detail.market_data?.total_volume?.usd),
+    circulatingSupply: normalizeNumber(detail.market_data?.circulating_supply),
+    maxSupply: normalizeNumber(detail.market_data?.max_supply),
+    athUsd: normalizeNumber(detail.market_data?.ath?.usd),
+    atlUsd: normalizeNumber(detail.market_data?.atl?.usd),
+    priceChange24h: normalizeNumber(detail.market_data?.price_change_percentage_24h),
+    priceChange7d: normalizeNumber(detail.market_data?.price_change_percentage_7d),
+    communityScore: normalizeNumber(detail.community_score),
+    chart: points,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 async function fetchTopMarkets() {
   const now = Date.now();
   if (cache.markets.length && now - cache.at < CACHE_TTL_MS) {
@@ -78,6 +124,16 @@ router.get('/markets', async (_req, res) => {
       return res.json({ ok: true, updatedAt: new Date(cache.at).toISOString(), markets: cache.markets, stale: true });
     }
     return res.status(502).json({ ok: false, error: error.message || 'Unable to fetch markets' });
+  }
+});
+
+
+router.get('/coin/:id', async (req, res) => {
+  try {
+    const details = await fetchCoinDetails(req.params.id);
+    return res.json({ ok: true, coin: details });
+  } catch (error) {
+    return res.status(502).json({ ok: false, error: error.message || 'Unable to fetch coin details' });
   }
 });
 
