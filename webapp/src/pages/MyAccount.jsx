@@ -29,21 +29,23 @@ import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
-import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import TonConnectButton from '../components/TonConnectButton.jsx';
 import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
 import useProfileLock from '../hooks/useProfileLock.js';
 import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
 
 import {
-  FiBell,
   FiCheckCircle,
   FiCopy,
   FiEdit3,
   FiExternalLink,
+  FiGrid,
+  FiInbox,
   FiLock,
   FiLogOut,
   FiMessageCircle,
+  FiRefreshCw,
   FiShield,
   FiUser
 } from 'react-icons/fi';
@@ -206,6 +208,15 @@ export default function MyAccount() {
         }
       }
 
+      if (!telegramId && googleProfile?.id) {
+        finalProfile = {
+          ...finalProfile,
+          firstName: finalProfile.firstName || googleProfile.firstName || '',
+          lastName: finalProfile.lastName || googleProfile.lastName || '',
+          photo: finalProfile.photo || googleProfile.photo || ''
+        };
+      }
+
       setProfile(finalProfile);
       setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
       setTwitterLink(finalProfile.social?.twitter || '');
@@ -339,7 +350,7 @@ export default function MyAccount() {
 
   const photoToShow = photoUrl || getTelegramPhotoUrl() || googleProfile?.photo || '';
   const hasTelegram = Boolean(telegramId);
-  const profileFullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Player';
+  const profileFullName = `${profile.firstName || googleProfile?.firstName || ''} ${profile.lastName || googleProfile?.lastName || ''}`.trim() || 'Player';
   const profileChecklist = [
     { label: 'Display name', done: Boolean(profile.firstName || profile.nickname) },
     { label: 'Avatar selected', done: Boolean(photoToShow) },
@@ -573,26 +584,23 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="rounded-xl border border-border bg-background/60 p-2.5">
-              <p className="text-[11px] uppercase tracking-wide text-subtext">Completion</p>
-              <p className="text-lg font-semibold">{profileCompletion}%</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background/60 p-2.5">
-              <p className="text-[11px] uppercase tracking-wide text-subtext">Telegram</p>
-              <p className={`text-sm font-semibold ${hasTelegram ? 'text-green-400' : 'text-amber-300'}`}>{hasTelegram ? 'Connected' : 'Pending'}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background/60 p-2.5">
-              <p className="text-[11px] uppercase tracking-wide text-subtext">Google</p>
-              <p className={`text-sm font-semibold ${googleLinked ? 'text-green-400' : 'text-amber-300'}`}>{googleLinked ? 'Connected' : 'Optional'}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background/60 p-2.5">
-              <p className="text-[11px] uppercase tracking-wide text-subtext">Messages</p>
-              <Link to="/messages" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
-                <FiMessageCircle className="w-4 h-4" />
-                {unread > 0 ? `${unread} unread` : 'Open'}
-              </Link>
-            </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5">
+              <FiCheckCircle className="w-4 h-4 text-primary" />
+              Completion {profileCompletion}%
+            </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 ${hasTelegram ? 'text-green-400' : 'text-amber-300'}`}>
+              <FiMessageCircle className="w-4 h-4" />
+              Telegram {hasTelegram ? 'Connected' : 'Connect'}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 ${googleLinked ? 'text-green-400' : 'text-amber-300'}`}>
+              <FiExternalLink className="w-4 h-4" />
+              Google {googleLinked ? 'Connected' : 'Connect'}
+            </span>
+            <Link to="/messages" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 hover:bg-background/80">
+              <FiInbox className="w-4 h-4 text-primary" />
+              Inbox {unread > 0 ? `(${unread})` : ''}
+            </Link>
           </div>
 
           <div className="space-y-2">
@@ -613,7 +621,7 @@ export default function MyAccount() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <button
               onClick={() => setShowAvatarPicker(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-semibold text-background"
@@ -635,31 +643,46 @@ export default function MyAccount() {
             >
               Use Telegram Photo
             </button>
-            <Link
-              to="/messages"
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-border hover:bg-background/70 rounded-lg text-sm"
-            >
-              <FiBell className="w-4 h-4" />
-              Inbox
-            </Link>
+            <button onClick={() => setReloadNonce((n) => n + 1)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-border hover:bg-background/70 rounded-lg text-sm">
+              <FiRefreshCw className="w-4 h-4" />
+              Refresh profile
+            </button>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
+        <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
+          <div className="space-y-2">
+            <p className="font-semibold text-white">TPC Hub</p>
+            <p className="text-xs text-subtext">Core account actions and TPC tools in one place.</p>
+            <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
+              <Link to="/wallet" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Wallet</Link>
+              <Link to="/exchange" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Exchange</Link>
+              <Link to="/mining/transactions" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Mining Tx</Link>
+              <Link to="/games/transactions" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Game Tx</Link>
+            </div>
+          </div>
+
+          <div className="space-y-2">
           <div className="flex items-start gap-2">
             <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
             <div>
-              <p className="font-semibold">Social links and sync</p>
+              <p className="font-semibold">Social Hub</p>
               <p className="text-xs text-subtext">Connect social identity so rewards and profile data stay consistent across platforms.</p>
             </div>
           </div>
 
           {telegramId && !googleLinked && (
             <div className="space-y-2">
-              <p className="text-sm text-subtext">Link your Google account:</p>
+              <p className="text-sm text-subtext">Google not connected yet:</p>
               <LinkGoogleButton telegramId={telegramId} onLinked={() => setGoogleLinked(true)} />
+            </div>
+          )}
+          {!tonWalletAddress && (
+            <div className="space-y-2">
+              <p className="text-sm text-subtext">Web3 wallet:</p>
+              <TonConnectButton small />
             </div>
           )}
           {!telegramId && googleProfile?.id && (
@@ -703,6 +726,7 @@ export default function MyAccount() {
               <button onClick={handleSaveTwitter} className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow">Save</button>
               <button onClick={handleConnectTwitter} className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm">Connect</button>
             </div>
+          </div>
           </div>
         </div>
 
@@ -860,8 +884,6 @@ export default function MyAccount() {
         </>
       )}
 
-      {/* Wallet section */}
-      <Wallet hideClaim />
       <DevNotifyModal
         open={showNotifyModal}
         onClose={() => setShowNotifyModal(false)}
