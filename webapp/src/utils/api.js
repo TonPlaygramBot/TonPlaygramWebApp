@@ -1,4 +1,5 @@
 import { getNativeBridgeHeaders } from './nativeBridge';
+import { loadGoogleProfile } from './google.js';
 
 // Use the API base URL from the build environment or fallback to the same origin
 // so the webapp works when served by the Express server in production.
@@ -77,6 +78,11 @@ function buildHeaders(base = {}) {
   const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const googleProfile = loadGoogleProfile();
+  if (googleProfile?.id) {
+    headers['X-Google-Id'] = googleProfile.id;
+    if (googleProfile.email) headers['X-Google-Email'] = googleProfile.email;
+  }
   const bridgeHeaders = getNativeBridgeHeaders();
   Object.entries(bridgeHeaders).forEach(([key, value]) => {
     if (value && !headers[key]) headers[key] = value;
@@ -708,4 +714,9 @@ export function getExchangeConversionQuote(from, amount) {
   const symbol = encodeURIComponent(String(from || 'TON').toUpperCase());
   const qty = encodeURIComponent(String(amount || '0'));
   return get(`/api/exchange/convert?from=${symbol}&amount=${qty}`);
+}
+
+export function getExchangeCoinDetails(coinId) {
+  if (!coinId) return Promise.resolve({ error: 'coinId required' });
+  return get(`/api/exchange/coins/${encodeURIComponent(coinId)}`);
 }

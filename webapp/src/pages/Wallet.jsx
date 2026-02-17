@@ -85,6 +85,13 @@ export default function Wallet({ hideClaim = false }) {
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
+
+  useEffect(() => {
+    const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
+    window.addEventListener('googleProfileUpdated', syncGoogle);
+    return () => window.removeEventListener('googleProfileUpdated', syncGoogle);
+  }, []);
+
   useEffect(() => {
     if (connectedTonAddress) {
       localStorage.setItem('walletAddress', connectedTonAddress);

@@ -29,7 +29,6 @@ import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
-import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
 import useProfileLock from '../hooks/useProfileLock.js';
@@ -646,13 +645,18 @@ export default function MyAccount() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <p className="font-semibold text-white">Profile hubs</p>
+        <p className="text-xs text-subtext mt-1">Use Social Hub first for social identity connections, then use TPC Hub for wallet and token actions.</p>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
           <div className="flex items-start gap-2">
             <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
             <div>
-              <p className="font-semibold">Social links and sync</p>
-              <p className="text-xs text-subtext">Connect social identity so rewards and profile data stay consistent across platforms.</p>
+              <p className="font-semibold">Social Hub</p>
+              <p className="text-xs text-subtext">Manage all social connections for your profile here. Keep socials in sync across Telegram, Google, and X.</p>
             </div>
           </div>
 
@@ -860,8 +864,15 @@ export default function MyAccount() {
         </>
       )}
 
-      {/* Wallet section */}
-      <Wallet hideClaim />
+      <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
+        <p className="font-semibold text-white">TPC Hub</p>
+        <p className="text-xs text-subtext">All TPC wallet, statements, exchange and transfer tools are centralized in the TPC Hub.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <Link to="/hub" className="px-3 py-2 rounded-lg bg-primary hover:bg-primary-hover text-background text-sm font-semibold text-center">Open TPC Hub</Link>
+          <Link to="/wallet" className="px-3 py-2 rounded-lg border border-border hover:bg-background/70 text-sm text-center">Wallet</Link>
+          <Link to="/exchange" className="px-3 py-2 rounded-lg border border-border hover:bg-background/70 text-sm text-center">Exchange</Link>
+        </div>
+      </div>
       <DevNotifyModal
         open={showNotifyModal}
         onClose={() => setShowNotifyModal(false)}
