@@ -70,7 +70,6 @@ export default function App() {
   })();
   const baseUrl = `${publicOrigin}${import.meta.env.BASE_URL}`;
   const manifestUrl = new URL('tonconnect-manifest.json', baseUrl).toString();
-  const walletsListSource = new URL('tonconnect-wallets.json', baseUrl).toString();
   const returnUrl = window.location.href;
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
   const actionsConfiguration = {
@@ -83,7 +82,6 @@ export default function App() {
       <TonConnectUIProvider
         manifestUrl={manifestUrl}
         actionsConfiguration={actionsConfiguration}
-        walletsListConfiguration={{ walletsListSource }}
       >
         <TonConnectSync />
         <Layout>
