@@ -5,8 +5,7 @@ import {
   createAccount,
   getAccountBalance,
   sendAccountTpc,
-  getAccountTransactions,
-  depositAccount
+  getAccountTransactions
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { STORE_ADDRESS } from '../utils/storeData.js';
@@ -77,8 +76,6 @@ export default function Wallet({ hideClaim = false }) {
   const [transactions, setTransactions] = useState([]);
   const [devShare, setDevShare] = useState(0);
   const [feeShare, setFeeShare] = useState(0);
-  const [topupAmount, setTopupAmount] = useState('');
-  const [topupSending, setTopupSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -230,37 +227,6 @@ export default function Wallet({ hideClaim = false }) {
     }
   };
 
-  const handleTopup = async () => {
-    const amt = Number(topupAmount);
-    if (!amt) return;
-    setTopupSending(true);
-    try {
-      const res = await depositAccount(accountId, amt);
-      if (res?.error) {
-        setErrorMsg(res.error);
-        return;
-      }
-      setTopupAmount('');
-      const id = await loadBalances();
-      const list = await refreshTransactions(id || accountId);
-      if (DEV_ACCOUNTS.includes(id || accountId)) {
-        const gameSum = (list || [])
-          .filter((t) => t.type === 'deposit' && t.game)
-          .reduce((s, t) => s + (t.amount || 0), 0);
-        const feeSum = (list || [])
-          .filter((t) => t.type === 'fee')
-          .reduce((s, t) => s + (t.amount || 0), 0);
-        setDevShare(gameSum);
-        setFeeShare(feeSum);
-      }
-    } catch (err) {
-      console.error('Top up failed', err);
-      setErrorMsg('Failed to top up');
-    } finally {
-      setTopupSending(false);
-    }
-  };
-
   if (requiresAuth) {
     return (
       <LoginOptions
@@ -321,12 +287,14 @@ export default function Wallet({ hideClaim = false }) {
         <div className="grid grid-cols-1 gap-2">
           <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center justify-between">
             <span className="text-sm">Telegram</span>
-            <span className={`text-xs font-semibold ${hasTelegram ? 'text-green-300' : 'text-amber-300'}`}>{hasTelegram ? 'Connected' : 'Not connected'}</span>
+            <span className={`text-xs font-semibold ${hasTelegram ? 'text-green-300' : 'text-amber-300'}`}>
+              {hasTelegram ? `ID ${telegramId}` : 'Not connected'}
+            </span>
           </div>
           <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center justify-between gap-2">
             <span className="text-sm">Google</span>
             {hasGoogle ? (
-              <span className="text-xs font-semibold text-green-300">Connected</span>
+              <span className="text-xs font-semibold text-green-300">ID {googleProfile.id}</span>
             ) : (
               <LinkGoogleButton telegramId={telegramId || null} label="Connect" onAuthenticated={setGoogleProfile} />
             )}
@@ -334,7 +302,7 @@ export default function Wallet({ hideClaim = false }) {
           <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center justify-between gap-2">
             <span className="text-sm">TON Wallet</span>
             {hasWallet ? (
-              <span className="text-xs font-semibold text-green-300">Connected</span>
+              <span className="text-xs font-semibold text-green-300 break-all text-right">{connectedTonAddress || tonWalletAddress}</span>
             ) : (
               <TonConnectButton small className="mt-0" />
             )}
@@ -436,25 +404,6 @@ export default function Wallet({ hideClaim = false }) {
 
       <NftGiftCard accountId={accountId} />
 
-      {DEV_ACCOUNTS.includes(accountId) && (
-        <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center w-80 mx-auto">
-          <label className="block font-semibold">Top Up Developer Account</label>
-          <input
-            type="number"
-            placeholder="Amount"
-            value={topupAmount}
-            onChange={(e) => setTopupAmount(e.target.value)}
-            className="border p-1 rounded w-full max-w-xs mx-auto text-black"
-          />
-          <button
-            onClick={handleTopup}
-            className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover text-background rounded"
-            disabled={topupSending}
-          >
-            {topupSending ? 'Processing...' : 'Top Up'}
-          </button>
-        </div>
-      )}
     </div>
 
 

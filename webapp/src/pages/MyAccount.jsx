@@ -34,6 +34,7 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
 import useProfileLock from '../hooks/useProfileLock.js';
 import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
+import Wallet from './Wallet.jsx';
 
 import {
   FiCheckCircle,
@@ -982,131 +983,7 @@ export default function MyAccount() {
         )}
       </div>
 
-      <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
-        <div className="space-y-2">
-          <p className="font-semibold text-white">Wallet & Account Tools</p>
-          <p className="text-xs text-subtext">
-            Core account actions and TPC tools in one place.
-          </p>
-          <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
-            <Link
-              to="/wallet"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
-            >
-              <FiGrid className="w-4 h-4" />
-              Wallet
-            </Link>
-            <Link
-              to="/mining/transactions"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
-            >
-              <FiGrid className="w-4 h-4" />
-              Mining Tx
-            </Link>
-            <Link
-              to="/games/transactions"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
-            >
-              <FiGrid className="w-4 h-4" />
-              Game Tx
-            </Link>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-start gap-2">
-            <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
-            <div>
-              <p className="font-semibold">Social Hub</p>
-              <p className="text-xs text-subtext">
-                Connect social identity so rewards and profile data stay
-                consistent across platforms.
-              </p>
-            </div>
-          </div>
-
-          {telegramId && !googleLinked && (
-            <div className="space-y-2">
-              <p className="text-sm text-subtext">
-                Google not connected yet:
-              </p>
-              <LinkGoogleButton
-                telegramId={telegramId}
-                onLinked={() => setGoogleLinked(true)}
-              />
-            </div>
-          )}
-          {!tonWalletAddress && (
-            <div className="space-y-2">
-              <p className="text-sm text-subtext">Web3 wallet:</p>
-              <TonConnectButton small />
-            </div>
-          )}
-          {!telegramId && googleProfile?.id && (
-            <div className="space-y-2">
-              <p className="text-sm text-subtext">
-                Link Telegram to sync rewards across Chrome and Telegram mini
-                app.
-              </p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input
-                  type="text"
-                  value={manualTelegramInput}
-                  onChange={(e) => setManualTelegramInput(e.target.value)}
-                  placeholder="@username or Telegram ID"
-                  className="border p-2 rounded text-black w-full sm:max-w-xs"
-                />
-                <button
-                  onClick={handleLinkTelegram}
-                  disabled={linkingTelegram}
-                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
-                >
-                  {linkingTelegram ? 'Linking…' : 'Link Telegram'}
-                </button>
-              </div>
-              {linkFeedback && (
-                <p className="text-xs text-amber-200">{linkFeedback}</p>
-              )}
-            </div>
-          )}
-
-          {profile.social?.twitter && (
-            <p className="text-sm">
-              <span className="text-subtext">Linked X:</span> @
-              {profile.social.twitter}
-              <button
-                onClick={handleClearTwitter}
-                className="underline text-primary ml-2 text-xs"
-              >
-                Clear
-              </button>
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <input
-              type="text"
-              placeholder="X profile link"
-              value={twitterLink}
-              onChange={(e) => setTwitterLink(e.target.value)}
-              className="border p-2 rounded text-black flex-grow"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveTwitter}
-                className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleConnectTwitter}
-                className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm"
-              >
-                Connect
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Wallet />
 
       <DevNotifyModal
         open={showNotifyModal}
