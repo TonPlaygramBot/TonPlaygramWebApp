@@ -47,7 +47,11 @@ import {
   FiMessageCircle,
   FiRefreshCw,
   FiShield,
-  FiUser
+  FiUser,
+  FiBell,
+  FiList,
+  FiDollarSign,
+  FiCheckSquare
 } from 'react-icons/fi';
 
 export default function MyAccount() {
@@ -58,14 +62,18 @@ export default function MyAccount() {
       return null;
     }
   });
-  const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
+  const [googleProfile, setGoogleProfile] = useState(() =>
+    telegramId ? null : loadGoogleProfile()
+  );
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [reloadNonce, setReloadNonce] = useState(0);
   const [manualTelegramInput, setManualTelegramInput] = useState('');
   const [linkingTelegram, setLinkingTelegram] = useState(false);
   const [linkFeedback, setLinkFeedback] = useState('');
-  const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
+  const [tonWalletAddress, setTonWalletAddress] = useState(
+    () => localStorage.getItem('walletAddress') || ''
+  );
   const connectedTonAddress = useTonAddress();
   const {
     config: lockConfig,
@@ -104,7 +112,11 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress && !connectedTonAddress;
+  const requiresAuth =
+    !telegramId &&
+    !googleProfile?.id &&
+    !tonWalletAddress &&
+    !connectedTonAddress;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -150,9 +162,17 @@ export default function MyAccount() {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
+      const accountPayload = await createAccount(
+        telegramId,
+        googleProfile,
+        undefined,
+        tonWalletAddress
+      );
       if (accountPayload?.error || !accountPayload?.accountId) {
-        throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
+        throw new Error(
+          accountPayload?.error ||
+            'Unable to load your TPC account. Please try again.'
+        );
       }
       if (accountPayload.accountId) {
         localStorage.setItem('accountId', accountPayload.accountId);
@@ -220,7 +240,9 @@ export default function MyAccount() {
       setProfile(finalProfile);
       setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
       setTwitterLink(finalProfile.social?.twitter || '');
-      const defaultPhoto = telegramId ? getTelegramPhotoUrl() : googleProfile?.photo || '';
+      const defaultPhoto = telegramId
+        ? getTelegramPhotoUrl()
+        : googleProfile?.photo || '';
       setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
       try {
         if (telegramId) {
@@ -246,7 +268,9 @@ export default function MyAccount() {
       .catch((err) => {
         console.error('Failed to load account', err);
         if (!cancelled) {
-          setLoadError(err?.message || 'Unable to load your profile right now.');
+          setLoadError(
+            err?.message || 'Unable to load your profile right now.'
+          );
           setProfile(null);
         }
       })
@@ -302,7 +326,11 @@ export default function MyAccount() {
         lastName: googleProfile.lastName,
         photo: googleProfile.photo
       });
-      await createAccount(telegramIdentifier, googleProfile, profile?.accountId);
+      await createAccount(
+        telegramIdentifier,
+        googleProfile,
+        profile?.accountId
+      );
       localStorage.setItem('telegramId', telegramIdentifier);
       setTelegramId(telegramIdentifier);
       setGoogleLinked(true);
@@ -311,7 +339,9 @@ export default function MyAccount() {
       setReloadNonce((n) => n + 1);
     } catch (err) {
       console.error('Failed to link Telegram account', err);
-      setLinkFeedback('We could not link that Telegram account. Double-check the ID and try again.');
+      setLinkFeedback(
+        'We could not link that Telegram account. Double-check the ID and try again.'
+      );
     } finally {
       setLinkingTelegram(false);
     }
@@ -335,7 +365,9 @@ export default function MyAccount() {
           </div>
         ) : null}
         <div className="p-3 rounded-lg border border-border bg-surface/60 text-subtext">
-          {loadingProfile ? 'Loading your profile…' : 'We are getting your profile ready.'}
+          {loadingProfile
+            ? 'Loading your profile…'
+            : 'We are getting your profile ready.'}
         </div>
         <button
           className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
@@ -348,17 +380,45 @@ export default function MyAccount() {
     );
   }
 
-  const photoToShow = photoUrl || getTelegramPhotoUrl() || googleProfile?.photo || '';
+  const photoToShow =
+    photoUrl || getTelegramPhotoUrl() || googleProfile?.photo || '';
   const hasTelegram = Boolean(telegramId);
-  const profileFullName = `${profile.firstName || googleProfile?.firstName || ''} ${profile.lastName || googleProfile?.lastName || ''}`.trim() || 'Player';
+  const profileFullName =
+    `${profile.firstName || googleProfile?.firstName || ''} ${profile.lastName || googleProfile?.lastName || ''}`.trim() ||
+    'Player';
   const profileChecklist = [
-    { label: 'Display name', done: Boolean(profile.firstName || profile.nickname) },
+    {
+      label: 'Display name',
+      done: Boolean(profile.firstName || profile.nickname)
+    },
     { label: 'Avatar selected', done: Boolean(photoToShow) },
     { label: 'Telegram linked', done: hasTelegram },
     { label: 'Google linked', done: googleLinked }
   ];
-  const completedChecklistCount = profileChecklist.filter((item) => item.done).length;
-  const profileCompletion = Math.round((completedChecklistCount / profileChecklist.length) * 100);
+  const completedChecklistCount = profileChecklist.filter(
+    (item) => item.done
+  ).length;
+  const profileCompletion = Math.round(
+    (completedChecklistCount / profileChecklist.length) * 100
+  );
+  const devPanelTools = [
+    {
+      label: 'Top up',
+      value: 'Instant TPC credit testing',
+      icon: FiDollarSign
+    },
+    { label: 'Notify', value: 'Broadcast update to all users', icon: FiBell },
+    {
+      label: 'Manage tasks',
+      value: 'Create, update, and remove quests',
+      icon: FiList
+    },
+    {
+      label: 'Claims',
+      value: 'Review influencer payout requests',
+      icon: FiCheckSquare
+    }
+  ];
 
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
@@ -487,7 +547,10 @@ export default function MyAccount() {
     if (!secret) return;
     const result = await enableSecretLock({ method, secret });
     if (result.ok) {
-      setLockFeedback(`${label} enabled. Save your recovery codes below.`, 'success');
+      setLockFeedback(
+        `${label} enabled. Save your recovery codes below.`,
+        'success'
+      );
       setShowRecoveryCodes(result.recoveryCodes || issuedRecoveryCodes || []);
     } else {
       setLockFeedback(friendlyLockError(result.error), 'error');
@@ -497,13 +560,17 @@ export default function MyAccount() {
   const handleDeviceLock = async () => {
     const result = await enableDeviceLock();
     if (result.ok) {
-      setLockFeedback('Device biometric/passkey lock enabled. Use your device unlock to enter.', 'success');
+      setLockFeedback(
+        'Device biometric/passkey lock enabled. Use your device unlock to enter.',
+        'success'
+      );
     } else {
       setLockFeedback(friendlyLockError(result.error), 'error');
     }
   };
 
-  const handleCopyAccountId = () => navigator.clipboard.writeText(String(profile.accountId));
+  const handleCopyAccountId = () =>
+    navigator.clipboard.writeText(String(profile.accountId));
 
   return (
     <div className="relative p-3 sm:p-4 space-y-4 text-text wide-card max-w-4xl mx-auto">
@@ -516,7 +583,9 @@ export default function MyAccount() {
         onConfigureSecret={enableSecretLock}
         onConfigureDevice={enableDeviceLock}
         deviceSupported={deviceSupported}
-        issuedRecoveryCodes={showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes}
+        issuedRecoveryCodes={
+          showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes
+        }
         lastError={lockError}
       />
       <AvatarPromptModal
@@ -565,12 +634,21 @@ export default function MyAccount() {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold leading-tight">{profileFullName}</h2>
-              <p className="text-xs sm:text-sm text-subtext mt-1">Professional profile hub · optimized for mobile play</p>
+              <h2 className="text-xl sm:text-2xl font-bold leading-tight">
+                {profileFullName}
+              </h2>
+              <p className="text-xs sm:text-sm text-subtext mt-1">
+                Professional profile hub · optimized for mobile play
+              </p>
               <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-background/70 border border-border px-3 py-1 text-xs sm:text-sm">
                 <span className="text-subtext">Account ID</span>
-                <span className="font-semibold text-yellow-400">{profile.accountId}</span>
-                <button onClick={handleCopyAccountId} aria-label="Copy account ID">
+                <span className="font-semibold text-yellow-400">
+                  {profile.accountId}
+                </span>
+                <button
+                  onClick={handleCopyAccountId}
+                  aria-label="Copy account ID"
+                >
                   <FiCopy className="w-4 h-4 text-subtext hover:text-text" />
                 </button>
               </div>
@@ -589,15 +667,22 @@ export default function MyAccount() {
               <FiCheckCircle className="w-4 h-4 text-primary" />
               Completion {profileCompletion}%
             </span>
-            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 ${hasTelegram ? 'text-green-400' : 'text-amber-300'}`}>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 ${hasTelegram ? 'text-green-400' : 'text-amber-300'}`}
+            >
               <FiMessageCircle className="w-4 h-4" />
               Telegram {hasTelegram ? 'Connected' : 'Connect'}
             </span>
-            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 ${googleLinked ? 'text-green-400' : 'text-amber-300'}`}>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 ${googleLinked ? 'text-green-400' : 'text-amber-300'}`}
+            >
               <FiExternalLink className="w-4 h-4" />
               Google {googleLinked ? 'Connected' : 'Connect'}
             </span>
-            <Link to="/messages" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 hover:bg-background/80">
+            <Link
+              to="/messages"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 hover:bg-background/80"
+            >
               <FiInbox className="w-4 h-4 text-primary" />
               Inbox {unread > 0 ? `(${unread})` : ''}
             </Link>
@@ -606,16 +691,28 @@ export default function MyAccount() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-subtext">
               <span>Profile setup progress</span>
-              <span>{completedChecklistCount}/{profileChecklist.length} completed</span>
+              <span>
+                {completedChecklistCount}/{profileChecklist.length} completed
+              </span>
             </div>
             <div className="h-2 rounded-full bg-background/80 overflow-hidden border border-border/60">
-              <div className="h-full bg-primary" style={{ width: `${profileCompletion}%` }} />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${profileCompletion}%` }}
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {profileChecklist.map((item) => (
-                <div key={item.label} className="flex items-center gap-2 text-xs sm:text-sm rounded-lg bg-background/50 border border-border px-2.5 py-2">
-                  <FiCheckCircle className={`w-4 h-4 ${item.done ? 'text-green-400' : 'text-subtext'}`} />
-                  <span className={item.done ? 'text-text' : 'text-subtext'}>{item.label}</span>
+                <div
+                  key={item.label}
+                  className="flex items-center gap-2 text-xs sm:text-sm rounded-lg bg-background/50 border border-border px-2.5 py-2"
+                >
+                  <FiCheckCircle
+                    className={`w-4 h-4 ${item.done ? 'text-green-400' : 'text-subtext'}`}
+                  />
+                  <span className={item.done ? 'text-text' : 'text-subtext'}>
+                    {item.label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -643,7 +740,10 @@ export default function MyAccount() {
             >
               Use Telegram Photo
             </button>
-            <button onClick={() => setReloadNonce((n) => n + 1)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-border hover:bg-background/70 rounded-lg text-sm">
+            <button
+              onClick={() => setReloadNonce((n) => n + 1)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-border hover:bg-background/70 rounded-lg text-sm"
+            >
               <FiRefreshCw className="w-4 h-4" />
               Refresh profile
             </button>
@@ -654,165 +754,235 @@ export default function MyAccount() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
           <div className="space-y-2">
-            <p className="font-semibold text-white">TPC Hub</p>
-            <p className="text-xs text-subtext">Core account actions and TPC tools in one place.</p>
+            <p className="font-semibold text-white">Wallet & Account Tools</p>
+            <p className="text-xs text-subtext">
+              Core account actions and TPC tools in one place.
+            </p>
             <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
-              <Link to="/wallet" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Wallet</Link>
-              <Link to="/exchange" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Exchange</Link>
-              <Link to="/mining/transactions" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Mining Tx</Link>
-              <Link to="/games/transactions" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Game Tx</Link>
+              <Link
+                to="/wallet"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
+              >
+                <FiGrid className="w-4 h-4" />
+                Wallet
+              </Link>
+              <Link
+                to="/mining/transactions"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
+              >
+                <FiGrid className="w-4 h-4" />
+                Mining Tx
+              </Link>
+              <Link
+                to="/games/transactions"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
+              >
+                <FiGrid className="w-4 h-4" />
+                Game Tx
+              </Link>
             </div>
           </div>
 
           <div className="space-y-2">
-          <div className="flex items-start gap-2">
-            <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
-            <div>
-              <p className="font-semibold">Social Hub</p>
-              <p className="text-xs text-subtext">Connect social identity so rewards and profile data stay consistent across platforms.</p>
+            <div className="flex items-start gap-2">
+              <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
+              <div>
+                <p className="font-semibold">Social Hub</p>
+                <p className="text-xs text-subtext">
+                  Connect social identity so rewards and profile data stay
+                  consistent across platforms.
+                </p>
+              </div>
             </div>
-          </div>
 
-          {telegramId && !googleLinked && (
-            <div className="space-y-2">
-              <p className="text-sm text-subtext">Google not connected yet:</p>
-              <LinkGoogleButton telegramId={telegramId} onLinked={() => setGoogleLinked(true)} />
-            </div>
-          )}
-          {!tonWalletAddress && (
-            <div className="space-y-2">
-              <p className="text-sm text-subtext">Web3 wallet:</p>
-              <TonConnectButton small />
-            </div>
-          )}
-          {!telegramId && googleProfile?.id && (
-            <div className="space-y-2">
-              <p className="text-sm text-subtext">Link Telegram to sync rewards across Chrome and Telegram mini app.</p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input
-                  type="text"
-                  value={manualTelegramInput}
-                  onChange={(e) => setManualTelegramInput(e.target.value)}
-                  placeholder="@username or Telegram ID"
-                  className="border p-2 rounded text-black w-full sm:max-w-xs"
+            {telegramId && !googleLinked && (
+              <div className="space-y-2">
+                <p className="text-sm text-subtext">
+                  Google not connected yet:
+                </p>
+                <LinkGoogleButton
+                  telegramId={telegramId}
+                  onLinked={() => setGoogleLinked(true)}
                 />
+              </div>
+            )}
+            {!tonWalletAddress && (
+              <div className="space-y-2">
+                <p className="text-sm text-subtext">Web3 wallet:</p>
+                <TonConnectButton small />
+              </div>
+            )}
+            {!telegramId && googleProfile?.id && (
+              <div className="space-y-2">
+                <p className="text-sm text-subtext">
+                  Link Telegram to sync rewards across Chrome and Telegram mini
+                  app.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <input
+                    type="text"
+                    value={manualTelegramInput}
+                    onChange={(e) => setManualTelegramInput(e.target.value)}
+                    placeholder="@username or Telegram ID"
+                    className="border p-2 rounded text-black w-full sm:max-w-xs"
+                  />
+                  <button
+                    onClick={handleLinkTelegram}
+                    disabled={linkingTelegram}
+                    className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
+                  >
+                    {linkingTelegram ? 'Linking…' : 'Link Telegram'}
+                  </button>
+                </div>
+                {linkFeedback && (
+                  <p className="text-xs text-amber-200">{linkFeedback}</p>
+                )}
+              </div>
+            )}
+
+            {profile.social?.twitter && (
+              <p className="text-sm">
+                <span className="text-subtext">Linked X:</span> @
+                {profile.social.twitter}
                 <button
-                  onClick={handleLinkTelegram}
-                  disabled={linkingTelegram}
-                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
+                  onClick={handleClearTwitter}
+                  className="underline text-primary ml-2 text-xs"
                 >
-                  {linkingTelegram ? 'Linking…' : 'Link Telegram'}
+                  Clear
+                </button>
+              </p>
+            )}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input
+                type="text"
+                placeholder="X profile link"
+                value={twitterLink}
+                onChange={(e) => setTwitterLink(e.target.value)}
+                className="border p-2 rounded text-black flex-grow"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveTwitter}
+                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleConnectTwitter}
+                  className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm"
+                >
+                  Connect
                 </button>
               </div>
-              {linkFeedback && <p className="text-xs text-amber-200">{linkFeedback}</p>}
             </div>
-          )}
-
-          {profile.social?.twitter && (
-            <p className="text-sm">
-              <span className="text-subtext">Linked X:</span> @{profile.social.twitter}
-              <button onClick={handleClearTwitter} className="underline text-primary ml-2 text-xs">Clear</button>
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <input
-              type="text"
-              placeholder="X profile link"
-              value={twitterLink}
-              onChange={(e) => setTwitterLink(e.target.value)}
-              className="border p-2 rounded text-black flex-grow"
-            />
-            <div className="flex gap-2">
-              <button onClick={handleSaveTwitter} className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow">Save</button>
-              <button onClick={handleConnectTwitter} className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm">Connect</button>
-            </div>
-          </div>
           </div>
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-1">
-            <p className="font-semibold text-white inline-flex items-center gap-2"><FiShield className="w-4 h-4 text-primary" />Profile protection</p>
-            <p className="text-xs text-subtext">
-              Lock this page with a PIN, pattern, password, or device biometrics/passkey. Unlocking works across browsers, with
-              recovery codes for emergencies.
-            </p>
-            <ul className="mt-2 text-xs text-subtext list-disc list-inside space-y-1">
-              <li>Use biometrics/passkeys when your device supports them.</li>
-              <li>Create a backup PIN or password for other browsers.</li>
-              <li>Store recovery codes offline to avoid lockouts.</li>
-            </ul>
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <p className="font-semibold text-white inline-flex items-center gap-2">
+                <FiShield className="w-4 h-4 text-primary" />
+                Profile protection
+              </p>
+              <p className="text-xs text-subtext">
+                Lock this page with a PIN, pattern, password, or device
+                biometrics/passkey. Unlocking works across browsers, with
+                recovery codes for emergencies.
+              </p>
+              <ul className="mt-2 text-xs text-subtext list-disc list-inside space-y-1">
+                <li>Use biometrics/passkeys when your device supports them.</li>
+                <li>Create a backup PIN or password for other browsers.</li>
+                <li>Store recovery codes offline to avoid lockouts.</li>
+              </ul>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
-            onClick={() => handleSecretLock({ method: 'pin', label: 'PIN / Pattern lock' })}
-          >
-            <FiLock className="inline w-3.5 h-3.5 mr-1" />
-            Set PIN / Pattern
-          </button>
-          <button
-            className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
-            onClick={() => handleSecretLock({ method: 'password', label: 'Password lock' })}
-          >
-            <FiLock className="inline w-3.5 h-3.5 mr-1" />
-            Set Password
-          </button>
-          <button
-            className="px-3 py-1 border border-border text-white rounded text-sm disabled:opacity-50"
-            onClick={handleDeviceLock}
-            disabled={!deviceSupported}
-          >
-            Use biometrics / passkey
-          </button>
-          {lockConfig && (
+          <div className="flex flex-wrap gap-2">
             <button
-              className="px-3 py-1 border border-border text-white rounded text-sm"
-              onClick={() => {
-                disableLock();
-                setLockFeedback('Profile lock disabled for this session.', 'success');
-              }}
+              className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
+              onClick={() =>
+                handleSecretLock({ method: 'pin', label: 'PIN / Pattern lock' })
+              }
             >
-              Disable lock
+              <FiLock className="inline w-3.5 h-3.5 mr-1" />
+              Set PIN / Pattern
             </button>
+            <button
+              className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
+              onClick={() =>
+                handleSecretLock({ method: 'password', label: 'Password lock' })
+              }
+            >
+              <FiLock className="inline w-3.5 h-3.5 mr-1" />
+              Set Password
+            </button>
+            <button
+              className="px-3 py-1 border border-border text-white rounded text-sm disabled:opacity-50"
+              onClick={handleDeviceLock}
+              disabled={!deviceSupported}
+            >
+              Use biometrics / passkey
+            </button>
+            {lockConfig && (
+              <button
+                className="px-3 py-1 border border-border text-white rounded text-sm"
+                onClick={() => {
+                  disableLock();
+                  setLockFeedback(
+                    'Profile lock disabled for this session.',
+                    'success'
+                  );
+                }}
+              >
+                Disable lock
+              </button>
+            )}
+          </div>
+          {lockMessage && (
+            <p
+              className={`text-xs ${
+                lockMessageTone === 'success'
+                  ? 'text-green-400'
+                  : lockMessageTone === 'error'
+                    ? 'text-red-400'
+                    : 'text-subtext'
+              }`}
+            >
+              {lockMessage}
+            </p>
+          )}
+          {!deviceSupported && (
+            <p className="text-xs text-amber-300">
+              Passkeys/biometrics are not supported on this browser. Try Chrome,
+              Safari, or a modern mobile browser.
+            </p>
+          )}
+          {(showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes)
+            ?.length > 0 && (
+            <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+              <p className="text-xs text-white">
+                Save these recovery codes (one-time use):
+              </p>
+              <div className="flex flex-wrap gap-2 text-sm font-mono text-white">
+                {(showRecoveryCodes.length
+                  ? showRecoveryCodes
+                  : issuedRecoveryCodes
+                ).map((code) => (
+                  <span
+                    key={code}
+                    className="px-2 py-1 rounded bg-surface/80 border border-border"
+                  >
+                    {code}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-subtext">
+                Codes only show once after you set a new lock. Store them in a
+                password manager or safe place.
+              </p>
+            </div>
           )}
         </div>
-        {lockMessage && (
-          <p
-            className={`text-xs ${
-              lockMessageTone === 'success'
-                ? 'text-green-400'
-                : lockMessageTone === 'error'
-                  ? 'text-red-400'
-                  : 'text-subtext'
-            }`}
-          >
-            {lockMessage}
-          </p>
-        )}
-        {!deviceSupported && (
-          <p className="text-xs text-amber-300">
-            Passkeys/biometrics are not supported on this browser. Try Chrome, Safari, or a modern mobile browser.
-          </p>
-        )}
-        {(showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes)?.length > 0 && (
-          <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
-            <p className="text-xs text-white">Save these recovery codes (one-time use):</p>
-            <div className="flex flex-wrap gap-2 text-sm font-mono text-white">
-              {(showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes).map((code) => (
-                <span key={code} className="px-2 py-1 rounded bg-surface/80 border border-border">
-                  {code}
-                </span>
-              ))}
-            </div>
-            <p className="text-[11px] text-subtext">
-              Codes only show once after you set a new lock. Store them in a password manager or safe place.
-            </p>
-          </div>
-        )}
-      </div>
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
@@ -822,13 +992,15 @@ export default function MyAccount() {
           <span className="text-xs text-subtext">Owned cosmetics & gifts</span>
         </div>
         <p className="text-sm text-subtext">
-          View every NFT you own in one place. Starter cosmetics are hidden so you only see items you&apos;ve unlocked.
+          View every NFT you own in one place. Starter cosmetics are hidden so
+          you only see items you&apos;ve unlocked.
         </p>
         <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
             <p className="font-medium text-sm">Open NFT library</p>
             <p className="text-xs text-subtext">
-              Browse Pool Royale, Domino Royal, and gift NFTs without the default freebies.
+              Browse Pool Royale, Domino Royal, and gift NFTs without the
+              default freebies.
             </p>
           </div>
           <Link
@@ -841,9 +1013,41 @@ export default function MyAccount() {
       </div>
 
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
-        <>
-          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-            <label className="block font-semibold text-center">
+        <div className="prism-box p-4 mt-4 space-y-4 mx-auto wide-card">
+          <div className="space-y-1">
+            <p className="text-lg font-semibold text-white">
+              Developer Control Panel
+            </p>
+            <p className="text-xs text-subtext">
+              All core admin actions are grouped in one frame for faster
+              operation on mobile.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {devPanelTools.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <div
+                  key={tool.label}
+                  className="rounded-lg border border-border bg-background/60 p-2.5 flex items-start gap-2"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {tool.label}
+                    </p>
+                    <p className="text-[11px] text-subtext">{tool.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
+            <label className="block font-semibold text-sm">
               Top Up Developer Account
             </label>
             <input
@@ -851,7 +1055,7 @@ export default function MyAccount() {
               placeholder="Amount"
               value={devTopup}
               onChange={(e) => setDevTopup(e.target.value)}
-              className="border p-1 rounded w-full max-w-xs mx-auto text-black"
+              className="border p-1 rounded w-full max-w-xs text-black"
             />
             <button
               onClick={handleDevTopup}
@@ -862,26 +1066,43 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               onClick={() => setShowNotifyModal(true)}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
+              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
             >
-              Notify
+              <FiBell className="w-4 h-4" />
+              Open Notify Center
+            </button>
+            <button
+              onClick={() => setShowTasksModal(true)}
+              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+            >
+              <FiList className="w-4 h-4" />
+              Open Task Manager
             </button>
           </div>
 
-          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-            <button
-              onClick={() => setShowTasksModal(true)}
-              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
-            >
-              Manage Tasks
-            </button>
+          <div className="rounded-lg border border-border bg-background/60 p-3 text-xs text-subtext space-y-1">
+            <p>
+              <span className="text-white">Dev account:</span> {DEV_ACCOUNT_ID}
+            </p>
+            <p>
+              <span className="text-white">Profile account:</span>{' '}
+              {profile.accountId}
+            </p>
+            <p>
+              <span className="text-white">Telegram:</span>{' '}
+              {telegramId || 'not linked'}
+            </p>
+            <p>
+              <span className="text-white">Google:</span>{' '}
+              {googleLinked ? 'linked' : 'not linked'}
+            </p>
           </div>
 
           <InfluencerClaimsCard />
-        </>
+        </div>
       )}
 
       <DevNotifyModal

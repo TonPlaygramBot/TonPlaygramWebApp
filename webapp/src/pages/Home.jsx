@@ -5,11 +5,7 @@ import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 
-import {
-  FaArrowUp,
-  FaArrowDown,
-  FaWallet
-} from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress } from '@tonconnect/ui-react';
@@ -33,16 +29,23 @@ import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-
+import { loadGoogleProfile } from '../utils/google.js';
 
 export default function Home() {
-
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
+  const hasGoogle = Boolean(loadGoogleProfile()?.id);
+  let telegramId = null;
+  try {
+    telegramId = getTelegramId();
+  } catch {
+    telegramId = null;
+  }
+  const hasTelegram = Boolean(telegramId);
 
   const handleOpenTelegramAuth = () => {
     const deepLink = 'tg://resolve?domain=TonPlaygramBot&startapp=account';
@@ -56,7 +59,7 @@ export default function Home() {
       .then(() => setStatus('online'))
       .catch(() => setStatus('offline'));
 
-    const id = getTelegramId();
+    const id = telegramId;
     const saved = loadAvatar();
     if (saved) {
       setPhotoUrl(saved);
@@ -82,7 +85,7 @@ export default function Home() {
     }
 
     const handleUpdate = () => {
-      const id = getTelegramId();
+      const id = telegramId;
       const saved = loadAvatar();
       if (saved) {
         setPhotoUrl(saved);
@@ -108,18 +111,13 @@ export default function Home() {
       }
     };
     window.addEventListener('profilePhotoUpdated', handleUpdate);
-    return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
+    return () =>
+      window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
-
-
   return (
-
     <div className="space-y-4">
-
-
       <div className="flex flex-col items-center">
-
         {photoUrl && (
           <div className="relative">
             <img
@@ -133,22 +131,37 @@ export default function Home() {
 
         <TonConnectButton />
         <div className="w-full rounded-xl border border-border bg-surface/60 p-3 mb-2 space-y-2">
-          <p className="text-xs text-subtext">1 TPC account • sign in with Telegram, Google, or Web3 wallet.</p>
+          <p className="text-xs text-subtext">
+            1 TPC account • connect only what is still missing.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <button
-              onClick={handleOpenTelegramAuth}
-              className="px-3 py-2 rounded-lg bg-[#229ED9] text-white text-sm font-semibold"
-            >
-              Continue with Telegram
-            </button>
-            <div className="flex items-center justify-center rounded-lg border border-border bg-background/60 px-2 py-1">
-              <LinkGoogleButton telegramId={null} label="Continue with Google" />
-            </div>
-            <div className="rounded-lg border border-border bg-background/60 px-2 py-1 flex items-center justify-center">
-              <TonConnectButton small className="mt-0" />
-            </div>
+            {!hasTelegram && (
+              <button
+                onClick={handleOpenTelegramAuth}
+                className="px-3 py-2 rounded-lg bg-[#229ED9] text-white text-sm font-semibold"
+              >
+                Continue with Telegram
+              </button>
+            )}
+            {!hasGoogle && (
+              <div className="flex items-center justify-center rounded-lg border border-border bg-background/60 px-2 py-1">
+                <LinkGoogleButton
+                  telegramId={telegramId || null}
+                  label="Continue with Google"
+                />
+              </div>
+            )}
+            {!walletAddress && (
+              <div className="rounded-lg border border-border bg-background/60 px-2 py-1 flex items-center justify-center">
+                <TonConnectButton small className="mt-0" />
+              </div>
+            )}
           </div>
-          <Link to="/exchange" className="inline-flex text-xs text-primary underline">Open Exchange (Top 100 + TPC converter)</Link>
+          {hasTelegram && hasGoogle && walletAddress && (
+            <p className="text-xs text-green-400">
+              All account connection methods are already linked.
+            </p>
+          )}
         </div>
 
         {walletAddress && (
@@ -169,11 +182,19 @@ export default function Home() {
             />
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img src="/assets/icons/TON.webp" alt="TON" className="w-8 h-8" />
-              <span className="text-base">{formatValue(tonBalance ?? '...')}</span>
+              <span className="text-base">
+                {formatValue(tonBalance ?? '...')}
+              </span>
             </div>
             <div className="flex-1 flex items-center justify-center space-x-1">
-              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-8 h-8" />
-              <span className="text-base">{formatValue(tpcWalletBalance ?? '...', 2)}</span>
+              <img
+                src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                alt="TPC"
+                className="w-8 h-8"
+              />
+              <span className="text-base">
+                {formatValue(tpcWalletBalance ?? '...', 2)}
+              </span>
             </div>
           </div>
 
@@ -184,31 +205,62 @@ export default function Home() {
                 <span className="text-lg font-bold text-white">Wallet</span>
               </div>
               <img
-                
                 src="/assets/icons/snakes_and_ladders.webp"
                 className="background-behind-board object-cover"
                 alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
 
-              <p className="text-center text-xs text-yellow-400">Only to send and receive TPC coins</p>
+              <p className="text-center text-xs text-yellow-400">
+                Only to send and receive TPC coins
+              </p>
 
               <div className="flex items-start justify-between">
-                <Link to="/wallet?mode=send" className="flex items-center space-x-1 -ml-1 pt-1">
-                  <span className="text-sm text-red-500" style={{ WebkitTextStroke: '1px white' }}>Send</span>
+                <Link
+                  to="/wallet?mode=send"
+                  className="flex items-center space-x-1 -ml-1 pt-1"
+                >
+                  <span
+                    className="text-sm text-red-500"
+                    style={{ WebkitTextStroke: '1px white' }}
+                  >
+                    Send
+                  </span>
                   <div className="w-9 h-9 rounded-full bg-red-500 border-2 border-white flex items-center justify-center">
-                    <FaArrowUp className="text-white w-5 h-5" style={{ stroke: 'black', strokeWidth: '2px' }} />
+                    <FaArrowUp
+                      className="text-white w-5 h-5"
+                      style={{ stroke: 'black', strokeWidth: '2px' }}
+                    />
                   </div>
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
-              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-[4rem] h-[4rem]" />
-                  <span className="text-sm">{formatValue(tpcBalance ?? '...', 2)}</span>
+                  <img
+                    src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                    alt="TPC"
+                    className="w-[4rem] h-[4rem]"
+                  />
+                  <span className="text-sm">
+                    {formatValue(tpcBalance ?? '...', 2)}
+                  </span>
                 </div>
-                <Link to="/wallet?mode=receive" className="flex items-center space-x-1 -mr-1 pt-1">
+                <Link
+                  to="/wallet?mode=receive"
+                  className="flex items-center space-x-1 -mr-1 pt-1"
+                >
                   <div className="w-9 h-9 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
-                    <FaArrowDown className="text-white w-5 h-5" style={{ stroke: 'black', strokeWidth: '2px' }} />
+                    <FaArrowDown
+                      className="text-white w-5 h-5"
+                      style={{ stroke: 'black', strokeWidth: '2px' }}
+                    />
                   </div>
-                  <span className="text-sm text-green-500" style={{ WebkitTextStroke: '1px white' }}>Receive</span>
+                  <span
+                    className="text-sm text-green-500"
+                    style={{ WebkitTextStroke: '1px white' }}
+                  >
+                    Receive
+                  </span>
                 </Link>
               </div>
             </div>
@@ -217,21 +269,25 @@ export default function Home() {
           <HomeSocialHub />
           <PlatformStatsCard />
         </div>
-
       </div>
 
-        <ProjectAchievementsCard />
+      <ProjectAchievementsCard />
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">Tokenomics & Fee Split</h3>
+          <h3 className="text-lg font-semibold text-white">
+            Tokenomics & Fee Split
+          </h3>
           <p className="text-sm text-subtext">
-            We charge a 10% platform fee on paid matches and premium purchases to keep the ecosystem sustainable.
+            We charge a 10% platform fee on paid matches and premium purchases
+            to keep the ecosystem sustainable.
           </p>
         </div>
         <div className="space-y-2 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
           <div className="flex items-start justify-between gap-4">
-            <p className="text-white font-semibold text-sm">Total platform fee</p>
+            <p className="text-white font-semibold text-sm">
+              Total platform fee
+            </p>
             <span className="text-white font-semibold text-sm">10%</span>
           </div>
           <div className="space-y-2">
@@ -244,7 +300,9 @@ export default function Home() {
               <span className="text-white font-semibold">3%</span>
             </div>
             <div className="flex items-start justify-between gap-4">
-              <p>2% Development & infrastructure (servers, anti-cheat, updates).</p>
+              <p>
+                2% Development & infrastructure (servers, anti-cheat, updates).
+              </p>
               <span className="text-white font-semibold">2%</span>
             </div>
             <div className="flex items-start justify-between gap-4">
@@ -302,9 +360,7 @@ export default function Home() {
         </a>
       </div>
     </div>
-
   );
-
 }
 
 function formatValue(value, decimals = 4) {
@@ -313,11 +369,11 @@ function formatValue(value, decimals = 4) {
     if (isNaN(parsed)) return value;
     return parsed.toLocaleString(undefined, {
       minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
+      maximumFractionDigits: decimals
     });
   }
   return value.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    maximumFractionDigits: decimals
   });
 }
