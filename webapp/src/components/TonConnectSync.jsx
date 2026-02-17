@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 
 export default function TonConnectSync() {
   const [tonConnectUI] = useTonConnectUI();
-  const tonAddress = useTonAddress(true);
+  const wallet = useTonWallet();
 
   const syncWalletAddress = (address) => {
     if (address) {
@@ -15,8 +15,9 @@ export default function TonConnectSync() {
   };
 
   useEffect(() => {
-    syncWalletAddress(tonAddress || '');
-  }, [tonAddress]);
+    const address = wallet?.account?.address || '';
+    syncWalletAddress(address);
+  }, [wallet]);
 
   useEffect(() => {
     const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
