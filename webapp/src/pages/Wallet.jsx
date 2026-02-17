@@ -18,6 +18,8 @@ import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { loadGoogleProfile } from '../utils/google.js';
 import LoginOptions from '../components/LoginOptions.jsx';
+import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import TonConnectButton from '../components/TonConnectButton.jsx';
 import { mergeStoreTransactions } from '../utils/storeTransactions.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -63,6 +65,9 @@ export default function Wallet({ hideClaim = false }) {
   const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
   const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress && !connectedTonAddress;
+  const hasTelegram = Boolean(telegramId);
+  const hasGoogle = Boolean(googleProfile?.id);
+  const hasWallet = Boolean(connectedTonAddress || tonWalletAddress);
 
   const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -311,6 +316,31 @@ export default function Wallet({ hideClaim = false }) {
   return (
     <div className="relative p-4 space-y-4 text-text wide-card">
       <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
+      <div className="bg-surface border border-border rounded-xl p-4 space-y-3 wide-card mx-auto">
+        <h3 className="text-base font-semibold text-white">Identity & Wallet Connections</h3>
+        <div className="grid grid-cols-1 gap-2">
+          <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center justify-between">
+            <span className="text-sm">Telegram</span>
+            <span className={`text-xs font-semibold ${hasTelegram ? 'text-green-300' : 'text-amber-300'}`}>{hasTelegram ? 'Connected' : 'Not connected'}</span>
+          </div>
+          <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center justify-between gap-2">
+            <span className="text-sm">Google</span>
+            {hasGoogle ? (
+              <span className="text-xs font-semibold text-green-300">Connected</span>
+            ) : (
+              <LinkGoogleButton telegramId={telegramId || null} label="Connect" onAuthenticated={setGoogleProfile} />
+            )}
+          </div>
+          <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center justify-between gap-2">
+            <span className="text-sm">TON Wallet</span>
+            {hasWallet ? (
+              <span className="text-xs font-semibold text-green-300">Connected</span>
+            ) : (
+              <TonConnectButton small className="mt-0" />
+            )}
+          </div>
+        </div>
+      </div>
       <div className="prism-box p-6 space-y-2 min-h-40 flex flex-col items-start wide-card mx-auto">
         <p className="text-xs break-all w-full text-left">
           <span className="text-white text-outline-black">Account:</span>{' '}
