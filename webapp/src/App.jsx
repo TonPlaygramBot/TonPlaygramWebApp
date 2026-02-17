@@ -15,7 +15,6 @@ import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
-import Exchange from './pages/Exchange.jsx';
 
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
@@ -181,7 +180,6 @@ export default function App() {
             <Route path="/account" element={<MyAccount />} />
             <Route path="/nfts" element={<Nfts />} />
             <Route path="/platform-stats" element={<PlatformStatsDetails />} />
-            <Route path="/exchange" element={<Exchange />} />
 
             {/* Internal tools (used for automated store thumbnail generation) */}
             <Route
