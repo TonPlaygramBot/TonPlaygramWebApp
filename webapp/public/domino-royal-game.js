@@ -10,52 +10,43 @@ import "./flag-emojis.js";
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'mobileSafe';
+const DEFAULT_FRAME_RATE_ID = 'uhd120';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'mobileSafe',
-    label: 'Mobile Safe (60 Hz)',
-    fps: 60,
-    renderScale: 0.85,
-    pixelRatioCap: 1,
-    resolution: 'Safe render • DPR 1.0 cap',
-    description: 'Telegram-safe profile with reduced render resolution to prevent WebView crashes.'
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 1,
-    pixelRatioCap: 1.3,
-    resolution: 'Full HD render • DPR 1.3 cap',
-    description: 'Balanced 1080p profile tuned for stability on mobile and desktop.'
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Murlan Royale frame pacing.'
   },
   {
     id: 'qhd90',
     label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 1.15,
-    pixelRatioCap: 1.5,
-    resolution: 'QHD render • DPR 1.5 cap',
-    description: 'Sharper 1440p render for capable 90 Hz devices with safer headroom.'
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.25,
-    pixelRatioCap: 1.8,
-    resolution: 'Ultra HD render • DPR 1.8 cap',
-    description: '4K-focused profile for 120 Hz flagships with controlled GPU load.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
     renderScale: 1.35,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD+ render • DPR 2.0 cap',
-    description: 'High clarity preset with safer limits for sustained sessions.'
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -111,6 +102,23 @@ function detectHighRefreshDisplay() {
     return false;
   }
   const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function detectLowRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -196,7 +204,7 @@ function detectPreferredFrameRateId() {
     return DEFAULT_FRAME_RATE_ID;
   }
   if (IS_TELEGRAM_RUNTIME) {
-    return 'mobileSafe';
+    return 'fhd60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -205,12 +213,17 @@ function detectPreferredFrameRateId() {
   const isTouch = maxTouchPoints > 1;
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
+  if (lowRefresh) {
+    return 'hd50';
+  }
+
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -225,10 +238,6 @@ function detectPreferredFrameRateId() {
     return 'fhd60';
   }
 
-  if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
-  }
-
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
     return 'uhd120';
   }
@@ -237,7 +246,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'mobileSafe';
+  return 'fhd60';
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -257,7 +266,7 @@ function buildFrameQuality(optionId) {
       : 60;
   const renderScale =
     typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
-      ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1.6)
+      ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
       : 1;
   const pixelRatioCap =
     typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
