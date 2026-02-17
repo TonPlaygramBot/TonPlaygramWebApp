@@ -90,7 +90,8 @@ import {
   getNextIncompleteLevel,
   loadTrainingProgress,
   persistTrainingProgress,
-  resolvePlayableTrainingLevel
+  resolvePlayableTrainingLevel,
+  getTrainingLayout
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
@@ -12468,9 +12469,11 @@ function PoolRoyaleGame({
   }, [trainingRulesOn]);
   const [trainingProgress, setTrainingProgress] = useState({
     completed: [],
-    lastLevel: 1
+    lastLevel: 1,
+    carryShots: 3
   });
   const [trainingLevel, setTrainingLevel] = useState(1);
+  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(3);
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingCompletionHandledRef = useRef(false);
@@ -12485,6 +12488,7 @@ function PoolRoyaleGame({
     const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
+    setTrainingShotsRemaining(Math.max(0, Number(stored?.carryShots) || 3));
     setTrainingLevel(playableLevel);
   }, []);
   const currentTrainingInfo = useMemo(
@@ -13672,13 +13676,15 @@ const powerRef = useRef(hud.power);
       completedSet.add(completedLevel);
       const completed = Array.from(completedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
-      const updated = { completed, lastLevel };
+      const carryShots = Math.max(0, trainingShotsRemaining) + 3;
+      const updated = { completed, lastLevel, carryShots };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
+      setTrainingShotsRemaining(carryShots);
       setTrainingLevel(nextPlayable);
       return updated;
     });
-  }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel]);
+  }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -21813,7 +21819,8 @@ const powerRef = useRef(hud.power);
         return entries.length > 0;
       };
 
-      const appliedTraining = false;
+      const trainingLayout = isTraining ? getTrainingLayout(trainingLevelRef.current || 1) : null;
+      const appliedTraining = isTraining ? placeTrainingLayout(trainingLayout) : false;
 
       if (!appliedTraining) {
         const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
@@ -26290,6 +26297,7 @@ const powerRef = useRef(hud.power);
         const currentState = frameRef.current ?? frameState;
         const cueBallPotted =
           potted.some((entry) => entry.color === 'CUE') || !cue.active;
+        const pottedObjectCount = potted.filter((entry) => String(entry.id || '').toLowerCase() !== 'cue').length;
         const noCushionAfterContact =
           shotContextRef.current.contactMade &&
           !shotContextRef.current.cushionAfterContact &&
@@ -26325,6 +26333,9 @@ const powerRef = useRef(hud.power);
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
+        }
+        if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
+          setTrainingShotsRemaining((prev) => Math.max(0, (Number(prev) || 0) - 1));
         }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
@@ -30777,6 +30788,7 @@ const powerRef = useRef(hud.power);
               </div>
               <div className="text-right text-[11px] uppercase tracking-[0.2em] text-white/70">
                 <div className="text-emerald-200">{completedTrainingCount} completed</div>
+                <div>Shots bank: {trainingShotsRemaining}</div>
                 <div>Next L{nextTrainingInfo.level}</div>
               </div>
             </div>
@@ -30827,6 +30839,8 @@ const powerRef = useRef(hud.power);
                   <p className="mt-1 text-[11px] text-emerald-200">
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
+                  <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
+                  <p className="mt-1 text-[11px] text-white/60">Shots bank: {trainingShotsRemaining}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
                 <div>
