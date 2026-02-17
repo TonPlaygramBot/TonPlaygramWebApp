@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/auth/useSession.ts","./src/lib/api.ts","./src/lib/telegram.ts","./src/wallets/AddWalletModal.tsx","./src/wallets/WalletsScreen.tsx","./src/wallets/evm/EvmLink.tsx","./src/wallets/solana/SolanaLink.tsx","./src/wallets/ton/TonLink.tsx"],"version":"5.9.3"}
