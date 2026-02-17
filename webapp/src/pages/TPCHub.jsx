@@ -51,7 +51,7 @@ export default function TPCHub() {
         if (cancelled) return;
         setAccountId(account.accountId);
         localStorage.setItem('accountId', account.accountId);
-        const tx = await getAccountTransactions(account.accountId);
+        const tx = await getAccountTransactions(account.accountId, { googleId: googleProfile?.id, walletAddress: tonAddress || localStorage.getItem('walletAddress') });
         if (!cancelled) {
           setTransactions(Array.isArray(tx) ? tx : tx?.transactions || []);
         }

@@ -105,7 +105,7 @@ export default function Wallet({ hideClaim = false }) {
 
   const refreshTransactions = async (id) => {
     if (!id) return;
-    const txRes = await getAccountTransactions(id);
+    const txRes = await getAccountTransactions(id, { googleId: googleProfile?.id, walletAddress: tonWalletAddress || connectedTonAddress });
     const list = txRes.transactions || [];
     const merged = mergeStoreTransactions(list, id);
     setTransactions(merged);
@@ -134,7 +134,7 @@ export default function Wallet({ hideClaim = false }) {
     }
     setAccountId(acc.accountId || id);
 
-    const bal = await getAccountBalance(acc.accountId || id);
+    const bal = await getAccountBalance(acc.accountId || id, { googleId: googleProfile?.id, walletAddress: tonWalletAddress || connectedTonAddress });
     if (bal?.error || typeof bal.balance !== 'number') {
       console.error('Failed to load TPC balance:', bal?.error);
       setTpcBalance(0);
