@@ -72,13 +72,17 @@ export default function App() {
   }, []);
   const baseUrl = useMemo(() => `${publicOrigin}${import.meta.env.BASE_URL}`, [publicOrigin]);
   const manifestUrl = useMemo(() => new URL('tonconnect-manifest.json', baseUrl).toString(), [baseUrl]);
-  const returnUrl = useMemo(
-    () => new URL(import.meta.env.BASE_URL || '/', publicOrigin).toString(),
-    [publicOrigin]
-  );
+  const returnUrl = useMemo(() => {
+    if (typeof window !== 'undefined' && window.location?.href) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.hash = '';
+      return currentUrl.toString();
+    }
+    return new URL(import.meta.env.BASE_URL || '/', publicOrigin).toString();
+  }, [publicOrigin]);
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
   const actionsConfiguration = useMemo(() => ({
-    returnUrl,
+    returnStrategy: returnUrl,
     twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
   }), [returnUrl, telegramReturnUrl]);
 
