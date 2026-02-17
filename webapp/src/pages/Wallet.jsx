@@ -62,7 +62,7 @@ export default function Wallet({ hideClaim = false }) {
   const connectedTonAddress = useTonAddress();
   const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress;
+  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress && !connectedTonAddress;
 
   const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);

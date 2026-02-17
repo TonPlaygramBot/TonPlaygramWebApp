@@ -104,7 +104,7 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress;
+  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress && !connectedTonAddress;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));

@@ -78,23 +78,27 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
     let cancelled = false;
     setTonStatus('linking');
     setTonError('');
+    localStorage.setItem('walletAddress', tonAddress);
+    if (onTonConnected) onTonConnected(tonAddress);
     (async () => {
       try {
         const existingProfile = googleProfile || loadGoogleProfile();
         const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
         if (cancelled) return;
-        if (res?.error) {
-          throw new Error(res.error);
-        }
+        if (res?.error) throw new Error(res.error);
         if (res?.accountId) {
           localStorage.setItem('accountId', res.accountId);
         }
-        localStorage.setItem('walletAddress', tonAddress);
         setTonStatus('ready');
-        if (onTonConnected) onTonConnected(tonAddress);
       } catch (err) {
         console.error('TON account link failed', err);
         if (!cancelled) {
+          const fallback = await createAccount(undefined, googleProfile || undefined);
+          if (fallback?.accountId) {
+            localStorage.setItem('accountId', fallback.accountId);
+            setTonStatus('ready');
+            return;
+          }
           setTonStatus('error');
           setTonError(err?.message || 'Unable to link TON wallet');
         }
