@@ -94,7 +94,8 @@ export default function App() {
   // under an unexpected domain (Telegram proxy domains, mirrors, etc.).
   const manifestUrl = useMemo(() => {
     const canon = canonicalOrigin.replace(/\/$/, '');
-    return `${canon}/tonconnect-manifest.json`;
+    // Cache-bust manifest so wallets always read the latest app name/icon.
+    return `${canon}/tonconnect-manifest.json?v=2026-02-18`;
   }, [canonicalOrigin]);
   const returnUrl = useMemo(() => {
     if (typeof window !== 'undefined' && window.location?.href) {
@@ -121,6 +122,7 @@ export default function App() {
       <TonConnectUIProvider
         manifestUrl={manifestUrl}
         actionsConfiguration={actionsConfiguration}
+        restoreConnection
       >
         <TonConnectSync />
         <Layout>
