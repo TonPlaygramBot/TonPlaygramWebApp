@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id               String         @id @default(uuid())
+  telegramUserId   String?        @unique
+  telegramUsername String?
+  googleSub        String?        @unique
+  googleEmail      String?
+  primaryAuthMethod String        @default("telegram")
+  createdAt        DateTime       @default(now())
+  linkedWallets    LinkedWallet[]
+  nonces           Nonce[]
+}
+
+model LinkedWallet {
+  id         String   @id @default(uuid())
+  accountId  String
+  chain      String
+  address    String
+  provider   String?
+  label      String?
+  isPrimary  Boolean  @default(false)
+  verifiedAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([chain, address])
+  @@index([accountId])
+}
+
+model Nonce {
+  nonce     String   @id
+  purpose   String
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  chain     String?
+  expiresAt DateTime
+  usedAt    DateTime?
+}
