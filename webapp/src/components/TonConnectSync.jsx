@@ -16,7 +16,9 @@ export default function TonConnectSync() {
 
   useEffect(() => {
     const address = wallet?.account?.address || '';
-    syncWalletAddress(address);
+    if (address) {
+      syncWalletAddress(address);
+    }
   }, [wallet]);
 
   useEffect(() => {

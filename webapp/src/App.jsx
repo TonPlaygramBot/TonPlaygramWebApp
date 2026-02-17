@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
@@ -63,19 +63,22 @@ export default function App() {
   useReferralClaim();
   useNativePushNotifications();
 
-  const publicOrigin = (() => {
+  const publicOrigin = useMemo(() => {
     const origin = window.location.origin;
     if (origin.startsWith('http')) return origin;
     return import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram.com';
-  })();
-  const baseUrl = `${publicOrigin}${import.meta.env.BASE_URL}`;
-  const manifestUrl = new URL('tonconnect-manifest.json', baseUrl).toString();
-  const returnUrl = window.location.href;
+  }, []);
+  const baseUrl = useMemo(() => `${publicOrigin}${import.meta.env.BASE_URL}`, [publicOrigin]);
+  const manifestUrl = useMemo(() => new URL('tonconnect-manifest.json', baseUrl).toString(), [baseUrl]);
+  const returnUrl = useMemo(
+    () => new URL(import.meta.env.BASE_URL || '/', publicOrigin).toString(),
+    [publicOrigin]
+  );
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
-  const actionsConfiguration = {
+  const actionsConfiguration = useMemo(() => ({
     returnUrl,
     twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
-  };
+  }), [returnUrl, telegramReturnUrl]);
 
   return (
     <BrowserRouter>
