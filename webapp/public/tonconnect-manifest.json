@@ -1,7 +1,7 @@
 {
   "name": "TonPlaygram",
-  "url": "https://tonplaygram.com",
-  "iconUrl": "https://tonplaygram.com/assets/icons/TON.webp",
-  "termsOfUseUrl": "https://tonplaygram.com/terms",
-  "privacyPolicyUrl": "https://tonplaygram.com/privacy"
+  "url": "https://tonplaygram-bot.onrender.com",
+  "iconUrl": "https://tonplaygram-bot.onrender.com/assets/icons/TON.webp",
+  "termsOfUseUrl": "https://tonplaygram-bot.onrender.com/terms",
+  "privacyPolicyUrl": "https://tonplaygram-bot.onrender.com/privacy"
 }

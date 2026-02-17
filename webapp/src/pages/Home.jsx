@@ -29,6 +29,7 @@ import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import TonConnectButton from '../components/TonConnectButton.jsx';
+import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
@@ -42,6 +43,13 @@ export default function Home() {
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
+
+  const handleOpenTelegramAuth = () => {
+    const deepLink = 'tg://resolve?domain=TonPlaygramBot&startapp=account';
+    const fallback = 'https://t.me/TonPlaygramBot?startapp=account';
+    window.location.href = deepLink;
+    setTimeout(() => window.open(fallback, '_blank', 'noopener'), 450);
+  };
 
   useEffect(() => {
     ping()
@@ -124,6 +132,25 @@ export default function Home() {
         )}
 
         <TonConnectButton />
+        <div className="w-full rounded-xl border border-border bg-surface/60 p-3 mb-2 space-y-2">
+          <p className="text-xs text-subtext">1 TPC account • sign in with Telegram, Google, or Web3 wallet.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              onClick={handleOpenTelegramAuth}
+              className="px-3 py-2 rounded-lg bg-[#229ED9] text-white text-sm font-semibold"
+            >
+              Continue with Telegram
+            </button>
+            <div className="flex items-center justify-center rounded-lg border border-border bg-background/60 px-2 py-1">
+              <LinkGoogleButton telegramId={null} label="Continue with Google" />
+            </div>
+            <div className="rounded-lg border border-border bg-background/60 px-2 py-1 flex items-center justify-center">
+              <TonConnectButton small className="mt-0" />
+            </div>
+          </div>
+          <Link to="/exchange" className="inline-flex text-xs text-primary underline">Open Exchange (Top 100 + TPC converter)</Link>
+        </div>
+
         {walletAddress && (
           <div className="roll-result text-white text-4xl">
             {'$' + formatValue(usdValue ?? '...', 2)}
