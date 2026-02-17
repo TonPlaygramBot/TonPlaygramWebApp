@@ -47,40 +47,6 @@ async function fetchFromCoinCap() {
   }));
 }
 
-
-async function fetchCoinDetail(coinId) {
-  const [detailRes, chartRes] = await Promise.all([
-    fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`, { headers: { accept: 'application/json' } }),
-    fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}/market_chart?vs_currency=usd&days=7&interval=daily`, { headers: { accept: 'application/json' } })
-  ]);
-
-  if (!detailRes.ok) throw new Error(`Coin detail failed: ${detailRes.status}`);
-  if (!chartRes.ok) throw new Error(`Coin chart failed: ${chartRes.status}`);
-
-  const detail = await detailRes.json();
-  const chart = await chartRes.json();
-
-  return {
-    id: detail.id,
-    symbol: String(detail.symbol || '').toUpperCase(),
-    name: detail.name,
-    image: detail.image?.large || detail.image?.small || '',
-    description: detail.description?.en || '',
-    homepage: detail.links?.homepage?.[0] || '',
-    marketCapRank: normalizeNumber(detail.market_cap_rank, 9999),
-    currentPriceUsd: normalizeNumber(detail.market_data?.current_price?.usd),
-    marketCapUsd: normalizeNumber(detail.market_data?.market_cap?.usd),
-    totalVolumeUsd: normalizeNumber(detail.market_data?.total_volume?.usd),
-    high24hUsd: normalizeNumber(detail.market_data?.high_24h?.usd),
-    low24hUsd: normalizeNumber(detail.market_data?.low_24h?.usd),
-    athUsd: normalizeNumber(detail.market_data?.ath?.usd),
-    atlUsd: normalizeNumber(detail.market_data?.atl?.usd),
-    chart7d: Array.isArray(chart?.prices)
-      ? chart.prices.map(([timestamp, price]) => ({ timestamp, price: normalizeNumber(price) }))
-      : []
-  };
-}
-
 async function fetchTopMarkets() {
   const now = Date.now();
   if (cache.markets.length && now - cache.at < CACHE_TTL_MS) {
@@ -112,20 +78,6 @@ router.get('/markets', async (_req, res) => {
       return res.json({ ok: true, updatedAt: new Date(cache.at).toISOString(), markets: cache.markets, stale: true });
     }
     return res.status(502).json({ ok: false, error: error.message || 'Unable to fetch markets' });
-  }
-});
-
-
-router.get('/coins/:coinId', async (req, res) => {
-  try {
-    const coinId = String(req.params.coinId || '').trim();
-    if (!coinId) {
-      return res.status(400).json({ ok: false, error: 'coinId is required' });
-    }
-    const detail = await fetchCoinDetail(coinId);
-    return res.json({ ok: true, detail, updatedAt: new Date().toISOString() });
-  } catch (error) {
-    return res.status(502).json({ ok: false, error: error.message || 'Unable to fetch coin details' });
   }
 });
 
