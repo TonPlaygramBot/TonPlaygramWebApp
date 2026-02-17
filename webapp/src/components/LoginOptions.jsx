@@ -77,27 +77,15 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
     let cancelled = false;
     setTonStatus('linking');
     (async () => {
-      try {
-        const existingProfile = googleProfile || loadGoogleProfile();
-        const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
-        if (cancelled) return;
-        if (res?.error) {
-          throw new Error(res.error);
-        }
-        if (res?.accountId) {
-          localStorage.setItem('accountId', res.accountId);
-        }
-        localStorage.setItem('walletAddress', tonAddress);
-        setTonStatus('ready');
-        if (onTonConnected) onTonConnected(tonAddress);
-      } catch (err) {
-        if (!cancelled) {
-          console.error('TON account setup failed', err);
-          localStorage.setItem('walletAddress', tonAddress);
-          if (onTonConnected) onTonConnected(tonAddress);
-          setTonStatus('error');
-        }
+      const existingProfile = googleProfile || loadGoogleProfile();
+      const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
+      if (cancelled) return;
+      if (res?.accountId) {
+        localStorage.setItem('accountId', res.accountId);
       }
+      localStorage.setItem('walletAddress', tonAddress);
+      setTonStatus('ready');
+      if (onTonConnected) onTonConnected(tonAddress);
     })();
     return () => {
       cancelled = true;
@@ -176,9 +164,6 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
           )}
           {tonStatus === 'ready' && (
             <p className="text-[11px] text-green-400">TON wallet linked. Reloading your profile…</p>
-          )}
-          {tonStatus === 'error' && (
-            <p className="text-[11px] text-amber-200">Wallet connected. Account sync had a delay, but you can continue now.</p>
           )}
         </div>
       </div>
