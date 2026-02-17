@@ -30,15 +30,6 @@ function isPrivileged(req) {
   return req.auth?.apiToken === true;
 }
 
-function canAccessUser(req, user) {
-  if (isPrivileged(req)) return true;
-  if (!user) return false;
-  if (user.telegramId && req.auth?.telegramId && user.telegramId === req.auth.telegramId) return true;
-  if (user.googleId && req.auth?.googleId && user.googleId === req.auth.googleId) return true;
-  if (user.accountId && req.auth?.accountId && user.accountId === req.auth.accountId) return true;
-  return !user.telegramId && !user.googleId;
-}
-
 // Create or fetch account for a user
 router.post('/create', authenticate, async (req, res) => {
   const {
@@ -48,16 +39,12 @@ router.post('/create', authenticate, async (req, res) => {
     googleEmail,
     firstName,
     lastName,
-    photo,
-    walletAddress
+    photo
   } = req.body;
   const useMemoryStore = shouldUseMemoryUserStore();
 
   try {
     if (!isPrivileged(req) && telegramId && req.auth?.telegramId !== telegramId) {
-      return res.status(403).json({ error: 'forbidden' });
-    }
-    if (!isPrivileged(req) && googleId && req.auth?.googleId && req.auth.googleId !== googleId) {
       return res.status(403).json({ error: 'forbidden' });
     }
     let user;
@@ -227,11 +214,6 @@ router.post('/create', authenticate, async (req, res) => {
       if (!useMemoryStore) await user.save();
     }
 
-    if (walletAddress && !user.walletAddress) {
-      user.walletAddress = walletAddress;
-      await persistUser(user);
-    }
-
     res.json({
       accountId: user.accountId,
       balance: user.balance,
@@ -253,7 +235,7 @@ router.post('/balance', authenticate, async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user)) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
   const balance = calculateBalance(user);
@@ -275,7 +257,7 @@ router.post('/info', authenticate, async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user)) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -318,7 +300,7 @@ router.post('/send', authenticate, async (req, res) => {
 
   const sender = await User.findOne({ accountId: fromAccount });
   if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (!canAccessUser(req, sender)) {
+  if (!isPrivileged(req) && sender.telegramId && sender.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
   const feeSender = Math.round(amount * 0.02);
@@ -470,7 +452,7 @@ router.post('/gift', authenticate, async (req, res) => {
   if (!sender || sender.balance < g.price) {
     return res.status(400).json({ error: 'insufficient balance' });
   }
-  if (!canAccessUser(req, sender)) {
+  if (!isPrivileged(req) && sender.telegramId && sender.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -559,7 +541,7 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user)) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -686,7 +668,7 @@ router.post('/transactions', authenticate, async (req, res) => {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user)) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
   ensureTransactionArray(user);

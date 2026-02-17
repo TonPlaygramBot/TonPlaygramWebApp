@@ -27,8 +27,6 @@ export function verifyTelegramInitData(initData, botToken = process.env.BOT_TOKE
 
 function attachAuth(req, token, initData) {
   const allowedToken = process.env.API_AUTH_TOKEN;
-  const accountId = req.get('x-tpc-account-id');
-  const googleId = req.get('x-google-id');
   if (initData) {
     const data = verifyTelegramInitData(initData);
     if (data) {
@@ -40,13 +38,6 @@ function attachAuth(req, token, initData) {
   }
   if (allowedToken && token === allowedToken) {
     req.auth = { apiToken: true };
-    return true;
-  }
-  if (accountId || googleId) {
-    req.auth = {
-      accountId: accountId || undefined,
-      googleId: googleId || undefined
-    };
     return true;
   }
   return false;
