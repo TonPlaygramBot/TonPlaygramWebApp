@@ -15,8 +15,6 @@ import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
-import Exchange from './pages/Exchange.jsx';
-import TpcAccountHub from './pages/TpcAccountHub.jsx';
 
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
@@ -66,14 +64,12 @@ export default function App() {
   useNativePushNotifications();
 
   const publicOrigin = useMemo(() => {
-    const envOrigin = import.meta.env.VITE_PUBLIC_APP_URL;
-    if (envOrigin?.startsWith('http')) return envOrigin;
-    return 'https://tonplaygram-bot.onrender.com';
+    const origin = window.location.origin;
+    if (origin.startsWith('http')) return origin;
+    return import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram.com';
   }, []);
-  const manifestUrl = useMemo(
-    () => import.meta.env.VITE_TONCONNECT_MANIFEST_URL || 'https://tonplaygram-bot.onrender.com/tonconnect-manifest.json',
-    []
-  );
+  const baseUrl = useMemo(() => `${publicOrigin}${import.meta.env.BASE_URL}`, [publicOrigin]);
+  const manifestUrl = useMemo(() => new URL('tonconnect-manifest.json', baseUrl).toString(), [baseUrl]);
   const returnUrl = useMemo(
     () => new URL(import.meta.env.BASE_URL || '/', publicOrigin).toString(),
     [publicOrigin]
@@ -184,8 +180,6 @@ export default function App() {
             <Route path="/account" element={<MyAccount />} />
             <Route path="/nfts" element={<Nfts />} />
             <Route path="/platform-stats" element={<PlatformStatsDetails />} />
-            <Route path="/hub" element={<TpcAccountHub />} />
-            <Route path="/exchange" element={<Exchange />} />
 
             {/* Internal tools (used for automated store thumbnail generation) */}
             <Route
