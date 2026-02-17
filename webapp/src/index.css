@@ -34,10 +34,9 @@ body {
 
 body.telegram-fullscreen {
   min-height: var(--tg-viewport-stable-height, 100dvh);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  /* Keep game UI geometry stable when Telegram toggles fullscreen.
+     Individual game controls already apply safe-area offsets where needed. */
+  padding: 0;
 }
 
 body.telegram-fullscreen #root {
