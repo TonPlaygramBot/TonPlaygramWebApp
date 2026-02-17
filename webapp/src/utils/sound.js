@@ -1,34 +1,59 @@
-let gameMuted = localStorage.getItem('gameMuted') === 'true';
-let gameVolume = parseFloat(localStorage.getItem('gameVolume') || '1');
+const DEFAULT_GAME_VOLUME = 1
 
-export function isGameMuted() {
-  return gameMuted;
+function clampVolume (value) {
+  if (!Number.isFinite(value)) return DEFAULT_GAME_VOLUME
+  return Math.min(1, Math.max(0, value))
 }
 
-export function getGameVolume() {
-  return gameVolume;
-}
-
-export function setGameMuted(val) {
-  gameMuted = val;
+function readStoredGameMuted () {
   try {
-    localStorage.setItem('gameMuted', val ? 'true' : 'false');
-  } catch (err) {}
-  window.dispatchEvent(new Event('gameMuteChanged'));
+    return localStorage.getItem('gameMuted') === 'true'
+  } catch (err) {
+    return false
+  }
 }
 
-export function setGameVolume(val) {
-  gameVolume = val;
+function readStoredGameVolume () {
   try {
-    localStorage.setItem('gameVolume', String(val));
+    const raw = localStorage.getItem('gameVolume')
+    if (raw == null || raw === '') return DEFAULT_GAME_VOLUME
+    return clampVolume(parseFloat(raw))
+  } catch (err) {
+    return DEFAULT_GAME_VOLUME
+  }
+}
+
+let gameMuted = readStoredGameMuted()
+let gameVolume = readStoredGameVolume()
+
+export function isGameMuted () {
+  return gameMuted
+}
+
+export function getGameVolume () {
+  return gameVolume
+}
+
+export function setGameMuted (val) {
+  gameMuted = val
+  try {
+    localStorage.setItem('gameMuted', val ? 'true' : 'false')
   } catch (err) {}
-  window.dispatchEvent(new Event('gameVolumeChanged'));
+  window.dispatchEvent(new Event('gameMuteChanged'))
 }
 
-export function toggleGameMuted() {
-  setGameMuted(!gameMuted);
+export function setGameVolume (val) {
+  gameVolume = clampVolume(Number(val))
+  try {
+    localStorage.setItem('gameVolume', String(gameVolume))
+  } catch (err) {}
+  window.dispatchEvent(new Event('gameVolumeChanged'))
 }
 
-export function toggleGameVolume() {
-  setGameVolume(gameVolume === 0 ? 1 : 0);
+export function toggleGameMuted () {
+  setGameMuted(!gameMuted)
+}
+
+export function toggleGameVolume () {
+  setGameVolume(gameVolume === 0 ? 1 : 0)
 }
