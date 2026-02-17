@@ -33,7 +33,6 @@ import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { loadGoogleProfile } from '../utils/google.js';
 
 
 export default function Home() {
@@ -44,14 +43,6 @@ export default function Home() {
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
-  const hasGoogle = Boolean(loadGoogleProfile()?.id);
-  let telegramId = null;
-  try {
-    telegramId = getTelegramId();
-  } catch {
-    telegramId = null;
-  }
-  const hasTelegram = Boolean(telegramId);
 
   const handleOpenTelegramAuth = () => {
     const deepLink = 'tg://resolve?domain=TonPlaygramBot&startapp=account';
@@ -65,7 +56,7 @@ export default function Home() {
       .then(() => setStatus('online'))
       .catch(() => setStatus('offline'));
 
-    const id = telegramId;
+    const id = getTelegramId();
     const saved = loadAvatar();
     if (saved) {
       setPhotoUrl(saved);
@@ -91,7 +82,7 @@ export default function Home() {
     }
 
     const handleUpdate = () => {
-      const id = telegramId;
+      const id = getTelegramId();
       const saved = loadAvatar();
       if (saved) {
         setPhotoUrl(saved);
@@ -142,30 +133,21 @@ export default function Home() {
 
         <TonConnectButton />
         <div className="w-full rounded-xl border border-border bg-surface/60 p-3 mb-2 space-y-2">
-          <p className="text-xs text-subtext">1 TPC account • connect only what is still missing.</p>
+          <p className="text-xs text-subtext">1 TPC account • sign in with Telegram, Google, or Web3 wallet.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {!hasTelegram && (
-              <button
-                onClick={handleOpenTelegramAuth}
-                className="px-3 py-2 rounded-lg bg-[#229ED9] text-white text-sm font-semibold"
-              >
-                Continue with Telegram
-              </button>
-            )}
-            {!hasGoogle && (
-              <div className="flex items-center justify-center rounded-lg border border-border bg-background/60 px-2 py-1">
-                <LinkGoogleButton telegramId={telegramId || null} label="Continue with Google" />
-              </div>
-            )}
-            {!walletAddress && (
-              <div className="rounded-lg border border-border bg-background/60 px-2 py-1 flex items-center justify-center">
-                <TonConnectButton small className="mt-0" />
-              </div>
-            )}
+            <button
+              onClick={handleOpenTelegramAuth}
+              className="px-3 py-2 rounded-lg bg-[#229ED9] text-white text-sm font-semibold"
+            >
+              Continue with Telegram
+            </button>
+            <div className="flex items-center justify-center rounded-lg border border-border bg-background/60 px-2 py-1">
+              <LinkGoogleButton telegramId={null} label="Continue with Google" />
+            </div>
+            <div className="rounded-lg border border-border bg-background/60 px-2 py-1 flex items-center justify-center">
+              <TonConnectButton small className="mt-0" />
+            </div>
           </div>
-          {hasTelegram && hasGoogle && walletAddress && (
-            <p className="text-xs text-green-400">All account connection methods are already linked.</p>
-          )}
           <Link to="/exchange" className="inline-flex text-xs text-primary underline">Open Exchange (Top 100 + TPC converter)</Link>
         </div>
 
