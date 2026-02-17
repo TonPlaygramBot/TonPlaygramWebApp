@@ -698,3 +698,14 @@ export function getAppStats() {
 export function getDetailedAppStats() {
   return get('/api/stats/detailed');
 }
+
+
+export function getExchangeMarkets() {
+  return get('/api/exchange/markets');
+}
+
+export function getExchangeConversionQuote(from, amount) {
+  const symbol = encodeURIComponent(String(from || 'TON').toUpperCase());
+  const qty = encodeURIComponent(String(amount || '0'));
+  return get(`/api/exchange/convert?from=${symbol}&amount=${qty}`);
+}
