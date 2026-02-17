@@ -31,12 +31,30 @@ const wagmiConfig = createConfig({
   },
 });
 
+// Enforce canonical origin for wallet connection flows.
+// TonConnect can hang if the manifest URL/origin mismatch.
+const CANONICAL_ORIGIN = import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com';
+try {
+  const canonicalUrl = new URL(CANONICAL_ORIGIN);
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (!isLocalhost && canonicalUrl.origin !== window.location.origin) {
+    const next = new URL(window.location.href);
+    next.protocol = canonicalUrl.protocol;
+    next.host = canonicalUrl.host;
+    window.location.replace(next.toString());
+  }
+} catch {
+  // ignore bad canonical URL
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <TonConnectUIProvider
-      manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}
+      // Always point manifest at the canonical origin.
+      manifestUrl={`${CANONICAL_ORIGIN.replace(/\/$/, '')}/tonconnect-manifest.json`}
       actionsConfiguration={{
         returnStrategy: 'back',
+        // Only used in Telegram WebView; harmless elsewhere.
         twaReturnUrl: window.location.href,
       }}
     >
