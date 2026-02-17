@@ -15,6 +15,8 @@ import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
+import Exchange from './pages/Exchange.jsx';
+import TPCHub from './pages/TPCHub.jsx';
 
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
@@ -66,7 +68,7 @@ export default function App() {
   const publicOrigin = useMemo(() => {
     const origin = window.location.origin;
     if (origin.startsWith('http')) return origin;
-    return import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram.com';
+    return import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com';
   }, []);
   const baseUrl = useMemo(() => `${publicOrigin}${import.meta.env.BASE_URL}`, [publicOrigin]);
   const manifestUrl = useMemo(() => new URL('tonconnect-manifest.json', baseUrl).toString(), [baseUrl]);
@@ -180,6 +182,8 @@ export default function App() {
             <Route path="/account" element={<MyAccount />} />
             <Route path="/nfts" element={<Nfts />} />
             <Route path="/platform-stats" element={<PlatformStatsDetails />} />
+            <Route path="/exchange" element={<Exchange />} />
+            <Route path="/hub" element={<TPCHub />} />
 
             {/* Internal tools (used for automated store thumbnail generation) */}
             <Route
