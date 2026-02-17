@@ -1,5 +1,7 @@
 {
-  "url": "https://example.com",
   "name": "TonPlaygram",
-  "iconUrl": "https://wallet.tg/images/logo.png"
+  "url": "https://tonplaygram-bot.onrender.com",
+  "iconUrl": "https://tonplaygram-bot.onrender.com/assets/icons/TON.webp",
+  "termsOfUseUrl": "https://tonplaygram-bot.onrender.com/terms",
+  "privacyPolicyUrl": "https://tonplaygram-bot.onrender.com/privacy"
 }

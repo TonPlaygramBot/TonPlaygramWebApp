@@ -59,6 +59,26 @@ import { BOT_USERNAME } from './utils/constants.js';
 import { isTelegramWebView } from './utils/telegram.js';
 
 export default function App() {
+  // Enforce canonical origin for wallet connection flows.
+  // TonConnect can hang if the manifest URL/origin mismatch.
+  // Keep this as early as possible.
+  if (typeof window !== 'undefined') {
+    const canonical = import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com';
+    try {
+      const canonicalUrl = new URL(canonical);
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocalhost && canonicalUrl.origin !== window.location.origin) {
+        const next = new URL(window.location.href);
+        next.protocol = canonicalUrl.protocol;
+        next.host = canonicalUrl.host;
+        window.location.replace(next.toString());
+        return null;
+      }
+    } catch {
+      // ignore bad canonical URL
+    }
+  }
+
   useTelegramAuth();
   useTelegramFullscreen();
   useReferralClaim();
