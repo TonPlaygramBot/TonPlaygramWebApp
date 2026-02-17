@@ -30,19 +30,5 @@ export default function TonConnectSync() {
     return () => unsubscribe();
   }, [tonConnectUI]);
 
-  useEffect(() => {
-    const closeIfConnected = () => {
-      const connectedAddress = tonConnectUI?.wallet?.account?.address || wallet?.account?.address || '';
-      if (connectedAddress) tonConnectUI.closeModal();
-    };
-
-    const events = ['visibilitychange', 'focus', 'pageshow'];
-    events.forEach((eventName) => window.addEventListener(eventName, closeIfConnected));
-
-    return () => {
-      events.forEach((eventName) => window.removeEventListener(eventName, closeIfConnected));
-    };
-  }, [tonConnectUI, wallet]);
-
   return null;
 }

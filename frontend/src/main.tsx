@@ -51,7 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <TonConnectUIProvider
       // Always point manifest at the canonical origin.
-      manifestUrl={`${CANONICAL_ORIGIN.replace(/\/$/, '')}/tonconnect-manifest.json?v=2026-02-17`}
+      manifestUrl={`${CANONICAL_ORIGIN.replace(/\/$/, '')}/tonconnect-manifest.json`}
       actionsConfiguration={{
         returnStrategy: 'back',
         // Only used in Telegram WebView; harmless elsewhere.
