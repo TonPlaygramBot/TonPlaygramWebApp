@@ -33,7 +33,13 @@ const wagmiConfig = createConfig({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <TonConnectUIProvider manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}>
+    <TonConnectUIProvider
+      manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}
+      actionsConfiguration={{
+        returnStrategy: 'back',
+        twaReturnUrl: window.location.href,
+      }}
+    >
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <ConnectionProvider endpoint="https://api.mainnet-beta.solana.com">

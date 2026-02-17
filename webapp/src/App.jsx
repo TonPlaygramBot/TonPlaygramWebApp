@@ -80,10 +80,16 @@ export default function App() {
     return new URL(import.meta.env.BASE_URL || '/', publicOrigin).toString();
   }, [publicOrigin]);
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
-  const actionsConfiguration = useMemo(() => ({
-    returnStrategy: returnUrl,
-    twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
-  }), [returnUrl, telegramReturnUrl]);
+  const actionsConfiguration = useMemo(
+    () => ({
+      // TonConnect expects a strategy keyword here (not a URL).
+      // "back" works across regular browsers + Telegram webview.
+      returnStrategy: 'back',
+      // Where TonConnect should return the user after approving in-wallet.
+      twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
+    }),
+    [returnUrl, telegramReturnUrl],
+  );
 
   return (
     <BrowserRouter>
