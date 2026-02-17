@@ -1,9 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getExchangeMarkets, getExchangeConversionQuote } from '../utils/api.js';
+import {
+  getExchangeMarkets,
+  getExchangeConversionQuote,
+  getExchangeCoinDetails
+} from '../utils/api.js';
 
 function formatUsd(v) {
   if (!Number.isFinite(Number(v))) return '...';
   return Number(v).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 6 });
+}
+
+function buildPath(points, width = 320, height = 120) {
+  if (!Array.isArray(points) || points.length < 2) return '';
+  const prices = points.map((point) => Number(point.price)).filter(Number.isFinite);
+  if (prices.length < 2) return '';
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const span = max - min || 1;
+  return points
+    .map((point, index) => {
+      const x = (index / (points.length - 1)) * width;
+      const y = height - ((Number(point.price) - min) / span) * height;
+      return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
 }
 
 export default function Exchange() {
@@ -16,17 +36,51 @@ export default function Exchange() {
   const [amount, setAmount] = useState('1');
   const [quote, setQuote] = useState(null);
 
+  const [selectedCoinId, setSelectedCoinId] = useState('');
+  const [selectedCoin, setSelectedCoin] = useState(null);
+  const [coinLoading, setCoinLoading] = useState(false);
+
   const sorted = useMemo(() => [...markets].sort((a, b) => (a.marketCapRank || 9999) - (b.marketCapRank || 9999)), [markets]);
+
+  const loadCoinGeckoDirectly = async () => {
+    const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h');
+    if (!res.ok) throw new Error(`CoinGecko unavailable (${res.status})`);
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).map((coin) => ({
+      id: coin.id,
+      symbol: String(coin.symbol || '').toUpperCase(),
+      name: coin.name,
+      image: coin.image,
+      currentPriceUsd: Number(coin.current_price) || 0,
+      marketCapUsd: Number(coin.market_cap) || 0,
+      marketCapRank: Number(coin.market_cap_rank) || 9999,
+      priceChange24h: Number(coin.price_change_percentage_24h) || 0
+    }));
+  };
 
   const refresh = async () => {
     setError('');
     try {
       const data = await getExchangeMarkets();
       if (data?.error) throw new Error(data.error);
-      setMarkets(data.markets || []);
+      const incoming = data.markets || [];
+      if (!incoming.length) {
+        const fallback = await loadCoinGeckoDirectly();
+        setMarkets(fallback);
+        setUpdatedAt(new Date().toISOString());
+        return;
+      }
+      setMarkets(incoming);
       setUpdatedAt(data.updatedAt || new Date().toISOString());
     } catch (err) {
-      setError(err.message || 'Unable to load prices');
+      try {
+        const fallback = await loadCoinGeckoDirectly();
+        setMarkets(fallback);
+        setUpdatedAt(new Date().toISOString());
+        setError('Using direct CoinGecko feed. Backend exchange feed is temporarily unavailable.');
+      } catch {
+        setError(err.message || 'Unable to load prices');
+      }
     } finally {
       setLoading(false);
     }
@@ -43,18 +97,34 @@ export default function Exchange() {
     setQuote(data);
   };
 
+  const openCoin = async (coin) => {
+    setSelectedCoinId(coin.id);
+    setSelectedCoin(null);
+    setCoinLoading(true);
+    const data = await getExchangeCoinDetails(coin.id);
+    if (data?.error) {
+      setError(data.error);
+      setCoinLoading(false);
+      return;
+    }
+    setSelectedCoin(data.coin);
+    setCoinLoading(false);
+  };
+
   useEffect(() => {
     refresh();
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
   }, []);
 
+  const chartPath = buildPath(selectedCoin?.prices || []);
+
   return (
     <div className="space-y-4 p-3 pb-20">
       <div className="bg-surface border border-border rounded-xl p-4 space-y-2">
         <h1 className="text-xl font-semibold text-white">Exchange Infrastructure (Ready)</h1>
         <p className="text-xs text-subtext">
-          Live top 100 market-cap coins with 10s refresh. TPC conversion uses a configurable reference price until live markets are active.
+          Live top 100 market-cap coins with 10s refresh. Tap any coin to open real-time chart data and profile details from CoinGecko.
         </p>
         <p className="text-[11px] text-green-300">Last update: {updatedAt ? new Date(updatedAt).toLocaleTimeString() : '...'}</p>
       </div>
@@ -91,9 +161,14 @@ export default function Exchange() {
         {error && <p className="text-sm text-red-300">{error}</p>}
         <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
           {sorted.map((coin) => (
-            <div key={coin.id} className="flex items-center justify-between rounded-lg bg-background/50 border border-border px-3 py-2">
+            <button
+              key={coin.id}
+              type="button"
+              onClick={() => openCoin(coin)}
+              className="w-full flex items-center justify-between rounded-lg bg-background/50 border border-border px-3 py-2 text-left hover:bg-background/70"
+            >
               <div className="flex items-center gap-2 min-w-0">
-                <img src={coin.image} alt={coin.symbol} className="w-6 h-6 rounded-full" />
+                <img src={coin.image || '/assets/icons/profile.svg'} alt={coin.symbol} className="w-6 h-6 rounded-full" />
                 <div className="min-w-0">
                   <p className="text-sm text-white truncate">#{coin.marketCapRank} {coin.name} ({coin.symbol})</p>
                   <p className="text-[11px] text-subtext truncate">MCap: {formatUsd(coin.marketCapUsd)}</p>
@@ -105,10 +180,50 @@ export default function Exchange() {
                   {Number(coin.priceChange24h || 0).toFixed(2)}%
                 </p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {selectedCoinId && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-end sm:items-center justify-center" onClick={() => setSelectedCoinId('')}>
+          <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            {coinLoading || !selectedCoin ? (
+              <p className="text-sm text-subtext">Loading coin details…</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <img src={selectedCoin.image} alt={selectedCoin.symbol} className="w-8 h-8 rounded-full" />
+                  <div>
+                    <p className="text-white font-semibold">{selectedCoin.name} ({selectedCoin.symbol})</p>
+                    <p className="text-xs text-subtext">Rank #{selectedCoin.marketCapRank}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <p className="rounded bg-background/60 border border-border p-2">Price: <span className="text-white">{formatUsd(selectedCoin.currentPriceUsd)}</span></p>
+                  <p className="rounded bg-background/60 border border-border p-2">MCap: <span className="text-white">{formatUsd(selectedCoin.marketCapUsd)}</span></p>
+                  <p className="rounded bg-background/60 border border-border p-2">24h High: <span className="text-white">{formatUsd(selectedCoin.high24hUsd)}</span></p>
+                  <p className="rounded bg-background/60 border border-border p-2">24h Low: <span className="text-white">{formatUsd(selectedCoin.low24hUsd)}</span></p>
+                </div>
+                <div className="rounded-lg border border-border bg-background/40 p-2">
+                  <p className="text-xs text-subtext mb-2">7D price chart</p>
+                  {chartPath ? (
+                    <svg viewBox="0 0 320 120" className="w-full h-28">
+                      <path d={chartPath} fill="none" stroke="#22d3ee" strokeWidth="2" />
+                    </svg>
+                  ) : (
+                    <p className="text-xs text-subtext">Chart unavailable for this coin.</p>
+                  )}
+                </div>
+                {selectedCoin.homepage && (
+                  <a href={selectedCoin.homepage} target="_blank" rel="noreferrer" className="text-primary text-xs underline">Open project website</a>
+                )}
+              </>
+            )}
+            <button onClick={() => setSelectedCoinId('')} className="w-full py-2 rounded bg-primary text-black font-semibold">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
