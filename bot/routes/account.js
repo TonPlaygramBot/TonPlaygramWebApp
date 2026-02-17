@@ -30,29 +30,6 @@ function isPrivileged(req) {
   return req.auth?.apiToken === true;
 }
 
-function normalizeAddress(value = '') {
-  return String(value || '').trim().toLowerCase();
-}
-
-function canAccessUser(req, user, { googleId, walletAddress } = {}) {
-  if (isPrivileged(req)) return true;
-  if (!user) return false;
-
-  if (req.auth?.telegramId && user.telegramId && req.auth.telegramId === user.telegramId) {
-    return true;
-  }
-
-  if (googleId && user.googleId && String(googleId) === String(user.googleId)) {
-    return true;
-  }
-
-  if (walletAddress && user.walletAddress) {
-    return normalizeAddress(walletAddress) === normalizeAddress(user.walletAddress);
-  }
-
-  return false;
-}
-
 // Create or fetch account for a user
 router.post('/create', authenticate, async (req, res) => {
   const {
@@ -253,12 +230,12 @@ router.post('/create', authenticate, async (req, res) => {
 
 // Get balance by account id
 router.post('/balance', authenticate, async (req, res) => {
-  const { accountId, googleId, walletAddress } = req.body;
+  const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user, { googleId, walletAddress })) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
   const balance = calculateBalance(user);
@@ -275,12 +252,12 @@ router.post('/balance', authenticate, async (req, res) => {
 
 // Get full account info including gifts and transactions
 router.post('/info', authenticate, async (req, res) => {
-  const { accountId, googleId, walletAddress } = req.body;
+  const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user, { googleId, walletAddress })) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -687,11 +664,11 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
 
 // List transactions by account id
 router.post('/transactions', authenticate, async (req, res) => {
-  const { accountId, googleId, walletAddress } = req.body;
+  const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user, { googleId, walletAddress })) {
+  if (!isPrivileged(req) && user.telegramId && user.telegramId !== req.auth?.telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
   ensureTransactionArray(user);

@@ -76,26 +76,17 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
     if (!tonAddress) return;
     let cancelled = false;
     setTonStatus('linking');
-    localStorage.setItem('walletAddress', tonAddress);
-    if (onTonConnected) onTonConnected(tonAddress);
-
     (async () => {
-      try {
-        const existingProfile = googleProfile || loadGoogleProfile();
-        const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
-        if (cancelled) return;
-        if (res?.accountId) {
-          localStorage.setItem('accountId', res.accountId);
-        }
-        setTonStatus('ready');
-      } catch (err) {
-        console.error('TON account setup failed', err);
-        if (!cancelled) {
-          setTonStatus('ready');
-        }
+      const existingProfile = googleProfile || loadGoogleProfile();
+      const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
+      if (cancelled) return;
+      if (res?.accountId) {
+        localStorage.setItem('accountId', res.accountId);
       }
+      localStorage.setItem('walletAddress', tonAddress);
+      setTonStatus('ready');
+      if (onTonConnected) onTonConnected(tonAddress);
     })();
-
     return () => {
       cancelled = true;
     };
