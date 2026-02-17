@@ -359,12 +359,6 @@ export default function MyAccount() {
   ];
   const completedChecklistCount = profileChecklist.filter((item) => item.done).length;
   const profileCompletion = Math.round((completedChecklistCount / profileChecklist.length) * 100);
-  const devPanelTools = [
-    { label: 'Top up', value: 'Instant TPC credit testing' },
-    { label: 'Notify', value: 'Broadcast update to all users' },
-    { label: 'Manage tasks', value: 'Create, update, and remove quests' },
-    { label: 'Claims', value: 'Review influencer payout requests' }
-  ];
 
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
@@ -660,7 +654,7 @@ export default function MyAccount() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
           <div className="space-y-2">
-            <p className="font-semibold text-white">Wallet & Account Tools</p>
+            <p className="font-semibold text-white">TPC Hub</p>
             <p className="text-xs text-subtext">Core account actions and TPC tools in one place.</p>
             <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
               <Link to="/wallet" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"><FiGrid className="w-4 h-4" />Wallet</Link>
@@ -847,29 +841,17 @@ export default function MyAccount() {
       </div>
 
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
-        <div className="prism-box p-4 mt-4 space-y-4 mx-auto wide-card">
-          <div className="space-y-1">
-            <p className="text-lg font-semibold text-white">Developer Control Panel</p>
-            <p className="text-xs text-subtext">All core admin actions are grouped in one frame for faster operation on mobile.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {devPanelTools.map((tool) => (
-              <div key={tool.label} className="rounded-lg border border-border bg-background/60 p-2">
-                <p className="text-sm font-semibold text-white">{tool.label}</p>
-                <p className="text-[11px] text-subtext">{tool.value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
-            <label className="block font-semibold text-sm">Top Up Developer Account</label>
+        <>
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+            <label className="block font-semibold text-center">
+              Top Up Developer Account
+            </label>
             <input
               type="number"
               placeholder="Amount"
               value={devTopup}
               onChange={(e) => setDevTopup(e.target.value)}
-              className="border p-1 rounded w-full max-w-xs text-black"
+              className="border p-1 rounded w-full max-w-xs mx-auto text-black"
             />
             <button
               onClick={handleDevTopup}
@@ -880,30 +862,26 @@ export default function MyAccount() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <button
               onClick={() => setShowNotifyModal(true)}
-              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full"
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
             >
-              Open Notify Center
-            </button>
-            <button
-              onClick={() => setShowTasksModal(true)}
-              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full"
-            >
-              Open Task Manager
+              Notify
             </button>
           </div>
 
-          <div className="rounded-lg border border-border bg-background/60 p-3 text-xs text-subtext space-y-1">
-            <p><span className="text-white">Dev account:</span> {DEV_ACCOUNT_ID}</p>
-            <p><span className="text-white">Profile account:</span> {profile.accountId}</p>
-            <p><span className="text-white">Telegram:</span> {telegramId || 'not linked'}</p>
-            <p><span className="text-white">Google:</span> {googleLinked ? 'linked' : 'not linked'}</p>
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+            <button
+              onClick={() => setShowTasksModal(true)}
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
+            >
+              Manage Tasks
+            </button>
           </div>
 
           <InfluencerClaimsCard />
-        </div>
+        </>
       )}
 
       <DevNotifyModal
