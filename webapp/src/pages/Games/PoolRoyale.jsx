@@ -6261,58 +6261,11 @@ function reflectRails(ball) {
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
-  const nearPocketRadius = Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
-  const enforceRailContainment = () => {
-    const nearPocket = pocketCenters().some(
-      (center) => ball.pos.distanceTo(center) < nearPocketRadius
-    );
-    if (nearPocket) return null;
-    let collided = null;
-    let collisionNormal = null;
-    if (ball.pos.x < -railLimitX) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = -railLimitX - ball.pos.x;
-      ball.pos.x = -railLimitX + overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(1, 0);
-    }
-    if (ball.pos.x > railLimitX) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = ball.pos.x - railLimitX;
-      ball.pos.x = railLimitX - overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(-1, 0);
-    }
-    if (ball.pos.y < -railLimitY) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = -railLimitY - ball.pos.y;
-      ball.pos.y = -railLimitY + overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(0, 1);
-    }
-    if (ball.pos.y > railLimitY) {
-      preImpactVel = ball.vel.clone();
-      const overshoot = ball.pos.y - railLimitY;
-      ball.pos.y = railLimitY - overshoot;
-      collided = 'rail';
-      collisionNormal = new THREE.Vector2(0, -1);
-    }
-    if (!collided) return null;
-    const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
-    ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = collided;
-    const normal = collisionNormal ?? new THREE.Vector2(0, 1);
-    const tangent = new THREE.Vector2(-normal.y, normal.x);
-    return { type: collided, normal, tangent, preImpactVel };
-  };
   let preImpactVel = null;
   const hasCushionSegments =
     Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
   if (hasCushionSegments) {
-    const segmentNearPocketRadius =
+    const nearPocketRadius =
       Math.max(CAPTURE_R, SIDE_CAPTURE_R) + CUSHION_CUT_NEAR_POCKET_BUFFER;
     const centers = pocketCenters();
     let nearestPocketDist = Infinity;
@@ -6326,7 +6279,7 @@ function reflectRails(ball) {
         nearestPocketIndex = index;
       }
     });
-    const nearPocket = nearestPocketDist < segmentNearPocketRadius;
+    const nearPocket = nearestPocketDist < nearPocketRadius;
     const inCaptureZone = nearestPocketDist < nearestCaptureRadius;
     const pocketGuardClearance =
       nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
@@ -6406,8 +6359,6 @@ function reflectRails(ball) {
         preImpactVel
       };
     }
-    const containmentImpact = enforceRailContainment();
-    if (containmentImpact) return containmentImpact;
   }
   if (!hasCushionSegments) {
     for (const { sx, sy } of CORNER_SIGNS) {
@@ -6479,8 +6430,55 @@ function reflectRails(ball) {
       }
     }
 
-    const containmentImpact = enforceRailContainment();
-    if (containmentImpact) return containmentImpact;
+    const nearPocketRadius =
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+    const nearPocket = pocketCenters().some(
+      (c) => ball.pos.distanceTo(c) < nearPocketRadius
+    );
+    if (nearPocket) return null;
+    let collided = null;
+    let collisionNormal = null;
+    if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = -railLimitX - ball.pos.x;
+      ball.pos.x = -railLimitX + overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(1, 0);
+    }
+    if (ball.pos.x > railLimitX && ball.vel.x > 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = ball.pos.x - railLimitX;
+      ball.pos.x = railLimitX - overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(-1, 0);
+    }
+    if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = -railLimitY - ball.pos.y;
+      ball.pos.y = -railLimitY + overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, 1);
+    }
+    if (ball.pos.y > railLimitY && ball.vel.y > 0) {
+      preImpactVel = ball.vel.clone();
+      const overshoot = ball.pos.y - railLimitY;
+      ball.pos.y = railLimitY - overshoot;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, -1);
+    }
+    if (collided) {
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = collided;
+    }
+    if (collided) {
+      const normal = collisionNormal ?? new THREE.Vector2(0, 1);
+      const tangent = new THREE.Vector2(-normal.y, normal.x);
+      return { type: collided, normal, tangent, preImpactVel };
+    }
   }
   return null;
 }
