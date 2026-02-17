@@ -77,6 +77,10 @@ function buildHeaders(base = {}) {
   const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const accountId = window?.localStorage?.getItem('accountId');
+  if (accountId) headers['X-Tpc-Account-Id'] = accountId;
+  const googleId = window?.localStorage?.getItem('googleId');
+  if (googleId) headers['X-Google-Id'] = googleId;
   const bridgeHeaders = getNativeBridgeHeaders();
   Object.entries(bridgeHeaders).forEach(([key, value]) => {
     if (value && !headers[key]) headers[key] = value;
@@ -708,4 +712,10 @@ export function getExchangeConversionQuote(from, amount) {
   const symbol = encodeURIComponent(String(from || 'TON').toUpperCase());
   const qty = encodeURIComponent(String(amount || '0'));
   return get(`/api/exchange/convert?from=${symbol}&amount=${qty}`);
+}
+
+
+export function getExchangeCoinDetails(coinId) {
+  const id = encodeURIComponent(String(coinId || '').trim());
+  return get(`/api/exchange/coin/${id}`);
 }

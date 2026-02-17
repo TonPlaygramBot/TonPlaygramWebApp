@@ -647,11 +647,23 @@ export default function MyAccount() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
+        <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
+          <div className="space-y-2 border border-border rounded-lg bg-background/50 p-3">
+            <p className="font-semibold text-white">TPC Hub</p>
+            <p className="text-xs text-subtext">Core account actions and TPC tools in one place.</p>
+            <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+              <Link to="/wallet" className="rounded-lg border border-border bg-surface/80 px-3 py-2 text-center">Wallet</Link>
+              <Link to="/exchange" className="rounded-lg border border-border bg-surface/80 px-3 py-2 text-center">Exchange</Link>
+              <Link to="/mining/transactions" className="rounded-lg border border-border bg-surface/80 px-3 py-2 text-center">Mining Tx</Link>
+              <Link to="/games/transactions" className="rounded-lg border border-border bg-surface/80 px-3 py-2 text-center">Game Tx</Link>
+            </div>
+          </div>
+
+          <div className="space-y-2 border border-border rounded-lg bg-background/50 p-3">
           <div className="flex items-start gap-2">
             <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
             <div>
-              <p className="font-semibold">Social links and sync</p>
+              <p className="font-semibold">Social Hub</p>
               <p className="text-xs text-subtext">Connect social identity so rewards and profile data stay consistent across platforms.</p>
             </div>
           </div>
@@ -703,6 +715,7 @@ export default function MyAccount() {
               <button onClick={handleSaveTwitter} className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow">Save</button>
               <button onClick={handleConnectTwitter} className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm">Connect</button>
             </div>
+          </div>
           </div>
         </div>
 
