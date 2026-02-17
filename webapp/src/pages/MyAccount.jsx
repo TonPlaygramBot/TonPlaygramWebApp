@@ -985,8 +985,7 @@ export default function MyAccount() {
         </div>
       </div>
 
-      <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
-      <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
+      <div className="bg-surface border border-border rounded-xl p-4 mt-4 space-y-3 wide-card">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">NFTs</h3>
           <span className="text-xs text-subtext">Owned cosmetics & gifts</span>
@@ -1013,7 +1012,7 @@ export default function MyAccount() {
       </div>
 
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
-        <div className="prism-box p-4 mt-4 space-y-4 mx-auto wide-card">
+        <div className="bg-surface border border-border rounded-xl p-4 mt-4 space-y-4 wide-card">
           <div className="space-y-1">
             <p className="text-lg font-semibold text-white">
               Developer Control Panel
@@ -1104,6 +1103,8 @@ export default function MyAccount() {
           <InfluencerClaimsCard />
         </div>
       )}
+
+      <BalanceSummary className="bg-surface border border-border rounded-xl p-4 mt-4 wide-card" />
 
       <DevNotifyModal
         open={showNotifyModal}
