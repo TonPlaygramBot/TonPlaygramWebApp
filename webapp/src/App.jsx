@@ -84,21 +84,26 @@ export default function App() {
   useReferralClaim();
   useNativePushNotifications();
 
-  const publicOrigin = useMemo(() => {
-    const origin = window.location.origin;
-    if (origin.startsWith('http')) return origin;
-    return import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com';
-  }, []);
-  const baseUrl = useMemo(() => `${publicOrigin}${import.meta.env.BASE_URL}`, [publicOrigin]);
-  const manifestUrl = useMemo(() => new URL('tonconnect-manifest.json', baseUrl).toString(), [baseUrl]);
+  const canonicalOrigin = useMemo(
+    () => import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com',
+    [],
+  );
+
+  // Always load the TonConnect manifest from the canonical origin.
+  // This avoids wallet prompts like "connect to tonplaygram.com" when the app is opened
+  // under an unexpected domain (Telegram proxy domains, mirrors, etc.).
+  const manifestUrl = useMemo(() => {
+    const canon = canonicalOrigin.replace(/\/$/, '');
+    return `${canon}/tonconnect-manifest.json`;
+  }, [canonicalOrigin]);
   const returnUrl = useMemo(() => {
     if (typeof window !== 'undefined' && window.location?.href) {
       const currentUrl = new URL(window.location.href);
       currentUrl.hash = '';
       return currentUrl.toString();
     }
-    return new URL(import.meta.env.BASE_URL || '/', publicOrigin).toString();
-  }, [publicOrigin]);
+    return new URL(import.meta.env.BASE_URL || '/', canonicalOrigin).toString();
+  }, [canonicalOrigin]);
   const telegramReturnUrl = `https://t.me/${BOT_USERNAME}?startapp=account`;
   const actionsConfiguration = useMemo(
     () => ({
