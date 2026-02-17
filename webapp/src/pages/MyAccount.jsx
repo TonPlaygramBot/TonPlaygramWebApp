@@ -751,133 +751,7 @@ export default function MyAccount() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
-          <div className="space-y-2">
-            <p className="font-semibold text-white">Wallet & Account Tools</p>
-            <p className="text-xs text-subtext">
-              Core account actions and TPC tools in one place.
-            </p>
-            <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
-              <Link
-                to="/wallet"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
-              >
-                <FiGrid className="w-4 h-4" />
-                Wallet
-              </Link>
-              <Link
-                to="/mining/transactions"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
-              >
-                <FiGrid className="w-4 h-4" />
-                Mining Tx
-              </Link>
-              <Link
-                to="/games/transactions"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
-              >
-                <FiGrid className="w-4 h-4" />
-                Game Tx
-              </Link>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
-              <div>
-                <p className="font-semibold">Social Hub</p>
-                <p className="text-xs text-subtext">
-                  Connect social identity so rewards and profile data stay
-                  consistent across platforms.
-                </p>
-              </div>
-            </div>
-
-            {telegramId && !googleLinked && (
-              <div className="space-y-2">
-                <p className="text-sm text-subtext">
-                  Google not connected yet:
-                </p>
-                <LinkGoogleButton
-                  telegramId={telegramId}
-                  onLinked={() => setGoogleLinked(true)}
-                />
-              </div>
-            )}
-            {!tonWalletAddress && (
-              <div className="space-y-2">
-                <p className="text-sm text-subtext">Web3 wallet:</p>
-                <TonConnectButton small />
-              </div>
-            )}
-            {!telegramId && googleProfile?.id && (
-              <div className="space-y-2">
-                <p className="text-sm text-subtext">
-                  Link Telegram to sync rewards across Chrome and Telegram mini
-                  app.
-                </p>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <input
-                    type="text"
-                    value={manualTelegramInput}
-                    onChange={(e) => setManualTelegramInput(e.target.value)}
-                    placeholder="@username or Telegram ID"
-                    className="border p-2 rounded text-black w-full sm:max-w-xs"
-                  />
-                  <button
-                    onClick={handleLinkTelegram}
-                    disabled={linkingTelegram}
-                    className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
-                  >
-                    {linkingTelegram ? 'Linking…' : 'Link Telegram'}
-                  </button>
-                </div>
-                {linkFeedback && (
-                  <p className="text-xs text-amber-200">{linkFeedback}</p>
-                )}
-              </div>
-            )}
-
-            {profile.social?.twitter && (
-              <p className="text-sm">
-                <span className="text-subtext">Linked X:</span> @
-                {profile.social.twitter}
-                <button
-                  onClick={handleClearTwitter}
-                  className="underline text-primary ml-2 text-xs"
-                >
-                  Clear
-                </button>
-              </p>
-            )}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <input
-                type="text"
-                placeholder="X profile link"
-                value={twitterLink}
-                onChange={(e) => setTwitterLink(e.target.value)}
-                className="border p-2 rounded text-black flex-grow"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSaveTwitter}
-                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={handleConnectTwitter}
-                  className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm"
-                >
-                  Connect
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-4">
         <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-1">
@@ -985,125 +859,254 @@ export default function MyAccount() {
         </div>
       </div>
 
-      <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
-      <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">NFTs</h3>
-          <span className="text-xs text-subtext">Owned cosmetics & gifts</span>
-        </div>
-        <p className="text-sm text-subtext">
-          View every NFT you own in one place. Starter cosmetics are hidden so
-          you only see items you&apos;ve unlocked.
-        </p>
-        <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="space-y-1">
-            <p className="font-medium text-sm">Open NFT library</p>
-            <p className="text-xs text-subtext">
-              Browse Pool Royale, Domino Royal, and gift NFTs without the
-              default freebies.
-            </p>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <BalanceSummary className="bg-surface border border-border rounded-xl p-4" />
+
+        <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">NFTs</h3>
+            <span className="text-xs text-subtext">Owned cosmetics & gifts</span>
           </div>
-          <Link
-            to="/nfts"
-            className="inline-flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
-          >
-            Open
-          </Link>
+          <p className="text-sm text-subtext">
+            View every NFT you own in one place. Starter cosmetics are hidden so
+            you only see items you&apos;ve unlocked.
+          </p>
+          <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="space-y-1">
+              <p className="font-medium text-sm">Open NFT library</p>
+              <p className="text-xs text-subtext">
+                Browse Pool Royale, Domino Royal, and gift NFTs without the
+                default freebies.
+              </p>
+            </div>
+            <Link
+              to="/nfts"
+              className="inline-flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
+            >
+              Open
+            </Link>
+          </div>
         </div>
+
+        {profile && profile.accountId === DEV_ACCOUNT_ID && (
+          <div className="bg-surface border border-border rounded-xl p-4 space-y-4 xl:col-span-2">
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-white">
+                Developer Control Panel
+              </p>
+              <p className="text-xs text-subtext">
+                All core admin actions are grouped in one frame for faster
+                operation on mobile.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {devPanelTools.map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <div
+                    key={tool.label}
+                    className="rounded-lg border border-border bg-background/60 p-2.5 flex items-start gap-2"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {tool.label}
+                      </p>
+                      <p className="text-[11px] text-subtext">{tool.value}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
+              <label className="block font-semibold text-sm">
+                Top Up Developer Account
+              </label>
+              <input
+                type="number"
+                placeholder="Amount"
+                value={devTopup}
+                onChange={(e) => setDevTopup(e.target.value)}
+                className="border p-1 rounded w-full max-w-xs text-black"
+              />
+              <button
+                onClick={handleDevTopup}
+                disabled={devTopupSending}
+                className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
+              >
+                {devTopupSending ? 'Processing...' : 'Top Up'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowNotifyModal(true)}
+                className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+              >
+                <FiBell className="w-4 h-4" />
+                Open Notify Center
+              </button>
+              <button
+                onClick={() => setShowTasksModal(true)}
+                className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+              >
+                <FiList className="w-4 h-4" />
+                Open Task Manager
+              </button>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/60 p-3 text-xs text-subtext space-y-1">
+              <p>
+                <span className="text-white">Dev account:</span> {DEV_ACCOUNT_ID}
+              </p>
+              <p>
+                <span className="text-white">Profile account:</span>{' '}
+                {profile.accountId}
+              </p>
+              <p>
+                <span className="text-white">Telegram:</span>{' '}
+                {telegramId || 'not linked'}
+              </p>
+              <p>
+                <span className="text-white">Google:</span>{' '}
+                {googleLinked ? 'linked' : 'not linked'}
+              </p>
+            </div>
+
+            <InfluencerClaimsCard />
+          </div>
+        )}
       </div>
 
-      {profile && profile.accountId === DEV_ACCOUNT_ID && (
-        <div className="prism-box p-4 mt-4 space-y-4 mx-auto wide-card">
-          <div className="space-y-1">
-            <p className="text-lg font-semibold text-white">
-              Developer Control Panel
-            </p>
-            <p className="text-xs text-subtext">
-              All core admin actions are grouped in one frame for faster
-              operation on mobile.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {devPanelTools.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <div
-                  key={tool.label}
-                  className="rounded-lg border border-border bg-background/60 p-2.5 flex items-start gap-2"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {tool.label}
-                    </p>
-                    <p className="text-[11px] text-subtext">{tool.value}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
-            <label className="block font-semibold text-sm">
-              Top Up Developer Account
-            </label>
-            <input
-              type="number"
-              placeholder="Amount"
-              value={devTopup}
-              onChange={(e) => setDevTopup(e.target.value)}
-              className="border p-1 rounded w-full max-w-xs text-black"
-            />
-            <button
-              onClick={handleDevTopup}
-              disabled={devTopupSending}
-              className="mt-1 px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background"
+      <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
+        <div className="space-y-2">
+          <p className="font-semibold text-white">Wallet & Account Tools</p>
+          <p className="text-xs text-subtext">
+            Core account actions and TPC tools in one place.
+          </p>
+          <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
+            <Link
+              to="/wallet"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
             >
-              {devTopupSending ? 'Processing...' : 'Top Up'}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              onClick={() => setShowNotifyModal(true)}
-              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+              <FiGrid className="w-4 h-4" />
+              Wallet
+            </Link>
+            <Link
+              to="/mining/transactions"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
             >
-              <FiBell className="w-4 h-4" />
-              Open Notify Center
-            </button>
-            <button
-              onClick={() => setShowTasksModal(true)}
-              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+              <FiGrid className="w-4 h-4" />
+              Mining Tx
+            </Link>
+            <Link
+              to="/games/transactions"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-2"
             >
-              <FiList className="w-4 h-4" />
-              Open Task Manager
-            </button>
+              <FiGrid className="w-4 h-4" />
+              Game Tx
+            </Link>
           </div>
-
-          <div className="rounded-lg border border-border bg-background/60 p-3 text-xs text-subtext space-y-1">
-            <p>
-              <span className="text-white">Dev account:</span> {DEV_ACCOUNT_ID}
-            </p>
-            <p>
-              <span className="text-white">Profile account:</span>{' '}
-              {profile.accountId}
-            </p>
-            <p>
-              <span className="text-white">Telegram:</span>{' '}
-              {telegramId || 'not linked'}
-            </p>
-            <p>
-              <span className="text-white">Google:</span>{' '}
-              {googleLinked ? 'linked' : 'not linked'}
-            </p>
-          </div>
-
-          <InfluencerClaimsCard />
         </div>
-      )}
+
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <FiExternalLink className="w-4 h-4 mt-1 text-primary" />
+            <div>
+              <p className="font-semibold">Social Hub</p>
+              <p className="text-xs text-subtext">
+                Connect social identity so rewards and profile data stay
+                consistent across platforms.
+              </p>
+            </div>
+          </div>
+
+          {telegramId && !googleLinked && (
+            <div className="space-y-2">
+              <p className="text-sm text-subtext">
+                Google not connected yet:
+              </p>
+              <LinkGoogleButton
+                telegramId={telegramId}
+                onLinked={() => setGoogleLinked(true)}
+              />
+            </div>
+          )}
+          {!tonWalletAddress && (
+            <div className="space-y-2">
+              <p className="text-sm text-subtext">Web3 wallet:</p>
+              <TonConnectButton small />
+            </div>
+          )}
+          {!telegramId && googleProfile?.id && (
+            <div className="space-y-2">
+              <p className="text-sm text-subtext">
+                Link Telegram to sync rewards across Chrome and Telegram mini
+                app.
+              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <input
+                  type="text"
+                  value={manualTelegramInput}
+                  onChange={(e) => setManualTelegramInput(e.target.value)}
+                  placeholder="@username or Telegram ID"
+                  className="border p-2 rounded text-black w-full sm:max-w-xs"
+                />
+                <button
+                  onClick={handleLinkTelegram}
+                  disabled={linkingTelegram}
+                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
+                >
+                  {linkingTelegram ? 'Linking…' : 'Link Telegram'}
+                </button>
+              </div>
+              {linkFeedback && (
+                <p className="text-xs text-amber-200">{linkFeedback}</p>
+              )}
+            </div>
+          )}
+
+          {profile.social?.twitter && (
+            <p className="text-sm">
+              <span className="text-subtext">Linked X:</span> @
+              {profile.social.twitter}
+              <button
+                onClick={handleClearTwitter}
+                className="underline text-primary ml-2 text-xs"
+              >
+                Clear
+              </button>
+            </p>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <input
+              type="text"
+              placeholder="X profile link"
+              value={twitterLink}
+              onChange={(e) => setTwitterLink(e.target.value)}
+              className="border p-2 rounded text-black flex-grow"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveTwitter}
+                className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-sm text-white-shadow"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleConnectTwitter}
+                className="px-3 py-2 border border-border hover:bg-background/70 rounded text-sm"
+              >
+                Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <DevNotifyModal
         open={showNotifyModal}
