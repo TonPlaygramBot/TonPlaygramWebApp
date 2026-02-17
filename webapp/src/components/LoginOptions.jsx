@@ -11,7 +11,6 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   const [status, setStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
   const [tonStatus, setTonStatus] = useState('idle');
-  const [tonError, setTonError] = useState('');
   const [googleAuthError, setGoogleAuthError] = useState('');
   const tonAddress = useTonAddress();
   const isChrome = useMemo(() => {
@@ -77,28 +76,16 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
     if (!tonAddress) return;
     let cancelled = false;
     setTonStatus('linking');
-    setTonError('');
     (async () => {
-      try {
-        const existingProfile = googleProfile || loadGoogleProfile();
-        const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
-        if (cancelled) return;
-        if (res?.error) {
-          throw new Error(res.error);
-        }
-        if (res?.accountId) {
-          localStorage.setItem('accountId', res.accountId);
-        }
-        localStorage.setItem('walletAddress', tonAddress);
-        setTonStatus('ready');
-        if (onTonConnected) onTonConnected(tonAddress);
-      } catch (err) {
-        console.error('TON account link failed', err);
-        if (!cancelled) {
-          setTonStatus('error');
-          setTonError(err?.message || 'Unable to link TON wallet');
-        }
+      const existingProfile = googleProfile || loadGoogleProfile();
+      const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
+      if (cancelled) return;
+      if (res?.accountId) {
+        localStorage.setItem('accountId', res.accountId);
       }
+      localStorage.setItem('walletAddress', tonAddress);
+      setTonStatus('ready');
+      if (onTonConnected) onTonConnected(tonAddress);
     })();
     return () => {
       cancelled = true;
@@ -177,9 +164,6 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
           )}
           {tonStatus === 'ready' && (
             <p className="text-[11px] text-green-400">TON wallet linked. Reloading your profile…</p>
-          )}
-          {tonStatus === 'error' && (
-            <p className="text-[11px] text-red-300">{tonError || 'TON wallet linked, but profile sync failed. Tap again.'}</p>
           )}
         </div>
       </div>
