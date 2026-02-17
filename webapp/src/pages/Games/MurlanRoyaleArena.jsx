@@ -96,6 +96,7 @@ const DEFAULT_FRAME_RATE_ID = 'uhd120';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 2.0;
+const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
 
@@ -965,7 +966,9 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
-  { key: 'characters', label: '3D Players', options: MURLAN_CHARACTER_THEMES },
+  ...(ENABLE_3D_HUMAN_CHARACTERS
+    ? [{ key: 'characters', label: '3D Players', options: MURLAN_CHARACTER_THEMES }]
+    : []),
   { key: 'environmentHdri', label: 'HDR Environment', options: MURLAN_HDRI_OPTIONS }
 ];
 
@@ -3265,6 +3268,18 @@ export default function MurlanRoyaleArena({ search }) {
       if (!threeReady) return;
       const store = threeStateRef.current;
       if (!store?.seatConfigs?.length) return;
+      if (!ENABLE_3D_HUMAN_CHARACTERS) {
+        store.characterInstances?.forEach((entry) => {
+          if (!entry) return;
+          entry.parent?.remove(entry);
+          disposeObjectResources(entry);
+        });
+        store.characterInstances = [];
+        store.characterRigs = new Map();
+        store.characterActionAnimations = [];
+        store.characterThemeId = null;
+        return;
+      }
       const safe = characterTheme || MURLAN_CHARACTER_THEMES[0];
 
       store.characterInstances?.forEach((entry) => {
@@ -3361,7 +3376,9 @@ export default function MurlanRoyaleArena({ search }) {
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
-      const characterTheme = MURLAN_CHARACTER_THEMES[safe.characters] ?? MURLAN_CHARACTER_THEMES[0];
+      const characterTheme = ENABLE_3D_HUMAN_CHARACTERS
+      ? MURLAN_CHARACTER_THEMES[safe.characters] ?? MURLAN_CHARACTER_THEMES[0]
+      : null;
       const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
       const tableFinish = resolveTableFinish(safe.tableFinish);
       const tableFinishId =
@@ -3400,8 +3417,12 @@ export default function MurlanRoyaleArena({ search }) {
         } else {
           applyChairThemeMaterials(three, stoolTheme);
         }
-        if (three.characterThemeId !== characterTheme.id) {
-          void rebuildSeatCharacters(characterTheme);
+        if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
+          if (three.characterThemeId !== characterTheme.id) {
+            void rebuildSeatCharacters(characterTheme);
+          }
+        } else if (three.characterInstances?.length) {
+          void rebuildSeatCharacters(null);
         }
         applyOutfitThemeMaterials(three, outfitTheme);
 
@@ -3838,7 +3859,9 @@ export default function MurlanRoyaleArena({ search }) {
 
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
-      const characterTheme = MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0];
+      const characterTheme = ENABLE_3D_HUMAN_CHARACTERS
+      ? MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0]
+      : null;
       const cardTheme = CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const tableFinish = resolveTableFinish(currentAppearance.tableFinish);
@@ -3970,28 +3993,30 @@ export default function MurlanRoyaleArena({ search }) {
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
-      try {
-        const characterTemplate = await loadCharacterModel(characterTheme, renderer);
-        for (let i = 0; i < seatConfigs.length; i++) {
-          const seatConfig = seatConfigs[i];
-          const player = players[i] ?? null;
-          attachSeatedCharacter({
-            template: characterTemplate,
-            seatConfig,
-            characterTheme,
-            store: threeStateRef.current,
-            player,
-            playerIndex: i,
-            cardTheme
-          });
+      if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
+        try {
+          const characterTemplate = await loadCharacterModel(characterTheme, renderer);
+          for (let i = 0; i < seatConfigs.length; i++) {
+            const seatConfig = seatConfigs[i];
+            const player = players[i] ?? null;
+            attachSeatedCharacter({
+              template: characterTemplate,
+              seatConfig,
+              characterTheme,
+              store: threeStateRef.current,
+              player,
+              playerIndex: i,
+              cardTheme
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to place initial player characters', error);
         }
-      } catch (error) {
-        console.warn('Failed to place initial player characters', error);
       }
 
       threeStateRef.current.outfitParts = [];
       threeStateRef.current.appearance = { ...currentAppearance };
-      threeStateRef.current.characterThemeId = characterTheme.id;
+      threeStateRef.current.characterThemeId = ENABLE_3D_HUMAN_CHARACTERS && characterTheme ? characterTheme.id : null;
 
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
       spot.target.updateMatrixWorld();
