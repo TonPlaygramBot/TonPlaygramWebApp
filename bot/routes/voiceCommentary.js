@@ -8,7 +8,6 @@ import {
   getVoiceCatalog,
   normalizeVoiceInventory
 } from '../utils/voiceCommentaryCatalog.js';
-import { getVoiceContextDefaults, getVoiceProvider } from '../services/voiceProviders.js';
 
 const router = Router();
 
@@ -78,6 +77,76 @@ function resolveSelectedVoice({ catalogVoices = [], inventory, overrideVoiceId, 
   return voices.find((voice) => String(voice.id) === DEFAULT_FREE_VOICE_ID) || voices[0];
 }
 
+async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} }) {
+  const endpoint = process.env.PERSONAPLEX_API_URL;
+  const apiKey = process.env.PERSONAPLEX_API_KEY;
+  const synthPath = process.env.PERSONAPLEX_SYNTHESIS_PATH || '/v1/speech/synthesize';
+  if (!endpoint) {
+    throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL.');
+  }
+
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const candidates = [
+    {
+      input: text,
+      voice: voiceId,
+      locale,
+      metadata
+    },
+    {
+      text,
+      voice_id: voiceId,
+      language: locale,
+      metadata
+    },
+    {
+      input: {
+        text
+      },
+      voice: {
+        id: voiceId,
+        locale
+      },
+      metadata
+    }
+  ];
+
+  let response = null;
+  let details = '';
+  for (const body of candidates) {
+    response = await fetch(`${endpoint.replace(/\/$/, '')}${synthPath.startsWith('/') ? synthPath : `/${synthPath}`}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (response.ok) break;
+    details = await response.text();
+    if (![400, 404, 422].includes(response.status)) {
+      break;
+    }
+  }
+
+  if (!response?.ok) {
+    throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
+  }
+
+  const payload = await response.json();
+  return {
+    provider: 'nvidia-personaplex',
+    audioBase64: payload.audioBase64 || payload.audio_base64 || null,
+    audioUrl: payload.audioUrl || payload.audio_url || null,
+    mimeType: payload.mimeType || payload.mime_type || 'audio/mpeg',
+    raw: payload
+  };
+}
+
 router.get('/catalog', async (_req, res) => {
   const catalog = await getVoiceCatalog();
   res.json({ ...catalog, defaultVoiceId: DEFAULT_FREE_VOICE_ID, storeItems: buildVoiceStoreItems(catalog) });
@@ -144,23 +213,20 @@ router.post('/help', async (req, res) => {
   }
 
   const answer = buildHelpAnswer(question);
-  const provider = getVoiceProvider();
-  const helpDefaults = getVoiceContextDefaults('help');
   try {
-    const result = await provider.synthesize({
+    const synthesis = await synthesizeWithPersonaplex({
       text: answer,
-      voiceId: selected.id || helpDefaults.voiceId,
+      voiceId: selected.id,
       locale: selected.locale,
-      personaPrompt: helpDefaults.personaPrompt,
       metadata: {
         channel: 'help_center'
       }
     });
     return res.json({
-      provider: result.provider,
+      provider: 'nvidia-personaplex',
       voice: selected,
       answer,
-      synthesis: result.synthesis
+      synthesis
     });
   } catch (error) {
     return res.json({
@@ -191,14 +257,11 @@ router.post('/speak', async (req, res) => {
     return res.status(503).json({ error: 'No PersonaPlex voices available in catalog' });
   }
 
-  const provider = getVoiceProvider();
-  const commentaryDefaults = getVoiceContextDefaults('commentary');
   try {
-    const result = await provider.synthesize({
+    const synthesis = await synthesizeWithPersonaplex({
       text: message,
-      voiceId: selected.id || commentaryDefaults.voiceId,
+      voiceId: selected.id,
       locale: selected.locale,
-      personaPrompt: commentaryDefaults.personaPrompt,
       metadata: {
         channel: 'game_commentary',
         speaker: String(speaker || 'host')
@@ -206,10 +269,10 @@ router.post('/speak', async (req, res) => {
     });
 
     return res.json({
-      provider: result.provider,
+      provider: 'nvidia-personaplex',
       voice: selected,
       inventory,
-      synthesis: result.synthesis
+      synthesis
     });
   } catch (error) {
     return res.json({

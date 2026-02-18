@@ -1,6 +1,4 @@
 import { post } from './api.js'
-import { getVoiceProvider } from '../voice/VoiceProvider.ts'
-import { VOICE_DEFAULTS } from '../voice/defaults.ts'
 
 let commentarySupport = true
 const listeners = new Set()
@@ -191,36 +189,29 @@ export const speakCommentaryLines = async (
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
     const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
 
+    const payload = await post('/api/voice-commentary/speak', {
+      accountId,
+      text,
+      speaker,
+      locale: localeHint,
+      style: speakerSettings[speaker] || null
+    })
+
+    if (payload?.error) {
+      emitSupport(false)
+      throw new Error(payload.error)
+    }
+
     try {
-      const provider = getVoiceProvider()
-      await provider.speak(text, {
-        voiceId: VOICE_DEFAULTS.commentary.voiceId,
-        persona: VOICE_DEFAULTS.commentary.persona,
-        context: 'commentary',
-        gameId: speakerSettings?.gameId || 'general',
-        locale: localeHint || 'en-US',
-        speaker
-      })
+      if (payload?.provider === 'web-speech-fallback' || !payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
+        await speakWithBrowserTts(payload?.text || text, hints)
+      } else {
+        await playAudioPayload(payload)
+      }
       emitSupport(true)
     } catch (error) {
-      try {
-        const payload = await post('/api/voice-commentary/speak', {
-          accountId,
-          text,
-          speaker,
-          locale: localeHint,
-          style: speakerSettings[speaker] || null
-        })
-        if (payload?.provider === 'web-speech-fallback' || (!payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64)) {
-          await speakWithBrowserTts(payload?.text || text, hints)
-        } else {
-          await playAudioPayload(payload)
-        }
-        emitSupport(true)
-      } catch (fallbackError) {
-        emitSupport(false)
-        throw fallbackError
-      }
+      emitSupport(false)
+      throw error
     }
   }
 }

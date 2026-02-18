@@ -1,7 +1,5 @@
 import { post } from './api.js';
 import { primeSpeechSynthesis } from './textToSpeech.js';
-import { getVoiceProvider } from '../voice/VoiceProvider.ts';
-import { VOICE_DEFAULTS } from '../voice/defaults.ts';
 
 const SPEECH_RECOGNITION =
   typeof window !== 'undefined'
@@ -27,16 +25,30 @@ function speakWithWebSpeech(text, locale = 'en-US') {
 
 async function playSynthesis(payload, locale = 'en-US') {
   primeSpeechSynthesis();
+  const synthesis = payload?.synthesis || {};
   const fallbackText = payload?.answer || payload?.text || '';
-  const provider = getVoiceProvider();
-  try {
-    await provider.speak(fallbackText, {
-      voiceId: VOICE_DEFAULTS.help.voiceId,
-      persona: VOICE_DEFAULTS.help.persona,
-      context: 'help',
-      locale
-    });
-  } catch {
+  const source = synthesis.audioUrl || (synthesis.audioBase64 ? `data:${synthesis.mimeType || 'audio/mpeg'};base64,${synthesis.audioBase64}` : '');
+  if (!source) {
+    await speakWithWebSpeech(fallbackText, locale);
+    return;
+  }
+  const audio = new Audio(source);
+  await new Promise((resolve) => {
+    const finish = () => {
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', fail);
+      resolve();
+    };
+    const fail = () => {
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', fail);
+      resolve();
+    };
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', fail);
+    audio.play().catch(fail);
+  });
+  if (payload?.provider === 'web-speech-fallback' && fallbackText) {
     await speakWithWebSpeech(fallbackText, locale);
   }
 }
