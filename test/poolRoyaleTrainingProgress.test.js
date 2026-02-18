@@ -12,7 +12,7 @@ describe('resolvePlayableTrainingLevel', () => {
   });
 
   test('falls back to the last level when every task is already complete', () => {
-    const progress = { completed: Array.from({ length: 40 }, (_, i) => i + 1), lastLevel: 4 };
+    const progress = { completed: Array.from({ length: 50 }, (_, i) => i + 1), lastLevel: 4 };
     expect(resolvePlayableTrainingLevel(null, progress)).toBe(4);
   });
 });
@@ -26,8 +26,8 @@ describe('pool royale training layout progression', () => {
     }
   });
 
-  test('keeps 25 object balls from task 26 to task 40', () => {
-    for (let level = 26; level <= 40; level++) {
+  test('keeps 25 object balls from task 26 to task 50', () => {
+    for (let level = 26; level <= 50; level++) {
       const layout = getTrainingLayout(level);
       expect(layout.balls.length).toBe(25);
     }
