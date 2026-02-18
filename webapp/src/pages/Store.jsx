@@ -1407,7 +1407,8 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await buyBundle(resolvedAccountId, bundle);
+      const purchaseId = `store-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+      const purchase = await buyBundle(resolvedAccountId, bundle, purchaseId);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
