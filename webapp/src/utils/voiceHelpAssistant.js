@@ -1,56 +1,24 @@
 import { post } from './api.js';
 import { primeSpeechSynthesis } from './textToSpeech.js';
+import { speakWithVoiceProvider } from '../voice/voiceProviderFactory.ts';
+import { PERSONA_DEFAULTS } from '../voice/voiceConfig.ts';
 
 const SPEECH_RECOGNITION =
   typeof window !== 'undefined'
     ? window.SpeechRecognition || window.webkitSpeechRecognition || null
     : null;
 
-function speakWithWebSpeech(text, locale = 'en-US') {
-  if (typeof window === 'undefined' || !window.speechSynthesis || !window.SpeechSynthesisUtterance) {
-    return Promise.resolve();
-  }
-  return new Promise((resolve) => {
-    const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim());
-    utterance.lang = locale || 'en-US';
-    utterance.rate = 0.98;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  });
-}
-
 async function playSynthesis(payload, locale = 'en-US') {
   primeSpeechSynthesis();
-  const synthesis = payload?.synthesis || {};
   const fallbackText = payload?.answer || payload?.text || '';
-  const source = synthesis.audioUrl || (synthesis.audioBase64 ? `data:${synthesis.mimeType || 'audio/mpeg'};base64,${synthesis.audioBase64}` : '');
-  if (!source) {
-    await speakWithWebSpeech(fallbackText, locale);
-    return;
-  }
-  const audio = new Audio(source);
-  await new Promise((resolve) => {
-    const finish = () => {
-      audio.removeEventListener('ended', finish);
-      audio.removeEventListener('error', fail);
-      resolve();
-    };
-    const fail = () => {
-      audio.removeEventListener('ended', finish);
-      audio.removeEventListener('error', fail);
-      resolve();
-    };
-    audio.addEventListener('ended', finish);
-    audio.addEventListener('error', fail);
-    audio.play().catch(fail);
+  if (!fallbackText) return;
+
+  await speakWithVoiceProvider(fallbackText, {
+    context: 'help',
+    voiceId: payload?.voice?.id || PERSONA_DEFAULTS.help.voiceId,
+    persona: PERSONA_DEFAULTS.help.persona,
+    hints: [locale]
   });
-  if (payload?.provider === 'web-speech-fallback' && fallbackText) {
-    await speakWithWebSpeech(fallbackText, locale);
-  }
 }
 
 function listenOnce(locale = 'en-US', timeoutMs = 9000) {
