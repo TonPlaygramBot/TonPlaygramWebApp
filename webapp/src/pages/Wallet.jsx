@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTonAddress } from '@tonconnect/ui-react';
 import QRCode from 'react-qr-code';
 import {
@@ -94,16 +94,20 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
     }
   }, [connectedTonAddress]);
 
-  const txTypes = Array.from(
-    new Set(
-      transactions.map((t) => {
-        if (t.type === 'gift') return 'gift-sent';
-        if (t.type === 'gift-receive') return 'gift-received';
-        if (t.type === 'gift-fee') return 'gift-fee';
-        return t.type;
-      })
-    )
-  ).filter(Boolean);
+  const txTypes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          transactions.map((t) => {
+            if (t.type === 'gift') return 'gift-sent';
+            if (t.type === 'gift-receive') return 'gift-received';
+            if (t.type === 'gift-fee') return 'gift-fee';
+            return t.type;
+          })
+        )
+      ).filter(Boolean),
+    [transactions]
+  );
 
   const refreshTransactions = async (id) => {
     if (!id) return;
@@ -249,42 +253,49 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
       />
     );
   }
+  const filteredTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => {
+        if (filterDate) {
+          const d = new Date(tx.date).toISOString().slice(0, 10);
+          if (d !== filterDate) return false;
+        }
+        if (filterType) {
+          if (filterType === 'gift-sent' && tx.type !== 'gift') {
+            return false;
+          }
+          if (filterType === 'gift-received' && tx.type !== 'gift-receive') {
+            return false;
+          }
+          if (filterType === 'gift-fee' && tx.type !== 'gift-fee') {
+            return false;
+          }
+          if (
+            !['gift-sent', 'gift-received', 'gift-fee'].includes(filterType) &&
+            tx.type !== filterType
+          ) {
+            return false;
+          }
+        }
+        if (filterUser) {
+          const q = filterUser.toLowerCase();
+          const name = (tx.fromName || tx.toName || '').toLowerCase();
+          const account = tx.fromAccount || tx.toAccount || '';
+          if (!name.includes(q) && !String(account).includes(q)) return false;
+        }
+        return true;
+      }),
+    [transactions, filterDate, filterType, filterUser]
+  );
 
-
-  const filteredTransactions = transactions.filter((tx) => {
-    if (filterDate) {
-      const d = new Date(tx.date).toISOString().slice(0, 10);
-      if (d !== filterDate) return false;
-    }
-    if (filterType) {
-      if (filterType === 'gift-sent' && tx.type !== 'gift') {
-        return false;
-      }
-      if (filterType === 'gift-received' && tx.type !== 'gift-receive') {
-        return false;
-      }
-      if (filterType === 'gift-fee' && tx.type !== 'gift-fee') {
-        return false;
-      }
-      if (
-        !['gift-sent', 'gift-received', 'gift-fee'].includes(filterType) &&
-        tx.type !== filterType
-      ) {
-        return false;
-      }
-    }
-    if (filterUser) {
-      const q = filterUser.toLowerCase();
-      const name = (tx.fromName || tx.toName || '').toLowerCase();
-      const account = tx.fromAccount || tx.toAccount || '';
-      if (!name.includes(q) && !String(account).includes(q)) return false;
-    }
-    return true;
-  });
-  const sortedTransactions = [...filteredTransactions].sort((a, b) =>
-    sortOrder === 'desc'
-      ? new Date(b.date) - new Date(a.date)
-      : new Date(a.date) - new Date(b.date)
+  const sortedTransactions = useMemo(
+    () =>
+      [...filteredTransactions].sort((a, b) =>
+        sortOrder === 'desc'
+          ? new Date(b.date) - new Date(a.date)
+          : new Date(a.date) - new Date(b.date)
+      ),
+    [filteredTransactions, sortOrder]
   );
 
 

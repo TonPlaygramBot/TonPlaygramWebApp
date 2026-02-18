@@ -328,11 +328,6 @@ router.post('/send', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'insufficient balance' });
   }
 
-  let receiver = await User.findOne({ accountId: toAccount });
-  if (!receiver) {
-    receiver = new User({ accountId: toAccount });
-  }
-
   async function getDev(id) {
     if (!id) return null;
     let u = await User.findOne({ accountId: id });
@@ -347,9 +342,13 @@ router.post('/send', authenticate, async (req, res) => {
   const dev2Id =
     process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2;
 
-  const devMain = await getDev(devMainId);
-  const dev1 = await getDev(dev1Id);
-  const dev2 = await getDev(dev2Id);
+  const [foundReceiver, devMain, dev1, dev2] = await Promise.all([
+    User.findOne({ accountId: toAccount }),
+    getDev(devMainId),
+    getDev(dev1Id),
+    getDev(dev2Id)
+  ]);
+  const receiver = foundReceiver || new User({ accountId: toAccount });
 
   ensureTransactionArray(sender);
   ensureTransactionArray(receiver);
@@ -426,11 +425,13 @@ router.post('/send', authenticate, async (req, res) => {
       devMain.transactions.push(tx);
   }
 
-  await sender.save();
-  await receiver.save();
-  if (devMain) await devMain.save();
-  if (dev1) await dev1.save();
-  if (dev2) await dev2.save();
+  await Promise.all([
+    sender.save(),
+    receiver.save(),
+    devMain ? devMain.save() : Promise.resolve(),
+    dev1 ? dev1.save() : Promise.resolve(),
+    dev2 ? dev2.save() : Promise.resolve()
+  ]);
 
   const devIds = [
     process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
@@ -438,21 +439,19 @@ router.post('/send', authenticate, async (req, res) => {
     process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
   ].filter(Boolean);
 
-  if (receiver.telegramId && !devIds.includes(toAccount)) {
-    try {
-      await sendTransferNotification(
-        bot,
-        receiver.telegramId,
-        fromAccount,
-        amount,
-        safeNote
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-  }
-
   res.json({ balance: sender.balance, transaction: senderTx });
+
+  if (receiver.telegramId && !devIds.includes(toAccount)) {
+    sendTransferNotification(
+      bot,
+      receiver.telegramId,
+      fromAccount,
+      amount,
+      safeNote
+    ).catch((err) => {
+      console.error('Failed to send Telegram notification:', err.message);
+    });
+  }
 });
 
 // Send a gift using account ids

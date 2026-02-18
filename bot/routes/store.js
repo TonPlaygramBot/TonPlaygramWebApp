@@ -90,15 +90,19 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
     ensureTransactionArray(user);
-    const balance = calculateBalance(user);
-    if (balance < totalPrice) {
+    const recalculatedBalance = calculateBalance(user);
+    const availableBalance = Number.isFinite(user.balance) ? user.balance : recalculatedBalance;
+    if (availableBalance < totalPrice) {
       return res.status(400).json({ error: 'insufficient balance' });
     }
     const txDate = new Date();
     const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
     if (hasVoiceItem) {
-      const catalog = await getVoiceCatalog();
-      applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
+      const catalog = await Promise.race([
+        getVoiceCatalog(),
+        new Promise((resolve) => setTimeout(() => resolve({ voices: [] }), 1500))
+      ]);
+      applyVoiceCommentaryUnlocks(user, items, catalog?.voices || []);
     }
 
     user.transactions.push({
@@ -111,7 +115,7 @@ router.post('/purchase', authenticate, async (req, res) => {
       items
     });
     if (totalPrice > 0) {
-      user.balance = balance - totalPrice;
+      user.balance = availableBalance - totalPrice;
     }
     await user.save();
     return res.json({ balance: user.balance, date: txDate });
