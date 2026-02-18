@@ -73,21 +73,6 @@ const getTrainingTargetCount = (level) => {
 
 const clampLayoutCoord = (value, min, max) => Math.max(min, Math.min(max, value))
 
-const stabilizeTrainingSlot = (slot) => {
-  const safe = {
-    x: clampLayoutCoord(slot?.x ?? 0, -0.44, 0.44),
-    z: clampLayoutCoord(slot?.z ?? 0, -0.31, 0.31)
-  }
-
-  const nearCornerPocket = Math.abs(safe.x) > 0.44 && Math.abs(safe.z) > 0.24
-  if (nearCornerPocket) {
-    safe.x = Math.sign(safe.x || 1) * 0.42
-    safe.z = Math.sign(safe.z || 1) * 0.22
-  }
-
-  return safe
-}
-
 const resolveLayoutSlot = (pattern, index, level) => {
   if (index < pattern.length) return pattern[index]
 
@@ -107,18 +92,11 @@ const buildTrainingLayout = (level) => {
   const rotated = rotate(pattern, (level * 2) % pattern.length)
   const microShift = ((level % 4) - 1.5) * 0.008
   const balls = Array.from({ length: targetCount }, (_, idx) => {
-    const rawPos = resolveLayoutSlot(rotated, idx, level)
-    const pos = stabilizeTrainingSlot(rawPos)
-    let x = clampLayoutCoord(pos.x + (idx % 2 === 0 ? microShift : -microShift), -0.44, 0.44)
-    let z = clampLayoutCoord(pos.z + (idx % 3 === 0 ? microShift : 0), -0.31, 0.31)
-    if (Math.abs(x) > 0.4 && Math.abs(z) > 0.24) {
-      x = Math.sign(x || 1) * 0.39
-      z = Math.sign(z || 1) * 0.22
-    }
+    const pos = resolveLayoutSlot(rotated, idx, level)
     return {
       rackIndex: idx,
-      x,
-      z
+      x: pos.x + (idx % 2 === 0 ? microShift : -microShift),
+      z: pos.z + (idx % 3 === 0 ? microShift : 0)
     }
   })
 
