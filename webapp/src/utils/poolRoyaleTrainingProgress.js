@@ -1,7 +1,8 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
-const TRAINING_LEVEL_COUNT = 50
+export const TRAINING_LEVEL_COUNT = 50
 const BASE_ATTEMPTS_PER_LEVEL = 3
 const TRAINING_MAX_LAYOUT_BALLS = 25
+const MIN_LAYOUT_GAP = 0.08
 
 const clampLevel = (value, fallback = 1) => {
   const numeric = Number(value)
@@ -122,6 +123,28 @@ const buildTrainingLayout = (level) => {
     }
   })
 
+  // Stabilize every task layout so each ball has enough separation and never spawns overlapping.
+  for (let i = 0; i < balls.length; i++) {
+    const anchor = balls[i]
+    for (let j = 0; j < i; j++) {
+      const other = balls[j]
+      const dx = anchor.x - other.x
+      const dz = anchor.z - other.z
+      const distSq = (dx * dx) + (dz * dz)
+      if (distSq >= MIN_LAYOUT_GAP * MIN_LAYOUT_GAP) continue
+      const dist = Math.max(1e-6, Math.sqrt(distSq))
+      const push = (MIN_LAYOUT_GAP - dist) + 0.004
+      const nx = dx / dist
+      const nz = dz / dist
+      anchor.x = clampLayoutCoord(anchor.x + (nx * push), -0.44, 0.44)
+      anchor.z = clampLayoutCoord(anchor.z + (nz * push), -0.31, 0.31)
+      if (Math.abs(anchor.x) > 0.4 && Math.abs(anchor.z) > 0.24) {
+        anchor.x = Math.sign(anchor.x || 1) * 0.39
+        anchor.z = Math.sign(anchor.z || 1) * 0.22
+      }
+    }
+  }
+
   return {
     cue: { x: -0.7 + (level % 5) * 0.045, z: 0.5 - (level % 6) * 0.065 },
     balls
@@ -179,7 +202,10 @@ export function loadTrainingProgress () {
         .sort((a, b) => a - b)
       : []
     const lastLevel = clampLevel(parsed?.lastLevel, 1)
-    const carryShots = Math.max(0, Math.floor(Number(parsed?.carryShots) || BASE_ATTEMPTS_PER_LEVEL))
+    const rawCarryShots = Number(parsed?.carryShots)
+    const carryShots = Number.isFinite(rawCarryShots)
+      ? Math.max(0, Math.floor(rawCarryShots))
+      : BASE_ATTEMPTS_PER_LEVEL
     return { completed, rewarded, lastLevel, carryShots }
   } catch (err) {
     console.warn('Failed to load Pool Royale training progress', err)
