@@ -12531,20 +12531,100 @@ function PoolRoyaleGame({
 
   const handleTrainingLevelPick = useCallback((level) => {
     const levelNum = Math.min(50, Math.max(1, Number(level) || 1));
-    setTrainingLevel(levelNum);
+    const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
+    if (levelNum > unlockedLevel) return;
+    setTrainingLevel(unlockedLevel);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
   }, []);
 
-  const trainingRoadmapRows = useMemo(() => {
-    const rows = [];
-    for (let idx = 0; idx < TRAINING_LEVELS.length; idx += 5) {
-      const row = TRAINING_LEVELS.slice(idx, idx + 5);
-      const rowIndex = Math.floor(idx / 5);
-      rows.push(rowIndex % 2 === 1 ? [...row].reverse() : row);
+  const applyTrainingLayoutForLevel = useCallback((level) => {
+    if (!isTraining) return;
+    const trainingLayout = getTrainingLayout(level);
+    const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
+    if (!balls.length || !trainingLayout) return;
+
+    const cueBall = balls.find((ball) => ball?.id === 'cue');
+    const objectBalls = balls.filter((ball) => ball?.id !== 'cue');
+    const limitX = PLAY_W / 2 - BALL_R * 2.5;
+    const limitZ = PLAY_H / 2 - BALL_R * 2.5;
+    const normalize = (value, limit) => Math.min(limit, Math.max(-limit, (value ?? 0) * limit));
+    const safeY = -PLAY_H * 0.75;
+
+    const snapshot = balls.map((ball) => {
+      const hiddenState = {
+        active: false,
+        x: 0,
+        y: safeY,
+        visible: false
+      };
+      return {
+        id: ball.id,
+        active: hiddenState.active,
+        pos: { x: hiddenState.x, y: hiddenState.y },
+        mesh: {
+          position: { x: hiddenState.x, y: BALL_CENTER_Y, z: hiddenState.y },
+          quaternion: { x: 0, y: 0, z: 0, w: 1 },
+          scale: { x: 1, y: 1, z: 1 },
+          visible: hiddenState.visible
+        }
+      };
+    });
+
+    const stateById = new Map(snapshot.map((entry) => [entry.id, entry]));
+    if (cueBall) {
+      const cueState = stateById.get(cueBall.id);
+      const cueX = normalize(trainingLayout?.cue?.x, limitX);
+      const cueZ = normalize(trainingLayout?.cue?.z, limitZ);
+      if (cueState) {
+        cueState.active = true;
+        cueState.pos = { x: cueX, y: cueZ };
+        cueState.mesh.position = { x: cueX, y: BALL_CENTER_Y, z: cueZ };
+        cueState.mesh.visible = true;
+      }
     }
-    return rows;
-  }, []);
+
+    const entries = Array.isArray(trainingLayout?.balls) ? trainingLayout.balls : [];
+    entries.forEach((entry, idx) => {
+      const objectBall = objectBalls[idx];
+      if (!objectBall) return;
+      const ballState = stateById.get(objectBall.id);
+      const x = normalize(entry?.x, limitX);
+      const z = normalize(entry?.z, limitZ);
+      if (!ballState) return;
+      ballState.active = true;
+      ballState.pos = { x, y: z };
+      ballState.mesh.position = { x, y: BALL_CENTER_Y, z };
+      ballState.mesh.visible = true;
+    });
+
+    if (applyBallSnapshotRef.current) {
+      applyBallSnapshotRef.current(snapshot);
+    } else {
+      pendingLayoutRef.current = snapshot;
+    }
+    initialLayoutRef.current = snapshot;
+  }, [isTraining]);
+
+  useEffect(() => {
+    applyTrainingLayoutForLevel(trainingLevel);
+  }, [applyTrainingLayoutForLevel, trainingLevel]);
+
+  const trainingRoadmapNodes = useMemo(
+    () => TRAINING_LEVELS.map((levelDef) => ({
+      ...levelDef,
+      levelNum: Number(levelDef.level)
+    })),
+    []
+  );
+  const unlockedTrainingCap = useMemo(
+    () => resolvePlayableTrainingLevel(50, trainingProgress),
+    [trainingProgress]
+  );
+  const completedTrainingSet = useMemo(
+    () => new Set(Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []),
+    [trainingProgress]
+  );
   useEffect(() => {
     const handleInventoryUpdate = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -13718,11 +13798,12 @@ const powerRef = useRef(hud.power);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
       setTrainingLevel(nextPlayable);
+      applyTrainingLayoutForLevel(nextPlayable);
       setLastCompletedLevel(completedLevel);
       setTrainingRoadmapOpen(true);
       return updated;
     });
-  }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
+  }, [applyTrainingLayoutForLevel, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -30907,43 +30988,60 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] p-3 text-[11px] text-white/70">
-              Tap any node to play that task. Completed levels stay replayable.
+              Follow the path in order. You can replay finished tasks, but locked tasks stay closed.
             </div>
             <div className="mt-3 max-h-[52vh] overflow-y-auto pr-1">
-              <div className="flex flex-col gap-3">
-                {trainingRoadmapRows.map((row, rowIndex) => (
-                  <div key={`roadmap-row-${rowIndex}`} className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      {row.map((levelDef) => {
-                        const levelNum = Number(levelDef.level);
-                        const completed = Array.isArray(trainingProgress?.completed) && trainingProgress.completed.includes(levelNum);
-                        const active = levelNum === currentTrainingInfo.level;
-                        return (
-                          <button
-                            key={levelNum}
-                            type="button"
-                            onClick={() => handleTrainingLevelPick(levelNum)}
-                            className={`group flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl p-1.5 transition ${active ? 'bg-cyan-400/15' : 'hover:bg-white/5'}`}
-                            aria-label={`Play training level ${levelNum}`}
-                          >
-                            <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 text-base font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.4)] transition ${completed
-                              ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
-                              : active
-                                ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
-                                : 'border-white/30 bg-black/45 text-white/90 group-hover:border-white/55'
-                            }`}>
-                              {levelNum}
-                            </span>
-                            <span className="truncate text-[10px] uppercase tracking-[0.08em] text-white/70">{levelDef.discipline}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {rowIndex < trainingRoadmapRows.length - 1 && (
-                      <div className="mx-auto h-3 w-[96%] rounded-full bg-gradient-to-r from-emerald-300/30 via-cyan-300/25 to-emerald-300/30" />
-                    )}
-                  </div>
-                ))}
+              <div className="relative pl-2">
+                <div className="absolute left-[1.35rem] top-2 bottom-2 w-[2px] rounded-full bg-gradient-to-b from-emerald-300/60 via-cyan-300/45 to-emerald-300/20" />
+                <div className="space-y-2.5">
+                  {trainingRoadmapNodes.map((levelDef) => {
+                    const levelNum = levelDef.levelNum;
+                    const completed = completedTrainingSet.has(levelNum);
+                    const active = levelNum === currentTrainingInfo.level;
+                    const unlocked = levelNum <= unlockedTrainingCap;
+                    return (
+                      <div key={levelNum} className="relative flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleTrainingLevelPick(levelNum)}
+                          disabled={!unlocked}
+                          className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.4)] transition ${completed
+                            ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
+                            : active
+                              ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
+                              : unlocked
+                                ? 'border-white/35 bg-black/45 text-white/90 hover:border-white/65'
+                                : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
+                          }`}
+                          aria-label={`Play training level ${levelNum}`}
+                        >
+                          {active ? '🧍' : levelNum}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTrainingLevelPick(levelNum)}
+                          disabled={!unlocked}
+                          className={`flex min-w-0 flex-1 items-center justify-between rounded-xl border px-3 py-2 text-left transition ${active
+                            ? 'border-cyan-300/60 bg-cyan-400/10'
+                            : completed
+                              ? 'border-emerald-300/50 bg-emerald-400/10'
+                              : unlocked
+                                ? 'border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
+                                : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-white">Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}</p>
+                            <p className="truncate text-[10px] text-white/70">{levelDef.objective}</p>
+                          </div>
+                          <span className={`ml-2 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}>
+                            {completed ? 'Done' : unlocked ? (active ? 'Now' : 'Play') : 'Locked'}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

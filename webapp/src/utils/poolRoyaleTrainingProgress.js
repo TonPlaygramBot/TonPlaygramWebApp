@@ -15,16 +15,16 @@ const rotate = (arr, offset) => {
 }
 
 const STRATEGY_DRILLS = [
-  { title: 'Straight-in stop shot', objective: 'Pot all balls using a controlled stop-shot finish.' },
-  { title: 'Half-ball cuts', objective: 'Clear the table by controlling medium cut angles.' },
-  { title: 'Rail-first recovery', objective: 'Use at least one rail route to stay on sequence.' },
-  { title: 'Two-rail position play', objective: 'Run out while planning two-rail cue-ball paths.' },
-  { title: 'Stun-to-draw ladder', objective: 'Mix stun and draw so each next ball is high percentage.' },
-  { title: 'Inside spin navigation', objective: 'Use inside english to hold lines on cut shots.' },
-  { title: 'Outside spin escapes', objective: 'Apply outside spin to widen pocket approach windows.' },
-  { title: 'Breakout pattern drill', objective: 'Open clustered balls and preserve an easy insurance shot.' },
-  { title: 'Safety-to-attack conversion', objective: 'Recover from a tight leave and continue the runout.' },
-  { title: 'End-game precision', objective: 'Finish the final balls with conservative cue-ball speed.' }
+  { title: 'Stop Shot Basics', objective: 'Pocket the balls and keep cue-ball control.' },
+  { title: 'Cut Shot Basics', objective: 'Pocket medium cut shots with smooth aim.' },
+  { title: 'Rail Recovery', objective: 'Use one rail and stay in position.' },
+  { title: 'Two-Rail Control', objective: 'Use two rails to move to your next ball.' },
+  { title: 'Stun & Draw', objective: 'Mix stun and draw to stay on line.' },
+  { title: 'Inside Spin', objective: 'Use inside spin to hold your angle.' },
+  { title: 'Outside Spin', objective: 'Use outside spin to open the pocket line.' },
+  { title: 'Break Cluster', objective: 'Open a cluster and keep one easy shot.' },
+  { title: 'Safety Recovery', objective: 'Escape pressure and continue the run.' },
+  { title: 'Final Balls', objective: 'Finish the last balls with calm pace.' }
 ]
 
 const PATTERN_LIBRARY = [
@@ -89,8 +89,8 @@ const buildTrainingDefinition = (level) => {
   return {
     level,
     discipline,
-    title: `${strategy.title} #${String(level).padStart(2, '0')}`,
-    objective: `${strategy.objective} Clear ${targetCount} planned ball${targetCount > 1 ? 's' : ''}.`,
+    title: `Task ${String(level).padStart(2, '0')} · ${strategy.title}`,
+    objective: `${strategy.objective} Clear ${targetCount} ball${targetCount > 1 ? 's' : ''}.`,
     reward,
     layout: buildTrainingLayout(level)
   }
