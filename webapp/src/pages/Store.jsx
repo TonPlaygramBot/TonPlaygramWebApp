@@ -265,6 +265,22 @@ const VOICE_STORE_ACCOUNT_ID = import.meta.env.VITE_VOICE_COMMENTARY_STORE_ACCOU
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
 
+const normalizeTpcBalance = (payload) => {
+  const candidates = [
+    payload?.balance,
+    payload?.tpcBalance,
+    payload?.account?.balance,
+    payload?.data?.balance
+  ];
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
   if (TYPE_SWATCHES[type]) return TYPE_SWATCHES[type];
@@ -893,8 +909,9 @@ export default function Store() {
     }
     try {
       const res = await getAccountBalance(resolvedAccountId);
-      if (typeof res?.balance === 'number') {
-        setAccountBalance(res.balance);
+      const nextBalance = normalizeTpcBalance(res);
+      if (nextBalance !== null) {
+        setAccountBalance(nextBalance);
       }
     } catch (err) {
       console.error('Failed to load TPC balance', err);
@@ -1465,6 +1482,14 @@ export default function Store() {
     resetStatus();
     setTransactionState('processing');
     setTransactionStatus('Starting TPC transfer…');
+    const canDeductImmediately = typeof accountBalance === 'number' && Number.isFinite(accountBalance);
+    const balanceBeforePurchase = canDeductImmediately ? accountBalance : null;
+    if (canDeductImmediately) {
+      setAccountBalance((prev) => {
+        if (typeof prev !== 'number' || !Number.isFinite(prev)) return prev;
+        return Math.max(0, prev - totalPrice);
+      });
+    }
 
     try {
       const bundle = {
@@ -1484,6 +1509,9 @@ export default function Store() {
       });
       const purchase = await Promise.race([purchasePromise, timeoutPromise]);
       if (purchase?.error) {
+        if (balanceBeforePurchase !== null) {
+          setAccountBalance(balanceBeforePurchase);
+        }
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
         setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
@@ -1601,6 +1629,9 @@ export default function Store() {
       await loadAccountBalance();
     } catch (err) {
       console.error('Purchase failed', err);
+      if (balanceBeforePurchase !== null) {
+        setAccountBalance(balanceBeforePurchase);
+      }
       const timedOut = err instanceof Error && err.message === 'TPC transfer request timed out';
       setInfo(
         timedOut
