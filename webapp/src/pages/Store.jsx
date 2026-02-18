@@ -23,7 +23,7 @@ import {
   AIR_HOCKEY_STORE_ITEMS
 } from '../config/airHockeyInventoryConfig.js';
 import {
-  addPoolRoyalUnlock,
+  addPoolRoyalUnlocks,
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
@@ -31,7 +31,7 @@ import {
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
 import {
-  addSnookerRoyalUnlock,
+  addSnookerRoyalUnlocks,
   getCachedSnookerRoyalInventory,
   getSnookerRoyalInventory,
   isSnookerOptionUnlocked,
@@ -247,6 +247,12 @@ const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_I
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
+const createPurchaseRequestId = (accountId) => {
+  const prefix = (accountId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16) || 'guest';
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  return `store-${prefix}-${Date.now().toString(36)}-${randomPart}`;
+};
+
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
@@ -1419,7 +1425,8 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await buyBundle(resolvedAccountId, bundle);
+      const purchaseRequestId = createPurchaseRequestId(resolvedAccountId);
+      const purchase = await buyBundle(resolvedAccountId, bundle, purchaseRequestId);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
@@ -1429,28 +1436,30 @@ export default function Store() {
       setTransactionStatus('Payment approved. Unlocking items…');
 
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        for (const entry of group.items) {
-          if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
-            const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
-            setPoolOwned(updated);
-          } else if (slug === 'snookerroyale') {
-            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
-            setSnookerOwned(updated);
-          } else if (slug === 'airhockey') {
-            setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'chessbattleroyal') {
-            setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'ludobattleroyal') {
-            setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'murlanroyale') {
-            setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'domino-royal') {
-            setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'snake') {
-            setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'texasholdem') {
-            setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
-          }
+        if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
+          const updated = await addPoolRoyalUnlocks(group.items, resolvedAccountId);
+          setPoolOwned(updated);
+        } else if (slug === 'snookerroyale') {
+          const updated = await addSnookerRoyalUnlocks(group.items, resolvedAccountId);
+          setSnookerOwned(updated);
+        } else {
+          group.items.forEach((entry) => {
+            if (slug === 'airhockey') {
+              setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
+            } else if (slug === 'chessbattleroyal') {
+              setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+            } else if (slug === 'ludobattleroyal') {
+              setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+            } else if (slug === 'murlanroyale') {
+              setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId));
+            } else if (slug === 'domino-royal') {
+              setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, resolvedAccountId));
+            } else if (slug === 'snake') {
+              setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId));
+            } else if (slug === 'texasholdem') {
+              setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
+            }
+          });
         }
       }
       setTransactionStatus('Inventory updated. Finalizing receipt…');

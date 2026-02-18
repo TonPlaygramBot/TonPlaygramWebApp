@@ -240,6 +240,33 @@ export const addSnookerRoyalUnlock = async (type, optionId, accountId) => {
   }
 };
 
+export const addSnookerRoyalUnlocks = async (entries, accountId) => {
+  const resolvedAccountId = resolveAccountId(accountId);
+  const payload = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  if (!payload.length) return readCachedInventory(resolvedAccountId);
+
+  const current = readCachedInventory(resolvedAccountId);
+  const nextInventory = { ...current };
+
+  payload.forEach(({ type, optionId }) => {
+    if (!type || !optionId) return;
+    const existing = new Set(nextInventory[type] || []);
+    existing.add(optionId);
+    nextInventory[type] = sortUnique(existing);
+  });
+
+  persistCache(resolvedAccountId, nextInventory);
+  if (typeof window === 'undefined' || shouldUseLocalOnly()) {
+    return nextInventory;
+  }
+  try {
+    return await syncWithServer(resolvedAccountId, nextInventory);
+  } catch (err) {
+    console.warn('Snooker Royal unlock batch sync failed, keeping cache', err);
+    return nextInventory;
+  }
+};
+
 export const listOwnedSnookerRoyalOptions = (inventoryOrAccountId) => {
   const inventory =
     typeof inventoryOrAccountId === 'string' || !inventoryOrAccountId
