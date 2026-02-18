@@ -18,18 +18,18 @@ describe('resolvePlayableTrainingLevel', () => {
 });
 
 describe('pool royale training layout progression', () => {
-  test('increases object-ball count by one from task 1 to task 20', () => {
-    for (let level = 1; level <= 20; level++) {
+  test('keeps tasks 1 and 2 unchanged, then scales balls one-by-one up to task 25', () => {
+    for (let level = 1; level <= 25; level++) {
       const layout = getTrainingLayout(level);
       expect(Array.isArray(layout.balls)).toBe(true);
       expect(layout.balls.length).toBe(level);
     }
   });
 
-  test('keeps 20 object balls from task 21 to task 50', () => {
-    for (let level = 21; level <= 50; level++) {
+  test('keeps 25 object balls from task 26 to task 50', () => {
+    for (let level = 26; level <= 50; level++) {
       const layout = getTrainingLayout(level);
-      expect(layout.balls.length).toBe(20);
+      expect(layout.balls.length).toBe(25);
     }
   });
 
