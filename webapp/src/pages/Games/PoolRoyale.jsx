@@ -12547,6 +12547,43 @@ function PoolRoyaleGame({
     setHud((prev) => ({ ...prev, over: false, turn: 0 }));
   }, []);
 
+  const handleTrainingContinue = useCallback(() => {
+    const nextPlayable = resolvePlayableTrainingLevel(
+      trainingLevelRef.current || trainingLevel,
+      trainingProgressRef.current
+    );
+    const nextLevelInfo = describeTrainingLevel(nextPlayable);
+    setTrainingLevel(nextPlayable);
+    setTrainingRoadmapOpen(false);
+    setTrainingMenuOpen(false);
+    setRuleToast(null);
+    setTurnCycle((value) => value + 1);
+    setFrameState((prev) => {
+      const nextMeta =
+        prev?.meta && typeof prev.meta === 'object'
+          ? { ...prev.meta }
+          : prev?.meta;
+      if (nextMeta && typeof nextMeta === 'object' && 'hud' in nextMeta) {
+        delete nextMeta.hud;
+      }
+      return {
+        ...prev,
+        frameOver: false,
+        winner: undefined,
+        foul: undefined,
+        activePlayer: 'A',
+        meta: nextMeta
+      };
+    });
+    setHud((prev) => ({
+      ...prev,
+      over: false,
+      turn: 0,
+      next: nextLevelInfo?.objective || prev.next
+    }));
+    applyTrainingLayoutForLevel(nextPlayable);
+  }, [applyTrainingLayoutForLevel, trainingLevel]);
+
   const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
     const account = resolvedAccountId;
     const amount = Math.max(0, Number(rewardAmount) || 0);
@@ -31028,21 +31065,7 @@ const powerRef = useRef(hud.power);
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setTrainingRoadmapOpen(false);
-                  setTrainingMenuOpen(false);
-                  setRuleToast(null);
-                  setTurnCycle((value) => value + 1);
-                  setFrameState((prev) => ({
-                    ...prev,
-                    frameOver: false,
-                    winner: undefined,
-                    foul: undefined,
-                    activePlayer: 'A'
-                  }));
-                  setHud((prev) => ({ ...prev, over: false, turn: 0 }));
-                  applyTrainingLayoutForLevel(trainingLevelRef.current || trainingLevel);
-                }}
+                onClick={handleTrainingContinue}
                 className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
               >
                 Continue
