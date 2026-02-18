@@ -1,4 +1,3 @@
-import { speakRemoteLine } from './remoteTextToSpeech.js';
 const DEFAULT_VOICE_HINTS = {
   Mason: ['en-US', 'English', 'Male', 'Google US English Male', 'David', 'Guy'],
   Lena: ['en-GB', 'English', 'Female', 'Google UK English Female', 'Sonia', 'Hazel']
@@ -296,13 +295,6 @@ const resolveHintedLanguage = (hints = [], fallback) => {
   return 'en-US';
 };
 
-
-const normalizeRemoteLang = (hints = []) => {
-  const matched = hints.find((hint) => /^[a-z]{2}(?:-[A-Z]{2})?$/i.test(String(hint || '').trim()));
-  if (!matched) return 'en';
-  return String(matched).split('-')[0].toLowerCase();
-};
-
 export const resolveVoiceForSpeaker = (speaker, voices = []) => {
   if (!voices.length) return null;
   const hints = DEFAULT_VOICE_HINTS[speaker] || DEFAULT_VOICE_HINTS.Mason;
@@ -315,23 +307,7 @@ export const speakCommentaryLines = async (
 ) => {
   const synth = getSpeechSynthesis();
   const UtteranceClass = getSpeechUtteranceClass();
-  if (!Array.isArray(lines) || lines.length === 0) return;
-
-  const useRemoteOnly = !synth || !UtteranceClass;
-  if (useRemoteOnly) {
-    for (const line of lines) {
-      const speaker = line.speaker || 'Mason';
-      const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
-      const hints = voiceHints[speaker] || voiceHints.Mason || [];
-      await speakRemoteLine({
-        text: line.text,
-        lang: normalizeRemoteLang(hints),
-        voice: speaker,
-        volume: settings.volume ?? 1
-      });
-    }
-    return;
-  }
+  if (!synth || !UtteranceClass || !Array.isArray(lines) || lines.length === 0) return;
 
   const voices = await loadVoices(synth);
   const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Mason'))];
