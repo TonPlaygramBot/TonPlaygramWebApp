@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
+import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
+import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 
 const router = Router();
 
@@ -84,7 +86,7 @@ router.post('/purchase', authenticate, async (req, res) => {
       price: Number(item.price) || 0
     }));
     const totalPrice = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-    if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+    if (!Number.isFinite(totalPrice) || totalPrice < 0) {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
     ensureTransactionArray(user);
@@ -93,6 +95,12 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'insufficient balance' });
     }
     const txDate = new Date();
+    const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
+    if (hasVoiceItem) {
+      const catalog = await getVoiceCatalog();
+      applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
+    }
+
     user.transactions.push({
       amount: -totalPrice,
       type: 'storefront',
@@ -102,7 +110,9 @@ router.post('/purchase', authenticate, async (req, res) => {
       detail: 'Storefront purchase',
       items
     });
-    user.balance = balance - totalPrice;
+    if (totalPrice > 0) {
+      user.balance = balance - totalPrice;
+    }
     await user.save();
     return res.json({ balance: user.balance, date: txDate });
   }

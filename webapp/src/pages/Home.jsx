@@ -5,7 +5,7 @@ import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 
-import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaWallet, FaQuestionCircle } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress } from '@tonconnect/ui-react';
@@ -30,11 +30,13 @@ import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { loadGoogleProfile } from '../utils/google.js';
+import { runVoiceHelpSession } from '../utils/voiceHelpAssistant.js';
 
 export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
+  const [helpBusy, setHelpBusy] = useState(false);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -114,6 +116,20 @@ export default function Home() {
     return () =>
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
+
+
+  const handleVoiceHelp = async () => {
+    if (helpBusy) return;
+    setHelpBusy(true);
+    try {
+      const accountId = window.localStorage.getItem('accountId') || 'guest';
+      await runVoiceHelpSession({ accountId, locale: 'en-US' });
+    } catch (error) {
+      console.warn('voice-help-session-failed', error);
+    } finally {
+      setHelpBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -359,6 +375,16 @@ export default function Home() {
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
       </div>
+
+      <button
+        type="button"
+        onClick={handleVoiceHelp}
+        className={`fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-white shadow-lg ${helpBusy ? 'opacity-70' : ''}`}
+        aria-label="Open help guide"
+      >
+        <FaQuestionCircle className="h-4 w-4 text-yellow-300" />
+        <span>{helpBusy ? 'Listening…' : 'Help'}</span>
+      </button>
     </div>
   );
 }
