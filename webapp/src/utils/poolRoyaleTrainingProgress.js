@@ -1,5 +1,5 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
-const TRAINING_LEVEL_COUNT = 50
+const TRAINING_LEVEL_COUNT = 40
 const BASE_ATTEMPTS_PER_LEVEL = 3
 const TRAINING_MAX_LAYOUT_BALLS = 25
 
@@ -179,7 +179,10 @@ export function loadTrainingProgress () {
         .sort((a, b) => a - b)
       : []
     const lastLevel = clampLevel(parsed?.lastLevel, 1)
-    const carryShots = Math.max(0, Math.floor(Number(parsed?.carryShots) || BASE_ATTEMPTS_PER_LEVEL))
+    const parsedCarryShots = Number(parsed?.carryShots)
+    const carryShots = Number.isFinite(parsedCarryShots)
+      ? Math.max(0, Math.floor(parsedCarryShots))
+      : BASE_ATTEMPTS_PER_LEVEL
     return { completed, rewarded, lastLevel, carryShots }
   } catch (err) {
     console.warn('Failed to load Pool Royale training progress', err)

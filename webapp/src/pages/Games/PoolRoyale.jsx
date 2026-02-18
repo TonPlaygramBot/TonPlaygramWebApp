@@ -12454,6 +12454,7 @@ function PoolRoyaleGame({
     tableFinishId
   ]);
   const isTraining = playType === 'training';
+  const trainingLevelCount = TRAINING_LEVELS.length || 1;
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
@@ -12494,7 +12495,10 @@ function PoolRoyaleGame({
     const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
-    setTrainingShotsRemaining(Math.max(0, Number(stored?.carryShots) || BASE_ATTEMPTS_PER_LEVEL));
+    const storedCarryShots = Number(stored?.carryShots);
+    setTrainingShotsRemaining(
+      Number.isFinite(storedCarryShots) ? Math.max(0, storedCarryShots) : BASE_ATTEMPTS_PER_LEVEL
+    );
     setTrainingLevel(playableLevel);
   }, []);
   useEffect(() => {
@@ -12510,10 +12514,10 @@ function PoolRoyaleGame({
     const next = getNextIncompleteLevel(trainingProgress?.completed || []);
     if (next != null) return next;
     if (Number.isFinite(trainingProgress?.lastLevel)) {
-      return Math.min(50, Math.max(1, Number(trainingProgress.lastLevel) + 1));
+      return Math.min(trainingLevelCount, Math.max(1, Number(trainingProgress.lastLevel) + 1));
     }
-    return Math.min(50, trainingLevel + 1);
-  }, [trainingProgress?.completed, trainingProgress?.lastLevel, trainingLevel]);
+    return Math.min(trainingLevelCount, trainingLevel + 1);
+  }, [trainingLevelCount, trainingProgress?.completed, trainingProgress?.lastLevel, trainingLevel]);
   const nextTrainingInfo = useMemo(
     () => describeTrainingLevel(nextTrainingLevel ?? trainingLevel),
     [nextTrainingLevel, trainingLevel]
@@ -12538,9 +12542,11 @@ function PoolRoyaleGame({
   }, [isTraining]);
 
   const handleTrainingLevelPick = useCallback((level) => {
-    const levelNum = Math.min(50, Math.max(1, Number(level) || 1));
+    const levelNum = Math.min(trainingLevelCount, Math.max(1, Number(level) || 1));
     const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
     if (levelNum > unlockedLevel) return;
+    trainingCompletionHandledRef.current = false;
+    gameOverHandledRef.current = false;
     setTrainingLevel(unlockedLevel);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
@@ -12553,13 +12559,14 @@ function PoolRoyaleGame({
       activePlayer: 'A'
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0 }));
-  }, []);
+    applyTrainingLayoutForLevel(unlockedLevel);
+  }, [applyTrainingLayoutForLevel, trainingLevelCount]);
 
   const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
     const account = resolvedAccountId;
     const amount = Math.max(0, Number(rewardAmount) || 0);
     if (!account || amount <= 0) return;
-    const safeLevel = Math.max(1, Math.min(50, Number(level) || 1));
+    const safeLevel = Math.max(1, Math.min(trainingLevelCount, Number(level) || 1));
     try {
       const receipt = await depositAccount(account, amount, {
         source: 'pool-royale-training',
@@ -12576,7 +12583,23 @@ function PoolRoyaleGame({
     } catch (error) {
       console.warn('Pool Royale training payout request failed:', error);
     }
-  }, [resolvedAccountId]);
+  }, [resolvedAccountId, trainingLevelCount]);
+
+  const consumeTrainingAttempt = useCallback(() => {
+    setTrainingShotsRemaining((prev) => {
+      const nextShots = Math.max(0, (Number(prev) || 0) - 1);
+      setTrainingProgress((current) => {
+        const updated = {
+          ...(current || {}),
+          carryShots: nextShots
+        };
+        trainingProgressRef.current = updated;
+        persistTrainingProgress(updated);
+        return updated;
+      });
+      return nextShots;
+    });
+  }, []);
 
   const ensureTrainingBallPoolForLayout = useCallback((trainingLayout) => {
     if (!isTraining) return;
@@ -12745,8 +12768,8 @@ function PoolRoyaleGame({
     []
   );
   const unlockedTrainingCap = useMemo(
-    () => resolvePlayableTrainingLevel(50, trainingProgress),
-    [trainingProgress]
+    () => resolvePlayableTrainingLevel(trainingLevelCount, trainingProgress),
+    [trainingLevelCount, trainingProgress]
   );
   const completedTrainingSet = useMemo(
     () => new Set(Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []),
@@ -13923,6 +13946,7 @@ const powerRef = useRef(hud.power);
       const completedSet = new Set(
         (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
       );
+      const wasCompletedBefore = completedSet.has(completedLevel);
       const rewardedSet = new Set(
         (prev?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
       );
@@ -13931,7 +13955,9 @@ const powerRef = useRef(hud.power);
       const completed = Array.from(completedSet).sort((a, b) => a - b);
       const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
-      const carryShots = Math.max(0, trainingShotsRemaining) + BASE_ATTEMPTS_PER_LEVEL;
+      const carryShots = wasCompletedBefore
+        ? Math.max(0, trainingShotsRemaining)
+        : Math.max(0, trainingShotsRemaining) + BASE_ATTEMPTS_PER_LEVEL;
       const updated = { completed, rewarded, lastLevel, carryShots };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
@@ -13944,7 +13970,7 @@ const powerRef = useRef(hud.power);
     if (shouldAwardReward) {
       awardTrainingTaskPayout(completedLevel, completedRewardAmount);
     }
-  }, [applyTrainingLayoutForLevel, awardTrainingTaskPayout, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
+  }, [awardTrainingTaskPayout, frameState.frameOver, isTraining, trainingShotsRemaining]);
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -26625,7 +26651,7 @@ const powerRef = useRef(hud.power);
           };
         }
         if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
-          setTrainingShotsRemaining((prev) => Math.max(0, (Number(prev) || 0) - 1));
+          consumeTrainingAttempt();
         }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
@@ -31080,7 +31106,7 @@ const powerRef = useRef(hud.power);
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-            L{currentTrainingInfo.level} • {completedTrainingCount}/50 done • {trainingShotsRemaining} shots
+            L{currentTrainingInfo.level} • {completedTrainingCount}/{trainingLevelCount} done • {trainingShotsRemaining} shots
           </div>
           <button
             type="button"
@@ -31135,7 +31161,7 @@ const powerRef = useRef(hud.power);
                   onClick={() => setTrainingRoadmapOpen(true)}
                   className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
                 >
-                  Open 50-level roadmap
+                  Open {trainingLevelCount}-level roadmap
                 </button>
               </div>
             </div>
@@ -31149,7 +31175,7 @@ const powerRef = useRef(hud.power);
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
-                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : 'Track your 50-level progression.'}</p>
+                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : `Track your ${trainingLevelCount}-level progression.`}</p>
               </div>
               <button
                 type="button"
