@@ -24,7 +24,8 @@
     "thumbs:pool-table-finishes": "node scripts/generatePoolRoyaleTableFinishThumbs.mjs",
     "help:ingest": "node --loader ts-node/esm packages/ingestion-public/src/cli.ts",
     "help:api": "node --loader ts-node/esm packages/api/src/server.ts",
-    "help:test": "jest test/platformHelpAgent --runInBand"
+    "help:test": "jest test/platformHelpAgent --runInBand",
+    "voice:service": "python3 services/personaplex_service/app.py"
   },
   "engines": {
     "node": ">=18"
