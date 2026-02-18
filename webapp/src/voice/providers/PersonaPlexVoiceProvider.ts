@@ -1,6 +1,7 @@
 import { post } from '../../utils/api.js';
 import type { VoiceProvider, VoiceSpeakOptions } from '../VoiceProvider';
 import { VOICE_CACHE_PREFIX } from '../voiceConfig';
+import { CurrentVoiceProvider } from './CurrentVoiceProvider';
 
 const memoryCache = new Map<string, string>();
 
@@ -32,34 +33,40 @@ const storeCachedAudio = (key: string, source: string) => {
 export class PersonaPlexVoiceProvider implements VoiceProvider {
   private currentAudio: HTMLAudioElement | null = null;
 
+  private readonly localProvider = new CurrentVoiceProvider();
+
   async speak(text: string, opts: VoiceSpeakOptions): Promise<HTMLAudioElement> {
     const normalizedText = String(text || '').trim();
     if (!normalizedText) throw new Error('text is required');
 
-    const key = makeCacheKey(normalizedText, opts);
-    const cachedSource = loadCachedAudio(key);
-    const source = cachedSource || (await this.fetchAudioSource(normalizedText, opts));
-    if (!cachedSource) storeCachedAudio(key, source);
+    try {
+      const key = makeCacheKey(normalizedText, opts);
+      const cachedSource = loadCachedAudio(key);
+      const source = cachedSource || (await this.fetchAudioSource(normalizedText, opts));
+      if (!cachedSource) storeCachedAudio(key, source);
 
-    const audio = new Audio(source);
-    this.currentAudio = audio;
-    await new Promise<void>((resolve, reject) => {
-      const done = () => {
-        audio.removeEventListener('ended', done);
-        audio.removeEventListener('error', fail);
-        resolve();
-      };
-      const fail = () => {
-        audio.removeEventListener('ended', done);
-        audio.removeEventListener('error', fail);
-        reject(new Error('Audio playback failed'));
-      };
-      audio.addEventListener('ended', done);
-      audio.addEventListener('error', fail);
-      audio.play().catch(fail);
-    });
+      const audio = new Audio(source);
+      this.currentAudio = audio;
+      await new Promise<void>((resolve, reject) => {
+        const done = () => {
+          audio.removeEventListener('ended', done);
+          audio.removeEventListener('error', fail);
+          resolve();
+        };
+        const fail = () => {
+          audio.removeEventListener('ended', done);
+          audio.removeEventListener('error', fail);
+          reject(new Error('Audio playback failed'));
+        };
+        audio.addEventListener('ended', done);
+        audio.addEventListener('error', fail);
+        audio.play().catch(fail);
+      });
 
-    return audio;
+      return audio;
+    } catch {
+      return this.localProvider.speak(normalizedText, opts);
+    }
   }
 
   private async fetchAudioSource(text: string, opts: VoiceSpeakOptions): Promise<string> {
@@ -78,6 +85,9 @@ export class PersonaPlexVoiceProvider implements VoiceProvider {
     if (synthesis.audioBase64) {
       return `data:${synthesis.mimeType || 'audio/wav'};base64,${synthesis.audioBase64}`;
     }
+    if (synthesis.mode === 'local_preview') {
+      throw new Error(synthesis.reason || 'PersonaPlex returned local preview mode');
+    }
     throw new Error(payload?.warning || payload?.error || 'PersonaPlex response missing audio payload');
   }
 
@@ -87,14 +97,16 @@ export class PersonaPlexVoiceProvider implements VoiceProvider {
       this.currentAudio.currentTime = 0;
       this.currentAudio = null;
     }
+    this.localProvider.stop();
   }
 
   async healthCheck() {
     try {
       const response = await fetch('/api/voice-commentary/health');
-      return response.ok;
+      if (response.ok) return true;
     } catch {
-      return false;
+      // ignore and check local fallback below
     }
+    return this.localProvider.healthCheck();
   }
 }

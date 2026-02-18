@@ -84,6 +84,114 @@
     "sourcePath": "help_articles/mobile-connection-troubleshooting.md"
   },
   {
+    "id": "tonplaygram-help-center-complete-guide#account-and-access-1",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "account-and-access",
+    "content": "## Account and access\nUse account recovery from the login screen when sign-in fails.\nAlways verify phone/email/Telegram account ownership before changing profile data.\nIf 2FA prompts keep looping, update the app, clear cache, then retry login.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#wallets-payments-coins-and-points-2",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "wallets-payments-coins-and-points",
+    "content": "## Wallets, payments, coins, and points\nCoins are used for entries, boosts, and cosmetic game items.\nPoints are progression metrics used for ranking and season milestones.\nFor top-up issues, verify payment status and receipt before creating a support ticket.\nFor refund requests, follow the Refund Policy and provide transaction IDs.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#matchmaking-and-lobbies-3",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "matchmaking-and-lobbies",
+    "content": "## Matchmaking and lobbies\nQueue quality depends on region, active game mode, and current player population.\nIf queues are long, switch to a nearby region and avoid strict filters.\nCross-platform behavior can differ between Android, iOS, and Web clients.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#gameplay-rules-and-fair-play-4",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "gameplay-rules-and-fair-play",
+    "content": "## Gameplay, rules, and fair play\nUse game-specific rules for 8-ball, 9-ball, and snooker scoring/foul logic.\nReport toxic behavior, collusion, or cheating through in-app reporting.\nFair-play actions are policy-driven and based on repeatable evidence.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#voice-commentary-and-personaplex-5",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "voice-commentary-and-personaplex",
+    "content": "## Voice commentary and PersonaPlex\nVoice commentary can run in remote PersonaPlex mode or local preview mode.\nRemote mode requires PERSONAPLEX_API_URL and PERSONAPLEX_API_KEY.\nIf remote synthesis is unavailable, use local device/browser TTS fallback and still play commentary text.\nPlayers can pick voice locale and style from the voice catalog when available.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#performance-and-connection-troubleshooting-6",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "performance-and-connection-troubleshooting",
+    "content": "## Performance and connection troubleshooting\nFor lag/stutter: close background apps, check Wi-Fi stability, and lower graphics quality.\nFor disconnects: verify network permissions, VPN/proxy behavior, and device battery saver restrictions.\nOn Web, refresh the session and test with a modern browser version.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#reporting-bugs-and-giving-feedback-7",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "reporting-bugs-and-giving-feedback",
+    "content": "## Reporting bugs and giving feedback\nProvide reproducible steps, expected result, actual result, platform, and app version.\nAttach screenshots/video for UI or gameplay issues.\nTag whether the issue impacts commentary audio, gameplay mechanics, or account features.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#tournaments-and-ranked-play-8",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "tournaments-and-ranked-play",
+    "content": "## Tournaments and ranked play\nTournament eligibility can depend on region, level, and fair-play standing.\nTie-break logic and bracket progression follow event-specific rules.\nClaim rewards from the event panel after bracket completion.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
+    "id": "tonplaygram-help-center-complete-guide#privacy-security-and-limits-9",
+    "title": "TonPlaygram help center complete guide",
+    "slug": "tonplaygram-help-center-complete-guide",
+    "sectionId": "privacy-security-and-limits",
+    "content": "## Privacy, security, and limits\nThe help assistant uses only public documentation and cannot expose internal secrets.\nSensitive, abusive, or exfiltration requests are blocked by safety filters.\nRate limits apply to protect reliability for all players.",
+    "url": "/help/tonplaygram-help-center-complete-guide",
+    "locale": "en",
+    "version": "1.0.0",
+    "contentHash": "0c0c17a0810ff2ac98afdf0062460ad19bc746fda94387c93afa79535be9046c",
+    "sourcePath": "help_articles/platform-help-center-complete-guide.md"
+  },
+  {
     "id": "report-player#how-to-report-1",
     "title": "Reporting a player",
     "slug": "report-player",
@@ -268,11 +376,11 @@
     "title": "Platform route map (auto-generated)",
     "slug": "platform-route-map",
     "sectionId": "core-routes",
-    "content": "## Core routes\n- /: opens Home page for users.\n- /mining: opens Mining page for users.\n- /mining/transactions: opens MiningTransactions page for users.\n- /games: opens Games page for users.\n- /games/transactions: opens GameTransactions page for users.\n- /games/:game/lobby: opens Lobby page for users.\n- /games/snake: opens SnakeAndLadder page for users.\n- /games/snake/mp: opens SnakeMultiplayer page for users.\n- /games/snake/results: opens SnakeResults page for users.\n- /games/goalrush/lobby: opens GoalRushLobby page for users.\n- /games/goalrush: opens GoalRush page for users.\n- /games/airhockey/lobby: opens AirHockeyLobby page for users.\n- /games/airhockey: opens AirHockey page for users.\n- /games/ludobattleroyal/lobby: opens LudoBattleRoyalLobby page for users.\n- /games/ludobattleroyal: opens LudoBattleRoyal page for users.\n- /games/texasholdem/lobby: opens TexasHoldemLobby page for users.\n- /games/texasholdem: opens TexasHoldem page for users.\n- /games/domino-royal/lobby: opens DominoRoyalLobby page for users.\n- /games/domino-royal: opens DominoRoyal page for users.\n- /games/murlanroyale/lobby: opens MurlanRoyaleLobby page for users.\n- /games/murlanroyale: opens MurlanRoyale page for users.\n- /games/poolroyale/lobby: opens PoolRoyaleLobby page for users.\n- /games/poolroyale: opens PoolRoyale page for users.\n- /games/snookerroyale/lobby: opens SnookerRoyalLobby page for users.\n- /games/snookerroyale: opens SnookerRoyal page for users.\n- /games/pollroyale/lobby: opens Navigate page for users.\n- /games/pollroyale: opens Navigate page for users.\n- /spin: opens SpinPage page for users.\n- /tasks: opens Tasks page for users.\n- /store: opens Navigate page for users.\n- /store/:gameSlug: opens Store page for users.\n- /referral: opens Referral page for users.\n- /wallet: opens Wallet page for users.\n- /messages: opens Messages page for users.\n- /notifications: opens Notifications page for users.\n- /trending: opens Trending page for users.\n- /account: opens MyAccount page for users.\n- /nfts: opens Nfts page for users.\n- /platform-stats: opens PlatformStatsDetails page for users.",
+    "content": "## Core routes\n- /: opens Home page for users.\n- /mining: opens Mining page for users.\n- /mining/transactions: opens MiningTransactions page for users.\n- /games: opens Games page for users.\n- /games/transactions: opens GameTransactions page for users.\n- /games/:game/lobby: opens Lobby page for users.\n- /games/snake: opens SnakeAndLadder page for users.\n- /games/snake/mp: opens SnakeMultiplayer page for users.\n- /games/snake/results: opens SnakeResults page for users.\n- /games/goalrush/lobby: opens GoalRushLobby page for users.\n- /games/goalrush: opens GoalRush page for users.\n- /games/airhockey/lobby: opens AirHockeyLobby page for users.\n- /games/airhockey: opens AirHockey page for users.\n- /games/ludobattleroyal/lobby: opens LudoBattleRoyalLobby page for users.\n- /games/ludobattleroyal: opens LudoBattleRoyal page for users.\n- /games/texasholdem/lobby: opens TexasHoldemLobby page for users.\n- /games/texasholdem: opens TexasHoldem page for users.\n- /games/domino-royal/lobby: opens DominoRoyalLobby page for users.\n- /games/domino-royal: opens DominoRoyal page for users.\n- /games/murlanroyale/lobby: opens MurlanRoyaleLobby page for users.\n- /games/murlanroyale: opens MurlanRoyale page for users.\n- /games/poolroyale/lobby: opens PoolRoyaleLobby page for users.\n- /games/poolroyale: opens PoolRoyale page for users.\n- /games/snookerroyale/lobby: opens SnookerRoyalLobby page for users.\n- /games/snookerroyale: opens SnookerRoyal page for users.\n- /games/tabletennisroyal/lobby: opens TableTennisRoyalLobby page for users.\n- /games/tabletennisroyal: opens TableTennisRoyal page for users.\n- /games/pollroyale/lobby: opens Navigate page for users.\n- /games/pollroyale: opens Navigate page for users.\n- /spin: opens SpinPage page for users.\n- /tasks: opens Tasks page for users.\n- /store: opens Navigate page for users.\n- /store/:gameSlug: opens Store page for users.\n- /referral: opens Referral page for users.\n- /wallet: opens Wallet page for users.\n- /messages: opens Messages page for users.\n- /notifications: opens Notifications page for users.\n- /trending: opens Trending page for users.\n- /account: opens MyAccount page for users.\n- /nfts: opens Nfts page for users.\n- /platform-stats: opens PlatformStatsDetails page for users.\n- /exchange: opens Exchange page for users.\n- /tools/store-thumb/poolroyale/table-finish/:finishId: opens StoreThumbnailStudioPoolRoyale page for users.",
     "url": "/help/platform-route-map",
     "locale": "en",
     "version": "auto",
-    "contentHash": "ae0d470c4a6645197cfca0fc999e5f29cca822dbd8f1129bab0327ae6770d102",
+    "contentHash": "2983a7a67367d131b41055e4aee2c7a6305a1392d3b595e1d1671a0ecf934868",
     "sourcePath": "webapp/src/App.jsx + webapp/src/config/gamesCatalog.js"
   },
   {
@@ -280,11 +388,11 @@
     "title": "Platform route map (auto-generated)",
     "slug": "platform-route-map",
     "sectionId": "game-lobby-routes",
-    "content": "## Game lobby routes\n- /games/texasholdem/lobby: game lobby entry route.\n- /games/domino-royal/lobby: game lobby entry route.\n- /games/poolroyale/lobby: game lobby entry route.\n- /games/snookerroyale/lobby: game lobby entry route.\n- /games/goalrush/lobby: game lobby entry route.\n- /games/airhockey/lobby: game lobby entry route.\n- /games/snake/lobby: game lobby entry route.\n- /games/murlanroyale/lobby: game lobby entry route.\n- /games/chessbattleroyal/lobby: game lobby entry route.\n- /games/ludobattleroyal/lobby: game lobby entry route.",
+    "content": "## Game lobby routes\n- /games/texasholdem/lobby: game lobby entry route.\n- /games/domino-royal/lobby: game lobby entry route.\n- /games/poolroyale/lobby: game lobby entry route.\n- /games/snookerroyale/lobby: game lobby entry route.\n- /games/goalrush/lobby: game lobby entry route.\n- /games/airhockey/lobby: game lobby entry route.\n- /games/snake/lobby: game lobby entry route.\n- /games/murlanroyale/lobby: game lobby entry route.\n- /games/chessbattleroyal/lobby: game lobby entry route.\n- /games/tabletennisroyal/lobby: game lobby entry route.\n- /games/ludobattleroyal/lobby: game lobby entry route.",
     "url": "/help/platform-route-map",
     "locale": "en",
     "version": "auto",
-    "contentHash": "ae0d470c4a6645197cfca0fc999e5f29cca822dbd8f1129bab0327ae6770d102",
+    "contentHash": "2983a7a67367d131b41055e4aee2c7a6305a1392d3b595e1d1671a0ecf934868",
     "sourcePath": "webapp/src/App.jsx + webapp/src/config/gamesCatalog.js"
   },
   {
@@ -296,7 +404,7 @@
     "url": "/help/platform-route-map",
     "locale": "en",
     "version": "auto",
-    "contentHash": "ae0d470c4a6645197cfca0fc999e5f29cca822dbd8f1129bab0327ae6770d102",
+    "contentHash": "2983a7a67367d131b41055e4aee2c7a6305a1392d3b595e1d1671a0ecf934868",
     "sourcePath": "webapp/src/App.jsx + webapp/src/config/gamesCatalog.js"
   }
 ]

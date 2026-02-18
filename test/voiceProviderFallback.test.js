@@ -1,4 +1,4 @@
-import { synthesizeVoice } from '../bot/routes/voiceCommentary.js';
+import { buildHelpAnswer, synthesizeVoice } from '../bot/routes/voiceCommentary.js';
 
 describe('voice provider fallback behavior', () => {
   const priorProvider = process.env.VOICE_PROVIDER;
@@ -39,5 +39,10 @@ describe('voice provider fallback behavior', () => {
 
     expect(result.provider).toBe('nvidia-personaplex');
     expect(global.fetch).toHaveBeenCalled();
+  });
+
+  test('help knowledge includes performance and commentary guidance', () => {
+    expect(buildHelpAnswer('commentary is not working')).toMatch(/fallback|commentary/i);
+    expect(buildHelpAnswer('I have lag and disconnect')).toMatch(/lag|disconnect|platform|version/i);
   });
 });

@@ -13,24 +13,39 @@ const router = Router();
 
 const HELP_RESPONSES = [
   {
-    keywords: ['wallet', 'send', 'receive', 'deposit', 'withdraw'],
+    keywords: ['wallet', 'send', 'receive', 'deposit', 'withdraw', 'top up', 'top-up', 'payment'],
     answer:
-      'To use wallet, open Wallet, then choose send or receive. Keep enough T P C balance before paid matches and confirm your linked account.'
+      'To use wallet, open Wallet, then choose send or receive. Keep enough T P C balance before paid matches, verify transaction status, and confirm your linked account before retrying top-up or withdraw.'
   },
   {
-    keywords: ['store', 'buy', 'purchase', 'voice', 'commentary'],
+    keywords: ['store', 'buy', 'purchase', 'voice', 'commentary', 'personal plex', 'personaplex', 'audio'],
     answer:
-      'Open Store, choose your item, then confirm purchase. Voice language packs unlock commentary across all games after payment.'
+      'Open Store, choose your item, then confirm purchase. Voice language packs unlock commentary across all games after payment. If PersonaPlex audio is unavailable, the app should fall back to local device speech so commentary can still be heard.'
   },
   {
-    keywords: ['game', 'play', 'match', 'start'],
+    keywords: ['game', 'play', 'match', 'start', 'queue', 'matchmaking', 'lobby'],
     answer:
-      'Open Games, select a game mode, then join a lobby or start a match. For paid games, make sure your T P C balance is ready.'
+      'Open Games, select a game mode, then join a lobby or start a match. For paid games, make sure your T P C balance is ready. If queue times are long, try another region or game mode and retry.'
   },
   {
-    keywords: ['account', 'telegram', 'google', 'connect'],
+    keywords: ['lag', 'disconnect', 'network', 'fps', 'stutter', 'performance'],
+    answer:
+      'For lag, disconnect, or stutter: close background apps, use stable Wi-Fi, disable battery saver, and update the app. If the issue continues, send support your platform, app version, and reproducible steps.'
+  },
+  {
+    keywords: ['account', 'telegram', 'google', 'connect', 'login', 'sign in', '2fa'],
     answer:
       'From Home, connect Telegram, Google, or wallet. Linking your account helps sync inventory and protects your progress.'
+  },
+  {
+    keywords: ['report', 'cheat', 'abuse', 'toxic', 'fair play'],
+    answer:
+      'Use in-game report tools for cheating, abuse, or toxic behavior. Include match details and time of incident so moderation can investigate faster.'
+  },
+  {
+    keywords: ['tournament', 'ranked', 'reward', 'bracket'],
+    answer:
+      'Tournament and ranked access can depend on region, level, and fair-play standing. Open event details for eligibility, bracket rules, and reward claim steps.'
   }
 ];
 
@@ -41,7 +56,22 @@ export function buildHelpAnswer(question = '') {
   }
   const match = HELP_RESPONSES.find((entry) => entry.keywords.some((keyword) => normalized.includes(keyword)));
   if (match) return match.answer;
-  return 'I can help with wallet, games, store purchases, voice commentary, and account setup. Please ask one of these topics.';
+  return 'I can help with account setup, wallet/payments, matchmaking, gameplay basics, voice commentary and PersonaPlex audio, performance troubleshooting, reporting abuse, and tournaments. Ask any of these topics and include your platform if possible.';
+}
+
+function buildLocalPreviewSynthesis({ text, reason, locale, voiceId, metadata = {} }) {
+  return {
+    provider: 'nvidia-personaplex',
+    mode: 'local_preview',
+    reason,
+    instructions:
+      'Use client-side SpeechSynthesis fallback (or native mobile TTS) to play this text while PersonaPlex synthesis is unavailable.',
+    text,
+    ssml: `<speak><lang xml:lang="${locale || 'en-US'}">${text}</lang></speak>`,
+    voiceId,
+    locale,
+    metadata
+  };
 }
 
 async function loadUser(accountId) {
@@ -330,9 +360,18 @@ router.post('/help', async (req, res) => {
       synthesis
     });
   } catch (error) {
-    return res.status(503).json({
-      error: `PersonaPlex synthesis unavailable: ${error.message}`,
-      provider: 'nvidia-personaplex'
+    return res.json({
+      provider: 'nvidia-personaplex',
+      voice: selected,
+      answer,
+      warning: `PersonaPlex synthesis unavailable: ${error.message}`,
+      synthesis: buildLocalPreviewSynthesis({
+        text: answer,
+        reason: String(error?.message || 'unknown synthesis failure'),
+        locale: selected.locale,
+        voiceId: selected.id,
+        metadata: { channel: 'help_center' }
+      })
     });
   }
 });
@@ -376,9 +415,22 @@ router.post('/speak', async (req, res) => {
       synthesis
     });
   } catch (error) {
-    return res.status(503).json({
-      error: `PersonaPlex synthesis unavailable: ${error.message}`,
-      provider: 'nvidia-personaplex'
+    return res.json({
+      provider: 'nvidia-personaplex',
+      voice: selected,
+      inventory,
+      warning: `PersonaPlex synthesis unavailable: ${error.message}`,
+      synthesis: buildLocalPreviewSynthesis({
+        text: message,
+        reason: String(error?.message || 'unknown synthesis failure'),
+        locale: selected.locale,
+        voiceId: selected.id,
+        metadata: {
+          channel: context === 'help' ? 'help_center' : 'game_commentary',
+          speaker: String(speaker || 'host'),
+          gameId: String(gameId || '')
+        }
+      })
     });
   }
 });
