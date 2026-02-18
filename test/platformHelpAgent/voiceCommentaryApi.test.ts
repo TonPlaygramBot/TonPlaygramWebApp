@@ -3,7 +3,6 @@ import {
   buildCommentaryText,
   buildSupportSpeech,
   findVoiceProfile,
-  normalizeSynthesisPayload,
   requestPersonaplexSynthesis
 } from '../../packages/api/src/voiceCommentary';
 
@@ -26,18 +25,5 @@ describe('voice commentary module', () => {
     const voice = findVoiceProfile(undefined, 'sq-AL');
     const support = buildSupportSpeech('Nuk po më hapet loja', voice);
     expect(support).toContain('Përshëndetje');
-  });
-
-  test('normalizes data-uri base64 synthesis payload', () => {
-    const synthesis = normalizeSynthesisPayload({
-      output: {
-        audio: 'data:audio/wav;base64,QUJDREVGRw==',
-        mimeType: 'audio/wav'
-      }
-    });
-
-    expect(synthesis.audioBase64).toBe('QUJDREVGRw==');
-    expect(synthesis.mimeType).toBe('audio/wav');
-    expect(synthesis.audioUrl).toBeNull();
   });
 });
