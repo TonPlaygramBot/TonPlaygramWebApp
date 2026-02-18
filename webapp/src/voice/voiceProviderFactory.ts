@@ -4,6 +4,7 @@ import { CurrentVoiceProvider } from './providers/CurrentVoiceProvider';
 import { PersonaPlexVoiceProvider } from './providers/PersonaPlexVoiceProvider';
 
 let activeProvider: VoiceProvider | null = null;
+let fallbackProvider: VoiceProvider | null = null;
 let queue: Array<{ text: string; opts: VoiceSpeakOptions; resolve: () => void; reject: (error: Error) => void }> = [];
 let speaking = false;
 
@@ -11,6 +12,13 @@ const ensureProvider = (): VoiceProvider => {
   if (activeProvider) return activeProvider;
   activeProvider = VOICE_PROVIDER === 'personaplex' ? new PersonaPlexVoiceProvider() : new CurrentVoiceProvider();
   return activeProvider;
+};
+
+const ensureFallbackProvider = (): VoiceProvider | null => {
+  if (VOICE_PROVIDER !== 'personaplex') return null;
+  if (fallbackProvider) return fallbackProvider;
+  fallbackProvider = new CurrentVoiceProvider();
+  return fallbackProvider;
 };
 
 const next = async () => {
@@ -24,8 +32,18 @@ const next = async () => {
 
   try {
     const provider = ensureProvider();
-    await provider.speak(item.text, item.opts);
-    item.resolve();
+    try {
+      await provider.speak(item.text, item.opts);
+      item.resolve();
+    } catch (primaryError) {
+      const fallback = ensureFallbackProvider();
+      if (!fallback) {
+        throw primaryError;
+      }
+      console.warn('voice-provider-primary-failed-fallback-to-webspeech', primaryError);
+      await fallback.speak(item.text, item.opts);
+      item.resolve();
+    }
   } catch (error) {
     item.reject(error as Error);
   } finally {
@@ -55,10 +73,17 @@ export const stopVoicePlayback = () => {
   queue = [];
   speaking = false;
   ensureProvider().stop();
+  const fallback = ensureFallbackProvider();
+  if (fallback) fallback.stop();
 };
 
 export const checkVoiceProviderHealth = async () => {
   const provider = ensureProvider();
-  if (typeof provider.healthCheck === 'function') return provider.healthCheck();
+  const primaryHealthy = typeof provider.healthCheck === 'function' ? await provider.healthCheck() : true;
+  if (primaryHealthy) return true;
+
+  const fallback = ensureFallbackProvider();
+  if (!fallback) return false;
+  if (typeof fallback.healthCheck === 'function') return fallback.healthCheck();
   return true;
 };

@@ -4,6 +4,7 @@ import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
+import PlatformHelpAgentCard from '../components/PlatformHelpAgentCard.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet, FaQuestionCircle } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -288,6 +289,7 @@ export default function Home() {
       </div>
 
       <ProjectAchievementsCard />
+      <PlatformHelpAgentCard />
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
