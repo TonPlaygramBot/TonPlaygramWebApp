@@ -4,7 +4,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import { useTonAddress } from '@tonconnect/ui-react';
 import { loadGoogleProfile } from '../utils/google.js';
 
-export default function useTokenBalances(preferredAccountId) {
+export default function useTokenBalances() {
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -23,11 +23,7 @@ export default function useTokenBalances(preferredAccountId) {
     async function loadTpc() {
       if (!telegramId && !googleProfile?.id) return;
       try {
-        const acc = await createAccount(
-          telegramId,
-          googleProfile,
-          preferredAccountId
-        );
+        const acc = await createAccount(telegramId, googleProfile);
         if (acc?.error) throw new Error(acc.error);
         if (acc.walletAddress) {
           localStorage.setItem('walletAddress', acc.walletAddress);
@@ -41,7 +37,7 @@ export default function useTokenBalances(preferredAccountId) {
       }
     }
     loadTpc();
-  }, [telegramId, googleProfile?.id, preferredAccountId]);
+  }, [telegramId, googleProfile?.id]);
 
   useEffect(() => {
     if (telegramId) return undefined;
@@ -85,11 +81,5 @@ export default function useTokenBalances(preferredAccountId) {
     loadExternal();
   }, [walletAddress]);
 
-  return {
-    tpcBalance,
-    tonBalance,
-    tpcWalletBalance,
-    telegramId,
-    accountId: preferredAccountId || localStorage.getItem('accountId') || null
-  };
+  return { tpcBalance, tonBalance, tpcWalletBalance, telegramId };
 }

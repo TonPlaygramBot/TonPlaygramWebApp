@@ -3,13 +3,9 @@ import { Link } from 'react-router-dom';
 import LoginOptions from './LoginOptions.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 
-export default function BalanceSummary({
-  className = '',
-  showHeader = true,
-  accountId = ''
-}) {
-  const { tpcBalance, tonBalance, tpcWalletBalance, telegramId, accountId: activeAccountId } =
-    useTokenBalances(accountId);
+export default function BalanceSummary({ className = '', showHeader = true }) {
+  const { tpcBalance, tonBalance, tpcWalletBalance, telegramId } =
+    useTokenBalances();
   if (!telegramId) {
     return <LoginOptions />;
   }
@@ -29,9 +25,6 @@ export default function BalanceSummary({
         <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC (App)" value={tpcBalance ?? 0} decimals={2} iconClass="w-16 h-16" />
         <Token icon="/assets/icons/ezgif-54c96d8a9b9236.webp" label="TPC" value={tpcWalletBalance ?? '...'} decimals={2} iconClass="w-[3.2rem] h-[3.2rem]" />
       </div>
-      {activeAccountId && (
-        <p className="mt-2 text-xs text-subtext">TPC Account #{activeAccountId}</p>
-      )}
     </div>
   );
 }
