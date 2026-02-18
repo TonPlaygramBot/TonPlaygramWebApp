@@ -19,13 +19,6 @@ import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon, getVariantThumbnail } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import {
-  TRAINING_LEVELS,
-  TRAINING_LEVEL_COUNT,
-  describeTrainingLevel,
-  loadTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -65,12 +58,6 @@ export default function PoolRoyaleLobby() {
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
   const [matchStatus, setMatchStatus] = useState('');
-  const [trainingProgress, setTrainingProgress] = useState({
-    completed: [],
-    rewarded: [],
-    lastLevel: 1,
-    carryShots: 3
-  });
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
@@ -173,7 +160,7 @@ export default function PoolRoyaleLobby() {
     navigate(`/games/poolroyale?${params.toString()}`);
   };
 
-  const startGame = async ({ trainingLevelOverride = null } = {}) => {
+  const startGame = async () => {
     const isOnlineMatch = mode === 'online' && playType === 'regular';
     if (matching) return;
     await cleanupRef.current?.();
@@ -249,12 +236,6 @@ export default function PoolRoyaleLobby() {
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
-    if (playType === 'training') {
-      const requested = Number(trainingLevelOverride);
-      if (Number.isFinite(requested) && requested > 0) {
-        params.set('trainingLevel', String(Math.min(TRAINING_LEVEL_COUNT, Math.floor(requested))));
-      }
-    }
     if (isOnlineMatch) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -360,13 +341,6 @@ export default function PoolRoyaleLobby() {
   }, [playType]);
 
   useEffect(() => {
-    if (playType !== 'training') return;
-    setVariant('uk');
-    setUkBallSet('uk');
-    setTrainingProgress(loadTrainingProgress());
-  }, [playType]);
-
-  useEffect(() => {
     if (mode !== 'online' || playType !== 'regular') {
       cleanupRef.current?.();
       setMatching(false);
@@ -390,18 +364,6 @@ export default function PoolRoyaleLobby() {
     () => new Set((readyList || []).map((id) => String(id))),
     [readyList]
   );
-  const unlockedTrainingCap = useMemo(
-    () => resolvePlayableTrainingLevel(TRAINING_LEVEL_COUNT, trainingProgress),
-    [trainingProgress]
-  );
-  const completedTrainingSet = useMemo(
-    () => new Set(Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []),
-    [trainingProgress]
-  );
-  const currentTrainingTask = useMemo(() => {
-    const unlocked = resolvePlayableTrainingLevel(trainingProgress?.lastLevel || 1, trainingProgress);
-    return describeTrainingLevel(unlocked);
-  }, [trainingProgress]);
 
   const winnerParam = searchParams.get('winner');
 
@@ -555,7 +517,6 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
 
-        {playType !== 'training' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Play Mode</h3>
@@ -615,9 +576,7 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
         </div>
-        )}
 
-        {playType !== 'training' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Game Variant</h3>
@@ -661,9 +620,8 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
         </div>
-        )}
 
-        {playType !== 'training' && variant === 'uk' && (
+        {variant === 'uk' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Ball Colors</h3>
@@ -711,70 +669,6 @@ export default function PoolRoyaleLobby() {
             </div>
           </div>
         )}
-
-        {playType === 'training' && (
-          <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-white">Training Roadmap</h3>
-                <p className="text-xs text-white/60">Tap an unlocked task to play it directly.</p>
-              </div>
-              <span className="text-xs font-semibold text-emerald-200">
-                {completedTrainingSet.size}/{TRAINING_LEVEL_COUNT}
-              </span>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-xs text-white/70">
-              <p>
-                Next suggested task:{' '}
-                <span className="font-semibold text-white">
-                  {String(currentTrainingTask.level).padStart(2, '0')}
-                </span>
-              </p>
-              <p className="mt-1 text-white/60">{currentTrainingTask.objective}</p>
-            </div>
-            <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
-              {TRAINING_LEVELS.map((levelDef) => {
-                const levelNum = Number(levelDef.level);
-                const completed = completedTrainingSet.has(levelNum);
-                const unlocked = levelNum <= unlockedTrainingCap;
-                return (
-                  <div
-                    key={levelNum}
-                    className={`rounded-xl border px-3 py-2 ${
-                      completed
-                        ? 'border-emerald-300/40 bg-emerald-400/10'
-                        : unlocked
-                          ? 'border-white/20 bg-white/[0.04]'
-                          : 'border-white/10 bg-white/[0.02] opacity-70'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">
-                          Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}
-                        </p>
-                        <p className="truncate text-[11px] text-white/65">{levelDef.objective}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => startGame({ trainingLevelOverride: levelNum })}
-                        disabled={!unlocked}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                          unlocked
-                            ? 'bg-emerald-400 text-black hover:bg-emerald-300'
-                            : 'cursor-not-allowed bg-white/10 text-white/50'
-                        }`}
-                      >
-                        {completed ? 'Replay' : unlocked ? 'Play' : 'Locked'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
 
         {playType === 'tournament' && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
@@ -897,7 +791,6 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-        {playType !== 'training' && (
         <button
           onClick={startGame}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
@@ -909,7 +802,6 @@ export default function PoolRoyaleLobby() {
               : 'START ONLINE'
             : 'START'}
         </button>
-        )}
 
         <FlagPickerModal
           open={showFlagPicker}
