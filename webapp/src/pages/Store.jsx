@@ -245,6 +245,7 @@ const VOICE_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
+const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -1265,6 +1266,11 @@ export default function Store() {
     return allMarketplaceItems.filter((item) => keySet.has(selectionKey(item)));
   }, [allMarketplaceItems, selectedKeys]);
 
+  const visiblePurchasableItems = useMemo(
+    () => visibleItems.filter((item) => !item.owned),
+    [visibleItems]
+  );
+
   const selectedPurchasable = useMemo(
     () => selectedItems.filter((item) => !item.owned),
     [selectedItems]
@@ -1302,6 +1308,21 @@ export default function Store() {
   }, []);
 
   const clearSelection = useCallback(() => setSelectedKeys([]), []);
+
+  const selectVisibleItems = useCallback(() => {
+    if (!visiblePurchasableItems.length) return;
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      visiblePurchasableItems.forEach((item) => next.add(selectionKey(item)));
+      return Array.from(next);
+    });
+  }, [visiblePurchasableItems]);
+
+  const quickBuyVisible = useCallback(() => {
+    if (!visiblePurchasableItems.length || processing) return;
+    setConfirmItem(null);
+    setConfirmItems(visiblePurchasableItems);
+  }, [processing, visiblePurchasableItems]);
 
   const userListingStats = useMemo(() => {
     const total = decoratedUserListings.length;
@@ -1454,7 +1475,14 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await buyBundle(resolvedAccountId, bundle);
+      const purchasePromise = buyBundle(resolvedAccountId, bundle);
+      const timeoutPromise = new Promise((_, reject) => {
+        window.setTimeout(
+          () => reject(new Error('TPC transfer request timed out')),
+          PURCHASE_REQUEST_TIMEOUT_MS
+        );
+      });
+      const purchase = await Promise.race([purchasePromise, timeoutPromise]);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
@@ -1573,9 +1601,18 @@ export default function Store() {
       await loadAccountBalance();
     } catch (err) {
       console.error('Purchase failed', err);
-      setInfo('Failed to process purchase.');
+      const timedOut = err instanceof Error && err.message === 'TPC transfer request timed out';
+      setInfo(
+        timedOut
+          ? 'TPC transfer timed out. Your balance was not changed. Please try again.'
+          : 'Failed to process purchase.'
+      );
       setTransactionState('error');
-      setTransactionStatus('Purchase failed. Please try again.');
+      setTransactionStatus(
+        timedOut
+          ? 'Payment request timed out. Please retry checkout.'
+          : 'Purchase failed. Please try again.'
+      );
     } finally {
       setProcessing('');
       setConfirmItem(null);
@@ -2701,6 +2738,22 @@ export default function Store() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
+                    onClick={selectVisibleItems}
+                    className="rounded-2xl border border-sky-300/30 bg-sky-400/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!visiblePurchasableItems.length || Boolean(processing)}
+                  >
+                    Select visible ({visiblePurchasableItems.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={quickBuyVisible}
+                    className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!visiblePurchasableItems.length || Boolean(processing)}
+                  >
+                    Quick buy visible
+                  </button>
+                  <button
+                    type="button"
                     onClick={clearSelection}
                     className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!selectedKeys.length}
@@ -2724,7 +2777,7 @@ export default function Store() {
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
                   Green + Blue cloth bundles ready for Pool Royale
                 </span>
-                <span>Pick multiple NFTs, confirm once, and unlock them together.</span>
+                <span>Use “Select visible” or “Quick buy visible” to purchase large filtered sets faster.</span>
               </div>
             </div>
 
