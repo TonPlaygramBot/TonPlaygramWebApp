@@ -1,6 +1,7 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
 const TRAINING_LEVEL_COUNT = 50
 const BASE_ATTEMPTS_PER_LEVEL = 3
+const TRAINING_MAX_LAYOUT_BALLS = 20
 
 const clampLevel = (value, fallback = 1) => {
   const numeric = Number(value)
@@ -29,40 +30,50 @@ const STRATEGY_DRILLS = [
 
 const PATTERN_LIBRARY = [
   [
-    { x: -0.54, z: -0.28 }, { x: -0.38, z: -0.16 }, { x: -0.22, z: -0.04 }, { x: -0.06, z: 0.08 },
-    { x: 0.1, z: 0.2 }, { x: 0.26, z: 0.3 }, { x: 0.43, z: 0.33 }, { x: 0.53, z: 0.12 },
-    { x: 0.41, z: -0.08 }, { x: 0.25, z: -0.2 }, { x: 0.09, z: -0.3 }, { x: -0.09, z: -0.35 },
-    { x: -0.28, z: -0.3 }, { x: -0.45, z: -0.18 }, { x: -0.51, z: 0.02 }
+    { x: -0.56, z: -0.34 }, { x: -0.43, z: -0.24 }, { x: -0.3, z: -0.15 }, { x: -0.16, z: -0.06 },
+    { x: -0.02, z: 0.03 }, { x: 0.12, z: 0.12 }, { x: 0.27, z: 0.2 }, { x: 0.41, z: 0.27 },
+    { x: 0.53, z: 0.14 }, { x: 0.49, z: -0.02 }, { x: 0.36, z: -0.12 }, { x: 0.23, z: -0.22 },
+    { x: 0.08, z: -0.31 }, { x: -0.08, z: -0.33 }, { x: -0.24, z: -0.31 }, { x: -0.38, z: -0.23 },
+    { x: -0.5, z: -0.11 }, { x: -0.52, z: 0.05 }, { x: -0.45, z: 0.19 }, { x: -0.3, z: 0.29 }
   ],
   [
-    { x: -0.5, z: 0.26 }, { x: -0.38, z: 0.12 }, { x: -0.26, z: -0.02 }, { x: -0.14, z: -0.18 },
-    { x: -0.02, z: -0.32 }, { x: 0.13, z: -0.24 }, { x: 0.27, z: -0.12 }, { x: 0.42, z: -0.03 },
-    { x: 0.54, z: 0.14 }, { x: 0.36, z: 0.25 }, { x: 0.18, z: 0.34 }, { x: 0.02, z: 0.27 },
-    { x: -0.17, z: 0.2 }, { x: -0.31, z: 0.32 }, { x: 0.05, z: 0.06 }
+    { x: -0.52, z: 0.3 }, { x: -0.39, z: 0.22 }, { x: -0.25, z: 0.13 }, { x: -0.1, z: 0.04 },
+    { x: 0.04, z: -0.06 }, { x: 0.18, z: -0.15 }, { x: 0.33, z: -0.22 }, { x: 0.48, z: -0.27 },
+    { x: 0.56, z: -0.11 }, { x: 0.5, z: 0.03 }, { x: 0.37, z: 0.12 }, { x: 0.22, z: 0.2 },
+    { x: 0.06, z: 0.28 }, { x: -0.1, z: 0.33 }, { x: -0.26, z: 0.33 }, { x: -0.4, z: 0.28 },
+    { x: -0.51, z: 0.16 }, { x: -0.55, z: 0.01 }, { x: -0.48, z: -0.13 }, { x: -0.33, z: -0.24 }
   ],
   [
-    { x: -0.48, z: -0.01 }, { x: -0.32, z: 0.08 }, { x: -0.32, z: -0.12 }, { x: -0.15, z: 0.18 },
-    { x: -0.15, z: -0.22 }, { x: 0.03, z: 0.27 }, { x: 0.03, z: -0.31 }, { x: 0.19, z: 0.14 },
-    { x: 0.19, z: -0.18 }, { x: 0.34, z: 0.03 }, { x: 0.48, z: 0.2 }, { x: 0.5, z: -0.24 },
-    { x: -0.01, z: -0.06 }, { x: 0.34, z: 0.33 }, { x: -0.47, z: 0.28 }
+    { x: -0.5, z: -0.02 }, { x: -0.36, z: 0.08 }, { x: -0.36, z: -0.12 }, { x: -0.22, z: 0.17 },
+    { x: -0.22, z: -0.21 }, { x: -0.07, z: 0.24 }, { x: -0.07, z: -0.28 }, { x: 0.08, z: 0.3 },
+    { x: 0.08, z: -0.34 }, { x: 0.23, z: 0.23 }, { x: 0.23, z: -0.27 }, { x: 0.37, z: 0.14 },
+    { x: 0.37, z: -0.18 }, { x: 0.49, z: 0.04 }, { x: 0.49, z: -0.05 }, { x: -0.5, z: 0.21 },
+    { x: -0.5, z: -0.24 }, { x: 0.21, z: 0.33 }, { x: 0.21, z: -0.35 }, { x: 0.53, z: 0.24 }
   ],
   [
-    { x: -0.54, z: 0.34 }, { x: -0.38, z: 0.24 }, { x: -0.22, z: 0.16 }, { x: -0.04, z: 0.12 },
-    { x: 0.14, z: 0.08 }, { x: 0.31, z: 0.02 }, { x: 0.47, z: -0.07 }, { x: 0.55, z: -0.22 },
-    { x: 0.37, z: -0.27 }, { x: 0.2, z: -0.3 }, { x: 0.02, z: -0.34 }, { x: -0.16, z: -0.31 },
-    { x: -0.33, z: -0.25 }, { x: -0.49, z: -0.12 }, { x: -0.44, z: 0.07 }
+    { x: -0.56, z: 0.35 }, { x: -0.43, z: 0.28 }, { x: -0.29, z: 0.2 }, { x: -0.14, z: 0.13 },
+    { x: 0.01, z: 0.06 }, { x: 0.16, z: -0.01 }, { x: 0.31, z: -0.08 }, { x: 0.45, z: -0.16 },
+    { x: 0.56, z: -0.27 }, { x: 0.43, z: -0.31 }, { x: 0.28, z: -0.34 }, { x: 0.12, z: -0.35 },
+    { x: -0.04, z: -0.34 }, { x: -0.2, z: -0.3 }, { x: -0.35, z: -0.24 }, { x: -0.49, z: -0.16 },
+    { x: -0.55, z: -0.02 }, { x: -0.52, z: 0.12 }, { x: -0.41, z: 0.22 }, { x: -0.25, z: 0.3 }
   ],
   [
-    { x: -0.45, z: 0.33 }, { x: -0.27, z: 0.31 }, { x: -0.08, z: 0.34 }, { x: 0.11, z: 0.32 },
-    { x: 0.3, z: 0.28 }, { x: 0.47, z: 0.21 }, { x: 0.53, z: 0.01 }, { x: 0.43, z: -0.15 },
-    { x: 0.26, z: -0.25 }, { x: 0.07, z: -0.31 }, { x: -0.11, z: -0.34 }, { x: -0.29, z: -0.3 },
-    { x: -0.46, z: -0.21 }, { x: -0.53, z: -0.03 }, { x: -0.01, z: 0.04 }
+    { x: -0.47, z: 0.34 }, { x: -0.31, z: 0.33 }, { x: -0.15, z: 0.34 }, { x: 0.01, z: 0.34 },
+    { x: 0.17, z: 0.33 }, { x: 0.33, z: 0.29 }, { x: 0.48, z: 0.23 }, { x: 0.56, z: 0.1 },
+    { x: 0.54, z: -0.05 }, { x: 0.46, z: -0.18 }, { x: 0.32, z: -0.27 }, { x: 0.16, z: -0.33 },
+    { x: 0, z: -0.35 }, { x: -0.16, z: -0.35 }, { x: -0.32, z: -0.31 }, { x: -0.46, z: -0.24 },
+    { x: -0.54, z: -0.11 }, { x: -0.55, z: 0.04 }, { x: -0.5, z: 0.18 }, { x: -0.39, z: 0.28 }
   ]
 ]
 
+const getTrainingTargetCount = (level) => {
+  const normalized = clampLevel(level)
+  return normalized <= TRAINING_MAX_LAYOUT_BALLS ? normalized : TRAINING_MAX_LAYOUT_BALLS
+}
+
 const buildTrainingLayout = (level) => {
   const pattern = PATTERN_LIBRARY[(level - 1) % PATTERN_LIBRARY.length] || PATTERN_LIBRARY[0]
-  const targetCount = Math.max(3, Math.min(15, 3 + Math.floor((level - 1) / 2)))
+  const targetCount = getTrainingTargetCount(level)
   const rotated = rotate(pattern, (level * 2) % pattern.length)
   const microShift = ((level % 4) - 1.5) * 0.008
   const balls = rotated.slice(0, targetCount).map((pos, idx) => ({
@@ -79,7 +90,7 @@ const buildTrainingLayout = (level) => {
 
 const buildTrainingDefinition = (level) => {
   const discipline = level <= 17 ? '8-Ball' : level <= 34 ? '9-Ball' : 'Pool Position Play'
-  const targetCount = Math.max(3, Math.min(15, 3 + Math.floor((level - 1) / 2)))
+  const targetCount = getTrainingTargetCount(level)
   const strategy = STRATEGY_DRILLS[(level - 1) % STRATEGY_DRILLS.length]
   const rewardAmount = level * 100
   const reward = `${rewardAmount.toLocaleString('en-US')} TPC`
