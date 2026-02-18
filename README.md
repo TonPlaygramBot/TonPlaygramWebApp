@@ -62,7 +62,6 @@
    - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
      endpoints outside Telegram.
    - `VITE_LAUNCHER_URL` – HTTPS link to the signed `tonplaygram-launcher.apk` hosted on your CDN/object storage (or GitHub Releases) so `Home.jsx` links to the correct binary.
-  - `VITE_API_BASE_URL` + backend `PERSONAPLEX_API_URL` – configure these to enable server-side NVIDIA Personaplex voice streaming for commentary fallback when browser speech synthesis voices are unavailable.
 
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and
@@ -408,19 +407,6 @@ To move from the start you must roll at least one six when rolling two dice. Any
 - **Capturing** – Finish your move on a tile already occupied by another player to send that token back to start.
 - **Winning and extra turns** – You must land exactly on the final pot tile. From tile 100 you need to roll a single one. Rolling double six gives an extra turn.
 - **In‑app help** – A help button in game opens an info popup implemented in [`SnakeAndLadder.jsx`](webapp/src/pages/Games/SnakeAndLadder.jsx).
-
-
-### NVIDIA Personaplex voice commentary
-
-The backend now exposes `GET /api/voice/catalog` and `POST /api/voice/speak` to proxy text-to-speech through a Personaplex-compatible endpoint.
-
-Set these environment variables on the bot service:
-
-- `PERSONAPLEX_API_URL` – upstream HTTP endpoint that accepts JSON `{ text, language, voice, format, sample_rate }` and returns audio bytes
-- `PERSONAPLEX_API_KEY` – optional bearer token for the upstream provider
-- `PERSONAPLEX_PROVIDER_NAME` – optional display name returned by `/api/voice/catalog`
-
-The webapp auto-falls back to this API if Web Speech synthesis is not available, so multilingual commentary can still play for supported game languages.
 
 ## Troubleshooting
 
