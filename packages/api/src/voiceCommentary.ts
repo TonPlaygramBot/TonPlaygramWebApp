@@ -112,14 +112,7 @@ export async function requestPersonaplexSynthesis(input: {
   voiceId: string;
   locale: string;
   metadata?: Record<string, string>;
-}): Promise<{
-  mode: 'remote';
-  provider: 'nvidia-personaplex';
-  response: unknown;
-  audioUrl: string | null;
-  audioBase64: string | null;
-  mimeType: string;
-}> {
+}): Promise<{ mode: 'remote'; provider: 'nvidia-personaplex'; response: unknown }> {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
 
@@ -150,68 +143,7 @@ export async function requestPersonaplexSynthesis(input: {
   }
 
   const payload = await response.json();
-  return {
-    mode: 'remote',
-    provider: 'nvidia-personaplex',
-    response: payload,
-    ...normalizeSynthesisPayload(payload)
-  };
-}
-
-const AUDIO_URL_KEYS = ['audioUrl', 'audio_url', 'url', 'audio_url_signed', 'signed_url'] as const;
-const AUDIO_BASE64_KEYS = ['audioBase64', 'audio_base64', 'audioContent', 'audio_content', 'content', 'audio'] as const;
-const MIME_TYPE_KEYS = ['mimeType', 'mime_type', 'contentType', 'content_type', 'audioMimeType'] as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function findFirstValue(input: unknown, keys: readonly string[]): string | null {
-  if (!input) return null;
-
-  if (Array.isArray(input)) {
-    for (const item of input) {
-      const match = findFirstValue(item, keys);
-      if (match) return match;
-    }
-    return null;
-  }
-
-  if (!isRecord(input)) return null;
-
-  for (const key of keys) {
-    const value = input[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  for (const nested of Object.values(input)) {
-    if (!nested || typeof nested === 'string' || typeof nested === 'number' || typeof nested === 'boolean') {
-      continue;
-    }
-    const match = findFirstValue(nested, keys);
-    if (match) return match;
-  }
-
-  return null;
-}
-
-function normalizeAudioBase64(value: string | null): string | null {
-  if (!value) return null;
-  if (value.startsWith('data:')) {
-    const [, payload] = value.split(',', 2);
-    return payload || null;
-  }
-  return value;
-}
-
-export function normalizeSynthesisPayload(payload: unknown): { audioUrl: string | null; audioBase64: string | null; mimeType: string } {
-  return {
-    audioUrl: findFirstValue(payload, AUDIO_URL_KEYS),
-    audioBase64: normalizeAudioBase64(findFirstValue(payload, AUDIO_BASE64_KEYS)),
-    mimeType: findFirstValue(payload, MIME_TYPE_KEYS) || 'audio/mpeg'
-  };
+  return { mode: 'remote', provider: 'nvidia-personaplex', response: payload };
 }
 
 export function findVoiceProfile(voiceId?: string, locale?: string): VoiceProfile {
