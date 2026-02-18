@@ -12459,7 +12459,9 @@ function PoolRoyaleGame({
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
   const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
+  const [pendingTrainingLevel, setPendingTrainingLevel] = useState(null);
   const [showTrainingIntroCard, setShowTrainingIntroCard] = useState(false);
+  const trainingIntroShownRef = useRef(false);
   const trainingModeRef = useRef(trainingModeState);
   const trainingRulesRef = useRef(trainingRulesOn);
   useEffect(() => {
@@ -12520,21 +12522,25 @@ function PoolRoyaleGame({
   );
   useEffect(() => {
     if (!isTraining) {
+      trainingIntroShownRef.current = false;
       setShowTrainingIntroCard(false);
       return;
     }
+    if (trainingIntroShownRef.current) return;
+    trainingIntroShownRef.current = true;
     setShowTrainingIntroCard(true);
     const timeoutId = window.setTimeout(() => {
       setShowTrainingIntroCard(false);
-    }, 4200);
+    }, 3200);
     return () => window.clearTimeout(timeoutId);
-  }, [isTraining, trainingLevel]);
+  }, [isTraining]);
 
   const handleTrainingLevelPick = useCallback((level) => {
     const levelNum = Math.min(50, Math.max(1, Number(level) || 1));
     const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
     if (levelNum > unlockedLevel) return;
     setTrainingLevel(unlockedLevel);
+    setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
     setFrameState((prev) => ({
@@ -12640,11 +12646,16 @@ function PoolRoyaleGame({
 
   const handleTrainingRoadmapContinue = useCallback(() => {
     const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
-    const nextLevel = resolvePlayableTrainingLevel(
+    const computedNextLevel = resolvePlayableTrainingLevel(
       completedLevel + 1,
       trainingProgressRef.current
     );
+    const nextLevel =
+      Number.isFinite(Number(pendingTrainingLevel)) && Number(pendingTrainingLevel) > 0
+        ? Number(pendingTrainingLevel)
+        : computedNextLevel;
     setTrainingLevel(nextLevel);
+    setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
     setRuleToast(null);
@@ -12657,7 +12668,7 @@ function PoolRoyaleGame({
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
     applyTrainingLayoutForLevel(nextLevel);
-  }, [applyTrainingLayoutForLevel, lastCompletedLevel, trainingLevel]);
+  }, [applyTrainingLayoutForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -13862,8 +13873,7 @@ const powerRef = useRef(hud.power);
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
-      setTrainingLevel(nextPlayable);
-      applyTrainingLayoutForLevel(nextPlayable);
+      setPendingTrainingLevel(nextPlayable);
       setLastCompletedLevel(completedLevel);
       setTrainingRoadmapOpen(true);
       return updated;
