@@ -245,7 +245,6 @@ const VOICE_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
-const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
 const STORE_BALANCE_REFRESH_MS = 15000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
@@ -1504,14 +1503,6 @@ export default function Store() {
     resetStatus();
     setTransactionState('processing');
     setTransactionStatus('Starting TPC transfer…');
-    const canDeductImmediately = typeof accountBalance === 'number' && Number.isFinite(accountBalance);
-    const balanceBeforePurchase = canDeductImmediately ? accountBalance : null;
-    if (canDeductImmediately) {
-      setAccountBalance((prev) => {
-        if (typeof prev !== 'number' || !Number.isFinite(prev)) return prev;
-        return Math.max(0, prev - totalPrice);
-      });
-    }
 
     try {
       const bundle = {
@@ -1522,18 +1513,8 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchasePromise = buyBundle(resolvedAccountId, bundle);
-      const timeoutPromise = new Promise((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error('TPC transfer request timed out')),
-          PURCHASE_REQUEST_TIMEOUT_MS
-        );
-      });
-      const purchase = await Promise.race([purchasePromise, timeoutPromise]);
+      const purchase = await buyBundle(resolvedAccountId, bundle);
       if (purchase?.error) {
-        if (balanceBeforePurchase !== null) {
-          setAccountBalance(balanceBeforePurchase);
-        }
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
         setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
@@ -1654,21 +1635,9 @@ export default function Store() {
       await loadAccountBalance();
     } catch (err) {
       console.error('Purchase failed', err);
-      if (balanceBeforePurchase !== null) {
-        setAccountBalance(balanceBeforePurchase);
-      }
-      const timedOut = err instanceof Error && err.message === 'TPC transfer request timed out';
-      setInfo(
-        timedOut
-          ? 'TPC transfer timed out. Your balance was not changed. Please try again.'
-          : 'Failed to process purchase.'
-      );
+      setInfo('Failed to process purchase.');
       setTransactionState('error');
-      setTransactionStatus(
-        timedOut
-          ? 'Payment request timed out. Please retry checkout.'
-          : 'Purchase failed. Please try again.'
-      );
+      setTransactionStatus('Purchase failed. Please try again.');
     } finally {
       setProcessing('');
       setConfirmItem(null);
