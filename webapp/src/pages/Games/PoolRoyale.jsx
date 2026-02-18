@@ -109,6 +109,7 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const TRAINING_BRIEFING_DURATION_MS = 4200;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -12458,6 +12459,7 @@ function PoolRoyaleGame({
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
+  const [trainingBriefingVisible, setTrainingBriefingVisible] = useState(true);
   const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
   const trainingModeRef = useRef(trainingModeState);
   const trainingRulesRef = useRef(trainingRulesOn);
@@ -12516,6 +12518,27 @@ function PoolRoyaleGame({
     () => (Array.isArray(trainingProgress?.completed) ? trainingProgress.completed.length : 0),
     [trainingProgress]
   );
+  const trainingRoadmapWindow = useMemo(() => {
+    const totalLevels = TRAINING_LEVELS.length;
+    const windowSize = 7;
+    let start = Math.max(1, trainingLevel - 3);
+    let end = Math.min(totalLevels, start + windowSize - 1);
+    if (end - start + 1 < windowSize) {
+      start = Math.max(1, end - windowSize + 1);
+    }
+    return Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+  }, [trainingLevel]);
+  useEffect(() => {
+    if (!isTraining || replayActive) {
+      setTrainingBriefingVisible(false);
+      return;
+    }
+    setTrainingBriefingVisible(true);
+    const timeout = window.setTimeout(() => {
+      setTrainingBriefingVisible(false);
+    }, TRAINING_BRIEFING_DURATION_MS);
+    return () => window.clearTimeout(timeout);
+  }, [isTraining, replayActive, trainingLevel]);
   useEffect(() => {
     const handleInventoryUpdate = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -14145,6 +14168,20 @@ const powerRef = useRef(hud.power);
       tableId
     ]
   );
+  const handleTrainingLevelSelect = useCallback((level) => {
+    const parsedLevel = Number(level);
+    if (!Number.isFinite(parsedLevel)) return;
+    const clampedLevel = Math.min(
+      TRAINING_LEVELS.length,
+      Math.max(1, Math.round(parsedLevel))
+    );
+    setTrainingLevel(clampedLevel);
+    trainingCompletionHandledRef.current = false;
+    setTrainingRoadmapOpen(false);
+    setTrainingMenuOpen(false);
+    setTrainingBriefingVisible(true);
+    resetMatchState();
+  }, [resetMatchState]);
   const clearRematchTimers = useCallback(() => {
     if (rematchInviteTimerRef.current) {
       clearTimeout(rematchInviteTimerRef.current);
@@ -30787,47 +30824,75 @@ const powerRef = useRef(hud.power);
       </div>
 
       {isTraining && !replayActive && (
-        <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
-          <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/80 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training level</p>
-                <p className="text-lg font-semibold leading-tight">Level {currentTrainingInfo.level}</p>
-                <p className="text-xs text-white/70">{currentTrainingInfo.title}</p>
-              </div>
-              <div className="text-right text-[11px] uppercase tracking-[0.2em] text-white/70">
-                <div className="text-emerald-200">{completedTrainingCount} completed</div>
-                <div>Attempts bank: {trainingShotsRemaining}</div>
-                <div>Next L{nextTrainingInfo.level}</div>
+        <div className="absolute left-1/2 top-2 z-50 flex w-[min(96vw,44rem)] -translate-x-1/2 flex-col items-center gap-2 px-2">
+          {trainingBriefingVisible && (
+            <div className="pointer-events-none w-full rounded-2xl border border-emerald-300/50 bg-black/72 px-3 py-2 text-white shadow-[0_14px_36px_rgba(0,0,0,0.5)] backdrop-blur">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-200">Training objective</p>
+                  <p className="text-sm font-semibold leading-tight">L{currentTrainingInfo.level} · {currentTrainingInfo.title}</p>
+                  <p className="text-[11px] text-white/80">{currentTrainingInfo.objective}</p>
+                </div>
+                <div className="text-right text-[10px] uppercase tracking-[0.18em] text-white/70">
+                  <p className="text-emerald-200">{completedTrainingCount} done</p>
+                  <p>Shots: {trainingShotsRemaining}</p>
+                  <p>Menu for details</p>
+                </div>
               </div>
             </div>
-            <p className="mt-2 text-xs text-white/80">Objective: {currentTrainingInfo.objective}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
-              Reward: {currentTrainingInfo.reward}
-            </p>
-            <p className="mt-1 text-[11px] text-white/60">Next up: {nextTrainingInfo.objective}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setTrainingMenuOpen((open) => !open)}
-            aria-expanded={trainingMenuOpen}
-            aria-label="Toggle training menu"
-            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
+          )}
+
+          <div className="pointer-events-auto flex w-full items-center gap-2">
+            <div className="relative flex-1 overflow-x-auto rounded-2xl border border-white/20 bg-black/60 px-2 py-2 backdrop-blur">
+              <div className="absolute left-4 right-4 top-1/2 h-[2px] -translate-y-1/2 bg-white/20" aria-hidden="true" />
+              <div className="relative flex min-w-max items-center gap-2">
+                {trainingRoadmapWindow.map((levelNum) => {
+                  const completed = Array.isArray(trainingProgress?.completed) && trainingProgress.completed.includes(levelNum);
+                  const active = levelNum === currentTrainingInfo.level;
+                  return (
+                    <button
+                      key={`training-level-pill-${levelNum}`}
+                      type="button"
+                      onClick={() => handleTrainingLevelSelect(levelNum)}
+                      className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-sm font-bold transition ${completed
+                        ? 'border-emerald-200 bg-emerald-400/30 text-emerald-100'
+                        : active
+                          ? 'border-yellow-300 bg-yellow-400/25 text-yellow-100'
+                          : 'border-white/30 bg-black/60 text-white/80 hover:border-cyan-200 hover:text-cyan-100'
+                      }`}
+                      aria-label={`Play training level ${levelNum}`}
+                      title={completed ? `Replay level ${levelNum}` : `Play level ${levelNum}`}
+                    >
+                      {levelNum}
+                      {completed ? <span className="absolute -bottom-1 -right-1 text-[11px]">🏆</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTrainingMenuOpen((open) => !open)}
+              aria-expanded={trainingMenuOpen}
+              aria-label="Toggle training menu"
+              className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
-            {trainingMenuOpen && (
-            <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
+          </div>
+
+          {trainingMenuOpen && (
+            <div className="pointer-events-auto ml-auto w-72 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training menu</span>
                 <button
@@ -30848,19 +30913,18 @@ const powerRef = useRef(hud.power);
                   <p className="mt-1 text-[11px] text-emerald-200">
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
-                  <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
                   <p className="mt-1 text-[11px] text-white/60">Attempts bank: {trainingShotsRemaining}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
-                  Solo training is always enabled in this mode. Every cleared level adds +3 attempts to your bank.
+                  Tap any level in the roadmap to replay it or move forward.
                 </div>
                 <button
                   type="button"
                   onClick={() => setTrainingRoadmapOpen(true)}
                   className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
                 >
-                  Open 50-level roadmap
+                  Open full 50-level roadmap
                 </button>
               </div>
             </div>
@@ -30890,18 +30954,23 @@ const powerRef = useRef(hud.power);
                 const completed = Array.isArray(trainingProgress?.completed) && trainingProgress.completed.includes(levelNum);
                 const active = levelNum === currentTrainingInfo.level;
                 return (
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => handleTrainingLevelSelect(levelNum)}
                     key={levelNum}
-                    className={`rounded-lg border px-2 py-2 text-center text-[11px] ${completed
-                      ? 'border-emerald-200/70 bg-emerald-400/20 text-emerald-100'
+                    className={`rounded-lg border px-2 py-2 text-center text-[11px] transition ${completed
+                      ? 'border-emerald-200/70 bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/30'
                       : active
-                        ? 'border-cyan-200/70 bg-cyan-400/20 text-cyan-100'
-                        : 'border-white/20 bg-white/5 text-white/75'
+                        ? 'border-cyan-200/70 bg-cyan-400/20 text-cyan-100 hover:bg-cyan-400/30'
+                        : 'border-white/20 bg-white/5 text-white/75 hover:bg-white/15'
                     }`}
+                    aria-label={`Play training level ${levelNum}`}
+                    title={completed ? `Replay level ${levelNum}` : `Play level ${levelNum}`}
                   >
                     <p className="font-semibold">L{String(levelNum).padStart(2, '0')}</p>
                     <p className="mt-1 truncate uppercase tracking-[0.08em]">{levelDef.discipline}</p>
-                  </div>
+                    <p className="mt-1 text-[10px] text-white/70">{completed ? 'Replay' : 'Play'}</p>
+                  </button>
                 );
               })}
             </div>
