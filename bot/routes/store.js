@@ -90,9 +90,13 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
     ensureTransactionArray(user);
-    const availableBalance = Number.isFinite(user.balance)
-      ? user.balance
-      : calculateBalance(user);
+    const recalculatedBalance = calculateBalance(user);
+    const persistedBalance = Number.isFinite(user.balance) ? user.balance : recalculatedBalance;
+    const availableBalance = Math.max(persistedBalance, recalculatedBalance);
+    if (availableBalance !== user.balance) {
+      user.balance = availableBalance;
+      await user.save();
+    }
     if (availableBalance < totalPrice) {
       return res.status(400).json({ error: 'insufficient balance' });
     }
