@@ -19,6 +19,11 @@ import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon, getVariantThumbnail } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import {
+  TRAINING_LEVELS,
+  loadTrainingProgress,
+  resolvePlayableTrainingLevel
+} from '../../utils/poolRoyaleTrainingProgress.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -58,6 +63,9 @@ export default function PoolRoyaleLobby() {
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
   const [matchStatus, setMatchStatus] = useState('');
+  const [trainingProgress, setTrainingProgress] = useState(() =>
+    loadTrainingProgress()
+  );
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
@@ -160,7 +168,7 @@ export default function PoolRoyaleLobby() {
     navigate(`/games/poolroyale?${params.toString()}`);
   };
 
-  const startGame = async () => {
+  const startGame = async (selectedTrainingLevel = null) => {
     const isOnlineMatch = mode === 'online' && playType === 'regular';
     if (matching) return;
     await cleanupRef.current?.();
@@ -236,6 +244,12 @@ export default function PoolRoyaleLobby() {
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
+    if (playType === 'training') {
+      const requestedLevel = Number(selectedTrainingLevel);
+      if (Number.isFinite(requestedLevel) && requestedLevel > 0) {
+        params.set('level', String(Math.floor(requestedLevel)));
+      }
+    }
     if (isOnlineMatch) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -269,6 +283,11 @@ export default function PoolRoyaleLobby() {
     autoStartRef.current = true;
     startGame();
   }, [autoStartRequested, matching, startGame]);
+
+  useEffect(() => {
+    if (playType !== 'training') return;
+    setTrainingProgress(loadTrainingProgress());
+  }, [playType]);
 
   useEffect(() => {
     let active = true;
@@ -366,6 +385,20 @@ export default function PoolRoyaleLobby() {
   );
 
   const winnerParam = searchParams.get('winner');
+  const unlockedTrainingLevel = useMemo(
+    () =>
+      resolvePlayableTrainingLevel(Number.POSITIVE_INFINITY, trainingProgress),
+    [trainingProgress]
+  );
+  const completedTrainingLevels = useMemo(
+    () =>
+      new Set(
+        Array.isArray(trainingProgress?.completed)
+          ? trainingProgress.completed
+          : []
+      ),
+    [trainingProgress]
+  );
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -517,111 +550,115 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Play Mode</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Opponents
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: 'ai',
-                label: 'Vs AI',
-                desc: 'Practice precision',
-                iconKey: 'mode-ai'
-              },
-              {
-                id: 'online',
-                label: '1v1 Online',
-                desc: 'Live matchmaking',
-                iconKey: 'mode-online',
-                disabled: playType === 'tournament' || playType === 'training'
-              }
-            ].map(({ id, label, desc, iconKey, disabled }) => {
-              const active = mode === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => !disabled && setMode(id)}
-                  disabled={disabled}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  } ${disabled ? 'lobby-option-card-disabled' : ''}`}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner">
-                      <OptionIcon
-                        src={getLobbyIcon('poolroyale', iconKey)}
-                        alt={label}
-                        fallback={id === 'ai' ? '🤖' : '🌐'}
-                        className="lobby-option-icon"
-                      />
+        {playType !== 'training' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Play Mode</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Opponents
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                {
+                  id: 'ai',
+                  label: 'Vs AI',
+                  desc: 'Practice precision',
+                  iconKey: 'mode-ai'
+                },
+                {
+                  id: 'online',
+                  label: '1v1 Online',
+                  desc: 'Live matchmaking',
+                  iconKey: 'mode-online',
+                  disabled: playType === 'tournament' || playType === 'training'
+                }
+              ].map(({ id, label, desc, iconKey, disabled }) => {
+                const active = mode === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => !disabled && setMode(id)}
+                    disabled={disabled}
+                    className={`lobby-option-card ${
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
+                    } ${disabled ? 'lobby-option-card-disabled' : ''}`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        <OptionIcon
+                          src={getLobbyIcon('poolroyale', iconKey)}
+                          alt={label}
+                          fallback={id === 'ai' ? '🤖' : '🌐'}
+                          className="lobby-option-icon"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{label}</p>
-                    <p className="lobby-option-subtitle">
-                      {disabled
-                        ? `${playType === 'training' ? 'Training is offline only' : 'Tournament bracket only'}`
-                        : desc}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Game Variant</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Ruleset
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { id: 'uk', label: '8Ball' },
-              { id: 'american', label: 'American' },
-              { id: '9ball', label: '9-Ball' }
-            ].map(({ id, label }) => {
-              const active = variant === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setVariant(id)}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  }`}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner">
-                      <OptionIcon
-                        src={getVariantThumbnail('poolroyale', id)}
-                        alt={label}
-                        fallback="🎱"
-                        className="lobby-option-icon"
-                      />
+                    <div className="text-center">
+                      <p className="lobby-option-label">{label}</p>
+                      <p className="lobby-option-subtitle">
+                        {disabled
+                          ? `${playType === 'training' ? 'Training is offline only' : 'Tournament bracket only'}`
+                          : desc}
+                      </p>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{label}</p>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
-        {variant === 'uk' && (
+        {playType !== 'training' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Game Variant</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Ruleset
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: 'uk', label: '8Ball' },
+                { id: 'american', label: 'American' },
+                { id: '9ball', label: '9-Ball' }
+              ].map(({ id, label }) => {
+                const active = variant === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setVariant(id)}
+                    className={`lobby-option-card ${
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
+                    }`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        <OptionIcon
+                          src={getVariantThumbnail('poolroyale', id)}
+                          alt={label}
+                          fallback="🎱"
+                          className="lobby-option-icon"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{label}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {playType !== 'training' && variant === 'uk' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Ball Colors</h3>
@@ -662,6 +699,55 @@ export default function PoolRoyaleLobby() {
                     </div>
                     <div className="text-center">
                       <p className="lobby-option-label">{label}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {playType === 'training' && (
+          <div className="space-y-3 rounded-2xl border border-cyan-300/20 bg-cyan-400/5 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-white">Training Roadmap</h3>
+                <p className="text-xs text-white/60">
+                  Pick any unlocked task to play instantly.
+                </p>
+              </div>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Tasks
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {TRAINING_LEVELS.map((task) => {
+                const level = Number(task.level);
+                const completed = completedTrainingLevels.has(level);
+                const locked = level > unlockedTrainingLevel;
+                return (
+                  <button
+                    key={task.level}
+                    type="button"
+                    disabled={locked}
+                    onClick={() => startGame(level)}
+                    className={`rounded-xl border px-3 py-2 text-left transition ${
+                      locked
+                        ? 'cursor-not-allowed border-white/10 bg-white/5 text-white/30'
+                        : completed
+                          ? 'border-emerald-300/40 bg-emerald-500/10 text-emerald-100 hover:border-emerald-200/60'
+                          : 'border-cyan-300/30 bg-cyan-500/10 text-cyan-100 hover:border-cyan-200/60'
+                    }`}
+                    aria-label={`Play training task ${level}`}
+                  >
+                    <div className="text-[11px] uppercase tracking-wide text-white/60">
+                      Task {String(level).padStart(2, '0')}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold leading-snug">
+                      {task.title.replace(/^Task\s\d+\s·\s/, '')}
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/60">
+                      {locked ? 'Locked' : completed ? 'Replay' : 'Play'}
                     </div>
                   </button>
                 );
