@@ -1280,15 +1280,6 @@ export default function Store() {
   );
   const hasSelection = selectedKeys.length > 0;
   const hasPurchasableSelection = selectedPurchasable.length > 0;
-  const visiblePurchasable = useMemo(
-    () => visibleItems.filter((item) => !item.owned),
-    [visibleItems]
-  );
-  const visiblePurchasableCount = visiblePurchasable.length;
-  const visiblePurchasableTotal = useMemo(
-    () => visiblePurchasable.reduce((sum, item) => sum + item.price, 0),
-    [visiblePurchasable]
-  );
 
   useEffect(() => {
     if (!selectedPurchasable.length) {
@@ -1311,29 +1302,6 @@ export default function Store() {
   }, []);
 
   const clearSelection = useCallback(() => setSelectedKeys([]), []);
-
-  const addVisibleToSelection = useCallback(() => {
-    if (!visiblePurchasable.length) return;
-    setSelectedKeys((prev) => {
-      const next = new Set(prev);
-      visiblePurchasable.forEach((item) => next.add(selectionKey(item)));
-      return Array.from(next);
-    });
-  }, [visiblePurchasable]);
-
-  const selectOnlyVisible = useCallback(() => {
-    if (!visiblePurchasable.length) {
-      setSelectedKeys([]);
-      return;
-    }
-    setSelectedKeys(visiblePurchasable.map((item) => selectionKey(item)));
-  }, [visiblePurchasable]);
-
-  const buyVisibleNow = useCallback(() => {
-    if (!visiblePurchasable.length || processing) return;
-    setConfirmItem(null);
-    setConfirmItems(visiblePurchasable);
-  }, [processing, visiblePurchasable]);
 
   const userListingStats = useMemo(() => {
     const total = decoratedUserListings.length;
@@ -2733,35 +2701,11 @@ export default function Store() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={selectOnlyVisible}
-                    className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!visiblePurchasableCount}
-                  >
-                    Select visible ({visiblePurchasableCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addVisibleToSelection}
-                    className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!visiblePurchasableCount}
-                  >
-                    Add visible
-                  </button>
-                  <button
-                    type="button"
                     onClick={clearSelection}
                     className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!selectedKeys.length}
                   >
                     Clear selection
-                  </button>
-                  <button
-                    type="button"
-                    onClick={buyVisibleNow}
-                    className="rounded-2xl border border-emerald-300/40 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-50 hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!visiblePurchasableCount || Boolean(processing)}
-                  >
-                    Buy visible now ({visiblePurchasableTotal.toLocaleString()} TPC)
                   </button>
                   <button
                     type="button"
