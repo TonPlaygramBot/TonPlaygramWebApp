@@ -245,7 +245,7 @@ const VOICE_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
-const PURCHASE_REQUEST_TIMEOUT_MS = 20000;
+const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -1475,15 +1475,14 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await Promise.race([
-        buyBundle(resolvedAccountId, bundle),
-        new Promise((_, reject) => {
-          window.setTimeout(
-            () => reject(new Error('TPC transfer request timed out')),
-            PURCHASE_REQUEST_TIMEOUT_MS
-          );
-        })
-      ]);
+      const purchasePromise = buyBundle(resolvedAccountId, bundle);
+      const timeoutPromise = new Promise((_, reject) => {
+        window.setTimeout(
+          () => reject(new Error('TPC transfer request timed out')),
+          PURCHASE_REQUEST_TIMEOUT_MS
+        );
+      });
+      const purchase = await Promise.race([purchasePromise, timeoutPromise]);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
