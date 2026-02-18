@@ -27,7 +27,7 @@ import {
   getTelegramId
 } from '../../utils/telegram.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { addTransaction, getAccountBalance } from '../../utils/api.js';
+import { addTransaction, depositAccount, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
@@ -12470,6 +12470,7 @@ function PoolRoyaleGame({
   }, [trainingRulesOn]);
   const [trainingProgress, setTrainingProgress] = useState({
     completed: [],
+    rewarded: [],
     lastLevel: 1,
     carryShots: BASE_ATTEMPTS_PER_LEVEL
   });
@@ -12536,7 +12537,38 @@ function PoolRoyaleGame({
     setTrainingLevel(unlockedLevel);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
+    setFrameState((prev) => ({
+      ...prev,
+      frameOver: false,
+      winner: undefined,
+      foul: undefined,
+      activePlayer: 'A'
+    }));
+    setHud((prev) => ({ ...prev, over: false, turn: 0 }));
   }, []);
+
+  const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
+    const account = resolvedAccountId;
+    const amount = Math.max(0, Number(rewardAmount) || 0);
+    if (!account || amount <= 0) return;
+    const safeLevel = Math.max(1, Math.min(50, Number(level) || 1));
+    try {
+      const receipt = await depositAccount(account, amount, {
+        source: 'pool-royale-training',
+        token: 'TPC',
+        type: 'task',
+        note: `Pool Royale training task ${safeLevel}`,
+        game: 'pool',
+        taskLevel: safeLevel,
+        discipline: 'Pool Royale'
+      });
+      if (receipt?.error) {
+        console.warn('Pool Royale training payout failed:', receipt.error);
+      }
+    } catch (error) {
+      console.warn('Pool Royale training payout request failed:', error);
+    }
+  }, [resolvedAccountId]);
 
   const applyTrainingLayoutForLevel = useCallback((level) => {
     if (!isTraining) return;
@@ -13785,15 +13817,27 @@ const powerRef = useRef(hud.power);
     if (trainingCompletionHandledRef.current) return;
     trainingCompletionHandledRef.current = true;
     const completedLevel = trainingLevelRef.current || 1;
+    const completedLevelInfo = describeTrainingLevel(completedLevel);
+    const completedRewardAmount = Number(completedLevelInfo?.rewardAmount) || 0;
+    const previous = trainingProgressRef.current || { completed: [], rewarded: [] };
+    const previousRewardedSet = new Set(
+      (previous?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+    );
+    const shouldAwardReward = !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
     setTrainingProgress((prev) => {
       const completedSet = new Set(
         (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
       );
+      const rewardedSet = new Set(
+        (prev?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+      );
       completedSet.add(completedLevel);
+      if (shouldAwardReward) rewardedSet.add(completedLevel);
       const completed = Array.from(completedSet).sort((a, b) => a - b);
+      const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
       const carryShots = Math.max(0, trainingShotsRemaining) + BASE_ATTEMPTS_PER_LEVEL;
-      const updated = { completed, lastLevel, carryShots };
+      const updated = { completed, rewarded, lastLevel, carryShots };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
@@ -13803,7 +13847,10 @@ const powerRef = useRef(hud.power);
       setTrainingRoadmapOpen(true);
       return updated;
     });
-  }, [applyTrainingLayoutForLevel, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
+    if (shouldAwardReward) {
+      awardTrainingTaskPayout(completedLevel, completedRewardAmount);
+    }
+  }, [applyTrainingLayoutForLevel, awardTrainingTaskPayout, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -30981,7 +31028,21 @@ const powerRef = useRef(hud.power);
               </div>
               <button
                 type="button"
-                onClick={() => setTrainingRoadmapOpen(false)}
+                onClick={() => {
+                  setTrainingRoadmapOpen(false);
+                  setTrainingMenuOpen(false);
+                  setRuleToast(null);
+                  setTurnCycle((value) => value + 1);
+                  setFrameState((prev) => ({
+                    ...prev,
+                    frameOver: false,
+                    winner: undefined,
+                    foul: undefined,
+                    activePlayer: 'A'
+                  }));
+                  setHud((prev) => ({ ...prev, over: false, turn: 0 }));
+                  applyTrainingLayoutForLevel(trainingLevelRef.current || trainingLevel);
+                }}
                 className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
               >
                 Continue
