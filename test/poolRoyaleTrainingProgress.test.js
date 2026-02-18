@@ -12,7 +12,7 @@ describe('resolvePlayableTrainingLevel', () => {
   });
 
   test('falls back to the last level when every task is already complete', () => {
-    const progress = { completed: Array.from({ length: 40 }, (_, i) => i + 1), lastLevel: 4 };
+    const progress = { completed: Array.from({ length: 50 }, (_, i) => i + 1), lastLevel: 4 };
     expect(resolvePlayableTrainingLevel(null, progress)).toBe(4);
   });
 });
@@ -26,8 +26,8 @@ describe('pool royale training layout progression', () => {
     }
   });
 
-  test('keeps 25 object balls from task 26 to task 40', () => {
-    for (let level = 26; level <= 40; level++) {
+  test('keeps 25 object balls from task 26 to task 50', () => {
+    for (let level = 26; level <= 50; level++) {
       const layout = getTrainingLayout(level);
       expect(layout.balls.length).toBe(25);
     }
@@ -39,22 +39,6 @@ describe('pool royale training layout progression', () => {
     expect(level1).not.toEqual(level2);
   });
 
-
-  test('avoids overlapping balls so roadmap preview can start', () => {
-    const minDistance = 0.001;
-    for (let level = 1; level <= 40; level++) {
-      const layout = getTrainingLayout(level);
-      const balls = Array.isArray(layout?.balls) ? layout.balls : [];
-      for (let i = 0; i < balls.length; i++) {
-        for (let j = i + 1; j < balls.length; j++) {
-          const dx = Number(balls[i].x) - Number(balls[j].x);
-          const dz = Number(balls[i].z) - Number(balls[j].z);
-          const distance = Math.sqrt((dx * dx) + (dz * dz));
-          expect(distance).toBeGreaterThanOrEqual(minDistance);
-        }
-      }
-    }
-  });
   test('keeps early training balls away from pocket-edge dead zones', () => {
     for (let level = 1; level <= 12; level++) {
       const layout = getTrainingLayout(level);

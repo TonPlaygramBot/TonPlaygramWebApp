@@ -12454,7 +12454,6 @@ function PoolRoyaleGame({
     tableFinishId
   ]);
   const isTraining = playType === 'training';
-  const TRAINING_TASK_COUNT = TRAINING_LEVELS.length || 40;
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
@@ -12511,10 +12510,10 @@ function PoolRoyaleGame({
     const next = getNextIncompleteLevel(trainingProgress?.completed || []);
     if (next != null) return next;
     if (Number.isFinite(trainingProgress?.lastLevel)) {
-      return Math.min(TRAINING_TASK_COUNT, Math.max(1, Number(trainingProgress.lastLevel) + 1));
+      return Math.min(50, Math.max(1, Number(trainingProgress.lastLevel) + 1));
     }
-    return Math.min(TRAINING_TASK_COUNT, trainingLevel + 1);
-  }, [TRAINING_TASK_COUNT, trainingProgress?.completed, trainingProgress?.lastLevel, trainingLevel]);
+    return Math.min(50, trainingLevel + 1);
+  }, [trainingProgress?.completed, trainingProgress?.lastLevel, trainingLevel]);
   const nextTrainingInfo = useMemo(
     () => describeTrainingLevel(nextTrainingLevel ?? trainingLevel),
     [nextTrainingLevel, trainingLevel]
@@ -12539,15 +12538,10 @@ function PoolRoyaleGame({
   }, [isTraining]);
 
   const handleTrainingLevelPick = useCallback((level) => {
-    const levelNum = Math.min(TRAINING_TASK_COUNT, Math.max(1, Number(level) || 1));
+    const levelNum = Math.min(50, Math.max(1, Number(level) || 1));
     const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
     if (levelNum > unlockedLevel) return;
-    aiShotPreviewRef.current = false;
-    aiShotCueViewRef.current = false;
-    setReplayActive(false);
-    setShotActive(false);
     setTrainingLevel(unlockedLevel);
-    setTrainingShotsRemaining(BASE_ATTEMPTS_PER_LEVEL);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
@@ -12559,13 +12553,13 @@ function PoolRoyaleGame({
       activePlayer: 'A'
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0 }));
-  }, [TRAINING_TASK_COUNT]);
+  }, []);
 
   const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
     const account = resolvedAccountId;
     const amount = Math.max(0, Number(rewardAmount) || 0);
     if (!account || amount <= 0) return;
-    const safeLevel = Math.max(1, Math.min(TRAINING_TASK_COUNT, Number(level) || 1));
+    const safeLevel = Math.max(1, Math.min(50, Number(level) || 1));
     try {
       const receipt = await depositAccount(account, amount, {
         source: 'pool-royale-training',
@@ -12582,7 +12576,7 @@ function PoolRoyaleGame({
     } catch (error) {
       console.warn('Pool Royale training payout request failed:', error);
     }
-  }, [TRAINING_TASK_COUNT, resolvedAccountId]);
+  }, [resolvedAccountId]);
 
   const ensureTrainingBallPoolForLayout = useCallback((trainingLayout) => {
     if (!isTraining) return;
@@ -12720,7 +12714,6 @@ function PoolRoyaleGame({
         ? Number(pendingTrainingLevel)
         : computedNextLevel;
     setTrainingLevel(nextLevel);
-    setTrainingShotsRemaining(BASE_ATTEMPTS_PER_LEVEL);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
@@ -12752,8 +12745,8 @@ function PoolRoyaleGame({
     []
   );
   const unlockedTrainingCap = useMemo(
-    () => resolvePlayableTrainingLevel(TRAINING_TASK_COUNT, trainingProgress),
-    [TRAINING_TASK_COUNT, trainingProgress]
+    () => resolvePlayableTrainingLevel(50, trainingProgress),
+    [trainingProgress]
   );
   const completedTrainingSet = useMemo(
     () => new Set(Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []),
@@ -13938,7 +13931,7 @@ const powerRef = useRef(hud.power);
       const completed = Array.from(completedSet).sort((a, b) => a - b);
       const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
-      const carryShots = BASE_ATTEMPTS_PER_LEVEL;
+      const carryShots = Math.max(0, trainingShotsRemaining) + BASE_ATTEMPTS_PER_LEVEL;
       const updated = { completed, rewarded, lastLevel, carryShots };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
@@ -13952,23 +13945,6 @@ const powerRef = useRef(hud.power);
       awardTrainingTaskPayout(completedLevel, completedRewardAmount);
     }
   }, [applyTrainingLayoutForLevel, awardTrainingTaskPayout, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
-
-  useEffect(() => {
-    if (!isTraining || frameState.frameOver) return;
-    if (trainingShotsRemaining > 0) return;
-    showRuleToast('Attempt ended on miss. Task restarted with 3 fresh attempts.');
-    setTrainingShotsRemaining(BASE_ATTEMPTS_PER_LEVEL);
-    setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
-    setFrameState((prev) => ({
-      ...prev,
-      frameOver: false,
-      winner: undefined,
-      foul: undefined,
-      activePlayer: 'A'
-    }));
-    applyTrainingLayoutForLevel(trainingLevelRef.current || 1);
-  }, [applyTrainingLayoutForLevel, frameState.frameOver, isTraining, showRuleToast, trainingShotsRemaining]);
-
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -31104,7 +31080,7 @@ const powerRef = useRef(hud.power);
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_TASK_COUNT} done • {trainingShotsRemaining} attempts
+            L{currentTrainingInfo.level} • {completedTrainingCount}/50 done • {trainingShotsRemaining} shots
           </div>
           <button
             type="button"
@@ -31148,7 +31124,7 @@ const powerRef = useRef(hud.power);
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
                   <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
-                  <p className="mt-1 text-[11px] text-white/60">Attempts left for this task: {trainingShotsRemaining}</p>
+                  <p className="mt-1 text-[11px] text-white/60">Attempts bank: {trainingShotsRemaining}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
@@ -31159,7 +31135,7 @@ const powerRef = useRef(hud.power);
                   onClick={() => setTrainingRoadmapOpen(true)}
                   className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
                 >
-                  Open training roadmap
+                  Open 50-level roadmap
                 </button>
               </div>
             </div>
@@ -31173,7 +31149,7 @@ const powerRef = useRef(hud.power);
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
-                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : `Track your ${TRAINING_TASK_COUNT}-task progression.`}</p>
+                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : 'Track your 50-level progression.'}</p>
               </div>
               <button
                 type="button"

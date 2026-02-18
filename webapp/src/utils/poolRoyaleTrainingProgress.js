@@ -1,9 +1,7 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
-const TRAINING_LEVEL_COUNT = 40
+const TRAINING_LEVEL_COUNT = 50
 const BASE_ATTEMPTS_PER_LEVEL = 3
 const TRAINING_MAX_LAYOUT_BALLS = 25
-const TRAINING_MIN_BALL_SPACING = 0.072
-const TRAINING_CUE_SAFE_RADIUS = 0.11
 
 const clampLevel = (value, fallback = 1) => {
   const numeric = Number(value)
@@ -103,38 +101,6 @@ const resolveLayoutSlot = (pattern, index, level) => {
   }
 }
 
-const nudgeToSafeSlot = (slot, usedSlots, levelSeed, indexSeed) => {
-  const adjusted = { ...slot }
-  const maxPasses = 36
-  const minSpacingSq = TRAINING_MIN_BALL_SPACING * TRAINING_MIN_BALL_SPACING
-  const jitterBase = (levelSeed * 0.91) + (indexSeed * 1.73)
-  for (let pass = 0; pass < maxPasses; pass++) {
-    let overlapFound = false
-    usedSlots.forEach((placed, placedIdx) => {
-      const dx = adjusted.x - placed.x
-      const dz = adjusted.z - placed.z
-      const distanceSq = (dx * dx) + (dz * dz)
-      if (distanceSq >= minSpacingSq) return
-      overlapFound = true
-      const distance = Math.sqrt(distanceSq) || 0.0001
-      const push = (TRAINING_MIN_BALL_SPACING - distance) + 0.003
-      const normalX = dx / distance
-      const normalZ = dz / distance
-      const fallbackAngle = jitterBase + (placedIdx * 0.63) + (pass * 0.27)
-      const pushX = Number.isFinite(normalX) ? normalX : Math.cos(fallbackAngle)
-      const pushZ = Number.isFinite(normalZ) ? normalZ : Math.sin(fallbackAngle)
-      adjusted.x = clampLayoutCoord(adjusted.x + (pushX * push), -0.44, 0.44)
-      adjusted.z = clampLayoutCoord(adjusted.z + (pushZ * push), -0.31, 0.31)
-      if (Math.abs(adjusted.x) > 0.4 && Math.abs(adjusted.z) > 0.24) {
-        adjusted.x = Math.sign(adjusted.x || 1) * 0.39
-        adjusted.z = Math.sign(adjusted.z || 1) * 0.22
-      }
-    })
-    if (!overlapFound) break
-  }
-  return adjusted
-}
-
 const buildTrainingLayout = (level) => {
   const pattern = PATTERN_LIBRARY[(level - 1) % PATTERN_LIBRARY.length] || PATTERN_LIBRARY[0]
   const targetCount = getTrainingTargetCount(level)
@@ -154,47 +120,10 @@ const buildTrainingLayout = (level) => {
       x,
       z
     }
-  }).reduce((acc, slot, idx) => {
-    const nudged = nudgeToSafeSlot(slot, acc, level, idx)
-    acc.push({ ...slot, ...nudged })
-    return acc
-  }, []).map((slot, idx, all) => {
-    let x = slot.x
-    let z = slot.z
-    let guard = 0
-    while (guard < 12) {
-      const duplicated = all.some((other, otherIdx) => {
-        if (otherIdx === idx) return false
-        const dx = x - other.x
-        const dz = z - other.z
-        return (dx * dx) + (dz * dz) < 0.0025
-      })
-      if (!duplicated) break
-      const nudgeAngle = (level * 0.7) + (idx * 1.1) + (guard * 0.53)
-      x = clampLayoutCoord(x + (Math.cos(nudgeAngle) * 0.024), -0.44, 0.44)
-      z = clampLayoutCoord(z + (Math.sin(nudgeAngle) * 0.024), -0.31, 0.31)
-      guard += 1
-    }
-    return { ...slot, x, z }
   })
-
-  const cue = {
-    x: clampLayoutCoord(-0.7 + (level % 5) * 0.045, -0.78, 0.78),
-    z: clampLayoutCoord(0.5 - (level % 6) * 0.065, -0.55, 0.55)
-  }
-
-  const cueTooClose = balls.some((ball) => {
-    const dx = cue.x - ball.x
-    const dz = cue.z - ball.z
-    return (dx * dx) + (dz * dz) < TRAINING_CUE_SAFE_RADIUS * TRAINING_CUE_SAFE_RADIUS
-  })
-  if (cueTooClose) {
-    cue.x = -0.76
-    cue.z = 0
-  }
 
   return {
-    cue,
+    cue: { x: -0.7 + (level % 5) * 0.045, z: 0.5 - (level % 6) * 0.065 },
     balls
   }
 }
@@ -241,14 +170,12 @@ export function loadTrainingProgress () {
       ? parsed.completed
         .map((lvl) => Number(lvl))
         .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-        .map((lvl) => clampLevel(lvl))
         .sort((a, b) => a - b)
       : []
     const rewarded = Array.isArray(parsed?.rewarded)
       ? parsed.rewarded
         .map((lvl) => Number(lvl))
         .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-        .map((lvl) => clampLevel(lvl))
         .sort((a, b) => a - b)
       : []
     const lastLevel = clampLevel(parsed?.lastLevel, 1)
