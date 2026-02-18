@@ -1419,7 +1419,10 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await buyBundle(resolvedAccountId, bundle);
+      const purchaseId = `store-${resolvedAccountId}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+      const purchase = await buyBundle(resolvedAccountId, bundle, purchaseId);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
@@ -1428,15 +1431,37 @@ export default function Store() {
       }
       setTransactionStatus('Payment approved. Unlocking items…');
 
+      const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
+        if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
+          for (const entry of group.items) {
+            const syncTask = addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId).then(
+              (updated) => {
+                setPoolOwned(updated);
+                return updated;
+              }
+            );
+            backgroundSyncTasks.push(syncTask);
+          }
+          setPoolOwned(getCachedPoolRoyalInventory(resolvedAccountId));
+          continue;
+        }
+        if (slug === 'snookerroyale') {
+          for (const entry of group.items) {
+            const syncTask = addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId).then(
+              (updated) => {
+                setSnookerOwned(updated);
+                return updated;
+              }
+            );
+            backgroundSyncTasks.push(syncTask);
+          }
+          setSnookerOwned(getCachedSnookerRoyalInventory(resolvedAccountId));
+          continue;
+        }
+
         for (const entry of group.items) {
-          if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
-            const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
-            setPoolOwned(updated);
-          } else if (slug === 'snookerroyale') {
-            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
-            setSnookerOwned(updated);
-          } else if (slug === 'airhockey') {
+          if (slug === 'airhockey') {
             setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'chessbattleroyal') {
             setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
@@ -1452,6 +1477,9 @@ export default function Store() {
             setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
           }
         }
+      }
+      if (backgroundSyncTasks.length) {
+        Promise.allSettled(backgroundSyncTasks).catch(() => {});
       }
       setTransactionStatus('Inventory updated. Finalizing receipt…');
 
