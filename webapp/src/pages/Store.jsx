@@ -117,17 +117,6 @@ import {
   listOwnedTexasOptions,
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
-import {
-  VOICE_COMMENTARY_OPTION_LABELS,
-  VOICE_COMMENTARY_STORE_ITEMS
-} from '../config/voiceCommentaryInventoryConfig.js';
-import {
-  addVoiceCommentaryUnlock,
-  getVoiceCommentaryInventory,
-  isVoiceCommentaryUnlocked,
-  listOwnedVoiceCommentaryOptions,
-  syncVoiceCommentaryInventory
-} from '../utils/voiceCommentaryInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
 import { recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
@@ -238,14 +227,9 @@ const TEXAS_TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 
-const VOICE_TYPE_LABELS = {
-  voiceLanguage: 'Voice Commentary Language Packs'
-};
-
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
-const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -260,26 +244,9 @@ const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
-const VOICE_STORE_ACCOUNT_ID = import.meta.env.VITE_VOICE_COMMENTARY_STORE_ACCOUNT_ID || DEV_INFO.account;
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
-
-const normalizeTpcBalance = (payload) => {
-  const candidates = [
-    payload?.balance,
-    payload?.tpcBalance,
-    payload?.account?.balance,
-    payload?.data?.balance
-  ];
-  for (const candidate of candidates) {
-    const parsed = Number(candidate);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return null;
-};
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
@@ -675,14 +642,6 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
-  tabletennisroyal: {
-    name: 'Table Tennis Royal',
-    items: POOL_ROYALE_STORE_ITEMS,
-    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
-    labels: POOL_ROYALE_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   snookerroyale: {
     name: 'Snooker Royal',
     items: SNOOKER_ROYALE_STORE_ITEMS,
@@ -746,14 +705,6 @@ const storeMeta = {
     labels: TEXAS_HOLDEM_OPTION_LABELS,
     typeLabels: TEXAS_TYPE_LABELS,
     accountId: TEXAS_STORE_ACCOUNT_ID
-  },
-  voicecommentary: {
-    name: 'Voice Commentary',
-    items: VOICE_COMMENTARY_STORE_ITEMS,
-    defaults: {},
-    labels: VOICE_COMMENTARY_OPTION_LABELS,
-    typeLabels: VOICE_TYPE_LABELS,
-    accountId: VOICE_STORE_ACCOUNT_ID
   }
 };
 
@@ -771,7 +722,6 @@ export default function Store() {
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
   const [texasOwned, setTexasOwned] = useState(() => getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-  const [voiceOwned, setVoiceOwned] = useState(() => getVoiceCommentaryInventory(accountId));
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
@@ -848,13 +798,7 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-    setVoiceOwned(getVoiceCommentaryInventory(accountId));
     let cancelled = false;
-    syncVoiceCommentaryInventory(accountId)
-      .then((inventory) => {
-        if (!cancelled && inventory) setVoiceOwned(inventory);
-      })
-      .catch((err) => console.warn('Failed to sync Voice Commentary inventory', err));
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
         if (!cancelled && inventory) setPoolOwned(inventory);
@@ -909,9 +853,8 @@ export default function Store() {
     }
     try {
       const res = await getAccountBalance(resolvedAccountId);
-      const nextBalance = normalizeTpcBalance(res);
-      if (nextBalance !== null) {
-        setAccountBalance(nextBalance);
+      if (typeof res?.balance === 'number') {
+        setAccountBalance(res.balance);
       }
     } catch (err) {
       console.error('Failed to load TPC balance', err);
@@ -925,7 +868,6 @@ export default function Store() {
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
-      tabletennisroyal: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tabletennisroyal' })),
       snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerroyale' })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
@@ -933,8 +875,7 @@ export default function Store() {
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'domino-royal' })),
       snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snake' })),
-      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' })),
-      voicecommentary: VOICE_COMMENTARY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'voicecommentary' }))
+      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' }))
     }),
     []
   );
@@ -942,7 +883,6 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      tabletennisroyal: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
       snookerroyale: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
@@ -950,16 +890,14 @@ export default function Store() {
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
       'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
-      texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned),
-      voicecommentary: (type, optionId) => isVoiceCommentaryUnlocked(type, optionId, voiceOwned)
+      texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, snookerOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned, voiceOwned]
+    [airOwned, poolOwned, snookerOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tabletennisroyal: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snookerroyale: (item) => SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -967,8 +905,7 @@ export default function Store() {
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      voicecommentary: (item) => VOICE_COMMENTARY_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -976,15 +913,13 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
-      tabletennisroyal: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
-      texasholdem: TEXAS_TYPE_LABELS,
-      voicecommentary: VOICE_TYPE_LABELS
+      texasholdem: TEXAS_TYPE_LABELS
     }),
     []
   );
@@ -1283,11 +1218,6 @@ export default function Store() {
     return allMarketplaceItems.filter((item) => keySet.has(selectionKey(item)));
   }, [allMarketplaceItems, selectedKeys]);
 
-  const visiblePurchasableItems = useMemo(
-    () => visibleItems.filter((item) => !item.owned),
-    [visibleItems]
-  );
-
   const selectedPurchasable = useMemo(
     () => selectedItems.filter((item) => !item.owned),
     [selectedItems]
@@ -1325,21 +1255,6 @@ export default function Store() {
   }, []);
 
   const clearSelection = useCallback(() => setSelectedKeys([]), []);
-
-  const selectVisibleItems = useCallback(() => {
-    if (!visiblePurchasableItems.length) return;
-    setSelectedKeys((prev) => {
-      const next = new Set(prev);
-      visiblePurchasableItems.forEach((item) => next.add(selectionKey(item)));
-      return Array.from(next);
-    });
-  }, [visiblePurchasableItems]);
-
-  const quickBuyVisible = useCallback(() => {
-    if (!visiblePurchasableItems.length || processing) return;
-    setConfirmItem(null);
-    setConfirmItems(visiblePurchasableItems);
-  }, [processing, visiblePurchasableItems]);
 
   const userListingStats = useMemo(() => {
     const total = decoratedUserListings.length;
@@ -1455,7 +1370,7 @@ export default function Store() {
       return;
     }
     const totalPrice = purchasable.reduce((sum, item) => sum + item.price, 0);
-    if (!Number.isFinite(totalPrice) || totalPrice < 0) {
+    if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
       setInfo('Unable to compute total TPC payment.');
       return;
     }
@@ -1482,14 +1397,6 @@ export default function Store() {
     resetStatus();
     setTransactionState('processing');
     setTransactionStatus('Starting TPC transfer…');
-    const canDeductImmediately = typeof accountBalance === 'number' && Number.isFinite(accountBalance);
-    const balanceBeforePurchase = canDeductImmediately ? accountBalance : null;
-    if (canDeductImmediately) {
-      setAccountBalance((prev) => {
-        if (typeof prev !== 'number' || !Number.isFinite(prev)) return prev;
-        return Math.max(0, prev - totalPrice);
-      });
-    }
 
     try {
       const bundle = {
@@ -1500,18 +1407,9 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchasePromise = buyBundle(resolvedAccountId, bundle);
-      const timeoutPromise = new Promise((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error('TPC transfer request timed out')),
-          PURCHASE_REQUEST_TIMEOUT_MS
-        );
-      });
-      const purchase = await Promise.race([purchasePromise, timeoutPromise]);
+      const purchaseId = `store-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+      const purchase = await buyBundle(resolvedAccountId, bundle, purchaseId);
       if (purchase?.error) {
-        if (balanceBeforePurchase !== null) {
-          setAccountBalance(balanceBeforePurchase);
-        }
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
         setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
@@ -1519,84 +1417,31 @@ export default function Store() {
       }
       setTransactionStatus('Payment approved. Unlocking items…');
 
-      const unlockTasks = Object.entries(groupedBySlug).map(async ([slug, group]) => {
-        if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
-          const updates = await Promise.all(
-            group.items.map((entry) => addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId))
-          );
-          setPoolOwned(updates[updates.length - 1]);
-          return;
+      for (const [slug, group] of Object.entries(groupedBySlug)) {
+        for (const entry of group.items) {
+          if (slug === 'poolroyale') {
+            const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
+            setPoolOwned(updated);
+          } else if (slug === 'snookerroyale') {
+            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
+            setSnookerOwned(updated);
+          } else if (slug === 'airhockey') {
+            setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'chessbattleroyal') {
+            setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'ludobattleroyal') {
+            setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'murlanroyale') {
+            setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'domino-royal') {
+            setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'snake') {
+            setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'texasholdem') {
+            setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
+          }
         }
-        if (slug === 'snookerroyale') {
-          const updates = await Promise.all(
-            group.items.map((entry) => addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId))
-          );
-          setSnookerOwned(updates[updates.length - 1]);
-          return;
-        }
-        if (slug === 'airhockey') {
-          let next = airOwned;
-          group.items.forEach((entry) => {
-            next = addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setAirOwned(next);
-          return;
-        }
-        if (slug === 'chessbattleroyal') {
-          let next = chessOwned;
-          group.items.forEach((entry) => {
-            next = addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setChessOwned(next);
-          return;
-        }
-        if (slug === 'ludobattleroyal') {
-          let next = ludoOwned;
-          group.items.forEach((entry) => {
-            next = addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setLudoOwned(next);
-          return;
-        }
-        if (slug === 'murlanroyale') {
-          let next = murlanOwned;
-          group.items.forEach((entry) => {
-            next = addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setMurlanOwned(next);
-          return;
-        }
-        if (slug === 'domino-royal') {
-          let next = dominoOwned;
-          group.items.forEach((entry) => {
-            next = addDominoRoyalUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setDominoOwned(next);
-          return;
-        }
-        if (slug === 'snake') {
-          let next = snakeOwned;
-          group.items.forEach((entry) => {
-            next = addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setSnakeOwned(next);
-          return;
-        }
-        if (slug === 'texasholdem') {
-          let next = texasOwned;
-          group.items.forEach((entry) => {
-            next = addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId);
-          });
-          setTexasOwned(next);
-          return;
-        }
-        if (slug === 'voicecommentary') {
-          const updated = await addVoiceCommentaryUnlock('voiceLanguage', group.items[0]?.optionId, resolvedAccountId);
-          setVoiceOwned(updated);
-        }
-      });
-
-      await Promise.all(unlockTasks);
+      }
       setTransactionStatus('Inventory updated. Finalizing receipt…');
 
       const resolver = (item) => labelResolver(item.slug, item);
@@ -1629,21 +1474,9 @@ export default function Store() {
       await loadAccountBalance();
     } catch (err) {
       console.error('Purchase failed', err);
-      if (balanceBeforePurchase !== null) {
-        setAccountBalance(balanceBeforePurchase);
-      }
-      const timedOut = err instanceof Error && err.message === 'TPC transfer request timed out';
-      setInfo(
-        timedOut
-          ? 'TPC transfer timed out. Your balance was not changed. Please try again.'
-          : 'Failed to process purchase.'
-      );
+      setInfo('Failed to process purchase.');
       setTransactionState('error');
-      setTransactionStatus(
-        timedOut
-          ? 'Payment request timed out. Please retry checkout.'
-          : 'Purchase failed. Please try again.'
-      );
+      setTransactionStatus('Purchase failed. Please try again.');
     } finally {
       setProcessing('');
       setConfirmItem(null);
@@ -2769,22 +2602,6 @@ export default function Store() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={selectVisibleItems}
-                    className="rounded-2xl border border-sky-300/30 bg-sky-400/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!visiblePurchasableItems.length || Boolean(processing)}
-                  >
-                    Select visible ({visiblePurchasableItems.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={quickBuyVisible}
-                    className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!visiblePurchasableItems.length || Boolean(processing)}
-                  >
-                    Quick buy visible
-                  </button>
-                  <button
-                    type="button"
                     onClick={clearSelection}
                     className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!selectedKeys.length}
@@ -2808,7 +2625,7 @@ export default function Store() {
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
                   Green + Blue cloth bundles ready for Pool Royale
                 </span>
-                <span>Use “Select visible” or “Quick buy visible” to purchase large filtered sets faster.</span>
+                <span>Pick multiple NFTs, confirm once, and unlock them together.</span>
               </div>
             </div>
 
