@@ -81,16 +81,15 @@ const buildTrainingDefinition = (level) => {
   const discipline = level <= 17 ? '8-Ball' : level <= 34 ? '9-Ball' : 'Pool Position Play'
   const targetCount = Math.max(3, Math.min(15, 3 + Math.floor((level - 1) / 2)))
   const strategy = STRATEGY_DRILLS[(level - 1) % STRATEGY_DRILLS.length]
-  const reward =
-    level % 5 === 0
-      ? 'Free random table setup item unlocked.'
-      : 'Progress toward next free table setup item.'
+  const rewardAmount = level * 100
+  const reward = `${rewardAmount.toLocaleString('en-US')} TPC`
 
   return {
     level,
     discipline,
     title: `Task ${String(level).padStart(2, '0')} · ${strategy.title}`,
     objective: `${strategy.objective} Clear ${targetCount} ball${targetCount > 1 ? 's' : ''}.`,
+    rewardAmount,
     reward,
     layout: buildTrainingLayout(level)
   }
@@ -111,10 +110,10 @@ export function getTrainingLayout (level) {
 }
 
 export function loadTrainingProgress () {
-  if (typeof window === 'undefined') { return { completed: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL } }
+  if (typeof window === 'undefined') { return { completed: [], rewarded: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL } }
   try {
     const stored = window.localStorage.getItem(TRAINING_PROGRESS_KEY)
-    if (!stored) return { completed: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL }
+    if (!stored) return { completed: [], rewarded: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL }
     const parsed = JSON.parse(stored)
     const completed = Array.isArray(parsed?.completed)
       ? parsed.completed
@@ -122,12 +121,18 @@ export function loadTrainingProgress () {
         .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
         .sort((a, b) => a - b)
       : []
+    const rewarded = Array.isArray(parsed?.rewarded)
+      ? parsed.rewarded
+        .map((lvl) => Number(lvl))
+        .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+        .sort((a, b) => a - b)
+      : []
     const lastLevel = clampLevel(parsed?.lastLevel, 1)
     const carryShots = Math.max(0, Math.floor(Number(parsed?.carryShots) || BASE_ATTEMPTS_PER_LEVEL))
-    return { completed, lastLevel, carryShots }
+    return { completed, rewarded, lastLevel, carryShots }
   } catch (err) {
     console.warn('Failed to load Pool Royale training progress', err)
-    return { completed: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL }
+    return { completed: [], rewarded: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL }
   }
 }
 
