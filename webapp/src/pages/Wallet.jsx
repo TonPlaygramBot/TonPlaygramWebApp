@@ -117,17 +117,19 @@ export default function Wallet({ hideClaim = false }) {
 
   const loadBalances = async () => {
     const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
-    let id = devMode ? DEV_ACCOUNT_ID : localStorage.getItem('accountId');
+    let id = devMode ? DEV_ACCOUNT_ID : '';
     let acc;
     if (id) {
       acc = { accountId: id };
     } else {
-      acc = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
+      acc = await createAccount(telegramId, googleProfile, null, tonWalletAddress);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return null;
       }
-      localStorage.setItem('accountId', acc.accountId);
+      if (acc.accountId) {
+        localStorage.setItem('accountId', acc.accountId);
+      }
       if (acc.walletAddress) {
         localStorage.setItem('walletAddress', acc.walletAddress);
         setTonWalletAddress(acc.walletAddress);

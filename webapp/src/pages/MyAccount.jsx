@@ -166,7 +166,7 @@ export default function MyAccount() {
       const accountPayload = await createAccount(
         telegramId,
         googleProfile,
-        undefined,
+        null,
         tonWalletAddress
       );
       if (accountPayload?.error || !accountPayload?.accountId) {

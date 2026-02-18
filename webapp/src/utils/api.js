@@ -621,8 +621,9 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
   const normalizedTelegramId = normalizeTelegramId(telegramId);
   if (normalizedTelegramId != null) body.telegramId = normalizedTelegramId;
   const existingAccountId =
-    accountId ||
-    (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);
+    accountId !== undefined
+      ? accountId
+      : (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);
   if (existingAccountId) body.accountId = existingAccountId;
   const profile =
     typeof googleProfile === 'string'
