@@ -229,7 +229,12 @@ router.post('/help', async (req, res) => {
       synthesis
     });
   } catch (error) {
-    return res.status(502).json({ error: error.message, provider: 'nvidia-personaplex' });
+    return res.json({
+      provider: 'web-speech-fallback',
+      voice: selected,
+      answer,
+      warning: `PersonaPlex synthesis unavailable: ${error.message}`
+    });
   }
 });
 
@@ -270,7 +275,13 @@ router.post('/speak', async (req, res) => {
       synthesis
     });
   } catch (error) {
-    return res.status(502).json({ error: error.message, provider: 'nvidia-personaplex' });
+    return res.json({
+      provider: 'web-speech-fallback',
+      voice: selected,
+      inventory,
+      text: message,
+      warning: `PersonaPlex synthesis unavailable: ${error.message}`
+    });
   }
 });
 

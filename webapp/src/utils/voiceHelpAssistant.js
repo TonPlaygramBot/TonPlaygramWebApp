@@ -6,13 +6,34 @@ const SPEECH_RECOGNITION =
     ? window.SpeechRecognition || window.webkitSpeechRecognition || null
     : null;
 
-async function playSynthesis(payload) {
+function speakWithWebSpeech(text, locale = 'en-US') {
+  if (typeof window === 'undefined' || !window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim());
+    utterance.lang = locale || 'en-US';
+    utterance.rate = 0.98;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+async function playSynthesis(payload, locale = 'en-US') {
   primeSpeechSynthesis();
   const synthesis = payload?.synthesis || {};
+  const fallbackText = payload?.answer || payload?.text || '';
   const source = synthesis.audioUrl || (synthesis.audioBase64 ? `data:${synthesis.mimeType || 'audio/mpeg'};base64,${synthesis.audioBase64}` : '');
-  if (!source) throw new Error('Missing help audio');
+  if (!source) {
+    await speakWithWebSpeech(fallbackText, locale);
+    return;
+  }
   const audio = new Audio(source);
-  await new Promise((resolve, reject) => {
+  await new Promise((resolve) => {
     const finish = () => {
       audio.removeEventListener('ended', finish);
       audio.removeEventListener('error', fail);
@@ -21,12 +42,15 @@ async function playSynthesis(payload) {
     const fail = () => {
       audio.removeEventListener('ended', finish);
       audio.removeEventListener('error', fail);
-      reject(new Error('Help audio playback failed'));
+      resolve();
     };
     audio.addEventListener('ended', finish);
     audio.addEventListener('error', fail);
     audio.play().catch(fail);
   });
+  if (payload?.provider === 'web-speech-fallback' && fallbackText) {
+    await speakWithWebSpeech(fallbackText, locale);
+  }
 }
 
 function listenOnce(locale = 'en-US', timeoutMs = 9000) {
@@ -61,7 +85,7 @@ function listenOnce(locale = 'en-US', timeoutMs = 9000) {
 export async function runVoiceHelpSession({ accountId, locale = 'en-US' }) {
   const first = await post('/api/voice-commentary/help', { accountId, locale, question: '' });
   if (first?.error) throw new Error(first.error);
-  await playSynthesis(first);
+  await playSynthesis(first, locale);
 
   const spokenQuestion = await listenOnce(locale);
   const answer = await post('/api/voice-commentary/help', {
@@ -70,6 +94,6 @@ export async function runVoiceHelpSession({ accountId, locale = 'en-US' }) {
     question: spokenQuestion || 'general app help'
   });
   if (answer?.error) throw new Error(answer.error);
-  await playSynthesis(answer);
+  await playSynthesis(answer, locale);
   return { question: spokenQuestion, answer: answer.answer || '' };
 }
