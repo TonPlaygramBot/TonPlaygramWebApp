@@ -12648,7 +12648,6 @@ function PoolRoyaleGame({
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
     setRuleToast(null);
-    setTurnCycle((value) => value + 1);
     setFrameState((prev) => ({
       ...prev,
       frameOver: false,
@@ -26510,17 +26509,14 @@ const powerRef = useRef(hud.power);
           console.error('Pool Royale shot resolution failed:', err);
         }
         if (isTraining) {
-          if (!trainingRulesRef.current) {
-            safeState = {
-              ...safeState,
-              foul: undefined,
-              frameOver: false,
-              winner: undefined
-            };
-          }
-          if (trainingModeRef.current === 'solo') {
-            safeState = { ...safeState, activePlayer: 'A' };
-          }
+          const disableRuleEnding = !trainingRulesRef.current;
+          safeState = {
+            ...safeState,
+            foul: undefined,
+            activePlayer: trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer,
+            frameOver: disableRuleEnding ? false : safeState?.frameOver,
+            winner: disableRuleEnding ? undefined : safeState?.winner
+          };
         }
         if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
           setTrainingShotsRemaining((prev) => Math.max(0, (Number(prev) || 0) - 1));
@@ -26543,7 +26539,7 @@ const powerRef = useRef(hud.power);
             meta: nextMeta ?? safeState.meta
           };
         }
-        if (safeState?.foul) {
+        if (!isTraining && safeState?.foul) {
           const foulNextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
             safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
@@ -26735,7 +26731,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false,
           spin: { x: 0, y: 0 }
         };
-        let nextInHand = cueBallPotted;
+        let nextInHand = isTraining ? false : cueBallPotted;
         try {
           if (shotResolved) {
             if (safeState.foul) {
@@ -26820,7 +26816,7 @@ const powerRef = useRef(hud.power);
               cue.impacted = false;
               cue.launchDir = null;
               cueBallPlacedFromHandRef.current = false;
-              pendingInHandResetRef.current = true;
+              pendingInHandResetRef.current = !isTraining;
             }
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
