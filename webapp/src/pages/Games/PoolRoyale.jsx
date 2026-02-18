@@ -93,7 +93,8 @@ import {
   resolvePlayableTrainingLevel,
   getTrainingLayout,
   BASE_ATTEMPTS_PER_LEVEL,
-  TRAINING_LEVELS
+  TRAINING_LEVELS,
+  TRAINING_LEVEL_COUNT
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
@@ -12494,7 +12495,12 @@ function PoolRoyaleGame({
     const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
-    setTrainingShotsRemaining(Math.max(0, Number(stored?.carryShots) || BASE_ATTEMPTS_PER_LEVEL));
+    const storedCarryShots = Number(stored?.carryShots);
+    setTrainingShotsRemaining(
+      Number.isFinite(storedCarryShots)
+        ? Math.max(0, Math.floor(storedCarryShots))
+        : BASE_ATTEMPTS_PER_LEVEL
+    );
     setTrainingLevel(playableLevel);
   }, []);
   useEffect(() => {
@@ -12510,9 +12516,9 @@ function PoolRoyaleGame({
     const next = getNextIncompleteLevel(trainingProgress?.completed || []);
     if (next != null) return next;
     if (Number.isFinite(trainingProgress?.lastLevel)) {
-      return Math.min(50, Math.max(1, Number(trainingProgress.lastLevel) + 1));
+      return Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(trainingProgress.lastLevel) + 1));
     }
-    return Math.min(50, trainingLevel + 1);
+    return Math.min(TRAINING_LEVEL_COUNT, trainingLevel + 1);
   }, [trainingProgress?.completed, trainingProgress?.lastLevel, trainingLevel]);
   const nextTrainingInfo = useMemo(
     () => describeTrainingLevel(nextTrainingLevel ?? trainingLevel),
@@ -12538,7 +12544,7 @@ function PoolRoyaleGame({
   }, [isTraining]);
 
   const handleTrainingLevelPick = useCallback((level) => {
-    const levelNum = Math.min(50, Math.max(1, Number(level) || 1));
+    const levelNum = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(level) || 1));
     const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
     if (levelNum > unlockedLevel) return;
     setTrainingLevel(unlockedLevel);
@@ -12559,7 +12565,7 @@ function PoolRoyaleGame({
     const account = resolvedAccountId;
     const amount = Math.max(0, Number(rewardAmount) || 0);
     if (!account || amount <= 0) return;
-    const safeLevel = Math.max(1, Math.min(50, Number(level) || 1));
+    const safeLevel = Math.max(1, Math.min(TRAINING_LEVEL_COUNT, Number(level) || 1));
     try {
       const receipt = await depositAccount(account, amount, {
         source: 'pool-royale-training',
@@ -12669,13 +12675,17 @@ function PoolRoyaleGame({
     }
 
     const entries = Array.isArray(trainingLayout?.balls) ? trainingLayout.balls : [];
+    const assignedBallIds = new Set();
     entries.forEach((entry, idx) => {
       const rid = Number.isFinite(entry?.rackIndex)
         ? Math.max(0, Math.floor(entry.rackIndex))
         : idx % Math.max(1, variantConfig?.objectColors?.length || objectBalls.length || 1);
       const targetBallId = getPoolBallId(variantConfig, rid);
-      const objectBall = balls.find((ball) => ball?.id === targetBallId) || objectBalls[idx];
-      if (!objectBall) return;
+      const preferredBall = balls.find((ball) => ball?.id === targetBallId);
+      const fallbackBall = objectBalls.find((ball) => ball && !assignedBallIds.has(ball.id));
+      const objectBall = preferredBall && !assignedBallIds.has(preferredBall.id) ? preferredBall : fallbackBall;
+      if (!objectBall || assignedBallIds.has(objectBall.id)) return;
+      assignedBallIds.add(objectBall.id);
       const ballState = stateById.get(objectBall.id);
       const x = normalize(entry?.x, limitX);
       const z = normalize(entry?.z, limitZ);
@@ -12745,7 +12755,7 @@ function PoolRoyaleGame({
     []
   );
   const unlockedTrainingCap = useMemo(
-    () => resolvePlayableTrainingLevel(50, trainingProgress),
+    () => resolvePlayableTrainingLevel(TRAINING_LEVEL_COUNT, trainingProgress),
     [trainingProgress]
   );
   const completedTrainingSet = useMemo(
@@ -31080,7 +31090,7 @@ const powerRef = useRef(hud.power);
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-            L{currentTrainingInfo.level} • {completedTrainingCount}/50 done • {trainingShotsRemaining} shots
+            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done • {trainingShotsRemaining} shots
           </div>
           <button
             type="button"
@@ -31135,7 +31145,7 @@ const powerRef = useRef(hud.power);
                   onClick={() => setTrainingRoadmapOpen(true)}
                   className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
                 >
-                  Open 50-level roadmap
+                  Open training roadmap
                 </button>
               </div>
             </div>
@@ -31149,7 +31159,7 @@ const powerRef = useRef(hud.power);
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
-                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : 'Track your 50-level progression.'}</p>
+                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : `Track your ${TRAINING_LEVEL_COUNT}-level progression.`}</p>
               </div>
               <button
                 type="button"
