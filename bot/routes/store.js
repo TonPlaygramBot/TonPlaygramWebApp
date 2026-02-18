@@ -90,41 +90,13 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
     ensureTransactionArray(user);
-    const availableBalance = Number.isFinite(user.balance)
-      ? user.balance
-      : calculateBalance(user);
+    const recalculatedBalance = calculateBalance(user);
+    const availableBalance = Number.isFinite(user.balance) ? user.balance : recalculatedBalance;
     if (availableBalance < totalPrice) {
       return res.status(400).json({ error: 'insufficient balance' });
     }
     const txDate = new Date();
     const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-    const transaction = {
-      amount: -totalPrice,
-      type: 'storefront',
-      token: 'TPC',
-      status: 'delivered',
-      date: txDate,
-      detail: 'Storefront purchase',
-      items
-    };
-
-    // Fast path for normal item bundles: avoid full document save + validation
-    // and perform an atomic balance check/debit to reduce checkout latency.
-    if (totalPrice > 0 && !hasVoiceItem) {
-      const updated = await User.findOneAndUpdate(
-        { _id: user._id, balance: { $gte: totalPrice } },
-        {
-          $inc: { balance: -totalPrice },
-          $push: { transactions: transaction }
-        },
-        { new: true, projection: { balance: 1 } }
-      );
-      if (!updated) {
-        return res.status(400).json({ error: 'insufficient balance' });
-      }
-      return res.json({ balance: updated.balance, date: txDate });
-    }
-
     if (hasVoiceItem) {
       const catalog = await Promise.race([
         getVoiceCatalog(),
@@ -133,7 +105,15 @@ router.post('/purchase', authenticate, async (req, res) => {
       applyVoiceCommentaryUnlocks(user, items, catalog?.voices || []);
     }
 
-    user.transactions.push(transaction);
+    user.transactions.push({
+      amount: -totalPrice,
+      type: 'storefront',
+      token: 'TPC',
+      status: 'delivered',
+      date: txDate,
+      detail: 'Storefront purchase',
+      items
+    });
     if (totalPrice > 0) {
       user.balance = availableBalance - totalPrice;
     }
