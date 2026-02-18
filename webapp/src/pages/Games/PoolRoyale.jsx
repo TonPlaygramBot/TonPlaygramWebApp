@@ -12482,6 +12482,7 @@ function PoolRoyaleGame({
   const trainingLevelRef = useRef(trainingLevel);
   const trainingCompletionHandledRef = useRef(false);
   const pendingTrainingLayoutLevelRef = useRef(null);
+  const trainingTableRef = useRef(null);
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
   }, [trainingProgress]);
@@ -12577,14 +12578,52 @@ function PoolRoyaleGame({
     }
   }, [resolvedAccountId]);
 
+  const ensureTrainingBallPoolForLayout = useCallback((trainingLayout) => {
+    if (!isTraining) return;
+    const table = trainingTableRef.current;
+    const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
+    if (!table || !balls.length || !trainingLayout) return;
+
+    const entries = Array.isArray(trainingLayout?.balls) ? trainingLayout.balls : [];
+    if (!entries.length) return;
+
+    const variantConfig = activeVariantRef.current;
+    const objectBalls = balls.filter((ball) => ball?.id !== 'cue');
+    const missingCount = Math.max(0, entries.length - objectBalls.length);
+    if (missingCount <= 0) return;
+
+    const hideY = -PLAY_H * 0.75;
+    for (let offset = 0; offset < missingCount; offset++) {
+      const rid = objectBalls.length + offset;
+      const color = getPoolBallColor(variantConfig, rid);
+      const number = getPoolBallNumber(variantConfig, rid);
+      const pattern = getPoolBallPattern(variantConfig, rid);
+      const ballId = getPoolBallId(variantConfig, rid);
+      const objectBall = Guret(table, ballId, color, 0, hideY, { number, pattern });
+      objectBall.active = false;
+      objectBall.pos.set(0, hideY);
+      if (objectBall.mesh) {
+        objectBall.mesh.visible = false;
+        objectBall.mesh.position.set(0, BALL_CENTER_Y, hideY);
+      }
+      if (objectBall.shadow) {
+        objectBall.shadow.visible = false;
+        objectBall.shadow.position.set(0, BALL_SHADOW_Y, hideY);
+      }
+      balls.push(objectBall);
+    }
+  }, [isTraining]);
+
   const applyTrainingLayoutForLevel = useCallback((level) => {
     if (!isTraining) return;
     const trainingLayout = getTrainingLayout(level);
-    const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
-    if (!balls.length || !trainingLayout) {
+    const startingBalls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
+    if (!startingBalls.length || !trainingLayout) {
       pendingTrainingLayoutLevelRef.current = Number(level) || trainingLevelRef.current || 1;
       return;
     }
+    ensureTrainingBallPoolForLayout(trainingLayout);
+    const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     pendingTrainingLayoutLevelRef.current = null;
 
     const variantConfig = activeVariantRef.current;
@@ -12653,7 +12692,7 @@ function PoolRoyaleGame({
       pendingLayoutRef.current = snapshot;
     }
     initialLayoutRef.current = snapshot;
-  }, [isTraining]);
+  }, [ensureTrainingBallPoolForLayout, isTraining]);
 
   const flushPendingTrainingLayout = useCallback(() => {
     if (!isTraining) return;
@@ -21998,6 +22037,7 @@ const powerRef = useRef(hud.power);
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
       const variantConfig = activeVariantRef.current;
+      trainingTableRef.current = table;
       const add = (id, color, x, z, extra = {}) => {
         const b = Guret(table, id, color, x, z, extra);
         balls.push(b);
@@ -29299,6 +29339,7 @@ const powerRef = useRef(hud.power);
         remoteAimRef.current = null;
         lightingRigRef.current = null;
         worldRef.current = null;
+        trainingTableRef.current = null;
         activeRenderCameraRef.current = null;
         cueBodyRef.current = null;
         tipGroupRef.current = null;
