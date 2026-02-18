@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { getSpeechSynthesis, speakCommentaryLines } from '../utils/textToSpeech.js';
+import { getSpeechSupport, speakCommentaryLines } from '../utils/textToSpeech.js';
 import {
   buildStructuredResponse,
   isSensitiveHelpRequest,
@@ -37,7 +37,7 @@ export default function PlatformHelpAgentCard() {
     return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   }, []);
 
-  const canUseSpeechOutput = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const canUseSpeechOutput = useMemo(() => Boolean(getSpeechSupport()), []);
 
   const runLocalFallback = async (text) => {
     const matches = searchLocalHelp(text, 3);
