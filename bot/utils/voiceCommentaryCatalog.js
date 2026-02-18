@@ -12,7 +12,20 @@ const FALLBACK_VOICE_CATALOG = [
   { id: 'amir_ar_sa_m', locale: 'ar-SA', language: 'Arabic', gender: 'male', style: 'calm', provider: 'nvidia-personaplex' },
   { id: 'anisa_sq_al_f', locale: 'sq-AL', language: 'Albanian', gender: 'female', style: 'friendly', provider: 'nvidia-personaplex' },
   { id: 'ivo_pt_br_m', locale: 'pt-BR', language: 'Portuguese', gender: 'male', style: 'energetic', provider: 'nvidia-personaplex' },
-  { id: 'olena_uk_ua_f', locale: 'uk-UA', language: 'Ukrainian', gender: 'female', style: 'calm', provider: 'nvidia-personaplex' }
+  { id: 'olena_uk_ua_f', locale: 'uk-UA', language: 'Ukrainian', gender: 'female', style: 'calm', provider: 'nvidia-personaplex' },
+  { id: 'bartek_pl_pl_m', locale: 'pl-PL', language: 'Polish', gender: 'male', style: 'professional', provider: 'nvidia-personaplex' },
+  { id: 'elif_tr_tr_f', locale: 'tr-TR', language: 'Turkish', gender: 'female', style: 'friendly', provider: 'nvidia-personaplex' },
+  { id: 'ida_sv_se_f', locale: 'sv-SE', language: 'Swedish', gender: 'female', style: 'calm', provider: 'nvidia-personaplex' },
+  { id: 'nils_nb_no_m', locale: 'nb-NO', language: 'Norwegian', gender: 'male', style: 'professional', provider: 'nvidia-personaplex' },
+  { id: 'aino_fi_fi_f', locale: 'fi-FI', language: 'Finnish', gender: 'female', style: 'friendly', provider: 'nvidia-personaplex' },
+  { id: 'lia_nl_nl_f', locale: 'nl-NL', language: 'Dutch', gender: 'female', style: 'professional', provider: 'nvidia-personaplex' },
+  { id: 'petra_cs_cz_f', locale: 'cs-CZ', language: 'Czech', gender: 'female', style: 'calm', provider: 'nvidia-personaplex' },
+  { id: 'marko_sr_rs_m', locale: 'sr-RS', language: 'Serbian', gender: 'male', style: 'energetic', provider: 'nvidia-personaplex' },
+  { id: 'farah_fa_ir_f', locale: 'fa-IR', language: 'Persian', gender: 'female', style: 'calm', provider: 'nvidia-personaplex' },
+  { id: 'kaito_zh_hk_m', locale: 'zh-HK', language: 'Chinese (Hong Kong)', gender: 'male', style: 'professional', provider: 'nvidia-personaplex' },
+  { id: 'thao_vi_vn_f', locale: 'vi-VN', language: 'Vietnamese', gender: 'female', style: 'friendly', provider: 'nvidia-personaplex' },
+  { id: 'rani_id_id_f', locale: 'id-ID', language: 'Indonesian', gender: 'female', style: 'friendly', provider: 'nvidia-personaplex' },
+  { id: 'kai_th_th_m', locale: 'th-TH', language: 'Thai', gender: 'male', style: 'energetic', provider: 'nvidia-personaplex' }
 ];
 
 const CATALOG_TTL_MS = 5 * 60 * 1000;
@@ -53,10 +66,15 @@ async function fetchProviderCatalog() {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
   const path = process.env.PERSONAPLEX_VOICES_PATH || '/v1/voices';
-  if (!endpoint || !apiKey) return null;
+  if (!endpoint) return null;
+
+  const headers = {};
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
 
   const response = await fetch(`${endpoint.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`, {
-    headers: { Authorization: `Bearer ${apiKey}` }
+    headers
   });
 
   if (!response.ok) {
