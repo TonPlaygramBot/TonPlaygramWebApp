@@ -147,110 +147,9 @@ async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} 
   };
 }
 
-async function synthesizeWithPersonaPlexService({ text, voiceId, locale, metadata = {} }) {
-  const endpoint = process.env.PERSONAPLEX_SERVICE_URL || 'http://127.0.0.1:8090';
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/tts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text,
-      voiceId,
-      personaPrompt: metadata?.personaPrompt,
-      format: 'wav',
-      sampleRate: 22050,
-      locale,
-      metadata
-    })
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`PersonaPlex service failed (${response.status}): ${details}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('audio/wav') || contentType.includes('application/octet-stream')) {
-    const audioBuffer = Buffer.from(await response.arrayBuffer());
-    return {
-      provider: 'nvidia-personaplex',
-      audioBase64: audioBuffer.toString('base64'),
-      mimeType: 'audio/wav'
-    };
-  }
-
-  const payload = await response.json();
-  return {
-    provider: 'nvidia-personaplex',
-    audioBase64: payload.audioBase64 || payload.audio_base64 || null,
-    audioUrl: payload.audioUrl || payload.audio_url || null,
-    mimeType: payload.mimeType || payload.mime_type || 'audio/wav',
-    raw: payload
-  };
-}
-
-function resolvePersonaPlexModes() {
-  const configured = String(process.env.PERSONAPLEX_MODE || 'auto').toLowerCase();
-  if (configured === 'service') return ['service'];
-  if (configured === 'remote-api') return ['remote-api'];
-
-  const modes = [];
-  if (process.env.PERSONAPLEX_API_URL) modes.push('remote-api');
-  if (process.env.PERSONAPLEX_SERVICE_URL) modes.push('service');
-  if (!modes.length) modes.push('service');
-  return modes;
-}
-
-async function synthesizeVoice(args) {
-  const provider = String(process.env.VOICE_PROVIDER || 'personaplex').toLowerCase();
-  if (provider !== 'personaplex') {
-    throw new Error('Current provider selected; using client-side speech fallback.');
-  }
-
-  const modes = resolvePersonaPlexModes();
-  let lastError = null;
-  for (const mode of modes) {
-    try {
-      return mode === 'remote-api' ? await synthesizeWithPersonaplex(args) : await synthesizeWithPersonaPlexService(args);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError || new Error('PersonaPlex synthesis unavailable');
-}
-
-export { synthesizeVoice };
-
 router.get('/catalog', async (_req, res) => {
   const catalog = await getVoiceCatalog();
   res.json({ ...catalog, defaultVoiceId: DEFAULT_FREE_VOICE_ID, storeItems: buildVoiceStoreItems(catalog) });
-});
-
-router.get('/health', async (_req, res) => {
-  const provider = String(process.env.VOICE_PROVIDER || 'personaplex').toLowerCase();
-  if (provider !== 'personaplex') {
-    return res.json({ ok: true, provider: 'current', modelLoaded: false, fallback: 'web-speech' });
-  }
-
-  const modes = resolvePersonaPlexModes();
-
-  if (modes.includes('service')) {
-    try {
-      const endpoint = process.env.PERSONAPLEX_SERVICE_URL || 'http://127.0.0.1:8090';
-      const response = await fetch(`${endpoint.replace(/\/$/, '')}/health`);
-      if (!response.ok) throw new Error(`status ${response.status}`);
-      const payload = await response.json();
-      return res.json({ ok: true, provider: 'personaplex', mode: 'service', ...payload });
-    } catch {
-      // try next mode
-    }
-  }
-
-  if (modes.includes('remote-api') && process.env.PERSONAPLEX_API_URL) {
-    return res.json({ ok: true, provider: 'personaplex', mode: 'remote-api', modelLoaded: true });
-  }
-
-  return res.status(503).json({ ok: false, provider: 'personaplex', error: 'No healthy PersonaPlex mode available' });
 });
 
 router.post('/catalog/refresh', authenticate, async (_req, res) => {
@@ -315,7 +214,7 @@ router.post('/help', async (req, res) => {
 
   const answer = buildHelpAnswer(question);
   try {
-    const synthesis = await synthesizeVoice({
+    const synthesis = await synthesizeWithPersonaplex({
       text: answer,
       voiceId: selected.id,
       locale: selected.locale,
@@ -330,15 +229,17 @@ router.post('/help', async (req, res) => {
       synthesis
     });
   } catch (error) {
-    return res.status(503).json({
-      error: `PersonaPlex synthesis unavailable: ${error.message}`,
-      provider: 'nvidia-personaplex'
+    return res.json({
+      provider: 'web-speech-fallback',
+      voice: selected,
+      answer,
+      warning: `PersonaPlex synthesis unavailable: ${error.message}`
     });
   }
 });
 
 router.post('/speak', async (req, res) => {
-  const { text, accountId, voiceId, locale, speaker, personaPrompt, context, gameId } = req.body || {};
+  const { text, accountId, voiceId, locale, speaker } = req.body || {};
   const message = String(text || '').trim();
   if (!message) return res.status(400).json({ error: 'text is required' });
 
@@ -357,15 +258,13 @@ router.post('/speak', async (req, res) => {
   }
 
   try {
-    const synthesis = await synthesizeVoice({
+    const synthesis = await synthesizeWithPersonaplex({
       text: message,
       voiceId: selected.id,
       locale: selected.locale,
       metadata: {
-        channel: context === 'help' ? 'help_center' : 'game_commentary',
-        speaker: String(speaker || 'host'),
-        gameId: String(gameId || ''),
-        personaPrompt: String(personaPrompt || '')
+        channel: 'game_commentary',
+        speaker: String(speaker || 'host')
       }
     });
 
@@ -376,9 +275,12 @@ router.post('/speak', async (req, res) => {
       synthesis
     });
   } catch (error) {
-    return res.status(503).json({
-      error: `PersonaPlex synthesis unavailable: ${error.message}`,
-      provider: 'nvidia-personaplex'
+    return res.json({
+      provider: 'web-speech-fallback',
+      voice: selected,
+      inventory,
+      text: message,
+      warning: `PersonaPlex synthesis unavailable: ${error.message}`
     });
   }
 });
