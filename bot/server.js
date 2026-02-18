@@ -29,6 +29,7 @@ import poolRoyaleRoutes from './routes/poolRoyale.js';
 import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
 import pushRoutes from './routes/push.js';
+import voiceCommentaryRoutes from './routes/voiceCommentary.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -255,6 +256,7 @@ app.use('/api/online', onlineRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 app.use('/api/exchange', exchangeRoutes);
+app.use('/api/voice-commentary', voiceCommentaryRoutes);
 
 app.post('/api/goal-rush/calibration', authenticate, async (req, res) => {
   const { accountId, calibration } = req.body || {};
