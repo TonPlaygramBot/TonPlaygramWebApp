@@ -12459,6 +12459,7 @@ function PoolRoyaleGame({
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
   const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
+  const [showTrainingIntroCard, setShowTrainingIntroCard] = useState(false);
   const trainingModeRef = useRef(trainingModeState);
   const trainingRulesRef = useRef(trainingRulesOn);
   useEffect(() => {
@@ -12516,6 +12517,34 @@ function PoolRoyaleGame({
     () => (Array.isArray(trainingProgress?.completed) ? trainingProgress.completed.length : 0),
     [trainingProgress]
   );
+  useEffect(() => {
+    if (!isTraining) {
+      setShowTrainingIntroCard(false);
+      return;
+    }
+    setShowTrainingIntroCard(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowTrainingIntroCard(false);
+    }, 4200);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTraining, trainingLevel]);
+
+  const handleTrainingLevelPick = useCallback((level) => {
+    const levelNum = Math.min(50, Math.max(1, Number(level) || 1));
+    setTrainingLevel(levelNum);
+    setTrainingRoadmapOpen(false);
+    setTrainingMenuOpen(false);
+  }, []);
+
+  const trainingRoadmapRows = useMemo(() => {
+    const rows = [];
+    for (let idx = 0; idx < TRAINING_LEVELS.length; idx += 5) {
+      const row = TRAINING_LEVELS.slice(idx, idx + 5);
+      const rowIndex = Math.floor(idx / 5);
+      rows.push(rowIndex % 2 === 1 ? [...row].reverse() : row);
+    }
+    return rows;
+  }, []);
   useEffect(() => {
     const handleInventoryUpdate = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -30788,24 +30817,17 @@ const powerRef = useRef(hud.power);
 
       {isTraining && !replayActive && (
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
-          <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/80 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training level</p>
-                <p className="text-lg font-semibold leading-tight">Level {currentTrainingInfo.level}</p>
-                <p className="text-xs text-white/70">{currentTrainingInfo.title}</p>
-              </div>
-              <div className="text-right text-[11px] uppercase tracking-[0.2em] text-white/70">
-                <div className="text-emerald-200">{completedTrainingCount} completed</div>
-                <div>Attempts bank: {trainingShotsRemaining}</div>
-                <div>Next L{nextTrainingInfo.level}</div>
-              </div>
+          {showTrainingIntroCard && (
+            <div className="pointer-events-none w-60 rounded-2xl border border-emerald-400/50 bg-black/80 p-3 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-emerald-200">Training start</p>
+              <p className="mt-1 text-base font-semibold leading-tight">
+                Level {currentTrainingInfo.level}: {currentTrainingInfo.title}
+              </p>
+              <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
             </div>
-            <p className="mt-2 text-xs text-white/80">Objective: {currentTrainingInfo.objective}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
-              Reward: {currentTrainingInfo.reward}
-            </p>
-            <p className="mt-1 text-[11px] text-white/60">Next up: {nextTrainingInfo.objective}</p>
+          )}
+          <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+            L{currentTrainingInfo.level} • {completedTrainingCount}/50 done • {trainingShotsRemaining} shots
           </div>
           <button
             type="button"
@@ -30853,7 +30875,7 @@ const powerRef = useRef(hud.power);
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
-                  Solo training is always enabled in this mode. Every cleared level adds +3 attempts to your bank.
+                  Core objective is shown briefly at level start so your table stays clear. Open this menu any time for full details.
                 </div>
                 <button
                   type="button"
@@ -30884,26 +30906,45 @@ const powerRef = useRef(hud.power);
                 Continue
               </button>
             </div>
-            <div className="mt-3 grid max-h-[52vh] grid-cols-5 gap-2 overflow-y-auto pr-1">
-              {TRAINING_LEVELS.map((levelDef) => {
-                const levelNum = Number(levelDef.level);
-                const completed = Array.isArray(trainingProgress?.completed) && trainingProgress.completed.includes(levelNum);
-                const active = levelNum === currentTrainingInfo.level;
-                return (
-                  <div
-                    key={levelNum}
-                    className={`rounded-lg border px-2 py-2 text-center text-[11px] ${completed
-                      ? 'border-emerald-200/70 bg-emerald-400/20 text-emerald-100'
-                      : active
-                        ? 'border-cyan-200/70 bg-cyan-400/20 text-cyan-100'
-                        : 'border-white/20 bg-white/5 text-white/75'
-                    }`}
-                  >
-                    <p className="font-semibold">L{String(levelNum).padStart(2, '0')}</p>
-                    <p className="mt-1 truncate uppercase tracking-[0.08em]">{levelDef.discipline}</p>
+            <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] p-3 text-[11px] text-white/70">
+              Tap any node to play that task. Completed levels stay replayable.
+            </div>
+            <div className="mt-3 max-h-[52vh] overflow-y-auto pr-1">
+              <div className="flex flex-col gap-3">
+                {trainingRoadmapRows.map((row, rowIndex) => (
+                  <div key={`roadmap-row-${rowIndex}`} className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      {row.map((levelDef) => {
+                        const levelNum = Number(levelDef.level);
+                        const completed = Array.isArray(trainingProgress?.completed) && trainingProgress.completed.includes(levelNum);
+                        const active = levelNum === currentTrainingInfo.level;
+                        return (
+                          <button
+                            key={levelNum}
+                            type="button"
+                            onClick={() => handleTrainingLevelPick(levelNum)}
+                            className={`group flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl p-1.5 transition ${active ? 'bg-cyan-400/15' : 'hover:bg-white/5'}`}
+                            aria-label={`Play training level ${levelNum}`}
+                          >
+                            <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 text-base font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.4)] transition ${completed
+                              ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
+                              : active
+                                ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
+                                : 'border-white/30 bg-black/45 text-white/90 group-hover:border-white/55'
+                            }`}>
+                              {levelNum}
+                            </span>
+                            <span className="truncate text-[10px] uppercase tracking-[0.08em] text-white/70">{levelDef.discipline}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {rowIndex < trainingRoadmapRows.length - 1 && (
+                      <div className="mx-auto h-3 w-[96%] rounded-full bg-gradient-to-r from-emerald-300/30 via-cyan-300/25 to-emerald-300/30" />
+                    )}
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
         </div>
