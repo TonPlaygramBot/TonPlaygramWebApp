@@ -13,8 +13,8 @@ const INTENT_PATTERNS: Array<{ intent: SupportIntent; pattern: RegExp }> = [
   { intent: 'tournaments', pattern: /(tournament|bracket|knockout)/i },
   { intent: 'connectivity_performance', pattern: /(lag|disconnect|ping|fps|stutter|connection)/i },
   { intent: 'reporting_moderation', pattern: /(report player|report|abuse|toxic)/i },
-  { intent: 'how_to_guides', pattern: /(how to|guide|tutorial|steps|help center|knowledge base|commentary|voice|persona ?plex)/i },
-  { intent: 'bugs_feedback', pattern: /(bug|feedback|issue|glitch|crash|not working|no sound|audio issue|commentary not playing)/i }
+  { intent: 'how_to_guides', pattern: /(how to|guide|tutorial|steps)/i },
+  { intent: 'bugs_feedback', pattern: /(bug|feedback|issue|glitch|crash)/i }
 ];
 
 export function normalizeText(input: string): string {
@@ -62,7 +62,7 @@ export function runNLU(input: string): NluResult {
       game,
       platform,
       version,
-      feature: /(lobby|invite|rematch|rankings|shop|coins|points|commentary|voice|help center|support|wallet)/i.exec(normalizedText)?.[1]
+      feature: /(lobby|invite|rematch|rankings|shop|coins|points)/i.exec(normalizedText)?.[1]
     },
     needsClarification,
     clarificationQuestion: needsClarification

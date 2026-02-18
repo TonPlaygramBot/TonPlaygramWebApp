@@ -20,16 +20,6 @@ const LEXICON: Record<string, Array<{ term: string; weight: number }>> = {
     { term: 'top-up', weight: 1 },
     { term: 'deposit', weight: 0.8 }
   ],
-  commentary: [
-    { term: 'voice commentary', weight: 1 },
-    { term: 'commentator', weight: 0.8 },
-    { term: 'personal plex', weight: 1 }
-  ],
-  help: [
-    { term: 'help center', weight: 1 },
-    { term: 'knowledge base', weight: 0.9 },
-    { term: 'support', weight: 0.8 }
-  ],
   coins: [
     { term: 'points', weight: 0.6 },
     { term: 'credits', weight: 0.5 }
@@ -55,17 +45,6 @@ export function expandQuery(text: string, topK = 6): string[] {
 
 export function detectGameEntity(text: string): string | undefined {
   const lower = text.toLowerCase();
-  const games = [
-    '8-ball',
-    '9-ball',
-    'snooker',
-    'poker',
-    'domino',
-    'air hockey',
-    'goal rush',
-    'snake and ladder',
-    'table tennis',
-    'ludo'
-  ];
+  const games = ['8-ball', '9-ball', 'snooker', 'poker', 'domino', 'air hockey'];
   return games.find((game) => lower.includes(game));
 }

@@ -112,72 +112,38 @@ export async function requestPersonaplexSynthesis(input: {
   voiceId: string;
   locale: string;
   metadata?: Record<string, string>;
-}): Promise<
-  | { mode: 'remote'; provider: 'nvidia-personaplex'; response: unknown }
-  | {
-      mode: 'local_preview';
-      provider: 'nvidia-personaplex';
-      reason: string;
-      ssml: string;
-      instructions: string;
-    }
-> {
+}): Promise<{ mode: 'remote'; provider: 'nvidia-personaplex'; response: unknown }> {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
 
   const ssml = `<speak><lang xml:lang="${input.locale}">${input.text}</lang></speak>`;
 
   if (!endpoint || !apiKey) {
-    return {
-      mode: 'local_preview',
-      provider: 'nvidia-personaplex',
-      reason: 'PersonaPlex is not configured. Set PERSONAPLEX_API_URL and PERSONAPLEX_API_KEY for remote synthesis.',
-      ssml,
-      instructions:
-        'Use the returned text+SSML with browser SpeechSynthesis (Web) or native TTS (iOS/Android) while PersonaPlex credentials are not configured.'
-    };
+    throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL and PERSONAPLEX_API_KEY.');
   }
 
-  try {
-    const response = await fetch(`${endpoint.replace(/\/$/, '')}/v1/speech/synthesize`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        input: input.text,
-        ssml,
-        voice: input.voiceId,
-        locale: input.locale,
-        metadata: input.metadata ?? {}
-      })
-    });
-
-    if (!response.ok) {
-      const details = await response.text();
-      return {
-        mode: 'local_preview',
-        provider: 'nvidia-personaplex',
-        reason: `PersonaPlex synthesis failed (${response.status}): ${details}`,
-        ssml,
-        instructions:
-          'PersonaPlex request failed. Use local device/browser TTS fallback while checking PERSONAPLEX_API_URL, key, and provider availability.'
-      };
-    }
-
-    const payload = await response.json();
-    return { mode: 'remote', provider: 'nvidia-personaplex', response: payload };
-  } catch (error) {
-    return {
-      mode: 'local_preview',
-      provider: 'nvidia-personaplex',
-      reason: `PersonaPlex network error: ${(error as Error).message}`,
+  const response = await fetch(`${endpoint.replace(/\/$/, '')}/v1/speech/synthesize`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      input: input.text,
       ssml,
-      instructions:
-        'Network error while contacting PersonaPlex. Fall back to local TTS and retry when provider connectivity is restored.'
-    };
+      voice: input.voiceId,
+      locale: input.locale,
+      metadata: input.metadata ?? {}
+    })
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
   }
+
+  const payload = await response.json();
+  return { mode: 'remote', provider: 'nvidia-personaplex', response: payload };
 }
 
 export function findVoiceProfile(voiceId?: string, locale?: string): VoiceProfile {
