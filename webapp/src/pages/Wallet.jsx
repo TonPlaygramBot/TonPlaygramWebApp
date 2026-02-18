@@ -52,7 +52,7 @@ function formatValue(value, decimals = 2) {
   });
 }
 
-export default function Wallet({ hideClaim = false }) {
+export default function Wallet({ hideClaim = false, forceAccountId = '' }) {
   useTelegramBackButton();
   let telegramId;
   try {
@@ -116,11 +116,15 @@ export default function Wallet({ hideClaim = false }) {
 
 
   const loadBalances = async () => {
-    const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
-    let id = devMode ? DEV_ACCOUNT_ID : '';
+    const normalizedForcedId = String(forceAccountId || '').trim();
+    const devMode = !normalizedForcedId &&
+      (urlParams.get('dev') || localStorage.getItem('devAccountId'));
+    let id = normalizedForcedId || (devMode ? DEV_ACCOUNT_ID : '');
     let acc;
-    if (id && devMode) {
+    if (id && devMode && !normalizedForcedId) {
       acc = { accountId: id };
+    } else if (normalizedForcedId) {
+      acc = { accountId: normalizedForcedId };
     } else {
       acc = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
       if (acc?.error) {
@@ -134,16 +138,17 @@ export default function Wallet({ hideClaim = false }) {
       }
       id = acc.accountId;
     }
-    setAccountId(acc.accountId || id);
+    const activeAccountId = acc.accountId || id;
+    setAccountId(activeAccountId);
 
-    const bal = await getAccountBalance(acc.accountId || id);
+    const bal = await getAccountBalance(activeAccountId);
     if (bal?.error || typeof bal.balance !== 'number') {
       console.error('Failed to load TPC balance:', bal?.error);
       setTpcBalance(0);
     } else {
       setTpcBalance(bal.balance);
     }
-    return acc.accountId || id;
+    return activeAccountId;
   };
 
   useEffect(() => {
@@ -163,7 +168,7 @@ export default function Wallet({ hideClaim = false }) {
         }
       }
     });
-  }, [requiresAuth]);
+  }, [requiresAuth, forceAccountId, telegramId, googleProfile?.id, tonWalletAddress]);
 
   useEffect(() => {
     if (DEV_ACCOUNTS.includes(accountId)) {

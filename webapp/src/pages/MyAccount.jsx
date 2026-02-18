@@ -862,7 +862,10 @@ export default function MyAccount() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <BalanceSummary className="bg-surface border border-border rounded-xl p-4" />
+        <BalanceSummary
+          className="bg-surface border border-border rounded-xl p-4"
+          accountId={profile?.accountId || ''}
+        />
 
         <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -984,7 +987,7 @@ export default function MyAccount() {
         )}
       </div>
 
-      <Wallet />
+      <Wallet forceAccountId={profile?.accountId || ''} />
 
       <DevNotifyModal
         open={showNotifyModal}
