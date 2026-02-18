@@ -3,14 +3,6 @@ import crypto from 'crypto';
 import { answerUserQuestion } from '../../agent-core/src/agent.js';
 import { loadKnowledgeIndex } from '../../agent-core/src/knowledgeBase.js';
 import { evaluateUserPrompt } from '../../agent-core/src/safety.js';
-import {
-  VOICE_PROFILES,
-  buildCommentaryText,
-  buildSupportSpeech,
-  findVoiceProfile,
-  isGameKey,
-  requestPersonaplexSynthesis
-} from './voiceCommentary.js';
 
 const app = express();
 app.use(express.json());
@@ -118,59 +110,6 @@ app.post('/v1/feedback', requireBasicUserAuth, (req, res) => {
   };
 
   res.status(202).json({ accepted: true, payload });
-});
-
-app.get('/v1/voice/catalog', (_req, res) => {
-  const languages = Array.from(new Set(VOICE_PROFILES.map((voice) => voice.language))).sort();
-  res.json({ provider: 'nvidia-personaplex', languages, voices: VOICE_PROFILES });
-});
-
-app.post('/v1/voice/commentary', requireBasicUserAuth, async (req, res) => {
-  const game = String(req.body?.game || '');
-  if (!isGameKey(game)) {
-    res.status(400).json({ error: 'Unsupported game key', supportedGames: [
-      'pool_royale', 'snooker_royal', 'snake_multiplayer', 'texas_holdem', 'domino_royal',
-      'chess_battle_royal', 'air_hockey', 'goal_rush', 'ludo_battle_royal', 'table_tennis_royal',
-      'murlan_royale', 'dice_duel', 'snake_and_ladder'
-    ] });
-    return;
-  }
-
-  const eventType = String(req.body?.eventType || 'player_turn') as Parameters<typeof buildCommentaryText>[1];
-  const playerName = String(req.body?.playerName || 'Player');
-  const score = typeof req.body?.score === 'string' ? req.body.score : undefined;
-  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
-  const text = buildCommentaryText(game, eventType, playerName, score);
-
-  try {
-    const synthesis = await requestPersonaplexSynthesis({
-      text,
-      locale: voice.locale,
-      voiceId: voice.id,
-      metadata: { game, eventType }
-    });
-    res.json({ text, voice, synthesis });
-  } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text, voice });
-  }
-});
-
-app.post('/v1/voice/support', requireBasicUserAuth, async (req, res) => {
-  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
-  const ticketContext = String(req.body?.ticketContext || 'General account support');
-  const text = buildSupportSpeech(ticketContext, voice);
-
-  try {
-    const synthesis = await requestPersonaplexSynthesis({
-      text,
-      locale: voice.locale,
-      voiceId: voice.id,
-      metadata: { channel: 'customer_support' }
-    });
-    res.json({ text, voice, synthesis });
-  } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text, voice });
-  }
 });
 
 if (process.env.NODE_ENV !== 'test') {

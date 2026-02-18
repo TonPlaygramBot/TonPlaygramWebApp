@@ -4,8 +4,6 @@ import User from '../models/User.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import TonWeb from 'tonweb';
-import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
-import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 
 const router = Router();
 
@@ -95,12 +93,6 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'insufficient balance' });
     }
     const txDate = new Date();
-    const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-    if (hasVoiceItem) {
-      const catalog = await getVoiceCatalog();
-      applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
-    }
-
     user.transactions.push({
       amount: -totalPrice,
       type: 'storefront',

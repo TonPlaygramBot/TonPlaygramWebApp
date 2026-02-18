@@ -5,7 +5,7 @@ import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 
-import { FaArrowUp, FaArrowDown, FaWallet, FaQuestionCircle, FaTimes } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress } from '@tonconnect/ui-react';
@@ -35,7 +35,6 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const [showHelpGuide, setShowHelpGuide] = useState(false);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -360,49 +359,6 @@ export default function Home() {
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
       </div>
-
-
-      {showHelpGuide && (
-        <div className="fixed inset-0 z-50 bg-black/70 px-4 py-8" onClick={() => setShowHelpGuide(false)}>
-          <div
-            className="mx-auto max-w-md rounded-2xl border border-border bg-surface p-4 text-left shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">TonPlaygram Help Guide</h3>
-              <button
-                type="button"
-                onClick={() => setShowHelpGuide(false)}
-                className="rounded-full bg-white/10 p-2 text-white"
-                aria-label="Close help"
-              >
-                <FaTimes className="h-4 w-4" />
-              </button>
-            </div>
-            <ol className="list-decimal space-y-2 pl-4 text-xs text-subtext">
-              <li>Connect at least one account method (Telegram, Google, or wallet) from the top section.</li>
-              <li>Open <strong className="text-white">Games</strong> to choose a game and start free or paid matches.</li>
-              <li>Use <strong className="text-white">Store</strong> to buy cosmetics and voice commentary language packs for all games.</li>
-              <li>In Wallet, send/receive TPC and monitor balances before entering paid games.</li>
-              <li>If commentary audio fails, check internet + PersonaPlex service availability and retry.</li>
-            </ol>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              <Link to="/games" className="rounded-lg bg-primary/90 px-3 py-2 text-center font-semibold text-black">Open Games</Link>
-              <Link to="/store/voicecommentary" className="rounded-lg bg-white/10 px-3 py-2 text-center font-semibold text-white">Voice Store</Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setShowHelpGuide(true)}
-        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-white shadow-lg"
-        aria-label="Open help guide"
-      >
-        <FaQuestionCircle className="h-4 w-4 text-yellow-300" />
-        <span>Help</span>
-      </button>
     </div>
   );
 }
