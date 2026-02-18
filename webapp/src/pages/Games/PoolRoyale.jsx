@@ -12582,6 +12582,8 @@ function PoolRoyaleGame({
     const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!balls.length || !trainingLayout) return;
 
+    const variantConfig = activeVariantRef.current;
+
     const cueBall = balls.find((ball) => ball?.id === 'cue');
     const objectBalls = balls.filter((ball) => ball?.id !== 'cue');
     const limitX = PLAY_W / 2 - BALL_R * 2.5;
@@ -12624,7 +12626,11 @@ function PoolRoyaleGame({
 
     const entries = Array.isArray(trainingLayout?.balls) ? trainingLayout.balls : [];
     entries.forEach((entry, idx) => {
-      const objectBall = objectBalls[idx];
+      const rid = Number.isFinite(entry?.rackIndex)
+        ? Math.max(0, Math.floor(entry.rackIndex))
+        : idx % Math.max(1, variantConfig?.objectColors?.length || objectBalls.length || 1);
+      const targetBallId = getPoolBallId(variantConfig, rid);
+      const objectBall = balls.find((ball) => ball?.id === targetBallId) || objectBalls[idx];
       if (!objectBall) return;
       const ballState = stateById.get(objectBall.id);
       const x = normalize(entry?.x, limitX);
@@ -21997,21 +22003,48 @@ const powerRef = useRef(hud.power);
         const limitX = PLAY_W / 2 - BALL_R * 2.5;
         const limitZ = PLAY_H / 2 - BALL_R * 2.5;
         const normalize = (val, limit) => Math.min(limit, Math.max(-limit, (val ?? 0) * limit));
+        const hideY = -PLAY_H * 0.75;
         if (layout.cue) {
           cue.pos.set(normalize(layout.cue.x, limitX), normalize(layout.cue.z, limitZ));
         }
-        const entries = Array.isArray(layout.balls) ? layout.balls : [];
-        entries.forEach((ball, idx) => {
-          const rid = Number.isFinite(ball?.rackIndex)
-            ? Math.max(0, Math.floor(ball.rackIndex))
-            : idx % (variantConfig?.objectColors?.length || 15);
+
+        const rackColors = Array.isArray(variantConfig?.objectColors)
+          ? variantConfig.objectColors
+          : [];
+        const spawnedTrainingBalls = [];
+        for (let rid = 0; rid < rackColors.length; rid++) {
           const color = getPoolBallColor(variantConfig, rid);
           const number = getPoolBallNumber(variantConfig, rid);
           const pattern = getPoolBallPattern(variantConfig, rid);
           const ballId = getPoolBallId(variantConfig, rid);
+          const objectBall = add(ballId, color, 0, hideY, { number, pattern });
+          objectBall.active = false;
+          objectBall.pos.set(0, hideY);
+          if (objectBall.mesh) {
+            objectBall.mesh.visible = false;
+            objectBall.mesh.position.set(0, BALL_CENTER_Y, hideY);
+          }
+          spawnedTrainingBalls.push(objectBall);
+        }
+
+        const entries = Array.isArray(layout.balls) ? layout.balls : [];
+        entries.forEach((ball, idx) => {
+          const rid = Number.isFinite(ball?.rackIndex)
+            ? Math.max(0, Math.floor(ball.rackIndex))
+            : idx % Math.max(1, rackColors.length || 15);
+          const ballId = getPoolBallId(variantConfig, rid);
+          const objectBall =
+            spawnedTrainingBalls.find((entryBall) => entryBall?.id === ballId) ||
+            spawnedTrainingBalls[idx];
+          if (!objectBall) return;
           const px = normalize(ball?.x, limitX);
           const pz = normalize(ball?.z, limitZ);
-          add(ballId, color, px, pz, { number, pattern });
+          objectBall.active = true;
+          objectBall.pos.set(px, pz);
+          if (objectBall.mesh) {
+            objectBall.mesh.visible = true;
+            objectBall.mesh.position.set(px, BALL_CENTER_Y, pz);
+          }
         });
         return entries.length > 0;
       };
