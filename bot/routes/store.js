@@ -57,7 +57,7 @@ export const BUNDLES = {
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
-  const { accountId, txHash, bundle } = req.body;
+  const { accountId, txHash, bundle, requestId } = req.body;
   const authId = req.auth?.telegramId;
   if (!accountId) {
     return res.status(400).json({ error: 'accountId required' });
@@ -75,6 +75,27 @@ router.post('/purchase', authenticate, async (req, res) => {
   }
 
   if (isItemBundle) {
+    const safeRequestId =
+      typeof requestId === 'string' && requestId.trim()
+        ? requestId.trim().slice(0, 120)
+        : undefined;
+
+    if (safeRequestId) {
+      const existingByRequestId = (user.transactions || []).find(
+        (tx) => tx.type === 'storefront' && tx.requestId === safeRequestId
+      );
+      if (existingByRequestId) {
+        const currentBalance = Number.isFinite(user.balance)
+          ? user.balance
+          : calculateBalance(user);
+        return res.json({
+          alreadyClaimed: true,
+          balance: currentBalance,
+          date: existingByRequestId.date
+        });
+      }
+    }
+
     const rawItems = bundle.items.filter(Boolean);
     if (!rawItems.length) {
       return res.status(400).json({ error: 'items required' });
@@ -109,6 +130,7 @@ router.post('/purchase', authenticate, async (req, res) => {
       status: 'delivered',
       date: txDate,
       detail: 'Storefront purchase',
+      ...(safeRequestId ? { requestId: safeRequestId } : {}),
       items
     };
 
@@ -116,7 +138,22 @@ router.post('/purchase', authenticate, async (req, res) => {
     // and perform an atomic balance check/debit to reduce checkout latency.
     if (totalPrice > 0 && !hasVoiceItem) {
       const updated = await User.findOneAndUpdate(
-        { _id: user._id, balance: { $gte: totalPrice } },
+        {
+          _id: user._id,
+          balance: { $gte: totalPrice },
+          ...(safeRequestId
+            ? {
+                transactions: {
+                  $not: {
+                    $elemMatch: {
+                      type: 'storefront',
+                      requestId: safeRequestId
+                    }
+                  }
+                }
+              }
+            : {})
+        },
         {
           $inc: { balance: -totalPrice },
           $push: { transactions: transaction }
@@ -124,6 +161,22 @@ router.post('/purchase', authenticate, async (req, res) => {
         { new: true, projection: { balance: 1 } }
       );
       if (!updated) {
+        if (safeRequestId) {
+          const reloaded = await User.findById(user._id, {
+            balance: 1,
+            transactions: 1
+          });
+          const existingByRequestId = (reloaded?.transactions || []).find(
+            (tx) => tx.type === 'storefront' && tx.requestId === safeRequestId
+          );
+          if (existingByRequestId) {
+            return res.json({
+              alreadyClaimed: true,
+              balance: reloaded.balance,
+              date: existingByRequestId.date
+            });
+          }
+        }
         return res.status(400).json({ error: 'insufficient balance' });
       }
       return res.json({ balance: updated.balance, date: txDate });
