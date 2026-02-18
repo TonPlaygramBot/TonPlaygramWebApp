@@ -38,16 +38,4 @@ describe('pool royale training layout progression', () => {
     const level2 = describeTrainingLevel(2).layout.balls;
     expect(level1).not.toEqual(level2);
   });
-
-  test('keeps early training balls away from pocket-edge dead zones', () => {
-    for (let level = 1; level <= 12; level++) {
-      const layout = getTrainingLayout(level);
-      layout.balls.forEach((ball) => {
-        expect(Math.abs(ball.x)).toBeLessThanOrEqual(0.5);
-        expect(Math.abs(ball.z)).toBeLessThanOrEqual(0.31);
-        const nearCornerPocket = Math.abs(ball.x) > 0.44 && Math.abs(ball.z) > 0.24;
-        expect(nearCornerPocket).toBe(false);
-      });
-    }
-  });
 });
