@@ -11818,8 +11818,7 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar,
-  initialTrainingLevel = null
+  opponentAvatar
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -12460,8 +12459,6 @@ function PoolRoyaleGame({
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
-  const [trainingTaskTransition, setTrainingTaskTransition] = useState(null);
-  const [trainingTaskTransitionProgress, setTrainingTaskTransitionProgress] = useState(0);
   const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
   const [pendingTrainingLevel, setPendingTrainingLevel] = useState(null);
   const [showTrainingIntroCard, setShowTrainingIntroCard] = useState(false);
@@ -12480,13 +12477,7 @@ function PoolRoyaleGame({
     lastLevel: 1,
     carryShots: BASE_ATTEMPTS_PER_LEVEL
   });
-  const [trainingLevel, setTrainingLevel] = useState(() => {
-    const requested = Number(initialTrainingLevel);
-    if (Number.isFinite(requested) && requested > 0) {
-      return Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Math.floor(requested)));
-    }
-    return 1;
-  });
+  const [trainingLevel, setTrainingLevel] = useState(1);
   const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(BASE_ATTEMPTS_PER_LEVEL);
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
@@ -12501,13 +12492,7 @@ function PoolRoyaleGame({
   }, [trainingLevel]);
   useEffect(() => {
     const stored = loadTrainingProgress();
-    const requestedTrainingLevel = Number(initialTrainingLevel);
-    const playableLevel = resolvePlayableTrainingLevel(
-      Number.isFinite(requestedTrainingLevel) && requestedTrainingLevel > 0
-        ? requestedTrainingLevel
-        : stored.lastLevel,
-      stored
-    );
+    const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
     const storedCarryShots = Number(stored?.carryShots);
@@ -12517,7 +12502,7 @@ function PoolRoyaleGame({
         : BASE_ATTEMPTS_PER_LEVEL
     );
     setTrainingLevel(playableLevel);
-  }, [initialTrainingLevel]);
+  }, []);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
@@ -12566,9 +12551,6 @@ function PoolRoyaleGame({
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
-    setTrainingTaskTransition(null);
-    setTrainingTaskTransitionProgress(0);
-    resetTrainingTaskVisualState();
     setFrameState((prev) => ({
       ...prev,
       frameOver: false,
@@ -12577,8 +12559,7 @@ function PoolRoyaleGame({
       activePlayer: 'A'
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0 }));
-    applyTrainingLayoutForLevel(unlockedLevel);
-  }, [applyTrainingLayoutForLevel, resetTrainingTaskVisualState]);
+  }, []);
 
   const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
     const account = resolvedAccountId;
@@ -12602,20 +12583,6 @@ function PoolRoyaleGame({
       console.warn('Pool Royale training payout request failed:', error);
     }
   }, [resolvedAccountId]);
-
-  const resetTrainingTaskVisualState = useCallback(() => {
-    setPottedBySeat({ A: [], B: [] });
-    lastPottedBySeatRef.current = { A: null, B: null };
-    pocketDropRef.current.forEach((entry) => {
-      if (entry?.glowMesh) {
-        entry.glowMesh.parent?.remove?.(entry.glowMesh);
-      }
-    });
-    pocketDropRef.current.clear();
-    pocketRestIndexRef.current.clear();
-    pocketPopupRef.current = [];
-    pocketPopupPendingRef.current = [];
-  }, []);
 
   const ensureTrainingBallPoolForLayout = useCallback((trainingLayout) => {
     if (!isTraining) return;
@@ -12760,9 +12727,6 @@ function PoolRoyaleGame({
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
-    setTrainingTaskTransition(null);
-    setTrainingTaskTransitionProgress(0);
-    resetTrainingTaskVisualState();
     setRuleToast(null);
     setFrameState((prev) => ({
       ...prev,
@@ -12773,13 +12737,7 @@ function PoolRoyaleGame({
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
     applyTrainingLayoutForLevel(nextLevel);
-  }, [
-    applyTrainingLayoutForLevel,
-    lastCompletedLevel,
-    pendingTrainingLevel,
-    resetTrainingTaskVisualState,
-    trainingLevel
-  ]);
+  }, [applyTrainingLayoutForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -13962,31 +13920,8 @@ const powerRef = useRef(hud.power);
       return;
     }
     if (trainingCompletionHandledRef.current) return;
-
-    const completedLevel = trainingLevelRef.current || 1;
-    const expectedBallCount = Array.isArray(getTrainingLayout(completedLevel)?.balls)
-      ? getTrainingLayout(completedLevel).balls.length
-      : 0;
-    const pottedCount = (pottedBySeat?.A?.length || 0) + (pottedBySeat?.B?.length || 0);
-    const activeObjectCount = (Array.isArray(ballsRef.current) ? ballsRef.current : []).filter(
-      (ball) => ball?.id !== 'cue' && ball?.active
-    ).length;
-
-    if (expectedBallCount > 0 && pottedCount < expectedBallCount && activeObjectCount === 0) {
-      setFrameState((prev) => ({
-        ...prev,
-        frameOver: false,
-        winner: undefined,
-        foul: undefined,
-        activePlayer: 'A'
-      }));
-      setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
-      resetTrainingTaskVisualState();
-      applyTrainingLayoutForLevel(completedLevel);
-      return;
-    }
-
     trainingCompletionHandledRef.current = true;
+    const completedLevel = trainingLevelRef.current || 1;
     const completedLevelInfo = describeTrainingLevel(completedLevel);
     const completedRewardAmount = Number(completedLevelInfo?.rewardAmount) || 0;
     const previous = trainingProgressRef.current || { completed: [], rewarded: [] };
@@ -14013,50 +13948,13 @@ const powerRef = useRef(hud.power);
       setTrainingShotsRemaining(carryShots);
       setPendingTrainingLevel(nextPlayable);
       setLastCompletedLevel(completedLevel);
-      setTrainingTaskTransition({
-        fromLevel: completedLevel,
-        toLevel: nextPlayable,
-        startedAt: Date.now(),
-        durationMs: 1600
-      });
-      setTrainingTaskTransitionProgress(0);
       setTrainingRoadmapOpen(true);
       return updated;
     });
     if (shouldAwardReward) {
       awardTrainingTaskPayout(completedLevel, completedRewardAmount);
     }
-  }, [
-    applyTrainingLayoutForLevel,
-    awardTrainingTaskPayout,
-    frameState.frameOver,
-    isTraining,
-    pottedBySeat,
-    resetTrainingTaskVisualState,
-    setTrainingProgress,
-    setTrainingLevel,
-    trainingShotsRemaining
-  ]);
-
-  useEffect(() => {
-    if (!trainingTaskTransition || !trainingRoadmapOpen) return;
-    let rafId = 0;
-    const animate = () => {
-      const elapsed = Date.now() - (trainingTaskTransition.startedAt || Date.now());
-      const duration = Math.max(400, Number(trainingTaskTransition.durationMs) || 1600);
-      const progress = Math.min(1, Math.max(0, elapsed / duration));
-      setTrainingTaskTransitionProgress(progress);
-      if (progress >= 1) {
-        handleTrainingRoadmapContinue();
-        return;
-      }
-      rafId = window.requestAnimationFrame(animate);
-    };
-    rafId = window.requestAnimationFrame(animate);
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-    };
-  }, [handleTrainingRoadmapContinue, trainingRoadmapOpen, trainingTaskTransition]);
+  }, [applyTrainingLayoutForLevel, awardTrainingTaskPayout, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -31266,37 +31164,11 @@ const powerRef = useRef(hud.power);
               <button
                 type="button"
                 onClick={handleTrainingRoadmapContinue}
-                disabled={Boolean(trainingTaskTransition)}
-                className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
               >
                 Continue
               </button>
             </div>
-            {trainingTaskTransition && (
-              <div className="mt-3 rounded-xl border border-emerald-300/50 bg-emerald-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-100">
-                  Task cleared · preparing next table
-                </p>
-                <div className="mt-2">
-                  <div className="flex items-center justify-between text-[11px] text-white/80">
-                    <span>Task {String(trainingTaskTransition.fromLevel || 1).padStart(2, '0')}</span>
-                    <span>Task {String(trainingTaskTransition.toLevel || trainingLevel).padStart(2, '0')}</span>
-                  </div>
-                  <div className="relative mt-1 h-7 rounded-full border border-white/20 bg-black/40">
-                    <div
-                      className="absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.75)] transition-transform"
-                      style={{ transform: `translate(${Math.round(trainingTaskTransitionProgress * 100)}%, -50%)` }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-white/90">
-                      🧍 moving to next task…
-                    </div>
-                  </div>
-                  <p className="mt-2 text-[11px] text-white/70">
-                    Cleaning pocket holders and placing balls for the next task.
-                  </p>
-                </div>
-              </div>
-            )}
             <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] p-3 text-[11px] text-white/70">
               Follow the path in order. You can replay finished tasks, but locked tasks stay closed.
             </div>
@@ -31860,12 +31732,6 @@ export default function PoolRoyale() {
     if (requested === 'local') return 'local';
     return 'ai';
   }, [location.search]);
-  const initialTrainingLevel = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = Number(params.get('trainingLevel'));
-    if (!Number.isFinite(requested) || requested <= 0) return null;
-    return Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Math.floor(requested)));
-  }, [location.search]);
   const accountId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('accountId') || '';
@@ -31974,7 +31840,6 @@ export default function PoolRoyale() {
       playerAvatar={playerAvatar}
       opponentName={opponentName}
       opponentAvatar={opponentAvatar}
-      initialTrainingLevel={initialTrainingLevel}
     />
   );
 }
