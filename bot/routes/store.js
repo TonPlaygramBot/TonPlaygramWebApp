@@ -90,18 +90,15 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
     ensureTransactionArray(user);
-    const balance = calculateBalance(user);
-    if (balance < totalPrice) {
+    const availableBalance = Number.isFinite(user.balance)
+      ? user.balance
+      : calculateBalance(user);
+    if (availableBalance < totalPrice) {
       return res.status(400).json({ error: 'insufficient balance' });
     }
     const txDate = new Date();
     const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-    if (hasVoiceItem) {
-      const catalog = await getVoiceCatalog();
-      applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
-    }
-
-    user.transactions.push({
+    const transaction = {
       amount: -totalPrice,
       type: 'storefront',
       token: 'TPC',
@@ -109,9 +106,36 @@ router.post('/purchase', authenticate, async (req, res) => {
       date: txDate,
       detail: 'Storefront purchase',
       items
-    });
+    };
+
+    // Fast path for normal item bundles: avoid full document save + validation
+    // and perform an atomic balance check/debit to reduce checkout latency.
+    if (totalPrice > 0 && !hasVoiceItem) {
+      const updated = await User.findOneAndUpdate(
+        { _id: user._id, balance: { $gte: totalPrice } },
+        {
+          $inc: { balance: -totalPrice },
+          $push: { transactions: transaction }
+        },
+        { new: true, projection: { balance: 1 } }
+      );
+      if (!updated) {
+        return res.status(400).json({ error: 'insufficient balance' });
+      }
+      return res.json({ balance: updated.balance, date: txDate });
+    }
+
+    if (hasVoiceItem) {
+      const catalog = await Promise.race([
+        getVoiceCatalog(),
+        new Promise((resolve) => setTimeout(() => resolve({ voices: [] }), 1500))
+      ]);
+      applyVoiceCommentaryUnlocks(user, items, catalog?.voices || []);
+    }
+
+    user.transactions.push(transaction);
     if (totalPrice > 0) {
-      user.balance = balance - totalPrice;
+      user.balance = availableBalance - totalPrice;
     }
     await user.save();
     return res.json({ balance: user.balance, date: txDate });
