@@ -246,6 +246,7 @@ const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
 const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
+const STORE_BALANCE_REFRESH_MS = 15000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -905,6 +906,27 @@ export default function Store() {
     loadAccountBalance();
   }, [loadAccountBalance]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      loadAccountBalance();
+    }, STORE_BALANCE_REFRESH_MS);
+
+    const refreshOnFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadAccountBalance();
+      }
+    };
+
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
+  }, [loadAccountBalance]);
+
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
@@ -1488,6 +1510,9 @@ export default function Store() {
         setTransactionState('error');
         setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
         return;
+      }
+      if (typeof purchase?.balance === 'number') {
+        setAccountBalance(purchase.balance);
       }
       setTransactionStatus('Payment approved. Unlocking items…');
 
@@ -2524,6 +2549,13 @@ export default function Store() {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:hidden">
+              <span className="text-white/60">TPC</span>
+              <span className="flex items-center gap-1 font-semibold text-white">
+                {accountBalance === null ? '—' : accountBalance}
+                <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+              </span>
+            </div>
             <div className="hidden items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:flex">
               <span className="text-white/60">TPC</span>
               <span className="flex items-center gap-1 font-semibold text-white">
