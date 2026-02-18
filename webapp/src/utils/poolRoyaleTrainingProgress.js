@@ -1,7 +1,7 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
 const TRAINING_LEVEL_COUNT = 50
 const BASE_ATTEMPTS_PER_LEVEL = 3
-const TRAINING_MAX_LAYOUT_BALLS = 20
+const TRAINING_MAX_LAYOUT_BALLS = 25
 
 const clampLevel = (value, fallback = 1) => {
   const numeric = Number(value)
@@ -71,16 +71,31 @@ const getTrainingTargetCount = (level) => {
   return normalized <= TRAINING_MAX_LAYOUT_BALLS ? normalized : TRAINING_MAX_LAYOUT_BALLS
 }
 
+const EXTRA_LAYOUT_OFFSET_STEP = 0.03
+
+const buildTrainingBallPositions = (pattern, targetCount, level) => {
+  if (!Array.isArray(pattern) || pattern.length === 0 || targetCount <= 0) return []
+  const rotated = rotate(pattern, (level * 2) % pattern.length)
+  return Array.from({ length: targetCount }, (_, idx) => {
+    const base = rotated[idx % rotated.length]
+    const cycle = Math.floor(idx / rotated.length)
+    const direction = cycle % 2 === 0 ? 1 : -1
+    const layer = cycle + 1
+    const extraOffset = cycle > 0 ? EXTRA_LAYOUT_OFFSET_STEP * layer * direction : 0
+    const microShift = ((level % 4) - 1.5) * 0.008
+
+    return {
+      rackIndex: idx,
+      x: Math.max(-0.56, Math.min(0.56, base.x + (idx % 2 === 0 ? microShift : -microShift) + extraOffset)),
+      z: Math.max(-0.35, Math.min(0.35, base.z + (idx % 3 === 0 ? microShift : 0) - extraOffset * 0.7))
+    }
+  })
+}
+
 const buildTrainingLayout = (level) => {
   const pattern = PATTERN_LIBRARY[(level - 1) % PATTERN_LIBRARY.length] || PATTERN_LIBRARY[0]
   const targetCount = getTrainingTargetCount(level)
-  const rotated = rotate(pattern, (level * 2) % pattern.length)
-  const microShift = ((level % 4) - 1.5) * 0.008
-  const balls = rotated.slice(0, targetCount).map((pos, idx) => ({
-    rackIndex: idx,
-    x: pos.x + (idx % 2 === 0 ? microShift : -microShift),
-    z: pos.z + (idx % 3 === 0 ? microShift : 0)
-  }))
+  const balls = buildTrainingBallPositions(pattern, targetCount, level)
 
   return {
     cue: { x: -0.7 + (level % 5) * 0.045, z: 0.5 - (level % 6) * 0.065 },
