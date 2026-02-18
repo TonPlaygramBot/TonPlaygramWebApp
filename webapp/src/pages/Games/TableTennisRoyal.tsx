@@ -6,6 +6,7 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
 } from "../../config/poolRoyaleInventoryConfig.js";
+import { getSpeechSupport, onSpeechSupportChange, speakCommentaryLines } from '../../utils/textToSpeech.js';
 
 /**
  * File: src/TableTennis3D_VanillaThree.tsx
@@ -377,18 +378,6 @@ function hitSpeedFromSwipe(g: Gesture) {
   return lerp(POWER.hitSpeedBase, POWER.hitSpeedMax, t);
 }
 
-function pickCommentaryVoice(voices: SpeechSynthesisVoice[], hints: string[]) {
-  if (!voices?.length) return null;
-  const needles = hints.map((hint) => hint.toLowerCase());
-  const exact = voices.find((voice) => needles.some((hint) => voice.lang?.toLowerCase() === hint));
-  if (exact) return exact;
-  const partial = voices.find((voice) => {
-    const lang = voice.lang?.toLowerCase() || "";
-    const name = voice.name?.toLowerCase() || "";
-    return needles.some((hint) => lang.includes(hint) || name.includes(hint));
-  });
-  return partial || voices[0] || null;
-}
 
 function commentaryForCall(call: Call, winner: Side | null, locale: string) {
   const lang = String(locale || "en").toLowerCase();
@@ -732,7 +721,7 @@ export default function TableTennisRoyal() {
   const [selectedPaddleId, setSelectedPaddleId] = useState<string>(DEFAULT_PADDLE_ID);
   const [commentaryPresetId, setCommentaryPresetId] = useState<string>(DEFAULT_COMMENTARY_PRESET_ID);
   const [commentaryMuted, setCommentaryMuted] = useState(false);
-  const [commentarySupported, setCommentarySupported] = useState<boolean>(() => typeof window !== "undefined" && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance !== "undefined");
+  const [commentarySupported, setCommentarySupported] = useState<boolean>(() => getSpeechSupport());
   const difficultyRef = useRef<Difficulty>(DEFAULT_DIFFICULTY);
   const graphicsQualityRef = useRef<GraphicsQuality>("high");
   const frameRateRef = useRef<(typeof FRAME_RATE_OPTIONS)[number]>(FRAME_RATE_MAP.fhd90);
@@ -823,7 +812,6 @@ export default function TableTennisRoyal() {
   const lastFrameAtRef = useRef<number>(0);
   const lightRig = useRef<{ ambient: THREE.AmbientLight; key: THREE.DirectionalLight } | null>(null);
   const hdriHandle = useRef<{ envMap: THREE.Texture | null; bgMap: THREE.Texture | null } | null>(null);
-  const commentaryVoicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const commentaryLastAtRef = useRef(0);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
@@ -891,56 +879,28 @@ export default function TableTennisRoyal() {
     else if (ui.call === "FAULT" || ui.call === "DOUBLE" || ui.call === "MISS") showAnnouncement("FOUL");
   }, [showAnnouncement, ui.call]);
 
-  const speakCommentary = useCallback((text: string) => {
+  const speakCommentary = useCallback(async (text: string) => {
     if (!text || commentaryMuted || !commentarySupported || typeof window === "undefined") return;
     const now = performance.now();
     if (now - commentaryLastAtRef.current < 260) return;
     commentaryLastAtRef.current = now;
     try {
-      const synth = window.speechSynthesis;
-      if (!synth || typeof window.SpeechSynthesisUtterance === "undefined") return;
-      const utterance = new window.SpeechSynthesisUtterance(text);
-      const voice = pickCommentaryVoice(commentaryVoicesRef.current, activeCommentaryPreset?.voiceHints || []);
-      if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-      } else {
-        utterance.lang = activeCommentaryPreset?.language || "en";
-      }
-      utterance.rate = 1.04;
-      utterance.pitch = 1.0;
-      utterance.volume = 0.92;
-      synth.cancel();
-      synth.speak(utterance);
+      await speakCommentaryLines([{ speaker: 'TableTennisHost', text }], {
+        voiceHints: { TableTennisHost: activeCommentaryPreset?.voiceHints || ['en-US'] }
+      });
     } catch {
-      // no-op
+      setCommentarySupported(false);
     }
-  }, [activeCommentaryPreset?.language, activeCommentaryPreset?.voiceHints, commentaryMuted, commentarySupported]);
+  }, [activeCommentaryPreset?.voiceHints, commentaryMuted, commentarySupported]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const synth = window.speechSynthesis;
-    if (!synth) {
-      setCommentarySupported(false);
-      return;
-    }
-    const refresh = () => {
-      try {
-        commentaryVoicesRef.current = synth.getVoices() || [];
-      } catch {
-        commentaryVoicesRef.current = [];
-      }
-    };
-    refresh();
-    synth.onvoiceschanged = refresh;
-    return () => {
-      if (synth.onvoiceschanged === refresh) synth.onvoiceschanged = null;
-    };
+    setCommentarySupported(getSpeechSupport());
+    return onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
   }, []);
 
   useEffect(() => {
     if (commentaryMuted || typeof window === "undefined") return;
-    speakCommentary(commentaryForCall(ui.call, null, activeCommentaryPreset?.language || "en"));
+    void speakCommentary(commentaryForCall(ui.call, null, activeCommentaryPreset?.language || "en"));
   }, [activeCommentaryPreset?.language, commentaryMuted, speakCommentary, ui.call]);
 
   const syncUiFromSim = useCallback(() => {
@@ -1696,7 +1656,7 @@ export default function TableTennisRoyal() {
                       {commentaryMuted ? 'On' : 'Off'}
                     </span>
                   </button>
-                  {!commentarySupported && <p className="mt-2 text-[0.65rem] text-white/60">Voice commentary requires Web Speech support.</p>}
+                  {!commentarySupported && <p className="mt-2 text-[0.65rem] text-white/60">Voice commentary requires NVIDIA PersonaPlex availability.</p>}
                 </div>
 
                 <div>
