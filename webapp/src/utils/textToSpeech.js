@@ -1,4 +1,4 @@
-import { speakWithVoiceProvider, stopVoicePlayback } from '../voice/voiceProviderFactory.ts'
+import { post } from './api.js'
 
 let commentarySupport = true
 const listeners = new Set()
@@ -19,6 +19,11 @@ const emitSupport = (supported) => {
       // no-op
     }
   })
+}
+
+const getCurrentAccountId = () => {
+  if (typeof window === 'undefined') return 'guest'
+  return window.localStorage.getItem('accountId') || 'guest'
 }
 
 const unlockAudioPlayback = async () => {
@@ -45,6 +50,43 @@ const unlockAudioPlayback = async () => {
   await unlockPromise
 }
 
+const playAudioPayload = async (payload) => {
+  const synthesis = payload?.synthesis || {}
+  const audioUrl = synthesis.audioUrl
+  const audioBase64 = synthesis.audioBase64
+  const mimeType = synthesis.mimeType || 'audio/mpeg'
+  if (!audioUrl && !audioBase64) {
+    throw new Error('PersonaPlex response missing audio payload')
+  }
+
+  await unlockAudioPlayback()
+
+  const source = audioUrl || `data:${mimeType};base64,${audioBase64}`
+  const audio = new Audio(source)
+  await new Promise((resolve, reject) => {
+    const onDone = () => {
+      audio.removeEventListener('ended', onDone)
+      audio.removeEventListener('error', onError)
+      resolve()
+    }
+    const onError = () => {
+      audio.removeEventListener('ended', onDone)
+      audio.removeEventListener('error', onError)
+      reject(new Error('Audio playback failed'))
+    }
+    audio.addEventListener('ended', onDone)
+    audio.addEventListener('error', onError)
+    audio.play().catch(async (error) => {
+      if ((error && error.name === 'NotAllowedError') || !audioUnlocked) {
+        await unlockAudioPlayback()
+        audio.play().catch(onError)
+        return
+      }
+      onError()
+    })
+  })
+}
+
 export const installSpeechSynthesisUnlock = () => {
   if (typeof window === 'undefined') return
   const onUserGesture = () => {
@@ -57,8 +99,7 @@ export const installSpeechSynthesisUnlock = () => {
   })
 }
 
-export const getSpeechSynthesis = () =>
-  typeof window !== 'undefined' && window.speechSynthesis ? window.speechSynthesis : null
+export const getSpeechSynthesis = () => null
 
 export const getSpeechSupport = () =>
   commentarySupport &&
@@ -79,11 +120,66 @@ export const primeSpeechSynthesis = () => {
 
 export const resolveVoiceForSpeaker = () => null
 
+const pickSpeechSynthesisVoice = (hints = []) => {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices?.() || []
+  if (!voices.length) return null
+
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean)
+  for (const hint of normalizedHints) {
+    const byLang = voices.find((voice) => String(voice.lang || '').toLowerCase() === hint)
+    if (byLang) return byLang
+    const byPrefix = voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith(`${hint}-`))
+    if (byPrefix) return byPrefix
+    const byName = voices.find((voice) => String(voice.name || '').toLowerCase().includes(hint))
+    if (byName) return byName
+  }
+
+  return voices.find((voice) => voice.default) || voices[0]
+}
+
+const speakWithBrowserTts = async (text, hints = []) => {
+  if (
+    typeof window === 'undefined' ||
+    !window.speechSynthesis ||
+    !window.SpeechSynthesisUtterance ||
+    !String(text || '').trim()
+  ) {
+    throw new Error('Web Speech is unavailable')
+  }
+
+  await unlockAudioPlayback()
+
+  await new Promise((resolve, reject) => {
+    const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
+    const preferredVoice = pickSpeechSynthesisVoice(hints)
+    if (preferredVoice) {
+      utterance.voice = preferredVoice
+      if (preferredVoice.lang) utterance.lang = preferredVoice.lang
+    }
+
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.onend = () => resolve()
+    utterance.onerror = () => reject(new Error('Web Speech playback failed'))
+
+    try {
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(utterance)
+    } catch {
+      reject(new Error('Web Speech playback failed'))
+    }
+  })
+}
+
 export const speakCommentaryLines = async (
   lines,
-  { voiceHints = {}, speakerSettings = {}, context = 'commentary', gameId } = {}
+  { voiceHints = {}, speakerSettings = {} } = {}
 ) => {
   if (!Array.isArray(lines) || !lines.length || typeof window === 'undefined') return
+
+  const accountId = getCurrentAccountId()
 
   for (const line of lines) {
     const text = String(line?.text || '').trim()
@@ -91,22 +187,31 @@ export const speakCommentaryLines = async (
 
     const speaker = line?.speaker || 'Host'
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
+    const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
+
+    const payload = await post('/api/voice-commentary/speak', {
+      accountId,
+      text,
+      speaker,
+      locale: localeHint,
+      style: speakerSettings[speaker] || null
+    })
+
+    if (payload?.error) {
+      emitSupport(false)
+      throw new Error(payload.error)
+    }
 
     try {
-      await speakWithVoiceProvider(text, {
-        context,
-        gameId,
-        persona: speakerSettings[speaker] || undefined,
-        hints
-      })
+      if (payload?.provider === 'web-speech-fallback' || !payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
+        await speakWithBrowserTts(payload?.text || text, hints)
+      } else {
+        await playAudioPayload(payload)
+      }
       emitSupport(true)
     } catch (error) {
       emitSupport(false)
       throw error
     }
   }
-}
-
-export const cancelSpeechQueue = () => {
-  stopVoicePlayback()
 }

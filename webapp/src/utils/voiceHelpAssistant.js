@@ -1,7 +1,5 @@
 import { post } from './api.js';
 import { primeSpeechSynthesis } from './textToSpeech.js';
-import { speakWithVoiceProvider } from '../voice/voiceProviderFactory.ts';
-import { PERSONA_DEFAULTS } from '../voice/voiceConfig.ts';
 
 const SPEECH_RECOGNITION =
   typeof window !== 'undefined'
@@ -27,22 +25,31 @@ function speakWithWebSpeech(text, locale = 'en-US') {
 
 async function playSynthesis(payload, locale = 'en-US') {
   primeSpeechSynthesis();
+  const synthesis = payload?.synthesis || {};
   const fallbackText = payload?.answer || payload?.text || '';
-  if (!fallbackText) return;
-  try {
-    await speakWithVoiceProvider(fallbackText, {
-      context: 'help',
-      voiceId: payload?.voice?.id || PERSONA_DEFAULTS.help.voiceId,
-      persona: PERSONA_DEFAULTS.help.persona,
-      hints: [locale]
-    });
-  } catch {
-    const allowFallback = String(import.meta.env.VITE_VOICE_ALLOW_FALLBACK || '0') === '1';
-    if (allowFallback) {
-      await speakWithWebSpeech(fallbackText, locale);
-      return;
-    }
-    throw new Error('PersonaPlex help synthesis failed and fallback is disabled');
+  const source = synthesis.audioUrl || (synthesis.audioBase64 ? `data:${synthesis.mimeType || 'audio/mpeg'};base64,${synthesis.audioBase64}` : '');
+  if (!source) {
+    await speakWithWebSpeech(fallbackText, locale);
+    return;
+  }
+  const audio = new Audio(source);
+  await new Promise((resolve) => {
+    const finish = () => {
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', fail);
+      resolve();
+    };
+    const fail = () => {
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', fail);
+      resolve();
+    };
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', fail);
+    audio.play().catch(fail);
+  });
+  if (payload?.provider === 'web-speech-fallback' && fallbackText) {
+    await speakWithWebSpeech(fallbackText, locale);
   }
 }
 
