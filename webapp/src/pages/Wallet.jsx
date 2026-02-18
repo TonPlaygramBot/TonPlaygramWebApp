@@ -52,7 +52,7 @@ function formatValue(value, decimals = 2) {
   });
 }
 
-export default function Wallet({ hideClaim = false }) {
+export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
   useTelegramBackButton();
   let telegramId;
   try {
@@ -116,6 +116,20 @@ export default function Wallet({ hideClaim = false }) {
 
 
   const loadBalances = async () => {
+    const normalizedOverride = String(accountIdOverride || '').trim();
+    if (normalizedOverride) {
+      setAccountId(normalizedOverride);
+      localStorage.setItem('accountId', normalizedOverride);
+      const bal = await getAccountBalance(normalizedOverride);
+      if (bal?.error || typeof bal.balance !== 'number') {
+        console.error('Failed to load TPC balance:', bal?.error);
+        setTpcBalance(0);
+      } else {
+        setTpcBalance(bal.balance);
+      }
+      return normalizedOverride;
+    }
+
     const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
     let id = devMode ? DEV_ACCOUNT_ID : '';
     let acc;
@@ -163,7 +177,7 @@ export default function Wallet({ hideClaim = false }) {
         }
       }
     });
-  }, [requiresAuth]);
+  }, [requiresAuth, accountIdOverride]);
 
   useEffect(() => {
     if (DEV_ACCOUNTS.includes(accountId)) {

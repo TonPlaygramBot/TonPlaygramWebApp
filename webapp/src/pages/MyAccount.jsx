@@ -984,7 +984,7 @@ export default function MyAccount() {
         )}
       </div>
 
-      <Wallet />
+      <Wallet accountIdOverride={profile.accountId} />
 
       <DevNotifyModal
         open={showNotifyModal}
