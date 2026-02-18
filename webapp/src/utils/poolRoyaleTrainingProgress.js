@@ -13,65 +13,92 @@ const rotate = (arr, offset) => {
   return [...arr.slice(shift), ...arr.slice(0, shift)]
 }
 
-const buildTrainingLayout = (level) => {
-  const ring = [
-    { x: -0.52, z: -0.18 },
-    { x: -0.36, z: 0.12 },
-    { x: -0.14, z: -0.08 },
-    { x: 0.08, z: 0.2 },
-    { x: 0.24, z: -0.15 },
-    { x: 0.38, z: 0.11 },
-    { x: 0.54, z: -0.06 },
-    { x: -0.46, z: 0.32 },
-    { x: -0.22, z: 0.33 },
-    { x: 0.03, z: 0.36 },
-    { x: 0.26, z: 0.31 },
-    { x: 0.49, z: 0.28 },
-    { x: -0.33, z: -0.33 },
-    { x: -0.07, z: -0.35 },
-    { x: 0.2, z: -0.32 }
-  ]
-  const targetCount = Math.min(15, Math.max(1, level))
-  const rotated = rotate(ring, level - 1)
-  const spacingOffset = (level % 5) * 0.01
-  const balls = rotated.slice(0, targetCount).map((pos, idx) => ({
+const LAYOUT_ANCHORS = [
+  { x: -0.52, z: -0.23 },
+  { x: -0.43, z: 0.03 },
+  { x: -0.28, z: -0.12 },
+  { x: -0.16, z: 0.16 },
+  { x: -0.02, z: -0.21 },
+  { x: 0.1, z: 0.19 },
+  { x: 0.24, z: -0.12 },
+  { x: 0.35, z: 0.14 },
+  { x: 0.48, z: -0.05 },
+  { x: -0.36, z: 0.31 },
+  { x: -0.19, z: 0.35 },
+  { x: -0.01, z: 0.31 },
+  { x: 0.18, z: 0.34 },
+  { x: 0.35, z: 0.29 },
+  { x: 0.52, z: 0.24 },
+  { x: -0.32, z: -0.34 },
+  { x: -0.12, z: -0.36 },
+  { x: 0.08, z: -0.34 },
+  { x: 0.28, z: -0.33 },
+  { x: 0.48, z: -0.29 }
+]
+
+const TRAINING_STRATEGIES = [
+  'Stop-shot center ball control',
+  'Natural angle rolling cue ball',
+  'Stun to hold for next shot',
+  'Two-rail position play',
+  'Three-ball pattern planning',
+  'Key-ball and breakout timing',
+  'Safety-first cue ball parking',
+  'Thin cut pocketing confidence',
+  'Rail-first recovery shots',
+  'End-game cluster management'
+]
+
+const TRAINING_TASKS = Array.from({ length: TRAINING_LEVEL_COUNT }, (_, idx) => {
+  const level = idx + 1
+  const discipline =
+    level <= 17 ? '8-Ball' : level <= 34 ? '9-Ball' : 'American Billiards'
+  const strategy = TRAINING_STRATEGIES[idx % TRAINING_STRATEGIES.length]
+  const ballCount = 2 + (idx % 11)
+  return {
+    level,
+    discipline,
+    strategy,
+    ballCount,
+    title: `${discipline} Drill ${String(level).padStart(2, '0')}`,
+    objective: `Clear ${ballCount} planned object ball${ballCount > 1 ? 's' : ''} using ${strategy.toLowerCase()}.`,
+    reward:
+      level % 5 === 0
+        ? 'Free random table setup item unlocked.'
+        : 'Progress toward next free table setup item.'
+  }
+})
+
+const buildTrainingLayout = (level, ballCount) => {
+  const rotated = rotate(LAYOUT_ANCHORS, level - 1)
+  const laneOffset = ((level % 4) - 1.5) * 0.014
+  const balls = rotated.slice(0, Math.max(1, Math.min(15, ballCount))).map((pos, idx) => ({
     rackIndex: idx,
-    x: pos.x + (idx % 2 === 0 ? spacingOffset : -spacingOffset),
-    z: pos.z
+    x: pos.x + (idx % 2 === 0 ? laneOffset : -laneOffset),
+    z: pos.z + ((level + idx) % 3 === 0 ? 0.012 : -0.01)
   }))
 
   return {
-    cue: { x: -0.68 + (level % 3) * 0.05, z: 0.52 - (level % 4) * 0.08 },
+    cue: {
+      x: -0.7 + (level % 5) * 0.055,
+      z: 0.5 - (level % 6) * 0.12
+    },
     balls
   }
 }
 
 const buildTrainingDefinition = (level) => {
-  const discipline =
-    level <= 17 ? '8-Ball' : level <= 34 ? '9-Ball' : 'American Billiards'
-  const targetCount = Math.min(15, level)
-  const reward =
-    level % 5 === 0
-      ? 'Free random table setup item unlocked.'
-      : 'Progress toward next free table setup item.'
-
+  const task = TRAINING_TASKS[clampLevel(level) - 1] || TRAINING_TASKS[0]
   return {
-    level,
-    discipline,
-    title: `${discipline} Drill ${String(level).padStart(2, '0')}`,
-    objective:
-      level <= 15
-        ? `Pot ${targetCount} ball${targetCount > 1 ? 's' : ''} without scratching.`
-        : `Clear ${targetCount} planned balls from a mixed ${discipline} layout.`,
-    reward,
-    layout: buildTrainingLayout(level)
+    ...task,
+    layout: buildTrainingLayout(task.level, task.ballCount)
   }
 }
 
-export const TRAINING_LEVELS = Array.from(
-  { length: TRAINING_LEVEL_COUNT },
-  (_, idx) => buildTrainingDefinition(idx + 1)
-)
+export const TRAINING_LEVELS = TRAINING_TASKS.map((task) => ({
+  ...task,
+  layout: buildTrainingLayout(task.level, task.ballCount)
+}))
 
 export function describeTrainingLevel (level) {
   const normalized = clampLevel(level)
