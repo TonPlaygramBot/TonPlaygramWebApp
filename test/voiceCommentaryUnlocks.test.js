@@ -5,7 +5,7 @@ import {
   createDefaultVoiceInventory,
   normalizeVoiceInventory
 } from '../bot/utils/voiceCommentaryCatalog.js';
-import { applyVoiceCommentaryUnlocks, buildHelpAnswer } from '../bot/routes/voiceCommentary.js';
+import { applyVoiceCommentaryUnlocks, buildHelpAnswer, normalizeSynthesisPayload } from '../bot/routes/voiceCommentary.js';
 
 test('default voice commentary inventory includes free English voice', () => {
   const inventory = createDefaultVoiceInventory();
@@ -53,4 +53,19 @@ test('store item builder keeps English free and paid multilingual packs', () => 
 test('voice help answer routes key app topics', () => {
   assert.match(buildHelpAnswer('How do I buy commentary in the store?'), /Store/i);
   assert.match(buildHelpAnswer(''), /How can I help you today/i);
+});
+
+test('normalizes nested PersonaPlex synthesis payloads', () => {
+  const normalized = normalizeSynthesisPayload({
+    data: {
+      result: {
+        audio_url: 'https://cdn.example.com/commentary.mp3',
+        content_type: 'audio/mp3'
+      }
+    }
+  });
+
+  assert.equal(normalized.audioUrl, 'https://cdn.example.com/commentary.mp3');
+  assert.equal(normalized.mimeType, 'audio/mp3');
+  assert.equal(normalized.audioBase64, null);
 });

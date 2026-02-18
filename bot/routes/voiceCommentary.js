@@ -138,12 +138,67 @@ async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} 
   }
 
   const payload = await response.json();
+  const synthesis = normalizeSynthesisPayload(payload);
   return {
     provider: 'nvidia-personaplex',
-    audioBase64: payload.audioBase64 || payload.audio_base64 || null,
-    audioUrl: payload.audioUrl || payload.audio_url || null,
-    mimeType: payload.mimeType || payload.mime_type || 'audio/mpeg',
+    ...synthesis,
     raw: payload
+  };
+}
+
+const AUDIO_URL_KEYS = ['audioUrl', 'audio_url', 'url', 'audio_url_signed', 'signed_url'];
+const AUDIO_BASE64_KEYS = ['audioBase64', 'audio_base64', 'audioContent', 'audio_content', 'content', 'audio'];
+const MIME_TYPE_KEYS = ['mimeType', 'mime_type', 'contentType', 'content_type', 'audioMimeType'];
+
+const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+function findFirstValue(input, keys) {
+  if (!input) return null;
+  if (Array.isArray(input)) {
+    for (const item of input) {
+      const match = findFirstValue(item, keys);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  if (!isObject(input)) return null;
+
+  for (const key of keys) {
+    const value = input[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  for (const nested of Object.values(input)) {
+    if (!nested || typeof nested === 'string' || typeof nested === 'number' || typeof nested === 'boolean') continue;
+    const match = findFirstValue(nested, keys);
+    if (match) return match;
+  }
+
+  return null;
+}
+
+function normalizeAudioBase64(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('data:')) {
+    const [, base64Payload] = trimmed.split(',', 2);
+    return base64Payload || null;
+  }
+  return trimmed;
+}
+
+export function normalizeSynthesisPayload(payload) {
+  const audioUrl = findFirstValue(payload, AUDIO_URL_KEYS);
+  const rawAudioBase64 = findFirstValue(payload, AUDIO_BASE64_KEYS);
+  const mimeType = findFirstValue(payload, MIME_TYPE_KEYS) || 'audio/mpeg';
+  return {
+    audioUrl,
+    audioBase64: normalizeAudioBase64(rawAudioBase64),
+    mimeType
   };
 }
 
