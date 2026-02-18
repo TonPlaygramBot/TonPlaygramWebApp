@@ -245,7 +245,9 @@ const VOICE_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
-const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
+// Store checkout can include auth verification + DB writes on constrained mobile networks,
+// so keep a generous timeout to avoid false "request timed out" failures.
+const PURCHASE_REQUEST_TIMEOUT_MS = 120000;
 const STORE_BALANCE_REFRESH_MS = 15000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
@@ -1523,13 +1525,17 @@ export default function Store() {
         }))
       };
       const purchasePromise = buyBundle(resolvedAccountId, bundle);
+      let timeoutId;
       const timeoutPromise = new Promise((_, reject) => {
-        window.setTimeout(
+        timeoutId = window.setTimeout(
           () => reject(new Error('TPC transfer request timed out')),
           PURCHASE_REQUEST_TIMEOUT_MS
         );
       });
       const purchase = await Promise.race([purchasePromise, timeoutPromise]);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
       if (purchase?.error) {
         if (balanceBeforePurchase !== null) {
           setAccountBalance(balanceBeforePurchase);
