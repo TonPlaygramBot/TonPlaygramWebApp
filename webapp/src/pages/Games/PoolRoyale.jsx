@@ -12481,7 +12481,6 @@ function PoolRoyaleGame({
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingCompletionHandledRef = useRef(false);
-  const pendingTrainingLayoutLevelRef = useRef(null);
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
   }, [trainingProgress]);
@@ -12581,11 +12580,7 @@ function PoolRoyaleGame({
     if (!isTraining) return;
     const trainingLayout = getTrainingLayout(level);
     const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
-    if (!balls.length || !trainingLayout) {
-      pendingTrainingLayoutLevelRef.current = Number(level) || trainingLevelRef.current || 1;
-      return;
-    }
-    pendingTrainingLayoutLevelRef.current = null;
+    if (!balls.length || !trainingLayout) return;
 
     const variantConfig = activeVariantRef.current;
 
@@ -12655,15 +12650,6 @@ function PoolRoyaleGame({
     initialLayoutRef.current = snapshot;
   }, [isTraining]);
 
-  const flushPendingTrainingLayout = useCallback(() => {
-    if (!isTraining) return;
-    const pendingLevel = pendingTrainingLayoutLevelRef.current;
-    if (!pendingLevel) return;
-    const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
-    if (!balls.length) return;
-    applyTrainingLayoutForLevel(pendingLevel);
-  }, [applyTrainingLayoutForLevel, isTraining]);
-
   const handleTrainingRoadmapContinue = useCallback(() => {
     const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
     const computedNextLevel = resolvePlayableTrainingLevel(
@@ -12693,10 +12679,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
   }, [applyTrainingLayoutForLevel, trainingLevel]);
-
-  useEffect(() => {
-    flushPendingTrainingLayout();
-  }, [flushPendingTrainingLayout, trainingLevel]);
 
   const trainingRoadmapNodes = useMemo(
     () => TRAINING_LEVELS.map((levelDef) => ({
@@ -22120,10 +22102,6 @@ const powerRef = useRef(hud.power);
       ballsRef.current = balls;
       if (!initialLayoutRef.current && captureBallSnapshot) {
         initialLayoutRef.current = captureBallSnapshot();
-      }
-      if (isTraining) {
-        flushPendingTrainingLayout();
-        applyTrainingLayoutForLevel(trainingLevelRef.current || 1);
       }
 
       // Aiming visuals
