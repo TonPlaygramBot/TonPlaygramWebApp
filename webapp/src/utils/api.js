@@ -88,7 +88,7 @@ function buildHeaders(base = {}) {
   return headers;
 }
 
-async function post(path, body, token) {
+export async function post(path, body, token) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -126,7 +126,7 @@ async function post(path, body, token) {
   return data;
 }
 
-async function put(path, body, token) {
+export async function put(path, body, token) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -162,7 +162,7 @@ async function put(path, body, token) {
   return data;
 }
 
-async function get(path, token) {
+export async function get(path, token) {
   const headers = buildHeaders();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
