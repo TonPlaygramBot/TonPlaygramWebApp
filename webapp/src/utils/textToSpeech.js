@@ -286,6 +286,24 @@ const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
   return voices[0] || null;
 };
 
+const getSelectedCommentaryLocale = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const accountId = window.localStorage.getItem('accountId') || 'guest';
+    const raw = window.localStorage.getItem(`tpg.voiceCommentary.${accountId}`);
+    if (!raw) return null;
+    const inventory = JSON.parse(raw);
+    const selectedVoiceId = String(inventory?.selectedVoiceId || '');
+    const ownedLocales = Array.isArray(inventory?.ownedLocales) ? inventory.ownedLocales : [];
+    if (ownedLocales.length === 1) return ownedLocales[0];
+    const match = selectedVoiceId.match(/_([a-z]{2})_([a-z]{2})_/i);
+    if (match) return `${match[1].toLowerCase()}-${match[2].toUpperCase()}`;
+    return ownedLocales.find((locale) => String(locale).toLowerCase().startsWith('en-')) || ownedLocales[0] || null;
+  } catch {
+    return null;
+  }
+};
+
 const resolveHintedLanguage = (hints = [], fallback) => {
   const normalizedHints = hints.map((hint) => String(hint || '').trim()).filter(Boolean);
   const matched = normalizedHints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(hint));
@@ -329,7 +347,8 @@ export const speakCommentaryLines = async (
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
     const utterance = new UtteranceClass(line.text);
     const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
-    const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
+    const preferredLocale = getSelectedCommentaryLocale();
+    const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason, preferredLocale);
 
     if (voice) {
       utterance.voice = voice;
