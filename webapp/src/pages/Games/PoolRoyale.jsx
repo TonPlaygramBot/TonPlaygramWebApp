@@ -12455,10 +12455,8 @@ function PoolRoyaleGame({
   ]);
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
-  const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
-  const [trainingRecentlyCompletedLevel, setTrainingRecentlyCompletedLevel] = useState(null);
   const [trainingModeState, setTrainingModeState] = useState(
-    'solo'
+    trainingMode === 'ai' ? 'ai' : 'solo'
   );
   const [trainingRulesOn, setTrainingRulesOn] = useState(Boolean(trainingRulesEnabled));
   const trainingModeRef = useRef(trainingModeState);
@@ -12466,11 +12464,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     trainingModeRef.current = trainingModeState;
   }, [trainingModeState]);
-  useEffect(() => {
-    if (isTraining && trainingModeState !== 'solo') {
-      setTrainingModeState('solo');
-    }
-  }, [isTraining, trainingModeState]);
   useEffect(() => {
     trainingRulesRef.current = trainingRulesOn;
   }, [trainingRulesOn]);
@@ -13537,7 +13530,7 @@ const powerRef = useRef(hud.power);
   const breakRollPending = breakRollState !== 'done';
   const rollBreakDie = useCallback(
     async (seat = 'ai') => {
-      if (isTraining || breakRollBusyRef.current || breakRollState === 'done') return;
+      if (breakRollBusyRef.current || breakRollState === 'done') return;
       breakRollBusyRef.current = true;
       const seatLabel = seat === 'ai' ? 'AI' : 'You';
       setBreakRollMessage(`${seatLabel} rolling from behind the line...`);
@@ -13578,23 +13571,23 @@ const powerRef = useRef(hud.power);
       setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
       breakRollBusyRef.current = false;
     },
-    [breakRollState, isTraining]
+    [breakRollState]
   );
 
   useEffect(() => {
-    if (isTraining || breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
+    if (breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
     rollBreakDie('ai');
-  }, [breakRollLoadReady, breakRollState, isTraining, rollBreakDie]);
+  }, [breakRollLoadReady, breakRollState, rollBreakDie]);
 
 
   useEffect(() => {
     const meshes = breakDiceMeshesRef.current;
-    const shouldShow = !isTraining && breakRollState !== 'done' && !hud.over;
+    const shouldShow = breakRollState !== 'done' && !hud.over;
     [meshes?.ai, meshes?.user].forEach((die) => {
       if (!die) return;
       die.visible = shouldShow;
     });
-  }, [breakRollState, hud.over, isTraining]);
+  }, [breakRollState, hud.over]);
 
   useEffect(
     () => () => {
@@ -13625,8 +13618,8 @@ const powerRef = useRef(hud.power);
     breakRollBusyRef.current = false;
     breakWinnerSeatRef.current = null;
     setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState(isTraining ? 'done' : 'user');
-    setBreakRollMessage(isTraining ? 'Training starts immediately.' : 'You roll first for the break.');
+    setBreakRollState('user');
+    setBreakRollMessage('You roll first for the break.');
     const anchors = breakDiceAnchorsRef.current;
     const meshes = breakDiceMeshesRef.current;
     if (anchors && meshes?.ai && meshes?.user) {
@@ -13634,8 +13627,8 @@ const powerRef = useRef(hud.power);
       meshes.user.position.copy(anchors.userStart);
       setBreakDieOrientation(meshes.ai, 1);
       setBreakDieOrientation(meshes.user, 1);
-      meshes.ai.visible = !isTraining;
-      meshes.user.visible = !isTraining;
+      meshes.ai.visible = true;
+      meshes.user.visible = true;
     }
     setHud((prev) => ({
       ...prev,
@@ -13647,7 +13640,7 @@ const powerRef = useRef(hud.power);
       inHand: nextInHand,
       over: false
     }));
-  }, [initialFrame, isTraining]);
+  }, [initialFrame]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
@@ -13689,8 +13682,6 @@ const powerRef = useRef(hud.power);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
       setTrainingLevel(nextPlayable);
-      setTrainingRecentlyCompletedLevel(completedLevel);
-      setTrainingRoadmapOpen(true);
       return updated;
     });
   }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
@@ -29901,7 +29892,7 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {!isTraining && breakRollState !== 'done' && !hud.over && (
+      {breakRollState !== 'done' && !hud.over && (
         <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
@@ -30797,12 +30788,11 @@ const powerRef = useRef(hud.power);
               </div>
               <div className="text-right text-[11px] uppercase tracking-[0.2em] text-white/70">
                 <div className="text-emerald-200">{completedTrainingCount} completed</div>
-                <div>Attempts bank: {trainingShotsRemaining}</div>
+                <div>Shots bank: {trainingShotsRemaining}</div>
                 <div>Next L{nextTrainingInfo.level}</div>
               </div>
             </div>
             <p className="mt-2 text-xs text-white/80">Objective: {currentTrainingInfo.objective}</p>
-            <p className="mt-1 text-[11px] text-white/70">Strategy: {currentTrainingInfo.strategy}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
               Reward: {currentTrainingInfo.reward}
             </p>
@@ -30850,8 +30840,27 @@ const powerRef = useRef(hud.power);
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
                   <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
-                  <p className="mt-1 text-[11px] text-white/60">Attempts bank: {trainingShotsRemaining}</p>
+                  <p className="mt-1 text-[11px] text-white/60">Shots bank: {trainingShotsRemaining}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Opponent</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[{ id: 'solo', label: 'Solo practice' }, { id: 'ai', label: 'Vs AI' }].map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setTrainingModeState(id)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          trainingModeState === id
+                            ? 'border-emerald-300 bg-emerald-400/20 text-emerald-100'
+                            : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <p className="font-semibold">Rules</p>
@@ -30872,57 +30881,10 @@ const powerRef = useRef(hud.power);
                     ))}
                   </div>
                 </div>
-                <p className="text-xs text-white/70">Training is solo-only and keeps your level + attempts saved.</p>
+                <p className="text-xs text-white/70">Practice with every ball on the table and switch options anytime.</p>
               </div>
             </div>
           )}
-        </div>
-      )}
-
-
-
-      {isTraining && trainingRoadmapOpen && (
-        <div className="absolute inset-0 z-[130] flex items-center justify-center bg-black/70 px-4">
-          <div className="w-[min(34rem,95vw)] rounded-2xl border border-emerald-300/50 bg-slate-950/92 p-4 text-white shadow-[0_18px_56px_rgba(0,0,0,0.55)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
-                <p className="mt-1 text-base font-semibold">
-                  {trainingRecentlyCompletedLevel
-                    ? `Great shot! Level ${trainingRecentlyCompletedLevel} complete.`
-                    : 'Training progress'}
-                </p>
-                <p className="text-xs text-white/70">Completed: {completedTrainingCount}/50 · Next: L{nextTrainingInfo.level}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setTrainingRoadmapOpen(false)}
-                className="rounded-full border border-white/25 px-3 py-1 text-xs font-semibold text-white/80 transition hover:bg-white/15 hover:text-white"
-              >
-                Continue
-              </button>
-            </div>
-            <div className="mt-3 grid grid-cols-10 gap-1.5">
-              {Array.from({ length: 50 }, (_, idx) => idx + 1).map((levelNum) => {
-                const done = (trainingProgress?.completed || []).includes(levelNum);
-                const active = levelNum === currentTrainingInfo.level;
-                return (
-                  <div
-                    key={levelNum}
-                    className={`flex h-7 items-center justify-center rounded-md border text-[10px] font-bold ${
-                      done
-                        ? 'border-emerald-300/80 bg-emerald-400/25 text-emerald-100'
-                        : active
-                          ? 'border-cyan-300/80 bg-cyan-400/20 text-cyan-100'
-                          : 'border-white/15 bg-white/5 text-white/60'
-                    }`}
-                  >
-                    {levelNum}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
 
@@ -31429,8 +31391,10 @@ export default function PoolRoyale() {
     return 'ai';
   }, [location.search]);
   const trainingMode = useMemo(() => {
-    return 'solo';
-  }, []);
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('mode');
+    return requested === 'solo' ? 'solo' : 'ai';
+  }, [location.search]);
   const trainingRulesEnabled = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('rules') !== 'off';
