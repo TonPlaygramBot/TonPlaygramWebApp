@@ -12639,24 +12639,26 @@ function PoolRoyaleGame({
   }, [isTraining]);
 
   const handleTrainingRoadmapContinue = useCallback(() => {
-    const activeLevel =
-      Number(trainingLevelRef.current) ||
-      Number(trainingLevel) ||
-      resolvePlayableTrainingLevel(1, trainingProgressRef.current);
+    const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
+    const nextLevel = resolvePlayableTrainingLevel(
+      completedLevel + 1,
+      trainingProgressRef.current
+    );
+    setTrainingLevel(nextLevel);
     setTrainingRoadmapOpen(false);
     setTrainingMenuOpen(false);
     setRuleToast(null);
+    setTurnCycle((value) => value + 1);
     setFrameState((prev) => ({
       ...prev,
       frameOver: false,
       winner: undefined,
       foul: undefined,
-      activePlayer: 'A',
-      ballOn: []
+      activePlayer: 'A'
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
-    applyTrainingLayoutForLevel(activeLevel);
-  }, [applyTrainingLayoutForLevel, trainingLevel]);
+    applyTrainingLayoutForLevel(nextLevel);
+  }, [applyTrainingLayoutForLevel, lastCompletedLevel, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -26508,24 +26510,17 @@ const powerRef = useRef(hud.power);
           console.error('Pool Royale shot resolution failed:', err);
         }
         if (isTraining) {
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              ballInHand: false,
-              currentPlayer: 'A'
+          if (!trainingRulesRef.current) {
+            safeState = {
+              ...safeState,
+              foul: undefined,
+              frameOver: false,
+              winner: undefined
             };
           }
-          safeState = {
-            ...safeState,
-            foul: undefined,
-            frameOver: false,
-            winner: undefined,
-            activePlayer: trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer,
-            ballOn: [],
-            meta: nextMeta ?? safeState?.meta
-          };
+          if (trainingModeRef.current === 'solo') {
+            safeState = { ...safeState, activePlayer: 'A' };
+          }
         }
         if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
           setTrainingShotsRemaining((prev) => Math.max(0, (Number(prev) || 0) - 1));
@@ -26548,7 +26543,7 @@ const powerRef = useRef(hud.power);
             meta: nextMeta ?? safeState.meta
           };
         }
-        if (!isTraining && safeState?.foul) {
+        if (safeState?.foul) {
           const foulNextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
             safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
