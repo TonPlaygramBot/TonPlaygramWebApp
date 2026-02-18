@@ -80,26 +80,60 @@ function resolveSelectedVoice({ catalogVoices = [], inventory, overrideVoiceId, 
 async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} }) {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
-  if (!endpoint || !apiKey) {
-    throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL and PERSONAPLEX_API_KEY.');
+  const synthPath = process.env.PERSONAPLEX_SYNTHESIS_PATH || '/v1/speech/synthesize';
+  if (!endpoint) {
+    throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL.');
   }
 
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/v1/speech/synthesize`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const candidates = [
+    {
       input: text,
       voice: voiceId,
       locale,
       metadata
-    })
-  });
+    },
+    {
+      text,
+      voice_id: voiceId,
+      language: locale,
+      metadata
+    },
+    {
+      input: {
+        text
+      },
+      voice: {
+        id: voiceId,
+        locale
+      },
+      metadata
+    }
+  ];
 
-  if (!response.ok) {
-    const details = await response.text();
+  let response = null;
+  let details = '';
+  for (const body of candidates) {
+    response = await fetch(`${endpoint.replace(/\/$/, '')}${synthPath.startsWith('/') ? synthPath : `/${synthPath}`}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (response.ok) break;
+    details = await response.text();
+    if (![400, 404, 422].includes(response.status)) {
+      break;
+    }
+  }
+
+  if (!response?.ok) {
     throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
   }
 

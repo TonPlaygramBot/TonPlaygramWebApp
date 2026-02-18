@@ -38,5 +38,8 @@ Purchases with item type `voiceLanguage` are applied server-side in `/api/store/
 ## Environment variables
 
 - `PERSONAPLEX_API_URL` - PersonaPlex API base URL
-- `PERSONAPLEX_API_KEY` - Bearer token
+- `PERSONAPLEX_API_KEY` - optional Bearer token (not required for local/open PersonaPlex deployments)
 - `PERSONAPLEX_VOICES_PATH` - optional voices path (default `/v1/voices`)
+- `PERSONAPLEX_SYNTHESIS_PATH` - optional synthesis path (default `/v1/speech/synthesize`)
+
+The server now tries multiple PersonaPlex-compatible payload formats automatically so you can run against NVIDIA PersonaPlex OSS endpoints without custom code changes.

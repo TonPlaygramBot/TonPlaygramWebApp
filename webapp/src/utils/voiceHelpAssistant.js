@@ -1,4 +1,5 @@
 import { post } from './api.js';
+import { primeSpeechSynthesis } from './textToSpeech.js';
 
 const SPEECH_RECOGNITION =
   typeof window !== 'undefined'
@@ -6,6 +7,7 @@ const SPEECH_RECOGNITION =
     : null;
 
 async function playSynthesis(payload) {
+  primeSpeechSynthesis();
   const synthesis = payload?.synthesis || {};
   const source = synthesis.audioUrl || (synthesis.audioBase64 ? `data:${synthesis.mimeType || 'audio/mpeg'};base64,${synthesis.audioBase64}` : '');
   if (!source) throw new Error('Missing help audio');
@@ -27,11 +29,11 @@ async function playSynthesis(payload) {
   });
 }
 
-function listenOnce(timeoutMs = 9000) {
+function listenOnce(locale = 'en-US', timeoutMs = 9000) {
   if (!SPEECH_RECOGNITION) return Promise.resolve('');
   return new Promise((resolve) => {
     const recognition = new SPEECH_RECOGNITION();
-    recognition.lang = 'en-US';
+    recognition.lang = locale || 'en-US';
     recognition.continuous = false;
     recognition.interimResults = false;
     let done = false;
@@ -61,7 +63,7 @@ export async function runVoiceHelpSession({ accountId, locale = 'en-US' }) {
   if (first?.error) throw new Error(first.error);
   await playSynthesis(first);
 
-  const spokenQuestion = await listenOnce();
+  const spokenQuestion = await listenOnce(locale);
   const answer = await post('/api/voice-commentary/help', {
     accountId,
     locale,
