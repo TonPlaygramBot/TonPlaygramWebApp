@@ -11818,8 +11818,7 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar,
-  initialTrainingLevel = null
+  opponentAvatar
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -12478,13 +12477,7 @@ function PoolRoyaleGame({
     lastLevel: 1,
     carryShots: BASE_ATTEMPTS_PER_LEVEL
   });
-  const [trainingLevel, setTrainingLevel] = useState(() => {
-    const requested = Number(initialTrainingLevel);
-    if (Number.isFinite(requested) && requested > 0) {
-      return Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Math.floor(requested)));
-    }
-    return 1;
-  });
+  const [trainingLevel, setTrainingLevel] = useState(1);
   const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(BASE_ATTEMPTS_PER_LEVEL);
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
@@ -12499,13 +12492,7 @@ function PoolRoyaleGame({
   }, [trainingLevel]);
   useEffect(() => {
     const stored = loadTrainingProgress();
-    const requestedTrainingLevel = Number(initialTrainingLevel);
-    const playableLevel = resolvePlayableTrainingLevel(
-      Number.isFinite(requestedTrainingLevel) && requestedTrainingLevel > 0
-        ? requestedTrainingLevel
-        : stored.lastLevel,
-      stored
-    );
+    const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
     const storedCarryShots = Number(stored?.carryShots);
@@ -12515,7 +12502,7 @@ function PoolRoyaleGame({
         : BASE_ATTEMPTS_PER_LEVEL
     );
     setTrainingLevel(playableLevel);
-  }, [initialTrainingLevel]);
+  }, []);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
@@ -31745,12 +31732,6 @@ export default function PoolRoyale() {
     if (requested === 'local') return 'local';
     return 'ai';
   }, [location.search]);
-  const initialTrainingLevel = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = Number(params.get('trainingLevel'));
-    if (!Number.isFinite(requested) || requested <= 0) return null;
-    return Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Math.floor(requested)));
-  }, [location.search]);
   const accountId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('accountId') || '';
@@ -31859,7 +31840,6 @@ export default function PoolRoyale() {
       playerAvatar={playerAvatar}
       opponentName={opponentName}
       opponentAvatar={opponentAvatar}
-      initialTrainingLevel={initialTrainingLevel}
     />
   );
 }
