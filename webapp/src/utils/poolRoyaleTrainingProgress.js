@@ -1,7 +1,7 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
 const TRAINING_LEVEL_COUNT = 50
 const BASE_ATTEMPTS_PER_LEVEL = 3
-const TRAINING_MAX_LAYOUT_BALLS = 25
+const TRAINING_MAX_LAYOUT_BALLS = 20
 
 const clampLevel = (value, fallback = 1) => {
   const numeric = Number(value)
@@ -68,7 +68,6 @@ const PATTERN_LIBRARY = [
 
 const getTrainingTargetCount = (level) => {
   const normalized = clampLevel(level)
-  if (normalized <= 2) return normalized
   return normalized <= TRAINING_MAX_LAYOUT_BALLS ? normalized : TRAINING_MAX_LAYOUT_BALLS
 }
 
@@ -77,16 +76,11 @@ const buildTrainingLayout = (level) => {
   const targetCount = getTrainingTargetCount(level)
   const rotated = rotate(pattern, (level * 2) % pattern.length)
   const microShift = ((level % 4) - 1.5) * 0.008
-  const balls = Array.from({ length: targetCount }, (_, idx) => {
-    const base = rotated[idx % rotated.length]
-    const ringOffset = Math.floor(idx / rotated.length) * 0.03
-    const radialSign = idx % 2 === 0 ? 1 : -1
-    return {
-      rackIndex: idx,
-      x: base.x + (idx % 2 === 0 ? microShift : -microShift) + radialSign * ringOffset,
-      z: base.z + (idx % 3 === 0 ? microShift : 0) - radialSign * ringOffset * 0.5
-    }
-  })
+  const balls = rotated.slice(0, targetCount).map((pos, idx) => ({
+    rackIndex: idx,
+    x: pos.x + (idx % 2 === 0 ? microShift : -microShift),
+    z: pos.z + (idx % 3 === 0 ? microShift : 0)
+  }))
 
   return {
     cue: { x: -0.7 + (level % 5) * 0.045, z: 0.5 - (level % 6) * 0.065 },
