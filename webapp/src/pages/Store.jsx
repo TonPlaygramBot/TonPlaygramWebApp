@@ -117,17 +117,6 @@ import {
   listOwnedTexasOptions,
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
-import {
-  VOICE_COMMENTARY_OPTION_LABELS,
-  VOICE_COMMENTARY_STORE_ITEMS
-} from '../config/voiceCommentaryInventoryConfig.js';
-import {
-  addVoiceCommentaryUnlock,
-  getVoiceCommentaryInventory,
-  isVoiceCommentaryUnlocked,
-  listOwnedVoiceCommentaryOptions,
-  syncVoiceCommentaryInventory
-} from '../utils/voiceCommentaryInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
 import { recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
@@ -238,10 +227,6 @@ const TEXAS_TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 
-const VOICE_TYPE_LABELS = {
-  voiceLanguage: 'Voice Commentary Language Packs'
-};
-
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
@@ -259,7 +244,6 @@ const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
-const VOICE_STORE_ACCOUNT_ID = import.meta.env.VITE_VOICE_COMMENTARY_STORE_ACCOUNT_ID || DEV_INFO.account;
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
@@ -729,14 +713,6 @@ const storeMeta = {
     labels: TEXAS_HOLDEM_OPTION_LABELS,
     typeLabels: TEXAS_TYPE_LABELS,
     accountId: TEXAS_STORE_ACCOUNT_ID
-  },
-  voicecommentary: {
-    name: 'Voice Commentary',
-    items: VOICE_COMMENTARY_STORE_ITEMS,
-    defaults: {},
-    labels: VOICE_COMMENTARY_OPTION_LABELS,
-    typeLabels: VOICE_TYPE_LABELS,
-    accountId: VOICE_STORE_ACCOUNT_ID
   }
 };
 
@@ -754,7 +730,6 @@ export default function Store() {
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
   const [texasOwned, setTexasOwned] = useState(() => getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-  const [voiceOwned, setVoiceOwned] = useState(() => getVoiceCommentaryInventory(accountId));
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
@@ -831,13 +806,7 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-    setVoiceOwned(getVoiceCommentaryInventory(accountId));
     let cancelled = false;
-    syncVoiceCommentaryInventory(accountId)
-      .then((inventory) => {
-        if (!cancelled && inventory) setVoiceOwned(inventory);
-      })
-      .catch((err) => console.warn('Failed to sync Voice Commentary inventory', err));
     getPoolRoyalInventory(accountId)
       .then((inventory) => {
         if (!cancelled && inventory) setPoolOwned(inventory);
@@ -915,8 +884,7 @@ export default function Store() {
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'domino-royal' })),
       snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snake' })),
-      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' })),
-      voicecommentary: VOICE_COMMENTARY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'voicecommentary' }))
+      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' }))
     }),
     []
   );
@@ -932,10 +900,9 @@ export default function Store() {
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
       'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
-      texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned),
-      voicecommentary: (type, optionId) => isVoiceCommentaryUnlocked(type, optionId, voiceOwned)
+      texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, snookerOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned, voiceOwned]
+    [airOwned, poolOwned, snookerOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
   const labelResolvers = useMemo(
@@ -949,8 +916,7 @@ export default function Store() {
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      voicecommentary: (item) => VOICE_COMMENTARY_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -965,8 +931,7 @@ export default function Store() {
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
-      texasholdem: TEXAS_TYPE_LABELS,
-      voicecommentary: VOICE_TYPE_LABELS
+      texasholdem: TEXAS_TYPE_LABELS
     }),
     []
   );
@@ -1485,9 +1450,6 @@ export default function Store() {
             setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'texasholdem') {
             setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'voicecommentary') {
-            const updated = await addVoiceCommentaryUnlock(entry.type, entry.optionId, resolvedAccountId);
-            setVoiceOwned(updated);
           }
         }
       }
