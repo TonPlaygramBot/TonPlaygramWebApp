@@ -102,7 +102,11 @@ export const installSpeechSynthesisUnlock = () => {
 export const getSpeechSynthesis = () => null
 
 export const getSpeechSupport = () =>
-  commentarySupport && typeof window !== 'undefined' && typeof window.Audio !== 'undefined'
+  commentarySupport &&
+  typeof window !== 'undefined' &&
+  (typeof window.Audio !== 'undefined' ||
+    (typeof window.speechSynthesis !== 'undefined' &&
+      typeof window.SpeechSynthesisUtterance !== 'undefined'))
 
 export const onSpeechSupportChange = (callback) => {
   if (typeof callback !== 'function') return () => {}
@@ -115,6 +119,59 @@ export const primeSpeechSynthesis = () => {
 }
 
 export const resolveVoiceForSpeaker = () => null
+
+const pickSpeechSynthesisVoice = (hints = []) => {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices?.() || []
+  if (!voices.length) return null
+
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean)
+  for (const hint of normalizedHints) {
+    const byLang = voices.find((voice) => String(voice.lang || '').toLowerCase() === hint)
+    if (byLang) return byLang
+    const byPrefix = voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith(`${hint}-`))
+    if (byPrefix) return byPrefix
+    const byName = voices.find((voice) => String(voice.name || '').toLowerCase().includes(hint))
+    if (byName) return byName
+  }
+
+  return voices.find((voice) => voice.default) || voices[0]
+}
+
+const speakWithBrowserTts = async (text, hints = []) => {
+  if (
+    typeof window === 'undefined' ||
+    !window.speechSynthesis ||
+    !window.SpeechSynthesisUtterance ||
+    !String(text || '').trim()
+  ) {
+    throw new Error('Web Speech is unavailable')
+  }
+
+  await unlockAudioPlayback()
+
+  await new Promise((resolve, reject) => {
+    const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
+    const preferredVoice = pickSpeechSynthesisVoice(hints)
+    if (preferredVoice) {
+      utterance.voice = preferredVoice
+      if (preferredVoice.lang) utterance.lang = preferredVoice.lang
+    }
+
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.onend = () => resolve()
+    utterance.onerror = () => reject(new Error('Web Speech playback failed'))
+
+    try {
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(utterance)
+    } catch {
+      reject(new Error('Web Speech playback failed'))
+    }
+  })
+}
 
 export const speakCommentaryLines = async (
   lines,
@@ -145,7 +202,16 @@ export const speakCommentaryLines = async (
       throw new Error(payload.error)
     }
 
-    emitSupport(true)
-    await playAudioPayload(payload)
+    try {
+      if (payload?.provider === 'web-speech-fallback' || !payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
+        await speakWithBrowserTts(payload?.text || text, hints)
+      } else {
+        await playAudioPayload(payload)
+      }
+      emitSupport(true)
+    } catch (error) {
+      emitSupport(false)
+      throw error
+    }
   }
 }
