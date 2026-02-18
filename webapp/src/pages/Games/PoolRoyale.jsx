@@ -12634,8 +12634,7 @@ function PoolRoyaleGame({
       const rid = Number.isFinite(entry?.rackIndex)
         ? Math.max(0, Math.floor(entry.rackIndex))
         : idx % Math.max(1, variantConfig?.objectColors?.length || objectBalls.length || 1);
-      const targetBallId = getPoolBallId(variantConfig, rid);
-      const objectBall = balls.find((ball) => ball?.id === targetBallId) || objectBalls[idx];
+      const objectBall = objectBalls[rid] || objectBalls[idx];
       if (!objectBall) return;
       const ballState = stateById.get(objectBall.id);
       const x = normalize(entry?.x, limitX);
@@ -22030,7 +22029,14 @@ const powerRef = useRef(hud.power);
           ? variantConfig.objectColors
           : [];
         const entries = Array.isArray(layout.balls) ? layout.balls : [];
-        const trainingBallCount = Math.max(rackColors.length, entries.length);
+        const maxTrainingTargets = Array.isArray(TRAINING_LEVELS)
+          ? TRAINING_LEVELS.reduce(
+              (maxCount, levelDef) =>
+                Math.max(maxCount, Array.isArray(levelDef?.layout?.balls) ? levelDef.layout.balls.length : 0),
+              0
+            )
+          : 0;
+        const trainingBallCount = Math.max(rackColors.length, entries.length, maxTrainingTargets);
         const spawnedTrainingBalls = [];
         for (let rid = 0; rid < trainingBallCount; rid++) {
           const color = getPoolBallColor(variantConfig, rid);
@@ -22051,10 +22057,7 @@ const powerRef = useRef(hud.power);
           const rid = Number.isFinite(ball?.rackIndex)
             ? Math.max(0, Math.floor(ball.rackIndex))
             : idx % Math.max(1, rackColors.length || 15);
-          const ballId = getPoolBallId(variantConfig, rid);
-          const objectBall =
-            spawnedTrainingBalls.find((entryBall) => entryBall?.id === ballId) ||
-            spawnedTrainingBalls[idx];
+          const objectBall = spawnedTrainingBalls[rid] || spawnedTrainingBalls[idx];
           if (!objectBall) return;
           const px = normalize(ball?.x, limitX);
           const pz = normalize(ball?.z, limitZ);
