@@ -147,126 +147,9 @@ async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} 
   };
 }
 
-async function synthesizeWithPersonaPlexService({ text, voiceId, locale, metadata = {} }) {
-  const endpoint = process.env.PERSONAPLEX_SERVICE_URL || 'http://127.0.0.1:8090';
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/tts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text,
-      voiceId,
-      personaPrompt: metadata?.personaPrompt,
-      format: 'wav',
-      sampleRate: 22050,
-      locale,
-      metadata
-    })
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`PersonaPlex service failed (${response.status}): ${details}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('audio/wav') || contentType.includes('application/octet-stream')) {
-    const audioBuffer = Buffer.from(await response.arrayBuffer());
-    return {
-      provider: 'nvidia-personaplex',
-      audioBase64: audioBuffer.toString('base64'),
-      mimeType: 'audio/wav'
-    };
-  }
-
-  const payload = await response.json();
-  return {
-    provider: 'nvidia-personaplex',
-    audioBase64: payload.audioBase64 || payload.audio_base64 || null,
-    audioUrl: payload.audioUrl || payload.audio_url || null,
-    mimeType: payload.mimeType || payload.mime_type || 'audio/wav',
-    raw: payload
-  };
-}
-
-async function synthesizeVoice(args) {
-  const provider = String(process.env.VOICE_PROVIDER || 'personaplex').toLowerCase();
-  if (provider !== 'personaplex') {
-    throw new Error('Current provider selected; using client-side speech fallback.');
-  }
-
-  const mode = String(process.env.PERSONAPLEX_MODE || 'auto').toLowerCase();
-  const errors = [];
-
-  const tryService = async () => {
-    const hasServiceTarget = Boolean(process.env.PERSONAPLEX_SERVICE_URL) || mode === 'service' || mode === 'auto';
-    if (!hasServiceTarget) return null;
-    try {
-      return await synthesizeWithPersonaPlexService(args);
-    } catch (error) {
-      errors.push(`service: ${error.message}`);
-      return null;
-    }
-  };
-
-  const tryRemoteApi = async () => {
-    const hasRemoteConfig = Boolean(process.env.PERSONAPLEX_API_URL);
-    if (!hasRemoteConfig) return null;
-    try {
-      return await synthesizeWithPersonaplex(args);
-    } catch (error) {
-      errors.push(`remote-api: ${error.message}`);
-      return null;
-    }
-  };
-
-  if (mode === 'service') {
-    const result = await tryService();
-    if (result) return result;
-  } else if (mode === 'remote-api') {
-    const result = await tryRemoteApi();
-    if (result) return result;
-  } else {
-    const serviceFirst = await tryService();
-    if (serviceFirst) return serviceFirst;
-    const remoteSecond = await tryRemoteApi();
-    if (remoteSecond) return remoteSecond;
-  }
-
-  throw new Error(`PersonaPlex synthesis unavailable. ${errors.join(' | ') || 'No service or remote configuration available.'}`);
-}
-
-export { synthesizeVoice };
-
 router.get('/catalog', async (_req, res) => {
   const catalog = await getVoiceCatalog();
   res.json({ ...catalog, defaultVoiceId: DEFAULT_FREE_VOICE_ID, storeItems: buildVoiceStoreItems(catalog) });
-});
-
-router.get('/health', async (_req, res) => {
-  const provider = String(process.env.VOICE_PROVIDER || 'personaplex').toLowerCase();
-  if (provider !== 'personaplex') {
-    return res.json({ ok: true, provider: 'current', modelLoaded: false, fallback: 'web-speech' });
-  }
-
-  const mode = String(process.env.PERSONAPLEX_MODE || 'auto').toLowerCase();
-  const serviceUrl = process.env.PERSONAPLEX_SERVICE_URL || 'http://127.0.0.1:8090';
-
-  const probes = [];
-  if (mode !== 'remote-api') probes.push(['service', `${serviceUrl.replace(/\/$/, '')}/health`]);
-  if (process.env.PERSONAPLEX_API_URL) probes.push(['remote-api', `${process.env.PERSONAPLEX_API_URL.replace(/\/$/, '')}/health`]);
-
-  for (const [source, url] of probes) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) continue;
-      const payload = await response.json().catch(() => ({}));
-      return res.json({ ok: true, provider: 'personaplex', source, ...payload });
-    } catch {
-      // keep probing
-    }
-  }
-
-  return res.status(503).json({ ok: false, provider: 'personaplex', mode, error: 'PersonaPlex health probes failed' });
 });
 
 router.post('/catalog/refresh', authenticate, async (_req, res) => {
@@ -331,7 +214,7 @@ router.post('/help', async (req, res) => {
 
   const answer = buildHelpAnswer(question);
   try {
-    const synthesis = await synthesizeVoice({
+    const synthesis = await synthesizeWithPersonaplex({
       text: answer,
       voiceId: selected.id,
       locale: selected.locale,
@@ -356,7 +239,7 @@ router.post('/help', async (req, res) => {
 });
 
 router.post('/speak', async (req, res) => {
-  const { text, accountId, voiceId, locale, speaker, personaPrompt, context, gameId } = req.body || {};
+  const { text, accountId, voiceId, locale, speaker } = req.body || {};
   const message = String(text || '').trim();
   if (!message) return res.status(400).json({ error: 'text is required' });
 
@@ -375,15 +258,13 @@ router.post('/speak', async (req, res) => {
   }
 
   try {
-    const synthesis = await synthesizeVoice({
+    const synthesis = await synthesizeWithPersonaplex({
       text: message,
       voiceId: selected.id,
       locale: selected.locale,
       metadata: {
-        channel: context === 'help' ? 'help_center' : 'game_commentary',
-        speaker: String(speaker || 'host'),
-        gameId: String(gameId || ''),
-        personaPrompt: String(personaPrompt || '')
+        channel: 'game_commentary',
+        speaker: String(speaker || 'host')
       }
     });
 
