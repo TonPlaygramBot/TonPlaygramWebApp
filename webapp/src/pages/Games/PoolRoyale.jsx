@@ -91,7 +91,9 @@ import {
   loadTrainingProgress,
   persistTrainingProgress,
   resolvePlayableTrainingLevel,
-  getTrainingLayout
+  getTrainingLayout,
+  BASE_ATTEMPTS_PER_LEVEL,
+  TRAINING_LEVELS
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
@@ -11810,8 +11812,6 @@ function PoolRoyaleGame({
   tableSizeKey,
   playType = 'regular',
   mode = 'ai',
-  trainingMode = 'solo',
-  trainingRulesEnabled = true,
   accountId,
   tgId,
   playerName,
@@ -12455,10 +12455,10 @@ function PoolRoyaleGame({
   ]);
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
-  const [trainingModeState, setTrainingModeState] = useState(
-    trainingMode === 'ai' ? 'ai' : 'solo'
-  );
-  const [trainingRulesOn, setTrainingRulesOn] = useState(Boolean(trainingRulesEnabled));
+  const [trainingModeState, setTrainingModeState] = useState('solo');
+  const [trainingRulesOn, setTrainingRulesOn] = useState(true);
+  const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
+  const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
   const trainingModeRef = useRef(trainingModeState);
   const trainingRulesRef = useRef(trainingRulesOn);
   useEffect(() => {
@@ -12470,10 +12470,10 @@ function PoolRoyaleGame({
   const [trainingProgress, setTrainingProgress] = useState({
     completed: [],
     lastLevel: 1,
-    carryShots: 3
+    carryShots: BASE_ATTEMPTS_PER_LEVEL
   });
   const [trainingLevel, setTrainingLevel] = useState(1);
-  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(3);
+  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(BASE_ATTEMPTS_PER_LEVEL);
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingCompletionHandledRef = useRef(false);
@@ -12488,9 +12488,14 @@ function PoolRoyaleGame({
     const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
-    setTrainingShotsRemaining(Math.max(0, Number(stored?.carryShots) || 3));
+    setTrainingShotsRemaining(Math.max(0, Number(stored?.carryShots) || BASE_ATTEMPTS_PER_LEVEL));
     setTrainingLevel(playableLevel);
   }, []);
+  useEffect(() => {
+    if (!isTraining) return;
+    if (trainingModeState !== 'solo') setTrainingModeState('solo');
+    if (!trainingRulesOn) setTrainingRulesOn(true);
+  }, [isTraining, trainingModeState, trainingRulesOn]);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
@@ -13319,7 +13324,7 @@ function PoolRoyaleGame({
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
-  }, [initialFrame]);
+  }, [initialFrame, isTraining]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -13575,19 +13580,20 @@ const powerRef = useRef(hud.power);
   );
 
   useEffect(() => {
+    if (isTraining) return;
     if (breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
     rollBreakDie('ai');
-  }, [breakRollLoadReady, breakRollState, rollBreakDie]);
+  }, [isTraining, breakRollLoadReady, breakRollState, rollBreakDie]);
 
 
   useEffect(() => {
     const meshes = breakDiceMeshesRef.current;
-    const shouldShow = breakRollState !== 'done' && !hud.over;
+    const shouldShow = !isTraining && breakRollState !== 'done' && !hud.over;
     [meshes?.ai, meshes?.user].forEach((die) => {
       if (!die) return;
       die.visible = shouldShow;
     });
-  }, [breakRollState, hud.over]);
+  }, [isTraining, breakRollState, hud.over]);
 
   useEffect(
     () => () => {
@@ -13618,8 +13624,8 @@ const powerRef = useRef(hud.power);
     breakRollBusyRef.current = false;
     breakWinnerSeatRef.current = null;
     setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState('user');
-    setBreakRollMessage('You roll first for the break.');
+    setBreakRollState(isTraining ? 'done' : 'user');
+    setBreakRollMessage(isTraining ? '' : 'You roll first for the break.');
     const anchors = breakDiceAnchorsRef.current;
     const meshes = breakDiceMeshesRef.current;
     if (anchors && meshes?.ai && meshes?.user) {
@@ -13627,8 +13633,9 @@ const powerRef = useRef(hud.power);
       meshes.user.position.copy(anchors.userStart);
       setBreakDieOrientation(meshes.ai, 1);
       setBreakDieOrientation(meshes.user, 1);
-      meshes.ai.visible = true;
-      meshes.user.visible = true;
+      const showBreakDice = !isTraining;
+      meshes.ai.visible = showBreakDice;
+      meshes.user.visible = showBreakDice;
     }
     setHud((prev) => ({
       ...prev,
@@ -13640,7 +13647,7 @@ const powerRef = useRef(hud.power);
       inHand: nextInHand,
       over: false
     }));
-  }, [initialFrame]);
+  }, [initialFrame, isTraining]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
@@ -13676,12 +13683,14 @@ const powerRef = useRef(hud.power);
       completedSet.add(completedLevel);
       const completed = Array.from(completedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
-      const carryShots = Math.max(0, trainingShotsRemaining) + 3;
+      const carryShots = Math.max(0, trainingShotsRemaining) + BASE_ATTEMPTS_PER_LEVEL;
       const updated = { completed, lastLevel, carryShots };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
       setTrainingLevel(nextPlayable);
+      setLastCompletedLevel(completedLevel);
+      setTrainingRoadmapOpen(true);
       return updated;
     });
   }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
@@ -29892,7 +29901,7 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {breakRollState !== 'done' && !hud.over && (
+      {!isTraining && breakRollState !== 'done' && !hud.over && (
         <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
           <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
@@ -30788,7 +30797,7 @@ const powerRef = useRef(hud.power);
               </div>
               <div className="text-right text-[11px] uppercase tracking-[0.2em] text-white/70">
                 <div className="text-emerald-200">{completedTrainingCount} completed</div>
-                <div>Shots bank: {trainingShotsRemaining}</div>
+                <div>Attempts bank: {trainingShotsRemaining}</div>
                 <div>Next L{nextTrainingInfo.level}</div>
               </div>
             </div>
@@ -30840,51 +30849,63 @@ const powerRef = useRef(hud.power);
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
                   <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
-                  <p className="mt-1 text-[11px] text-white/60">Shots bank: {trainingShotsRemaining}</p>
+                  <p className="mt-1 text-[11px] text-white/60">Attempts bank: {trainingShotsRemaining}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
-                <div>
-                  <p className="font-semibold">Opponent</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[{ id: 'solo', label: 'Solo practice' }, { id: 'ai', label: 'Vs AI' }].map(({ id, label }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setTrainingModeState(id)}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                          trainingModeState === id
-                            ? 'border-emerald-300 bg-emerald-400/20 text-emerald-100'
-                            : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
+                  Solo training is always enabled in this mode. Every cleared level adds +3 attempts to your bank.
                 </div>
-                <div>
-                  <p className="font-semibold">Rules</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[{ id: true, label: 'With rules' }, { id: false, label: 'No rules' }].map(({ id, label }) => (
-                      <button
-                        key={String(id)}
-                        type="button"
-                        onClick={() => setTrainingRulesOn(Boolean(id))}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                          trainingRulesOn === Boolean(id)
-                            ? 'border-emerald-300 bg-emerald-400/20 text-emerald-100'
-                            : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs text-white/70">Practice with every ball on the table and switch options anytime.</p>
+                <button
+                  type="button"
+                  onClick={() => setTrainingRoadmapOpen(true)}
+                  className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
+                >
+                  Open 50-level roadmap
+                </button>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {isTraining && trainingRoadmapOpen && (
+        <div className="absolute inset-0 z-[125] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-[min(34rem,92vw)] rounded-2xl border border-emerald-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
+                <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : 'Track your 50-level progression.'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrainingRoadmapOpen(false)}
+                className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
+              >
+                Continue
+              </button>
+            </div>
+            <div className="mt-3 grid max-h-[52vh] grid-cols-5 gap-2 overflow-y-auto pr-1">
+              {TRAINING_LEVELS.map((levelDef) => {
+                const levelNum = Number(levelDef.level);
+                const completed = Array.isArray(trainingProgress?.completed) && trainingProgress.completed.includes(levelNum);
+                const active = levelNum === currentTrainingInfo.level;
+                return (
+                  <div
+                    key={levelNum}
+                    className={`rounded-lg border px-2 py-2 text-center text-[11px] ${completed
+                      ? 'border-emerald-200/70 bg-emerald-400/20 text-emerald-100'
+                      : active
+                        ? 'border-cyan-200/70 bg-cyan-400/20 text-cyan-100'
+                        : 'border-white/20 bg-white/5 text-white/75'
+                    }`}
+                  >
+                    <p className="font-semibold">L{String(levelNum).padStart(2, '0')}</p>
+                    <p className="mt-1 truncate uppercase tracking-[0.08em]">{levelDef.discipline}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -31390,15 +31411,6 @@ export default function PoolRoyale() {
     if (requested === 'local') return 'local';
     return 'ai';
   }, [location.search]);
-  const trainingMode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('mode');
-    return requested === 'solo' ? 'solo' : 'ai';
-  }, [location.search]);
-  const trainingRulesEnabled = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('rules') !== 'off';
-  }, [location.search]);
   const accountId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('accountId') || '';
@@ -31501,8 +31513,6 @@ export default function PoolRoyale() {
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
-      trainingMode={trainingMode}
-      trainingRulesEnabled={trainingRulesEnabled}
       accountId={accountId}
       tgId={tgId}
       playerName={playerName}
