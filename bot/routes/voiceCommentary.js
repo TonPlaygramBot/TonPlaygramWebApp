@@ -80,7 +80,7 @@ function resolveSelectedVoice({ catalogVoices = [], inventory, overrideVoiceId, 
 async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} }) {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
-  const configuredPath = process.env.PERSONAPLEX_SYNTHESIS_PATH || '/v1/speech/synthesize';
+  const synthPath = process.env.PERSONAPLEX_SYNTHESIS_PATH || '/v1/speech/synthesize';
   if (!endpoint) {
     throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL.');
   }
@@ -117,73 +117,34 @@ async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} 
     }
   ];
 
-  const pathCandidates = [
-    configuredPath,
-    '/v1/voice/commentary',
-    '/v1/voice/synthesize',
-    '/v1/audio/speech',
-    '/v1/speech/synthesize'
-  ].filter((path, index, arr) => path && arr.indexOf(path) === index);
-
   let response = null;
   let details = '';
-  for (const path of pathCandidates) {
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    for (const body of candidates) {
-      response = await fetch(`${endpoint.replace(/\/$/, '')}${normalizedPath}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body)
-      });
+  for (const body of candidates) {
+    response = await fetch(`${endpoint.replace(/\/$/, '')}${synthPath.startsWith('/') ? synthPath : `/${synthPath}`}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
 
-      if (response.ok) break;
-      details = await response.text();
-      if (![400, 404, 405, 415, 422].includes(response.status)) {
-        break;
-      }
+    if (response.ok) break;
+    details = await response.text();
+    if (![400, 404, 422].includes(response.status)) {
+      break;
     }
-
-    if (response?.ok) break;
   }
 
   if (!response?.ok) {
     throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
   }
 
-  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-  if (contentType.startsWith('audio/')) {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return {
-      provider: 'nvidia-personaplex',
-      audioBase64: buffer.toString('base64'),
-      audioUrl: null,
-      mimeType: contentType,
-      raw: null
-    };
-  }
-
   const payload = await response.json();
-  const nestedAudio = payload.audio || payload.synthesis || payload.data || {};
-  const normalized = {
+  return {
     provider: 'nvidia-personaplex',
-    audioBase64:
-      payload.audioBase64 ||
-      payload.audio_base64 ||
-      nestedAudio.audioBase64 ||
-      nestedAudio.audio_base64 ||
-      nestedAudio.base64 ||
-      nestedAudio.content ||
-      null,
-    audioUrl: payload.audioUrl || payload.audio_url || nestedAudio.audioUrl || nestedAudio.audio_url || nestedAudio.url || null,
-    mimeType: payload.mimeType || payload.mime_type || nestedAudio.mimeType || nestedAudio.mime_type || contentType || 'audio/mpeg',
+    audioBase64: payload.audioBase64 || payload.audio_base64 || null,
+    audioUrl: payload.audioUrl || payload.audio_url || null,
+    mimeType: payload.mimeType || payload.mime_type || 'audio/mpeg',
     raw: payload
   };
-
-  if (!normalized.audioBase64 && !normalized.audioUrl) {
-    throw new Error('PersonaPlex synthesis response did not include audio content');
-  }
-
-  return normalized;
 }
 
 router.get('/catalog', async (_req, res) => {
