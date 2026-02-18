@@ -21,7 +21,7 @@ export default function TPCHub() {
   } catch {
     telegramId = null;
   }
-  const [accountId, setAccountId] = useState(localStorage.getItem('accountId') || '');
+  const [accountId, setAccountId] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,7 +44,7 @@ export default function TPCHub() {
       setLoading(true);
       setError('');
       try {
-        const account = await createAccount(telegramId, googleProfile, accountId || undefined, tonAddress || undefined);
+        const account = await createAccount(telegramId, googleProfile, undefined, tonAddress || undefined);
         if (account?.error || !account?.accountId) {
           throw new Error(account?.error || 'Unable to load TPC account hub');
         }

@@ -620,14 +620,29 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
   const body = {};
   const normalizedTelegramId = normalizeTelegramId(telegramId);
   if (normalizedTelegramId != null) body.telegramId = normalizedTelegramId;
-  const existingAccountId =
-    accountId ||
-    (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);
-  if (existingAccountId) body.accountId = existingAccountId;
   const profile =
     typeof googleProfile === 'string'
       ? { id: googleProfile }
       : googleProfile;
+  const ownerKey = normalizedTelegramId != null
+    ? `telegram:${normalizedTelegramId}`
+    : profile?.id
+      ? `google:${profile.id}`
+      : walletAddress
+        ? `ton:${String(walletAddress).toLowerCase()}`
+        : 'guest';
+  const existingAccountId = (() => {
+    if (accountId) return accountId;
+    if (typeof window === 'undefined') return null;
+    const storedAccountId = localStorage.getItem('accountId');
+    const storedOwnerKey = localStorage.getItem('accountOwnerKey');
+    if (!storedAccountId) return null;
+    if (!storedOwnerKey) {
+      return ownerKey === 'guest' ? storedAccountId : null;
+    }
+    return storedOwnerKey === ownerKey ? storedAccountId : null;
+  })();
+  if (existingAccountId) body.accountId = existingAccountId;
   if (profile?.id) {
     body.googleId = profile.id;
     if (profile.email) body.googleEmail = profile.email;
@@ -638,7 +653,17 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
   if (walletAddress) {
     body.walletAddress = walletAddress;
   }
-  return post('/api/account/create', body);
+  return post('/api/account/create', body).then((response) => {
+    if (
+      typeof window !== 'undefined' &&
+      response?.accountId &&
+      typeof response.accountId === 'string'
+    ) {
+      localStorage.setItem('accountId', response.accountId);
+      localStorage.setItem('accountOwnerKey', ownerKey);
+    }
+    return response;
+  });
 }
 
 export function getAccountBalance(accountId) {

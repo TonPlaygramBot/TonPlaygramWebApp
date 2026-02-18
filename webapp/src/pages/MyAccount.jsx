@@ -134,6 +134,7 @@ export default function MyAccount() {
     clearGoogleProfile();
     clearTelegramCache();
     localStorage.removeItem('accountId');
+    localStorage.removeItem('accountOwnerKey');
     localStorage.removeItem('walletAddress');
     sessionStorage.clear();
     setTelegramId(null);
