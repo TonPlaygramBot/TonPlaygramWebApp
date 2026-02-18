@@ -12638,6 +12638,28 @@ function PoolRoyaleGame({
     initialLayoutRef.current = snapshot;
   }, [isTraining]);
 
+  const handleTrainingRoadmapContinue = useCallback(() => {
+    const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
+    const nextLevel = resolvePlayableTrainingLevel(
+      completedLevel + 1,
+      trainingProgressRef.current
+    );
+    setTrainingLevel(nextLevel);
+    setTrainingRoadmapOpen(false);
+    setTrainingMenuOpen(false);
+    setRuleToast(null);
+    setTurnCycle((value) => value + 1);
+    setFrameState((prev) => ({
+      ...prev,
+      frameOver: false,
+      winner: undefined,
+      foul: undefined,
+      activePlayer: 'A'
+    }));
+    setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
+    applyTrainingLayoutForLevel(nextLevel);
+  }, [applyTrainingLayoutForLevel, lastCompletedLevel, trainingLevel]);
+
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
   }, [applyTrainingLayoutForLevel, trainingLevel]);
@@ -31028,21 +31050,7 @@ const powerRef = useRef(hud.power);
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setTrainingRoadmapOpen(false);
-                  setTrainingMenuOpen(false);
-                  setRuleToast(null);
-                  setTurnCycle((value) => value + 1);
-                  setFrameState((prev) => ({
-                    ...prev,
-                    frameOver: false,
-                    winner: undefined,
-                    foul: undefined,
-                    activePlayer: 'A'
-                  }));
-                  setHud((prev) => ({ ...prev, over: false, turn: 0 }));
-                  applyTrainingLayoutForLevel(trainingLevelRef.current || trainingLevel);
-                }}
+                onClick={handleTrainingRoadmapContinue}
                 className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
               >
                 Continue
