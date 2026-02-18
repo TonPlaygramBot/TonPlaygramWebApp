@@ -128,6 +128,45 @@ const DIFFICULTY_STEPS = [
   { label: DIFFICULTY_LABELS[4], spread: 0.06, drift: 0.05, shotBonus: 4, rewardBonus: 48 }
 ];
 
+const TRAINING_BALL_RING = [
+  { x: 0.36, z: -0.44 },
+  { x: 0.52, z: -0.24 },
+  { x: 0.6, z: 0.04 },
+  { x: 0.56, z: 0.3 },
+  { x: 0.4, z: 0.52 },
+  { x: 0.14, z: 0.62 },
+  { x: -0.14, z: 0.6 },
+  { x: -0.38, z: 0.46 },
+  { x: -0.54, z: 0.24 },
+  { x: -0.6, z: -0.04 },
+  { x: -0.52, z: -0.32 },
+  { x: -0.34, z: -0.54 },
+  { x: -0.08, z: -0.62 },
+  { x: 0.2, z: -0.58 },
+  { x: 0.46, z: -0.5 }
+];
+
+function buildBallsForLevel(baseBalls, level, tier) {
+  if (level <= 2 || level > 25) return baseBalls;
+  const targetCount = level;
+  const nextBalls = baseBalls.slice(0, targetCount);
+
+  for (let idx = nextBalls.length; idx < targetCount; idx += 1) {
+    const anchor = TRAINING_BALL_RING[idx % TRAINING_BALL_RING.length];
+    const laneShift = Math.floor(idx / TRAINING_BALL_RING.length) * 0.03;
+    const lateral = (idx % 2 === 0 ? 1 : -1) * tier.spread;
+    const depth = (idx % 3 === 0 ? -1 : 1) * tier.drift;
+
+    nextBalls.push({
+      rackIndex: (idx % 15) + 1,
+      x: clamp(anchor.x + laneShift + lateral),
+      z: clamp(anchor.z - laneShift + depth)
+    });
+  }
+
+  return nextBalls;
+}
+
 function resolveShotLimit(blueprint, tier) {
   const base = Number.isFinite(blueprint?.shotLimit) ? blueprint.shotLimit : 3;
   const scaled = base + (tier?.shotBonus ?? 0);
@@ -140,7 +179,7 @@ export const TRAINING_SCENARIOS = (() => {
 
   for (const tier of DIFFICULTY_STEPS) {
     for (const blueprint of TRAINING_BLUEPRINTS) {
-      const balls = blueprint.balls.map((ball, idx) => {
+      const adjustedBalls = blueprint.balls.map((ball, idx) => {
         const lateral = (idx % 2 === 0 ? 1 : -1) * tier.spread;
         const depth = (idx % 3 === 0 ? -1 : 1) * tier.drift;
         return {
@@ -149,6 +188,8 @@ export const TRAINING_SCENARIOS = (() => {
           z: clamp(ball.z + depth)
         };
       });
+
+      const balls = buildBallsForLevel(adjustedBalls, level, tier);
 
       const cue = {
         x: clamp((blueprint.cue?.x ?? -0.4) - tier.spread * 0.5),
