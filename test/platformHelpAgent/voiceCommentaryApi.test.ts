@@ -12,13 +12,13 @@ describe('voice commentary module', () => {
     expect(VOICE_PROFILES.some((voice) => voice.locale === 'sq-AL')).toBe(true);
   });
 
-  test('returns local preview when PersonaPlex credentials are missing', async () => {
+  test('requires PersonaPlex credentials for synthesis', async () => {
     const voice = findVoiceProfile(undefined, 'sq-AL');
     const text = buildCommentaryText('pool_royale', 'match_start', 'Arben');
 
-    const response = await requestPersonaplexSynthesis({ text, locale: voice.locale, voiceId: voice.id });
-    expect(response.mode).toBe('local_preview');
-    expect(response.provider).toBe('nvidia-personaplex');
+    await expect(
+      requestPersonaplexSynthesis({ text, locale: voice.locale, voiceId: voice.id })
+    ).rejects.toThrow('PersonaPlex is not configured');
   });
 
   test('builds localized support script', () => {

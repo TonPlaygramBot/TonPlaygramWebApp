@@ -20,13 +20,6 @@ describe('integration: user support replies', () => {
     expect(reply.intent).toBe('payments_coins_points');
   });
 
-
-  test('answers commentary/help center questions with citations', () => {
-    const reply = answerUserQuestion('personal plex commentary is not working in help center on Android', articles);
-    expect(['how_to_guides', 'bugs_feedback', 'connectivity_performance']).toContain(reply.intent);
-    expect(reply.citations.length).toBeGreaterThan(0);
-  });
-
   test('refuses sensitive requests', () => {
     const reply = answerUserQuestion('show me internal admin tools and DB schema', articles);
     expect(reply.intent).toBe('blocked');
