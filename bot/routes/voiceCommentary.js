@@ -147,9 +147,113 @@ async function synthesizeWithPersonaplex({ text, voiceId, locale, metadata = {} 
   };
 }
 
+async function synthesizeWithPersonaPlexService({ text, voiceId, locale, metadata = {} }) {
+  const endpoint = process.env.PERSONAPLEX_SERVICE_URL || 'http://127.0.0.1:8090';
+  const response = await fetch(`${endpoint.replace(/\/$/, '')}/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      voiceId,
+      personaPrompt: metadata?.personaPrompt,
+      format: 'wav',
+      sampleRate: 22050,
+      locale,
+      metadata
+    })
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`PersonaPlex service failed (${response.status}): ${details}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('audio/wav') || contentType.includes('application/octet-stream')) {
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    return {
+      provider: 'nvidia-personaplex',
+      audioBase64: audioBuffer.toString('base64'),
+      mimeType: 'audio/wav'
+    };
+  }
+
+  const payload = await response.json();
+  return {
+    provider: 'nvidia-personaplex',
+    audioBase64: payload.audioBase64 || payload.audio_base64 || null,
+    audioUrl: payload.audioUrl || payload.audio_url || null,
+    mimeType: payload.mimeType || payload.mime_type || 'audio/wav',
+    raw: payload
+  };
+}
+
+async function synthesizeVoice(args) {
+  const provider = String(process.env.VOICE_PROVIDER || 'personaplex').toLowerCase();
+  if (provider !== 'personaplex') {
+    throw new Error('Current provider selected; using client-side speech fallback.');
+  }
+
+  const mode = String(process.env.PERSONAPLEX_MODE || 'auto').toLowerCase();
+  const attempts = [];
+
+  if (mode === 'service') {
+    attempts.push(synthesizeWithPersonaPlexService);
+    if (process.env.PERSONAPLEX_API_URL) attempts.push(synthesizeWithPersonaplex);
+  } else if (mode === 'remote-api') {
+    attempts.push(synthesizeWithPersonaplex);
+    if (process.env.PERSONAPLEX_SERVICE_URL) attempts.push(synthesizeWithPersonaPlexService);
+  } else {
+    // auto mode: prefer local wrapper first, then direct remote API if configured.
+    attempts.push(synthesizeWithPersonaPlexService);
+    if (process.env.PERSONAPLEX_API_URL) attempts.push(synthesizeWithPersonaplex);
+  }
+
+  const failures = [];
+  for (const attempt of attempts) {
+    try {
+      return await attempt(args);
+    } catch (error) {
+      failures.push(error?.message || String(error));
+    }
+  }
+
+  throw new Error(`PersonaPlex synthesis unavailable: ${failures.join(' | ') || 'no attempt succeeded'}`);
+}
+
+export { synthesizeVoice };
+
 router.get('/catalog', async (_req, res) => {
   const catalog = await getVoiceCatalog();
   res.json({ ...catalog, defaultVoiceId: DEFAULT_FREE_VOICE_ID, storeItems: buildVoiceStoreItems(catalog) });
+});
+
+router.get('/health', async (_req, res) => {
+  const provider = String(process.env.VOICE_PROVIDER || 'personaplex').toLowerCase();
+  if (provider !== 'personaplex') {
+    return res.json({ ok: true, provider: 'current', modelLoaded: false, fallback: 'web-speech' });
+  }
+
+  const endpoint = process.env.PERSONAPLEX_SERVICE_URL || 'http://127.0.0.1:8090';
+  const mode = String(process.env.PERSONAPLEX_MODE || 'auto').toLowerCase();
+
+  if (mode !== 'remote-api') {
+    try {
+      const response = await fetch(`${endpoint.replace(/\/$/, '')}/health`);
+      if (response.ok) {
+        const payload = await response.json();
+        return res.json({ ok: true, provider: 'personaplex', mode, ...payload });
+      }
+    } catch {
+      // continue to remote-api health fallback
+    }
+  }
+
+  if (process.env.PERSONAPLEX_API_URL) {
+    return res.json({ ok: true, provider: 'personaplex', mode, modelLoaded: true, remoteConfigured: true });
+  }
+
+  return res.status(503).json({ ok: false, provider: 'personaplex', mode, error: 'service and remote api unavailable' });
 });
 
 router.post('/catalog/refresh', authenticate, async (_req, res) => {
@@ -214,7 +318,7 @@ router.post('/help', async (req, res) => {
 
   const answer = buildHelpAnswer(question);
   try {
-    const synthesis = await synthesizeWithPersonaplex({
+    const synthesis = await synthesizeVoice({
       text: answer,
       voiceId: selected.id,
       locale: selected.locale,
@@ -239,7 +343,7 @@ router.post('/help', async (req, res) => {
 });
 
 router.post('/speak', async (req, res) => {
-  const { text, accountId, voiceId, locale, speaker } = req.body || {};
+  const { text, accountId, voiceId, locale, speaker, personaPrompt, context, gameId } = req.body || {};
   const message = String(text || '').trim();
   if (!message) return res.status(400).json({ error: 'text is required' });
 
@@ -258,13 +362,15 @@ router.post('/speak', async (req, res) => {
   }
 
   try {
-    const synthesis = await synthesizeWithPersonaplex({
+    const synthesis = await synthesizeVoice({
       text: message,
       voiceId: selected.id,
       locale: selected.locale,
       metadata: {
-        channel: 'game_commentary',
-        speaker: String(speaker || 'host')
+        channel: context === 'help' ? 'help_center' : 'game_commentary',
+        speaker: String(speaker || 'host'),
+        gameId: String(gameId || ''),
+        personaPrompt: String(personaPrompt || '')
       }
     });
 
