@@ -75,6 +75,23 @@ router.post('/purchase', authenticate, async (req, res) => {
   }
 
   if (isItemBundle) {
+    const requestId =
+      typeof bundle.requestId === 'string' && bundle.requestId.trim()
+        ? bundle.requestId.trim()
+        : '';
+    if (requestId) {
+      const existing = (user.transactions || []).find(
+        (tx) => tx.type === 'storefront' && tx.requestId === requestId
+      );
+      if (existing) {
+        return res.json({
+          alreadyProcessed: true,
+          balance: Number.isFinite(user.balance) ? user.balance : calculateBalance(user),
+          date: existing.date
+        });
+      }
+    }
+
     const rawItems = bundle.items.filter(Boolean);
     if (!rawItems.length) {
       return res.status(400).json({ error: 'items required' });
@@ -112,6 +129,7 @@ router.post('/purchase', authenticate, async (req, res) => {
       status: 'delivered',
       date: txDate,
       detail: 'Storefront purchase',
+      requestId,
       items
     });
     if (totalPrice > 0) {

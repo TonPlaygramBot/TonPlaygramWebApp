@@ -56,20 +56,38 @@ function normalizeTelegramId(rawId) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
+function createAbortSignal(timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || typeof AbortController === 'undefined') {
+    return { signal: undefined, cleanup: () => {} };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    cleanup: () => clearTimeout(timer)
+  };
+}
+
+async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500, timeoutMs) {
+  const { signal, cleanup } = createAbortSignal(timeoutMs);
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, {
+      ...options,
+      signal: options.signal || signal
+    });
     if (res.status === 502 && retries > 0) {
       await wait(backoff);
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2, timeoutMs);
     }
     return res;
   } catch (err) {
     if (retries > 0) {
       await wait(backoff);
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2, timeoutMs);
     }
     throw err;
+  } finally {
+    cleanup();
   }
 }
 
@@ -88,9 +106,10 @@ function buildHeaders(base = {}) {
   return headers;
 }
 
-export async function post(path, body, token) {
+export async function post(path, body, token, options = {}) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : undefined;
 
   let res;
   try {
@@ -98,7 +117,7 @@ export async function post(path, body, token) {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
-    });
+    }, 3, 500, timeoutMs);
   } catch (err) {
     return { error: 'Network request failed' };
   }
@@ -705,7 +724,7 @@ export function depositAccount(accountId, amount, extra = {}) {
 }
 
 export function buyBundle(accountId, bundle) {
-  return post('/api/store/purchase', { accountId, bundle });
+  return post('/api/store/purchase', { accountId, bundle }, undefined, { timeoutMs: 45000 });
 }
 
 export function claimPurchase(accountId, txHash) {
