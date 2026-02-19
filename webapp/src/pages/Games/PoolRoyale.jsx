@@ -23590,6 +23590,7 @@ const powerRef = useRef(hud.power);
 
       // Shot lifecycle
       let potted = [];
+      const pottedIds = new Set();
       let firstHit = null;
 
       const alignStandingCameraToAim = (cueBall, aimDir) => {
@@ -23863,6 +23864,7 @@ const powerRef = useRef(hud.power);
         queuedPocketView = null;
         aimFocusRef.current = null;
         potted = [];
+        pottedIds.clear();
         firstHit = null;
         clearInterval(timerRef.current);
         const aimDir = aimDirRef.current.clone();
@@ -27231,6 +27233,7 @@ const powerRef = useRef(hud.power);
             });
           }
           potted = [];
+          pottedIds.clear();
           firstHit = null;
       lastShotPower = 0;
     }
@@ -28964,6 +28967,9 @@ const powerRef = useRef(hud.power);
                   }
                 }
               }
+              if (pottedIds.has(b.id)) {
+                continue;
+              }
               if (shotRecording) {
                 recordReplayFrame(performance.now());
               }
@@ -28999,6 +29005,7 @@ const powerRef = useRef(hud.power);
                 const colorId =
                   mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
+                pottedIds.add(b.id);
                 if (
                   activeShotView?.mode === 'pocket' &&
                   activeShotView.ballId === b.id
@@ -29148,6 +29155,7 @@ const powerRef = useRef(hud.power);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
+              pottedIds.add(b.id);
               if (
                 activeShotView?.mode === 'pocket' &&
                 activeShotView.ballId === b.id
