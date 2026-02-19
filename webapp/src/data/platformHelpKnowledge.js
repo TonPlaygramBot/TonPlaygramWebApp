@@ -247,6 +247,101 @@ export const PLATFORM_HELP_KNOWLEDGE = [
     ]
   },
   {
+    id: 'voice-help-conversation',
+    title: 'Voice help and interruption behavior',
+    slug: 'voice-help-live-conversation',
+    sectionId: 'barge-in',
+    url: '/help/voice-help',
+    tags: ['voice help', 'microphone', 'interrupt', 'barge in', 'conversation', 'ai help'],
+    answer:
+      'TonPlaygram voice help supports natural back-and-forth: you can start speaking while guidance is playing and ask follow-up questions immediately.',
+    steps: [
+      'Open Help and tap Open Mic.',
+      'Ask your question in a full sentence, then continue with follow-up questions naturally.',
+      'If the reply is too long, interrupt and ask for a shorter or step-by-step answer.'
+    ],
+    notes: [
+      'Use a quiet environment for more accurate speech recognition.',
+      'If your browser blocks mic access, allow microphone permissions and retry.'
+    ]
+  },
+  {
+    id: 'wallet-security-basics',
+    title: 'Wallet security basics',
+    slug: 'wallet-security-basics',
+    sectionId: 'safe-actions',
+    url: '/help/wallet-security',
+    tags: ['wallet security', 'private key', 'seed phrase', 'safe wallet', 'scam'],
+    answer:
+      'Keep wallet operations safe by verifying recipients, checking prompts carefully, and never sharing private recovery credentials.',
+    steps: [
+      'Double-check destination wallet addresses before sending.',
+      'Review transaction amount and network details before confirming.',
+      'Reject any request for your private key, seed phrase, or one-time code.'
+    ],
+    notes: [
+      'TonPlaygram support will never ask for private keys.',
+      'When unsure, pause and contact official support channels first.'
+    ]
+  },
+  {
+    id: 'matchmaking-quality',
+    title: 'Improve matchmaking quality',
+    slug: 'matchmaking-quality-help',
+    sectionId: 'connection-fairness',
+    url: '/help/matchmaking-quality',
+    tags: ['ping', 'matchmaking quality', 'fair match', 'queue quality', 'region'],
+    answer:
+      'Better network stability and consistent queue behavior improve match quality and reduce unfair disconnect scenarios.',
+    steps: [
+      'Use the most stable connection available before joining queue.',
+      'Avoid repeatedly entering and leaving queue in short intervals.',
+      'Retry in peak hours if your selected mode has low player activity.'
+    ],
+    notes: [
+      'Large ping spikes can reduce game quality even when matchmaking succeeds.',
+      'Different modes can have different average queue times.'
+    ]
+  },
+  {
+    id: 'store-missing-item',
+    title: 'Purchased item not visible',
+    slug: 'store-missing-item',
+    sectionId: 'inventory-sync',
+    url: '/help/store-missing-item',
+    tags: ['missing item', 'inventory', 'purchase issue', 'store problem'],
+    answer:
+      'If a purchased item is missing, verify that the item belongs to the game you are checking and refresh inventory state.',
+    steps: [
+      'Open the game inventory that matches the purchased item category.',
+      'Refresh the page/app and check inventory again.',
+      'If still missing, collect transaction details and contact support.'
+    ],
+    notes: [
+      'Cross-game items may not appear in other game inventories.',
+      'Delayed confirmations can temporarily delay visual sync.'
+    ]
+  },
+  {
+    id: 'game-performance-mobile',
+    title: 'Mobile game performance tuning',
+    slug: 'mobile-performance-help',
+    sectionId: 'fps-stability',
+    url: '/help/mobile-performance',
+    tags: ['fps', 'stutter', 'mobile performance', 'lag spikes', 'heating'],
+    answer:
+      'For smoother gameplay, reduce background load, stabilize network quality, and keep your app/device updated.',
+    steps: [
+      'Close background-heavy apps and restart TonPlaygram.',
+      'Disable battery saver for gaming sessions when possible.',
+      'Update the app and OS, then retry the same mode.'
+    ],
+    notes: [
+      'Thermal throttling can reduce FPS during long sessions.',
+      'Different games may have different device requirements.'
+    ]
+  },
+  {
     id: 'support-fallback',
     title: 'Support escalation',
     slug: 'support-escalation',
@@ -265,4 +360,4 @@ export const PLATFORM_HELP_KNOWLEDGE = [
       'Support can only process requests with enough clear details.'
     ]
   }
-];
+]

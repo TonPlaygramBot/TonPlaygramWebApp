@@ -26,17 +26,17 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import TonConnectButton from '../components/TonConnectButton.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import PlatformHelpAgentCard from '../components/PlatformHelpAgentCard.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { loadGoogleProfile } from '../utils/google.js';
-import { runVoiceHelpSession } from '../utils/voiceHelpAssistant.js';
 
 export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const [helpBusy, setHelpBusy] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -116,20 +116,6 @@ export default function Home() {
     return () =>
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
-
-
-  const handleVoiceHelp = async () => {
-    if (helpBusy) return;
-    setHelpBusy(true);
-    try {
-      const accountId = window.localStorage.getItem('accountId') || 'guest';
-      await runVoiceHelpSession({ accountId, locale: 'en-US' });
-    } catch (error) {
-      console.warn('voice-help-session-failed', error);
-    } finally {
-      setHelpBusy(false);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -378,13 +364,19 @@ export default function Home() {
 
       <button
         type="button"
-        onClick={handleVoiceHelp}
-        className={`fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-white shadow-lg ${helpBusy ? 'opacity-70' : ''}`}
+        onClick={() => setHelpOpen((prev) => !prev)}
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-white shadow-lg"
         aria-label="Open help guide"
       >
         <FaQuestionCircle className="h-4 w-4 text-yellow-300" />
-        <span>{helpBusy ? 'Listening…' : 'Help'}</span>
+        <span>{helpOpen ? 'Close Help' : 'Help'}</span>
       </button>
+
+      {helpOpen ? (
+        <div className="fixed inset-x-3 bottom-36 z-40 max-h-[70vh] overflow-auto rounded-2xl border border-border bg-background/95 p-2 shadow-2xl">
+          <PlatformHelpAgentCard onClose={() => setHelpOpen(false)} />
+        </div>
+      ) : null}
     </div>
   );
 }
