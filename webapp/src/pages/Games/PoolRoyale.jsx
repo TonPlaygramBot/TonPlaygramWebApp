@@ -26961,22 +26961,24 @@ const powerRef = useRef(hud.power);
             meta: nextTrainingMeta ?? safeState?.meta
           };
         }
+        let remainingTrainingShots = Math.max(0, Number(trainingShotsRemaining) || 0);
+        let trainingOutOfAttempts = false;
         if (isTraining && !safeState?.frameOver) {
           const penalty = cueBallPotted
             ? TRAINING_SCRATCH_PENALTY_ATTEMPTS
             : (pottedObjectCount === 0 ? 1 : 0);
           if (penalty > 0) {
-            setTrainingShotsRemaining((prev) => {
-              const nextShots = Math.max(0, (Number(prev) || 0) - penalty);
-              setTrainingProgress((progressPrev) => {
-                const updated = { ...(progressPrev || {}), carryShots: nextShots };
-                trainingProgressRef.current = updated;
-                persistTrainingProgress(updated);
-                return updated;
-              });
-              return nextShots;
+            const nextShots = Math.max(0, remainingTrainingShots - penalty);
+            remainingTrainingShots = nextShots;
+            setTrainingShotsRemaining(nextShots);
+            setTrainingProgress((progressPrev) => {
+              const updated = { ...(progressPrev || {}), carryShots: nextShots };
+              trainingProgressRef.current = updated;
+              persistTrainingProgress(updated);
+              return updated;
             });
           }
+          trainingOutOfAttempts = remainingTrainingShots <= 0;
         }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
@@ -27273,11 +27275,9 @@ const powerRef = useRef(hud.power);
               const spawnPoint = resolveInHandPlacement(preferredSpawn, {
                 clearanceMultiplier: isTraining ? 2.05 : 2.2,
                 maxRadius: BALL_R * (isTraining ? 6 : 7)
-              });
-              if (spawnPoint) {
-                cue.pos.copy(spawnPoint);
-                cue.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
-              }
+              }) || defaultInHandPosition() || new THREE.Vector2(0, baulkZ);
+              cue.pos.copy(spawnPoint);
+              cue.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
               cue.vel.set(0, 0);
               cue.spin?.set(0, 0);
               cue.pendingSpin?.set(0, 0);
@@ -27305,6 +27305,10 @@ const powerRef = useRef(hud.power);
                   cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
+            if (isTraining && trainingOutOfAttempts) {
+              nextInHand = false;
+              setTrainingAttemptsStoreOpen(true);
+            }
           }
         } catch (err) {
           console.error('Pool Royale post-resolution update failed:', err);
@@ -27312,7 +27316,11 @@ const powerRef = useRef(hud.power);
           frameRef.current = safeState;
           setFrameState(safeState);
           setTurnCycle((value) => value + 1);
-          setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          setHud((prev) => ({
+            ...prev,
+            inHand: nextInHand,
+            over: isTraining && trainingOutOfAttempts ? true : prev?.over
+          }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
             socket.emit('poolShot', {
@@ -31573,12 +31581,14 @@ const powerRef = useRef(hud.power);
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200">Training attempts</p>
                 <p className="text-sm text-white/80">No attempts left. Buy more hearts to continue this task.</p>
+                <p className="mt-1 text-xs text-rose-100/80">Attempts left: {Math.max(0, Number(trainingShotsRemaining) || 0)}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setTrainingAttemptsStoreOpen(false)}
                 className="rounded-full p-1 text-white/70 transition hover:text-white"
                 aria-label="Close attempts store"
+                disabled={(Number(trainingShotsRemaining) || 0) <= 0}
               >
                 ×
               </button>
@@ -31612,6 +31622,13 @@ const powerRef = useRef(hud.power);
                 );
               })}
             </div>
+            <button
+              type="button"
+              onClick={goToLobby}
+              className="mt-4 w-full rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
+            >
+              Return lobby
+            </button>
           </div>
         </div>
       )}
