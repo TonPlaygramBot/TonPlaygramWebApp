@@ -30,6 +30,16 @@ function daysFromNow(days) {
   return d;
 }
 
+function safeNumericBalance(value) {
+  return Number.isFinite(value) ? value : 0;
+}
+
+function resolveUserBalance(user) {
+  const derived = safeNumericBalance(calculateBalance(user));
+  const persisted = safeNumericBalance(Number(user?.balance));
+  return Math.max(derived, persisted);
+}
+
 export const BUNDLES = {
   newbie: { tpc: 20000, ton: 0.2, label: 'Newbie Pack' },
   rookie: { tpc: 40000, ton: 0.35, label: 'Rookie' },
@@ -90,7 +100,7 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
     ensureTransactionArray(user);
-    const balance = calculateBalance(user);
+    const balance = resolveUserBalance(user);
     if (balance < totalPrice) {
       return res.status(400).json({ error: 'insufficient balance' });
     }
@@ -110,9 +120,7 @@ router.post('/purchase', authenticate, async (req, res) => {
       detail: 'Storefront purchase',
       items
     });
-    if (totalPrice > 0) {
-      user.balance = balance - totalPrice;
-    }
+    user.balance = balance - totalPrice;
     await user.save();
     return res.json({ balance: user.balance, date: txDate });
   }
@@ -154,7 +162,8 @@ router.post('/purchase', authenticate, async (req, res) => {
 
   ensureTransactionArray(user);
   const txDate = new Date();
-  user.balance += pack.tpc;
+  const currentBalance = resolveUserBalance(user);
+  user.balance = currentBalance + pack.tpc;
   if (pack.boost) {
     const expiry = pack.duration ? daysFromNow(pack.duration) : BOOST_EXPIRY;
     if (!user.storeMiningExpiresAt || user.storeMiningExpiresAt < expiry) {
