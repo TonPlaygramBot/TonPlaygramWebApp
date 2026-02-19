@@ -21,7 +21,7 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import broadcastRoutes from './routes/broadcast.js';
-import storeRoutes, { BUNDLES } from './routes/store.js';
+import storeRoutes from './routes/store.js';
 import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
@@ -454,10 +454,6 @@ const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
-const BUNDLE_TON_MAP = Object.fromEntries(
-  Object.values(BUNDLES).map((b) => [b.label, b.ton])
-);
-
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 
@@ -876,9 +872,6 @@ app.get('/api/stats', async (req, res) => {
         if (tx.type === 'gift') giftSends++;
         if (tx.type === 'store') {
           bundlesSold++;
-          if (tx.detail && BUNDLE_TON_MAP[tx.detail]) {
-            tonRaised += BUNDLE_TON_MAP[tx.detail];
-          }
         }
         if (tx.type === 'storefront') {
           nftStoreItems += Array.isArray(tx.items) ? tx.items.length : 0;

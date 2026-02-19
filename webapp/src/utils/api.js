@@ -708,8 +708,8 @@ export function buyBundle(accountId, bundle) {
   return post('/api/store/purchase', { accountId, bundle });
 }
 
-export function claimPurchase(accountId, txHash) {
-  return post('/api/store/purchase', { accountId, txHash });
+export function claimPurchase() {
+  return Promise.resolve({ error: 'TON purchase claims are disabled. Use TPC balance purchases.' });
 }
 
 export function sendBroadcast(data) {
