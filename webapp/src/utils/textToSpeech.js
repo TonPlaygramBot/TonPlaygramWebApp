@@ -26,23 +26,6 @@ const getCurrentAccountId = () => {
   return window.localStorage.getItem('accountId') || 'guest'
 }
 
-const inferGameKeyFromRoute = () => {
-  if (typeof window === 'undefined') return 'snake_and_ladder'
-  const path = window.location.pathname
-  if (path.includes('/games/poolroyale')) return 'pool_royale'
-  if (path.includes('/games/snookerroyale')) return 'snooker_royal'
-  if (path.includes('/games/texasholdem')) return 'texas_holdem'
-  if (path.includes('/games/domino-royal')) return 'domino_royal'
-  if (path.includes('/games/chessbattleroyal')) return 'chess_battle_royal'
-  if (path.includes('/games/airhockey')) return 'air_hockey'
-  if (path.includes('/games/goalrush')) return 'goal_rush'
-  if (path.includes('/games/ludobattleroyal')) return 'ludo_battle_royal'
-  if (path.includes('/games/tabletennisroyal')) return 'table_tennis_royal'
-  if (path.includes('/games/murlanroyale')) return 'murlan_royale'
-  if (path.includes('/games/snake')) return 'snake_and_ladder'
-  return 'snake_and_ladder'
-}
-
 const unlockAudioPlayback = async () => {
   if (audioUnlocked || typeof window === 'undefined') return
   if (!unlockPromise) {
@@ -68,7 +51,7 @@ const unlockAudioPlayback = async () => {
 }
 
 const playAudioPayload = async (payload) => {
-  const synthesis = payload?.synthesis || payload || {}
+  const synthesis = payload?.synthesis || {}
   const audioUrl = synthesis.audioUrl
   const audioBase64 = synthesis.audioBase64
   const mimeType = synthesis.mimeType || 'audio/mpeg'
@@ -116,13 +99,14 @@ export const installSpeechSynthesisUnlock = () => {
   })
 }
 
-export const getSpeechSynthesis = () => {
-  if (typeof window === 'undefined') return null
-  return window.speechSynthesis || { cancel: () => {} }
-}
+export const getSpeechSynthesis = () => null
 
 export const getSpeechSupport = () =>
-  commentarySupport && typeof window !== 'undefined' && typeof window.Audio !== 'undefined'
+  commentarySupport &&
+  typeof window !== 'undefined' &&
+  (typeof window.Audio !== 'undefined' ||
+    (typeof window.speechSynthesis !== 'undefined' &&
+      typeof window.SpeechSynthesisUtterance !== 'undefined'))
 
 export const onSpeechSupportChange = (callback) => {
   if (typeof callback !== 'function') return () => {}
@@ -136,6 +120,59 @@ export const primeSpeechSynthesis = () => {
 
 export const resolveVoiceForSpeaker = () => null
 
+const pickSpeechSynthesisVoice = (hints = []) => {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices?.() || []
+  if (!voices.length) return null
+
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean)
+  for (const hint of normalizedHints) {
+    const byLang = voices.find((voice) => String(voice.lang || '').toLowerCase() === hint)
+    if (byLang) return byLang
+    const byPrefix = voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith(`${hint}-`))
+    if (byPrefix) return byPrefix
+    const byName = voices.find((voice) => String(voice.name || '').toLowerCase().includes(hint))
+    if (byName) return byName
+  }
+
+  return voices.find((voice) => voice.default) || voices[0]
+}
+
+const speakWithBrowserTts = async (text, hints = []) => {
+  if (
+    typeof window === 'undefined' ||
+    !window.speechSynthesis ||
+    !window.SpeechSynthesisUtterance ||
+    !String(text || '').trim()
+  ) {
+    throw new Error('Web Speech is unavailable')
+  }
+
+  await unlockAudioPlayback()
+
+  await new Promise((resolve, reject) => {
+    const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
+    const preferredVoice = pickSpeechSynthesisVoice(hints)
+    if (preferredVoice) {
+      utterance.voice = preferredVoice
+      if (preferredVoice.lang) utterance.lang = preferredVoice.lang
+    }
+
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.onend = () => resolve()
+    utterance.onerror = () => reject(new Error('Web Speech playback failed'))
+
+    try {
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(utterance)
+    } catch {
+      reject(new Error('Web Speech playback failed'))
+    }
+  })
+}
+
 export const speakCommentaryLines = async (
   lines,
   { voiceHints = {}, speakerSettings = {}, channel = 'commentary', allowBrowserFallback = false } = {}
@@ -143,7 +180,6 @@ export const speakCommentaryLines = async (
   if (!Array.isArray(lines) || !lines.length || typeof window === 'undefined') return
 
   const accountId = getCurrentAccountId()
-  const gameKey = inferGameKeyFromRoute()
 
   for (const line of lines) {
     const text = String(line?.text || '').trim()
@@ -151,18 +187,15 @@ export const speakCommentaryLines = async (
 
     const speaker = line?.speaker || 'Host'
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
+    const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
 
-    const payload = await post('/v1/commentary/event', {
-      sessionId: accountId,
-      eventType: 'line',
-      eventPayload: {
-        gameKey,
-        speaker,
-        text,
-        channel,
-        voiceHints: hints,
-        style: speakerSettings[speaker] || null
-      }
+    const payload = await post('/v1/voice/speak', {
+      accountId,
+      text,
+      speaker,
+      locale: localeHint,
+      style: speakerSettings[speaker] || null,
+      channel
     })
 
     if (payload?.error) {
@@ -170,12 +203,29 @@ export const speakCommentaryLines = async (
       throw new Error(payload.error)
     }
 
+    if (payload?.synthesis?.mode === 'local-fallback') {
+      emitSupport(false)
+      throw new Error(payload?.synthesis?.message || 'PersonaPlex voice is unavailable')
+    }
+
     try {
-      await playAudioPayload(payload)
+      if (!payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
+        if (!allowBrowserFallback) {
+          throw new Error('PersonaPlex audio payload missing')
+        }
+        await speakWithBrowserTts(payload?.text || text, hints)
+      } else {
+        try {
+          await playAudioPayload(payload)
+        } catch {
+          if (!allowBrowserFallback) throw new Error('PersonaPlex audio playback failed')
+          await speakWithBrowserTts(payload?.text || text, hints)
+        }
+      }
       emitSupport(true)
     } catch (error) {
       emitSupport(false)
-      if (!allowBrowserFallback) throw error
+      throw error
     }
   }
 }
