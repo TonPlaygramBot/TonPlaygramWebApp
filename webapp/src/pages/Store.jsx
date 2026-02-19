@@ -230,6 +230,7 @@ const TEXAS_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
+const STORE_PURCHASE_TIMEOUT_MS = 25000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -1429,7 +1430,7 @@ export default function Store() {
     setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
     resetStatus();
     setTransactionState('processing');
-    setTransactionStatus('Starting TPC transfer…');
+    setTransactionStatus('Purchasing…');
 
     try {
       const bundle = {
@@ -1440,7 +1441,15 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await buyBundle(resolvedAccountId, bundle);
+      const purchase = await Promise.race([
+        buyBundle(resolvedAccountId, bundle),
+        new Promise((resolve) => {
+          window.setTimeout(
+            () => resolve({ error: 'Purchase request timed out. Please try again.' }),
+            STORE_PURCHASE_TIMEOUT_MS
+          );
+        })
+      ]);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
@@ -1722,7 +1731,7 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Pay with your TPC balance. Once the transfer is approved we deliver the NFT instantly and log it on your statement.
+              Purchase with your TPC balance. Once approved, we deliver the NFT instantly and log it on your statement.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1751,7 +1760,7 @@ export default function Store() {
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
-                <span className="font-semibold text-white">TPC balance transfer</span>
+                <span className="font-semibold text-white">TPC balance purchase</span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
@@ -1802,7 +1811,7 @@ export default function Store() {
                 className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
                 disabled={Boolean(processing) || isPaying || isInsufficientBalance}
               >
-                {isInsufficientBalance ? 'Insufficient TPC' : isPaying ? 'Processing…' : 'Pay with TPC'}
+                {isInsufficientBalance ? 'Insufficient TPC' : isPaying ? 'Purchasing…' : 'Purchase'}
               </button>
             </div>
           </div>
@@ -1869,12 +1878,12 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Pay once with TPC balance, then we deliver instantly and record it on your statement.</p>
+              <p className="mt-1">Purchase once with your TPC balance, then we deliver instantly and record it on your statement.</p>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
-                <span className="font-semibold text-white">TPC balance transfer</span>
+                <span className="font-semibold text-white">TPC balance purchase</span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
@@ -1926,7 +1935,7 @@ export default function Store() {
                 className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
                 disabled={Boolean(processing) || isPaying || hasBulkShortfall}
               >
-                {hasBulkShortfall ? 'Insufficient TPC' : isPaying ? 'Processing…' : 'Pay with TPC'}
+                {hasBulkShortfall ? 'Insufficient TPC' : isPaying ? 'Purchasing…' : 'Purchase'}
               </button>
             </div>
           </div>
