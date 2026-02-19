@@ -118,7 +118,7 @@ import {
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
-import { recordStorePurchase } from '../utils/storeTransactions.js';
+import { getLastStorePurchaseSnapshot, recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 
@@ -797,6 +797,18 @@ export default function Store() {
   }, []);
 
   useEffect(() => {
+    if (accountId && accountId !== 'guest') return;
+    const snapshot = getLastStorePurchaseSnapshot();
+    if (!snapshot?.accountId) return;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('accountId', snapshot.accountId);
+    }
+    setAccountId(snapshot.accountId);
+    const restoredDate = new Date(snapshot.transaction?.date || Date.now()).toLocaleString();
+    setInfo(`Store restored to your last purchase profile from ${restoredDate}.`);
+  }, [accountId]);
+
+  useEffect(() => {
     setPoolOwned(getCachedPoolRoyalInventory(accountId));
     setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
@@ -1364,7 +1376,11 @@ export default function Store() {
   const handlePurchase = async (items) => {
     const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
     if (!payload.length) return;
-    const resolvedAccountId = poolRoyalAccountId(accountId === 'guest' ? '' : accountId);
+    const fallbackSnapshot = getLastStorePurchaseSnapshot();
+    const fallbackAccountId = fallbackSnapshot?.accountId || '';
+    const resolvedAccountId = poolRoyalAccountId(
+      accountId === 'guest' ? fallbackAccountId : accountId
+    );
     const seen = new Set();
     const unique = payload.filter((item) => {
       const key = selectionKey(item);
