@@ -94,7 +94,8 @@ import {
   getTrainingLayout,
   BASE_ATTEMPTS_PER_LEVEL,
   TRAINING_LEVELS,
-  TRAINING_LEVEL_COUNT
+  TRAINING_LEVEL_COUNT,
+  addTrainingAttempts
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
@@ -12506,6 +12507,9 @@ function PoolRoyaleGame({
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
+  const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
+  const [trainingPurchaseState, setTrainingPurchaseState] = useState('idle');
+  const [trainingPurchaseStatus, setTrainingPurchaseStatus] = useState('Select a bundle, then tap Pay.');
   const [buyingTrainingBundleId, setBuyingTrainingBundleId] = useState('');
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
@@ -12665,6 +12669,8 @@ function PoolRoyaleGame({
     }
     if (buyingTrainingBundleId) return;
     setBuyingTrainingBundleId(bundle.id);
+    setTrainingPurchaseState('processing');
+    setTrainingPurchaseStatus('Payment in progress…');
     try {
       const purchase = await buyBundle(resolvedAccountId, {
         items: [{
@@ -12675,26 +12681,43 @@ function PoolRoyaleGame({
         }]
       });
       if (purchase?.error) {
-        window.alert(purchase.error);
+        setTrainingPurchaseState('error');
+        setTrainingPurchaseStatus(purchase.error || 'Payment failed. Please try again.');
         return;
       }
-      const nextShots = Math.max(0, Number(trainingShotsRemaining) || 0) + bundle.attempts;
+      const updated = addTrainingAttempts(bundle.attempts);
+      const nextShots = Math.max(0, Number(updated?.carryShots) || 0);
+      trainingProgressRef.current = updated;
+      setTrainingProgress(updated);
       setTrainingShotsRemaining(nextShots);
-      setTrainingProgress((prev) => {
-        const updated = { ...(prev || {}), carryShots: nextShots };
-        trainingProgressRef.current = updated;
-        persistTrainingProgress(updated);
-        return updated;
-      });
+      setTrainingPurchaseState('success');
+      setTrainingPurchaseStatus('Payment confirmed. Attempts delivered to your training bank.');
       setTrainingAttemptsStoreOpen(false);
       window.alert(`+${bundle.attempts} attempts added.`);
     } catch (error) {
-      window.alert('Purchase failed. Try again.');
+      setTrainingPurchaseState('error');
+      setTrainingPurchaseStatus('Purchase failed. Try again.');
       console.warn('Pool Royale training attempts purchase failed:', error);
     } finally {
       setBuyingTrainingBundleId('');
     }
-  }, [buyingTrainingBundleId, isTraining, resolvedAccountId, trainingShotsRemaining]);
+  }, [buyingTrainingBundleId, isTraining, resolvedAccountId]);
+
+  useEffect(() => {
+    if (!trainingAttemptsStoreOpen) return;
+    if (!selectedTrainingBundleId || !TRAINING_ATTEMPT_BUNDLES.some((bundle) => bundle.id === selectedTrainingBundleId)) {
+      setSelectedTrainingBundleId(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
+    }
+    if (buyingTrainingBundleId) {
+      setTrainingPurchaseState('processing');
+      setTrainingPurchaseStatus('Payment in progress…');
+      return;
+    }
+    if (trainingPurchaseState !== 'success') {
+      setTrainingPurchaseState('idle');
+      setTrainingPurchaseStatus('Select a bundle, then tap Pay.');
+    }
+  }, [buyingTrainingBundleId, selectedTrainingBundleId, trainingAttemptsStoreOpen, trainingPurchaseState]);
 
   useEffect(() => {
     if (!isTraining) {
@@ -31596,13 +31619,17 @@ const powerRef = useRef(hud.power);
             <div className="mt-3 space-y-2">
               {TRAINING_ATTEMPT_BUNDLES.map((bundle) => {
                 const unitPrice = bundle.price / Math.max(1, bundle.attempts);
+                const isSelected = selectedTrainingBundleId === bundle.id;
                 return (
                   <button
                     key={bundle.id}
                     type="button"
-                    onClick={() => handleTrainingAttemptsPurchase(bundle)}
+                    onClick={() => setSelectedTrainingBundleId(bundle.id)}
                     disabled={Boolean(buyingTrainingBundleId)}
-                    className="flex w-full items-center justify-between rounded-xl border border-rose-300/40 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70"
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition disabled:cursor-wait disabled:opacity-70 ${isSelected
+                      ? 'border-emerald-300/80 bg-emerald-500/15'
+                      : 'border-rose-300/40 bg-white/5 hover:bg-white/10'
+                    }`}
                   >
                     <span className="flex items-center gap-3">
                       <span className="relative inline-flex h-9 w-9 items-center justify-center text-xl" aria-hidden="true">
@@ -31622,13 +31649,42 @@ const powerRef = useRef(hud.power);
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={goToLobby}
-              className="mt-4 w-full rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
-            >
-              Return lobby
-            </button>
+            <div className="mt-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[11px] text-white/80">
+              <span className={`font-semibold ${trainingPurchaseState === 'error'
+                ? 'text-rose-200'
+                : trainingPurchaseState === 'success'
+                  ? 'text-emerald-200'
+                  : 'text-white/80'
+              }`}
+              >
+                {trainingPurchaseStatus}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const selected = TRAINING_ATTEMPT_BUNDLES.find((bundle) => bundle.id === selectedTrainingBundleId);
+                  if (!selected) {
+                    setTrainingPurchaseState('error');
+                    setTrainingPurchaseStatus('Select one bundle before paying.');
+                    return;
+                  }
+                  handleTrainingAttemptsPurchase(selected);
+                }}
+                disabled={Boolean(buyingTrainingBundleId)}
+                className="rounded-full border border-emerald-300/70 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100 transition hover:bg-emerald-500/30 disabled:cursor-wait disabled:opacity-70"
+              >
+                {buyingTrainingBundleId ? 'Paying…' : 'Pay'}
+              </button>
+              <button
+                type="button"
+                onClick={goToLobby}
+                className="rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
+              >
+                Return lobby
+              </button>
+            </div>
           </div>
         </div>
       )}
