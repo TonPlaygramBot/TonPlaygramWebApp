@@ -1,45 +1,48 @@
-# NVIDIA PersonaPlex Voice Commentary Integration
+# NVIDIA PersonaPlex Voice Integration (Help Center + All Game Commentary)
 
-This project now supports **cross-game voice commentary** using NVIDIA PersonaPlex.
+This app now uses a single voice pipeline for:
 
-## What changed
+- **Help Center voice replies** (`/v1/support/voice`, `/v1/support/text`)
+- **Commentary across all game pages** via shared `speakCommentaryLines` → `/v1/commentary/event`
 
-- Voice catalog can be fetched from PersonaPlex dynamically (`PERSONAPLEX_API_URL` + `PERSONAPLEX_API_KEY`), with fallback catalog when credentials are not configured.
-- English commentary is free by default for all users.
-- Voice language packs are modeled as **global store entitlements** (`voiceLanguage`) and apply to all games, not just one game.
-- Selected commentary voice is shared across games via `voiceCommentaryInventory`.
+## Important behavior fixes
 
-## API routes
+- Commentary **does not request microphone permission**.
+- Microphone permission is requested only from explicit Help Center button clicks.
+- If PersonaPlex is unreachable, server returns a local WAV fallback so users still hear audio (instead of silent failures).
 
-### Platform help API (`packages/api/src/server.ts`)
+## Active API routes (`packages/api/src/server.ts`)
 
-- `GET /v1/voice/catalog`
-- `POST /v1/voice/commentary`
-- `POST /v1/voice/support`
+- `GET /v1/health`
+- `POST /v1/support/voice` (multipart audio)
+- `POST /v1/support/text`
+- `POST /v1/commentary/event`
+- `POST /v1/voices`
+- `GET /v1/voices`
 
-When PersonaPlex credentials are missing, synthesis endpoints fail fast with a clear configuration error.
+## NVIDIA PersonaPlex configuration
 
-### Main game API (`bot/server.js`)
+Set these env vars for the API service:
 
-- `GET /api/voice-commentary/catalog` — returns provider catalog + generated voice language store items.
-- `POST /api/voice-commentary/catalog/refresh` — refreshes remote voice catalog.
-- `GET /api/voice-commentary/inventory/:accountId` — returns normalized cross-game owned/selected voices.
-- `POST /api/voice-commentary/select` — selects an owned voice.
+- `PERSONAPLEX_API_URL` → base URL of your NVIDIA PersonaPlex/NIM endpoint
+- `PERSONAPLEX_API_KEY` → bearer key/token for PersonaPlex
+- `PERSONAPLEX_TTS_PATH` → TTS route path (default: `/v1/speech/synthesize`)
+- `PERSONAPLEX_MODEL` → optional model name (if your deployment expects one)
+- `PERSONAPLEX_LOCAL_FALLBACK` → `1` (default) to allow audible local fallback, `0` for strict production mode
 
-## Store integration
+### Supported response patterns
 
-`/store/voicecommentary` now includes commentary language packs:
+The backend accepts either:
 
-- English (`en-US`) pack is free by default.
-- Purchased language packs unlock voice commentary usage in all games.
+1. JSON with `audioUrl`/`audioBase64` fields, or
+2. raw `audio/*` response body.
 
-Purchases with item type `voiceLanguage` are applied server-side in `/api/store/purchase` and persisted to `user.voiceCommentaryInventory`.
+This makes it compatible with common PersonaPlex/NIM deployment shapes.
 
-## Environment variables
+## Production recommendation
 
-- `PERSONAPLEX_API_URL` - PersonaPlex API base URL
-- `PERSONAPLEX_API_KEY` - optional Bearer token (not required for local/open PersonaPlex deployments)
-- `PERSONAPLEX_VOICES_PATH` - optional voices path (default `/v1/voices`)
-- `PERSONAPLEX_SYNTHESIS_PATH` - optional synthesis path (default `/v1/speech/synthesize`)
+On production GPU hosts set:
 
-The server now tries multiple PersonaPlex-compatible payload formats automatically so you can run against NVIDIA PersonaPlex OSS endpoints without custom code changes.
+- `PERSONAPLEX_LOCAL_FALLBACK=0`
+
+so any misconfiguration fails fast and can be monitored immediately.
