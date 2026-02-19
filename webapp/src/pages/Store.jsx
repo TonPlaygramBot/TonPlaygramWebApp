@@ -230,7 +230,7 @@ const TEXAS_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
-const STORE_PURCHASE_TIMEOUT_MS = 60000;
+const STORE_PURCHASE_TIMEOUT_MS = 25000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -1441,42 +1441,19 @@ export default function Store() {
           price: item.price
         }))
       };
-      let purchase = await Promise.race([
+      const purchase = await Promise.race([
         buyBundle(resolvedAccountId, bundle),
         new Promise((resolve) => {
           window.setTimeout(
-            () =>
-              resolve({
-                error: 'Purchase request timed out. We are verifying your payment status now.',
-                timedOut: true
-              }),
+            () => resolve({ error: 'Purchase request timed out. Please try again.' }),
             STORE_PURCHASE_TIMEOUT_MS
           );
         })
       ]);
-      if (purchase?.timedOut) {
-        const refreshedBalanceResponse = await getAccountBalance(resolvedAccountId);
-        const refreshedBalance = Number(refreshedBalanceResponse?.balance);
-        const expectedBalance =
-          accountBalance !== null && Number.isFinite(accountBalance) ? accountBalance - totalPrice : null;
-        const paymentDetected =
-          Number.isFinite(refreshedBalance) &&
-          expectedBalance !== null &&
-          refreshedBalance <= expectedBalance + 0.000001;
-        if (paymentDetected) {
-          purchase = { balance: refreshedBalance };
-        }
-      }
       if (purchase?.error) {
-        setInfo(
-          purchase.error ||
-            'Unable to process TPC payment. If TPC was deducted, refresh in a few seconds to sync inventory.'
-        );
+        setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
-        setTransactionStatus(
-          purchase.error ||
-            'Payment status still pending. Please try again in a moment if inventory has not updated.'
-        );
+        setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
         return;
       }
       setTransactionStatus('Payment approved. Unlocking items…');
