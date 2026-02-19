@@ -2,8 +2,6 @@ import { Router } from 'express';
 import authenticate from '../middleware/auth.js';
 import User from '../models/User.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
-import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
-import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
 
@@ -139,12 +137,6 @@ async function handleTpcPurchase(req, res) {
   }
 
   const txDate = new Date();
-  const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-  if (hasVoiceItem) {
-    const catalog = await getVoiceCatalog();
-    applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
-  }
-
   const delivery = applyStoreItemDelivery(user, items);
 
   user.transactions.push({

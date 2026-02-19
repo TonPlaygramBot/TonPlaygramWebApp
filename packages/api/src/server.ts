@@ -3,14 +3,6 @@ import crypto from 'crypto';
 import { answerUserQuestion } from '../../agent-core/src/agent.js';
 import { loadKnowledgeIndex } from '../../agent-core/src/knowledgeBase.js';
 import { evaluateUserPrompt } from '../../agent-core/src/safety.js';
-import {
-  VOICE_PROFILES,
-  buildCommentaryText,
-  buildSupportSpeech,
-  findVoiceProfile,
-  isGameKey,
-  requestPersonaplexSynthesis
-} from './voiceCommentary.js';
 
 const app = express();
 app.use(express.json());
@@ -53,46 +45,6 @@ function requireBasicUserAuth(req: express.Request, res: express.Response, next:
 
 function hashIdentity(ip: string, userAgent: string): string {
   return crypto.createHash('sha256').update(`${ip}|${userAgent}`).digest('hex').slice(0, 16);
-}
-
-
-function normalizeSynthesisPayload(synthesis: Awaited<ReturnType<typeof requestPersonaplexSynthesis>>) {
-  if (synthesis.mode === 'local-fallback') {
-    return {
-      provider: synthesis.provider,
-      mode: synthesis.mode,
-      reason: synthesis.reason,
-      message: synthesis.message,
-      audioUrl: '',
-      audioBase64: '',
-      mimeType: 'audio/mpeg'
-    };
-  }
-
-  const payload = (synthesis.response || {}) as Record<string, unknown>;
-  const audioUrl =
-    (typeof payload.audioUrl === 'string' && payload.audioUrl) ||
-    (typeof payload.audio_url === 'string' && payload.audio_url) ||
-    '';
-  const audioBase64 =
-    (typeof payload.audioBase64 === 'string' && payload.audioBase64) ||
-    (typeof payload.audio_base64 === 'string' && payload.audio_base64) ||
-    (typeof payload.audioContent === 'string' && payload.audioContent) ||
-    (typeof payload.audio_content === 'string' && payload.audio_content) ||
-    '';
-  const mimeType =
-    (typeof payload.mimeType === 'string' && payload.mimeType) ||
-    (typeof payload.mime_type === 'string' && payload.mime_type) ||
-    'audio/mpeg';
-
-  return {
-    provider: synthesis.provider,
-    mode: synthesis.mode,
-    audioUrl,
-    audioBase64,
-    mimeType,
-    raw: synthesis.response
-  };
 }
 
 function recordSuspiciousMetadata(question: string, ip: string, userAgent: string): void {
@@ -158,84 +110,6 @@ app.post('/v1/feedback', requireBasicUserAuth, (req, res) => {
   };
 
   res.status(202).json({ accepted: true, payload });
-});
-
-app.get('/v1/voice/catalog', (_req, res) => {
-  const languages = Array.from(new Set(VOICE_PROFILES.map((voice) => voice.language))).sort();
-  res.json({ provider: 'nvidia-personaplex', languages, voices: VOICE_PROFILES });
-});
-
-app.post('/v1/voice/commentary', requireBasicUserAuth, async (req, res) => {
-  const game = String(req.body?.game || '');
-  if (!isGameKey(game)) {
-    res.status(400).json({ error: 'Unsupported game key', supportedGames: [
-      'pool_royale', 'snooker_royal', 'snake_multiplayer', 'texas_holdem', 'domino_royal',
-      'chess_battle_royal', 'air_hockey', 'goal_rush', 'ludo_battle_royal', 'table_tennis_royal',
-      'murlan_royale', 'dice_duel', 'snake_and_ladder'
-    ] });
-    return;
-  }
-
-  const eventType = String(req.body?.eventType || 'player_turn') as Parameters<typeof buildCommentaryText>[1];
-  const playerName = String(req.body?.playerName || 'Player');
-  const score = typeof req.body?.score === 'string' ? req.body.score : undefined;
-  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
-  const text = buildCommentaryText(game, eventType, playerName, score);
-
-  try {
-    const synthesis = await requestPersonaplexSynthesis({
-      text,
-      locale: voice.locale,
-      voiceId: voice.id,
-      metadata: { game, eventType }
-    });
-    res.json({ text, voice, synthesis: normalizeSynthesisPayload(synthesis) });
-  } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text, voice });
-  }
-});
-
-app.post('/v1/voice/support', requireBasicUserAuth, async (req, res) => {
-  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
-  const ticketContext = String(req.body?.ticketContext || 'General account support');
-  const text = buildSupportSpeech(ticketContext, voice);
-
-  try {
-    const synthesis = await requestPersonaplexSynthesis({
-      text,
-      locale: voice.locale,
-      voiceId: voice.id,
-      metadata: { channel: 'customer_support' }
-    });
-    res.json({ text, voice, synthesis: normalizeSynthesisPayload(synthesis) });
-  } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text, voice });
-  }
-});
-
-app.post('/v1/voice/speak', requireBasicUserAuth, async (req, res) => {
-  const text = String(req.body?.text || '').trim();
-  if (!text) {
-    res.status(400).json({ error: 'text is required' });
-    return;
-  }
-
-  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
-
-  try {
-    const synthesis = await requestPersonaplexSynthesis({
-      text,
-      locale: voice.locale,
-      voiceId: voice.id,
-      metadata: {
-        channel: String(req.body?.channel || 'general'),
-        speaker: String(req.body?.speaker || 'Host')
-      }
-    });
-    res.json({ text, voice, synthesis: normalizeSynthesisPayload(synthesis) });
-  } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text, voice });
-  }
 });
 
 if (process.env.NODE_ENV !== 'test') {

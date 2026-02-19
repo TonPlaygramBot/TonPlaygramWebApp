@@ -1656,7 +1656,7 @@ export default function TableTennisRoyal() {
                       {commentaryMuted ? 'On' : 'Off'}
                     </span>
                   </button>
-                  {!commentarySupported && <p className="mt-2 text-[0.65rem] text-white/60">Voice commentary requires NVIDIA PersonaPlex availability.</p>}
+                  {!commentarySupported && <p className="mt-2 text-[0.65rem] text-white/60">Voice commentary requires Web Speech support.</p>}
                 </div>
 
                 <div>
