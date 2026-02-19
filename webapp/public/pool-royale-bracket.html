@@ -505,17 +505,34 @@
     }
     if(!state?.players?.length){
       const userName = params.get('name') || 'You';
-      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      const regionNames = (() => {
+        try {
+          if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+            return new Intl.DisplayNames(['en'], { type: 'region' });
+          }
+        } catch (err) {
+          console.warn('Pool Royale bracket region names unavailable', err);
+        }
+        return null;
+      })();
       function flagToName(flag){
-        const codes = Array.from(flag).map(c => c.codePointAt(0) - 0x1F1E6 + 65);
-        return regionNames.of(String.fromCharCode(...codes)) || 'CPU';
+        if (!flag || typeof flag !== 'string') return 'CPU';
+        const chars = Array.from(flag);
+        if (chars.length !== 2) return 'CPU';
+        const region = String.fromCharCode(...chars.map((c) => {
+          const codePoint = c.codePointAt(0);
+          if (!Number.isFinite(codePoint)) return 65;
+          return codePoint - 0x1F1E6 + 65;
+        }));
+        if (!regionNames) return region || 'CPU';
+        return regionNames.of(region) || region || 'CPU';
       }
       function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
       const flags = [...(window.FLAG_EMOJIS || [])];
       shuffle(flags);
       const players = [{ name: userName, flag: params.get('flag') || '🏳️' }];
       for(let i=0;i<totalPlayers-1;i++){
-        const f=flags[i];
+        const f = flags[i] || '🏳️';
         players.push({ name: flagToName(f), flag: f });
       }
       state.players = players;
