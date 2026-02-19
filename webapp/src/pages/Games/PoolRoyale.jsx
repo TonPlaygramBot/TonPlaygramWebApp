@@ -12674,8 +12674,8 @@ function PoolRoyaleGame({
     try {
       const purchase = await buyBundle(resolvedAccountId, {
         items: [{
-          slug: bundle.id,
-          type: 'pool-training-attempt',
+          slug: 'poolroyale',
+          type: 'poolTrainingAttempt',
           optionId: String(bundle.attempts),
           price: Number(bundle.price) || 0
         }]
