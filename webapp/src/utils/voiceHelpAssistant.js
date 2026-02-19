@@ -33,21 +33,27 @@ async function playSynthesis(payload, locale = 'en-US') {
     return;
   }
   const audio = new Audio(source);
-  await new Promise((resolve) => {
+  const playbackResult = await new Promise((resolve) => {
     const finish = () => {
       audio.removeEventListener('ended', finish);
       audio.removeEventListener('error', fail);
-      resolve();
+      resolve(true);
     };
     const fail = () => {
       audio.removeEventListener('ended', finish);
       audio.removeEventListener('error', fail);
-      resolve();
+      resolve(false);
     };
     audio.addEventListener('ended', finish);
     audio.addEventListener('error', fail);
     audio.play().catch(fail);
   });
+
+  if (!playbackResult && fallbackText) {
+    await speakWithWebSpeech(fallbackText, locale);
+    return;
+  }
+
   if (payload?.provider === 'web-speech-fallback' && fallbackText) {
     await speakWithWebSpeech(fallbackText, locale);
   }

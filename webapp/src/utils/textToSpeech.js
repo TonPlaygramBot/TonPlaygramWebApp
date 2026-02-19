@@ -206,7 +206,11 @@ export const speakCommentaryLines = async (
       if (payload?.provider === 'web-speech-fallback' || !payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
         await speakWithBrowserTts(payload?.text || text, hints)
       } else {
-        await playAudioPayload(payload)
+        try {
+          await playAudioPayload(payload)
+        } catch {
+          await speakWithBrowserTts(payload?.text || text, hints)
+        }
       }
       emitSupport(true)
     } catch (error) {
