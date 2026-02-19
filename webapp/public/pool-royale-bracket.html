@@ -34,6 +34,23 @@
       radial-gradient(1000px 300px at 50% -50px, rgba(37,99,235,.25), transparent 70%),
       radial-gradient(800px 300px at 50% 100%, rgba(249,115,22,.15), transparent 70%);
   }
+  body.embed-mode {
+    gap: 0;
+    background: transparent;
+  }
+  body.embed-mode .canvas-wrap {
+    border: 0;
+    background: transparent;
+  }
+  body.embed-mode #continueBtn {
+    display: none;
+  }
+  @media (max-width: 600px) {
+    .canvas-wrap {
+      border-top: 0;
+      border-bottom: 0;
+    }
+  }
   canvas{ display:block; margin:0 auto; }
   .footer-note{padding:8px 12px; text-align:center; color:var(--muted); font-size:.85rem}
   details{margin-left:auto}
@@ -61,6 +78,10 @@
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
   const params = new URLSearchParams(window.location.search);
+  const embedMode = params.get('embed') === '1';
+  if (embedMode) {
+    document.body.classList.add('embed-mode');
+  }
   const tgKey = params.get("tgId") || "anon";
   const STATE_KEY = `poolRoyaleTournamentState_${tgKey}`;
   const OPP_KEY = `poolRoyaleTournamentOpponent_${tgKey}`;
@@ -135,17 +156,18 @@
 
   function layoutAndDraw(){
     const rounds = state.rounds.length;
-    const colW = 220;
-    const colGap = 64;
-    const padX = 24;
-    const padY = 24;
+    const portraitMobile = window.innerHeight > window.innerWidth && window.innerWidth <= 520;
+    const colW = portraitMobile ? 164 : 220;
+    const colGap = portraitMobile ? 36 : 64;
+    const padX = portraitMobile ? 12 : 24;
+    const padY = portraitMobile ? 12 : 24;
     const widthCSS = padX*2 + rounds*colW + (rounds-1)*colGap;
 
     const matches0 = state.rounds[0].length;
 
-    const boxH = 56;
+    const boxH = portraitMobile ? 46 : 56;
     const slotH = boxH/2;
-    const baseGap = 28;
+    const baseGap = portraitMobile ? 18 : 28;
 
     const centers = [];
     centers[0] = Array.from({length:matches0}, (_,i)=> padY + (boxH/2) + i*(boxH + baseGap));
@@ -160,7 +182,7 @@
     }
 
     const lastCenter = centers[rounds-1][0] || padY + boxH/2;
-    const heightCSS = Math.max(600, lastCenter + padY + boxH/2);
+    const heightCSS = Math.max(portraitMobile ? 420 : 600, lastCenter + padY + boxH/2);
 
     canvas.style.width = widthCSS + 'px';
     canvas.style.height = heightCSS + 'px';
@@ -459,7 +481,8 @@
   }
 
   (function init(){
-    const totalPlayers = parseInt(params.get('players') || '8', 10);
+    const requestedPlayers = parseInt(params.get('players') || '8', 10);
+    const totalPlayers = Math.max(2, Math.floor((Number.isFinite(requestedPlayers) ? requestedPlayers : 8) / 2) * 2);
     const saved = localStorage.getItem(STATE_KEY);
     if(saved){
       try{

@@ -12495,6 +12495,7 @@ function PoolRoyaleGame({
   const pendingTrainingLayoutLevelRef = useRef(null);
   const trainingTableRef = useRef(null);
   const trainingAutoAdvanceTimeoutRef = useRef(null);
+  const trainingCommentaryKeyRef = useRef('');
   const [trainingTaskTransition, setTrainingTaskTransition] = useState(null);
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
@@ -15330,6 +15331,39 @@ const powerRef = useRef(hud.power);
       resolveSeatLabel
     ]
   );
+
+  useEffect(() => {
+    if (!isTraining) {
+      trainingCommentaryKeyRef.current = '';
+      return;
+    }
+    const objective = currentTrainingInfo?.objective || 'Complete the drill.';
+    const attemptsLeft = Math.max(0, Number(trainingShotsRemaining) || 0);
+    const key = `${currentTrainingInfo?.level || 1}:${attemptsLeft}`;
+    if (trainingCommentaryKeyRef.current === key) return;
+    trainingCommentaryKeyRef.current = key;
+    const speaker = resolveCommentarySpeaker();
+    enqueuePoolCommentary(
+      [
+        {
+          speaker,
+          text: `Training task ${currentTrainingInfo?.level || 1}: ${objective}`
+        },
+        {
+          speaker,
+          text: `Attempts left: ${attemptsLeft}. Scratch is allowed in training—place the cue ball where you want and keep practicing.`
+        }
+      ],
+      { interrupt: false }
+    );
+  }, [
+    currentTrainingInfo?.level,
+    currentTrainingInfo?.objective,
+    enqueuePoolCommentary,
+    isTraining,
+    resolveCommentarySpeaker,
+    trainingShotsRemaining
+  ]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
@@ -26977,6 +27011,9 @@ const powerRef = useRef(hud.power);
           spin: { x: 0, y: 0 }
         };
         let nextInHand = cueBallPotted;
+        if (isTraining && cueBallPotted) {
+          nextInHand = true;
+        }
         try {
           if (shotResolved) {
             if (safeState.foul) {
@@ -27052,6 +27089,16 @@ const powerRef = useRef(hud.power);
               removePocketDropEntry(cue.id);
               cue.mesh.visible = true;
               cue.active = true;
+              if (isTraining) {
+                const spawnPoint = resolveInHandPlacement(
+                  new THREE.Vector2(0, baulkZ - BALL_R * 1.6),
+                  { clearanceMultiplier: 2.05, maxRadius: BALL_R * 6 }
+                );
+                if (spawnPoint) {
+                  cue.pos.copy(spawnPoint);
+                  cue.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
+                }
+              }
               cue.vel.set(0, 0);
               cue.spin?.set(0, 0);
               cue.pendingSpin?.set(0, 0);
@@ -27749,11 +27796,13 @@ const powerRef = useRef(hud.power);
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargetHit;
-          const primaryColor = aimingWrong
-            ? 0xff3333
-            : targetBall && !railNormal
-              ? 0xffd166
-              : 0x7ce7ff;
+          const primaryColor = isTraining
+            ? 0xffd166
+            : aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffd166
+                : 0x7ce7ff;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           tickGeom.setFromPoints([

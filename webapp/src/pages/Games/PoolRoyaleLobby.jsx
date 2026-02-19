@@ -71,6 +71,7 @@ export default function PoolRoyaleLobby() {
     lastLevel: 1,
     carryShots: 3
   });
+  const [activeTournament, setActiveTournament] = useState(null);
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
@@ -403,6 +404,39 @@ export default function PoolRoyaleLobby() {
     return describeTrainingLevel(unlocked);
   }, [trainingProgress]);
 
+
+  const tournamentKey = getTelegramId() || 'anon';
+  const tournamentStateKey = `poolRoyaleTournamentState_${tournamentKey}`;
+  const tournamentOppKey = `poolRoyaleTournamentOpponent_${tournamentKey}`;
+  const hasActiveTournament = playType === 'tournament' && Boolean(activeTournament);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || playType !== 'tournament') {
+      setActiveTournament(null);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(tournamentStateKey);
+      if (!raw) {
+        setActiveTournament(null);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      const totalPlayers = Number(parsed?.N || parsed?.players?.length || 0);
+      if (parsed?.complete || !Number.isFinite(totalPlayers) || totalPlayers <= 0) {
+        setActiveTournament(null);
+        return;
+      }
+      setActiveTournament({
+        ...parsed,
+        N: Math.max(2, Math.floor(totalPlayers / 2) * 2)
+      });
+    } catch (err) {
+      console.warn('Pool Royale active tournament load failed', err);
+      setActiveTournament(null);
+    }
+  }, [playType, tournamentStateKey]);
+
   const winnerParam = searchParams.get('winner');
 
   return (
@@ -555,7 +589,7 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
 
-        {playType !== 'training' && (
+        {playType !== 'training' && !hasActiveTournament && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Play Mode</h3>
@@ -617,7 +651,7 @@ export default function PoolRoyaleLobby() {
         </div>
         )}
 
-        {playType !== 'training' && (
+        {playType !== 'training' && !hasActiveTournament && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Game Variant</h3>
@@ -663,7 +697,7 @@ export default function PoolRoyaleLobby() {
         </div>
         )}
 
-        {playType !== 'training' && variant === 'uk' && (
+        {playType !== 'training' && !hasActiveTournament && variant === 'uk' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Ball Colors</h3>
@@ -776,11 +810,11 @@ export default function PoolRoyaleLobby() {
         )}
 
 
-        {playType === 'tournament' && (
+        {playType === 'tournament' && !hasActiveTournament && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
             <h3 className="font-semibold text-white">Tournament Players</h3>
             <div className="flex flex-wrap gap-2">
-              {[8, 16, 24].map((p) => (
+              {[8, 16, 32].map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -801,6 +835,54 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
+        {hasActiveTournament && (
+          <div className="space-y-3 rounded-2xl border border-indigo-300/30 bg-gradient-to-br from-indigo-500/15 via-black/30 to-sky-500/15 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-white">Active Tournament</h3>
+                <p className="text-xs text-white/65">Continue your current bracket or reset and start a new one.</p>
+              </div>
+              <span className="rounded-full border border-white/20 px-2 py-1 text-[11px] text-white/80">
+                {activeTournament?.N || 0} players
+              </span>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+              <iframe
+                title="Active tournament bracket"
+                src={`/pool-royale-bracket.html?type=tournament&players=${activeTournament?.N || 8}&tgId=${encodeURIComponent(tournamentKey)}&embed=1`}
+                className="h-[420px] w-full"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  params.set('type', 'tournament');
+                  params.set('players', String(activeTournament?.N || 8));
+                  params.set('tgId', tournamentKey);
+                  window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
+                }}
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-background"
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.localStorage.removeItem(tournamentStateKey);
+                  window.localStorage.removeItem(tournamentOppKey);
+                  setActiveTournament(null);
+                }}
+                className="rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                Start New Tournament
+              </button>
+            </div>
+          </div>
+        )}
+
+
         {mode === 'online' && playType === 'regular' && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
             <div className="flex items-center justify-between">
@@ -820,6 +902,7 @@ export default function PoolRoyaleLobby() {
             </p>
           </div>
         )}
+
 
         {mode === 'online' && playType === 'regular' && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
@@ -897,7 +980,7 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-        {playType !== 'training' && (
+        {playType !== 'training' && !hasActiveTournament && (
         <button
           onClick={startGame}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
