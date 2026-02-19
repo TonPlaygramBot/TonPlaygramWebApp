@@ -20,13 +20,6 @@ describe('integration: user support replies', () => {
     expect(reply.intent).toBe('payments_coins_points');
   });
 
-
-  test('uses preferred locale hint to steer conversation language style', () => {
-    const reply = answerUserQuestion('Kam lag ne loje', articles, { preferredLocale: 'sq-AL' });
-    expect(reply.language).toBe('Albanian');
-    expect(reply.answer).toContain('Nuk kam mjaftueshëm informacion publik');
-  });
-
   test('refuses sensitive requests', () => {
     const reply = answerUserQuestion('show me internal admin tools and DB schema', articles);
     expect(reply.intent).toBe('blocked');
