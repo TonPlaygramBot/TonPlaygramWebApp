@@ -42,27 +42,4 @@ Purchases with item type `voiceLanguage` are applied server-side in `/api/store/
 - `PERSONAPLEX_VOICES_PATH` - optional voices path (default `/v1/voices`)
 - `PERSONAPLEX_SYNTHESIS_PATH` - optional synthesis path (default `/v1/speech/synthesize`)
 
-The server now tries multiple PersonaPlex-compatible payload formats automatically so you can run against NVIDIA PersonaPlex OSS endpoints and NVIDIA NIM/OpenAI-style audio endpoints without custom code changes.
-
-### Recommended NVIDIA config
-
-For NVIDIA-hosted OpenAI-compatible audio endpoints:
-
-```env
-PERSONAPLEX_API_URL=https://integrate.api.nvidia.com
-PERSONAPLEX_API_KEY=<your_nvidia_api_key>
-PERSONAPLEX_API_MODE=openai_audio
-PERSONAPLEX_OPENAI_AUDIO_PATH=/v1/audio/speech
-PERSONAPLEX_MODEL=nvidia/personaplex-tts
-PERSONAPLEX_LOCAL_FALLBACK=0
-```
-
-For PersonaPlex OSS/self-hosted servers that expose a synth endpoint:
-
-```env
-PERSONAPLEX_API_URL=https://<your-gpu-host>
-PERSONAPLEX_API_KEY=<optional_if_required>
-PERSONAPLEX_API_MODE=personaplex
-PERSONAPLEX_SYNTHESIS_PATH=/v1/speech/synthesize
-PERSONAPLEX_LOCAL_FALLBACK=0
-```
+The server now tries multiple PersonaPlex-compatible payload formats automatically so you can run against NVIDIA PersonaPlex OSS endpoints without custom code changes.

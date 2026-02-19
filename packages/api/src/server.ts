@@ -1,6 +1,5 @@
 import express from 'express';
 import crypto from 'crypto';
-import multer from 'multer';
 import { answerUserQuestion } from '../../agent-core/src/agent.js';
 import { loadKnowledgeIndex } from '../../agent-core/src/knowledgeBase.js';
 import { evaluateUserPrompt } from '../../agent-core/src/safety.js';
@@ -14,12 +13,10 @@ import {
 } from './voiceCommentary.js';
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 app.use(express.json());
 
 const kbPath = process.env.PUBLIC_INDEX_PATH ?? 'packages/ingestion-public/public-index.json';
 let articles = loadKnowledgeIndex(kbPath);
-const voicePromptStore = new Map<string, { voicePromptId: string; label: string; locale: string; createdAt: string }>();
 
 const rateMap = new Map<string, { count: number; start: number }>();
 
@@ -57,6 +54,7 @@ function requireBasicUserAuth(req: express.Request, res: express.Response, next:
 function hashIdentity(ip: string, userAgent: string): string {
   return crypto.createHash('sha256').update(`${ip}|${userAgent}`).digest('hex').slice(0, 16);
 }
+
 
 function normalizeSynthesisPayload(synthesis: Awaited<ReturnType<typeof requestPersonaplexSynthesis>>) {
   if (synthesis.mode === 'local-fallback') {
@@ -119,10 +117,6 @@ function recordSuspiciousMetadata(question: string, ip: string, userAgent: strin
   }
 }
 
-app.get('/v1/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
 app.get('/v1/help-articles', (_req, res) => {
   const deduped = Array.from(new Map(articles.map((a) => [a.slug, a])).values()).map((a) => ({
     title: a.title,
@@ -156,32 +150,54 @@ app.post('/v1/user-chat', requireBasicUserAuth, (req, res) => {
   res.json(reply);
 });
 
-app.post('/v1/support/text', requireBasicUserAuth, async (req, res) => {
-  const messages = Array.isArray(req.body?.messages) ? req.body.messages : [];
-  const latestMessage = String(messages[messages.length - 1]?.content || 'General account support');
-  const locale = String(req.body?.voicePromptId || req.body?.locale || 'en-US');
-  const voice = findVoiceProfile(undefined, locale);
-  const text = buildSupportSpeech(latestMessage, voice);
+app.post('/v1/feedback', requireBasicUserAuth, (req, res) => {
+  const payload = {
+    helpful: Boolean(req.body?.helpful),
+    articleSlug: String(req.body?.articleSlug || ''),
+    category: String(req.body?.category || 'general')
+  };
+
+  res.status(202).json({ accepted: true, payload });
+});
+
+app.get('/v1/voice/catalog', (_req, res) => {
+  const languages = Array.from(new Set(VOICE_PROFILES.map((voice) => voice.language))).sort();
+  res.json({ provider: 'nvidia-personaplex', languages, voices: VOICE_PROFILES });
+});
+
+app.post('/v1/voice/commentary', requireBasicUserAuth, async (req, res) => {
+  const game = String(req.body?.game || '');
+  if (!isGameKey(game)) {
+    res.status(400).json({ error: 'Unsupported game key', supportedGames: [
+      'pool_royale', 'snooker_royal', 'snake_multiplayer', 'texas_holdem', 'domino_royal',
+      'chess_battle_royal', 'air_hockey', 'goal_rush', 'ludo_battle_royal', 'table_tennis_royal',
+      'murlan_royale', 'dice_duel', 'snake_and_ladder'
+    ] });
+    return;
+  }
+
+  const eventType = String(req.body?.eventType || 'player_turn') as Parameters<typeof buildCommentaryText>[1];
+  const playerName = String(req.body?.playerName || 'Player');
+  const score = typeof req.body?.score === 'string' ? req.body.score : undefined;
+  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
+  const text = buildCommentaryText(game, eventType, playerName, score);
 
   try {
     const synthesis = await requestPersonaplexSynthesis({
       text,
       locale: voice.locale,
       voiceId: voice.id,
-      metadata: { channel: 'customer_support', mode: 'text' }
+      metadata: { game, eventType }
     });
-    const normalized = normalizeSynthesisPayload(synthesis);
-    res.json({ text, audioUrl: normalized.audioUrl, audioBase64: normalized.audioBase64, mimeType: normalized.mimeType });
+    res.json({ text, voice, synthesis: normalizeSynthesisPayload(synthesis) });
   } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text });
+    res.status(502).json({ error: (error as Error).message, text, voice });
   }
 });
 
-app.post('/v1/support/voice', requireBasicUserAuth, upload.single('audio'), async (req, res) => {
-  const locale = String(req.body?.voicePromptId || req.body?.locale || 'en-US');
-  const voice = findVoiceProfile(undefined, locale);
-  const sizeKb = Math.round((req.file?.size || 0) / 1024);
-  const ticketContext = `Voice request (${sizeKb}KB audio) from session ${String(req.body?.sessionId || 'unknown')}`;
+app.post('/v1/voice/support', requireBasicUserAuth, async (req, res) => {
+  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
+  const ticketContext = String(req.body?.ticketContext || 'General account support');
   const text = buildSupportSpeech(ticketContext, voice);
 
   try {
@@ -189,57 +205,37 @@ app.post('/v1/support/voice', requireBasicUserAuth, upload.single('audio'), asyn
       text,
       locale: voice.locale,
       voiceId: voice.id,
-      metadata: { channel: 'customer_support', mode: 'voice' }
+      metadata: { channel: 'customer_support' }
     });
-    const normalized = normalizeSynthesisPayload(synthesis);
-    res.json({ text, audioUrl: normalized.audioUrl, audioBase64: normalized.audioBase64, mimeType: normalized.mimeType });
+    res.json({ text, voice, synthesis: normalizeSynthesisPayload(synthesis) });
   } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text });
+    res.status(502).json({ error: (error as Error).message, text, voice });
   }
 });
 
-app.post('/v1/commentary/event', requireBasicUserAuth, async (req, res) => {
-  const eventType = String(req.body?.eventType || 'player_turn');
-  const eventPayload = (req.body?.eventPayload || {}) as Record<string, unknown>;
-  const requestedGame = String(eventPayload.gameKey || req.body?.game || 'snake_and_ladder');
-  const game = isGameKey(requestedGame) ? requestedGame : 'snake_and_ladder';
-  const locale = String(req.body?.voicePromptId || req.body?.locale || 'en-US');
-  const voice = findVoiceProfile(undefined, locale);
-  const playerName = String(eventPayload.playerName || eventPayload.speaker || 'Player');
-  const score = typeof eventPayload.score === 'string' ? eventPayload.score : undefined;
-  const directText = typeof eventPayload.text === 'string' ? eventPayload.text : '';
-  const text = directText || buildCommentaryText(game, eventType as Parameters<typeof buildCommentaryText>[1], playerName, score);
+app.post('/v1/voice/speak', requireBasicUserAuth, async (req, res) => {
+  const text = String(req.body?.text || '').trim();
+  if (!text) {
+    res.status(400).json({ error: 'text is required' });
+    return;
+  }
+
+  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
 
   try {
     const synthesis = await requestPersonaplexSynthesis({
       text,
       locale: voice.locale,
       voiceId: voice.id,
-      metadata: { channel: 'commentary', game, eventType }
+      metadata: {
+        channel: String(req.body?.channel || 'general'),
+        speaker: String(req.body?.speaker || 'Host')
+      }
     });
-    const normalized = normalizeSynthesisPayload(synthesis);
-    res.json({ text, audioUrl: normalized.audioUrl, audioBase64: normalized.audioBase64, mimeType: normalized.mimeType });
+    res.json({ text, voice, synthesis: normalizeSynthesisPayload(synthesis) });
   } catch (error) {
-    res.status(502).json({ error: (error as Error).message, text });
+    res.status(502).json({ error: (error as Error).message, text, voice });
   }
-});
-
-app.post('/v1/voices', requireBasicUserAuth, upload.single('voice'), (req, res) => {
-  const voicePromptId = `vp_${crypto.randomUUID().slice(0, 12)}`;
-  const label = String(req.body?.label || `Voice ${voicePromptId.slice(-4)}`);
-  const locale = String(req.body?.locale || 'en-US');
-  const item = { voicePromptId, label, locale, createdAt: new Date().toISOString() };
-  voicePromptStore.set(voicePromptId, item);
-  res.status(201).json(item);
-});
-
-app.get('/v1/voices', requireBasicUserAuth, (_req, res) => {
-  const voices = Array.from(voicePromptStore.values());
-  if (!voices.length) {
-    res.json({ voices: VOICE_PROFILES.map((voice) => ({ voicePromptId: voice.locale, label: voice.language, locale: voice.locale })) });
-    return;
-  }
-  res.json({ voices });
 });
 
 if (process.env.NODE_ENV !== 'test') {
