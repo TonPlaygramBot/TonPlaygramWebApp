@@ -112,14 +112,44 @@ export async function requestPersonaplexSynthesis(input: {
   voiceId: string;
   locale: string;
   metadata?: Record<string, string>;
-}): Promise<{ mode: 'remote'; provider: 'nvidia-personaplex'; response: unknown }> {
+}): Promise<
+  | { mode: 'remote'; provider: 'nvidia-personaplex'; response: unknown }
+  | {
+      mode: 'local-fallback';
+      provider: 'nvidia-personaplex';
+      reason: 'missing_credentials';
+      message: string;
+      payload: {
+        text: string;
+        voiceId: string;
+        locale: string;
+        metadata: Record<string, string>;
+      };
+    }
+> {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
+  const localFallbackEnabled = process.env.PERSONAPLEX_LOCAL_FALLBACK !== '0';
 
   const ssml = `<speak><lang xml:lang="${input.locale}">${input.text}</lang></speak>`;
 
   if (!endpoint || !apiKey) {
-    throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL and PERSONAPLEX_API_KEY.');
+    if (!localFallbackEnabled) {
+      throw new Error('PersonaPlex is not configured. Set PERSONAPLEX_API_URL and PERSONAPLEX_API_KEY.');
+    }
+
+    return {
+      mode: 'local-fallback',
+      provider: 'nvidia-personaplex',
+      reason: 'missing_credentials',
+      message: 'PersonaPlex credentials are missing. Using local fallback payload for development.',
+      payload: {
+        text: input.text,
+        voiceId: input.voiceId,
+        locale: input.locale,
+        metadata: input.metadata ?? {}
+      }
+    };
   }
 
   const response = await fetch(`${endpoint.replace(/\/$/, '')}/v1/speech/synthesize`, {
