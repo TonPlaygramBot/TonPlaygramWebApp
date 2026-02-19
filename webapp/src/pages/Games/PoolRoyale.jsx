@@ -26778,14 +26778,6 @@ const powerRef = useRef(hud.power);
         if (isTraining) {
           const disableRuleEnding = !trainingRulesRef.current;
           const remainingTrainingObjectBalls = balls.filter((entry) => entry?.id !== 'cue' && entry?.active).length;
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (cueBallPotted && nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              ballInHand: true
-            };
-          }
           safeState = {
             ...safeState,
             foul: undefined,
@@ -26793,8 +26785,7 @@ const powerRef = useRef(hud.power);
             frameOver: disableRuleEnding ? false : remainingTrainingObjectBalls === 0,
             winner: disableRuleEnding
               ? undefined
-              : (remainingTrainingObjectBalls === 0 ? (trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer ?? 'A') : undefined),
-            meta: nextMeta ?? safeState?.meta
+              : (remainingTrainingObjectBalls === 0 ? (trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer ?? 'A') : undefined)
           };
         }
         if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
