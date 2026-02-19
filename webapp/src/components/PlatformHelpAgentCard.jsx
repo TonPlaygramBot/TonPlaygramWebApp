@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  fetchPersonaPlexVoices,
-  getSelectedVoicePromptId,
-  getSpeechSupport,
-  setSelectedVoicePromptId,
-  speakCommentaryLines
-} from '../utils/textToSpeech.js';
+import { getSpeechSupport, speakCommentaryLines } from '../utils/textToSpeech.js';
 import {
   buildStructuredResponse,
   isSensitiveHelpRequest,
@@ -62,9 +56,6 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedLocale, setSelectedLocale] = useState('en-US');
   const [supportedLanguages, setSupportedLanguages] = useState(DEFAULT_LANGUAGES);
-  const [voiceOptions, setVoiceOptions] = useState([]);
-  const [voicePromptId, setVoicePromptId] = useState(() => getSelectedVoicePromptId());
-  const [micReady, setMicReady] = useState(false);
 
   const recognitionRef = useRef(null);
   const isListeningRef = useRef(false);
@@ -116,42 +107,6 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
     };
   }, []);
 
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadVoicePrompts = async () => {
-      const res = await fetchPersonaPlexVoices({ force: true });
-      if (cancelled || res?.error) return;
-      const voices = Array.isArray(res?.voices) ? res.voices : [];
-      setVoiceOptions(voices);
-      if (!voicePromptId && voices[0]?.voicePromptId) {
-        const next = setSelectedVoicePromptId(voices[0].voicePromptId);
-        setVoicePromptId(next);
-      }
-    };
-
-    void loadVoicePrompts();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const enableMicrophone = async () => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setAnswer(SPEECH_RECOGNITION_ERROR);
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
-      setMicReady(true);
-      setAnswer('Microphone enabled. Tap Open Mic and start speaking.');
-    } catch {
-      setMicReady(false);
-      setAnswer('Microphone permission was denied. Allow access and try again.');
-    }
-  };
   const stopAgentVoice = () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -161,7 +116,7 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
   const speakAnswer = async (text) => {
     if (!canUseSpeechOutput || !String(text || '').trim()) return;
     try {
-      await speakCommentaryLines([{ speaker: 'Help Host', text, eventPayload: { voicePromptId, locale: selectedLocale } }], {
+      await speakCommentaryLines([{ speaker: 'Help Host', text }], {
         voiceHints: { 'Help Host': [selectedLocale] },
         speakerSettings: { 'Help Host': 'personaplex' },
         channel: 'help'
@@ -254,11 +209,6 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       return;
     }
 
-    if (!micReady) {
-      setAnswer('Tap Enable Microphone first.');
-      return;
-    }
-
     stopAgentVoice();
 
     const recognition = createSpeechRecognition(selectedLocale);
@@ -337,34 +287,11 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
         <button
           type="button"
           className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
-          onClick={enableMicrophone}
-          disabled={isLoading}
-        >
-          {micReady ? '✅ Microphone Enabled' : '🎙 Enable Microphone'}
-        </button>
-        <button
-          type="button"
-          className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
-          disabled={!canUseSpeechInput || isLoading || !micReady}
+          disabled={!canUseSpeechInput || isLoading}
           onClick={isListening ? stopVoiceInput : startVoiceInput}
         >
           {isListening ? '⏹ Stop Mic' : '🎤 Open Mic'}
         </button>
-        <select
-          className="px-2 py-2 rounded-lg border border-border bg-surface text-xs text-white"
-          value={voicePromptId}
-          onChange={(event) => {
-            const next = setSelectedVoicePromptId(event.target.value);
-            setVoicePromptId(next);
-          }}
-        >
-          <option value="">Default PersonaPlex voice</option>
-          {voiceOptions.map((voice) => (
-            <option key={voice.voicePromptId} value={voice.voicePromptId}>
-              {voice.label || voice.voicePromptId}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="rounded-lg border border-border bg-background/70 p-3">
