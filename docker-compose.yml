@@ -1,34 +1,13 @@
 version: '3.9'
-
 services:
-  api-server:
-    build:
-      context: ./api-server
-    env_file:
-      - ./api-server/.env
-    ports:
-      - '8000:8000'
+  platform-help-api:
+    image: node:20
+    working_dir: /app
     volumes:
-      - ./api-server/storage:/app/storage
-    depends_on:
-      - redis
-
-  gpu-inference:
-    build:
-      context: ./gpu-inference
-    env_file:
-      - ./gpu-inference/.env
+      - ./:/app
+    command: bash -lc "npm install && node --loader ts-node/esm packages/ingestion-public/src/cli.ts && node --loader ts-node/esm packages/api/src/server.ts"
+    environment:
+      - PORT=4040
+      - NODE_ENV=production
     ports:
-      - '8001:8001'
-    volumes:
-      - ./gpu-inference/storage:/app/storage
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - '6379:6379'
+      - '4040:4040'

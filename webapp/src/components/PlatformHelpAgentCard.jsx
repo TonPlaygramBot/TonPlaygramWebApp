@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { get, postMultipart } from '../utils/api.js';
+import { getSpeechSupport, speakCommentaryLines } from '../utils/textToSpeech.js';
+import {
+  buildStructuredResponse,
+  isSensitiveHelpRequest,
+  searchLocalHelp
+} from '../utils/platformHelpLocalSearch.js';
+
+const SPEECH_RECOGNITION_ERROR =
+  'Voice input is unavailable on this device/browser. Please use a supported browser for voice help.';
 
 const DEFAULT_LANGUAGES = [
   { locale: 'en-US', language: 'English' },
@@ -8,8 +16,6 @@ const DEFAULT_LANGUAGES = [
   { locale: 'pt-BR', language: 'Portuguese' },
   { locale: 'tr-TR', language: 'Turkish' }
 ];
-
-let sharedMicStream = null;
 
 const LOCALE_TO_FLAG = {
   'en-US': '🇺🇸',
@@ -29,104 +35,216 @@ const LOCALE_TO_FLAG = {
   'pl-PL': '🇵🇱'
 };
 
+function createSpeechRecognition(locale = 'en-US') {
+  if (typeof window === 'undefined') return null;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return null;
+  const recognition = new SpeechRecognition();
+  recognition.lang = locale;
+  recognition.interimResults = true;
+  recognition.continuous = true;
+  recognition.maxAlternatives = 1;
+  return recognition;
+}
+
 export default function PlatformHelpAgentCard({ onClose = null }) {
-  const [answer, setAnswer] = useState('Enable microphone, hold Start, then Stop to ask for help.');
-  const [status, setStatus] = useState('Idle');
+  const [answer, setAnswer] = useState(
+    'Voice help is ready. Tap your language flag, then tap Open Mic and speak.'
+  );
+  const [citations, setCitations] = useState([]);
+  const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedLocale, setSelectedLocale] = useState('en-US');
   const [supportedLanguages, setSupportedLanguages] = useState(DEFAULT_LANGUAGES);
-  const [audioSrc, setAudioSrc] = useState('');
-  const [sessionId] = useState(() => `help_${crypto.randomUUID()}`);
 
-  const streamRef = useRef(sharedMicStream);
-  const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const isListeningRef = useRef(false);
 
-  const canUseSpeechInput = useMemo(() => Boolean(navigator?.mediaDevices?.getUserMedia), []);
+  const canUseSpeechInput = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }, []);
+
+  const canUseSpeechOutput = useMemo(() => Boolean(getSpeechSupport()), []);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
 
   useEffect(() => {
     let cancelled = false;
+
     const loadVoiceLanguages = async () => {
-      const payload = await get('/v1/voices');
-      const voices = Array.isArray(payload?.voices) ? payload.voices : [];
-      if (!voices.length || cancelled) return;
-      const unique = new Map();
-      voices.forEach((voice) => {
-        const locale = String(voice?.locale || '').trim();
-        const language = String(voice?.label || voice?.language || '').trim();
-        if (!locale || !language || unique.has(locale)) return;
-        unique.set(locale, { locale, language });
-      });
-      const items = Array.from(unique.values());
-      if (items.length) setSupportedLanguages(items);
+      try {
+        const response = await fetch('/v1/voice/catalog');
+        if (!response.ok) return;
+        const payload = await response.json();
+        const voices = Array.isArray(payload?.voices) ? payload.voices : [];
+        const uniqueByLocale = new Map();
+        voices.forEach((voice) => {
+          const locale = String(voice?.locale || '').trim();
+          const language = String(voice?.language || '').trim();
+          if (!locale || !language || uniqueByLocale.has(locale)) return;
+          uniqueByLocale.set(locale, { locale, language });
+        });
+
+        const items = Array.from(uniqueByLocale.values()).sort((a, b) => a.language.localeCompare(b.language));
+        if (!cancelled && items.length) {
+          setSupportedLanguages(items);
+          if (!items.some((item) => item.locale === selectedLocale)) {
+            setSelectedLocale(items[0].locale);
+          }
+        }
+      } catch {
+        // Keep local defaults if catalog call fails.
+      }
     };
+
     void loadVoiceLanguages();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const enableMicrophone = async () => {
-    if (sharedMicStream) {
-      streamRef.current = sharedMicStream;
-      setStatus('Microphone already enabled');
-      return;
+  const stopAgentVoice = () => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
     }
+  };
 
+  const speakAnswer = async (text) => {
+    if (!canUseSpeechOutput || !String(text || '').trim()) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      sharedMicStream = stream;
-      streamRef.current = stream;
-      setStatus('Microphone enabled once. You can reuse it while the page stays open.');
-    } catch (error) {
-      setStatus(`Mic permission failed: ${String(error)}`);
+      await speakCommentaryLines([{ speaker: 'Help Host', text }], {
+        voiceHints: { 'Help Host': [selectedLocale] },
+        speakerSettings: { 'Help Host': 'personaplex' },
+        channel: 'help'
+      });
+    } catch {
+      setAnswer((prev) => `${prev}
+
+(Voice unavailable right now. PersonaPlex synthesis did not return playable audio.)`);
     }
   };
 
-  const startRecording = () => {
-    if (!streamRef.current) {
-      setStatus('Enable microphone first');
+  const runLocalFallback = async (text) => {
+    const matches = searchLocalHelp(text, 5);
+    const reply = buildStructuredResponse(text, matches, selectedLocale);
+    setAnswer(reply.answer);
+    setCitations(reply.citations);
+    await speakAnswer(reply.answer);
+  };
+
+  const runAgentReply = async (text) => {
+    if (isSensitiveHelpRequest(text)) {
+      const blocked =
+        'I can’t help with sensitive, private, or abuse-related requests. I can share public user guidance and official support steps.';
+      setAnswer(blocked);
+      setCitations([]);
+      await speakAnswer(blocked);
       return;
     }
-    chunksRef.current = [];
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'audio/webm' });
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.onstart = () => setStatus('Recording support request...');
-    recorder.onstop = async () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-      await sendSupportVoice(blob);
-    };
-    recorder.start();
-    recorderRef.current = recorder;
-  };
 
-  const stopRecording = () => {
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-  };
-
-  const sendSupportVoice = async (blob) => {
     setIsLoading(true);
-    setStatus('Sending to help center...');
-    const form = new FormData();
-    form.append('audio', blob, 'support.webm');
-    form.append('sessionId', sessionId);
-    form.append('voicePromptId', selectedLocale);
+    try {
+      const response = await fetch('/v1/user-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          locale: selectedLocale,
+          mode: 'live-help-voice-only',
+          systemContext:
+            'You are TonPlaygram live help. Keep answers clear and voice-friendly. Reply in the selected locale.',
+          capabilities: {
+            interruptionAware: true,
+            keepMicOpen: true,
+            bargeIn: true,
+            voiceOnly: true
+          }
+        })
+      });
 
-    const payload = await postMultipart('/v1/support/voice', form);
-    if (payload?.error) {
-      setStatus(payload.error);
+      if (!response.ok) {
+        await runLocalFallback(text);
+        return;
+      }
+
+      const payload = await response.json();
+      const nextAnswer = String(payload?.answer || '').trim();
+      const nextCitations = Array.isArray(payload?.citations) ? payload.citations : [];
+      if (!nextAnswer) {
+        await runLocalFallback(text);
+        return;
+      }
+
+      setAnswer(nextAnswer);
+      setCitations(nextCitations);
+      await speakAnswer(nextAnswer);
+    } catch {
+      await runLocalFallback(text);
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const stopVoiceInput = () => {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try {
+      recognition.stop();
+    } catch {
+      // ignore
+    }
+    setIsListening(false);
+  };
+
+  const startVoiceInput = () => {
+    if (!canUseSpeechInput) {
+      setAnswer(SPEECH_RECOGNITION_ERROR);
       return;
     }
 
-    const text = String(payload?.text || '').trim();
-    setAnswer(text || 'No answer returned.');
-    const source = payload?.audioUrl || (payload?.audioBase64 ? `data:audio/wav;base64,${payload.audioBase64}` : '');
-    setAudioSrc(source);
-    setStatus('Support response ready');
-    setIsLoading(false);
+    stopAgentVoice();
+
+    const recognition = createSpeechRecognition(selectedLocale);
+    recognitionRef.current = recognition;
+    if (!recognition) {
+      setAnswer(SPEECH_RECOGNITION_ERROR);
+      return;
+    }
+
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = String(result?.[0]?.transcript || '').trim();
+        if (!result.isFinal || !transcript) continue;
+        stopAgentVoice();
+        void runAgentReply(transcript);
+      }
+    };
+
+    recognition.onerror = () => {
+      setAnswer('Voice input failed. Please try again.');
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      if (isListeningRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          setIsListening(false);
+        }
+      }
+    };
+
+    setIsListening(true);
+    recognition.start();
   };
 
   return (
@@ -134,17 +252,21 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-white">TonPlaygram AI Help Center</h3>
-          <p className="text-xs text-subtext">Voice help powered by PersonaPlex</p>
+          <p className="text-xs text-subtext">Voice-only help • PersonaPlex voices • Tap a flag to change language</p>
         </div>
         {onClose ? (
-          <button type="button" className="px-2 py-1 text-xs rounded-md border border-border text-white" onClick={onClose}>
+          <button
+            type="button"
+            className="px-2 py-1 text-xs rounded-md border border-border text-white"
+            onClick={onClose}
+          >
             Close
           </button>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-subtext">Language</p>
+        <p className="text-xs font-semibold text-subtext">Supported languages</p>
         <div className="flex flex-wrap gap-2">
           {supportedLanguages.map((language) => (
             <button
@@ -153,6 +275,7 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
               onClick={() => setSelectedLocale(language.locale)}
               className={`h-10 w-10 rounded-lg border text-xl leading-none ${selectedLocale === language.locale ? 'border-primary bg-primary/20' : 'border-border'}`}
               aria-label={language.language}
+              title={`${language.language} (${language.locale})`}
             >
               {LOCALE_TO_FLAG[language.locale] || '🌐'}
             </button>
@@ -161,17 +284,37 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <button type="button" className="px-3 py-2 rounded-lg border border-border text-sm text-white" disabled={!canUseSpeechInput} onClick={enableMicrophone}>🎙 Enable Microphone</button>
-        <button type="button" className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60" disabled={isLoading || !canUseSpeechInput} onClick={startRecording}>Start</button>
-        <button type="button" className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60" disabled={isLoading} onClick={stopRecording}>Stop & Send</button>
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
+          disabled={!canUseSpeechInput || isLoading}
+          onClick={isListening ? stopVoiceInput : startVoiceInput}
+        >
+          {isListening ? '⏹ Stop Mic' : '🎤 Open Mic'}
+        </button>
       </div>
 
-      <p className="text-xs text-subtext">Status: {status}</p>
-      <p className="text-xs text-subtext">Commentary does not require microphone permission.</p>
       <div className="rounded-lg border border-border bg-background/70 p-3">
         <p className="text-sm text-white whitespace-pre-line">{answer}</p>
       </div>
-      {audioSrc ? <audio controls src={audioSrc} className="w-full" /> : null}
+
+      <div className="space-y-1">
+        <p className="text-xs font-semibold text-subtext">Sources</p>
+        {citations.length ? (
+          <ul className="space-y-1">
+            {citations.map((item) => (
+              <li key={`${item.slug}-${item.sectionId}`} className="text-xs text-subtext">
+                <a href={item.url} className="underline">
+                  {item.title}
+                </a>{' '}
+                — {item.url}#{item.sectionId}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-subtext">No source selected yet.</p>
+        )}
+      </div>
     </section>
   );
 }
