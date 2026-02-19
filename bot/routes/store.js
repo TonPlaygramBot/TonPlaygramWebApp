@@ -57,7 +57,7 @@ export const BUNDLES = {
 };
 
 router.post('/purchase', authenticate, async (req, res) => {
-  const { accountId, txHash, bundle, purchaseId } = req.body;
+  const { accountId, txHash, bundle } = req.body;
   const authId = req.auth?.telegramId;
   if (!accountId) {
     return res.status(400).json({ error: 'accountId required' });
@@ -89,122 +89,30 @@ router.post('/purchase', authenticate, async (req, res) => {
     if (!Number.isFinite(totalPrice) || totalPrice < 0) {
       return res.status(400).json({ error: 'invalid bundle total' });
     }
-    const normalizedPurchaseId =
-      typeof purchaseId === 'string' && purchaseId.trim()
-        ? purchaseId.trim().slice(0, 64)
-        : null;
-
     ensureTransactionArray(user);
-    if (normalizedPurchaseId) {
-      const existingPurchase = user.transactions.find(
-        (tx) => tx.type === 'storefront' && tx.requestId === normalizedPurchaseId
-      );
-      if (existingPurchase) {
-        const recalculated = calculateBalance(user);
-        const stableBalance = Number.isFinite(user.balance)
-          ? Math.max(user.balance, recalculated)
-          : recalculated;
-        return res.json({
-          alreadyProcessed: true,
-          balance: stableBalance,
-          date: existingPurchase.date
-        });
-      }
-    }
-
-    const recalculatedBalance = calculateBalance(user);
-    const persistedBalance = Number.isFinite(user.balance) ? user.balance : recalculatedBalance;
-    const availableBalance = Math.max(persistedBalance, recalculatedBalance);
-    if (availableBalance !== user.balance) {
-      user.balance = availableBalance;
-      await user.save();
-    }
-    if (availableBalance < totalPrice) {
+    const balance = calculateBalance(user);
+    if (balance < totalPrice) {
       return res.status(400).json({ error: 'insufficient balance' });
     }
     const txDate = new Date();
     const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-    const transaction = {
+    if (hasVoiceItem) {
+      const catalog = await getVoiceCatalog();
+      applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
+    }
+
+    user.transactions.push({
       amount: -totalPrice,
       type: 'storefront',
       token: 'TPC',
       status: 'delivered',
       date: txDate,
       detail: 'Storefront purchase',
-      items,
-      ...(normalizedPurchaseId ? { requestId: normalizedPurchaseId } : {})
-    };
-
-    // Use the same fast/atomic debit approach as TPC transfers so a failed
-    // request does not create partial state for the buyer.
+      items
+    });
     if (totalPrice > 0) {
-      const balanceQuery = {
-        _id: user._id,
-        balance: { $gte: totalPrice }
-      };
-      if (normalizedPurchaseId) {
-        balanceQuery.transactions = {
-          $not: { $elemMatch: { type: 'storefront', requestId: normalizedPurchaseId } }
-        };
-      }
-      const updated = await User.findOneAndUpdate(
-        balanceQuery,
-        {
-          $inc: { balance: -totalPrice },
-          $push: { transactions: transaction }
-        },
-        { new: true, projection: { balance: 1 } }
-      );
-      if (!updated) {
-        if (normalizedPurchaseId) {
-          const duplicate = await User.findOne(
-            {
-              _id: user._id,
-              transactions: {
-                $elemMatch: { type: 'storefront', requestId: normalizedPurchaseId }
-              }
-            },
-            { balance: 1, transactions: { $slice: -20 } }
-          );
-          if (duplicate) {
-            const duplicateTx = (duplicate.transactions || []).find(
-              (tx) => tx.type === 'storefront' && tx.requestId === normalizedPurchaseId
-            );
-            return res.json({
-              alreadyProcessed: true,
-              balance: duplicate.balance,
-              date: duplicateTx?.date || txDate
-            });
-          }
-        }
-        return res.status(400).json({ error: 'insufficient balance' });
-      }
-
-      if (hasVoiceItem) {
-        const voiceItems = items.filter((item) => item.type === 'voiceLanguage');
-        Promise.resolve()
-          .then(async () => {
-            if (!voiceItems.length) return;
-            const [catalog, refreshedUser] = await Promise.all([
-              Promise.race([
-                getVoiceCatalog(),
-                new Promise((resolve) => setTimeout(() => resolve({ voices: [] }), 1200))
-              ]),
-              User.findById(user._id)
-            ]);
-            if (!refreshedUser) return;
-            applyVoiceCommentaryUnlocks(refreshedUser, voiceItems, catalog?.voices || []);
-            await refreshedUser.save();
-          })
-          .catch((voiceErr) => {
-            console.error('Failed to apply voice unlocks for storefront purchase:', voiceErr.message);
-          });
-      }
-
-      return res.json({ balance: updated.balance, date: txDate });
+      user.balance = balance - totalPrice;
     }
-
-    user.transactions.push(transaction);
     await user.save();
     return res.json({ balance: user.balance, date: txDate });
   }
