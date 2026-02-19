@@ -20,8 +20,20 @@ function warnMissing(key, hint) {
   }
 }
 
+function parseAllowedOrigins() {
+  return (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 export function validateEnv() {
   const isProd = process.env.NODE_ENV === 'production';
+  const trustClientIdentityHeaders =
+    process.env.TRUST_CLIENT_IDENTITY_HEADERS != null
+      ? isTruthy(process.env.TRUST_CLIENT_IDENTITY_HEADERS)
+      : !isProd;
+  const allowedOrigins = parseAllowedOrigins();
 
   // Required for production runtime.
   if (isProd) {
@@ -36,6 +48,10 @@ export function validateEnv() {
     'comma-separated list, e.g. https://tonplaygram-bot.onrender.com,https://web.telegram.org'
   );
 
+  if (isProd && allowedOrigins.length === 0) {
+    throw new Error('ALLOWED_ORIGINS must be set in production');
+  }
+
   // TON claim / withdraw requirements.
   const withdrawEnabled = isTruthy(process.env.WITHDRAW_ENABLED);
   if (withdrawEnabled) {
@@ -47,8 +63,17 @@ export function validateEnv() {
   // Token used for privileged server-to-server calls (optional but useful).
   warnMissing('API_AUTH_TOKEN');
 
+  if (isProd && trustClientIdentityHeaders) {
+    console.warn(
+      'WARN: TRUST_CLIENT_IDENTITY_HEADERS is enabled in production. ' +
+        'Use Telegram init data or API_AUTH_TOKEN whenever possible.'
+    );
+  }
+
   return {
     isProd,
-    withdrawEnabled
+    withdrawEnabled,
+    trustClientIdentityHeaders,
+    allowedOrigins
   };
 }
