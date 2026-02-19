@@ -18,9 +18,6 @@ import NFT_GIFTS from '../utils/nftGifts.js';
 import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
-import { applyStoreItemDelivery } from './store.js';
-import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
-import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 import {
   createMemoryUser,
   findMemoryUser,
@@ -553,91 +550,6 @@ router.post('/gift', authenticate, async (req, res) => {
   res.json({ balance: sender.balance, transaction: senderTx });
 });
 
-
-
-router.post('/store-purchase', authenticate, async (req, res) => {
-  const { accountId, bundle, txHash } = req.body;
-
-  if (!accountId) {
-    return res.status(400).json({ error: 'accountId required' });
-  }
-
-  if (txHash) {
-    return res.status(400).json({ error: 'TON payments are disabled. Use TPC balance only.' });
-  }
-
-  const isItemBundle =
-    bundle &&
-    typeof bundle === 'object' &&
-    !Array.isArray(bundle) &&
-    Array.isArray(bundle.items);
-
-  if (!isItemBundle) {
-    return res.status(400).json({ error: 'items bundle required' });
-  }
-
-  const user = await User.findOne({ accountId });
-  if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  const rawItems = bundle.items.filter(Boolean);
-  if (!rawItems.length) {
-    return res.status(400).json({ error: 'items required' });
-  }
-
-  const items = rawItems.map((item) => ({
-    slug: item.slug,
-    type: item.type,
-    optionId: item.optionId,
-    price: Number(item.price) || 0
-  }));
-
-  const totalPrice = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  if (!Number.isFinite(totalPrice) || totalPrice < 0) {
-    return res.status(400).json({ error: 'invalid bundle total' });
-  }
-
-  ensureTransactionArray(user);
-  const currentBalance = Number.isFinite(Number(user.balance)) ? Number(user.balance) : calculateBalance(user);
-  const balance = Number.isFinite(currentBalance) ? currentBalance : 0;
-  if (balance < totalPrice) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
-
-  const txDate = new Date();
-  const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-  if (hasVoiceItem) {
-    const catalog = await getVoiceCatalog();
-    applyVoiceCommentaryUnlocks(user, items, catalog.voices || []);
-  }
-
-  const delivery = applyStoreItemDelivery(user, items);
-
-  user.transactions.push({
-    amount: -totalPrice,
-    type: 'storefront',
-    token: 'TPC',
-    status: 'delivered',
-    date: txDate,
-    detail: 'Storefront purchase',
-    items
-  });
-  user.balance = balance - totalPrice;
-  await user.save();
-
-  return res.json({
-    balance: user.balance,
-    date: txDate,
-    paymentToken: 'TPC',
-    delivery: {
-      pool: delivery.pool.length,
-      snooker: delivery.snooker.length,
-      unsupported: delivery.unsupported.length
-    }
-  });
-});
 // Convert received gifts to TPC
 router.post('/convert-gifts', authenticate, async (req, res) => {
   const { accountId, giftIds, action = 'burn', toAccount } = req.body;
