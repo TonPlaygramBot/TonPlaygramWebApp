@@ -705,7 +705,15 @@ export function depositAccount(accountId, amount, extra = {}) {
 }
 
 export function buyBundle(accountId, bundle) {
-  return post('/api/store/purchase', { accountId, bundle });
+  return post('/api/store/purchase-v2', { accountId, bundle }).then((response) => {
+    if (
+      response?.error &&
+      /not found|404/i.test(String(response.error))
+    ) {
+      return post('/api/store/purchase', { accountId, bundle });
+    }
+    return response;
+  });
 }
 
 export function claimPurchase() {

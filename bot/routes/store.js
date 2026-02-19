@@ -87,7 +87,7 @@ function resolveUserBalance(user) {
   return Math.max(derived, persisted);
 }
 
-router.post('/purchase', authenticate, async (req, res) => {
+async function handleTpcPurchase(req, res) {
   const { accountId, bundle, txHash } = req.body;
   const authId = req.auth?.telegramId;
 
@@ -169,6 +169,11 @@ router.post('/purchase', authenticate, async (req, res) => {
       unsupported: delivery.unsupported.length
     }
   });
-});
+}
+
+router.post('/purchase-v2', authenticate, handleTpcPurchase);
+
+// Legacy route kept as a compatibility alias while clients migrate.
+router.post('/purchase', authenticate, handleTpcPurchase);
 
 export default router;
