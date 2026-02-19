@@ -115,7 +115,6 @@ const BASIS_TRANSCODER_PATH =
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
-const TRAINING_CUEBALL_POT_ATTEMPT_COST = 2;
 const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-1', attempts: 1, price: 100, label: 'Starter heart' }),
   Object.freeze({ id: 'training-attempts-5', attempts: 5, price: 450, label: 'Pocket run deal' }),
@@ -14724,7 +14723,8 @@ const powerRef = useRef(hud.power);
     const winnerId = frameRef.current?.winner ?? frameState.winner;
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
     if (tournamentMode) {
-      window.location.assign('/games/poolroyale/lobby?type=tournament');
+      const search = location.search && location.search.length ? location.search : '';
+      window.location.assign(`/pool-royale-bracket.html${search}`);
       return;
     }
     const lobbyUrl = winnerParam
@@ -23493,9 +23493,6 @@ const powerRef = useRef(hud.power);
       // In-hand placement
 
       const allowFullTableInHand = () => {
-        if (hudRef.current?.inHand && cue && !cue.active) {
-          return true;
-        }
         const frameSnapshot = frameRef.current ?? frameState;
         const variant =
           frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
@@ -27160,11 +27157,7 @@ const powerRef = useRef(hud.power);
         let remainingTrainingShots = Math.max(0, Number(trainingShotsRemaining) || 0);
         let trainingOutOfAttempts = false;
         if (isTraining && !safeState?.frameOver) {
-          const penalty = cueBallPotted
-            ? TRAINING_CUEBALL_POT_ATTEMPT_COST
-            : pottedObjectCount === 0
-              ? TRAINING_MISS_ATTEMPT_COST
-              : 0;
+          const penalty = pottedObjectCount === 0 ? TRAINING_MISS_ATTEMPT_COST : 0;
           if (penalty > 0) {
             const nextShots = Math.max(0, remainingTrainingShots - penalty);
             remainingTrainingShots = nextShots;
@@ -28796,14 +28789,12 @@ const powerRef = useRef(hud.power);
             if (
               isCue &&
               !b.impacted &&
-              b.launchDir
+              b.launchDir &&
+              (b.spin?.y ?? 0) < -1e-4
             ) {
-              const launchDir = b.launchDir.clone().normalize();
-              const forwardSpeed = b.vel.dot(launchDir);
-              if (forwardSpeed <= 0) {
-                b.vel.set(0, 0);
-              } else {
-                b.vel.copy(launchDir.multiplyScalar(forwardSpeed));
+              const forwardDot = b.vel.dot(b.launchDir);
+              if (forwardDot < 0) {
+                b.vel.addScaledVector(b.launchDir, -forwardDot);
               }
             }
             if (!hasLift) {
@@ -30886,7 +30877,7 @@ const powerRef = useRef(hud.power);
             ) : null}
             {tournamentMode && !winnerOverlay.userWon ? (
               <div className="max-w-md rounded-2xl border border-rose-300/55 bg-rose-400/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100">
-                You’ve been disqualified. Return to lobby to continue.
+                You’ve been disqualified. Try a new tournament or return to lobby.
               </div>
             ) : null}
             {finalPotLabel ? (
@@ -30955,7 +30946,18 @@ const powerRef = useRef(hud.power);
                 >
                   Continue tournament
                 </button>
-              ) : tournamentMode && !winnerOverlay.userWon ? null : (
+              ) : tournamentMode && !winnerOverlay.userWon ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetTournamentState();
+                    navigate('/games/poolroyale/lobby?type=tournament');
+                  }}
+                  className="rounded-full border border-rose-300 bg-rose-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] text-black shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition hover:bg-rose-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                >
+                  New tournament
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={handlePlayAgain}
@@ -31776,7 +31778,6 @@ const powerRef = useRef(hud.power);
               </p>
               <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
               <p className="mt-1 text-[11px] text-rose-200">Missed-shot cost: ❤️ -{TRAINING_MISS_ATTEMPT_COST} attempt.</p>
-              <p className="mt-1 text-[11px] text-rose-200">Cue-ball potted cost: ❤️ -{TRAINING_CUEBALL_POT_ATTEMPT_COST} attempts.</p>
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
@@ -32672,7 +32673,7 @@ export default function PoolRoyale() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        goToLobby();
+        navigate('/games/poolroyale/lobby');
       }
     });
   });
@@ -32687,7 +32688,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          goToLobby();
+          navigate('/games/poolroyale/lobby');
         }
       });
     };
@@ -32698,7 +32699,7 @@ export default function PoolRoyale() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, goToLobby]);
+  }, [confirmExit, exitMessage, navigate]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
