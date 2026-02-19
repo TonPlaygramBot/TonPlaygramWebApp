@@ -11,6 +11,23 @@ import {
 
 const router = Router();
 
+
+const PERSONAPLEX_PERSONALITY_BY_SPEAKER = {
+  host: 'play_by_play-host',
+  commentator: 'play_by_play-host',
+  analyst: 'match-analyst',
+  lena: 'helpful-guide',
+  tabletennishost: 'play_by_play-host'
+};
+
+function resolvePersonaPlexPersonality({ speaker = '', requestedPersonality = '' } = {}) {
+  if (requestedPersonality && String(requestedPersonality).trim()) {
+    return String(requestedPersonality).trim();
+  }
+  const key = String(speaker || '').toLowerCase().replace(/\s+/g, '');
+  return PERSONAPLEX_PERSONALITY_BY_SPEAKER[key] || 'play_by_play-host';
+}
+
 const HELP_RESPONSES = [
   {
     keywords: ['wallet', 'send', 'receive', 'deposit', 'withdraw'],
@@ -197,7 +214,7 @@ router.post('/select', authenticate, async (req, res) => {
 
 
 router.post('/help', async (req, res) => {
-  const { accountId, question, voiceId, locale } = req.body || {};
+  const { accountId, question, voiceId, locale, personality } = req.body || {};
   const user = accountId ? await loadUser(accountId) : null;
   const inventory = normalizeVoiceInventory(user?.voiceCommentaryInventory);
   const catalog = await getVoiceCatalog();
@@ -219,7 +236,8 @@ router.post('/help', async (req, res) => {
       voiceId: selected.id,
       locale: selected.locale,
       metadata: {
-        channel: 'help_center'
+        channel: 'help_center',
+        personality: resolvePersonaPlexPersonality({ speaker: 'Lena', requestedPersonality: personality })
       }
     });
     return res.json({
@@ -239,7 +257,7 @@ router.post('/help', async (req, res) => {
 });
 
 router.post('/speak', async (req, res) => {
-  const { text, accountId, voiceId, locale, speaker } = req.body || {};
+  const { text, accountId, voiceId, locale, speaker, personality } = req.body || {};
   const message = String(text || '').trim();
   if (!message) return res.status(400).json({ error: 'text is required' });
 
@@ -264,7 +282,8 @@ router.post('/speak', async (req, res) => {
       locale: selected.locale,
       metadata: {
         channel: 'game_commentary',
-        speaker: String(speaker || 'host')
+        speaker: String(speaker || 'host'),
+        personality: resolvePersonaPlexPersonality({ speaker, requestedPersonality: personality })
       }
     });
 
