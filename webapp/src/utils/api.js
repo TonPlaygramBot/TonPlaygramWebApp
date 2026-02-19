@@ -73,7 +73,7 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   }
 }
 
-export function buildApiHeaders(base = {}) {
+function buildHeaders(base = {}) {
   const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
@@ -89,7 +89,7 @@ export function buildApiHeaders(base = {}) {
 }
 
 export async function post(path, body, token) {
-  const headers = buildApiHeaders({ 'Content-Type': 'application/json' });
+  const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
@@ -127,7 +127,7 @@ export async function post(path, body, token) {
 }
 
 export async function put(path, body, token) {
-  const headers = buildApiHeaders({ 'Content-Type': 'application/json' });
+  const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
@@ -163,7 +163,7 @@ export async function put(path, body, token) {
 }
 
 export async function get(path, token) {
-  const headers = buildApiHeaders();
+  const headers = buildHeaders();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
@@ -194,41 +194,6 @@ export async function get(path, token) {
   return data;
 }
 
-
-export async function postMultipart(path, formData, token) {
-  const headers = buildApiHeaders();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  let res;
-  try {
-    res = await fetchWithRetry(API_BASE_URL + path, {
-      method: 'POST',
-      headers,
-      body: formData
-    });
-  } catch (err) {
-    return { error: 'Network request failed' };
-  }
-
-  let text;
-  try {
-    text = await res.text();
-  } catch {
-    return { error: 'Invalid server response' };
-  }
-
-  let data;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    return { error: 'Invalid server response' };
-  }
-
-  if (!res.ok) {
-    return { error: data.error || res.statusText || 'Request failed' };
-  }
-  return data;
-}
 export function getMiningStatus(telegramId) {
   return post('/api/mining/status', { telegramId });
 }
@@ -354,7 +319,7 @@ export function listAllInfluencer() {
 }
 
 export function verifyInfluencer(id, status, views) {
-  const headers = buildApiHeaders({ 'Content-Type': 'application/json' });
+  const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
   return fetch(API_BASE_URL + `/api/influencer/admin/${id}/verify`, {
     method: 'PATCH',
