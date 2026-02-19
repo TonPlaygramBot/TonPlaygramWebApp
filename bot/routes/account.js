@@ -18,6 +18,9 @@ import NFT_GIFTS from '../utils/nftGifts.js';
 import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
+import { applyStoreItemDelivery } from './store.js';
+import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
+import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 import {
   createMemoryUser,
   findMemoryUser,
@@ -548,6 +551,93 @@ router.post('/gift', authenticate, async (req, res) => {
   }
 
   res.json({ balance: sender.balance, transaction: senderTx });
+});
+
+
+
+router.post('/store-purchase', authenticate, async (req, res) => {
+  const { accountId, fromAccount, bundle, txHash } = req.body;
+  const purchaserAccountId = String(accountId || fromAccount || '').trim();
+
+  if (!purchaserAccountId) {
+    return res.status(400).json({ error: 'accountId required' });
+  }
+
+  if (txHash) {
+    return res.status(400).json({ error: 'TON payments are disabled. Use TPC balance only.' });
+  }
+
+  const isItemBundle =
+    bundle &&
+    typeof bundle === 'object' &&
+    !Array.isArray(bundle) &&
+    Array.isArray(bundle.items);
+
+  if (!isItemBundle) {
+    return res.status(400).json({ error: 'items bundle required' });
+  }
+
+  const sender = await User.findOne({ accountId: purchaserAccountId });
+  if (!sender) return res.status(404).json({ error: 'account not found' });
+  if (!canAccessUser(req, sender)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const rawItems = bundle.items.filter(Boolean);
+  if (!rawItems.length) {
+    return res.status(400).json({ error: 'items required' });
+  }
+
+  const items = rawItems.map((item) => ({
+    slug: item.slug,
+    type: item.type,
+    optionId: item.optionId,
+    price: Number(item.price) || 0
+  }));
+
+  const totalPrice = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  if (!Number.isFinite(totalPrice) || totalPrice < 0) {
+    return res.status(400).json({ error: 'invalid bundle total' });
+  }
+
+  if (sender.balance < totalPrice) {
+    return res.status(400).json({ error: 'insufficient balance' });
+  }
+
+  ensureTransactionArray(sender);
+
+  const txDate = new Date();
+  const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
+  if (hasVoiceItem) {
+    const catalog = await getVoiceCatalog();
+    applyVoiceCommentaryUnlocks(sender, items, catalog.voices || []);
+  }
+
+  const delivery = applyStoreItemDelivery(sender, items);
+
+  sender.balance -= totalPrice;
+  sender.transactions.push({
+    amount: -totalPrice,
+    type: 'storefront',
+    token: 'TPC',
+    status: 'delivered',
+    date: txDate,
+    detail: 'Storefront purchase',
+    items: items.map((item) => JSON.stringify(item))
+  });
+
+  await sender.save();
+
+  return res.json({
+    balance: sender.balance,
+    transaction: sender.transactions[sender.transactions.length - 1],
+    paymentToken: 'TPC',
+    delivery: {
+      pool: delivery.pool.length,
+      snooker: delivery.snooker.length,
+      unsupported: delivery.unsupported.length
+    }
+  });
 });
 
 // Convert received gifts to TPC
