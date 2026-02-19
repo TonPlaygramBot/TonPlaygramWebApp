@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { getSpeechSupport, speakCommentaryLines } from '../utils/textToSpeech.js';
 import {
   buildStructuredResponse,
@@ -7,33 +7,15 @@ import {
 } from '../utils/platformHelpLocalSearch.js';
 
 const SPEECH_RECOGNITION_ERROR =
-  'Voice input is unavailable on this device/browser. Please use a supported browser for voice help.';
+  'Voice input is unavailable on this device/browser. You can still type your question.';
 
-const DEFAULT_LANGUAGES = [
-  { locale: 'en-US', language: 'English' },
-  { locale: 'sq-AL', language: 'Albanian' },
-  { locale: 'es-ES', language: 'Spanish' },
-  { locale: 'pt-BR', language: 'Portuguese' },
-  { locale: 'tr-TR', language: 'Turkish' }
+const SUPPORTED_HELP_LANGUAGES = [
+  { label: 'English', locale: 'en-US', flag: '🇺🇸' },
+  { label: 'Shqip', locale: 'sq-AL', flag: '🇦🇱' },
+  { label: 'Español', locale: 'es-ES', flag: '🇪🇸' },
+  { label: 'Português', locale: 'pt-PT', flag: '🇵🇹' },
+  { label: 'Türkçe', locale: 'tr-TR', flag: '🇹🇷' }
 ];
-
-const LOCALE_TO_FLAG = {
-  'en-US': '🇺🇸',
-  'sq-AL': '🇦🇱',
-  'es-ES': '🇪🇸',
-  'es-MX': '🇲🇽',
-  'fr-FR': '🇫🇷',
-  'de-DE': '🇩🇪',
-  'it-IT': '🇮🇹',
-  'ja-JP': '🇯🇵',
-  'ko-KR': '🇰🇷',
-  'hi-IN': '🇮🇳',
-  'ar-SA': '🇸🇦',
-  'tr-TR': '🇹🇷',
-  'pt-BR': '🇧🇷',
-  'uk-UA': '🇺🇦',
-  'pl-PL': '🇵🇱'
-};
 
 function createSpeechRecognition(locale = 'en-US') {
   if (typeof window === 'undefined') return null;
@@ -48,17 +30,18 @@ function createSpeechRecognition(locale = 'en-US') {
 }
 
 export default function PlatformHelpAgentCard({ onClose = null }) {
+  const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(
-    'Voice help is ready. Tap your language flag, then tap Open Mic and speak.'
+    'Hi! I can help with wallet, games, NFTs, matchmaking, roadmap, tasks, and troubleshooting. Pick your language and ask naturally.'
   );
   const [citations, setCitations] = useState([]);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeakingEnabled, setIsSpeakingEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedLocale, setSelectedLocale] = useState('en-US');
-  const [supportedLanguages, setSupportedLanguages] = useState(DEFAULT_LANGUAGES);
 
   const recognitionRef = useRef(null);
-  const isListeningRef = useRef(false);
+  const liveTranscriptRef = useRef('');
 
   const canUseSpeechInput = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -67,58 +50,10 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
 
   const canUseSpeechOutput = useMemo(() => Boolean(getSpeechSupport()), []);
 
-  useEffect(() => {
-    isListeningRef.current = isListening;
-  }, [isListening]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadVoiceLanguages = async () => {
-      try {
-        const response = await fetch('/v1/voice/catalog');
-        if (!response.ok) return;
-        const payload = await response.json();
-        const voices = Array.isArray(payload?.voices) ? payload.voices : [];
-        const uniqueByLocale = new Map();
-        voices.forEach((voice) => {
-          const locale = String(voice?.locale || '').trim();
-          const language = String(voice?.language || '').trim();
-          if (!locale || !language || uniqueByLocale.has(locale)) return;
-          uniqueByLocale.set(locale, { locale, language });
-        });
-
-        const items = Array.from(uniqueByLocale.values());
-        if (!cancelled && items.length) {
-          setSupportedLanguages(items);
-          if (!items.some((item) => item.locale === selectedLocale)) {
-            setSelectedLocale(items[0].locale);
-          }
-        }
-      } catch {
-        // Keep local defaults if catalog call fails.
-      }
-    };
-
-    void loadVoiceLanguages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedLocale]);
-
   const stopAgentVoice = () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-  };
-
-  const speakAnswer = async (text) => {
-    if (!canUseSpeechOutput || !String(text || '').trim()) return;
-    await speakCommentaryLines([{ speaker: 'Help Host', text }], {
-      voiceHints: { 'Help Host': [selectedLocale] },
-      speakerSettings: { 'Help Host': 'personaplex' }
-    });
   };
 
   const runLocalFallback = async (text) => {
@@ -126,7 +61,11 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
     const reply = buildStructuredResponse(text, matches, selectedLocale);
     setAnswer(reply.answer);
     setCitations(reply.citations);
-    await speakAnswer(reply.answer);
+    if (isSpeakingEnabled && canUseSpeechOutput) {
+      await speakCommentaryLines([{ speaker: 'Lena', text: reply.answer }], {
+        voiceHints: { Lena: [selectedLocale] }
+      });
+    }
   };
 
   const runAgentReply = async (text) => {
@@ -135,7 +74,11 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
         'I can’t help with sensitive, private, or abuse-related requests. I can share public user guidance and official support steps.';
       setAnswer(blocked);
       setCitations([]);
-      await speakAnswer(blocked);
+      if (isSpeakingEnabled && canUseSpeechOutput) {
+        await speakCommentaryLines([{ speaker: 'Lena', text: blocked }], {
+          voiceHints: { Lena: [selectedLocale] }
+        });
+      }
       return;
     }
 
@@ -147,14 +90,13 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
         body: JSON.stringify({
           message: text,
           locale: selectedLocale,
-          mode: 'live-help-voice-only',
+          mode: 'live-help',
           systemContext:
-            'You are TonPlaygram live help. Keep answers clear and voice-friendly. Reply in the selected locale.',
+            'You are TonPlaygram live help. Be warm, concise, natural, and conversational. Ask follow-up questions. Avoid robotic responses. Reply in the user locale when possible.',
           capabilities: {
             interruptionAware: true,
             keepMicOpen: true,
-            bargeIn: true,
-            voiceOnly: true
+            bargeIn: true
           }
         })
       });
@@ -174,12 +116,22 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
 
       setAnswer(nextAnswer);
       setCitations(nextCitations);
-      await speakAnswer(nextAnswer);
+      if (isSpeakingEnabled && canUseSpeechOutput) {
+        await speakCommentaryLines([{ speaker: 'Lena', text: nextAnswer }], {
+          voiceHints: { Lena: [selectedLocale] }
+        });
+      }
     } catch {
       await runLocalFallback(text);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const askQuestion = async () => {
+    const text = question.trim();
+    if (!text) return;
+    await runAgentReply(text);
   };
 
   const stopVoiceInput = () => {
@@ -212,22 +164,34 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
     }
 
     recognition.onresult = (event) => {
+      let partial = '';
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];
-        const transcript = String(result?.[0]?.transcript || '').trim();
-        if (!result.isFinal || !transcript) continue;
-        stopAgentVoice();
-        void runAgentReply(transcript);
+        const transcript = result?.[0]?.transcript || '';
+        if (result.isFinal) {
+          const finalText = String(transcript || '').trim();
+          if (!finalText) continue;
+          liveTranscriptRef.current = '';
+          setQuestion(finalText);
+          stopAgentVoice();
+          void runAgentReply(finalText);
+        } else {
+          partial += transcript;
+        }
+      }
+      if (partial.trim()) {
+        liveTranscriptRef.current = partial.trim();
+        setQuestion(liveTranscriptRef.current);
       }
     };
 
     recognition.onerror = () => {
-      setAnswer('Voice input failed. Please try again.');
+      setAnswer('Voice input failed. Please try again or type your question.');
       setIsListening(false);
     };
 
     recognition.onend = () => {
-      if (isListeningRef.current) {
+      if (isListening) {
         try {
           recognition.start();
         } catch {
@@ -245,38 +209,62 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-white">TonPlaygram AI Help Center</h3>
-          <p className="text-xs text-subtext">Voice-only help • PersonaPlex voices • Tap a flag to change language</p>
+          <p className="text-xs text-subtext">Real-time conversation • Voice interruption enabled • Public guidance only</p>
         </div>
-        {onClose ? (
+        <div className="flex items-center gap-2">
           <button
             type="button"
             className="px-2 py-1 text-xs rounded-md border border-border text-white"
-            onClick={onClose}
+            onClick={() => setIsSpeakingEnabled((prev) => !prev)}
           >
-            Close
+            {isSpeakingEnabled ? 'Voice: ON' : 'Voice: OFF'}
           </button>
-        ) : null}
+          {onClose ? (
+            <button
+              type="button"
+              className="px-2 py-1 text-xs rounded-md border border-border text-white"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-subtext">Supported languages</p>
+        <p className="text-xs font-semibold text-subtext">Choose help language</p>
         <div className="flex flex-wrap gap-2">
-          {supportedLanguages.map((language) => (
+          {SUPPORTED_HELP_LANGUAGES.map((language) => (
             <button
               key={language.locale}
               type="button"
               onClick={() => setSelectedLocale(language.locale)}
-              className={`h-10 w-10 rounded-lg border text-xl leading-none ${selectedLocale === language.locale ? 'border-primary bg-primary/20' : 'border-border'}`}
-              aria-label={language.language}
-              title={`${language.language} (${language.locale})`}
+              className={`px-2.5 py-1.5 rounded-lg border text-sm ${selectedLocale === language.locale ? 'border-primary bg-primary/20 text-white' : 'border-border text-subtext'}`}
             >
-              {LOCALE_TO_FLAG[language.locale] || '🌐'}
+              <span className="mr-1" role="img" aria-label={language.label}>{language.flag}</span>
+              {language.label}
             </button>
           ))}
         </div>
       </div>
 
+      <textarea
+        value={question}
+        onChange={(event) => setQuestion(event.target.value)}
+        rows={3}
+        className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm text-white"
+        placeholder="Ask naturally. You can interrupt voice and ask follow-up questions anytime..."
+      />
+
       <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg bg-primary text-black text-sm font-semibold disabled:opacity-60"
+          onClick={() => void askQuestion()}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Thinking…' : 'Ask'}
+        </button>
         <button
           type="button"
           className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
