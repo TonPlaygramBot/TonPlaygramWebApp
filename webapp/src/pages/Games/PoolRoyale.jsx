@@ -355,8 +355,8 @@ const createTrainingScratchPopupMesh = () => {
   ctx.lineWidth = 14;
   ctx.strokeStyle = 'rgba(10, 10, 14, 0.82)';
   ctx.fillStyle = '#ffd4e3';
-  ctx.strokeText('❤️ -2 ❤️', canvas.width / 2, canvas.height / 2);
-  ctx.fillText('❤️ -2 ❤️', canvas.width / 2, canvas.height / 2);
+  ctx.strokeText('-2❤️', canvas.width / 2, canvas.height / 2);
+  ctx.fillText('-2❤️', canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
@@ -13929,6 +13929,8 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [trainingPenaltyPopup, setTrainingPenaltyPopup] = useState(null);
+  const trainingPenaltyPopupTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
   const waitForActiveReplay = useCallback(
@@ -13966,6 +13968,10 @@ function PoolRoyaleGame({
       if (replaySlateTimeoutRef.current) {
         clearTimeout(replaySlateTimeoutRef.current);
         replaySlateTimeoutRef.current = null;
+      }
+      if (trainingPenaltyPopupTimeoutRef.current) {
+        clearTimeout(trainingPenaltyPopupTimeoutRef.current);
+        trainingPenaltyPopupTimeoutRef.current = null;
       }
     },
     []
@@ -14957,9 +14963,10 @@ const powerRef = useRef(hud.power);
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
     const userSeed = st.userSeed;
-    st.rounds[round].forEach((pair, idx) => {
+    st.rounds?.[round]?.forEach((pair, idx) => {
       if (pair.includes(userSeed)) return;
-      if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+      const nextRoundPair = next?.[Math.floor(idx / 2)];
+      if (nextRoundPair?.[idx % 2]) return;
       const [s1, s2] = pair;
       const p1 = st.seedToPlayer[s1];
       const p2 = st.seedToPlayer[s2];
@@ -14967,7 +14974,7 @@ const powerRef = useRef(hud.power);
       if (p1?.name === 'BYE') winnerSeed = s2;
       else if (p2?.name === 'BYE') winnerSeed = s1;
       else winnerSeed = Math.random() < 0.5 ? s1 : s2;
-      if (next) next[Math.floor(idx / 2)][idx % 2] = winnerSeed;
+      if (nextRoundPair) nextRoundPair[idx % 2] = winnerSeed;
       else {
         st.championSeed = winnerSeed;
         st.complete = true;
@@ -15008,7 +15015,8 @@ const powerRef = useRef(hud.power);
         const userWon = winnerSeat === userSeat;
         const winnerSeed = userWon ? userSeed : oppSeed;
         const next = st.rounds[r + 1];
-        if (next) next[Math.floor(m / 2)][m % 2] = winnerSeed;
+        const nextRoundPair = next?.[Math.floor(m / 2)];
+        if (nextRoundPair) nextRoundPair[m % 2] = winnerSeed;
         else {
           st.championSeed = winnerSeed;
           st.complete = true;
@@ -15017,7 +15025,13 @@ const powerRef = useRef(hud.power);
           simulateRemaining(st, r);
         } else {
           simulateRoundAI(st, r);
-          if (next && st.rounds[r].every((pair, idx) => next[Math.floor(idx / 2)][idx % 2])) {
+          if (
+            next &&
+            st.rounds?.[r]?.every((pair, idx) => {
+              const nextPair = next[Math.floor(idx / 2)];
+              return Boolean(nextPair?.[idx % 2]);
+            })
+          ) {
             st.currentRound = r + 1;
           }
         }
@@ -27452,16 +27466,15 @@ const powerRef = useRef(hud.power);
               postShotSnapshot = captureBallSnapshot();
             }
             const nextMeta = safeState.meta;
-            if (nextMeta && typeof nextMeta === 'object') {
+            if (isTraining) {
+              nextInHand = cueBallPotted;
+            } else if (nextMeta && typeof nextMeta === 'object') {
               if (nextMeta.variant === 'american' && nextMeta.state) {
-                nextInHand =
-                  cueBallPotted || Boolean(nextMeta.state.ballInHand);
+                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
-                nextInHand =
-                  cueBallPotted || Boolean(nextMeta.state.ballInHand);
+                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand =
-                  cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
+                nextInHand = cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
             if (isTraining && trainingOutOfAttempts) {
@@ -29361,6 +29374,16 @@ const powerRef = useRef(hud.power);
                     }
                   }
                 }
+                if (isTraining) {
+                  setTrainingPenaltyPopup('-2❤️');
+                  if (trainingPenaltyPopupTimeoutRef.current) {
+                    clearTimeout(trainingPenaltyPopupTimeoutRef.current);
+                  }
+                  trainingPenaltyPopupTimeoutRef.current = window.setTimeout(() => {
+                    setTrainingPenaltyPopup(null);
+                    trainingPenaltyPopupTimeoutRef.current = null;
+                  }, 900);
+                }
                 if (!hudRef.current?.inHand) {
                   hudRef.current = { ...hudRef.current, inHand: true };
                   setHud((prev) => ({ ...prev, inHand: true }));
@@ -30792,6 +30815,13 @@ const powerRef = useRef(hud.power);
           <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
             {ruleToast}
           </span>
+        </div>
+      )}
+      {isTraining && trainingPenaltyPopup && (
+        <div className="pointer-events-none absolute inset-0 z-[118] flex items-center justify-center">
+          <div className="rounded-full border border-rose-200/70 bg-rose-500/20 px-6 py-3 text-2xl font-black tracking-[0.08em] text-rose-100 shadow-[0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+            {trainingPenaltyPopup}
+          </div>
         </div>
       )}
       {showTournamentFinalWelcome && isTournamentFinalMatch && (
