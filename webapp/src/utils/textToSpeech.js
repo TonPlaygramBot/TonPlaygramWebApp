@@ -1,17 +1,13 @@
-import { get, post } from './api.js'
+import { post } from './api.js'
 
 let commentarySupport = true
 const listeners = new Set()
 let audioUnlocked = false
 let unlockPromise = null
-let voicesCache = null
 
 const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'mousedown', 'keydown']
 const TINY_SILENCE_MP3 =
   'data:audio/mpeg;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjE1LjEwNAAAAAAAAAAAAAAA//tQxAADBzQASQAAABhAAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgP/7UMQAAwcoAEkAAABoAAAACAAADSAAAAAEAAANIAAAAAExhdmM1Ni4xNAAAAAAAAAAAAAAAACQCkAAAAAAAAAAAAAAAAAAAA//sQxAADAgAASAAAABgAAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg'
-
-const VOICE_PROMPT_STORAGE_KEY = 'tpg.personaplex.voicePromptId'
-const VOICE_SESSION_STORAGE_KEY = 'tpg.personaplex.sessionId'
 
 const emitSupport = (supported) => {
   if (commentarySupport === supported) return
@@ -23,36 +19,6 @@ const emitSupport = (supported) => {
       // no-op
     }
   })
-}
-
-const getSessionId = () => {
-  if (typeof window === 'undefined') return 'guest-session'
-  const existing = window.localStorage.getItem(VOICE_SESSION_STORAGE_KEY)
-  if (existing) return existing
-  const next = window.crypto?.randomUUID?.() || `session-${Date.now()}`
-  window.localStorage.setItem(VOICE_SESSION_STORAGE_KEY, next)
-  return next
-}
-
-export const getSelectedVoicePromptId = () => {
-  if (typeof window === 'undefined') return ''
-  return window.localStorage.getItem(VOICE_PROMPT_STORAGE_KEY) || ''
-}
-
-export const setSelectedVoicePromptId = (voicePromptId) => {
-  if (typeof window === 'undefined') return ''
-  const value = String(voicePromptId || '').trim()
-  window.localStorage.setItem(VOICE_PROMPT_STORAGE_KEY, value)
-  return value
-}
-
-export const fetchPersonaPlexVoices = async ({ force = false } = {}) => {
-  if (!force && voicesCache) return voicesCache
-  const res = await get('/v1/voices')
-  if (res?.error) return { voices: [], error: res.error }
-  const voices = Array.isArray(res?.voices) ? res.voices : []
-  voicesCache = { voices }
-  return voicesCache
 }
 
 const getCurrentAccountId = () => {
@@ -84,8 +50,18 @@ const unlockAudioPlayback = async () => {
   await unlockPromise
 }
 
-const playFromSource = async (source) => {
+const playAudioPayload = async (payload) => {
+  const synthesis = payload?.synthesis || {}
+  const audioUrl = synthesis.audioUrl
+  const audioBase64 = synthesis.audioBase64
+  const mimeType = synthesis.mimeType || 'audio/mpeg'
+  if (!audioUrl && !audioBase64) {
+    throw new Error('PersonaPlex response missing audio payload')
+  }
+
   await unlockAudioPlayback()
+
+  const source = audioUrl || `data:${mimeType};base64,${audioBase64}`
   const audio = new Audio(source)
   await new Promise((resolve, reject) => {
     const onDone = () => {
@@ -109,18 +85,6 @@ const playFromSource = async (source) => {
       onError()
     })
   })
-}
-
-const playAudioPayload = async (payload) => {
-  const synthesis = payload?.synthesis || payload || {}
-  const audioUrl = synthesis.audioUrl || ''
-  const audioBase64 = synthesis.audioBase64 || ''
-  const mimeType = synthesis.mimeType || 'audio/wav'
-  if (!audioUrl && !audioBase64) {
-    throw new Error('PersonaPlex response missing audio payload')
-  }
-  const source = audioUrl || `data:${mimeType};base64,${audioBase64}`
-  await playFromSource(source)
 }
 
 export const installSpeechSynthesisUnlock = () => {
@@ -156,7 +120,25 @@ export const primeSpeechSynthesis = () => {
 
 export const resolveVoiceForSpeaker = () => null
 
-const speakWithBrowserTts = async (text) => {
+const pickSpeechSynthesisVoice = (hints = []) => {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices?.() || []
+  if (!voices.length) return null
+
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean)
+  for (const hint of normalizedHints) {
+    const byLang = voices.find((voice) => String(voice.lang || '').toLowerCase() === hint)
+    if (byLang) return byLang
+    const byPrefix = voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith(`${hint}-`))
+    if (byPrefix) return byPrefix
+    const byName = voices.find((voice) => String(voice.name || '').toLowerCase().includes(hint))
+    if (byName) return byName
+  }
+
+  return voices.find((voice) => voice.default) || voices[0]
+}
+
+const speakWithBrowserTts = async (text, hints = []) => {
   if (
     typeof window === 'undefined' ||
     !window.speechSynthesis ||
@@ -170,6 +152,12 @@ const speakWithBrowserTts = async (text) => {
 
   await new Promise((resolve, reject) => {
     const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
+    const preferredVoice = pickSpeechSynthesisVoice(hints)
+    if (preferredVoice) {
+      utterance.voice = preferredVoice
+      if (preferredVoice.lang) utterance.lang = preferredVoice.lang
+    }
+
     utterance.rate = 1
     utterance.pitch = 1
     utterance.volume = 1
@@ -185,40 +173,13 @@ const speakWithBrowserTts = async (text) => {
   })
 }
 
-async function requestSpeechFromApi({ text, speaker, channel, locale, eventType, eventPayload }) {
-  const voicePromptId = getSelectedVoicePromptId() || undefined
-  const sessionId = getSessionId()
-
-  if (channel === 'help') {
-    const res = await post('/v1/support/text', {
-      messages: [{ role: 'user', content: text }],
-      sessionId,
-      voicePromptId
-    })
-    return res
-  }
-
-  const commentaryRes = await post('/v1/commentary/event', {
-    eventType: eventType || 'GAME_EVENT',
-    eventPayload: {
-      speaker,
-      text,
-      locale,
-      ...(eventPayload && typeof eventPayload === 'object' ? eventPayload : {})
-    },
-    sessionId,
-    voicePromptId
-  })
-  return commentaryRes
-}
-
 export const speakCommentaryLines = async (
   lines,
   { voiceHints = {}, speakerSettings = {}, channel = 'commentary', allowBrowserFallback = false } = {}
 ) => {
   if (!Array.isArray(lines) || !lines.length || typeof window === 'undefined') return
 
-  getCurrentAccountId()
+  const accountId = getCurrentAccountId()
 
   for (const line of lines) {
     const text = String(line?.text || '').trim()
@@ -226,16 +187,15 @@ export const speakCommentaryLines = async (
 
     const speaker = line?.speaker || 'Host'
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
-    const localeHint = line?.locale || hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
+    const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
 
-    const payload = await requestSpeechFromApi({
+    const payload = await post('/v1/voice/speak', {
+      accountId,
       text,
       speaker,
-      channel,
       locale: localeHint,
       style: speakerSettings[speaker] || null,
-      eventType: line?.eventType,
-      eventPayload: line?.eventPayload
+      channel
     })
 
     if (payload?.error) {
@@ -243,18 +203,23 @@ export const speakCommentaryLines = async (
       throw new Error(payload.error)
     }
 
+    if (payload?.synthesis?.mode === 'local-fallback') {
+      emitSupport(false)
+      throw new Error(payload?.synthesis?.message || 'PersonaPlex voice is unavailable')
+    }
+
     try {
-      if (!payload?.audioUrl && !payload?.audioBase64) {
+      if (!payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
         if (!allowBrowserFallback) {
           throw new Error('PersonaPlex audio payload missing')
         }
-        await speakWithBrowserTts(payload?.text || text)
+        await speakWithBrowserTts(payload?.text || text, hints)
       } else {
         try {
           await playAudioPayload(payload)
         } catch {
           if (!allowBrowserFallback) throw new Error('PersonaPlex audio playback failed')
-          await speakWithBrowserTts(payload?.text || text)
+          await speakWithBrowserTts(payload?.text || text, hints)
         }
       }
       emitSupport(true)
