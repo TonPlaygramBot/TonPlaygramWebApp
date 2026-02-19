@@ -704,8 +704,10 @@ export function depositAccount(accountId, amount, extra = {}) {
   );
 }
 
-export function buyBundle(accountId, bundle) {
-  return post('/api/store/purchase', { accountId, bundle });
+export function buyBundle(accountId, bundle, purchaseId) {
+  const body = { accountId, bundle };
+  if (purchaseId) body.purchaseId = purchaseId;
+  return post('/api/store/purchase', body);
 }
 
 export function claimPurchase(accountId, txHash) {
