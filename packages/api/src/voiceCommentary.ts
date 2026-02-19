@@ -107,6 +107,57 @@ export function buildCommentaryText(game: GameKey, eventType: CommentaryEventTyp
   }
 }
 
+function generateSineWavBase64(seedText: string): string {
+  const sampleRate = 22050;
+  const durationSec = Math.max(1, Math.min(4, Math.floor(seedText.length / 40) || 1));
+  const count = sampleRate * durationSec;
+  const freq = 240 + (seedText.length % 180);
+  const amplitude = 5000;
+
+  const pcm = Buffer.alloc(count * 2);
+  for (let i = 0; i < count; i += 1) {
+    const t = i / sampleRate;
+    const sample = Math.round(amplitude * Math.sin(2 * Math.PI * freq * t));
+    pcm.writeInt16LE(sample, i * 2);
+  }
+
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(pcm.length, 40);
+
+  return Buffer.concat([header, pcm]).toString('base64');
+}
+
+function coalesceAudioPayload(payload: Record<string, unknown>) {
+  const audioUrl =
+    (typeof payload.audioUrl === 'string' && payload.audioUrl) ||
+    (typeof payload.audio_url === 'string' && payload.audio_url) ||
+    '';
+  const audioBase64 =
+    (typeof payload.audioBase64 === 'string' && payload.audioBase64) ||
+    (typeof payload.audio_base64 === 'string' && payload.audio_base64) ||
+    (typeof payload.audioContent === 'string' && payload.audioContent) ||
+    (typeof payload.audio_content === 'string' && payload.audio_content) ||
+    '';
+  const mimeType =
+    (typeof payload.mimeType === 'string' && payload.mimeType) ||
+    (typeof payload.mime_type === 'string' && payload.mime_type) ||
+    'audio/wav';
+
+  return { audioUrl, audioBase64, mimeType };
+}
+
 export async function requestPersonaplexSynthesis(input: {
   text: string;
   voiceId: string;
@@ -117,21 +168,32 @@ export async function requestPersonaplexSynthesis(input: {
   | {
       mode: 'local-fallback';
       provider: 'nvidia-personaplex';
-      reason: 'missing_credentials';
+      reason: 'missing_credentials' | 'remote_unavailable';
       message: string;
       payload: {
         text: string;
         voiceId: string;
         locale: string;
         metadata: Record<string, string>;
+        audioBase64: string;
+        mimeType: string;
       };
     }
 > {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
   const localFallbackEnabled = process.env.PERSONAPLEX_LOCAL_FALLBACK !== '0';
+  const ttsPath = process.env.PERSONAPLEX_TTS_PATH || '/v1/speech/synthesize';
+  const model = process.env.PERSONAPLEX_MODEL || '';
 
-  const ssml = `<speak><lang xml:lang="${input.locale}">${input.text}</lang></speak>`;
+  const fallbackPayload = {
+    text: input.text,
+    voiceId: input.voiceId,
+    locale: input.locale,
+    metadata: input.metadata ?? {},
+    audioBase64: generateSineWavBase64(input.text),
+    mimeType: 'audio/wav'
+  };
 
   if (!endpoint || !apiKey) {
     if (!localFallbackEnabled) {
@@ -142,38 +204,74 @@ export async function requestPersonaplexSynthesis(input: {
       mode: 'local-fallback',
       provider: 'nvidia-personaplex',
       reason: 'missing_credentials',
-      message: 'PersonaPlex credentials are missing. Using local fallback payload for development.',
-      payload: {
-        text: input.text,
-        voiceId: input.voiceId,
-        locale: input.locale,
-        metadata: input.metadata ?? {}
-      }
+      message: 'PersonaPlex credentials are missing. Using local audio fallback for development.',
+      payload: fallbackPayload
     };
   }
 
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/v1/speech/synthesize`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      input: input.text,
-      ssml,
-      voice: input.voiceId,
-      locale: input.locale,
-      metadata: input.metadata ?? {}
-    })
-  });
+  const baseUrl = endpoint.replace(/\/$/, '');
+  const body: Record<string, unknown> = {
+    input: input.text,
+    text: input.text,
+    voice: input.voiceId,
+    locale: input.locale,
+    response_format: 'wav',
+    metadata: input.metadata ?? {}
+  };
+  if (model) body.model = model;
 
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
+  try {
+    const response = await fetch(`${baseUrl}${ttsPath}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
+    }
+
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    if (contentType.startsWith('audio/')) {
+      const audioBuffer = Buffer.from(await response.arrayBuffer());
+      return {
+        mode: 'remote',
+        provider: 'nvidia-personaplex',
+        response: {
+          audioBase64: audioBuffer.toString('base64'),
+          mimeType: contentType
+        }
+      };
+    }
+
+    const jsonPayload = (await response.json()) as Record<string, unknown>;
+    const normalized = coalesceAudioPayload(jsonPayload);
+    if (!normalized.audioUrl && !normalized.audioBase64) {
+      throw new Error('PersonaPlex response missing audio fields');
+    }
+
+    return {
+      mode: 'remote',
+      provider: 'nvidia-personaplex',
+      response: {
+        ...jsonPayload,
+        ...normalized
+      }
+    };
+  } catch (error) {
+    if (!localFallbackEnabled) throw error;
+    return {
+      mode: 'local-fallback',
+      provider: 'nvidia-personaplex',
+      reason: 'remote_unavailable',
+      message: `PersonaPlex remote unavailable (${(error as Error).message}). Using local audio fallback.`,
+      payload: fallbackPayload
+    };
   }
-
-  const payload = await response.json();
-  return { mode: 'remote', provider: 'nvidia-personaplex', response: payload };
 }
 
 export function findVoiceProfile(voiceId?: string, locale?: string): VoiceProfile {
