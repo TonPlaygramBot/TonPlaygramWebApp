@@ -80,3 +80,39 @@ export const mergeStoreTransactions = (transactions = [], accountId) => {
   });
   return merged;
 };
+
+const toValidDate = (value) => {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+};
+
+const sortByNewestDate = (entries = []) =>
+  [...entries].sort((a, b) => {
+    const first = toValidDate(a?.date)?.getTime() || 0;
+    const second = toValidDate(b?.date)?.getTime() || 0;
+    return second - first;
+  });
+
+export const getLastStorePurchase = (accountId) => {
+  const transactions = readStoreTransactions(accountId);
+  if (!transactions.length) return null;
+  const [latest] = sortByNewestDate(transactions);
+  return latest || null;
+};
+
+export const getLastStorePurchaseSnapshot = () => {
+  const all = readAllTransactions();
+  const snapshots = Object.entries(all)
+    .filter(([accountId, txs]) => accountId && accountId !== 'guest' && Array.isArray(txs) && txs.length)
+    .map(([accountId, txs]) => {
+      const [latest] = sortByNewestDate(txs);
+      return latest ? { accountId, transaction: latest } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const first = toValidDate(a.transaction?.date)?.getTime() || 0;
+      const second = toValidDate(b.transaction?.date)?.getTime() || 0;
+      return second - first;
+    });
+  return snapshots[0] || null;
+};
