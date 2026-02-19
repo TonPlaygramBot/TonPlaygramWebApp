@@ -1,17 +1,5 @@
 import crypto from 'crypto';
 
-function isTruthy(value) {
-  if (!value) return false;
-  return !['0', 'false', 'no', 'off'].includes(String(value).toLowerCase());
-}
-
-function canTrustClientIdentityHeaders() {
-  if (process.env.TRUST_CLIENT_IDENTITY_HEADERS != null) {
-    return isTruthy(process.env.TRUST_CLIENT_IDENTITY_HEADERS);
-  }
-  return process.env.NODE_ENV !== 'production';
-}
-
 export function verifyTelegramInitData(initData, botToken = process.env.BOT_TOKEN) {
   try {
     const params = new URLSearchParams(initData);
@@ -54,7 +42,7 @@ function attachAuth(req, token, initData) {
     req.auth = { apiToken: true };
     return true;
   }
-  if (canTrustClientIdentityHeaders() && (accountId || googleId)) {
+  if (accountId || googleId) {
     req.auth = {
       accountId: accountId || undefined,
       googleId: googleId || undefined
