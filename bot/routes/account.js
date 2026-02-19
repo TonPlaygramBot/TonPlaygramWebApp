@@ -618,11 +618,11 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   sender.balance -= totalPrice;
   sender.transactions.push({
     amount: -totalPrice,
-    type: 'storefront',
+    type: 'store',
     token: 'TPC',
     status: 'delivered',
     date: txDate,
-    detail: 'Storefront purchase',
+    detail: 'Store purchase',
     items: items.map((item) => JSON.stringify(item))
   });
 
