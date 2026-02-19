@@ -71,10 +71,6 @@ export function isGameKey(value: string): value is GameKey {
   return value in GAME_LABELS;
 }
 
-function getGameLabel(game: GameKey): string {
-  return GAME_LABELS[game];
-}
-
 function supportReplyTemplate(language: string, ticketContext: string): string {
   if (language.toLowerCase().startsWith('albanian')) {
     return `Përshëndetje! Faleminderit që na kontaktuat. E kuptova kërkesën tuaj: ${ticketContext}. Po e kontrollojmë menjëherë dhe do t’ju japim hapa të qartë, një nga një.`;
@@ -84,7 +80,7 @@ function supportReplyTemplate(language: string, ticketContext: string): string {
 }
 
 export function buildCommentaryText(game: GameKey, eventType: CommentaryEventType, playerName: string, score?: string): string {
-  const gameLabel = getGameLabel(game);
+  const gameLabel = GAME_LABELS[game];
   const safePlayer = playerName || 'Player';
 
   switch (eventType) {
@@ -105,6 +101,42 @@ export function buildCommentaryText(game: GameKey, eventType: CommentaryEventTyp
     default:
       return `Live update from ${gameLabel}.`;
   }
+}
+
+async function trySynthesisRequest(
+  endpoint: string,
+  apiKey: string,
+  path: string,
+  body: Record<string, unknown>,
+) {
+  const response = await fetch(`${endpoint.replace(/\/$/, '')}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const json = await response.json();
+    return { response: json };
+  }
+
+  const binary = await response.arrayBuffer();
+  const audioBase64 = Buffer.from(binary).toString('base64');
+  return {
+    response: {
+      audioBase64,
+      mimeType: contentType || 'audio/wav'
+    }
+  };
 }
 
 export async function requestPersonaplexSynthesis(input: {
@@ -130,8 +162,10 @@ export async function requestPersonaplexSynthesis(input: {
   const endpoint = process.env.PERSONAPLEX_API_URL;
   const apiKey = process.env.PERSONAPLEX_API_KEY;
   const localFallbackEnabled = process.env.PERSONAPLEX_LOCAL_FALLBACK !== '0';
-
-  const ssml = `<speak><lang xml:lang="${input.locale}">${input.text}</lang></speak>`;
+  const mode = String(process.env.PERSONAPLEX_API_MODE || 'auto').toLowerCase();
+  const synthesisPath = process.env.PERSONAPLEX_SYNTHESIS_PATH || '/v1/speech/synthesize';
+  const openAiAudioPath = process.env.PERSONAPLEX_OPENAI_AUDIO_PATH || '/v1/audio/speech';
+  const model = process.env.PERSONAPLEX_MODEL || 'nvidia/personaplex-tts';
 
   if (!endpoint || !apiKey) {
     if (!localFallbackEnabled) {
@@ -152,28 +186,43 @@ export async function requestPersonaplexSynthesis(input: {
     };
   }
 
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/v1/speech/synthesize`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      input: input.text,
-      ssml,
-      voice: input.voiceId,
-      locale: input.locale,
-      metadata: input.metadata ?? {}
-    })
-  });
+  const ssml = `<speak><lang xml:lang="${input.locale}">${input.text}</lang></speak>`;
+  const attempts: Array<() => Promise<{ response: unknown }>> = [];
 
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`PersonaPlex synthesis failed (${response.status}): ${details}`);
+  if (mode === 'personaplex' || mode === 'auto') {
+    attempts.push(() =>
+      trySynthesisRequest(endpoint, apiKey, synthesisPath, {
+        input: input.text,
+        ssml,
+        voice: input.voiceId,
+        locale: input.locale,
+        metadata: input.metadata ?? {}
+      }),
+    );
   }
 
-  const payload = await response.json();
-  return { mode: 'remote', provider: 'nvidia-personaplex', response: payload };
+  if (mode === 'openai_audio' || mode === 'auto') {
+    attempts.push(() =>
+      trySynthesisRequest(endpoint, apiKey, openAiAudioPath, {
+        model,
+        input: input.text,
+        voice: input.voiceId,
+        response_format: 'wav'
+      }),
+    );
+  }
+
+  let lastError: Error | null = null;
+  for (const attempt of attempts) {
+    try {
+      const payload = await attempt();
+      return { mode: 'remote', provider: 'nvidia-personaplex', response: payload.response };
+    } catch (error) {
+      lastError = error as Error;
+    }
+  }
+
+  throw lastError || new Error('PersonaPlex synthesis failed.');
 }
 
 export function findVoiceProfile(voiceId?: string, locale?: string): VoiceProfile {

@@ -45,6 +45,10 @@ test/platformHelpAgent/
    - `npm run help:api`
    - Voice endpoints now support a local development fallback when PersonaPlex credentials are missing.
    - Optional strict mode: set `PERSONAPLEX_LOCAL_FALLBACK=0` to force real PersonaPlex credentials.
+   - NVIDIA endpoint mode is configurable with `PERSONAPLEX_API_MODE`:
+     - `openai_audio` for OpenAI-compatible audio speech endpoints (e.g. NVIDIA integrate API `/v1/audio/speech`).
+     - `personaplex` for PersonaPlex-style synth endpoints (default path `/v1/speech/synthesize`).
+     - `auto` to try both formats in order.
 4. Run tests
    - `npm run help:test`
 
