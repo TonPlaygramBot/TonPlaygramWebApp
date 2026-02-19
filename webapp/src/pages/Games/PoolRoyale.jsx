@@ -322,6 +322,45 @@ const createPocketNetTexture = (size = 256, repeat = POCKET_NET_HEX_REPEAT) => {
   return texture;
 };
 
+const createTrainingScratchPopupMesh = () => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 384;
+  canvas.height = 192;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = '900 84px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = 'rgba(10, 10, 14, 0.82)';
+  ctx.fillStyle = '#ffd4e3';
+  ctx.strokeText('❤️ -2 ❤️', canvas.width / 2, canvas.height / 2);
+  ctx.fillText('❤️ -2 ❤️', canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    sizeAttenuation: false
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(BALL_R * 14, BALL_R * 7, 1);
+  sprite.renderOrder = 10;
+  sprite.userData.dispose = () => {
+    texture.dispose?.();
+    material.dispose?.();
+  };
+  return sprite;
+};
+
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
 
@@ -26895,14 +26934,31 @@ const powerRef = useRef(hud.power);
         if (isTraining) {
           const disableRuleEnding = !trainingRulesRef.current;
           const remainingTrainingObjectBalls = balls.filter((entry) => entry?.id !== 'cue' && entry?.active).length;
+          const currentActivePlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
+          const switchedTrainingPlayer = cueBallPotted
+            ? (currentActivePlayer === 'A' ? 'B' : 'A')
+            : currentActivePlayer;
+          const nextTrainingPlayer =
+            trainingModeRef.current === 'solo'
+              ? 'A'
+              : switchedTrainingPlayer;
+          const nextTrainingMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextTrainingMeta?.state && typeof nextTrainingMeta.state === 'object') {
+            nextTrainingMeta.state = {
+              ...nextTrainingMeta.state,
+              currentPlayer: nextTrainingPlayer
+            };
+          }
           safeState = {
             ...safeState,
             foul: undefined,
-            activePlayer: trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer,
+            activePlayer: nextTrainingPlayer,
             frameOver: disableRuleEnding ? false : remainingTrainingObjectBalls === 0,
             winner: disableRuleEnding
               ? undefined
-              : (remainingTrainingObjectBalls === 0 ? (trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer ?? 'A') : undefined)
+              : (remainingTrainingObjectBalls === 0 ? nextTrainingPlayer : undefined),
+            meta: nextTrainingMeta ?? safeState?.meta
           };
         }
         if (isTraining && !safeState?.frameOver) {
@@ -29118,6 +29174,26 @@ const powerRef = useRef(hud.power);
                 b.impacted = false;
                 b.active = true;
                 removePocketDropEntry(b.id);
+                if (isTraining && table) {
+                  const scratchPopup = createTrainingScratchPopupMesh();
+                  if (scratchPopup) {
+                    scratchPopup.position.set(c.x, BALL_CENTER_Y + POCKET_POPUP_LIFT, c.y);
+                    if (pocketCameraStateRef.current) {
+                      pocketPopupPendingRef.current.push({
+                        popupMesh: scratchPopup,
+                        renderOrder: (b.mesh?.renderOrder ?? 0) + 1
+                      });
+                    } else {
+                      scratchPopup.renderOrder = (b.mesh?.renderOrder ?? 0) + 1;
+                      table.add(scratchPopup);
+                      pocketPopupRef.current.push({
+                        mesh: scratchPopup,
+                        expiresAt: performance.now() + POCKET_POPUP_DURATION_MS,
+                        dispose: scratchPopup.userData?.dispose
+                      });
+                    }
+                  }
+                }
                 if (!hudRef.current?.inHand) {
                   hudRef.current = { ...hudRef.current, inHand: true };
                   setHud((prev) => ({ ...prev, inHand: true }));
@@ -29441,6 +29517,7 @@ const powerRef = useRef(hud.power);
               if (!entry?.mesh) return false;
               if (now < entry.expiresAt) return true;
               entry.mesh.parent?.remove?.(entry.mesh);
+              entry.dispose?.();
               return false;
             });
           }
@@ -29451,6 +29528,17 @@ const powerRef = useRef(hud.power);
           ) {
             const pending = pocketPopupPendingRef.current.splice(0);
             pending.forEach((entry) => {
+              if (entry?.popupMesh) {
+                const popupMesh = entry.popupMesh;
+                popupMesh.renderOrder = entry.renderOrder ?? 0;
+                table.add(popupMesh);
+                pocketPopupRef.current.push({
+                  mesh: popupMesh,
+                  expiresAt: now + POCKET_POPUP_DURATION_MS,
+                  dispose: popupMesh.userData?.dispose
+                });
+                return;
+              }
               if (!entry?.material || !entry?.position) return;
               const popupMesh = new THREE.Mesh(BALL_GEOMETRY, entry.material);
               popupMesh.position.copy(entry.position);
@@ -29641,6 +29729,7 @@ const powerRef = useRef(hud.power);
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
+          entry?.dispose?.();
         });
         pocketPopupRef.current = [];
         pocketPopupPendingRef.current = [];
@@ -31409,11 +31498,11 @@ const powerRef = useRef(hud.power);
                 Level {currentTrainingInfo.level}: {currentTrainingInfo.title}
               </p>
               <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
-              <p className="mt-1 text-[11px] text-rose-200">Cue-ball scratch penalty: -{TRAINING_SCRATCH_PENALTY_ATTEMPTS} attempts.</p>
+              <p className="mt-1 text-[11px] text-rose-200">Cue-ball scratch penalty: ❤️ -{TRAINING_SCRATCH_PENALTY_ATTEMPTS} hearts.</p>
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done • {trainingShotsRemaining} shots
+            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done • ❤️ {trainingShotsRemaining}
           </div>
           <button
             type="button"
