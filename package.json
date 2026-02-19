@@ -23,7 +23,7 @@
     "build:offline-assets": "node scripts/buildOfflineAssets.mjs",
     "thumbs:pool-table-finishes": "node scripts/generatePoolRoyaleTableFinishThumbs.mjs",
     "help:ingest": "node --loader ts-node/esm packages/ingestion-public/src/cli.ts",
-    "help:api": "node --loader ts-node/esm packages/api/src/server.ts",
+    "help:api": "node --loader ts-node/esm/transpile-only packages/api/src/server.ts",
     "help:test": "jest test/platformHelpAgent --runInBand"
   },
   "engines": {
