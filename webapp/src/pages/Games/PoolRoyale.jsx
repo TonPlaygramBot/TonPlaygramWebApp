@@ -27,7 +27,7 @@ import {
   getTelegramId
 } from '../../utils/telegram.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { addTransaction, depositAccount, getAccountBalance } from '../../utils/api.js';
+import { addTransaction, buyBundle, depositAccount, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
@@ -110,6 +110,15 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+
+
+const TRAINING_SCRATCH_PENALTY_ATTEMPTS = 2;
+const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
+  Object.freeze({ id: 'training-attempts-1', attempts: 1, price: 100, label: 'Starter heart' }),
+  Object.freeze({ id: 'training-attempts-5', attempts: 5, price: 450, label: 'Pocket run deal' }),
+  Object.freeze({ id: 'training-attempts-12', attempts: 12, price: 960, label: 'Table control deal' }),
+  Object.freeze({ id: 'training-attempts-30', attempts: 30, price: 2100, label: 'Champion heart vault' })
+]);
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -12457,6 +12466,8 @@ function PoolRoyaleGame({
   ]);
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
+  const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
+  const [buyingTrainingBundleId, setBuyingTrainingBundleId] = useState('');
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
@@ -12606,6 +12617,55 @@ function PoolRoyaleGame({
     setTrainingShotsRemaining(carryShots);
     persistTrainingProgress(updated);
   }, [isTraining]);
+
+
+  const handleTrainingAttemptsPurchase = useCallback(async (bundle) => {
+    if (!isTraining || !bundle || !resolvedAccountId) {
+      window.alert('Connect your account to buy attempts.');
+      return;
+    }
+    if (buyingTrainingBundleId) return;
+    setBuyingTrainingBundleId(bundle.id);
+    try {
+      const purchase = await buyBundle(resolvedAccountId, {
+        items: [{
+          slug: bundle.id,
+          type: 'pool-training-attempt',
+          optionId: String(bundle.attempts),
+          price: Number(bundle.price) || 0
+        }]
+      });
+      if (purchase?.error) {
+        window.alert(purchase.error);
+        return;
+      }
+      const nextShots = Math.max(0, Number(trainingShotsRemaining) || 0) + bundle.attempts;
+      setTrainingShotsRemaining(nextShots);
+      setTrainingProgress((prev) => {
+        const updated = { ...(prev || {}), carryShots: nextShots };
+        trainingProgressRef.current = updated;
+        persistTrainingProgress(updated);
+        return updated;
+      });
+      setTrainingAttemptsStoreOpen(false);
+      window.alert(`+${bundle.attempts} attempts added.`);
+    } catch (error) {
+      window.alert('Purchase failed. Try again.');
+      console.warn('Pool Royale training attempts purchase failed:', error);
+    } finally {
+      setBuyingTrainingBundleId('');
+    }
+  }, [buyingTrainingBundleId, isTraining, resolvedAccountId, trainingShotsRemaining]);
+
+  useEffect(() => {
+    if (!isTraining) {
+      setTrainingAttemptsStoreOpen(false);
+      return;
+    }
+    if ((Number(trainingShotsRemaining) || 0) <= 0) {
+      setTrainingAttemptsStoreOpen(true);
+    }
+  }, [isTraining, trainingShotsRemaining]);
 
   const handleTrainingLevelPick = useCallback((level) => {
     const levelNum = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(level) || 1));
@@ -14048,7 +14108,16 @@ const powerRef = useRef(hud.power);
       const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
       const carryShots = Math.max(0, trainingShotsRemaining);
-      const updated = { completed, rewarded, lastLevel, carryShots };
+      const updated = {
+        ...prev,
+        completed,
+        rewarded,
+        lastLevel,
+        carryShots,
+        attemptsAwardedLevels: Array.isArray(prev?.attemptsAwardedLevels)
+          ? prev.attemptsAwardedLevels
+          : []
+      };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
@@ -15396,7 +15465,7 @@ const powerRef = useRef(hud.power);
         },
         {
           speaker,
-          text: `Attempts left: ${attemptsLeft}. Scratch is allowed in training—place the cue ball where you want and keep practicing.`
+          text: `Attempts left: ${attemptsLeft}. If cue ball gets potted, -${TRAINING_SCRATCH_PENALTY_ATTEMPTS} attempts apply.`
         }
       ],
       { interrupt: false }
@@ -26836,17 +26905,22 @@ const powerRef = useRef(hud.power);
               : (remainingTrainingObjectBalls === 0 ? (trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer ?? 'A') : undefined)
           };
         }
-        if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
-          setTrainingShotsRemaining((prev) => {
-            const nextShots = Math.max(0, (Number(prev) || 0) - 1);
-            setTrainingProgress((progressPrev) => {
-              const updated = { ...(progressPrev || {}), carryShots: nextShots };
-              trainingProgressRef.current = updated;
-              persistTrainingProgress(updated);
-              return updated;
+        if (isTraining && !safeState?.frameOver) {
+          const penalty = cueBallPotted
+            ? TRAINING_SCRATCH_PENALTY_ATTEMPTS
+            : (pottedObjectCount === 0 ? 1 : 0);
+          if (penalty > 0) {
+            setTrainingShotsRemaining((prev) => {
+              const nextShots = Math.max(0, (Number(prev) || 0) - penalty);
+              setTrainingProgress((progressPrev) => {
+                const updated = { ...(progressPrev || {}), carryShots: nextShots };
+                trainingProgressRef.current = updated;
+                persistTrainingProgress(updated);
+                return updated;
+              });
+              return nextShots;
             });
-            return nextShots;
-          });
+          }
         }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
@@ -27137,15 +27211,16 @@ const powerRef = useRef(hud.power);
               removePocketDropEntry(cue.id);
               cue.mesh.visible = true;
               cue.active = true;
-              if (isTraining) {
-                const spawnPoint = resolveInHandPlacement(
-                  new THREE.Vector2(0, baulkZ - BALL_R * 1.6),
-                  { clearanceMultiplier: 2.05, maxRadius: BALL_R * 6 }
-                );
-                if (spawnPoint) {
-                  cue.pos.copy(spawnPoint);
-                  cue.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
-                }
+              const preferredSpawn = isTraining
+                ? new THREE.Vector2(0, baulkZ - BALL_R * 1.6)
+                : new THREE.Vector2(0, 0);
+              const spawnPoint = resolveInHandPlacement(preferredSpawn, {
+                clearanceMultiplier: isTraining ? 2.05 : 2.2,
+                maxRadius: BALL_R * (isTraining ? 6 : 7)
+              });
+              if (spawnPoint) {
+                cue.pos.copy(spawnPoint);
+                cue.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
               }
               cue.vel.set(0, 0);
               cue.spin?.set(0, 0);
@@ -31334,6 +31409,7 @@ const powerRef = useRef(hud.power);
                 Level {currentTrainingInfo.level}: {currentTrainingInfo.title}
               </p>
               <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
+              <p className="mt-1 text-[11px] text-rose-200">Cue-ball scratch penalty: -{TRAINING_SCRATCH_PENALTY_ATTEMPTS} attempts.</p>
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
@@ -31397,6 +31473,57 @@ const powerRef = useRef(hud.power);
               </div>
             </div>
           )}
+        </div>
+      )}
+
+
+      {isTraining && trainingAttemptsStoreOpen && (
+        <div className="absolute inset-0 z-[130] flex items-center justify-center bg-black/75 px-4">
+          <div className="w-[min(32rem,94vw)] rounded-2xl border border-rose-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200">Training attempts</p>
+                <p className="text-sm text-white/80">No attempts left. Buy more hearts to continue this task.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrainingAttemptsStoreOpen(false)}
+                className="rounded-full p-1 text-white/70 transition hover:text-white"
+                aria-label="Close attempts store"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {TRAINING_ATTEMPT_BUNDLES.map((bundle) => {
+                const unitPrice = bundle.price / Math.max(1, bundle.attempts);
+                return (
+                  <button
+                    key={bundle.id}
+                    type="button"
+                    onClick={() => handleTrainingAttemptsPurchase(bundle)}
+                    disabled={Boolean(buyingTrainingBundleId)}
+                    className="flex w-full items-center justify-between rounded-xl border border-rose-300/40 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="relative inline-flex h-9 w-9 items-center justify-center text-xl" aria-hidden="true">
+                        <span>❤️</span>
+                        <span className="pointer-events-none absolute text-[11px]">🎱</span>
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold">{bundle.attempts} attempts</span>
+                        <span className="block text-[11px] uppercase tracking-[0.2em] text-rose-100/70">{bundle.label}</span>
+                      </span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block text-sm font-semibold">{bundle.price} TPC</span>
+                      <span className="block text-[11px] text-emerald-200">{unitPrice.toFixed(1)} TPC / attempt</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
