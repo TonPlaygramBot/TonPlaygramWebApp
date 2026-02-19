@@ -32,8 +32,32 @@ const normalizeDateKey = (value) => {
   return date.toISOString().slice(0, 16);
 };
 
-const buildTransactionKey = (tx) =>
-  `${tx.type}|${tx.amount}|${tx.detail || ''}|${normalizeDateKey(tx.date)}`;
+const normalizeTransactionType = (value) => {
+  const type = String(value || '').trim().toLowerCase();
+  if (type === 'storefront' || type === 'store-front' || type === 'store_front') {
+    return 'store';
+  }
+  return type;
+};
+
+const buildTransactionKey = (tx) => {
+  const type = normalizeTransactionType(tx?.type);
+  const amount = Number(tx?.amount) || 0;
+  const dateKey = normalizeDateKey(tx?.date);
+  if (type === 'store') {
+    return `${type}|${amount}|${dateKey}`;
+  }
+  return `${type}|${amount}|${tx?.detail || ''}|${dateKey}`;
+};
+
+const normalizeStoreTransaction = (tx) => {
+  const normalizedType = normalizeTransactionType(tx?.type);
+  if (!normalizedType || normalizedType === tx?.type) return tx;
+  return {
+    ...tx,
+    type: normalizedType
+  };
+};
 
 export const readStoreTransactions = (accountId) => {
   const resolvedAccountId = resolveAccountId(accountId);
@@ -68,10 +92,11 @@ export const recordStorePurchase = (accountId, payload = {}) => {
 };
 
 export const mergeStoreTransactions = (transactions = [], accountId) => {
-  const storeTxs = readStoreTransactions(accountId);
-  if (!storeTxs.length) return transactions;
-  const existingKeys = new Set(transactions.map(buildTransactionKey));
-  const merged = [...transactions];
+  const normalizedTransactions = transactions.map(normalizeStoreTransaction);
+  const storeTxs = readStoreTransactions(accountId).map(normalizeStoreTransaction);
+  if (!storeTxs.length) return normalizedTransactions;
+  const existingKeys = new Set(normalizedTransactions.map(buildTransactionKey));
+  const merged = [...normalizedTransactions];
   storeTxs.forEach((tx) => {
     const key = buildTransactionKey(tx);
     if (!existingKeys.has(key)) {
