@@ -247,6 +247,7 @@ const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_I
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
+const formatTpcAmount = (value) => Number(value || 0).toLocaleString();
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
@@ -1257,6 +1258,10 @@ export default function Store() {
   );
   const hasSelection = selectedKeys.length > 0;
   const hasPurchasableSelection = selectedPurchasable.length > 0;
+  const selectedBalanceAfter = accountBalance === null ? null : accountBalance - selectedTotalPrice;
+  const selectedShortfall = selectedBalanceAfter !== null && selectedBalanceAfter < 0
+    ? Math.abs(selectedBalanceAfter)
+    : 0;
 
   useEffect(() => {
     if (!selectedPurchasable.length) {
@@ -1695,6 +1700,11 @@ export default function Store() {
   const renderConfirmModal = () => {
     if (!confirmItem) return null;
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
+    const confirmBalanceAfter = accountBalance === null ? null : accountBalance - confirmItem.price;
+    const confirmShortfall = confirmBalanceAfter !== null && confirmBalanceAfter < 0
+      ? Math.abs(confirmBalanceAfter)
+      : 0;
+    const isInsufficientBalance = confirmShortfall > 0;
     return (
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pb-4 pt-8 sm:pt-12">
         <div className="w-full max-w-lg max-h-[calc(100vh-6rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
@@ -1748,6 +1758,36 @@ export default function Store() {
                 <span className="font-semibold text-white">NFT sent instantly and logged on your statement</span>
               </div>
             </div>
+            <div className="grid gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/5 p-3 text-xs text-white/80">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white/60">TPC balance</span>
+                <span className="font-semibold text-white">{accountBalance === null ? '—' : formatTpcAmount(accountBalance)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white/60">Item total</span>
+                <span className="font-semibold text-white">{formatTpcAmount(confirmItem.price)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white/60">After purchase</span>
+                <span className={`font-semibold ${isInsufficientBalance ? 'text-rose-200' : 'text-emerald-200'}`}>
+                  {confirmBalanceAfter === null ? '—' : formatTpcAmount(confirmBalanceAfter)}
+                </span>
+              </div>
+              {isInsufficientBalance ? (
+                <p className="text-rose-200">Need {formatTpcAmount(confirmShortfall)} more TPC to complete this purchase.</p>
+              ) : null}
+            </div>
+            {showTransactionToast ? (
+              <div className={`rounded-2xl border px-3 py-2 text-xs ${
+                transactionState === 'error'
+                  ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
+                  : transactionState === 'success'
+                    ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
+                    : 'border-white/20 bg-white/10 text-white/90'
+              }`}>
+                <span className="font-semibold">{transactionStatus}</span>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -1760,9 +1800,9 @@ export default function Store() {
                 type="button"
                 onClick={() => initiateTpcPurchase(confirmItem)}
                 className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
-                disabled={Boolean(processing) || isPaying}
+                disabled={Boolean(processing) || isPaying || isInsufficientBalance}
               >
-                {isPaying ? 'Processing…' : 'Pay with TPC'}
+                {isInsufficientBalance ? 'Insufficient TPC' : isPaying ? 'Processing…' : 'Pay with TPC'}
               </button>
             </div>
           </div>
@@ -1774,6 +1814,11 @@ export default function Store() {
   const renderBulkConfirmModal = () => {
     if (!confirmItems.length) return null;
     const totalPrice = confirmItems.reduce((sum, item) => sum + item.price, 0);
+    const bulkBalanceAfter = accountBalance === null ? null : accountBalance - totalPrice;
+    const bulkShortfall = bulkBalanceAfter !== null && bulkBalanceAfter < 0
+      ? Math.abs(bulkBalanceAfter)
+      : 0;
+    const hasBulkShortfall = bulkShortfall > 0;
     const grouped = confirmItems.reduce((acc, item) => {
       const gameName = storeMeta[item.slug]?.name || item.slug;
       acc[gameName] = (acc[gameName] || 0) + 1;
@@ -1836,6 +1881,36 @@ export default function Store() {
                 <span className="font-semibold text-white">NFTs sent instantly and logged on your statement</span>
               </div>
             </div>
+            <div className="grid gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/5 p-3 text-xs text-white/80">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white/60">TPC balance</span>
+                <span className="font-semibold text-white">{accountBalance === null ? '—' : formatTpcAmount(accountBalance)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white/60">Bundle total</span>
+                <span className="font-semibold text-white">{formatTpcAmount(totalPrice)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white/60">After purchase</span>
+                <span className={`font-semibold ${hasBulkShortfall ? 'text-rose-200' : 'text-emerald-200'}`}>
+                  {bulkBalanceAfter === null ? '—' : formatTpcAmount(bulkBalanceAfter)}
+                </span>
+              </div>
+              {hasBulkShortfall ? (
+                <p className="text-rose-200">Need {formatTpcAmount(bulkShortfall)} more TPC to checkout this bundle.</p>
+              ) : null}
+            </div>
+            {showTransactionToast ? (
+              <div className={`rounded-2xl border px-3 py-2 text-xs ${
+                transactionState === 'error'
+                  ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
+                  : transactionState === 'success'
+                    ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
+                    : 'border-white/20 bg-white/10 text-white/90'
+              }`}>
+                <span className="font-semibold">{transactionStatus}</span>
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
@@ -1849,9 +1924,9 @@ export default function Store() {
                 type="button"
                 onClick={() => initiateTpcPurchase(confirmItems)}
                 className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
-                disabled={Boolean(processing) || isPaying}
+                disabled={Boolean(processing) || isPaying || hasBulkShortfall}
               >
-                {isPaying ? 'Processing…' : 'Pay with TPC'}
+                {hasBulkShortfall ? 'Insufficient TPC' : isPaying ? 'Processing…' : 'Pay with TPC'}
               </button>
             </div>
           </div>
@@ -2674,6 +2749,13 @@ export default function Store() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
+                <span className={`rounded-full border px-2 py-0.5 ${selectedShortfall ? 'border-rose-300/30 bg-rose-400/10 text-rose-100' : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-100'}`}>
+                  {selectedBalanceAfter === null
+                    ? 'Balance preview unavailable'
+                    : selectedShortfall
+                      ? `Need +${formatTpcAmount(selectedShortfall)} TPC`
+                      : `After checkout: ${formatTpcAmount(selectedBalanceAfter)} TPC`}
+                </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
                   Green + Blue cloth bundles ready for Pool Royale
                 </span>
@@ -2838,6 +2920,15 @@ export default function Store() {
                 </span>
               ) : null}
             </div>
+            {hasPurchasableSelection ? (
+              <div className={`text-[11px] ${selectedShortfall ? 'text-rose-200' : 'text-emerald-200'}`}>
+                {selectedBalanceAfter === null
+                  ? 'Balance preview unavailable.'
+                  : selectedShortfall
+                    ? `Need ${formatTpcAmount(selectedShortfall)} more TPC before checkout.`
+                    : `After checkout balance: ${formatTpcAmount(selectedBalanceAfter)} TPC.`}
+              </div>
+            ) : null}
             <div className="flex items-center gap-2">
               <button
                 type="button"
