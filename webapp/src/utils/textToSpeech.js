@@ -1,231 +1,375 @@
-import { post } from './api.js'
+const DEFAULT_VOICE_HINTS = {
+  Mason: ['en-US', 'English', 'Male', 'Google US English Male', 'David', 'Guy'],
+  Lena: ['en-GB', 'English', 'Female', 'Google UK English Female', 'Sonia', 'Hazel']
+};
 
-let commentarySupport = true
-const listeners = new Set()
-let audioUnlocked = false
-let unlockPromise = null
+const DEFAULT_SPEAKER_SETTINGS = {
+  Mason: { rate: 1, pitch: 0.95, volume: 1 },
+  Lena: { rate: 1.02, pitch: 1.05, volume: 1 }
+};
 
-const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'mousedown', 'keydown']
-const TINY_SILENCE_MP3 =
-  'data:audio/mpeg;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjE1LjEwNAAAAAAAAAAAAAAA//tQxAADBzQASQAAABhAAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgP/7UMQAAwcoAEkAAABoAAAACAAADSAAAAAEAAANIAAAAAExhdmM1Ni4xNAAAAAAAAAAAAAAAACQCkAAAAAAAAAAAAAAAAAAAA//sQxAADAgAASAAAABgAAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg'
+let audioContext;
+let audioContextUnlocked = false;
+let speechUnlockInstalled = false;
+let speechUnlockHandler;
+let speechUnlockVisibilityHandler;
+let speechSupportMonitorInstalled = false;
+let speechSupportListenerAttached = false;
+let speechSupportState = false;
 
-const emitSupport = (supported) => {
-  if (commentarySupport === supported) return
-  commentarySupport = supported
-  listeners.forEach((listener) => {
+const SPEECH_SUPPORT_EVENT = 'tonplaygram:speech-support';
+const TELEGRAM_EVENT_OPTIONS = { passive: true };
+
+const getSpeechUtteranceClass = () => {
+  if (typeof SpeechSynthesisUtterance !== 'undefined') return SpeechSynthesisUtterance;
+  if (typeof window !== 'undefined' && window.SpeechSynthesisUtterance) {
+    return window.SpeechSynthesisUtterance;
+  }
+  if (typeof window !== 'undefined' && window.webkitSpeechSynthesisUtterance) {
+    return window.webkitSpeechSynthesisUtterance;
+  }
+  return null;
+};
+
+const emitSpeechSupport = (supported) => {
+  if (typeof window === 'undefined') return;
+  if (speechSupportState === supported) return;
+  speechSupportState = supported;
+  if (typeof window.CustomEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(SPEECH_SUPPORT_EVENT, { detail: { supported } }));
+  } else {
+    window.dispatchEvent(new Event(SPEECH_SUPPORT_EVENT));
+  }
+};
+
+const ensureAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioContext) {
     try {
-      listener(supported)
-    } catch {
-      // no-op
+      audioContext = new AudioContextClass();
+    } catch (error) {
+      audioContext = null;
     }
-  })
-}
+  }
+  return audioContext;
+};
 
-const getCurrentAccountId = () => {
-  if (typeof window === 'undefined') return 'guest'
-  return window.localStorage.getItem('accountId') || 'guest'
-}
-
-const unlockAudioPlayback = async () => {
-  if (audioUnlocked || typeof window === 'undefined') return
-  if (!unlockPromise) {
-    unlockPromise = (async () => {
+const unlockAudioContext = () => {
+  const ctx = ensureAudioContext();
+  if (!ctx || audioContextUnlocked) return;
+  const resumeContext = typeof ctx.resume === 'function' ? ctx.resume() : Promise.resolve();
+  Promise.resolve(resumeContext)
+    .catch(() => {})
+    .finally(() => {
+      if (!ctx || audioContextUnlocked) return;
       try {
-        const audio = new Audio(TINY_SILENCE_MP3)
-        audio.muted = true
-        audio.volume = 0
-        audio.currentTime = 0
-        const playPromise = audio.play()
-        if (playPromise?.then) await playPromise
-        audio.pause()
-        audio.currentTime = 0
-        audioUnlocked = true
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        if (typeof source.stop === 'function') {
+          source.stop(0);
+        }
+        audioContextUnlocked = true;
       } catch {
-        audioUnlocked = false
-      } finally {
-        unlockPromise = null
+        audioContextUnlocked = false;
       }
-    })()
-  }
-  await unlockPromise
-}
+    });
+};
 
-const playAudioPayload = async (payload) => {
-  const synthesis = payload?.synthesis || {}
-  const audioUrl = synthesis.audioUrl
-  const audioBase64 = synthesis.audioBase64
-  const mimeType = synthesis.mimeType || 'audio/mpeg'
-  if (!audioUrl && !audioBase64) {
-    throw new Error('PersonaPlex response missing audio payload')
-  }
+const createSpeechUnlockHandler = () => {
+  if (speechUnlockHandler) return speechUnlockHandler;
+  speechUnlockHandler = () => {
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    ensureSpeechUnlocked(synth);
+    primeSpeechSynthesis();
+    evaluateSpeechSupport();
+  };
+  return speechUnlockHandler;
+};
 
-  await unlockAudioPlayback()
-
-  const source = audioUrl || `data:${mimeType};base64,${audioBase64}`
-  const audio = new Audio(source)
-  await new Promise((resolve, reject) => {
-    const onDone = () => {
-      audio.removeEventListener('ended', onDone)
-      audio.removeEventListener('error', onError)
-      resolve()
+const evaluateSpeechSupport = () => {
+  const synth = getSpeechSynthesis();
+  const supported = Boolean(synth && getSpeechUtteranceClass());
+  if (supported && !speechSupportListenerAttached) {
+    speechSupportListenerAttached = true;
+    const handler = () => evaluateSpeechSupport();
+    if (typeof synth.addEventListener === 'function') {
+      synth.addEventListener('voiceschanged', handler);
+    } else {
+      synth.onvoiceschanged = handler;
     }
-    const onError = () => {
-      audio.removeEventListener('ended', onDone)
-      audio.removeEventListener('error', onError)
-      reject(new Error('Audio playback failed'))
-    }
-    audio.addEventListener('ended', onDone)
-    audio.addEventListener('error', onError)
-    audio.play().catch(async (error) => {
-      if ((error && error.name === 'NotAllowedError') || !audioUnlocked) {
-        await unlockAudioPlayback()
-        audio.play().catch(onError)
-        return
-      }
-      onError()
-    })
-  })
-}
+  }
+  emitSpeechSupport(supported);
+  return supported;
+};
+
+const installSpeechSupportMonitor = () => {
+  if (typeof window === 'undefined' || speechSupportMonitorInstalled) return;
+  speechSupportMonitorInstalled = true;
+  const handler = () => evaluateSpeechSupport();
+  window.addEventListener('focus', handler, { passive: true });
+  document.addEventListener('visibilitychange', handler, { passive: true });
+  evaluateSpeechSupport();
+};
 
 export const installSpeechSynthesisUnlock = () => {
-  if (typeof window === 'undefined') return
-  const onUserGesture = () => {
-    if (!audioUnlocked) {
-      unlockAudioPlayback().catch(() => {})
+  if (typeof window === 'undefined' || speechUnlockInstalled) return;
+  speechUnlockInstalled = true;
+  installSpeechSupportMonitor();
+  const handler = createSpeechUnlockHandler();
+  const isTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp);
+  const options = { once: !isTelegram, passive: true };
+  window.addEventListener('pointerdown', handler, options);
+  window.addEventListener('pointerup', handler, options);
+  window.addEventListener('touchstart', handler, options);
+  window.addEventListener('touchend', handler, options);
+  window.addEventListener('click', handler, options);
+  window.addEventListener('keydown', handler, options);
+  if (typeof document !== 'undefined') {
+    document.addEventListener('touchend', handler, options);
+  }
+  if (isTelegram) {
+    speechUnlockVisibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        handler();
+      }
+    };
+    window.addEventListener('focus', handler, TELEGRAM_EVENT_OPTIONS);
+    document.addEventListener('visibilitychange', speechUnlockVisibilityHandler, TELEGRAM_EVENT_OPTIONS);
+  }
+};
+
+export const getSpeechSynthesis = () => {
+  if (typeof window === 'undefined') return null;
+  let synth = null;
+  try {
+    synth = window.speechSynthesis;
+  } catch {
+    synth = null;
+  }
+  if (!synth) {
+    try {
+      synth = window.webkitSpeechSynthesis;
+    } catch {
+      synth = null;
     }
   }
-  UNLOCK_EVENTS.forEach((eventName) => {
-    window.addEventListener(eventName, onUserGesture, { passive: true })
-  })
-}
+  return synth || null;
+};
 
-export const getSpeechSynthesis = () => null
-
-export const getSpeechSupport = () =>
-  commentarySupport &&
-  typeof window !== 'undefined' &&
-  (typeof window.Audio !== 'undefined' ||
-    (typeof window.speechSynthesis !== 'undefined' &&
-      typeof window.SpeechSynthesisUtterance !== 'undefined'))
+export const getSpeechSupport = () => {
+  if (speechSupportState) return true;
+  return Boolean(getSpeechSynthesis() && getSpeechUtteranceClass());
+};
 
 export const onSpeechSupportChange = (callback) => {
-  if (typeof callback !== 'function') return () => {}
-  listeners.add(callback)
-  return () => listeners.delete(callback)
-}
+  if (typeof window === 'undefined') return () => {};
+  const handler = (event) => {
+    if (event?.detail && typeof event.detail.supported === 'boolean') {
+      callback(event.detail.supported);
+    } else {
+      callback(getSpeechSupport());
+    }
+  };
+  window.addEventListener(SPEECH_SUPPORT_EVENT, handler);
+  return () => window.removeEventListener(SPEECH_SUPPORT_EVENT, handler);
+};
+
+const ensureSpeechUnlocked = (synth) => {
+  if (!synth) return;
+  unlockAudioContext();
+  if (typeof synth.resume === 'function') {
+    try {
+      synth.resume();
+    } catch {}
+  }
+  if (typeof synth.getVoices === 'function') {
+    try {
+      synth.getVoices();
+    } catch {}
+  }
+};
 
 export const primeSpeechSynthesis = () => {
-  unlockAudioPlayback().catch(() => {})
-}
-
-export const resolveVoiceForSpeaker = () => null
-
-const pickSpeechSynthesisVoice = (hints = []) => {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return null
-  const voices = window.speechSynthesis.getVoices?.() || []
-  if (!voices.length) return null
-
-  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean)
-  for (const hint of normalizedHints) {
-    const byLang = voices.find((voice) => String(voice.lang || '').toLowerCase() === hint)
-    if (byLang) return byLang
-    const byPrefix = voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith(`${hint}-`))
-    if (byPrefix) return byPrefix
-    const byName = voices.find((voice) => String(voice.name || '').toLowerCase().includes(hint))
-    if (byName) return byName
+  const synth = getSpeechSynthesis();
+  const UtteranceClass = getSpeechUtteranceClass();
+  if (!synth || synth.speaking || synth.pending || !UtteranceClass) return;
+  ensureSpeechUnlocked(synth);
+  const utterance = new UtteranceClass('.');
+  utterance.volume = 0.01;
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    utterance.lang = navigator.language;
   }
-
-  return voices.find((voice) => voice.default) || voices[0]
-}
-
-const speakWithBrowserTts = async (text, hints = []) => {
-  if (
-    typeof window === 'undefined' ||
-    !window.speechSynthesis ||
-    !window.SpeechSynthesisUtterance ||
-    !String(text || '').trim()
-  ) {
-    throw new Error('Web Speech is unavailable')
+  utterance.onend = () => {
+    if (typeof synth.cancel === 'function') {
+      try {
+        synth.cancel();
+      } catch {}
+    }
+  };
+  utterance.onerror = utterance.onend;
+  try {
+    synth.speak(utterance);
+  } catch {
+    if (typeof synth.cancel === 'function') {
+      try {
+        synth.cancel();
+      } catch {}
+    }
   }
+};
 
-  await unlockAudioPlayback()
-
-  await new Promise((resolve, reject) => {
-    const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
-    const preferredVoice = pickSpeechSynthesisVoice(hints)
-    if (preferredVoice) {
-      utterance.voice = preferredVoice
-      if (preferredVoice.lang) utterance.lang = preferredVoice.lang
+const loadVoices = (synth, timeoutMs = 3500) =>
+  new Promise((resolve) => {
+    if (!synth) {
+      resolve([]);
+      return;
     }
-
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.volume = 1
-    utterance.onend = () => resolve()
-    utterance.onerror = () => reject(new Error('Web Speech playback failed'))
-
-    try {
-      window.speechSynthesis.cancel()
-      window.speechSynthesis.speak(utterance)
-    } catch {
-      reject(new Error('Web Speech playback failed'))
+    ensureSpeechUnlocked(synth);
+    const existing = synth.getVoices();
+    if (existing.length) {
+      resolve(existing);
+      return;
     }
-  })
-}
+    let settled = false;
+    let intervalId = null;
+    const finalize = (voices) => {
+      if (settled) return;
+      settled = true;
+      if (intervalId) clearInterval(intervalId);
+      resolve(voices);
+    };
+    const handleVoices = () => {
+      const next = synth.getVoices();
+      if (next.length) finalize(next);
+    };
+    if (typeof synth.addEventListener === 'function') {
+      synth.addEventListener('voiceschanged', handleVoices, { once: true });
+    } else {
+      synth.onvoiceschanged = handleVoices;
+    }
+    intervalId = setInterval(handleVoices, 250);
+    setTimeout(() => finalize(synth.getVoices()), timeoutMs);
+  });
+
+const findVoiceMatch = (voices, hints = []) => {
+  const normalizedHints = hints.map((hint) => hint.toLowerCase());
+  return (
+    voices.find((voice) => normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))) ||
+    voices.find((voice) => normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))) ||
+    voices[0] ||
+    null
+  );
+};
+
+const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
+  if (!voices.length) return null;
+  const normalizedHints = hints.map((hint) => hint.toLowerCase());
+  const matchesByName = voices.filter((voice) =>
+    normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
+  );
+  const matchesByLang = voices.filter((voice) =>
+    normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
+  );
+  const candidateLists = [matchesByName, matchesByLang, voices];
+  for (const candidates of candidateLists) {
+    const match = candidates.find((voice) => !usedVoices.has(voice));
+    if (match) return match;
+  }
+  return voices[0] || null;
+};
+
+const resolveHintedLanguage = (hints = [], fallback) => {
+  const normalizedHints = hints.map((hint) => String(hint || '').trim()).filter(Boolean);
+  const matched = normalizedHints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(hint));
+  if (matched) return matched;
+  if (fallback) return fallback;
+  if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+  return 'en-US';
+};
+
+export const resolveVoiceForSpeaker = (speaker, voices = []) => {
+  if (!voices.length) return null;
+  const hints = DEFAULT_VOICE_HINTS[speaker] || DEFAULT_VOICE_HINTS.Mason;
+  return findVoiceMatch(voices, hints);
+};
 
 export const speakCommentaryLines = async (
   lines,
-  { voiceHints = {}, speakerSettings = {}, channel = 'commentary', allowBrowserFallback = false } = {}
+  { speakerSettings = DEFAULT_SPEAKER_SETTINGS, voiceHints = DEFAULT_VOICE_HINTS } = {}
 ) => {
-  if (!Array.isArray(lines) || !lines.length || typeof window === 'undefined') return
+  const synth = getSpeechSynthesis();
+  const UtteranceClass = getSpeechUtteranceClass();
+  if (!synth || !UtteranceClass || !Array.isArray(lines) || lines.length === 0) return;
 
-  const accountId = getCurrentAccountId()
+  const voices = await loadVoices(synth);
+  const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Mason'))];
+  const usedVoices = new Set();
+  const speakerVoices = uniqueSpeakers.reduce((acc, speaker) => {
+    const voice = findDistinctVoice(voices, voiceHints[speaker] || voiceHints.Mason, usedVoices);
+    if (voice) {
+      usedVoices.add(voice);
+      acc[speaker] = voice;
+    }
+    return acc;
+  }, {});
+
+  ensureSpeechUnlocked(synth);
 
   for (const line of lines) {
-    const text = String(line?.text || '').trim()
-    if (!text) continue
+    ensureSpeechUnlocked(synth);
+    const speaker = line.speaker || 'Mason';
+    const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
+    const utterance = new UtteranceClass(line.text);
+    const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
+    const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
 
-    const speaker = line?.speaker || 'Host'
-    const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
-    const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
-
-    const payload = await post('/v1/voice/speak', {
-      accountId,
-      text,
-      speaker,
-      locale: localeHint,
-      style: speakerSettings[speaker] || null,
-      channel
-    })
-
-    if (payload?.error) {
-      emitSupport(false)
-      throw new Error(payload.error)
+    if (voice) {
+      utterance.voice = voice;
+      if (voice.lang) utterance.lang = voice.lang;
+    } else {
+      utterance.lang = fallbackLang;
     }
+    utterance.rate = settings.rate;
+    utterance.pitch = settings.pitch;
+    utterance.volume = settings.volume;
 
-    if (payload?.synthesis?.mode === 'local-fallback') {
-      emitSupport(false)
-      throw new Error(payload?.synthesis?.message || 'PersonaPlex voice is unavailable')
-    }
-
-    try {
-      if (!payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
-        if (!allowBrowserFallback) {
-          throw new Error('PersonaPlex audio payload missing')
-        }
-        await speakWithBrowserTts(payload?.text || text, hints)
-      } else {
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const fallbackMs = Math.max(1800, line.text.length * 60);
+      const timeoutId = setTimeout(finish, fallbackMs);
+      utterance.onend = () => {
+        clearTimeout(timeoutId);
+        finish();
+      };
+      utterance.onerror = () => {
+        clearTimeout(timeoutId);
+        finish();
+      };
+      if (synth.speaking || synth.pending) {
         try {
-          await playAudioPayload(payload)
-        } catch {
-          if (!allowBrowserFallback) throw new Error('PersonaPlex audio playback failed')
-          await speakWithBrowserTts(payload?.text || text, hints)
-        }
+          synth.cancel();
+        } catch {}
       }
-      emitSupport(true)
-    } catch (error) {
-      emitSupport(false)
-      throw error
-    }
+      try {
+        synth.speak(utterance);
+        setTimeout(() => ensureSpeechUnlocked(synth), 0);
+      } catch {
+        clearTimeout(timeoutId);
+        finish();
+      }
+    });
   }
-}
+};

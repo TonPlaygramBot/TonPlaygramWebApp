@@ -53,41 +53,23 @@ describe('voice playback fallback', () => {
     delete global.__speakMock;
   });
 
-  test('runVoiceHelpSession uses browser speech when audio playback fails', async () => {
-    mockPost
-      .mockResolvedValueOnce({
-        provider: 'nvidia-personaplex',
-        answer: 'Hello from help',
-        synthesis: { audioBase64: 'abc', mimeType: 'audio/mpeg' }
-      })
-      .mockResolvedValueOnce({
-        provider: 'nvidia-personaplex',
-        answer: 'Second help answer',
-        synthesis: { audioBase64: 'abc', mimeType: 'audio/mpeg' }
-      });
-
+  test('runVoiceHelpSession is disabled when help center is removed', async () => {
     const { runVoiceHelpSession } = await import('../webapp/src/utils/voiceHelpAssistant.js');
 
-    await runVoiceHelpSession({ accountId: 'guest', locale: 'en-US' });
+    const session = await runVoiceHelpSession({ accountId: 'guest', locale: 'en-US' });
 
-    expect(mockPost).toHaveBeenCalledTimes(2);
-    expect(global.__speakMock).toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(session).toEqual({ intro: null, answerQuestion: expect.any(Function) });
   });
 
-  test('speakCommentaryLines falls back to browser speech when synthesized audio fails', async () => {
-    mockPost.mockResolvedValue({
-      provider: 'nvidia-personaplex',
-      text: 'Great shot',
-      synthesis: { audioBase64: 'abc', mimeType: 'audio/mpeg' }
-    });
-
+  test('speakCommentaryLines uses browser speech without remote synthesis', async () => {
     const { speakCommentaryLines } = await import('../webapp/src/utils/textToSpeech.js');
 
     await speakCommentaryLines([{ text: 'Great shot', speaker: 'Host' }], {
       voiceHints: { Host: ['en-US'] }
     });
 
-    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockPost).not.toHaveBeenCalled();
     expect(global.__speakMock).toHaveBeenCalled();
   });
 });
