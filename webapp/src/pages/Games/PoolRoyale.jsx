@@ -114,7 +114,7 @@ const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
 
-const TRAINING_SCRATCH_PENALTY_ATTEMPTS = 2;
+const TRAINING_MISS_ATTEMPT_COST = 1;
 const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-1', attempts: 1, price: 100, label: 'Starter heart' }),
   Object.freeze({ id: 'training-attempts-5', attempts: 5, price: 450, label: 'Pocket run deal' }),
@@ -129,9 +129,18 @@ function pickPoolRoyaleRewardNft() {
   const mediumTier = NFT_GIFTS.filter(
     (item) =>
       Number(item?.tier) === 2 &&
-      POOL_ROYALE_REWARDABLE_NFT_IDS.includes(item?.id)
+      POOL_ROYALE_REWARDABLE_NFT_IDS.includes(item?.id) &&
+      typeof item?.thumbnail === 'string' &&
+      item.thumbnail.trim().length > 0
   );
-  const source = mediumTier.length ? mediumTier : NFT_GIFTS.filter((item) => Number(item?.tier) === 2);
+  const source = mediumTier.length
+    ? mediumTier
+    : NFT_GIFTS.filter(
+      (item) =>
+        Number(item?.tier) === 2 &&
+        typeof item?.thumbnail === 'string' &&
+        item.thumbnail.trim().length > 0
+    );
   if (!source.length) return null;
   return source[Math.floor(Math.random() * source.length)] || null;
 }
@@ -12027,9 +12036,20 @@ function PoolRoyaleGame({
         100% { transform: translateY(120vh) scale(1.1); opacity: 0; }
       }
       @keyframes prRewardPop {
-        0% { transform: scale(0.3); opacity: 0.35; }
-        70% { transform: scale(1.16); opacity: 1; }
+        0% { transform: scale(1); opacity: 0.65; }
+        40% { transform: scale(2.2); opacity: 0.92; }
+        75% { transform: scale(1.88); opacity: 1; }
         100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes prRewardGlow {
+        0% { transform: scale(0.82); opacity: 0.25; }
+        70% { transform: scale(1.35); opacity: 0.75; }
+        100% { transform: scale(1.25); opacity: 0.4; }
+      }
+      @keyframes prRewardHalo {
+        0% { transform: scale(0.9); opacity: 0; }
+        45% { opacity: 0.8; }
+        100% { transform: scale(1.5); opacity: 0; }
       }
       .pr-coin-burst {
         position: fixed;
@@ -15671,7 +15691,7 @@ const powerRef = useRef(hud.power);
         },
         {
           speaker,
-          text: `Attempts left: ${attemptsLeft}. If cue ball gets potted, -${TRAINING_SCRATCH_PENALTY_ATTEMPTS} attempts apply.`
+          text: `Attempts left: ${attemptsLeft}. Every missed shot costs -${TRAINING_MISS_ATTEMPT_COST} attempt.`
         }
       ],
       { interrupt: false }
@@ -27137,9 +27157,7 @@ const powerRef = useRef(hud.power);
         let remainingTrainingShots = Math.max(0, Number(trainingShotsRemaining) || 0);
         let trainingOutOfAttempts = false;
         if (isTraining && !safeState?.frameOver) {
-          const penalty = cueBallPotted
-            ? TRAINING_SCRATCH_PENALTY_ATTEMPTS
-            : (pottedObjectCount === 0 ? 1 : 0);
+          const penalty = pottedObjectCount === 0 ? TRAINING_MISS_ATTEMPT_COST : 0;
           if (penalty > 0) {
             const nextShots = Math.max(0, remainingTrainingShots - penalty);
             remainingTrainingShots = nextShots;
@@ -30857,6 +30875,11 @@ const powerRef = useRef(hud.power);
                 Congratulations! You are moving to the next stage of the tournament.
               </div>
             ) : null}
+            {tournamentMode && !winnerOverlay.userWon ? (
+              <div className="max-w-md rounded-2xl border border-rose-300/55 bg-rose-400/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100">
+                You’ve been disqualified. Try a new tournament or return to lobby.
+              </div>
+            ) : null}
             {finalPotLabel ? (
               <div className="rounded-full border border-white/30 bg-white/10 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
                 Final pot: {finalPotLabel}
@@ -30923,6 +30946,17 @@ const powerRef = useRef(hud.power);
                 >
                   Continue tournament
                 </button>
+              ) : tournamentMode && !winnerOverlay.userWon ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetTournamentState();
+                    navigate('/games/poolroyale/lobby?type=tournament');
+                  }}
+                  className="rounded-full border border-rose-300 bg-rose-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] text-black shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition hover:bg-rose-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                >
+                  New tournament
+                </button>
               ) : (
                 <button
                   type="button"
@@ -30944,8 +30978,16 @@ const powerRef = useRef(hud.power);
       {revealedRewardNft ? (
         <div className="absolute inset-0 z-[140] flex items-center justify-center bg-black/80 px-4">
           <div className="w-[min(92vw,24rem)] rounded-3xl border border-amber-300/70 bg-slate-950/95 p-5 text-center text-white shadow-[0_26px_58px_rgba(0,0,0,0.65)]">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-amber-200/80 bg-amber-300/20 text-3xl animate-[prRewardPop_520ms_ease-out]">
-              🎁
+            <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
+              <span className="absolute inset-2 rounded-full bg-amber-300/35 blur-xl animate-[prRewardGlow_900ms_ease-out_forwards]" aria-hidden="true" />
+              <span className="absolute inset-0 rounded-full border border-amber-200/70 animate-[prRewardHalo_1400ms_ease-out_infinite]" aria-hidden="true" />
+              <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-amber-200/80 bg-amber-300/20 text-3xl shadow-[0_0_22px_rgba(251,191,36,0.45)] animate-[prRewardPop_700ms_ease-out]">
+                {revealedRewardNft.thumbnail ? (
+                  <img src={revealedRewardNft.thumbnail} alt={revealedRewardNft.name} className="h-full w-full object-cover" />
+                ) : (
+                  '🎁'
+                )}
+              </div>
             </div>
             <p className="mt-3 text-sm font-black uppercase tracking-[0.22em] text-amber-100">Congratulations 👏</p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">You won an NFT</p>
@@ -31735,7 +31777,7 @@ const powerRef = useRef(hud.power);
                 Level {currentTrainingInfo.level}: {currentTrainingInfo.title}
               </p>
               <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
-              <p className="mt-1 text-[11px] text-rose-200">Cue-ball scratch penalty: ❤️ -{TRAINING_SCRATCH_PENALTY_ATTEMPTS} hearts.</p>
+              <p className="mt-1 text-[11px] text-rose-200">Missed-shot cost: ❤️ -{TRAINING_MISS_ATTEMPT_COST} attempt.</p>
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
