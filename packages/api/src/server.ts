@@ -173,6 +173,31 @@ app.post('/v1/voice/support', requireBasicUserAuth, async (req, res) => {
   }
 });
 
+app.post('/v1/voice/speak', requireBasicUserAuth, async (req, res) => {
+  const text = String(req.body?.text || '').trim();
+  if (!text) {
+    res.status(400).json({ error: 'text is required' });
+    return;
+  }
+
+  const voice = findVoiceProfile(req.body?.voiceId, req.body?.locale);
+
+  try {
+    const synthesis = await requestPersonaplexSynthesis({
+      text,
+      locale: voice.locale,
+      voiceId: voice.id,
+      metadata: {
+        channel: String(req.body?.channel || 'general'),
+        speaker: String(req.body?.speaker || 'Host')
+      }
+    });
+    res.json({ text, voice, synthesis });
+  } catch (error) {
+    res.status(502).json({ error: (error as Error).message, text, voice });
+  }
+});
+
 if (process.env.NODE_ENV !== 'test') {
   const port = Number(process.env.PORT || 4040);
   app.listen(port, () => {
