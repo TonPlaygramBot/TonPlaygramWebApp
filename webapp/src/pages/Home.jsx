@@ -5,7 +5,7 @@ import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 
-import { FaArrowUp, FaArrowDown, FaWallet, FaQuestionCircle } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress } from '@tonconnect/ui-react';
@@ -26,7 +26,6 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
 import TonConnectButton from '../components/TonConnectButton.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
-import PlatformHelpAgentCard from '../components/PlatformHelpAgentCard.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
@@ -36,7 +35,6 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const [helpOpen, setHelpOpen] = useState(false);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -362,21 +360,6 @@ export default function Home() {
         </a>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setHelpOpen((prev) => !prev)}
-        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-white shadow-lg"
-        aria-label="Open help guide"
-      >
-        <FaQuestionCircle className="h-4 w-4 text-yellow-300" />
-        <span>{helpOpen ? 'Close Help' : 'Help'}</span>
-      </button>
-
-      {helpOpen ? (
-        <div className="fixed inset-x-3 bottom-36 z-40 max-h-[70vh] overflow-auto rounded-2xl border border-border bg-background/95 p-2 shadow-2xl">
-          <PlatformHelpAgentCard onClose={() => setHelpOpen(false)} />
-        </div>
-      ) : null}
     </div>
   );
 }
