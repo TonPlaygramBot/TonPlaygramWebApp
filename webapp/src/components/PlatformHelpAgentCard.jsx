@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadVoiceCommentaryCatalog } from '../utils/voiceCommentaryInventory.js';
+import { useMemo, useRef, useState } from 'react';
 import { getSpeechSupport, speakCommentaryLines } from '../utils/textToSpeech.js';
 import {
   buildStructuredResponse,
@@ -8,7 +7,7 @@ import {
 } from '../utils/platformHelpLocalSearch.js';
 
 const SPEECH_RECOGNITION_ERROR =
-  'Voice input is unavailable on this device/browser.';
+  'Voice input is unavailable on this device/browser. You can still type your question.';
 
 const SUPPORTED_HELP_LANGUAGES = [
   { label: 'English', locale: 'en-US', flag: '🇺🇸' },
@@ -17,17 +16,6 @@ const SUPPORTED_HELP_LANGUAGES = [
   { label: 'Português', locale: 'pt-PT', flag: '🇵🇹' },
   { label: 'Türkçe', locale: 'tr-TR', flag: '🇹🇷' }
 ];
-
-function localeToFlag(locale = '') {
-  const code = String(locale || '').split('-')[1] || '';
-  if (!/^[a-z]{2}$/i.test(code)) return '🌐';
-  return String.fromCodePoint(
-    ...code
-      .toUpperCase()
-      .split('')
-      .map((char) => 0x1f1e6 + char.charCodeAt(0) - 65)
-  );
-}
 
 function createSpeechRecognition(locale = 'en-US') {
   if (typeof window === 'undefined') return null;
@@ -42,6 +30,7 @@ function createSpeechRecognition(locale = 'en-US') {
 }
 
 export default function PlatformHelpAgentCard({ onClose = null }) {
+  const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(
     'Hi! I can help with wallet, games, NFTs, matchmaking, roadmap, tasks, and troubleshooting. Pick your language and ask naturally.'
   );
@@ -50,7 +39,6 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
   const [isSpeakingEnabled, setIsSpeakingEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedLocale, setSelectedLocale] = useState('en-US');
-  const [helpLanguages, setHelpLanguages] = useState(SUPPORTED_HELP_LANGUAGES);
 
   const recognitionRef = useRef(null);
   const liveTranscriptRef = useRef('');
@@ -61,33 +49,6 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
   }, []);
 
   const canUseSpeechOutput = useMemo(() => Boolean(getSpeechSupport()), []);
-
-  useEffect(() => {
-    let mounted = true;
-    const loadSupportedLocales = async () => {
-      try {
-        const catalog = await loadVoiceCommentaryCatalog();
-        const locales = Array.from(
-          new Set((catalog?.voices || []).map((voice) => String(voice?.locale || '')).filter(Boolean))
-        ).sort((a, b) => a.localeCompare(b));
-        if (!locales.length || !mounted) return;
-        const options = locales.map((locale) => ({
-          locale,
-          label: locale,
-          flag: localeToFlag(locale)
-        }));
-        setHelpLanguages(options);
-        setSelectedLocale((current) => (locales.includes(current) ? current : locales[0]));
-      } catch {
-        // keep fallback list
-      }
-    };
-
-    void loadSupportedLocales();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const stopAgentVoice = () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -167,6 +128,12 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
     }
   };
 
+  const askQuestion = async () => {
+    const text = question.trim();
+    if (!text) return;
+    await runAgentReply(text);
+  };
+
   const stopVoiceInput = () => {
     const recognition = recognitionRef.current;
     if (!recognition) return;
@@ -205,6 +172,7 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
           const finalText = String(transcript || '').trim();
           if (!finalText) continue;
           liveTranscriptRef.current = '';
+          setQuestion(finalText);
           stopAgentVoice();
           void runAgentReply(finalText);
         } else {
@@ -213,11 +181,12 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       }
       if (partial.trim()) {
         liveTranscriptRef.current = partial.trim();
+        setQuestion(liveTranscriptRef.current);
       }
     };
 
     recognition.onerror = () => {
-      setAnswer('Voice input failed. Please try again.');
+      setAnswer('Voice input failed. Please try again or type your question.');
       setIsListening(false);
     };
 
@@ -263,24 +232,39 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-subtext">Choose help language (flag only)</p>
+        <p className="text-xs font-semibold text-subtext">Choose help language</p>
         <div className="flex flex-wrap gap-2">
-          {helpLanguages.map((language) => (
+          {SUPPORTED_HELP_LANGUAGES.map((language) => (
             <button
               key={language.locale}
               type="button"
               onClick={() => setSelectedLocale(language.locale)}
-              className={`px-2 py-1.5 rounded-lg border text-xl leading-none ${selectedLocale === language.locale ? 'border-primary bg-primary/20 text-white' : 'border-border text-subtext'}`}
-              aria-label={language.label}
-              title={language.label}
+              className={`px-2.5 py-1.5 rounded-lg border text-sm ${selectedLocale === language.locale ? 'border-primary bg-primary/20 text-white' : 'border-border text-subtext'}`}
             >
-              <span role="img" aria-hidden="true">{language.flag}</span>
+              <span className="mr-1" role="img" aria-label={language.label}>{language.flag}</span>
+              {language.label}
             </button>
           ))}
         </div>
       </div>
 
+      <textarea
+        value={question}
+        onChange={(event) => setQuestion(event.target.value)}
+        rows={3}
+        className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm text-white"
+        placeholder="Ask naturally. You can interrupt voice and ask follow-up questions anytime..."
+      />
+
       <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg bg-primary text-black text-sm font-semibold disabled:opacity-60"
+          onClick={() => void askQuestion()}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Thinking…' : 'Ask'}
+        </button>
         <button
           type="button"
           className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
