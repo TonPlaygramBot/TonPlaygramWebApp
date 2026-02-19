@@ -55,7 +55,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       actionsConfiguration={{
         returnStrategy: 'back',
         // Only used in Telegram WebView; harmless elsewhere.
-        twaReturnUrl: window.location.href,
+        twaReturnUrl: window.location.href as `${string}://${string}`,
       }}
     >
       <WagmiProvider config={wagmiConfig}>
