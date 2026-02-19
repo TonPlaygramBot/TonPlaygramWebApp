@@ -189,13 +189,12 @@ export const speakCommentaryLines = async (
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
     const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
 
-    const payload = await post('/v1/voice/speak', {
+    const payload = await post('/api/voice-commentary/speak', {
       accountId,
       text,
       speaker,
       locale: localeHint,
-      style: speakerSettings[speaker] || null,
-      channel: 'commentary'
+      style: speakerSettings[speaker] || null
     })
 
     if (payload?.error) {
@@ -204,7 +203,7 @@ export const speakCommentaryLines = async (
     }
 
     try {
-      if (payload?.provider === 'web-speech-fallback' || (!payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64)) {
+      if (payload?.provider === 'web-speech-fallback' || !payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
         await speakWithBrowserTts(payload?.text || text, hints)
       } else {
         try {
