@@ -12606,7 +12606,16 @@ function PoolRoyaleGame({
     persistTrainingProgress(updated);
   }, [isTraining]);
 
-  const resetTrainingRoundState = useCallback(() => {
+  const handleTrainingLevelPick = useCallback((level) => {
+    const levelNum = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(level) || 1));
+    const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
+    if (levelNum > unlockedLevel) return;
+    grantTrainingAttemptsForLevel(unlockedLevel);
+    setTrainingLevel(unlockedLevel);
+    setPendingTrainingLevel(null);
+    setTrainingRoadmapOpen(false);
+    setTrainingMenuOpen(false);
+    setTrainingTaskTransition(null);
     setPottedBySeat({ A: [], B: [] });
     lastPottedBySeatRef.current = { A: null, B: null };
     pocketDropRef.current.clear();
@@ -12620,20 +12629,8 @@ function PoolRoyaleGame({
       foul: undefined,
       activePlayer: 'A'
     }));
-    setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
-  }, []);
-
-  const handleTrainingLevelPick = useCallback((level) => {
-    const levelNum = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(level) || 1));
-    const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
-    if (levelNum > unlockedLevel) return;
-    grantTrainingAttemptsForLevel(unlockedLevel);
-    setPendingTrainingLevel(unlockedLevel);
-    setTrainingLevel(unlockedLevel);
-    setTrainingTaskTransition(null);
-    resetTrainingRoundState();
-    applyTrainingLayoutForLevel(unlockedLevel);
-  }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, resetTrainingRoundState]);
+    setHud((prev) => ({ ...prev, over: false, turn: 0 }));
+  }, [grantTrainingAttemptsForLevel]);
 
   const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
     const account = resolvedAccountId;
@@ -12808,23 +12805,22 @@ function PoolRoyaleGame({
     setTrainingMenuOpen(false);
     setTrainingTaskTransition(null);
     setRuleToast(null);
-    resetTrainingRoundState();
+    setPottedBySeat({ A: [], B: [] });
+    lastPottedBySeatRef.current = { A: null, B: null };
+    pocketDropRef.current.clear();
+    pocketRestIndexRef.current.clear();
+    pocketPopupRef.current = [];
+    pocketPopupPendingRef.current = [];
+    setFrameState((prev) => ({
+      ...prev,
+      frameOver: false,
+      winner: undefined,
+      foul: undefined,
+      activePlayer: 'A'
+    }));
+    setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
     applyTrainingLayoutForLevel(nextLevel);
-  }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, lastCompletedLevel, pendingTrainingLevel, resetTrainingRoundState, trainingLevel]);
-
-  const handleTrainingRoadmapPlayTask = useCallback(() => {
-    const selectedLevel = Number.isFinite(Number(pendingTrainingLevel)) && Number(pendingTrainingLevel) > 0
-      ? Number(pendingTrainingLevel)
-      : trainingLevelRef.current || trainingLevel;
-    grantTrainingAttemptsForLevel(selectedLevel);
-    setTrainingLevel(selectedLevel);
-    setTrainingRoadmapOpen(false);
-    setTrainingMenuOpen(false);
-    setTrainingTaskTransition(null);
-    setRuleToast(null);
-    resetTrainingRoundState();
-    applyTrainingLayoutForLevel(selectedLevel);
-  }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, pendingTrainingLevel, resetTrainingRoundState, trainingLevel]);
+  }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -31342,17 +31338,6 @@ const powerRef = useRef(hud.power);
                 </button>
               </div>
             )}
-            {!trainingTaskTransition?.toLevel && pendingTrainingLevel && (
-              <div className="my-3 flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={handleTrainingRoadmapPlayTask}
-                  className="rounded-full border border-cyan-200/80 bg-cyan-300/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.3)] transition hover:bg-cyan-300/30"
-                >
-                  Play task {String(pendingTrainingLevel).padStart(2, '0')}
-                </button>
-              </div>
-            )}
             <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] p-3 text-[11px] text-white/70">
               Follow the path in order. You can replay finished tasks, but locked tasks stay closed.
             </div>
@@ -31401,11 +31386,7 @@ const powerRef = useRef(hud.power);
                             <p className="truncate text-[10px] text-white/70">{levelDef.objective}</p>
                           </div>
                           <span className={`ml-2 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}>
-                            {completed
-                              ? 'Done'
-                              : unlocked
-                                ? (pendingTrainingLevel === levelNum ? 'Ready' : active ? 'Now' : 'Load')
-                                : 'Locked'}
+                            {completed ? 'Done' : unlocked ? (active ? 'Now' : 'Play') : 'Locked'}
                           </span>
                         </button>
                       </div>
