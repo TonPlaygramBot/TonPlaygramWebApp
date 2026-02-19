@@ -89,7 +89,7 @@ function listenOnce(locale = 'en-US', timeoutMs = 9000) {
 }
 
 export async function runVoiceHelpSession({ accountId, locale = 'en-US' }) {
-  const first = await post('/api/voice-commentary/help', { accountId, locale, question: '' });
+  const first = await post('/api/voice-commentary/help', { accountId, locale, question: '', personality: 'helpful-guide' });
   if (first?.error) throw new Error(first.error);
   await playSynthesis(first, locale);
 
@@ -97,7 +97,8 @@ export async function runVoiceHelpSession({ accountId, locale = 'en-US' }) {
   const answer = await post('/api/voice-commentary/help', {
     accountId,
     locale,
-    question: spokenQuestion || 'general app help'
+    question: spokenQuestion || 'general app help',
+    personality: 'helpful-guide'
   });
   if (answer?.error) throw new Error(answer.error);
   await playSynthesis(answer, locale);

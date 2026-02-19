@@ -9,6 +9,26 @@ const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'mousedown', 'keydown']
 const TINY_SILENCE_MP3 =
   'data:audio/mpeg;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjE1LjEwNAAAAAAAAAAAAAAA//tQxAADBzQASQAAABhAAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgP/7UMQAAwcoAEkAAABoAAAACAAADSAAAAAEAAANIAAAAAExhdmM1Ni4xNAAAAAAAAAAAAAAAACQCkAAAAAAAAAAAAAAAAAAAA//sQxAADAgAASAAAABgAAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg'
 
+
+const PERSONAPLEX_PERSONALITY_BY_SPEAKER = {
+  host: 'play_by_play-host',
+  commentator: 'play_by_play-host',
+  analyst: 'match-analyst',
+  lena: 'helpful-guide',
+  tabletennishost: 'play_by_play-host'
+}
+
+const resolvePersonaPlexPersonality = (speaker = '', speakerStyle = null) => {
+  if (speakerStyle && typeof speakerStyle === 'object' && speakerStyle.personality) {
+    return String(speakerStyle.personality)
+  }
+  if (typeof speakerStyle === 'string' && speakerStyle.trim()) {
+    return speakerStyle.trim()
+  }
+  const key = String(speaker || '').toLowerCase().replace(/\s+/g, '')
+  return PERSONAPLEX_PERSONALITY_BY_SPEAKER[key] || 'play_by_play-host'
+}
+
 const emitSupport = (supported) => {
   if (commentarySupport === supported) return
   commentarySupport = supported
@@ -189,12 +209,14 @@ export const speakCommentaryLines = async (
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
     const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
 
+    const speakerStyle = speakerSettings[speaker] || null
     const payload = await post('/api/voice-commentary/speak', {
       accountId,
       text,
       speaker,
       locale: localeHint,
-      style: speakerSettings[speaker] || null
+      style: speakerStyle,
+      personality: resolvePersonaPlexPersonality(speaker, speakerStyle)
     })
 
     if (payload?.error) {
