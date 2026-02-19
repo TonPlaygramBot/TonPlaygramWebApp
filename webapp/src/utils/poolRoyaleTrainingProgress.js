@@ -184,10 +184,10 @@ export function getTrainingLayout (level) {
 }
 
 export function loadTrainingProgress () {
-  if (typeof window === 'undefined') { return { completed: [], rewarded: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL } }
+  if (typeof window === 'undefined') { return { completed: [], rewarded: [], lastLevel: 1, carryShots: 0, attemptsAwardedLevels: [] } }
   try {
     const stored = window.localStorage.getItem(TRAINING_PROGRESS_KEY)
-    if (!stored) return { completed: [], rewarded: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL }
+    if (!stored) return { completed: [], rewarded: [], lastLevel: 1, carryShots: 0, attemptsAwardedLevels: [] }
     const parsed = JSON.parse(stored)
     const completed = Array.isArray(parsed?.completed)
       ? parsed.completed
@@ -205,11 +205,17 @@ export function loadTrainingProgress () {
     const rawCarryShots = Number(parsed?.carryShots)
     const carryShots = Number.isFinite(rawCarryShots)
       ? Math.max(0, Math.floor(rawCarryShots))
-      : BASE_ATTEMPTS_PER_LEVEL
-    return { completed, rewarded, lastLevel, carryShots }
+      : 0
+    const attemptsAwardedLevels = Array.isArray(parsed?.attemptsAwardedLevels)
+      ? parsed.attemptsAwardedLevels
+        .map((lvl) => Number(lvl))
+        .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+        .sort((a, b) => a - b)
+      : []
+    return { completed, rewarded, lastLevel, carryShots, attemptsAwardedLevels }
   } catch (err) {
     console.warn('Failed to load Pool Royale training progress', err)
-    return { completed: [], rewarded: [], lastLevel: 1, carryShots: BASE_ATTEMPTS_PER_LEVEL }
+    return { completed: [], rewarded: [], lastLevel: 1, carryShots: 0, attemptsAwardedLevels: [] }
   }
 }
 
