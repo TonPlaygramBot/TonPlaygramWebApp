@@ -282,8 +282,6 @@ const DEFAULT_LIST_FORM = {
   price: ''
 };
 
-const PURCHASE_REQUEST_TIMEOUT_MS = 30000;
-
 const TYPE_SWATCHES = {
   tableFinish: ['#3b2f2f', '#8b5a2b'],
   chromeColor: ['#f5f5f5', '#d4d4d8'],
@@ -635,16 +633,6 @@ const formatShortDate = (date) =>
     day: 'numeric',
     year: 'numeric'
   }).format(date);
-
-const withTimeout = (promise, timeoutMs) =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      const error = new Error('Purchase request timed out. Please try again.');
-      error.code = 'PURCHASE_TIMEOUT';
-      setTimeout(() => reject(error), timeoutMs);
-    })
-  ]);
 
 const storeMeta = {
   poolroyale: {
@@ -1441,7 +1429,7 @@ export default function Store() {
     setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
     resetStatus();
     setTransactionState('processing');
-    setTransactionStatus('Purchasing…');
+    setTransactionStatus('Starting TPC transfer…');
 
     try {
       const bundle = {
@@ -1452,17 +1440,14 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await withTimeout(
-        buyBundle(resolvedAccountId, bundle),
-        PURCHASE_REQUEST_TIMEOUT_MS
-      );
+      const purchase = await buyBundle(resolvedAccountId, bundle);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
         setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
         return;
       }
-      setTransactionStatus('Purchase approved. Unlocking items…');
+      setTransactionStatus('Payment approved. Unlocking items…');
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
@@ -1514,7 +1499,7 @@ export default function Store() {
       if (backgroundSyncTasks.length) {
         Promise.allSettled(backgroundSyncTasks).catch(() => {});
       }
-      setTransactionStatus('Inventory updated. Finalizing purchase…');
+      setTransactionStatus('Inventory updated. Finalizing receipt…');
 
       const resolver = (item) => labelResolver(item.slug, item);
       const groupedCount = groupedEntries.length;
@@ -1546,15 +1531,9 @@ export default function Store() {
       await loadAccountBalance();
     } catch (err) {
       console.error('Purchase failed', err);
-      if (err?.code === 'PURCHASE_TIMEOUT') {
-        setInfo('Purchase is taking longer than expected. Please retry.');
-        setTransactionState('error');
-        setTransactionStatus('Purchase timed out. Please try again.');
-      } else {
-        setInfo('Failed to process purchase.');
-        setTransactionState('error');
-        setTransactionStatus('Purchase failed. Please try again.');
-      }
+      setInfo('Failed to process purchase.');
+      setTransactionState('error');
+      setTransactionStatus('Purchase failed. Please try again.');
     } finally {
       setProcessing('');
       setConfirmItem(null);
@@ -1743,7 +1722,7 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Purchase with your TPC balance. Once approved, we deliver the NFT instantly and log it on your statement.
+              Pay with your TPC balance. Once the transfer is approved we deliver the NFT instantly and log it on your statement.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
@@ -1772,7 +1751,7 @@ export default function Store() {
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
-                <span className="font-semibold text-white">Purchasing with TPC balance</span>
+                <span className="font-semibold text-white">TPC balance transfer</span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
@@ -1895,7 +1874,7 @@ export default function Store() {
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
-                <span className="font-semibold text-white">Purchasing with TPC balance</span>
+                <span className="font-semibold text-white">TPC balance transfer</span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
