@@ -14656,12 +14656,56 @@ const powerRef = useRef(hud.power);
     [accountId, clearRematchTimers, incomingRematch, sendRematchSignal]
   );
   const handlePlayAgain = useCallback(() => {
+    if (tournamentMode) {
+      window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+      return;
+    }
     if (isOnlineMatch) {
       sendRematchInvite();
       return;
     }
     resetMatchState();
-  }, [isOnlineMatch, resetMatchState, sendRematchInvite]);
+  }, [isOnlineMatch, location.search, resetMatchState, sendRematchInvite, tournamentMode]);
+  const continueTournament = useCallback(() => {
+    if (!tournamentMode) return;
+    try {
+      const raw = window.localStorage.getItem(tournamentStateKey);
+      if (!raw) {
+        window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+        return;
+      }
+      const st = JSON.parse(raw);
+      if (!st || st.complete) {
+        window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+        return;
+      }
+      const round = st.currentRound || 0;
+      const userSeed = st.userSeed || 1;
+      const matches = st.rounds?.[round] || [];
+      let pendingMatch = null;
+      for (let idx = 0; idx < matches.length; idx += 1) {
+        const pair = matches[idx];
+        if (!Array.isArray(pair) || !pair.includes(userSeed)) continue;
+        const nextRoundPair = st.rounds?.[round + 1]?.[Math.floor(idx / 2)]?.[idx % 2];
+        if (nextRoundPair) continue;
+        pendingMatch = { round, match: idx, pair };
+        break;
+      }
+      if (!pendingMatch) {
+        window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+        return;
+      }
+      st.pendingMatch = pendingMatch;
+      const opponentSeed =
+        pendingMatch.pair[0] === userSeed ? pendingMatch.pair[1] : pendingMatch.pair[0];
+      window.localStorage.setItem(tournamentOppKey, JSON.stringify(st.seedToPlayer?.[opponentSeed] || null));
+      window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
+      window.location.assign(`/games/poolroyale${location.search || ''}`);
+    } catch (err) {
+      console.warn('Pool Royale continue tournament failed', err);
+      window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+    }
+  }, [location.search, tournamentMode, tournamentOppKey, tournamentStateKey]);
   useEffect(() => () => clearRematchTimers(), [clearRematchTimers]);
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
@@ -14696,17 +14740,17 @@ const powerRef = useRef(hud.power);
   );
   const handleTournamentResult = useCallback(
     async ({ winnerSeat, scores }) => {
-      if (!tournamentMode) return { unlocks: [] };
+      if (!tournamentMode) return { unlocks: [], complete: false };
       try {
         const raw = window.localStorage.getItem(tournamentStateKey);
         if (!raw) {
           window.location.assign(`/pool-royale-bracket.html${location.search}`);
-          return { unlocks: [] };
+          return { unlocks: [], complete: false };
         }
         const st = JSON.parse(raw);
         if (!st?.pendingMatch) {
           window.location.assign(`/pool-royale-bracket.html${location.search}`);
-          return { unlocks: [] };
+          return { unlocks: [], complete: false };
         }
         const r = st.pendingMatch.round;
         const m = st.pendingMatch.match;
@@ -14750,13 +14794,14 @@ const powerRef = useRef(hud.power);
           }
           if (winnerSeed === userSeed) {
             const unlocks = await awardTournamentLoot();
-            return { unlocks };
+            return { unlocks, complete: true };
           }
         }
+        return { unlocks: [], complete: Boolean(st.complete) };
       } catch (err) {
         console.error('Pool Royale tournament result update failed', err);
       }
-      return { unlocks: [] };
+      return { unlocks: [], complete: false };
     },
     [
       awardTournamentLoot,
@@ -15662,7 +15707,8 @@ const powerRef = useRef(hud.power);
           avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
           prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
           rewards: tournamentOutcome?.unlocks || [],
-          userWon
+          userWon,
+          tournamentAdvance: tournamentMode && userWon && !tournamentOutcome?.complete
         };
         setWinnerOverlay(overlayData);
         const burstCount =
@@ -30439,6 +30485,11 @@ const powerRef = useRef(hud.power);
             <div className="text-lg font-semibold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
               {winnerOverlay.name}
             </div>
+            {winnerOverlay.tournamentAdvance ? (
+              <div className="max-w-md rounded-2xl border border-emerald-300/55 bg-emerald-400/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">
+                Congratulations! You are moving to the next stage of the tournament.
+              </div>
+            ) : null}
             {finalPotLabel ? (
               <div className="rounded-full border border-white/30 bg-white/10 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
                 Final pot: {finalPotLabel}
@@ -30485,20 +30536,30 @@ const powerRef = useRef(hud.power);
                 onClick={goToLobby}
                 className="rounded-full border border-white/30 bg-white/10 px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
               >
-                Lobby
+                Return lobby
               </button>
-              <button
-                type="button"
-                onClick={handlePlayAgain}
-                disabled={rematchStatus?.status === 'waiting' || rematchStatus?.status === 'starting'}
-                className={`rounded-full border px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                  rematchStatus?.status === 'waiting' || rematchStatus?.status === 'starting'
-                    ? 'border-white/20 bg-white/5 text-white/50'
-                    : 'border-emerald-300 bg-emerald-300 text-black hover:bg-emerald-200'
-                }`}
-              >
-                Play again
-              </button>
+              {winnerOverlay.tournamentAdvance ? (
+                <button
+                  type="button"
+                  onClick={continueTournament}
+                  className="rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] text-black shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition hover:bg-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                >
+                  Continue tournament
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePlayAgain}
+                  disabled={rematchStatus?.status === 'waiting' || rematchStatus?.status === 'starting'}
+                  className={`rounded-full border px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    rematchStatus?.status === 'waiting' || rematchStatus?.status === 'starting'
+                      ? 'border-white/20 bg-white/5 text-white/50'
+                      : 'border-emerald-300 bg-emerald-300 text-black hover:bg-emerald-200'
+                  }`}
+                >
+                  Play again
+                </button>
+              )}
             </div>
           </div>
         </div>
