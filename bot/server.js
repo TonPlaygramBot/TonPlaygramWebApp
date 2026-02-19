@@ -60,7 +60,7 @@ import {
   listOnline
 } from './services/connectionService.js';
 
-const envConfig = validateEnv();
+validateEnv();
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
@@ -130,7 +130,13 @@ if (!process.env.MONGO_URI) {
 }
 
 const PORT = process.env.PORT || 3000;
-const allowedOrigins = envConfig.allowedOrigins;
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+
+  .split(',')
+
+  .map((o) => o.trim())
+
+  .filter(Boolean);
 
 const rateLimitWindowMs =
   Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;

@@ -16,8 +16,6 @@ services:
         fromSecret: ALLOWED_ORIGINS
       - key: API_AUTH_TOKEN
         fromSecret: API_AUTH_TOKEN
-      - key: TRUST_CLIENT_IDENTITY_HEADERS
-        value: "false"
       - key: OWNER_TELEGRAM_ID
         fromSecret: OWNER_TELEGRAM_ID
       - key: WITHDRAW_ENABLED
