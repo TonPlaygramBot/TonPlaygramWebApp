@@ -12476,7 +12476,8 @@ function PoolRoyaleGame({
     completed: [],
     rewarded: [],
     lastLevel: 1,
-    carryShots: BASE_ATTEMPTS_PER_LEVEL
+    carryShots: 0,
+    attemptsAwardedLevels: []
   });
   const [trainingLevel, setTrainingLevel] = useState(() => {
     const requested = Number(initialTrainingLevel);
@@ -12485,7 +12486,7 @@ function PoolRoyaleGame({
     }
     return 1;
   });
-  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(BASE_ATTEMPTS_PER_LEVEL);
+  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(0);
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingLayoutExpectedBallsRef = useRef(0);
@@ -12516,8 +12517,22 @@ function PoolRoyaleGame({
     setTrainingShotsRemaining(
       Number.isFinite(storedCarryShots)
         ? Math.max(0, Math.floor(storedCarryShots))
-        : BASE_ATTEMPTS_PER_LEVEL
+        : 0
     );
+    const awardedLevels = new Set((stored?.attemptsAwardedLevels || []).map((lvl) => Number(lvl)));
+    if (!awardedLevels.has(playableLevel)) {
+      awardedLevels.add(playableLevel);
+      const carryShots = Math.max(0, Number(stored?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL;
+      const updated = {
+        ...stored,
+        carryShots,
+        attemptsAwardedLevels: Array.from(awardedLevels).sort((a, b) => a - b)
+      };
+      trainingProgressRef.current = updated;
+      setTrainingProgress(updated);
+      setTrainingShotsRemaining(carryShots);
+      persistTrainingProgress(updated);
+    }
     setTrainingLevel(playableLevel);
   }, [initialTrainingLevel]);
   useEffect(() => {
@@ -12560,10 +12575,42 @@ function PoolRoyaleGame({
     return () => window.clearTimeout(timeoutId);
   }, [isTraining]);
 
+
+
+  const grantTrainingAttemptsForLevel = useCallback((rawLevel) => {
+    if (!isTraining) return;
+    const level = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1));
+    const previous = trainingProgressRef.current || {
+      completed: [],
+      rewarded: [],
+      lastLevel: 1,
+      carryShots: 0,
+      attemptsAwardedLevels: []
+    };
+    const awardedSet = new Set(
+      (previous?.attemptsAwardedLevels || [])
+        .map((lvl) => Number(lvl))
+        .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+    );
+    if (awardedSet.has(level)) return;
+    awardedSet.add(level);
+    const carryShots = Math.max(0, Number(previous?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL;
+    const updated = {
+      ...previous,
+      carryShots,
+      attemptsAwardedLevels: Array.from(awardedSet).sort((a, b) => a - b)
+    };
+    trainingProgressRef.current = updated;
+    setTrainingProgress(updated);
+    setTrainingShotsRemaining(carryShots);
+    persistTrainingProgress(updated);
+  }, [isTraining]);
+
   const handleTrainingLevelPick = useCallback((level) => {
     const levelNum = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(level) || 1));
     const unlockedLevel = resolvePlayableTrainingLevel(levelNum, trainingProgressRef.current);
     if (levelNum > unlockedLevel) return;
+    grantTrainingAttemptsForLevel(unlockedLevel);
     setTrainingLevel(unlockedLevel);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
@@ -12583,7 +12630,7 @@ function PoolRoyaleGame({
       activePlayer: 'A'
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0 }));
-  }, []);
+  }, [grantTrainingAttemptsForLevel]);
 
   const awardTrainingTaskPayout = useCallback(async (level, rewardAmount) => {
     const account = resolvedAccountId;
@@ -12751,6 +12798,7 @@ function PoolRoyaleGame({
       Number.isFinite(Number(pendingTrainingLevel)) && Number(pendingTrainingLevel) > 0
         ? Number(pendingTrainingLevel)
         : computedNextLevel;
+    grantTrainingAttemptsForLevel(nextLevel);
     setTrainingLevel(nextLevel);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
@@ -12772,7 +12820,7 @@ function PoolRoyaleGame({
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
     applyTrainingLayoutForLevel(nextLevel);
-  }, [applyTrainingLayoutForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
+  }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -13998,7 +14046,7 @@ const powerRef = useRef(hud.power);
       const completed = Array.from(completedSet).sort((a, b) => a - b);
       const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
       const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
-      const carryShots = Math.max(0, trainingShotsRemaining) + BASE_ATTEMPTS_PER_LEVEL;
+      const carryShots = Math.max(0, trainingShotsRemaining);
       const updated = { completed, rewarded, lastLevel, carryShots };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
@@ -14019,19 +14067,11 @@ const powerRef = useRef(hud.power);
   }, [applyTrainingLayoutForLevel, awardTrainingTaskPayout, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
 
   useEffect(() => {
-    if (!isTraining || !trainingRoadmapOpen || !trainingTaskTransition?.toLevel) return;
-    if (trainingAutoAdvanceTimeoutRef.current) {
-      window.clearTimeout(trainingAutoAdvanceTimeoutRef.current);
-    }
-    trainingAutoAdvanceTimeoutRef.current = window.setTimeout(() => {
-      handleTrainingRoadmapContinue();
-    }, 1600);
-    return () => {
-      if (!trainingAutoAdvanceTimeoutRef.current) return;
+    if (!isTraining && trainingAutoAdvanceTimeoutRef.current) {
       window.clearTimeout(trainingAutoAdvanceTimeoutRef.current);
       trainingAutoAdvanceTimeoutRef.current = null;
-    };
-  }, [handleTrainingRoadmapContinue, isTraining, trainingRoadmapOpen, trainingTaskTransition]);
+    }
+  }, [isTraining]);
   const cueBallPlacedFromHandRef = useRef(false);
   const wasInHandRef = useRef(false);
   useEffect(() => {
@@ -26703,16 +26743,28 @@ const powerRef = useRef(hud.power);
         }
         if (isTraining) {
           const disableRuleEnding = !trainingRulesRef.current;
+          const remainingTrainingObjectBalls = balls.filter((entry) => entry?.id !== 'cue' && entry?.active).length;
           safeState = {
             ...safeState,
             foul: undefined,
             activePlayer: trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer,
-            frameOver: disableRuleEnding ? false : safeState?.frameOver,
-            winner: disableRuleEnding ? undefined : safeState?.winner
+            frameOver: disableRuleEnding ? false : remainingTrainingObjectBalls === 0,
+            winner: disableRuleEnding
+              ? undefined
+              : (remainingTrainingObjectBalls === 0 ? (trainingModeRef.current === 'solo' ? 'A' : safeState?.activePlayer ?? 'A') : undefined)
           };
         }
         if (isTraining && !safeState?.frameOver && pottedObjectCount === 0) {
-          setTrainingShotsRemaining((prev) => Math.max(0, (Number(prev) || 0) - 1));
+          setTrainingShotsRemaining((prev) => {
+            const nextShots = Math.max(0, (Number(prev) || 0) - 1);
+            setTrainingProgress((progressPrev) => {
+              const updated = { ...(progressPrev || {}), carryShots: nextShots };
+              trainingProgressRef.current = updated;
+              persistTrainingProgress(updated);
+              return updated;
+            });
+            return nextShots;
+          });
         }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
@@ -31238,15 +31290,7 @@ const powerRef = useRef(hud.power);
                 <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
                 <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : `Track your ${TRAINING_LEVEL_COUNT}-level progression.`}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTrainingRoadmapContinue}
-                  className="rounded-full border border-white/30 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
-                >
-                  Play next
-                </button>
-              </div>
+              <div className="flex items-center gap-2" />
             </div>
             {trainingTaskTransition?.toLevel && (
               <div className="mt-3 rounded-xl border border-emerald-300/40 bg-emerald-500/10 p-3">
@@ -31254,11 +31298,12 @@ const powerRef = useRef(hud.power);
                   <span>Avatar route</span>
                   <span>Task {String(trainingTaskTransition.toLevel).padStart(2, '0')}</span>
                 </div>
-                <div className="relative mt-2 h-3 overflow-hidden rounded-full bg-white/10">
-                  <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-emerald-400/0 via-emerald-400/20 to-emerald-400/0" />
+                <div className="relative mt-2 flex h-16 items-center justify-center">
+                  <div className="h-full w-3 rounded-full bg-white/10" />
+                  <div className="absolute inset-y-2 left-1/2 w-[2px] -translate-x-1/2 bg-gradient-to-b from-emerald-400/20 via-emerald-300/60 to-cyan-300/30" />
                   <div
-                    className="absolute top-1/2 h-5 w-5 -translate-y-1/2 animate-bounce rounded-full bg-emerald-300 text-center text-[11px] leading-5 text-black shadow-[0_0_14px_rgba(52,211,153,0.65)]"
-                    style={{ left: 'calc(100% - 1.25rem)' }}
+                    className="absolute h-5 w-5 animate-bounce rounded-full bg-emerald-300 text-center text-[11px] leading-5 text-black shadow-[0_0_14px_rgba(52,211,153,0.65)]"
+                    style={{ top: 'calc(100% - 1.25rem)', left: '50%', transform: 'translate(-50%, -50%)' }}
                   >
                     🧍
                   </div>
@@ -31271,6 +31316,17 @@ const powerRef = useRef(hud.power);
                     Reward added: {Number(trainingTaskTransition.rewardAmount).toLocaleString('en-US')} TPC
                   </p>
                 )}
+              </div>
+            )}
+            {trainingTaskTransition?.toLevel && (
+              <div className="my-3 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleTrainingRoadmapContinue}
+                  className="rounded-full border border-emerald-200/80 bg-emerald-300/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.35)] transition hover:bg-emerald-300/30"
+                >
+                  Play next
+                </button>
               </div>
             )}
             <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] p-3 text-[11px] text-white/70">
