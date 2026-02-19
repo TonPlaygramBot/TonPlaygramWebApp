@@ -230,7 +230,6 @@ const TEXAS_TYPE_LABELS = {
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
-const STORE_PURCHASE_TIMEOUT_MS = 25000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
@@ -1441,15 +1440,7 @@ export default function Store() {
           price: item.price
         }))
       };
-      const purchase = await Promise.race([
-        buyBundle(resolvedAccountId, bundle),
-        new Promise((resolve) => {
-          window.setTimeout(
-            () => resolve({ error: 'Purchase request timed out. Please try again.' }),
-            STORE_PURCHASE_TIMEOUT_MS
-          );
-        })
-      ]);
+      const purchase = await buyBundle(resolvedAccountId, bundle);
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
