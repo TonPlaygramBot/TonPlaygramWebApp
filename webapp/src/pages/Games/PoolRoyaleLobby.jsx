@@ -399,6 +399,18 @@ export default function PoolRoyaleLobby() {
     () => new Set(Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []),
     [trainingProgress]
   );
+  const trainingRoadmapNodes = useMemo(
+    () => TRAINING_LEVELS.map((levelDef) => {
+      const levelNum = Number(levelDef.level);
+      return {
+        ...levelDef,
+        levelNum,
+        rewardAmount: Number(levelDef.rewardAmount) || 0,
+        hasGift: levelNum % 5 === 0
+      };
+    }),
+    []
+  );
   const currentTrainingTask = useMemo(() => {
     const unlocked = resolvePlayableTrainingLevel(trainingProgress?.lastLevel || 1, trainingProgress);
     return describeTrainingLevel(unlocked);
@@ -751,60 +763,92 @@ export default function PoolRoyaleLobby() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-white">Training Roadmap</h3>
-                <p className="text-xs text-white/60">Tap an unlocked task to play it directly.</p>
+                <p className="text-xs text-white/60">Same path view as in-game. Tap unlocked tasks to jump in.</p>
               </div>
-              <span className="text-xs font-semibold text-emerald-200">
-                {completedTrainingSet.size}/{TRAINING_LEVEL_COUNT}
-              </span>
+              <span className="text-xs font-semibold text-emerald-200">{completedTrainingSet.size}/{TRAINING_LEVEL_COUNT}</span>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-xs text-white/70">
               <p>
                 Next suggested task:{' '}
-                <span className="font-semibold text-white">
-                  {String(currentTrainingTask.level).padStart(2, '0')}
-                </span>
+                <span className="font-semibold text-white">{String(currentTrainingTask.level).padStart(2, '0')}</span>
               </p>
               <p className="mt-1 text-white/60">{currentTrainingTask.objective}</p>
             </div>
-            <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
-              {TRAINING_LEVELS.map((levelDef) => {
-                const levelNum = Number(levelDef.level);
-                const completed = completedTrainingSet.has(levelNum);
-                const unlocked = levelNum <= unlockedTrainingCap;
-                return (
-                  <div
-                    key={levelNum}
-                    className={`rounded-xl border px-3 py-2 ${
-                      completed
-                        ? 'border-emerald-300/40 bg-emerald-400/10'
-                        : unlocked
-                          ? 'border-white/20 bg-white/[0.04]'
-                          : 'border-white/10 bg-white/[0.02] opacity-70'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">
-                          Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}
-                        </p>
-                        <p className="truncate text-[11px] text-white/65">{levelDef.objective}</p>
+            <div className="max-h-96 overflow-y-auto pr-1">
+              <div className="relative pl-2">
+                <div className="absolute left-[1.35rem] top-2 bottom-2 w-[2px] rounded-full bg-gradient-to-b from-emerald-300/60 via-cyan-300/45 to-emerald-300/20" />
+                <div className="space-y-2.5">
+                  {trainingRoadmapNodes.map((levelDef) => {
+                    const levelNum = levelDef.levelNum;
+                    const completed = completedTrainingSet.has(levelNum);
+                    const active = levelNum === currentTrainingTask.level;
+                    const unlocked = levelNum <= unlockedTrainingCap;
+                    return (
+                      <div key={levelNum} className="relative flex items-start gap-3">
+                        <button
+                          type="button"
+                          onClick={() => startGame({ trainingLevelOverride: levelNum })}
+                          disabled={!unlocked}
+                          className={`relative z-10 mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-sm font-semibold shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition ${completed
+                            ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
+                            : active
+                              ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
+                              : unlocked
+                                ? 'border-white/35 bg-black/45 text-white/90 hover:border-white/65'
+                                : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
+                          }`}
+                          aria-label={`Play training level ${levelNum}`}
+                        >
+                          {active ? (
+                            <img
+                              src={avatar || '/assets/icons/profile.svg'}
+                              alt="Player avatar"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            levelNum
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startGame({ trainingLevelOverride: levelNum })}
+                          disabled={!unlocked}
+                          className={`flex min-w-0 flex-1 flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left transition ${active
+                            ? 'border-cyan-300/60 bg-cyan-400/12 shadow-[0_10px_24px_rgba(34,211,238,0.18)]'
+                            : completed
+                              ? 'border-emerald-300/50 bg-emerald-400/10'
+                              : unlocked
+                                ? 'border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
+                                : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
+                          }`}
+                        >
+                          <div className="flex w-full min-w-0 items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-semibold text-white">Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}</p>
+                              <p className="mt-0.5 truncate text-[10px] text-white/70">{levelDef.objective}</p>
+                            </div>
+                            <span className={`ml-2 shrink-0 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}>
+                              {completed ? 'Done' : unlocked ? (active ? 'Now' : 'Play') : 'Locked'}
+                            </span>
+                          </div>
+                          <div className="flex w-full flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-3.5 w-3.5" />
+                              {Number(levelDef.rewardAmount || 0).toLocaleString('en-US')} TPC
+                            </span>
+                            {levelDef.hasGift ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                                <span>🎁</span>
+                                NFT task
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => startGame({ trainingLevelOverride: levelNum })}
-                        disabled={!unlocked}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                          unlocked
-                            ? 'bg-emerald-400 text-black hover:bg-emerald-300'
-                            : 'cursor-not-allowed bg-white/10 text-white/50'
-                        }`}
-                      >
-                        {completed ? 'Replay' : unlocked ? 'Play' : 'Locked'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
