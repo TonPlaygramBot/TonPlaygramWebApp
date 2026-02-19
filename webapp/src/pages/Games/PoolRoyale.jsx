@@ -51,6 +51,7 @@ import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { NFT_GIFTS } from '../../utils/nftGifts.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -120,6 +121,20 @@ const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-12', attempts: 12, price: 960, label: 'Table control deal' }),
   Object.freeze({ id: 'training-attempts-30', attempts: 30, price: 2100, label: 'Champion heart vault' })
 ]);
+
+const POOL_ROYALE_REWARDABLE_NFT_IDS = Object.freeze(['surprise_box', 'magic_trick', 'bullseye']);
+const POOL_ROYALE_REWARD_NFT_KEY_PREFIX = 'poolRoyaleRewardNfts_';
+
+function pickPoolRoyaleRewardNft() {
+  const mediumTier = NFT_GIFTS.filter(
+    (item) =>
+      Number(item?.tier) === 2 &&
+      POOL_ROYALE_REWARDABLE_NFT_IDS.includes(item?.id)
+  );
+  const source = mediumTier.length ? mediumTier : NFT_GIFTS.filter((item) => Number(item?.tier) === 2);
+  if (!source.length) return null;
+  return source[Math.floor(Math.random() * source.length)] || null;
+}
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -11899,6 +11914,13 @@ function PoolRoyaleGame({
     () => `poolRoyaleTournamentAiFlag_${tournamentKey}`,
     [tournamentKey]
   );
+  const rewardNftStorageKey = useMemo(
+    () => `${POOL_ROYALE_REWARD_NFT_KEY_PREFIX}${tournamentKey}`,
+    [tournamentKey]
+  );
+  const [isTournamentFinalMatch, setIsTournamentFinalMatch] = useState(false);
+  const [showTournamentFinalWelcome, setShowTournamentFinalWelcome] = useState(false);
+  const [revealedRewardNft, setRevealedRewardNft] = useState(null);
   const tournamentLastResult = useMemo(() => {
     if (!tournamentMode || typeof window === 'undefined') return null;
     try {
@@ -11914,6 +11936,41 @@ function PoolRoyaleGame({
       return null;
     }
   }, [tournamentLastResultKey, tournamentMode]);
+
+  useEffect(() => {
+    if (!tournamentMode || typeof window === 'undefined') {
+      setIsTournamentFinalMatch(false);
+      setShowTournamentFinalWelcome(false);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(tournamentStateKey);
+      if (!raw) {
+        setIsTournamentFinalMatch(false);
+        setShowTournamentFinalWelcome(false);
+        return;
+      }
+      const st = JSON.parse(raw);
+      const round = Number(st?.pendingMatch?.round);
+      const totalRounds = Array.isArray(st?.rounds) ? st.rounds.length : 0;
+      const isFinal = Number.isFinite(round) && totalRounds > 0 && round === totalRounds - 1;
+      setIsTournamentFinalMatch(isFinal);
+      setShowTournamentFinalWelcome(isFinal);
+    } catch (err) {
+      console.warn('Pool Royale tournament final round check failed', err);
+      setIsTournamentFinalMatch(false);
+      setShowTournamentFinalWelcome(false);
+    }
+  }, [tournamentMode, tournamentStateKey]);
+
+  useEffect(() => {
+    if (!showTournamentFinalWelcome) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setShowTournamentFinalWelcome(false);
+    }, 2800);
+    return () => window.clearTimeout(timeoutId);
+  }, [showTournamentFinalWelcome]);
+
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
@@ -11968,6 +12025,11 @@ function PoolRoyaleGame({
         0% { transform: translateY(-20px) scale(0.8); opacity: 1; }
         70% { opacity: 1; }
         100% { transform: translateY(120vh) scale(1.1); opacity: 0; }
+      }
+      @keyframes prRewardPop {
+        0% { transform: scale(0.3); opacity: 0.35; }
+        70% { transform: scale(1.16); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
       }
       .pr-coin-burst {
         position: fixed;
@@ -12551,6 +12613,28 @@ function PoolRoyaleGame({
   const trainingAutoAdvanceTimeoutRef = useRef(null);
   const trainingCommentaryKeyRef = useRef('');
   const [trainingTaskTransition, setTrainingTaskTransition] = useState(null);
+  const persistRewardNft = useCallback(
+    (nft) => {
+      if (!nft || typeof window === 'undefined') return;
+      try {
+        const raw = window.localStorage.getItem(rewardNftStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        const list = Array.isArray(parsed) ? parsed : [];
+        list.unshift({
+          id: nft.id,
+          name: nft.name,
+          icon: nft.icon,
+          price: nft.price,
+          wonAt: Date.now()
+        });
+        window.localStorage.setItem(rewardNftStorageKey, JSON.stringify(list.slice(0, 20)));
+      } catch (err) {
+        console.warn('Pool Royale reward NFT persist failed', err);
+      }
+    },
+    [rewardNftStorageKey]
+  );
+
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
   }, [trainingProgress]);
@@ -12724,8 +12808,11 @@ function PoolRoyaleGame({
       setTrainingAttemptsStoreOpen(false);
       return;
     }
-    if ((Number(trainingShotsRemaining) || 0) <= 0) {
+    const attemptsLeft = Number(trainingShotsRemaining) || 0;
+    if (attemptsLeft <= 0) {
       setTrainingAttemptsStoreOpen(true);
+    } else {
+      setTrainingAttemptsStoreOpen(false);
     }
   }, [isTraining, trainingShotsRemaining]);
 
@@ -12966,12 +13053,26 @@ function PoolRoyaleGame({
   }, [flushPendingTrainingLayout, trainingLevel]);
 
   const trainingRoadmapNodes = useMemo(
-    () => TRAINING_LEVELS.map((levelDef) => ({
-      ...levelDef,
-      levelNum: Number(levelDef.level)
-    })),
+    () => TRAINING_LEVELS.map((levelDef) => {
+      const levelNum = Number(levelDef.level);
+      return {
+        ...levelDef,
+        levelNum,
+        rewardAmount: Number(levelDef.rewardAmount) || 0,
+        hasGift: levelNum % 5 === 0
+      };
+    }),
     []
   );
+  const trainingAvatarRouteLevel = useMemo(
+    () => trainingTaskTransition?.toLevel || currentTrainingInfo.level || 1,
+    [currentTrainingInfo.level, trainingTaskTransition?.toLevel]
+  );
+  const trainingAvatarRoutePercent = useMemo(() => {
+    const total = Math.max(1, TRAINING_LEVEL_COUNT - 1);
+    const normalized = Math.max(1, Math.min(TRAINING_LEVEL_COUNT, Number(trainingAvatarRouteLevel) || 1));
+    return ((normalized - 1) / total) * 100;
+  }, [trainingAvatarRouteLevel]);
   const unlockedTrainingCap = useMemo(
     () => resolvePlayableTrainingLevel(TRAINING_LEVEL_COUNT, trainingProgress),
     [trainingProgress]
@@ -14152,6 +14253,7 @@ const powerRef = useRef(hud.power);
     const completedLevel = trainingLevelRef.current || 1;
     const completedLevelInfo = describeTrainingLevel(completedLevel);
     const completedRewardAmount = Number(completedLevelInfo?.rewardAmount) || 0;
+    const nftReward = completedLevel % 5 === 0 ? pickPoolRoyaleRewardNft() : null;
     const previous = trainingProgressRef.current || { completed: [], rewarded: [] };
     const previousRewardedSet = new Set(
       (previous?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
@@ -14188,7 +14290,8 @@ const powerRef = useRef(hud.power);
       setTrainingTaskTransition({
         fromLevel: completedLevel,
         toLevel: nextPlayable,
-        rewardAmount: shouldAwardReward ? completedRewardAmount : 0
+        rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
+        nftReward
       });
       setTrainingRoadmapOpen(true);
       return updated;
@@ -14196,7 +14299,20 @@ const powerRef = useRef(hud.power);
     if (shouldAwardReward) {
       awardTrainingTaskPayout(completedLevel, completedRewardAmount);
     }
-  }, [applyTrainingLayoutForLevel, awardTrainingTaskPayout, frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel, trainingShotsRemaining]);
+    if (nftReward) {
+      persistRewardNft(nftReward);
+      setRevealedRewardNft(nftReward);
+    }
+    triggerCoinBurst(nftReward ? 26 : 18);
+  }, [
+    applyTrainingLayoutForLevel,
+    awardTrainingTaskPayout,
+    frameState.frameOver,
+    isTraining,
+    persistRewardNft,
+    trainingShotsRemaining,
+    triggerCoinBurst
+  ]);
 
   useEffect(() => {
     if (!isTraining && trainingAutoAdvanceTimeoutRef.current) {
@@ -14871,17 +14987,17 @@ const powerRef = useRef(hud.power);
   );
   const handleTournamentResult = useCallback(
     async ({ winnerSeat, scores }) => {
-      if (!tournamentMode) return { unlocks: [], complete: false };
+      if (!tournamentMode) return { unlocks: [], complete: false, nftReward: null };
       try {
         const raw = window.localStorage.getItem(tournamentStateKey);
         if (!raw) {
           window.location.assign(`/pool-royale-bracket.html${location.search}`);
-          return { unlocks: [], complete: false };
+          return { unlocks: [], complete: false, nftReward: null };
         }
         const st = JSON.parse(raw);
         if (!st?.pendingMatch) {
           window.location.assign(`/pool-royale-bracket.html${location.search}`);
-          return { unlocks: [], complete: false };
+          return { unlocks: [], complete: false, nftReward: null };
         }
         const r = st.pendingMatch.round;
         const m = st.pendingMatch.match;
@@ -14925,16 +15041,21 @@ const powerRef = useRef(hud.power);
           }
           if (winnerSeed === userSeed) {
             const unlocks = await awardTournamentLoot();
-            return { unlocks, complete: true };
+            const nftReward = aiOpponentEnabled ? pickPoolRoyaleRewardNft() : null;
+            if (nftReward) {
+              persistRewardNft(nftReward);
+            }
+            return { unlocks, complete: true, nftReward };
           }
         }
-        return { unlocks: [], complete: Boolean(st.complete) };
+        return { unlocks: [], complete: Boolean(st.complete), nftReward: null };
       } catch (err) {
         console.error('Pool Royale tournament result update failed', err);
       }
-      return { unlocks: [], complete: false };
+      return { unlocks: [], complete: false, nftReward: null };
     },
     [
+      aiOpponentEnabled,
       awardTournamentLoot,
       localSeat,
       location.search,
@@ -14946,7 +15067,8 @@ const powerRef = useRef(hud.power);
       tournamentMode,
       tournamentOppKey,
       tournamentPlayers,
-      tournamentStateKey
+      tournamentStateKey,
+      persistRewardNft
     ]
   );
 
@@ -15399,6 +15521,12 @@ const powerRef = useRef(hud.power);
       priority: true,
       speaker: POOL_ROYALE_SPEAKERS.lead
     });
+    if (isTournamentFinalMatch) {
+      enqueuePoolCommentary(
+        [{ speaker: POOL_ROYALE_SPEAKERS.lead, text: 'Welcome to the final. Winner takes the crown.' }],
+        { priority: true }
+      );
+    }
     if (tournamentMode && tournamentLastResult) {
       enqueuePoolCommentaryEvent(
         'tournamentRecall',
@@ -15408,8 +15536,10 @@ const powerRef = useRef(hud.power);
     }
   }, [
     activeVariant?.ballSet,
+    enqueuePoolCommentary,
     enqueuePoolCommentaryEvent,
     frameState?.players,
+    isTournamentFinalMatch,
     resolveScoreline,
     resolveSeatLabel,
     tournamentLastResult,
@@ -15838,13 +15968,19 @@ const powerRef = useRef(hud.power);
           avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
           prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
           rewards: tournamentOutcome?.unlocks || [],
+          nftReward: tournamentOutcome?.nftReward || null,
           userWon,
           tournamentAdvance: tournamentMode && userWon && !tournamentOutcome?.complete
         };
         setWinnerOverlay(overlayData);
+        if (overlayData.nftReward && userWon) {
+          setRevealedRewardNft(overlayData.nftReward);
+        }
         const burstCount =
-          overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
-            ? 28
+          overlayData.prizeText ||
+          (overlayData.rewards && overlayData.rewards.length > 0) ||
+          overlayData.nftReward
+            ? 30
             : 18;
         triggerCoinBurst(burstCount);
       } catch (error) {
@@ -30658,6 +30794,12 @@ const powerRef = useRef(hud.power);
           </span>
         </div>
       )}
+      {showTournamentFinalWelcome && isTournamentFinalMatch && (
+        <div className="pointer-events-none absolute left-1/2 top-16 z-[115] w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl border border-amber-300/70 bg-amber-400/20 px-4 py-3 text-center shadow-[0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur">
+          <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-100">Welcome to the Final</p>
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">One match decides the champion.</p>
+        </div>
+      )}
       {winnerOverlay && (
         <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/70 px-4">
           <div className="flex flex-col items-center gap-4 text-center">
@@ -30695,6 +30837,16 @@ const powerRef = useRef(hud.power);
                 <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC prize" className="h-6 w-6" />
                 <span>{winnerOverlay.prizeText}</span>
               </div>
+            ) : null}
+            {winnerOverlay.nftReward ? (
+              <button
+                type="button"
+                onClick={() => setRevealedRewardNft(winnerOverlay.nftReward)}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-300/20 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.4)]"
+              >
+                <span className="text-base">🎁</span>
+                <span>{winnerOverlay.nftReward.name}</span>
+              </button>
             ) : null}
             {winnerOverlay.rewards?.length ? (
               <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-amber-200/50 bg-white/10 px-4 py-3 text-sm text-white shadow-[0_0_22px_rgba(0,0,0,0.45)] backdrop-blur">
@@ -30759,6 +30911,30 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
+      {revealedRewardNft ? (
+        <div className="absolute inset-0 z-[140] flex items-center justify-center bg-black/80 px-4">
+          <div className="w-[min(92vw,24rem)] rounded-3xl border border-amber-300/70 bg-slate-950/95 p-5 text-center text-white shadow-[0_26px_58px_rgba(0,0,0,0.65)]">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-amber-200/80 bg-amber-300/20 text-3xl animate-[prRewardPop_520ms_ease-out]">
+              🎁
+            </div>
+            <p className="mt-3 text-sm font-black uppercase tracking-[0.22em] text-amber-100">Congratulations 👏</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">You won an NFT</p>
+            <p className="mt-1 text-lg font-semibold text-white">{revealedRewardNft.name}</p>
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/75">
+              <img src={resolvedPlayerAvatar || '/assets/icons/profile.svg'} alt="Player avatar" className="h-8 w-8 rounded-full border border-amber-200/60 object-cover" />
+              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-5 w-5 animate-bounce" />
+              <span>Pool Royale reward unlocked</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRevealedRewardNft(null)}
+              className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
+            >
+              Awesome
+            </button>
+          </div>
+        </div>
+      ) : null}
       {incomingRematch && (
         <div className="absolute inset-0 z-[125] flex items-center justify-center bg-black/75 px-4">
           <div className="w-full max-w-sm rounded-3xl border border-emerald-300/70 bg-slate-950/95 p-5 text-center text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
@@ -31597,7 +31773,7 @@ const powerRef = useRef(hud.power);
       )}
 
 
-      {isTraining && trainingAttemptsStoreOpen && (
+      {isTraining && trainingAttemptsStoreOpen && (Number(trainingShotsRemaining) || 0) <= 0 && (
         <div className="absolute inset-0 z-[130] flex items-center justify-center bg-black/75 px-4">
           <div className="w-[min(32rem,94vw)] rounded-2xl border border-rose-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
             <div className="flex items-center justify-between gap-2">
@@ -31699,32 +31875,70 @@ const powerRef = useRef(hud.power);
               </div>
               <div className="flex items-center gap-2" />
             </div>
-            {trainingTaskTransition?.toLevel && (
-              <div className="mt-3 rounded-xl border border-emerald-300/40 bg-emerald-500/10 p-3">
-                <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-emerald-100/90">
-                  <span>Avatar route</span>
-                  <span>Task {String(trainingTaskTransition.toLevel).padStart(2, '0')}</span>
-                </div>
-                <div className="relative mt-2 flex h-16 items-center justify-center">
-                  <div className="h-full w-3 rounded-full bg-white/10" />
-                  <div className="absolute inset-y-2 left-1/2 w-[2px] -translate-x-1/2 bg-gradient-to-b from-emerald-400/20 via-emerald-300/60 to-cyan-300/30" />
+            <div className="mt-3 rounded-2xl border border-cyan-300/35 bg-gradient-to-br from-cyan-500/12 via-emerald-500/12 to-slate-900/50 p-3 shadow-[0_12px_28px_rgba(6,182,212,0.16)]">
+              <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-cyan-100/90">
+                <span>Avatar route</span>
+                <span>Task {String(trainingAvatarRouteLevel).padStart(2, '0')}</span>
+              </div>
+              <div className="mt-3 rounded-xl border border-white/15 bg-slate-950/65 px-3 py-3">
+                <div className="relative h-12">
+                  <div className="absolute left-0 right-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-white/12" />
                   <div
-                    className="absolute h-5 w-5 animate-bounce rounded-full bg-emerald-300 text-center text-[11px] leading-5 text-black shadow-[0_0_14px_rgba(52,211,153,0.65)]"
-                    style={{ top: 'calc(100% - 1.25rem)', left: '50%', transform: 'translate(-50%, -50%)' }}
+                    className="absolute left-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-300/75 via-cyan-300/85 to-emerald-200/80 transition-all duration-700"
+                    style={{ width: `${trainingAvatarRoutePercent}%` }}
+                  />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                    L1
+                  </div>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                    L{TRAINING_LEVEL_COUNT}
+                  </div>
+                  <div
+                    className="absolute top-1/2 h-11 w-11 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-emerald-200/80 bg-emerald-300/15 p-[2px] shadow-[0_0_18px_rgba(52,211,153,0.55)] transition-all duration-700"
+                    style={{ left: `${trainingAvatarRoutePercent}%` }}
                   >
-                    🧍
+                    <img
+                      src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
+                      alt="Player avatar"
+                      className="h-full w-full rounded-full object-cover"
+                    />
                   </div>
                 </div>
-                <p className="mt-2 text-xs text-white/80">
-                  Cleaning pocket holders, setting balls, and opening the next task automatically…
-                </p>
-                {trainingTaskTransition.rewardAmount > 0 && (
-                  <p className="mt-1 text-[11px] text-emerald-200">
-                    Reward added: {Number(trainingTaskTransition.rewardAmount).toLocaleString('en-US')} TPC
-                  </p>
-                )}
               </div>
-            )}
+              <p className="mt-2 text-xs text-white/80">
+                Clear each task to move your real avatar forward on the roadmap.
+              </p>
+              {(trainingTaskTransition?.rewardAmount > 0 || trainingTaskTransition?.nftReward) && (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-300/35 bg-emerald-400/10 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
+                      alt="Player avatar"
+                      className="h-9 w-9 rounded-full border-2 border-amber-200/70 object-cover"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100">Progress reward</p>
+                      {trainingTaskTransition?.rewardAmount > 0 ? (
+                        <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-100">
+                          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-4 w-4" />
+                          +{Number(trainingTaskTransition.rewardAmount).toLocaleString('en-US')} TPC
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {trainingTaskTransition?.nftReward ? (
+                    <button
+                      type="button"
+                      onClick={() => setRevealedRewardNft(trainingTaskTransition.nftReward)}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200/70 bg-amber-300/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-100"
+                    >
+                      <span>🎁</span>
+                      <span>{trainingTaskTransition.nftReward.name}</span>
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
             {trainingTaskTransition?.toLevel && (
               <div className="my-3 flex items-center justify-center">
                 <button
@@ -31749,12 +31963,12 @@ const powerRef = useRef(hud.power);
                     const active = levelNum === currentTrainingInfo.level;
                     const unlocked = levelNum <= unlockedTrainingCap;
                     return (
-                      <div key={levelNum} className="relative flex items-center gap-3">
+                      <div key={levelNum} className="relative flex items-start gap-3">
                         <button
                           type="button"
                           onClick={() => handleTrainingLevelPick(levelNum)}
                           disabled={!unlocked}
-                          className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.4)] transition ${completed
+                          className={`relative z-10 mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-sm font-semibold shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition ${completed
                             ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
                             : active
                               ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
@@ -31764,14 +31978,22 @@ const powerRef = useRef(hud.power);
                           }`}
                           aria-label={`Play training level ${levelNum}`}
                         >
-                          {active ? '🧍' : levelNum}
+                          {active ? (
+                            <img
+                              src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
+                              alt="Player avatar"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            levelNum
+                          )}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleTrainingLevelPick(levelNum)}
                           disabled={!unlocked}
-                          className={`flex min-w-0 flex-1 items-center justify-between rounded-xl border px-3 py-2 text-left transition ${active
-                            ? 'border-cyan-300/60 bg-cyan-400/10'
+                          className={`flex min-w-0 flex-1 flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left transition ${active
+                            ? 'border-cyan-300/60 bg-cyan-400/12 shadow-[0_10px_24px_rgba(34,211,238,0.18)]'
                             : completed
                               ? 'border-emerald-300/50 bg-emerald-400/10'
                               : unlocked
@@ -31779,13 +32001,27 @@ const powerRef = useRef(hud.power);
                                 : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
                           }`}
                         >
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-white">Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}</p>
-                            <p className="truncate text-[10px] text-white/70">{levelDef.objective}</p>
+                          <div className="flex w-full min-w-0 items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-semibold text-white">Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}</p>
+                              <p className="mt-0.5 truncate text-[10px] text-white/70">{levelDef.objective}</p>
+                            </div>
+                            <span className={`ml-2 shrink-0 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}>
+                              {completed ? 'Done' : unlocked ? (active ? 'Now' : 'Play') : 'Locked'}
+                            </span>
                           </div>
-                          <span className={`ml-2 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}>
-                            {completed ? 'Done' : unlocked ? (active ? 'Now' : 'Play') : 'Locked'}
-                          </span>
+                          <div className="flex w-full flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-3.5 w-3.5" />
+                              {Number(levelDef.rewardAmount || 0).toLocaleString('en-US')} TPC
+                            </span>
+                            {levelDef.hasGift ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                                <span>🎁</span>
+                                NFT task
+                              </span>
+                            ) : null}
+                          </div>
                         </button>
                       </div>
                     );
