@@ -14,7 +14,6 @@ import {
   sendGiftNotification
 } from '../utils/notifications.js';
 import NFT_GIFTS from '../utils/nftGifts.js';
-import { handleTpcPurchase } from './store.js';
 
 import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
@@ -550,10 +549,6 @@ router.post('/gift', authenticate, async (req, res) => {
 
   res.json({ balance: sender.balance, transaction: senderTx });
 });
-
-
-// Store purchase endpoint under account API to match gift API auth/path behavior
-router.post('/store-purchase', authenticate, handleTpcPurchase);
 
 // Convert received gifts to TPC
 router.post('/convert-gifts', authenticate, async (req, res) => {

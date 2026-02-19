@@ -705,20 +705,12 @@ export function depositAccount(accountId, amount, extra = {}) {
 }
 
 export function buyBundle(accountId, bundle) {
-  return post('/api/account/store-purchase', { accountId, bundle }).then((response) => {
+  return post('/api/store/purchase-v2', { accountId, bundle }).then((response) => {
     if (
       response?.error &&
       /not found|404/i.test(String(response.error))
     ) {
-      return post('/api/store/purchase-v2', { accountId, bundle }).then((legacyResponse) => {
-        if (
-          legacyResponse?.error &&
-          /not found|404/i.test(String(legacyResponse.error))
-        ) {
-          return post('/api/store/purchase', { accountId, bundle });
-        }
-        return legacyResponse;
-      });
+      return post('/api/store/purchase', { accountId, bundle });
     }
     return response;
   });
