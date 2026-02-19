@@ -17,6 +17,8 @@ const SUPPORTED_HELP_LANGUAGES = [
   { label: 'Türkçe', locale: 'tr-TR', flag: '🇹🇷' }
 ];
 
+const PERSONAPLEX_HELP_SPEAKER = 'PersonaPlex Host';
+
 function createSpeechRecognition(locale = 'en-US') {
   if (typeof window === 'undefined') return null;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -56,16 +58,19 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
     }
   };
 
+  const speakHelpAnswer = async (text) => {
+    if (!isSpeakingEnabled || !canUseSpeechOutput) return;
+    await speakCommentaryLines([{ speaker: PERSONAPLEX_HELP_SPEAKER, text }], {
+      voiceHints: { [PERSONAPLEX_HELP_SPEAKER]: [selectedLocale] }
+    });
+  };
+
   const runLocalFallback = async (text) => {
     const matches = searchLocalHelp(text, 5);
     const reply = buildStructuredResponse(text, matches, selectedLocale);
     setAnswer(reply.answer);
     setCitations(reply.citations);
-    if (isSpeakingEnabled && canUseSpeechOutput) {
-      await speakCommentaryLines([{ speaker: 'Lena', text: reply.answer }], {
-        voiceHints: { Lena: [selectedLocale] }
-      });
-    }
+    await speakHelpAnswer(reply.answer);
   };
 
   const runAgentReply = async (text) => {
@@ -74,11 +79,7 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
         'I can’t help with sensitive, private, or abuse-related requests. I can share public user guidance and official support steps.';
       setAnswer(blocked);
       setCitations([]);
-      if (isSpeakingEnabled && canUseSpeechOutput) {
-        await speakCommentaryLines([{ speaker: 'Lena', text: blocked }], {
-          voiceHints: { Lena: [selectedLocale] }
-        });
-      }
+      await speakHelpAnswer(blocked);
       return;
     }
 
@@ -116,22 +117,12 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
 
       setAnswer(nextAnswer);
       setCitations(nextCitations);
-      if (isSpeakingEnabled && canUseSpeechOutput) {
-        await speakCommentaryLines([{ speaker: 'Lena', text: nextAnswer }], {
-          voiceHints: { Lena: [selectedLocale] }
-        });
-      }
+      await speakHelpAnswer(nextAnswer);
     } catch {
       await runLocalFallback(text);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const askQuestion = async () => {
-    const text = question.trim();
-    if (!text) return;
-    await runAgentReply(text);
   };
 
   const stopVoiceInput = () => {
@@ -209,7 +200,7 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-white">TonPlaygram AI Help Center</h3>
-          <p className="text-xs text-subtext">Real-time conversation • Voice interruption enabled • Public guidance only</p>
+          <p className="text-xs text-subtext">Voice-only help • PersonaPlex voice personalities • Public guidance only</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -232,7 +223,7 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-subtext">Choose help language</p>
+        <p className="text-xs font-semibold text-subtext">Choose help language (flag only)</p>
         <div className="flex flex-wrap gap-2">
           {SUPPORTED_HELP_LANGUAGES.map((language) => (
             <button
@@ -240,31 +231,20 @@ export default function PlatformHelpAgentCard({ onClose = null }) {
               type="button"
               onClick={() => setSelectedLocale(language.locale)}
               className={`px-2.5 py-1.5 rounded-lg border text-sm ${selectedLocale === language.locale ? 'border-primary bg-primary/20 text-white' : 'border-border text-subtext'}`}
+              aria-label={`Help language ${language.label}`}
+              title={language.label}
             >
-              <span className="mr-1" role="img" aria-label={language.label}>{language.flag}</span>
-              {language.label}
+              <span role="img" aria-label={language.label}>{language.flag}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <textarea
-        value={question}
-        onChange={(event) => setQuestion(event.target.value)}
-        rows={3}
-        className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm text-white"
-        placeholder="Ask naturally. You can interrupt voice and ask follow-up questions anytime..."
-      />
+      <div className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm text-subtext">
+        {question ? `🎤 ${question}` : 'Press Open Mic and ask your question. Voice input is required in Help mode.'}
+      </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          className="px-3 py-2 rounded-lg bg-primary text-black text-sm font-semibold disabled:opacity-60"
-          onClick={() => void askQuestion()}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Thinking…' : 'Ask'}
-        </button>
         <button
           type="button"
           className="px-3 py-2 rounded-lg border border-border text-sm text-white disabled:opacity-60"
