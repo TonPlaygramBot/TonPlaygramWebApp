@@ -29087,7 +29087,7 @@ const powerRef = useRef(hud.power);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               if (isCueBall && inHandActive) {
                 if (b.mesh) {
-                  b.mesh.visible = true;
+                  b.mesh.visible = false;
                 }
                 b.vel.set(0, 0);
                 b.spin?.set(0, 0);
@@ -29096,7 +29096,7 @@ const powerRef = useRef(hud.power);
                 b.swerveStrength = 0;
                 b.swervePowerStrength = 0;
                 b.impacted = false;
-                b.active = true;
+                b.active = false;
                 if (!hudRef.current?.inHand) {
                   hudRef.current = { ...hudRef.current, inHand: true };
                   setHud((prev) => ({ ...prev, inHand: true }));
@@ -29171,7 +29171,7 @@ const powerRef = useRef(hud.power);
               if (b.id === 'cue') b.impacted = false;
               if (isCueBall) {
                 if (b.mesh) {
-                  b.mesh.visible = true;
+                  b.mesh.visible = false;
                 }
                 b.vel.set(0, 0);
                 b.spin?.set(0, 0);
@@ -29180,7 +29180,7 @@ const powerRef = useRef(hud.power);
                 b.swerveStrength = 0;
                 b.swervePowerStrength = 0;
                 b.impacted = false;
-                b.active = true;
+                b.active = false;
                 removePocketDropEntry(b.id);
                 if (isTraining && table) {
                   const scratchPopup = createTrainingScratchPopupMesh();
