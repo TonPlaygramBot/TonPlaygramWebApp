@@ -519,6 +519,42 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: variant.thumbnail
   })),
   {
+    id: 'training-attempts-1',
+    type: 'poolTrainingAttempt',
+    optionId: '1',
+    name: 'Training Attempts · 1 Heart',
+    price: 100,
+    description: 'Adds 1 Pool Royale training attempt to your attempt bank instantly.',
+    thumbnail: swatchThumbnail(['#fb7185', '#fecdd3', '#881337'])
+  },
+  {
+    id: 'training-attempts-5',
+    type: 'poolTrainingAttempt',
+    optionId: '5',
+    name: 'Training Attempts · 5 Hearts',
+    price: 450,
+    description: 'Adds 5 Pool Royale training attempts to your attempt bank instantly.',
+    thumbnail: swatchThumbnail(['#f43f5e', '#fda4af', '#9f1239'])
+  },
+  {
+    id: 'training-attempts-12',
+    type: 'poolTrainingAttempt',
+    optionId: '12',
+    name: 'Training Attempts · 12 Hearts',
+    price: 960,
+    description: 'Adds 12 Pool Royale training attempts to your attempt bank instantly.',
+    thumbnail: swatchThumbnail(['#e11d48', '#fecdd3', '#4c0519'])
+  },
+  {
+    id: 'training-attempts-30',
+    type: 'poolTrainingAttempt',
+    optionId: '30',
+    name: 'Training Attempts · 30 Hearts',
+    price: 2100,
+    description: 'Adds 30 Pool Royale training attempts to your attempt bank instantly.',
+    thumbnail: swatchThumbnail(['#be123c', '#fda4af', '#3f0f1f'])
+  },
+  {
     id: 'pocket-plastic-black',
     type: 'pocketLiner',
     optionId: 'plastic-black',

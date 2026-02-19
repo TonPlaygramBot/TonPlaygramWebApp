@@ -118,6 +118,7 @@ import {
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
+import { addTrainingAttempts } from '../utils/poolRoyaleTrainingProgress.js';
 import { getLastStorePurchaseSnapshot, recordStorePurchase } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
@@ -130,7 +131,8 @@ const TYPE_LABELS = {
   clothColor: 'Cloth Colors',
   cueStyle: 'Cue Styles',
   pocketLiner: 'Pocket Jaws',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  poolTrainingAttempt: 'Training Attempts'
 };
 
 const AIR_HOCKEY_TYPE_LABELS = {
@@ -1499,6 +1501,16 @@ export default function Store() {
       if (backgroundSyncTasks.length) {
         Promise.allSettled(backgroundSyncTasks).catch(() => {});
       }
+
+      const purchasedTrainingAttempts = purchasable.reduce((sum, item) => {
+        if (item.slug !== 'poolroyale' || item.type !== 'poolTrainingAttempt') return sum;
+        const attempts = Number(item.optionId);
+        return Number.isFinite(attempts) && attempts > 0 ? sum + Math.floor(attempts) : sum;
+      }, 0);
+      if (purchasedTrainingAttempts > 0) {
+        addTrainingAttempts(purchasedTrainingAttempts);
+      }
+
       setTransactionStatus('Inventory updated. Finalizing receipt…');
 
       const resolver = (item) => labelResolver(item.slug, item);

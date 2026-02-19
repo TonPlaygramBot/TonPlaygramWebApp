@@ -221,6 +221,21 @@ export function loadTrainingProgress () {
 
 export { BASE_ATTEMPTS_PER_LEVEL }
 
+export function addTrainingAttempts (attempts) {
+  const parsedAttempts = Number(attempts)
+  if (!Number.isFinite(parsedAttempts) || parsedAttempts <= 0) {
+    return loadTrainingProgress()
+  }
+  const previous = loadTrainingProgress()
+  const nextCarryShots = Math.max(0, Number(previous?.carryShots) || 0) + Math.floor(parsedAttempts)
+  const updated = {
+    ...previous,
+    carryShots: nextCarryShots
+  }
+  persistTrainingProgress(updated)
+  return updated
+}
+
 export function persistTrainingProgress (progress) {
   if (typeof window === 'undefined') return
   try {
