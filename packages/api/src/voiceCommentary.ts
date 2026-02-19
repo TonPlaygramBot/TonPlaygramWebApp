@@ -77,10 +77,10 @@ function getGameLabel(game: GameKey): string {
 
 function supportReplyTemplate(language: string, ticketContext: string): string {
   if (language.toLowerCase().startsWith('albanian')) {
-    return `Përshëndetje! Ky është asistenti zanor i mbështetjes. E kuptova kërkesën tuaj: ${ticketContext}. Po e shqyrtojmë tani dhe do t'ju përgjigjemi me hapa të qartë.`;
+    return `Përshëndetje! Faleminderit që na kontaktuat. E kuptova kërkesën tuaj: ${ticketContext}. Po e kontrollojmë menjëherë dhe do t’ju japim hapa të qartë, një nga një.`;
   }
 
-  return `Hello! This is your voice support assistant. I understood your request: ${ticketContext}. We are checking it now and will send you clear next steps.`;
+  return `Hi there, thanks for reaching out. I understood your request: ${ticketContext}. We’re checking this now and I’ll walk you through the next steps clearly.`;
 }
 
 export function buildCommentaryText(game: GameKey, eventType: CommentaryEventType, playerName: string, score?: string): string {
@@ -89,17 +89,17 @@ export function buildCommentaryText(game: GameKey, eventType: CommentaryEventTyp
 
   switch (eventType) {
     case 'match_start':
-      return `Welcome to ${gameLabel}! The match is live. ${safePlayer}, bring your best move.`;
+      return `Welcome to ${gameLabel}. We’re live, the crowd is ready, and ${safePlayer} is stepping in with confidence.`;
     case 'player_turn':
-      return `${safePlayer}, it's your turn in ${gameLabel}. Focus, aim, and execute.`;
+      return `Your move, ${safePlayer}. Take a breath, line it up, and trust your timing in ${gameLabel}.`;
     case 'score_update':
-      return `Score update in ${gameLabel}: ${score ?? 'new score available'}. Momentum is shifting.`;
+      return `Score update in ${gameLabel}: ${score ?? 'new score available'}. This match just got a lot more interesting.`;
     case 'streak':
-      return `${safePlayer} is on a streak in ${gameLabel}! What a dominant run.`;
+      return `${safePlayer} is heating up in ${gameLabel}. That streak is putting real pressure on everyone else.`;
     case 'powerup':
-      return `Power play activated in ${gameLabel}. ${safePlayer} is changing the pace.`;
+      return `Power play activated in ${gameLabel}. ${safePlayer} just changed the rhythm of the game.`;
     case 'match_end':
-      return `${gameLabel} match complete. Great game by ${safePlayer}. Thanks for playing.`;
+      return `${gameLabel} is complete. Great performance by ${safePlayer}, and a strong finish from both sides.`;
     case 'customer_support':
       return supportReplyTemplate('English', score ?? 'General support request');
     default:

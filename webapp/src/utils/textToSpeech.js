@@ -175,7 +175,7 @@ const speakWithBrowserTts = async (text, hints = []) => {
 
 export const speakCommentaryLines = async (
   lines,
-  { voiceHints = {}, speakerSettings = {} } = {}
+  { voiceHints = {}, speakerSettings = {}, channel = 'commentary', allowBrowserFallback = false } = {}
 ) => {
   if (!Array.isArray(lines) || !lines.length || typeof window === 'undefined') return
 
@@ -189,12 +189,13 @@ export const speakCommentaryLines = async (
     const hints = Array.isArray(voiceHints[speaker]) ? voiceHints[speaker] : []
     const localeHint = hints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(String(hint || '')))
 
-    const payload = await post('/api/voice-commentary/speak', {
+    const payload = await post('/v1/voice/speak', {
       accountId,
       text,
       speaker,
       locale: localeHint,
-      style: speakerSettings[speaker] || null
+      style: speakerSettings[speaker] || null,
+      channel
     })
 
     if (payload?.error) {
@@ -202,13 +203,22 @@ export const speakCommentaryLines = async (
       throw new Error(payload.error)
     }
 
+    if (payload?.synthesis?.mode === 'local-fallback') {
+      emitSupport(false)
+      throw new Error(payload?.synthesis?.message || 'PersonaPlex voice is unavailable')
+    }
+
     try {
-      if (payload?.provider === 'web-speech-fallback' || !payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
+      if (!payload?.synthesis?.audioUrl && !payload?.synthesis?.audioBase64) {
+        if (!allowBrowserFallback) {
+          throw new Error('PersonaPlex audio payload missing')
+        }
         await speakWithBrowserTts(payload?.text || text, hints)
       } else {
         try {
           await playAudioPayload(payload)
         } catch {
+          if (!allowBrowserFallback) throw new Error('PersonaPlex audio playback failed')
           await speakWithBrowserTts(payload?.text || text, hints)
         }
       }
