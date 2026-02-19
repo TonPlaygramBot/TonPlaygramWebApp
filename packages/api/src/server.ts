@@ -97,7 +97,8 @@ app.post('/v1/user-chat', requireBasicUserAuth, (req, res) => {
 
   const question = String(req.body?.message || '');
   recordSuspiciousMetadata(question, ip, String(req.headers['user-agent'] || 'unknown'));
-  const reply = answerUserQuestion(question, articles);
+  const preferredLocale = String(req.body?.locale || '').trim() || undefined;
+  const reply = answerUserQuestion(question, articles, { preferredLocale });
 
   const promptHash = crypto.createHash('sha256').update(question).digest('hex').slice(0, 12);
   console.info('user-chat-meta', {
@@ -123,6 +124,19 @@ app.post('/v1/feedback', requireBasicUserAuth, (req, res) => {
 app.get('/v1/voice/catalog', (_req, res) => {
   const languages = Array.from(new Set(VOICE_PROFILES.map((voice) => voice.language))).sort();
   res.json({ provider: 'nvidia-personaplex', languages, voices: VOICE_PROFILES });
+});
+
+
+app.get('/v1/help/languages', (_req, res) => {
+  const items = VOICE_PROFILES.map((voice) => ({
+    locale: voice.locale,
+    language: voice.language,
+    voiceId: voice.id,
+    flag: localeToFlagEmoji(voice.locale)
+  }));
+
+  const deduped = Array.from(new Map(items.map((item) => [item.locale, item])).values());
+  res.json({ items: deduped });
 });
 
 app.post('/v1/voice/commentary', requireBasicUserAuth, async (req, res) => {
@@ -181,3 +195,11 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
+
+
+function localeToFlagEmoji(locale: string): string {
+  const country = locale.split('-')[1]?.toUpperCase();
+  if (!country || country.length !== 2) return '🌐';
+  const chars = [...country].map((char) => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...chars);
+}
