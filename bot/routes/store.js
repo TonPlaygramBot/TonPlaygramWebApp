@@ -4,6 +4,11 @@ import User from '../models/User.js';
 import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
 import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
 import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
+import {
+  findMemoryUser,
+  saveMemoryUser,
+  shouldUseMemoryUserStore
+} from '../utils/memoryUserStore.js';
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
 
@@ -87,9 +92,26 @@ function resolveUserBalance(user) {
   return Math.max(derived, persisted);
 }
 
+function isPrivileged(req) {
+  return req.auth?.apiToken === true;
+}
+
+function canAccessUser(req, user) {
+  if (isPrivileged(req)) return true;
+  if (!user) return false;
+  if (user.telegramId && req.auth?.telegramId && user.telegramId === req.auth.telegramId) return true;
+  if (user.googleId && req.auth?.googleId && user.googleId === req.auth.googleId) return true;
+  if (user.accountId && req.auth?.accountId && user.accountId === req.auth.accountId) return true;
+  return !user.telegramId && !user.googleId;
+}
+
 async function handleTpcPurchase(req, res) {
   const { accountId, bundle, txHash } = req.body;
-  const authId = req.auth?.telegramId;
+  const useMemoryStore = shouldUseMemoryUserStore();
+  const findUser = async (query) =>
+    useMemoryStore ? findMemoryUser(query) : User.findOne(query);
+  const persistUser = async (user) =>
+    useMemoryStore ? saveMemoryUser(user) : user.save();
 
   if (!accountId) {
     return res.status(400).json({ error: 'accountId required' });
@@ -109,9 +131,9 @@ async function handleTpcPurchase(req, res) {
     return res.status(400).json({ error: 'items bundle required' });
   }
 
-  const user = await User.findOne({ accountId });
+  const user = await findUser({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
-  if (authId && user.telegramId && authId !== user.telegramId) {
+  if (!canAccessUser(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -154,10 +176,10 @@ async function handleTpcPurchase(req, res) {
     status: 'delivered',
     date: txDate,
     detail: 'Storefront purchase',
-    items
+    items: items.map((item) => JSON.stringify(item))
   });
   user.balance = balance - totalPrice;
-  await user.save();
+  await persistUser(user);
 
   return res.json({
     balance: user.balance,
