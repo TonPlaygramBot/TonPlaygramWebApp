@@ -26976,7 +26976,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false,
           spin: { x: 0, y: 0 }
         };
-        let nextInHand = isTraining ? false : cueBallPotted;
+        let nextInHand = cueBallPotted;
         try {
           if (shotResolved) {
             if (safeState.foul) {
@@ -27061,7 +27061,7 @@ const powerRef = useRef(hud.power);
               cue.impacted = false;
               cue.launchDir = null;
               cueBallPlacedFromHandRef.current = false;
-              pendingInHandResetRef.current = !isTraining;
+              pendingInHandResetRef.current = true;
             }
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
