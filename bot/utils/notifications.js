@@ -1,13 +1,14 @@
+import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCanvas, loadImage } from 'canvas';
 import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const coinPath = path.join(
-  __dirname,
-  '../../webapp/public/assets/icons/ezgif-54c96d8a9b9236.webp'
-);
+const publicPath = path.join(__dirname, '../../webapp/public');
+const coinPath = path.join(publicPath, 'assets/icons/ezgif-54c96d8a9b9236.webp');
+const logoPath = path.join(publicPath, 'assets/icons/generated/app-icon-512.png');
+const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
   const baseUrl =
@@ -16,161 +17,286 @@ export function getInviteUrl(roomId, token, amount, game = 'snake') {
   return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}`;
 }
 
-async function renderTransferImage(name, amount, date, photoUrl) {
-  const scale = 2;
-  const width = 320 * scale;
-  const height = 180 * scale;
+function normalizeAssetPath(assetPath) {
+  if (!assetPath || typeof assetPath !== 'string') return null;
+  if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
+    return assetPath;
+  }
+  if (assetPath.startsWith('/')) {
+    return path.join(publicPath, assetPath);
+  }
+  return path.join(publicPath, assetPath.replace(/^\.\//, ''));
+}
+
+async function safeLoadImage(assetPath) {
+  const resolved = normalizeAssetPath(assetPath);
+  if (!resolved) return null;
+  try {
+    return await loadImage(resolved);
+  } catch {
+    return null;
+  }
+}
+
+function roundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9') {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  if (image) {
+    ctx.drawImage(image, x, y, size, size);
+  } else {
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(x, y, size, size);
+  }
+  ctx.restore();
+
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2 - 2, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+export async function generateReceiptImage({
+  title,
+  subtitle,
+  amount,
+  date = new Date(),
+  fromName,
+  toName,
+  fromPhoto,
+  toPhoto,
+  itemThumbnail,
+  itemLabel,
+}) {
+  const width = 900;
+  const height = 1280;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#2d5c66';
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, '#0f172a');
+  gradient.addColorStop(1, '#1e293b');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 4 * scale;
-  ctx.strokeRect(0, 0, width, height);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${18 * scale}px sans-serif`;
+  const cardX = 56;
+  const cardY = 44;
+  const cardW = width - cardX * 2;
+  const cardH = height - cardY * 2;
+  roundedRect(ctx, cardX, cardY, cardW, cardH, 40);
+  ctx.fillStyle = '#0b1120';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(103,232,249,0.35)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  const logo = await safeLoadImage(logoPath);
+  if (logo) {
+    const logoSize = 88;
+    ctx.drawImage(logo, width / 2 - logoSize / 2, 96, logoSize, logoSize);
+  }
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '700 42px Sans';
   ctx.textAlign = 'center';
-  // Removed explicit "TPC" label in the header
-  ctx.fillText('Statement Details', width / 2, 32 * scale);
+  ctx.fillText('TonPlaygram', width / 2, 220);
 
-  const sign = amount > 0 ? '+' : '-';
-  const formatted = Math.abs(amount).toLocaleString(undefined, {
+  ctx.fillStyle = '#a5f3fc';
+  ctx.font = '600 38px Sans';
+  ctx.fillText(title || 'Transaction Receipt', width / 2, 286);
+
+  if (subtitle) {
+    ctx.fillStyle = '#93c5fd';
+    ctx.font = '500 28px Sans';
+    ctx.fillText(subtitle, width / 2, 332);
+  }
+
+  const amountBoxX = 120;
+  const amountBoxY = 376;
+  const amountBoxW = width - 240;
+  const amountBoxH = 146;
+  roundedRect(ctx, amountBoxX, amountBoxY, amountBoxW, amountBoxH, 24);
+  ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+  ctx.fill();
+
+  const coin = await safeLoadImage(coinPath);
+  if (coin) {
+    ctx.drawImage(coin, amountBoxX + 32, amountBoxY + 31, 84, 84);
+  }
+
+  const sign = amount > 0 ? '+' : '';
+  const formatted = Number(amount || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  // Do not render the token name, keep only the icon beside the amount
-  const text = `You received ${sign}${formatted}`;
-  ctx.font = `bold ${16 * scale}px sans-serif`;
-  ctx.fillText(text, width / 2, 60 * scale);
-
-  // Draw sender information near the bottom instead of under the amount
-  ctx.font = `${14 * scale}px sans-serif`;
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '700 52px Sans';
   ctx.textAlign = 'left';
-  const fromText = name;
-  const photoSize = photoUrl ? 48 * scale : 0; // profile photo 2x coin size
-  const spacing = photoUrl ? 6 * scale : 0;
-  const textWidth = ctx.measureText(fromText).width;
-  const totalWidth = photoSize + spacing + textWidth;
-  const startX = (width - totalWidth) / 2;
-  if (photoUrl) {
-    try {
-      const avatar = await loadImage(photoUrl);
-      ctx.drawImage(avatar, startX, height / 2, photoSize, photoSize);
-    } catch {}
-  }
-  ctx.fillText(fromText, startX + photoSize + spacing, height / 2 + photoSize / 2);
+  ctx.fillText(`${sign}${formatted} TPC`, amountBoxX + 132, amountBoxY + 92);
+
+  const fromAvatar = (await safeLoadImage(fromPhoto)) || (await safeLoadImage(fallbackAvatarPath));
+  const toAvatar = (await safeLoadImage(toPhoto)) || (await safeLoadImage(fallbackAvatarPath));
+
+  const blockY = 590;
+  const avatarSize = 120;
+  drawAvatar(ctx, fromAvatar, 140, blockY, avatarSize, '#38bdf8');
+  drawAvatar(ctx, toAvatar, width - 140 - avatarSize, blockY, avatarSize, '#818cf8');
+
+  ctx.strokeStyle = 'rgba(148,163,184,0.7)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([14, 12]);
+  ctx.beginPath();
+  ctx.moveTo(300, blockY + avatarSize / 2);
+  ctx.lineTo(width - 300, blockY + avatarSize / 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '600 28px Sans';
   ctx.textAlign = 'center';
+  ctx.fillText(fromName || 'Sender', 200, blockY + avatarSize + 44);
+  ctx.fillText(toName || 'Receiver', width - 200, blockY + avatarSize + 44);
 
-  ctx.font = `${12 * scale}px sans-serif`;
-  ctx.fillText(date.toLocaleString(), width / 2, height - 20 * scale);
+  if (itemThumbnail) {
+    const thumb = await safeLoadImage(itemThumbnail);
+    const itemBoxY = 820;
+    roundedRect(ctx, 120, itemBoxY, width - 240, 250, 24);
+    ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+    ctx.fill();
 
-  try {
-    const coin = await loadImage(coinPath);
-    const tw = ctx.measureText(text).width;
-    ctx.drawImage(coin, width / 2 + tw / 2 + 6 * scale, 54 * scale, 24 * scale, 24 * scale);
-  } catch {}
+    if (thumb) {
+      roundedRect(ctx, 156, itemBoxY + 34, 180, 180, 18);
+      ctx.save();
+      ctx.clip();
+      ctx.drawImage(thumb, 156, itemBoxY + 34, 180, 180);
+      ctx.restore();
+    }
 
-  return canvas.toBuffer();
-}
-
-async function renderGiftImage(icon) {
-  const scale = 2;
-  const size = 160 * scale;
-  const canvas = createCanvas(size, size);
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#2d5c66';
-  ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 4 * scale;
-  ctx.strokeRect(0, 0, size, size);
-
-  if (typeof icon === 'string' && icon.startsWith('/')) {
-    try {
-      const img = await loadImage(path.join(__dirname, `../../webapp/public${icon}`));
-      const padding = 20 * scale;
-      ctx.drawImage(img, padding, padding, size - padding * 2, size - padding * 2);
-    } catch {}
-  } else {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `${48 * scale}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(icon || '🎁', size / 2, size / 2);
+    ctx.fillStyle = '#f8fafc';
+    ctx.textAlign = 'left';
+    ctx.font = '700 30px Sans';
+    ctx.fillText('Item included', 374, itemBoxY + 98);
+    ctx.font = '500 26px Sans';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(itemLabel || 'Store / NFT item', 374, itemBoxY + 150);
   }
 
-  return canvas.toBuffer();
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '500 24px Sans';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Issued: ${date.toLocaleString()}`, width / 2, height - 92);
+
+  return canvas.toBuffer('image/png');
 }
 
 export async function sendTransferNotification(bot, toId, fromId, amount, note) {
-  let info;
-  try {
-    info = await fetchTelegramInfo(fromId);
-  } catch {
-    info = null;
-  }
+  const [fromInfo, toInfo] = await Promise.all([
+    fetchTelegramInfo(fromId).catch(() => null),
+    fetchTelegramInfo(toId).catch(() => null)
+  ]);
 
-  const name =
-    (info?.firstName || '') + (info?.lastName ? ` ${info.lastName}` : '') ||
+  const fromName =
+    `${fromInfo?.firstName || ''}${fromInfo?.lastName ? ` ${fromInfo.lastName}` : ''}`.trim() ||
     String(fromId);
+  const toName =
+    `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() ||
+    'You';
 
-  const sign = amount > 0 ? '+' : '-';
-  const formatted = Math.abs(amount).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const image = await renderTransferImage(
-    name,
+  const image = await generateReceiptImage({
+    title: 'TPC Transfer Received',
+    subtitle: 'Statement details',
     amount,
-    new Date(),
-    info?.photoUrl
-  );
+    date: new Date(),
+    fromName,
+    toName,
+    fromPhoto: fromInfo?.photoUrl,
+    toPhoto: toInfo?.photoUrl,
+  });
+
   await bot.telegram.sendPhoto(String(toId), { source: image });
 
-  const profileIcon = '\u{1F464}';
   const noteText = note ? `\nNote: ${note}` : '';
-  const caption = `You received ${sign}${formatted} TPC from ${name} ${profileIcon}${noteText}`;
-
+  const caption = `🪙 You received ${amount.toFixed(2)} TPC from ${fromName}.${noteText}`;
   await bot.telegram.sendMessage(String(toId), caption);
 }
 
-export async function sendGiftNotification(bot, toId, gift, senderName, date) {
-  const isFileIcon =
-    typeof gift.icon === 'string' && gift.icon.startsWith('/');
-  const ext = isFileIcon ? path.extname(gift.icon).toLowerCase() : '';
+export async function sendDepositNotification(bot, toId, amount) {
+  const toInfo = await fetchTelegramInfo(toId).catch(() => null);
+  const toName =
+    `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() ||
+    'You';
 
-  let buffer = null;
-  if (!isFileIcon || ['.png', '.jpg', '.jpeg'].includes(ext)) {
-    try {
-      buffer = await renderGiftImage(gift.icon);
-    } catch (err) {
-      console.error('Failed to render gift image:', err.message);
-      buffer = null;
-    }
-  }
+  const image = await generateReceiptImage({
+    title: 'Deposit Confirmed',
+    subtitle: 'TPC credited successfully',
+    amount,
+    date: new Date(),
+    fromName: 'TonPlaygram Treasury',
+    toName,
+    toPhoto: toInfo?.photoUrl,
+  });
 
-  if (buffer) {
-    try {
-      await bot.telegram.sendPhoto(String(toId), { source: buffer });
-    } catch (err) {
-      console.error('Failed to send rendered gift image:', err.message);
-    }
-  } else if (isFileIcon) {
-    const filePath = path.join(
-      __dirname,
-      `../../webapp/public${gift.icon}`,
-    );
-    try {
-      await bot.telegram.sendPhoto(String(toId), { source: filePath });
-    } catch (err) {
-      console.error('Failed to send gift icon:', err.message);
-    }
-  }
+  await bot.telegram.sendPhoto(String(toId), { source: image });
+  await bot.telegram.sendMessage(
+    String(toId),
+    `🪙 Your deposit of ${amount.toFixed(2)} TPC was credited.`
+  );
+}
 
-  const caption = `\u{1FA99} You received a ${gift.name} worth ${gift.price} TPC from ${senderName} on ${date.toLocaleString()}`;
+export async function sendGiftNotification(bot, toId, gift, senderName, date, options = {}) {
+  const toInfo = await fetchTelegramInfo(toId).catch(() => null);
+
+  const image = await generateReceiptImage({
+    title: 'NFT Gift Received',
+    subtitle: 'Store/NFT statement',
+    amount: 0,
+    date,
+    fromName: senderName,
+    toName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
+    fromPhoto: options.senderPhoto,
+    toPhoto: toInfo?.photoUrl,
+    itemThumbnail: gift?.icon,
+    itemLabel: `${gift?.name || 'Gift'} • ${gift?.price || 0} TPC`,
+  });
+
+  await bot.telegram.sendPhoto(String(toId), { source: image });
+  const caption = `🧧 You received ${gift.name} worth ${gift.price} TPC from ${senderName} on ${date.toLocaleString()}`;
   await bot.telegram.sendMessage(String(toId), caption);
+}
+
+export async function sendStorePurchaseNotification(bot, toId, payload) {
+  const toInfo = await fetchTelegramInfo(toId).catch(() => null);
+  const image = await generateReceiptImage({
+    title: 'Store Purchase Completed',
+    subtitle: 'NFT / item delivery receipt',
+    amount: -Math.abs(payload.totalPrice || 0),
+    date: payload.date || new Date(),
+    fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
+    toName: 'TonPlaygram Store',
+    fromPhoto: toInfo?.photoUrl,
+    itemThumbnail: payload.thumbnail,
+    itemLabel: payload.itemLabel,
+  });
+
+  await bot.telegram.sendPhoto(String(toId), { source: image });
+  await bot.telegram.sendMessage(
+    String(toId),
+    `🛍️ Store purchase completed: ${payload.itemLabel} for ${Number(payload.totalPrice || 0).toFixed(2)} TPC.`
+  );
 }
 
 export async function sendInviteNotification(
@@ -220,7 +346,6 @@ export async function sendInviteNotification(
     console.error('Failed to send invite photo:', err.message);
   }
 
-  // Also send a plain text notification like TPC receipts
   await sendTPCNotification(bot, toId, caption, replyMarkup);
 
   return url;
@@ -230,4 +355,11 @@ export async function sendTPCNotification(bot, toId, caption, replyMarkup) {
   await bot.telegram.sendMessage(String(toId), caption, {
     ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
   });
+}
+
+export async function writeReceiptPreview(filePath, payload) {
+  const buffer = await generateReceiptImage(payload);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, buffer);
+  return filePath;
 }
