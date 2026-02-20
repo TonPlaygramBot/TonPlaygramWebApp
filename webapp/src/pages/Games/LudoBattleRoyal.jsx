@@ -2490,6 +2490,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const turnAdvanceTimeoutRef = useRef(null);
   const humanSelectionRef = useRef(null);
   const fitRef = useRef(() => {});
+  const cameraRef = useRef(null);
+  const boardLookTargetRef = useRef(null);
+  const saved3dCameraStateRef = useRef(null);
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
@@ -2533,6 +2536,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [isCamera2d, setIsCamera2d] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [commentaryText, setCommentaryText] = useState('');
   const settingsRef = useRef({ soundEnabled: true });
@@ -2774,6 +2778,56 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [aiFlagOverrides, aiOpponentCount]);
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
+
+  const applyCameraViewMode = useCallback((nextIs2d) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const boardLookTarget = boardLookTargetRef.current;
+    if (!camera || !controls || !boardLookTarget) return;
+
+    if (nextIs2d) {
+      if (!saved3dCameraStateRef.current) {
+        saved3dCameraStateRef.current = {
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          minPolarAngle: controls.minPolarAngle,
+          maxPolarAngle: controls.maxPolarAngle,
+          enableRotate: controls.enableRotate
+        };
+      }
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const fallbackRadius = baseCameraRadiusRef.current ?? currentRadius;
+      const radius = clamp(fallbackRadius, CAM.minR, CAM.maxR);
+      camera.position.set(boardLookTarget.x, boardLookTarget.y + radius, boardLookTarget.z + 0.001);
+      controls.target.copy(boardLookTarget);
+      controls.enableRotate = false;
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = 0;
+    } else {
+      const saved = saved3dCameraStateRef.current;
+      controls.enableRotate = saved?.enableRotate ?? true;
+      controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
+      controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
+      if (saved?.position && saved?.target) {
+        camera.position.copy(saved.position);
+        controls.target.copy(saved.target);
+      } else {
+        fitRef.current?.();
+      }
+      saved3dCameraStateRef.current = null;
+    }
+
+    controls.update();
+    syncSkyboxToCameraRef.current?.();
+  }, []);
+
+  const handleToggleCamera2d = useCallback(() => {
+    setIsCamera2d((current) => {
+      const next = !current;
+      applyCameraViewMode(next);
+      return next;
+    });
+  }, [applyCameraViewMode]);
 
   const players = useMemo(() => {
     return Array.from({ length: activePlayerCount }, (_, index) => {
@@ -4129,6 +4183,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       scene.add(rimLight);
 
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+      cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = Math.PI / 2;
       const cameraBackOffset = isPortrait ? 2.05 : 1.45;
@@ -4229,6 +4284,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
       0
     );
+    boardLookTargetRef.current = boardLookTarget;
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -4283,6 +4339,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     fitRef.current = fit;
     fit();
+    applyCameraViewMode(false);
 
     const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
     if (cancelled || !chairBuild) return;
@@ -4645,6 +4702,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controlsRef.current = null;
       controls?.dispose();
       controls = null;
+      cameraRef.current = null;
+      boardLookTargetRef.current = null;
+      saved3dCameraStateRef.current = null;
       stopDiceTransition();
       diceRef.current = null;
       const arena = arenaRef.current;
@@ -5556,6 +5616,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           showInfo={false}
           showChat={false}
           showMute={false}
+          showCamera2d
+          camera2dActive={isCamera2d}
+          onCamera2d={handleToggleCamera2d}
+          order={['gift', 'camera2d']}
           buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           iconClassName="text-2xl"
           labelClassName="sr-only"
