@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FaCircle, FaTv } from 'react-icons/fa';
+import { FaCircle, FaDesktop, FaTimes, FaTv } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import {
@@ -58,6 +58,17 @@ export default function LeaderboardCard() {
   const [mode, setMode] = useState('1v1');
   const [selected, setSelected] = useState([]);
   const [groupPopup, setGroupPopup] = useState(false);
+  const [watchFrame, setWatchFrame] = useState(null);
+
+  const openWatchFrame = (tableId) => {
+    if (!tableId) return;
+    const game = getGameFromTableId(tableId);
+    setWatchFrame({
+      tableId,
+      game,
+      url: `/games/${game}?table=${tableId}&watch=1`,
+    });
+  };
 
   useEffect(() => {
     const saved = loadAvatar();
@@ -282,7 +293,19 @@ export default function LeaderboardCard() {
                       alt="avatar"
                       className="w-12 h-12 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
-                    {u.accountId !== accountId && null}
+                    {u.currentTableId && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openWatchFrame(u.currentTableId);
+                        }}
+                        aria-label="Open live game frame"
+                        className="absolute -right-2 -bottom-1 bg-black/75 text-white rounded-full p-1 border border-white/40 hover:text-brand-gold"
+                      >
+                        <FaDesktop size={11} />
+                      </button>
+                    )}
                   </td>
                   <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
@@ -320,8 +343,7 @@ export default function LeaderboardCard() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const game = getGameFromTableId(u.currentTableId);
-                            window.location.href = `/games/${game}?table=${u.currentTableId}&watch=1`;
+                            openWatchFrame(u.currentTableId);
                           }}
                           className="text-white flex items-center space-x-1"
                         >
@@ -356,6 +378,23 @@ export default function LeaderboardCard() {
                       alt="avatar"
                       className="w-12 h-12 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
+                    {(() => {
+                      const myTable = leaderboard.find((u) => u.accountId === accountId)?.currentTableId;
+                      if (!myTable) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openWatchFrame(myTable);
+                          }}
+                          aria-label="Open your live game frame"
+                          className="absolute -right-2 -bottom-1 bg-black/75 text-white rounded-full p-1 border border-white/40 hover:text-brand-gold"
+                        >
+                          <FaDesktop size={11} />
+                        </button>
+                      );
+                    })()}
                   </td>
                   <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
@@ -395,8 +434,7 @@ export default function LeaderboardCard() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const game = getGameFromTableId(myTable);
-                                window.location.href = `/games/${game}?table=${myTable}&watch=1`;
+                                openWatchFrame(myTable);
                               }}
                               className="text-white flex items-center space-x-1"
                             >
@@ -423,6 +461,30 @@ export default function LeaderboardCard() {
           </table>
         </div>
       </section>
+
+      {watchFrame && (
+        <div className="fixed inset-0 z-50 bg-black/80 p-3 flex items-center justify-center">
+          <div className="relative bg-surface border border-border rounded-xl w-full max-w-md h-[85vh] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setWatchFrame(null)}
+              className="absolute top-2 right-2 z-10 rounded-full bg-black/70 text-white p-2"
+              aria-label="Close live game frame"
+            >
+              <FaTimes size={14} />
+            </button>
+            <div className="p-3 pr-10 text-sm text-white/90 border-b border-border">
+              Live game stream • watch, chat and send gifts
+            </div>
+            <iframe
+              src={watchFrame.url}
+              title={`Live game ${watchFrame.game}`}
+              className="w-full h-[calc(85vh-48px)] bg-black"
+              allow="clipboard-read; clipboard-write"
+            />
+          </div>
+        </div>
+      )}
 
       <PlayerInvitePopup
         open={!!inviteTarget}
