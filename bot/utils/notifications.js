@@ -51,6 +51,16 @@ function getBrandAssetCandidates(assetPath) {
   return [...new Set(candidates)];
 }
 
+async function loadBrandAsset(assetPath, options = {}) {
+  const variants = Array.isArray(assetPath) ? assetPath : [assetPath];
+  const candidates = variants.flatMap((variant) => getBrandAssetCandidates(variant));
+  for (const candidate of candidates) {
+    const image = await safeLoadImage(candidate, options);
+    if (image) return image;
+  }
+  return null;
+}
+
 const RECEIPT_IMAGE_RETRY_ATTEMPTS = 6;
 const RECEIPT_IMAGE_RETRY_DELAY_MS = 180;
 
@@ -144,9 +154,7 @@ function isTonPlaygramAccount(label = '') {
 
 function getReceiptAvatarCandidates(photo, label) {
   const candidates = [];
-  if (isTonPlaygramAccount(label)) {
-    candidates.push(TONPLAYGRAM_LOGO_ASSET);
-  }
+  if (isTonPlaygramAccount(label)) candidates.push(TONPLAYGRAM_LOGO_ASSET);
   if (photo) candidates.push(photo);
   candidates.push(fallbackAvatarPath);
   return [...new Set(candidates.filter(Boolean))];
@@ -157,14 +165,6 @@ async function resolveReceiptAvatar(photo, label) {
   for (const candidate of candidates) {
     const avatar = await safeLoadImage(candidate);
     if (avatar) return avatar;
-  }
-  return null;
-}
-
-async function resolveReceiptBrandImage(candidates = [], options = {}) {
-  for (const candidate of candidates.filter(Boolean)) {
-    const image = await safeLoadImage(candidate, options);
-    if (image) return image;
   }
   return null;
 }
@@ -214,13 +214,7 @@ export async function generateReceiptImage({
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  const logo = await resolveReceiptBrandImage(
-    [
-      TONPLAYGRAM_LOGO_ASSET,
-      ...getBrandAssetCandidates(TONPLAYGRAM_LOGO_ASSET),
-    ],
-    { attempts: 8, delayMs: 220 }
-  );
+  const logo = await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 });
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
   ctx.fill();
@@ -257,20 +251,8 @@ export async function generateReceiptImage({
   ctx.fill();
 
   const coin =
-    (await resolveReceiptBrandImage(
-      [
-        TPC_ICON_ASSET,
-        ...getBrandAssetCandidates(TPC_ICON_ASSET),
-      ],
-      { attempts: 8, delayMs: 220 }
-    )) ||
-    (await resolveReceiptBrandImage(
-      [
-        TONPLAYGRAM_LOGO_ASSET,
-        ...getBrandAssetCandidates(TONPLAYGRAM_LOGO_ASSET),
-      ],
-      { attempts: 8, delayMs: 220 }
-    ));
+    (await loadBrandAsset(TPC_ICON_ASSET, { attempts: 8, delayMs: 220 })) ||
+    (await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 }));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
