@@ -8,11 +8,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const TPC_ICON_ASSET_FALLBACK = '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-const STORE_AVATAR_ASSET = TONPLAYGRAM_LOGO_ASSET;
+const TONPLAYGRAM_LOGO_ASSET_FALLBACK = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
 const RECEIPT_BRAND_ICON_FALLBACKS = [
-  TONPLAYGRAM_LOGO_ASSET,
-  TPC_ICON_ASSET,
+  TONPLAYGRAM_LOGO_ASSET_FALLBACK,
+  TPC_ICON_ASSET_FALLBACK,
 ];
 
 function resolvePublicAssetPath(assetPath) {
@@ -162,7 +163,7 @@ function isTonPlaygramAccount(label = '') {
 
 function getReceiptAvatarCandidates(photo, label) {
   if (isTonPlaygramAccount(label)) {
-    return [STORE_AVATAR_ASSET, TONPLAYGRAM_LOGO_ASSET];
+    return [TONPLAYGRAM_LOGO_ASSET, TONPLAYGRAM_LOGO_ASSET_FALLBACK];
   }
 
   const candidates = [];
@@ -274,11 +275,11 @@ export async function generateReceiptImage({
 
   const coin =
     (await resolveReceiptBrandImage(
-      getReceiptBrandCandidates(TPC_ICON_ASSET, [TPC_ICON_ASSET]),
+      getReceiptBrandCandidates(TPC_ICON_ASSET, [TPC_ICON_ASSET_FALLBACK]),
       { attempts: 8, delayMs: 220 }
     )) ||
     (await resolveReceiptBrandImage(
-      getReceiptBrandCandidates(TONPLAYGRAM_LOGO_ASSET, [STORE_AVATAR_ASSET]),
+      getReceiptBrandCandidates(TONPLAYGRAM_LOGO_ASSET, [TONPLAYGRAM_LOGO_ASSET_FALLBACK]),
       { attempts: 8, delayMs: 220 }
     ));
 
@@ -447,7 +448,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    toPhoto: STORE_AVATAR_ASSET,
+    toPhoto: TONPLAYGRAM_LOGO_ASSET,
     itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
