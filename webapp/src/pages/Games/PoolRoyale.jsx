@@ -12758,8 +12758,11 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
-    if (!trainingRulesOn) setTrainingRulesOn(true);
-  }, [isTraining, trainingModeState, trainingRulesOn]);
+    const shouldEnableRules = careerMode;
+    if (trainingRulesOn !== shouldEnableRules) {
+      setTrainingRulesOn(shouldEnableRules);
+    }
+  }, [careerMode, isTraining, trainingModeState, trainingRulesOn]);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
@@ -13961,7 +13964,7 @@ function PoolRoyaleGame({
     return params.get('starter') === 'B' ? 'B' : 'A';
   }, [location.search]);
   const isOnlineMatch = mode === 'online';
-  const aiOpponentEnabled = !isOnlineMatch;
+  const aiOpponentEnabled = !isOnlineMatch && !isTraining;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
   const initialFrame = useMemo(() => {
