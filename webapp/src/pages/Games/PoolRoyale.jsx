@@ -97,7 +97,10 @@ import {
   TRAINING_LEVELS,
   TRAINING_LEVEL_COUNT
 } from '../../utils/poolRoyaleTrainingProgress.js';
-import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
+import {
+  getNextCareerStage,
+  markCareerStageCompleted
+} from '../../utils/poolRoyaleCareerProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
@@ -13119,6 +13122,55 @@ function PoolRoyaleGame({
     handleTrainingLevelPick(trainingLevelRef.current || trainingLevel);
   }, [handleTrainingLevelPick, trainingLevel]);
 
+  const handleCareerTaskContinue = useCallback(() => {
+    if (!careerMode || !careerStageId) {
+      setCareerTaskResultModal(null);
+      handleTrainingRoadmapContinue();
+      return;
+    }
+    const updatedCareerProgress = markCareerStageCompleted(careerStageId);
+    const nextCareerStage = getNextCareerStage(
+      trainingProgressRef.current,
+      updatedCareerProgress
+    );
+    if (!nextCareerStage) {
+      setCareerTaskResultModal(null);
+      goToLobby();
+      return;
+    }
+    const params = new URLSearchParams(location.search);
+    const nextPlayType =
+      nextCareerStage.type === 'friendly' ? 'regular' : nextCareerStage.type;
+    params.set('type', nextPlayType || 'training');
+    params.set('career', '1');
+    params.set('careerStageId', nextCareerStage.id);
+    if (nextCareerStage.title) {
+      params.set('careerStageTitle', nextCareerStage.title);
+    } else {
+      params.delete('careerStageTitle');
+    }
+    if (nextCareerStage.type === 'training' && nextCareerStage.trainingLevel) {
+      params.set('trainingLevel', String(nextCareerStage.trainingLevel));
+      params.delete('players');
+    } else {
+      params.delete('trainingLevel');
+      if (nextCareerStage.type === 'tournament' && nextCareerStage.players) {
+        params.set('players', String(nextCareerStage.players));
+      } else {
+        params.delete('players');
+      }
+    }
+    setCareerTaskResultModal(null);
+    navigate(`/games/poolroyale?${params.toString()}`);
+  }, [
+    careerMode,
+    careerStageId,
+    goToLobby,
+    handleTrainingRoadmapContinue,
+    location.search,
+    navigate
+  ]);
+
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
     const retryA = window.setTimeout(() => {
@@ -14358,13 +14410,17 @@ const powerRef = useRef(hud.power);
       : !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
 
     if (isCareerTrainingSession) {
+      const nextPlayable = resolvePlayableTrainingLevel(
+        completedLevel + 1,
+        trainingProgressRef.current
+      );
       const carryShots = Math.max(0, trainingShotsRemaining);
       setTrainingShotsRemaining(carryShots);
-      setPendingTrainingLevel(completedLevel);
+      setPendingTrainingLevel(nextPlayable);
       setLastCompletedLevel(completedLevel);
       setTrainingTaskTransition({
         fromLevel: completedLevel,
-        toLevel: completedLevel,
+        toLevel: nextPlayable,
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward
       });
@@ -32111,10 +32167,7 @@ const powerRef = useRef(hud.power);
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setCareerTaskResultModal(null);
-                      handleTrainingRoadmapContinue();
-                    }}
+                    onClick={handleCareerTaskContinue}
                     className="rounded-full border border-emerald-300/70 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100 transition hover:bg-emerald-500/30"
                   >
                     Continue next task
