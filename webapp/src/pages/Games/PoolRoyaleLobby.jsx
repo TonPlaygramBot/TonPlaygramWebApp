@@ -26,6 +26,13 @@ import {
   loadTrainingProgress,
   resolvePlayableTrainingLevel
 } from '../../utils/poolRoyaleTrainingProgress.js';
+import {
+  CAREER_LEVEL_COUNT,
+  getCareerRoadmap,
+  getNextCareerStage,
+  loadCareerProgress,
+  syncCareerProgressWithTraining
+} from '../../utils/poolRoyaleCareerProgress.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -39,6 +46,7 @@ export default function PoolRoyaleLobby() {
   const initialPlayType = (() => {
     const requestedType = searchParams.get('type');
     if (requestedType === 'training') return 'training';
+    if (requestedType === 'career') return 'career';
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
   const initialMode = searchParams.get('mode') === 'online' ? 'online' : 'ai';
@@ -72,6 +80,9 @@ export default function PoolRoyaleLobby() {
     carryShots: 3
   });
   const [activeTournament, setActiveTournament] = useState(null);
+  const [careerProgress, setCareerProgress] = useState(() =>
+    loadCareerProgress()
+  );
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
@@ -175,6 +186,12 @@ export default function PoolRoyaleLobby() {
   };
 
   const startGame = async ({ trainingLevelOverride = null } = {}) => {
+    const nextCareerStage =
+      playType === 'career'
+        ? getNextCareerStage(trainingProgress, careerProgress)
+        : null;
+    const effectivePlayType =
+      playType === 'career' ? nextCareerStage?.type || 'training' : playType;
     const isOnlineMatch = mode === 'online' && playType === 'regular';
     if (matching) return;
     await cleanupRef.current?.();
@@ -248,19 +265,40 @@ export default function PoolRoyaleLobby() {
       params.set('ballSet', 'american');
     }
     params.set('tableSize', tableSize);
-    params.set('type', playType);
+    params.set(
+      'type',
+      effectivePlayType === 'friendly' ? 'regular' : effectivePlayType
+    );
     params.set('mode', mode);
-    if (playType === 'training') {
-      const requested = Number(trainingLevelOverride);
+    if (playType === 'career') {
+      params.set('career', '1');
+      if (nextCareerStage?.id) params.set('careerStageId', nextCareerStage.id);
+      if (nextCareerStage?.title)
+        params.set('careerStageTitle', nextCareerStage.title);
+      if (nextCareerStage?.type === 'tournament' && nextCareerStage?.players) {
+        params.set('players', String(nextCareerStage.players));
+      }
+    }
+    if (effectivePlayType === 'training') {
+      const requested = Number(
+        playType === 'career'
+          ? nextCareerStage?.trainingLevel
+          : trainingLevelOverride
+      );
       if (Number.isFinite(requested) && requested > 0) {
-        params.set('trainingLevel', String(Math.min(TRAINING_LEVEL_COUNT, Math.floor(requested))));
+        params.set(
+          'trainingLevel',
+          String(Math.min(TRAINING_LEVEL_COUNT, Math.floor(requested)))
+        );
       }
     }
     if (isOnlineMatch) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
-    if (playType === 'tournament') params.set('players', players);
+    if (effectivePlayType === 'tournament' && !params.get('players')) {
+      params.set('players', String(players));
+    }
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -277,7 +315,7 @@ export default function PoolRoyaleLobby() {
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
 
-    if (playType === 'tournament') {
+    if (effectivePlayType === 'tournament') {
       window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
       return;
     }
@@ -355,16 +393,24 @@ export default function PoolRoyaleLobby() {
   useEffect(() => () => cleanupRef.current?.(), []);
 
   useEffect(() => {
-    if (playType === 'tournament' || playType === 'training') {
+    if (
+      playType === 'tournament' ||
+      playType === 'training' ||
+      playType === 'career'
+    ) {
       setMode('ai');
     }
   }, [playType]);
 
   useEffect(() => {
-    if (playType !== 'training') return;
+    if (playType !== 'training' && playType !== 'career') return;
     setVariant('uk');
     setUkBallSet('uk');
-    setTrainingProgress(loadTrainingProgress());
+    const loadedTraining = loadTrainingProgress();
+    setTrainingProgress(loadedTraining);
+    setCareerProgress(
+      syncCareerProgressWithTraining(loadedTraining, loadCareerProgress())
+    );
   }, [playType]);
 
   useEffect(() => {
@@ -396,31 +442,55 @@ export default function PoolRoyaleLobby() {
     [trainingProgress]
   );
   const completedTrainingSet = useMemo(
-    () => new Set(Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []),
+    () =>
+      new Set(
+        Array.isArray(trainingProgress?.completed)
+          ? trainingProgress.completed
+          : []
+      ),
     [trainingProgress]
   );
   const trainingRoadmapNodes = useMemo(
-    () => TRAINING_LEVELS.map((levelDef) => {
-      const levelNum = Number(levelDef.level);
-      return {
-        ...levelDef,
-        levelNum,
-        rewardAmount: Number(levelDef.rewardAmount) || 0,
-        hasGift: levelNum % 5 === 0
-      };
-    }),
+    () =>
+      TRAINING_LEVELS.map((levelDef) => {
+        const levelNum = Number(levelDef.level);
+        return {
+          ...levelDef,
+          levelNum,
+          rewardAmount: Number(levelDef.rewardAmount) || 0,
+          hasGift: levelNum % 5 === 0
+        };
+      }),
     []
   );
   const currentTrainingTask = useMemo(() => {
-    const unlocked = resolvePlayableTrainingLevel(trainingProgress?.lastLevel || 1, trainingProgress);
+    const unlocked = resolvePlayableTrainingLevel(
+      trainingProgress?.lastLevel || 1,
+      trainingProgress
+    );
     return describeTrainingLevel(unlocked);
   }, [trainingProgress]);
+  const careerRoadmapNodes = useMemo(
+    () => getCareerRoadmap(trainingProgress, careerProgress),
+    [trainingProgress, careerProgress]
+  );
+  const nextCareerTask = useMemo(
+    () => getNextCareerStage(trainingProgress, careerProgress),
+    [trainingProgress, careerProgress]
+  );
 
+  useEffect(() => {
+    if (playType !== 'career') return;
+    setCareerProgress((prev) =>
+      syncCareerProgressWithTraining(trainingProgress, prev)
+    );
+  }, [playType, trainingProgress]);
 
   const tournamentKey = getTelegramId() || 'anon';
   const tournamentStateKey = `poolRoyaleTournamentState_${tournamentKey}`;
   const tournamentOppKey = `poolRoyaleTournamentOpponent_${tournamentKey}`;
-  const hasActiveTournament = playType === 'tournament' && Boolean(activeTournament);
+  const hasActiveTournament =
+    playType === 'tournament' && Boolean(activeTournament);
 
   useEffect(() => {
     if (typeof window === 'undefined' || playType !== 'tournament') {
@@ -435,7 +505,11 @@ export default function PoolRoyaleLobby() {
       }
       const parsed = JSON.parse(raw);
       const totalPlayers = Number(parsed?.N || parsed?.players?.length || 0);
-      if (parsed?.complete || !Number.isFinite(totalPlayers) || totalPlayers <= 0) {
+      if (
+        parsed?.complete ||
+        !Number.isFinite(totalPlayers) ||
+        totalPlayers <= 0
+      ) {
         setActiveTournament(null);
         return;
       }
@@ -537,7 +611,7 @@ export default function PoolRoyaleLobby() {
               Queue
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             {[
               {
                 id: 'regular',
@@ -559,6 +633,13 @@ export default function PoolRoyaleLobby() {
                 desc: '50 level drills',
                 accent: 'from-cyan-400/30 via-emerald-500/10 to-transparent',
                 iconKey: 'type-training'
+              },
+              {
+                id: 'career',
+                label: 'Career',
+                desc: 'Road to legend',
+                accent: 'from-amber-400/30 via-orange-500/10 to-transparent',
+                iconKey: 'type-tournament'
               }
             ].map(({ id, label, desc, accent, iconKey }) => {
               const active = playType === id;
@@ -585,7 +666,9 @@ export default function PoolRoyaleLobby() {
                             ? '🎯'
                             : id === 'tournament'
                               ? '🏆'
-                              : '🧪'
+                              : id === 'training'
+                                ? '🧪'
+                                : '🛣️'
                         }
                         className="lobby-option-icon"
                       />
@@ -601,178 +684,194 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
 
-        {playType !== 'training' && !hasActiveTournament && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Play Mode</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Opponents
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                id: 'ai',
-                label: 'Vs AI',
-                desc: 'Practice precision',
-                iconKey: 'mode-ai'
-              },
-              {
-                id: 'online',
-                label: '1v1 Online',
-                desc: 'Live matchmaking',
-                iconKey: 'mode-online',
-                disabled: playType === 'tournament' || playType === 'training'
-              }
-            ].map(({ id, label, desc, iconKey, disabled }) => {
-              const active = mode === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => !disabled && setMode(id)}
-                  disabled={disabled}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  } ${disabled ? 'lobby-option-card-disabled' : ''}`}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner">
-                      <OptionIcon
-                        src={getLobbyIcon('poolroyale', iconKey)}
-                        alt={label}
-                        fallback={id === 'ai' ? '🤖' : '🌐'}
-                        className="lobby-option-icon"
-                      />
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{label}</p>
-                    <p className="lobby-option-subtitle">
-                      {disabled
-                        ? `${playType === 'training' ? 'Training is offline only' : 'Tournament bracket only'}`
-                        : desc}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        )}
-
-        {playType !== 'training' && !hasActiveTournament && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Game Variant</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Ruleset
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { id: 'uk', label: '8Ball' },
-              { id: 'american', label: 'American' },
-              { id: '9ball', label: '9-Ball' }
-            ].map(({ id, label }) => {
-              const active = variant === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setVariant(id)}
-                  className={`lobby-option-card ${
-                    active
-                      ? 'lobby-option-card-active'
-                      : 'lobby-option-card-inactive'
-                  }`}
-                >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent">
-                    <div className="lobby-option-thumb-inner">
-                      <OptionIcon
-                        src={getVariantThumbnail('poolroyale', id)}
-                        alt={label}
-                        fallback="🎱"
-                        className="lobby-option-icon"
-                      />
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="lobby-option-label">{label}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        )}
-
-        {playType !== 'training' && !hasActiveTournament && variant === 'uk' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Ball Colors</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-                Visuals
-              </span>
-            </div>
-            <p className="text-xs text-white/60">
-              Keep UK yellow/red sets or switch to solids &amp; stripes visuals
-              while retaining 8Ball rules.
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'uk', label: 'Yellow & Red' },
-                { id: 'american', label: 'Solids & Stripes' }
-              ].map(({ id, label }) => {
-                const active = ukBallSet === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setUkBallSet(id)}
-                    className={`lobby-option-card ${
-                      active
-                        ? 'lobby-option-card-active'
-                        : 'lobby-option-card-inactive'
-                    }`}
-                  >
-                    <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
-                      <div className="lobby-option-thumb-inner">
-                        <OptionIcon
-                          src={getLobbyIcon('poolroyale', `ball-${id}`)}
-                          alt={label}
-                          fallback={id === 'uk' ? '🟡' : '🔵'}
-                          className="lobby-option-icon"
-                        />
+        {playType !== 'training' &&
+          playType !== 'career' &&
+          !hasActiveTournament && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">Play Mode</h3>
+                <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                  Opponents
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  {
+                    id: 'ai',
+                    label: 'Vs AI',
+                    desc: 'Practice precision',
+                    iconKey: 'mode-ai'
+                  },
+                  {
+                    id: 'online',
+                    label: '1v1 Online',
+                    desc: 'Live matchmaking',
+                    iconKey: 'mode-online',
+                    disabled:
+                      playType === 'tournament' || playType === 'training'
+                  }
+                ].map(({ id, label, desc, iconKey, disabled }) => {
+                  const active = mode === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => !disabled && setMode(id)}
+                      disabled={disabled}
+                      className={`lobby-option-card ${
+                        active
+                          ? 'lobby-option-card-active'
+                          : 'lobby-option-card-inactive'
+                      } ${disabled ? 'lobby-option-card-disabled' : ''}`}
+                    >
+                      <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
+                        <div className="lobby-option-thumb-inner">
+                          <OptionIcon
+                            src={getLobbyIcon('poolroyale', iconKey)}
+                            alt={label}
+                            fallback={id === 'ai' ? '🤖' : '🌐'}
+                            className="lobby-option-icon"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="lobby-option-label">{label}</p>
-                    </div>
-                  </button>
-                );
-              })}
+                      <div className="text-center">
+                        <p className="lobby-option-label">{label}</p>
+                        <p className="lobby-option-subtitle">
+                          {disabled
+                            ? `${playType === 'training' ? 'Training is offline only' : 'Tournament bracket only'}`
+                            : desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+        {playType !== 'training' &&
+          playType !== 'career' &&
+          !hasActiveTournament && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">Game Variant</h3>
+                <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                  Ruleset
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'uk', label: '8Ball' },
+                  { id: 'american', label: 'American' },
+                  { id: '9ball', label: '9-Ball' }
+                ].map(({ id, label }) => {
+                  const active = variant === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setVariant(id)}
+                      className={`lobby-option-card ${
+                        active
+                          ? 'lobby-option-card-active'
+                          : 'lobby-option-card-inactive'
+                      }`}
+                    >
+                      <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent">
+                        <div className="lobby-option-thumb-inner">
+                          <OptionIcon
+                            src={getVariantThumbnail('poolroyale', id)}
+                            alt={label}
+                            fallback="🎱"
+                            className="lobby-option-icon"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="lobby-option-label">{label}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        {playType !== 'training' &&
+          playType !== 'career' &&
+          !hasActiveTournament &&
+          variant === 'uk' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">Ball Colors</h3>
+                <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                  Visuals
+                </span>
+              </div>
+              <p className="text-xs text-white/60">
+                Keep UK yellow/red sets or switch to solids &amp; stripes
+                visuals while retaining 8Ball rules.
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'uk', label: 'Yellow & Red' },
+                  { id: 'american', label: 'Solids & Stripes' }
+                ].map(({ id, label }) => {
+                  const active = ukBallSet === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setUkBallSet(id)}
+                      className={`lobby-option-card ${
+                        active
+                          ? 'lobby-option-card-active'
+                          : 'lobby-option-card-inactive'
+                      }`}
+                    >
+                      <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
+                        <div className="lobby-option-thumb-inner">
+                          <OptionIcon
+                            src={getLobbyIcon('poolroyale', `ball-${id}`)}
+                            alt={label}
+                            fallback={id === 'uk' ? '🟡' : '🔵'}
+                            className="lobby-option-icon"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="lobby-option-label">{label}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
         {playType === 'training' && (
           <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-white">Training Roadmap</h3>
-                <p className="text-xs text-white/60">Same path view as in-game. Tap unlocked tasks to jump in.</p>
+                <p className="text-xs text-white/60">
+                  Same path view as in-game. Tap unlocked tasks to jump in.
+                </p>
               </div>
-              <span className="text-xs font-semibold text-emerald-200">{completedTrainingSet.size}/{TRAINING_LEVEL_COUNT}</span>
+              <span className="text-xs font-semibold text-emerald-200">
+                {completedTrainingSet.size}/{TRAINING_LEVEL_COUNT}
+              </span>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-xs text-white/70">
               <p>
                 Next suggested task:{' '}
-                <span className="font-semibold text-white">{String(currentTrainingTask.level).padStart(2, '0')}</span>
+                <span className="font-semibold text-white">
+                  {String(currentTrainingTask.level).padStart(2, '0')}
+                </span>
               </p>
-              <p className="mt-1 text-white/60">{currentTrainingTask.objective}</p>
+              <p className="mt-1 text-white/60">
+                {currentTrainingTask.objective}
+              </p>
             </div>
             <div className="max-h-96 overflow-y-auto pr-1">
               <div className="relative pl-2">
@@ -784,18 +883,24 @@ export default function PoolRoyaleLobby() {
                     const active = levelNum === currentTrainingTask.level;
                     const unlocked = levelNum <= unlockedTrainingCap;
                     return (
-                      <div key={levelNum} className="relative flex items-start gap-3">
+                      <div
+                        key={levelNum}
+                        className="relative flex items-start gap-3"
+                      >
                         <button
                           type="button"
-                          onClick={() => startGame({ trainingLevelOverride: levelNum })}
+                          onClick={() =>
+                            startGame({ trainingLevelOverride: levelNum })
+                          }
                           disabled={!unlocked}
-                          className={`relative z-10 mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-sm font-semibold shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition ${completed
-                            ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
-                            : active
-                              ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
-                              : unlocked
-                                ? 'border-white/35 bg-black/45 text-white/90 hover:border-white/65'
-                                : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
+                          className={`relative z-10 mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-sm font-semibold shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition ${
+                            completed
+                              ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
+                              : active
+                                ? 'border-cyan-200 bg-cyan-300/20 text-cyan-50'
+                                : unlocked
+                                  ? 'border-white/35 bg-black/45 text-white/90 hover:border-white/65'
+                                  : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
                           }`}
                           aria-label={`Play training level ${levelNum}`}
                         >
@@ -811,30 +916,53 @@ export default function PoolRoyaleLobby() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => startGame({ trainingLevelOverride: levelNum })}
+                          onClick={() =>
+                            startGame({ trainingLevelOverride: levelNum })
+                          }
                           disabled={!unlocked}
-                          className={`flex min-w-0 flex-1 flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left transition ${active
-                            ? 'border-cyan-300/60 bg-cyan-400/12 shadow-[0_10px_24px_rgba(34,211,238,0.18)]'
-                            : completed
-                              ? 'border-emerald-300/50 bg-emerald-400/10'
-                              : unlocked
-                                ? 'border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
-                                : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
+                          className={`flex min-w-0 flex-1 flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left transition ${
+                            active
+                              ? 'border-cyan-300/60 bg-cyan-400/12 shadow-[0_10px_24px_rgba(34,211,238,0.18)]'
+                              : completed
+                                ? 'border-emerald-300/50 bg-emerald-400/10'
+                                : unlocked
+                                  ? 'border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
+                                  : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
                           }`}
                         >
                           <div className="flex w-full min-w-0 items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="truncate text-xs font-semibold text-white">Task {String(levelNum).padStart(2, '0')} · {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}</p>
-                              <p className="mt-0.5 truncate text-[10px] text-white/70">{levelDef.objective}</p>
+                              <p className="truncate text-xs font-semibold text-white">
+                                Task {String(levelNum).padStart(2, '0')} ·{' '}
+                                {levelDef.title.replace(/^Task\s\d+\s·\s/, '')}
+                              </p>
+                              <p className="mt-0.5 truncate text-[10px] text-white/70">
+                                {levelDef.objective}
+                              </p>
                             </div>
-                            <span className={`ml-2 shrink-0 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}>
-                              {completed ? 'Done' : unlocked ? (active ? 'Now' : 'Play') : 'Locked'}
+                            <span
+                              className={`ml-2 shrink-0 text-[10px] font-semibold uppercase tracking-[0.15em] ${completed ? 'text-emerald-200' : unlocked ? 'text-cyan-100/90' : 'text-white/35'}`}
+                            >
+                              {completed
+                                ? 'Done'
+                                : unlocked
+                                  ? active
+                                    ? 'Now'
+                                    : 'Play'
+                                  : 'Locked'}
                             </span>
                           </div>
                           <div className="flex w-full flex-wrap items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-3.5 w-3.5" />
-                              {Number(levelDef.rewardAmount || 0).toLocaleString('en-US')} TPC
+                              <img
+                                src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                                alt="TPC"
+                                className="h-3.5 w-3.5"
+                              />
+                              {Number(
+                                levelDef.rewardAmount || 0
+                              ).toLocaleString('en-US')}{' '}
+                              TPC
                             </span>
                             {levelDef.hasGift ? (
                               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
@@ -853,6 +981,152 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
+        {playType === 'career' && (
+          <div className="space-y-3 rounded-2xl border border-amber-300/30 bg-gradient-to-br from-amber-500/12 via-black/35 to-indigo-500/12 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-white">Career Roadmap</h3>
+                <p className="text-xs text-white/60">
+                  Elite path with drills, friendlies, and championship brackets.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-amber-200">
+                {careerRoadmapNodes.filter((node) => node.completed).length}/
+                {CAREER_LEVEL_COUNT}
+              </span>
+            </div>
+            {nextCareerTask ? (
+              <div className="rounded-xl border border-amber-300/45 bg-amber-300/10 p-3 text-xs text-amber-50">
+                <p className="font-semibold uppercase tracking-[0.16em]">
+                  Next milestone
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white">
+                  {nextCareerTask.icon} {nextCareerTask.title}
+                </p>
+                <p className="mt-1 text-white/75">{nextCareerTask.objective}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                    <img
+                      src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                      alt="TPC"
+                      className="h-3.5 w-3.5"
+                    />
+                    {Number(nextCareerTask.rewardTpc || 0).toLocaleString(
+                      'en-US'
+                    )}{' '}
+                    TPC
+                  </span>
+                  {nextCareerTask.hasGift ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                      <span>🎁</span>
+                      Bonus crate
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-emerald-300/45 bg-emerald-300/10 p-3 text-xs text-emerald-100">
+                Career complete. You are the Pool Royale Legend.
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => startGame()}
+              disabled={!nextCareerTask}
+              className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                nextCareerTask
+                  ? 'bg-amber-300 text-black hover:bg-amber-200'
+                  : 'cursor-not-allowed bg-white/10 text-white/45'
+              }`}
+            >
+              {nextCareerTask ? 'Launch next career match' : 'Career complete'}
+            </button>
+            <div className="max-h-96 overflow-y-auto pr-1">
+              <div className="relative pl-2">
+                <div className="absolute left-[1.35rem] top-2 bottom-2 w-[2px] rounded-full bg-gradient-to-b from-amber-300/60 via-indigo-300/45 to-emerald-300/20" />
+                <div className="space-y-2.5">
+                  {careerRoadmapNodes.map((stage, index) => (
+                    <div
+                      key={stage.id}
+                      className="relative flex items-start gap-3"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => stage.playable && startGame()}
+                        disabled={!stage.playable}
+                        className={`relative z-10 mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-base font-semibold shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition ${
+                          stage.completed
+                            ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
+                            : stage.playable
+                              ? 'border-amber-200 bg-amber-300/20 text-amber-50'
+                              : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
+                        }`}
+                        aria-label={`Launch career stage ${stage.level}`}
+                      >
+                        {stage.icon}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => stage.playable && startGame()}
+                        disabled={!stage.playable}
+                        className={`flex min-w-0 flex-1 flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left transition ${
+                          stage.playable
+                            ? 'border-amber-300/55 bg-amber-300/10 shadow-[0_10px_24px_rgba(251,191,36,0.18)]'
+                            : stage.completed
+                              ? 'border-emerald-300/50 bg-emerald-400/10'
+                              : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
+                        }`}
+                      >
+                        <div className="flex w-full min-w-0 items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-white">
+                              Stage {String(index + 1).padStart(3, '0')} ·{' '}
+                              {stage.title}
+                            </p>
+                            <p className="mt-0.5 truncate text-[10px] text-white/70">
+                              {stage.objective}
+                            </p>
+                          </div>
+                          <span
+                            className={`ml-2 shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] ${stage.completed ? 'text-emerald-200' : stage.playable ? 'text-amber-100' : 'text-white/35'}`}
+                          >
+                            {stage.statusLabel}
+                          </span>
+                        </div>
+                        <div className="flex w-full flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90">
+                            {stage.type === 'training'
+                              ? '🎯 Drill'
+                              : stage.type === 'friendly'
+                                ? '🤝 Match'
+                                : '🏆 Tournament'}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                            <img
+                              src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                              alt="TPC"
+                              className="h-3.5 w-3.5"
+                            />
+                            {Number(stage.rewardTpc || 0).toLocaleString(
+                              'en-US'
+                            )}{' '}
+                            TPC
+                          </span>
+                          {stage.hasGift ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                              <span>🎁</span>
+                              Gift bonus
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {playType === 'tournament' && !hasActiveTournament && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
@@ -884,7 +1158,9 @@ export default function PoolRoyaleLobby() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-white">Active Tournament</h3>
-                <p className="text-xs text-white/65">Continue your current bracket or reset and start a new one.</p>
+                <p className="text-xs text-white/65">
+                  Continue your current bracket or reset and start a new one.
+                </p>
               </div>
               <span className="rounded-full border border-white/20 px-2 py-1 text-[11px] text-white/80">
                 {activeTournament?.N || 0} players
@@ -926,7 +1202,6 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-
         {mode === 'online' && playType === 'regular' && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
             <div className="flex items-center justify-between">
@@ -946,7 +1221,6 @@ export default function PoolRoyaleLobby() {
             </p>
           </div>
         )}
-
 
         {mode === 'online' && playType === 'regular' && (
           <div className="space-y-3 rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
@@ -1024,19 +1298,21 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-        {playType !== 'training' && !hasActiveTournament && (
-        <button
-          onClick={startGame}
-          className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
-          disabled={mode === 'online' && (isSearching || matching)}
-        >
-          {mode === 'online'
-            ? matching
-              ? 'Waiting for opponent…'
-              : 'START ONLINE'
-            : 'START'}
-        </button>
-        )}
+        {playType !== 'training' &&
+          playType !== 'career' &&
+          !hasActiveTournament && (
+            <button
+              onClick={startGame}
+              className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
+              disabled={mode === 'online' && (isSearching || matching)}
+            >
+              {mode === 'online'
+                ? matching
+                  ? 'Waiting for opponent…'
+                  : 'START ONLINE'
+                : 'START'}
+            </button>
+          )}
 
         <FlagPickerModal
           open={showFlagPicker}
