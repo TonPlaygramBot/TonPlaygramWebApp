@@ -2666,7 +2666,7 @@ function TexasHoldemArena({ search }) {
   const commentaryEventRef = useRef({ handId: null, lastActionId: null, stage: null, showdown: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
-  const overheadView = false;
+  const [overheadView, setOverheadView] = useState(false);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -5143,6 +5143,10 @@ function TexasHoldemArena({ search }) {
     handleAction(action, sliderMax);
   };
 
+  const handleToggleCamera2d = useCallback(() => {
+    setOverheadView((prev) => !prev);
+  }, []);
+
   useEffect(() => {
     interactionsRef.current = {
       onChip: (value) => handleChipClick(value),
@@ -5440,9 +5444,13 @@ function TexasHoldemArena({ search }) {
         <BottomLeftIcons
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
+          onCamera2d={handleToggleCamera2d}
           showInfo={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-row gap-2.5 z-20"
+          showCamera2d
+          camera2dActive={overheadView}
+          order={['chat', 'gift', 'camera2d']}
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
