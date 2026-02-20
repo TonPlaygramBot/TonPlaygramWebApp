@@ -581,8 +581,8 @@ export default function PoolRoyaleLobby() {
               },
               {
                 id: 'training',
-                label: 'Training',
-                desc: '50 level drills',
+                label: 'Practice',
+                desc: 'Open-table warmup',
                 accent: 'from-cyan-400/30 via-emerald-500/10 to-transparent',
                 iconKey: 'type-training'
               },
@@ -690,7 +690,7 @@ export default function PoolRoyaleLobby() {
                         <p className="lobby-option-label">{label}</p>
                         <p className="lobby-option-subtitle">
                           {disabled
-                            ? `${playType === 'training' ? 'Training is offline only' : 'Tournament bracket only'}`
+                            ? `${playType === 'training' ? 'Practice is offline only' : 'Tournament bracket only'}`
                             : desc}
                         </p>
                       </div>
@@ -701,7 +701,7 @@ export default function PoolRoyaleLobby() {
             </div>
           )}
 
-        {playType !== 'career' && !hasActiveTournament && (
+        {playType !== 'training' && playType !== 'career' && !hasActiveTournament && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-white">Game Variant</h3>
@@ -801,14 +801,14 @@ export default function PoolRoyaleLobby() {
             <div>
               <h3 className="font-semibold text-white">Free Practice</h3>
               <p className="text-xs text-white/60">
-                Training is now open-table practice: no AI and no rule penalties.
+                Practice is open-table mode: no AI and no rule penalties.
                 Choose any variant, set your preferred ball colors, then start and
                 practice shots freely.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/25 p-3 text-xs text-white/70">
-              <p>
-                All guided training tasks were moved to Career mode as progression
+                <p>
+                All guided practice tasks were moved to Career mode as progression
                 stages.
               </p>
               <p className="mt-1 text-white/60">
