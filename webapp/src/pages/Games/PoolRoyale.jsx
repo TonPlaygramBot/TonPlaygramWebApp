@@ -93,7 +93,6 @@ import {
   persistTrainingProgress,
   resolvePlayableTrainingLevel,
   getTrainingLayout,
-  getPracticeLayout,
   BASE_ATTEMPTS_PER_LEVEL,
   TRAINING_LEVELS,
   TRAINING_LEVEL_COUNT
@@ -12986,9 +12985,7 @@ function PoolRoyaleGame({
 
   const applyTrainingLayoutForLevel = useCallback((level) => {
     if (!isTraining) return;
-    const trainingLayout = usesCareerAttempts
-      ? getTrainingLayout(level)
-      : getPracticeLayout();
+    const trainingLayout = getTrainingLayout(level);
     const startingBalls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!startingBalls.length || !trainingLayout) {
       trainingLayoutReadyRef.current = false;
@@ -13072,7 +13069,7 @@ function PoolRoyaleGame({
     const activeObjectCount = snapshot.filter((entry) => entry.id !== 'cue' && entry.active).length;
     trainingLayoutReadyRef.current = activeObjectCount > 0 && entries.length > 0;
     initialLayoutRef.current = snapshot;
-  }, [ensureTrainingBallPoolForLayout, isTraining, usesCareerAttempts]);
+  }, [ensureTrainingBallPoolForLayout, isTraining]);
 
   const flushPendingTrainingLayout = useCallback(() => {
     if (!isTraining) return;
@@ -14362,16 +14359,12 @@ const powerRef = useRef(hud.power);
 
     if (isCareerTrainingSession) {
       const carryShots = Math.max(0, trainingShotsRemaining);
-      const nextCareerLevel = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, completedLevel + 1));
       setTrainingShotsRemaining(carryShots);
-      setPendingTrainingLevel(nextCareerLevel);
+      setPendingTrainingLevel(completedLevel);
       setLastCompletedLevel(completedLevel);
-      if (careerStageId) {
-        markCareerStageCompleted(careerStageId);
-      }
       setTrainingTaskTransition({
         fromLevel: completedLevel,
-        toLevel: nextCareerLevel,
+        toLevel: completedLevel,
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward
       });
@@ -14409,8 +14402,7 @@ const powerRef = useRef(hud.power);
         persistTrainingProgress(updated);
         const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
         setTrainingShotsRemaining(carryShots);
-        setPendingTrainingLevel(null);
-        setTrainingLevel(nextPlayable);
+        setPendingTrainingLevel(nextPlayable);
         setLastCompletedLevel(completedLevel);
         setTrainingTaskTransition({
           fromLevel: completedLevel,
@@ -14418,8 +14410,7 @@ const powerRef = useRef(hud.power);
           rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
           nftReward
         });
-        setTrainingRoadmapOpen(false);
-        applyTrainingLayoutForLevel(nextPlayable);
+        setTrainingRoadmapOpen(true);
         return updated;
       });
     }
@@ -14437,7 +14428,6 @@ const powerRef = useRef(hud.power);
     frameState.frameOver,
     isTraining,
     usesCareerAttempts,
-    careerStageId,
     persistRewardNft,
     trainingShotsRemaining,
     triggerCoinBurst
@@ -22724,9 +22714,7 @@ const powerRef = useRef(hud.power);
         return entries.length > 0;
       };
 
-      const trainingLayout = isTraining
-        ? (usesCareerAttempts ? getTrainingLayout(trainingLevelRef.current || 1) : getPracticeLayout())
-        : null;
+      const trainingLayout = isTraining ? getTrainingLayout(trainingLevelRef.current || 1) : null;
       const appliedTraining = isTraining ? placeTrainingLayout(trainingLayout) : false;
 
       if (!appliedTraining) {
@@ -32145,7 +32133,7 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {usesCareerAttempts && trainingRoadmapOpen && (
+      {isTraining && trainingRoadmapOpen && (
         <div className="absolute inset-0 z-[125] flex items-center justify-center bg-black/70 px-4">
           <div className="w-[min(34rem,92vw)] rounded-2xl border border-emerald-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
             <div className="flex items-center justify-between gap-2">
