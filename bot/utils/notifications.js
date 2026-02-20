@@ -7,8 +7,10 @@ import { fetchTelegramInfo } from './telegram.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
-const coinPath = path.join(publicPath, 'assets/icons/ezgif-54c96d8a9b9236.webp');
-const logoPath = path.join(publicPath, 'assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+const TONPLAYGRAM_COIN_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const TONPLAYGRAM_LOGO_ICON = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const coinPath = path.join(publicPath, TONPLAYGRAM_COIN_ICON.replace(/^\//, ''));
+const logoPath = path.join(publicPath, TONPLAYGRAM_LOGO_ICON.replace(/^\//, ''));
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
@@ -27,6 +29,20 @@ function normalizeAssetPath(assetPath) {
     return path.join(publicPath, assetPath);
   }
   return path.join(publicPath, assetPath.replace(/^\.\//, ''));
+}
+
+function normalizeBaseUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  return url.replace(/\/$/, '');
+}
+
+function brandAssetCandidates(assetPath) {
+  const cleanPath = String(assetPath || '').startsWith('/') ? assetPath : `/${assetPath || ''}`;
+  const baseCandidates = [process.env.WEBAPP_BASE_URL, process.env.PUBLIC_WEBAPP_URL]
+    .map(normalizeBaseUrl)
+    .filter(Boolean)
+    .map((base) => `${base}${cleanPath}`);
+  return [...new Set([...baseCandidates, cleanPath])];
 }
 
 const RECEIPT_IMAGE_RETRY_ATTEMPTS = 6;
@@ -69,7 +85,6 @@ function roundedRect(ctx, x, y, width, height, radius) {
 
 
 function drawTonPlaygramMark(ctx, x, y, size, options = {}) {
-  const label = options.label || 'TP';
   const radius = size / 2;
   const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
   gradient.addColorStop(0, '#22d3ee');
@@ -80,12 +95,6 @@ function drawTonPlaygramMark(ctx, x, y, size, options = {}) {
   ctx.beginPath();
   ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
   ctx.fill();
-
-  ctx.fillStyle = '#e0f2fe';
-  ctx.font = `700 ${Math.floor(size * 0.38)}px Sans`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, x + radius, y + radius + 1);
   ctx.restore();
 }
 
@@ -120,7 +129,7 @@ function isTonPlaygramAccount(label = '') {
 
 function getReceiptAvatarCandidates(photo, label) {
   const candidates = [];
-  if (isTonPlaygramAccount(label)) candidates.push(logoPath);
+  if (isTonPlaygramAccount(label)) candidates.push(...brandAssetCandidates(TONPLAYGRAM_LOGO_ICON));
   if (photo) candidates.push(photo);
   candidates.push(fallbackAvatarPath);
   return [...new Set(candidates.filter(Boolean))];
@@ -180,7 +189,8 @@ export async function generateReceiptImage({
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  const logo = await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 });
+  const logo = await safeLoadImage(brandAssetCandidates(TONPLAYGRAM_LOGO_ICON)[0], { attempts: 8, delayMs: 220 })
+    || await safeLoadImage(brandAssetCandidates(TONPLAYGRAM_LOGO_ICON)[1], { attempts: 8, delayMs: 220 });
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
   ctx.fill();
@@ -189,7 +199,7 @@ export async function generateReceiptImage({
   if (logo) {
     ctx.drawImage(logo, width / 2 - logoSize / 2, 68, logoSize, logoSize);
   } else {
-    drawTonPlaygramMark(ctx, width / 2 - logoSize / 2, 68, logoSize, { label: 'TP' });
+    drawTonPlaygramMark(ctx, width / 2 - logoSize / 2, 68, logoSize);
   }
 
 
@@ -216,9 +226,12 @@ export async function generateReceiptImage({
   ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
   ctx.fill();
 
+  const coinCandidates = brandAssetCandidates(TONPLAYGRAM_COIN_ICON);
   const coin =
-    (await safeLoadImage(coinPath, { attempts: 8, delayMs: 220 })) ||
-    (await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 }));
+    (await safeLoadImage(coinCandidates[0], { attempts: 8, delayMs: 220 })) ||
+    (await safeLoadImage(coinCandidates[1], { attempts: 8, delayMs: 220 })) ||
+    (await safeLoadImage(brandAssetCandidates(TONPLAYGRAM_LOGO_ICON)[0], { attempts: 8, delayMs: 220 })) ||
+    (await safeLoadImage(brandAssetCandidates(TONPLAYGRAM_LOGO_ICON)[1], { attempts: 8, delayMs: 220 }));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
@@ -238,7 +251,7 @@ export async function generateReceiptImage({
   if (coin) {
     ctx.drawImage(coin, tokenStartX, amountBoxY + 44, 52, 52);
   } else {
-    drawTonPlaygramMark(ctx, tokenStartX, amountBoxY + 44, 52, { label: 'TPC' });
+    drawTonPlaygramMark(ctx, tokenStartX, amountBoxY + 44, 52);
   }
 
   ctx.font = '700 38px Sans';
@@ -385,7 +398,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    toPhoto: logoPath,
+    toPhoto: brandAssetCandidates(TONPLAYGRAM_LOGO_ICON)[0],
     itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
