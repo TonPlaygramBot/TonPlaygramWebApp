@@ -9,21 +9,9 @@ const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-
-function resolvePublicAssetPath(assetPath) {
-  if (!assetPath || typeof assetPath !== 'string') return null;
-  return path.join(publicPath, assetPath.replace(/^\//, '').replace(/^\.\//, ''));
-}
-
-const coinPath = resolvePublicAssetPath(TPC_ICON_ASSET);
-const logoPath = resolvePublicAssetPath(TONPLAYGRAM_LOGO_ASSET);
+const coinPath = path.join(publicPath, TPC_ICON_ASSET);
+const logoPath = path.join(publicPath, TONPLAYGRAM_LOGO_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
-
-// Keep receipt iconography identical to in-app sources:
-// - Home header logo (`Layout.jsx`)
-// - Store TPC token icon (`Store.jsx`)
-const TPC_ICON_FALLBACK_ASSETS = [TPC_ICON_ASSET];
-const TONPLAYGRAM_LOGO_FALLBACK_ASSETS = [TONPLAYGRAM_LOGO_ASSET];
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
   const baseUrl =
@@ -37,7 +25,10 @@ function normalizeAssetPath(assetPath) {
   if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
     return assetPath;
   }
-  return resolvePublicAssetPath(assetPath);
+  if (assetPath.startsWith('/')) {
+    return path.join(publicPath, assetPath);
+  }
+  return path.join(publicPath, assetPath.replace(/^\.\//, ''));
 }
 
 function getBrandAssetCandidates(assetPath) {
@@ -53,8 +44,7 @@ function getBrandAssetCandidates(assetPath) {
 }
 
 async function loadBrandAsset(assetPath, options = {}) {
-  const variants = Array.isArray(assetPath) ? assetPath : [assetPath];
-  const candidates = variants.flatMap((variant) => getBrandAssetCandidates(variant));
+  const candidates = getBrandAssetCandidates(assetPath);
   for (const candidate of candidates) {
     const image = await safeLoadImage(candidate, options);
     if (image) return image;
@@ -215,7 +205,7 @@ export async function generateReceiptImage({
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  const logo = await loadBrandAsset(TONPLAYGRAM_LOGO_FALLBACK_ASSETS, { attempts: 8, delayMs: 220 });
+  const logo = await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 });
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
   ctx.fill();
@@ -252,8 +242,8 @@ export async function generateReceiptImage({
   ctx.fill();
 
   const coin =
-    (await loadBrandAsset(TPC_ICON_FALLBACK_ASSETS, { attempts: 8, delayMs: 220 })) ||
-    (await loadBrandAsset(TONPLAYGRAM_LOGO_FALLBACK_ASSETS, { attempts: 8, delayMs: 220 }));
+    (await loadBrandAsset(TPC_ICON_ASSET, { attempts: 8, delayMs: 220 })) ||
+    (await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 }));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
@@ -420,7 +410,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    toPhoto: TONPLAYGRAM_LOGO_ASSET,
+    toPhoto: logoPath,
     itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
