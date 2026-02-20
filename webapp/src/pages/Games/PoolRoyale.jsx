@@ -14343,44 +14343,62 @@ const powerRef = useRef(hud.power);
     const previousRewardedSet = new Set(
       (previous?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
     );
-    const shouldAwardReward = !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
-    setTrainingProgress((prev) => {
-      const completedSet = new Set(
-        (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-      );
-      const rewardedSet = new Set(
-        (prev?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-      );
-      completedSet.add(completedLevel);
-      if (shouldAwardReward) rewardedSet.add(completedLevel);
-      const completed = Array.from(completedSet).sort((a, b) => a - b);
-      const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
-      const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
+    const isCareerTrainingSession = Boolean(usesCareerAttempts);
+    const shouldAwardReward = isCareerTrainingSession
+      ? completedRewardAmount > 0
+      : !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
+
+    if (isCareerTrainingSession) {
       const carryShots = Math.max(0, trainingShotsRemaining);
-      const updated = {
-        ...prev,
-        completed,
-        rewarded,
-        lastLevel,
-        carryShots,
-        attemptsAwardedLevels: Array.isArray(prev?.attemptsAwardedLevels)
-          ? prev.attemptsAwardedLevels
-          : []
-      };
-      persistTrainingProgress(updated);
-      const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
-      setPendingTrainingLevel(nextPlayable);
+      setPendingTrainingLevel(completedLevel);
       setLastCompletedLevel(completedLevel);
       setTrainingTaskTransition({
         fromLevel: completedLevel,
-        toLevel: nextPlayable,
+        toLevel: completedLevel,
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward
       });
       setTrainingRoadmapOpen(true);
-      return updated;
-    });
+    } else {
+      setTrainingProgress((prev) => {
+        const completedSet = new Set(
+          (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+        );
+        const rewardedSet = new Set(
+          (prev?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+        );
+        completedSet.add(completedLevel);
+        if (shouldAwardReward) rewardedSet.add(completedLevel);
+        const completed = Array.from(completedSet).sort((a, b) => a - b);
+        const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
+        const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
+        const carryShots = Math.max(0, trainingShotsRemaining);
+        const updated = {
+          ...prev,
+          completed,
+          rewarded,
+          lastLevel,
+          carryShots,
+          attemptsAwardedLevels: Array.isArray(prev?.attemptsAwardedLevels)
+            ? prev.attemptsAwardedLevels
+            : []
+        };
+        persistTrainingProgress(updated);
+        const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
+        setTrainingShotsRemaining(carryShots);
+        setPendingTrainingLevel(nextPlayable);
+        setLastCompletedLevel(completedLevel);
+        setTrainingTaskTransition({
+          fromLevel: completedLevel,
+          toLevel: nextPlayable,
+          rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
+          nftReward
+        });
+        setTrainingRoadmapOpen(true);
+        return updated;
+      });
+    }
     if (shouldAwardReward) {
       awardTrainingTaskPayout(completedLevel, completedRewardAmount);
     }
@@ -14394,6 +14412,7 @@ const powerRef = useRef(hud.power);
     awardTrainingTaskPayout,
     frameState.frameOver,
     isTraining,
+    usesCareerAttempts,
     persistRewardNft,
     trainingShotsRemaining,
     triggerCoinBurst
