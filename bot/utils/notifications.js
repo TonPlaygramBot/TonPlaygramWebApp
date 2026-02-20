@@ -7,11 +7,12 @@ import { fetchTelegramInfo } from './telegram.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
-// - top site logo: webapp/src/components/Layout.jsx
-// - TPC icon shown next to rewards in tasks: webapp/src/pages/Tasks.jsx
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-const RECEIPT_BRAND_ICON_FALLBACKS = [];
+const RECEIPT_BRAND_ICON_FALLBACKS = [
+  '/assets/icons/generated/app-icon-192.png',
+  '/assets/icons/generated/app-icon-512.png',
+];
 
 function resolvePublicAssetPath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return null;
