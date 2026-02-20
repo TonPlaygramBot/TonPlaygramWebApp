@@ -1,14 +1,10 @@
+import {
+  TRAINING_LEVEL_COUNT,
+  describeTrainingLevel
+} from './poolRoyaleTrainingProgress.js'
+
 const CAREER_PROGRESS_KEY = 'poolRoyaleCareerProgress'
 export const CAREER_LEVEL_COUNT = 100
-
-const TRAINING_TITLES = [
-  'Cue Fundamentals',
-  'Spin Stability',
-  'Line Control',
-  'Rail Geometry',
-  'Pattern Break',
-  'Pressure Shots'
-]
 
 const FRIENDLY_TITLES = [
   'Scout Friendly',
@@ -25,7 +21,10 @@ const TOURNAMENT_TITLES = [
   'Legend Circuit'
 ]
 
+const CAREER_TRAINING_STAGE_COUNT = TRAINING_LEVEL_COUNT
+
 const getStageType = (level) => {
+  if (level <= CAREER_TRAINING_STAGE_COUNT) return 'training'
   if (level % 10 === 0) return 'tournament'
   if (level % 4 === 0) return 'friendly'
   return 'training'
@@ -37,7 +36,7 @@ const getTournamentPlayers = (level) => {
   return 32
 }
 
-const getTrainingLevel = (level) => ((level - 1) % 50) + 1
+const getTrainingLevel = (level) => ((level - 1) % TRAINING_LEVEL_COUNT) + 1
 
 const buildReward = (level, type) => {
   const tpc =
@@ -57,26 +56,42 @@ const buildStage = (level) => {
   const phaseIndex = Math.min(4, Math.floor((level - 1) / 20))
   const trainingLevel = type === 'training' ? getTrainingLevel(level) : null
   const reward = buildReward(level, type)
+
+  if (type === 'training') {
+    const trainingTask = describeTrainingLevel(trainingLevel || 1)
+    return {
+      id: `career-stage-${String(level).padStart(3, '0')}`,
+      level,
+      phase: phaseIndex + 1,
+      title: trainingTask.title,
+      type,
+      icon: '🎯',
+      objective: trainingTask.objective,
+      reward: trainingTask.reward,
+      rewardTpc: Number(trainingTask.rewardAmount) || reward.tpc,
+      hasGift: reward.hasGift,
+      trainingLevel,
+      players: null
+    }
+  }
+
   const titleSource =
-    type === 'training'
-      ? TRAINING_TITLES
-      : type === 'friendly'
-        ? FRIENDLY_TITLES
-        : TOURNAMENT_TITLES
+    type === 'friendly'
+      ? FRIENDLY_TITLES
+      : TOURNAMENT_TITLES
   const titleBase = titleSource[(level - 1) % titleSource.length]
+
   return {
     id: `career-stage-${String(level).padStart(3, '0')}`,
     level,
     phase: phaseIndex + 1,
     title: `${titleBase} ${String(level).padStart(2, '0')}`,
     type,
-    icon: type === 'training' ? '🎯' : type === 'friendly' ? '🤝' : '🏆',
+    icon: type === 'friendly' ? '🤝' : '🏆',
     objective:
-      type === 'training'
-        ? `Complete advanced drill pattern #${trainingLevel} with controlled cue-ball shape.`
-        : type === 'friendly'
-          ? 'Win a tactical friendly against an adaptive AI rival.'
-          : `Win a ${getTournamentPlayers(level)}-player bracket and secure promotion.`,
+      type === 'friendly'
+        ? 'Win a tactical friendly against an adaptive AI rival.'
+        : `Win a ${getTournamentPlayers(level)}-player bracket and secure promotion.`,
     reward: reward.label,
     rewardTpc: reward.tpc,
     hasGift: reward.hasGift,
