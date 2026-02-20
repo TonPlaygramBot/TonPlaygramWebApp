@@ -10,8 +10,9 @@ import {
 import bot from '../bot.js';
 import {
   sendTransferNotification,
-  sendTPCNotification,
-  sendGiftNotification
+  sendGiftNotification,
+  sendDepositNotification,
+  sendStorePurchaseNotification
 } from '../utils/notifications.js';
 import NFT_GIFTS from '../utils/nftGifts.js';
 
@@ -19,6 +20,8 @@ import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { applyStoreItemDelivery } from './store.js';
+import { POOL_ROYALE_STORE_ITEMS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
+import { SNOOKER_ROYALE_STORE_ITEMS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
 import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
 import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 import {
@@ -30,6 +33,34 @@ import {
 } from '../utils/memoryUserStore.js';
 
 const router = Router();
+
+const STORE_ITEMS_INDEX = new Map(
+  [...POOL_ROYALE_STORE_ITEMS, ...SNOOKER_ROYALE_STORE_ITEMS].map((item) => [
+    `${item.type}:${item.optionId}`,
+    item
+  ])
+);
+
+function resolveStoreItemPreview(items = []) {
+  for (const item of items) {
+    const key = `${item.type}:${item.optionId}`;
+    const found = STORE_ITEMS_INDEX.get(key);
+    if (found) {
+      return {
+        thumbnail: found.thumbnail,
+        label: found.label || `${item.type} • ${item.optionId}`
+      };
+    }
+  }
+
+  const first = items[0];
+  if (!first) return { thumbnail: null, label: 'Store item' };
+  return {
+    thumbnail: null,
+    label: `${first.type || 'item'} • ${first.optionId || first.slug || 'default'}`
+  };
+}
+
 function isPrivileged(req) {
   return req.auth?.apiToken === true;
 }
@@ -543,7 +574,8 @@ router.post('/gift', authenticate, async (req, res) => {
         receiver.telegramId,
         g,
         sender.nickname || sender.firstName || String(fromAccount),
-        txDate
+        txDate,
+        { senderPhoto: sender.photo }
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -627,6 +659,24 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   });
 
   await sender.save();
+
+  if (sender.telegramId) {
+    const preview = resolveStoreItemPreview(items);
+    const itemCount = items.length;
+    const itemLabel =
+      itemCount > 1
+        ? `${preview.label} +${itemCount - 1} more`
+        : preview.label;
+
+    sendStorePurchaseNotification(bot, sender.telegramId, {
+      totalPrice,
+      date: txDate,
+      thumbnail: preview.thumbnail,
+      itemLabel
+    }).catch((err) => {
+      console.error('Failed to send Telegram store receipt:', err.message);
+    });
+  }
 
   return res.json({
     balance: sender.balance,
@@ -899,10 +949,10 @@ router.post('/deposit', authenticate, async (req, res) => {
 
   if (user.telegramId && !devIds.includes(accountId)) {
     try {
-      await sendTPCNotification(
+      await sendDepositNotification(
         bot,
         user.telegramId,
-        `\u{1FA99} Your deposit of ${amount} TPC was credited`
+        amount
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
