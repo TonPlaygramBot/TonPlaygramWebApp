@@ -5,12 +5,15 @@ export default function BottomLeftIcons({
   onInfo,
   onChat,
   onGift,
+  onCamera2d,
   style,
   className = 'fixed left-1 bottom-4 flex flex-col items-center space-y-2 z-20',
   showInfo = true,
   showChat = true,
   showGift = true,
   showMute = true,
+  showCamera2d = false,
+  camera2dActive = false,
   buttonClassName = 'p-1 flex flex-col items-center',
   iconClassName = 'text-xl',
   labelClassName = 'text-xs',
@@ -19,6 +22,8 @@ export default function BottomLeftIcons({
   infoIcon,
   muteIconOn,
   muteIconOff,
+  cameraIcon,
+  cameraLabel = '2D',
   order = ['chat', 'gift', 'info', 'mute']
 }) {
   const [muted, setMuted] = useState(isGameMuted());
@@ -74,6 +79,14 @@ export default function BottomLeftIcons({
               {muted ? muteIconOn ?? '🔇' : muteIconOff ?? '🔊'}
             </span>
             <span className={labelClassName}>{muted ? 'Unmute' : 'Mute'}</span>
+          </button>
+        )
+      : null,
+    camera2d: showCamera2d && onCamera2d
+      ? (
+          <button type="button" onClick={onCamera2d} className={buttonClassName} aria-pressed={camera2dActive}>
+            <span className={iconClassName}>{cameraIcon ?? '🎥'}</span>
+            <span className={labelClassName}>{camera2dActive ? '3D' : cameraLabel}</span>
           </button>
         )
       : null
