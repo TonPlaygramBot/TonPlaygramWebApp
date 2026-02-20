@@ -95,8 +95,7 @@ import {
   getTrainingLayout,
   BASE_ATTEMPTS_PER_LEVEL,
   TRAINING_LEVELS,
-  TRAINING_LEVEL_COUNT,
-  addTrainingAttempts
+  TRAINING_LEVEL_COUNT
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -123,6 +122,45 @@ const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-12', attempts: 12, price: 960, label: 'Table control deal' }),
   Object.freeze({ id: 'training-attempts-30', attempts: 30, price: 2100, label: 'Champion heart vault' })
 ]);
+
+const CAREER_ATTEMPTS_KEY = 'poolRoyaleCareerAttempts';
+
+function loadCareerAttemptsProgress() {
+  if (typeof window === 'undefined') {
+    return { carryShots: 0, attemptsAwardedStageIds: [] };
+  }
+  try {
+    const raw = window.localStorage.getItem(CAREER_ATTEMPTS_KEY);
+    if (!raw) return { carryShots: 0, attemptsAwardedStageIds: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      carryShots: Math.max(0, Math.floor(Number(parsed?.carryShots) || 0)),
+      attemptsAwardedStageIds: Array.isArray(parsed?.attemptsAwardedStageIds)
+        ? parsed.attemptsAwardedStageIds.filter((id) => typeof id === 'string' && id.trim())
+        : []
+    };
+  } catch (err) {
+    console.warn('Failed to load Pool Royale career attempts', err);
+    return { carryShots: 0, attemptsAwardedStageIds: [] };
+  }
+}
+
+function persistCareerAttemptsProgress(progress) {
+  const normalized = {
+    carryShots: Math.max(0, Math.floor(Number(progress?.carryShots) || 0)),
+    attemptsAwardedStageIds: Array.isArray(progress?.attemptsAwardedStageIds)
+      ? progress.attemptsAwardedStageIds.filter((id) => typeof id === 'string' && id.trim())
+      : []
+  };
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(CAREER_ATTEMPTS_KEY, JSON.stringify(normalized));
+    } catch (err) {
+      console.warn('Failed to persist Pool Royale career attempts', err);
+    }
+  }
+  return normalized;
+}
 
 const POOL_ROYALE_REWARDABLE_NFT_IDS = Object.freeze(['surprise_box', 'magic_trick', 'bullseye']);
 const POOL_ROYALE_REWARD_NFT_KEY_PREFIX = 'poolRoyaleRewardNfts_';
@@ -12597,6 +12635,7 @@ function PoolRoyaleGame({
     tableFinishId
   ]);
   const isTraining = playType === 'training';
+  const usesCareerAttempts = isTraining && careerMode;
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
@@ -12625,6 +12664,10 @@ function PoolRoyaleGame({
     carryShots: 0,
     attemptsAwardedLevels: []
   });
+  const [careerAttemptsProgress, setCareerAttemptsProgress] = useState({
+    carryShots: 0,
+    attemptsAwardedStageIds: []
+  });
   const [trainingLevel, setTrainingLevel] = useState(() => {
     const requested = Number(initialTrainingLevel);
     if (Number.isFinite(requested) && requested > 0) {
@@ -12635,6 +12678,7 @@ function PoolRoyaleGame({
   const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(0);
   const trainingShotsRemainingRef = useRef(trainingShotsRemaining);
   const trainingProgressRef = useRef(trainingProgress);
+  const careerAttemptsProgressRef = useRef(careerAttemptsProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingLayoutExpectedBallsRef = useRef(0);
   const trainingLayoutReadyRef = useRef(false);
@@ -12670,6 +12714,9 @@ function PoolRoyaleGame({
     trainingProgressRef.current = trainingProgress;
   }, [trainingProgress]);
   useEffect(() => {
+    careerAttemptsProgressRef.current = careerAttemptsProgress;
+  }, [careerAttemptsProgress]);
+  useEffect(() => {
     trainingLevelRef.current = trainingLevel;
   }, [trainingLevel]);
   useEffect(() => {
@@ -12686,28 +12733,27 @@ function PoolRoyaleGame({
     );
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
-    const storedCarryShots = Number(stored?.carryShots);
-    setTrainingShotsRemaining(
-      Number.isFinite(storedCarryShots)
-        ? Math.max(0, Math.floor(storedCarryShots))
-        : 0
-    );
-    const awardedLevels = new Set((stored?.attemptsAwardedLevels || []).map((lvl) => Number(lvl)));
-    if (!awardedLevels.has(playableLevel)) {
-      awardedLevels.add(playableLevel);
-      const carryShots = Math.max(0, Number(stored?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL;
-      const updated = {
-        ...stored,
-        carryShots,
-        attemptsAwardedLevels: Array.from(awardedLevels).sort((a, b) => a - b)
-      };
-      trainingProgressRef.current = updated;
-      setTrainingProgress(updated);
-      setTrainingShotsRemaining(carryShots);
-      persistTrainingProgress(updated);
+    if (usesCareerAttempts) {
+      const attemptsStored = loadCareerAttemptsProgress();
+      const awardedStages = new Set(attemptsStored.attemptsAwardedStageIds || []);
+      const activeStageId = careerStageId || '';
+      let nextAttempts = attemptsStored;
+      if (activeStageId && !awardedStages.has(activeStageId)) {
+        awardedStages.add(activeStageId);
+        nextAttempts = persistCareerAttemptsProgress({
+          ...attemptsStored,
+          carryShots: Math.max(0, Number(attemptsStored?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL,
+          attemptsAwardedStageIds: Array.from(awardedStages)
+        });
+      }
+      careerAttemptsProgressRef.current = nextAttempts;
+      setCareerAttemptsProgress(nextAttempts);
+      setTrainingShotsRemaining(Math.max(0, Number(nextAttempts?.carryShots) || 0));
+    } else {
+      setTrainingShotsRemaining(0);
     }
     setTrainingLevel(playableLevel);
-  }, [initialTrainingLevel]);
+  }, [careerStageId, initialTrainingLevel, usesCareerAttempts]);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
@@ -12751,37 +12797,28 @@ function PoolRoyaleGame({
 
 
   const grantTrainingAttemptsForLevel = useCallback((rawLevel) => {
-    if (!isTraining) return;
-    const level = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1));
-    const previous = trainingProgressRef.current || {
-      completed: [],
-      rewarded: [],
-      lastLevel: 1,
+    if (!isTraining || !usesCareerAttempts) return;
+    const stageId = careerStageId || `career-training-level-${Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1))}`;
+    const previous = careerAttemptsProgressRef.current || {
       carryShots: 0,
-      attemptsAwardedLevels: []
+      attemptsAwardedStageIds: []
     };
-    const awardedSet = new Set(
-      (previous?.attemptsAwardedLevels || [])
-        .map((lvl) => Number(lvl))
-        .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-    );
-    if (awardedSet.has(level)) return;
-    awardedSet.add(level);
-    const carryShots = Math.max(0, Number(previous?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL;
-    const updated = {
+    const awardedSet = new Set(previous?.attemptsAwardedStageIds || []);
+    if (awardedSet.has(stageId)) return;
+    awardedSet.add(stageId);
+    const updated = persistCareerAttemptsProgress({
       ...previous,
-      carryShots,
-      attemptsAwardedLevels: Array.from(awardedSet).sort((a, b) => a - b)
-    };
-    trainingProgressRef.current = updated;
-    setTrainingProgress(updated);
-    setTrainingShotsRemaining(carryShots);
-    persistTrainingProgress(updated);
-  }, [isTraining]);
+      carryShots: Math.max(0, Number(previous?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL,
+      attemptsAwardedStageIds: Array.from(awardedSet)
+    });
+    careerAttemptsProgressRef.current = updated;
+    setCareerAttemptsProgress(updated);
+    setTrainingShotsRemaining(Math.max(0, Number(updated?.carryShots) || 0));
+  }, [careerStageId, isTraining, usesCareerAttempts]);
 
 
   const handleTrainingAttemptsPurchase = useCallback(async (bundle) => {
-    if (!isTraining || !bundle || !resolvedAccountId) {
+    if (!usesCareerAttempts || !bundle || !resolvedAccountId) {
       window.alert('Connect your account to buy attempts.');
       return;
     }
@@ -12803,13 +12840,20 @@ function PoolRoyaleGame({
         setTrainingPurchaseStatus(purchase.error || 'Payment failed. Please try again.');
         return;
       }
-      const updated = addTrainingAttempts(bundle.attempts);
+      const previous = careerAttemptsProgressRef.current || {
+        carryShots: 0,
+        attemptsAwardedStageIds: []
+      };
+      const updated = persistCareerAttemptsProgress({
+        ...previous,
+        carryShots: Math.max(0, Number(previous?.carryShots) || 0) + Math.max(0, Number(bundle.attempts) || 0)
+      });
       const nextShots = Math.max(0, Number(updated?.carryShots) || 0);
-      trainingProgressRef.current = updated;
-      setTrainingProgress(updated);
+      careerAttemptsProgressRef.current = updated;
+      setCareerAttemptsProgress(updated);
       setTrainingShotsRemaining(nextShots);
       setTrainingPurchaseState('success');
-      setTrainingPurchaseStatus('Payment confirmed. Attempts delivered to your training bank.');
+      setTrainingPurchaseStatus('Payment confirmed. Hearts delivered to your career bank.');
       setTrainingAttemptsStoreOpen(false);
       window.alert(`+${bundle.attempts} attempts added.`);
     } catch (error) {
@@ -12819,7 +12863,7 @@ function PoolRoyaleGame({
     } finally {
       setBuyingTrainingBundleId('');
     }
-  }, [buyingTrainingBundleId, isTraining, resolvedAccountId]);
+  }, [buyingTrainingBundleId, resolvedAccountId, usesCareerAttempts]);
 
   useEffect(() => {
     if (!trainingAttemptsStoreOpen) return;
@@ -12838,7 +12882,7 @@ function PoolRoyaleGame({
   }, [buyingTrainingBundleId, selectedTrainingBundleId, trainingAttemptsStoreOpen, trainingPurchaseState]);
 
   useEffect(() => {
-    if (!isTraining) {
+    if (!usesCareerAttempts) {
       setTrainingAttemptsStoreOpen(false);
       return;
     }
@@ -12848,7 +12892,7 @@ function PoolRoyaleGame({
     } else {
       setTrainingAttemptsStoreOpen(false);
     }
-  }, [isTraining, trainingShotsRemaining]);
+  }, [trainingShotsRemaining, usesCareerAttempts]);
 
   const handleTrainingLevelPick = useCallback((level) => {
     const levelNum = Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(level) || 1));
@@ -15703,7 +15747,9 @@ const powerRef = useRef(hud.power);
         },
         {
           speaker,
-          text: `Attempts left: ${attemptsLeft}. Every missed shot costs -${TRAINING_MISS_ATTEMPT_COST} attempt.`
+          text: usesCareerAttempts
+            ? `Hearts left: ${attemptsLeft}. Every missed shot costs -${TRAINING_MISS_ATTEMPT_COST} attempt.`
+            : 'Free training mode is active. You can keep practicing without heart costs.'
         }
       ],
       { interrupt: false }
@@ -15714,7 +15760,8 @@ const powerRef = useRef(hud.power);
     enqueuePoolCommentary,
     isTraining,
     resolveCommentarySpeaker,
-    trainingShotsRemaining
+    trainingShotsRemaining,
+    usesCareerAttempts
   ]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -27177,7 +27224,7 @@ const powerRef = useRef(hud.power);
         }
         let remainingTrainingShots = Math.max(0, Number(trainingShotsRemainingRef.current) || 0);
         let trainingOutOfAttempts = false;
-        if (isTraining && !safeState?.frameOver) {
+        if (usesCareerAttempts && !safeState?.frameOver) {
           const penalty = cueBallPotted
             ? TRAINING_SCRATCH_ATTEMPT_COST
             : pottedObjectCount === 0
@@ -27192,10 +27239,12 @@ const powerRef = useRef(hud.power);
             remainingTrainingShots = nextShots;
             trainingShotsRemainingRef.current = nextShots;
             setTrainingShotsRemaining(nextShots);
-            setTrainingProgress((progressPrev) => {
-              const updated = { ...(progressPrev || {}), carryShots: nextShots };
-              trainingProgressRef.current = updated;
-              persistTrainingProgress(updated);
+            setCareerAttemptsProgress((previous) => {
+              const updated = persistCareerAttemptsProgress({
+                ...(previous || {}),
+                carryShots: nextShots
+              });
+              careerAttemptsProgressRef.current = updated;
               return updated;
             });
           }
@@ -27526,7 +27575,7 @@ const powerRef = useRef(hud.power);
                 nextInHand = cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
-            if (isTraining && trainingOutOfAttempts) {
+            if (usesCareerAttempts && trainingOutOfAttempts) {
               nextInHand = false;
               setTrainingAttemptsStoreOpen(true);
             }
@@ -27540,7 +27589,7 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({
             ...prev,
             inHand: nextInHand,
-            over: isTraining && trainingOutOfAttempts ? true : prev?.over
+            over: usesCareerAttempts && trainingOutOfAttempts ? true : prev?.over
           }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
@@ -31797,11 +31846,11 @@ const powerRef = useRef(hud.power);
                 Level {currentTrainingInfo.level}: {currentTrainingInfo.title}
               </p>
               <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
-              <p className="mt-1 text-[11px] text-rose-200">Missed-shot cost: ❤️ -{TRAINING_MISS_ATTEMPT_COST} attempt.</p>
+              <p className="mt-1 text-[11px] text-rose-200">{usesCareerAttempts ? `Missed-shot cost: ❤️ -${TRAINING_MISS_ATTEMPT_COST} attempt.` : "Free training mode: unlimited attempts."}</p>
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done • ❤️ {trainingShotsRemaining}
+            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done{usesCareerAttempts ? ` • ❤️ ${trainingShotsRemaining}` : " • ♾️ Free"}
           </div>
           <button
             type="button"
@@ -31845,7 +31894,7 @@ const powerRef = useRef(hud.power);
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
                   <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
-                  <p className="mt-1 text-[11px] text-white/60">Attempts bank: {trainingShotsRemaining}</p>
+                  <p className="mt-1 text-[11px] text-white/60">{usesCareerAttempts ? `Heart bank: ${trainingShotsRemaining}` : "Heart bank: Free training"}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
@@ -31865,13 +31914,13 @@ const powerRef = useRef(hud.power);
       )}
 
 
-      {isTraining && trainingAttemptsStoreOpen && (Number(trainingShotsRemaining) || 0) <= 0 && (
+      {usesCareerAttempts && trainingAttemptsStoreOpen && (Number(trainingShotsRemaining) || 0) <= 0 && (
         <div className="absolute inset-0 z-[130] flex items-center justify-center bg-black/75 px-4">
           <div className="w-[min(32rem,94vw)] rounded-2xl border border-rose-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200">Training attempts</p>
-                <p className="text-sm text-white/80">No attempts left. Buy more hearts to continue this task.</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200">Career hearts</p>
+                <p className="text-sm text-white/80">No hearts left. Buy more hearts to continue this career task.</p>
                 <p className="mt-1 text-xs text-rose-100/80">Attempts left: {Math.max(0, Number(trainingShotsRemaining) || 0)}</p>
               </div>
               <button

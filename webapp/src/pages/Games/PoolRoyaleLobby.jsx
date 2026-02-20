@@ -30,8 +30,7 @@ import {
   CAREER_LEVEL_COUNT,
   getCareerRoadmap,
   getNextCareerStage,
-  loadCareerProgress,
-  syncCareerProgressWithTraining
+  loadCareerProgress
 } from '../../utils/poolRoyaleCareerProgress.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
@@ -408,9 +407,7 @@ export default function PoolRoyaleLobby() {
     setUkBallSet('uk');
     const loadedTraining = loadTrainingProgress();
     setTrainingProgress(loadedTraining);
-    setCareerProgress(
-      syncCareerProgressWithTraining(loadedTraining, loadCareerProgress())
-    );
+    setCareerProgress(loadCareerProgress());
   }, [playType]);
 
   useEffect(() => {
@@ -478,13 +475,6 @@ export default function PoolRoyaleLobby() {
     () => getNextCareerStage(trainingProgress, careerProgress),
     [trainingProgress, careerProgress]
   );
-
-  useEffect(() => {
-    if (playType !== 'career') return;
-    setCareerProgress((prev) =>
-      syncCareerProgressWithTraining(trainingProgress, prev)
-    );
-  }, [playType, trainingProgress]);
 
   const tournamentKey = getTelegramId() || 'anon';
   const tournamentStateKey = `poolRoyaleTournamentState_${tournamentKey}`;
