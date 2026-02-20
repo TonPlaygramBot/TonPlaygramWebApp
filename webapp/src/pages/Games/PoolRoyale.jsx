@@ -12624,6 +12624,7 @@ function PoolRoyaleGame({
     return 1;
   });
   const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(0);
+  const trainingShotsRemainingRef = useRef(trainingShotsRemaining);
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingLayoutExpectedBallsRef = useRef(0);
@@ -12662,6 +12663,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     trainingLevelRef.current = trainingLevel;
   }, [trainingLevel]);
+  useEffect(() => {
+    trainingShotsRemainingRef.current = Math.max(0, Number(trainingShotsRemaining) || 0);
+  }, [trainingShotsRemaining]);
   useEffect(() => {
     const stored = loadTrainingProgress();
     const requestedTrainingLevel = Number(initialTrainingLevel);
@@ -27155,7 +27159,7 @@ const powerRef = useRef(hud.power);
             meta: nextTrainingMeta ?? safeState?.meta
           };
         }
-        let remainingTrainingShots = Math.max(0, Number(trainingShotsRemaining) || 0);
+        let remainingTrainingShots = Math.max(0, Number(trainingShotsRemainingRef.current) || 0);
         let trainingOutOfAttempts = false;
         if (isTraining && !safeState?.frameOver) {
           const penalty = cueBallPotted
@@ -27170,6 +27174,7 @@ const powerRef = useRef(hud.power);
             };
             const nextShots = Math.max(0, remainingTrainingShots - penalty);
             remainingTrainingShots = nextShots;
+            trainingShotsRemainingRef.current = nextShots;
             setTrainingShotsRemaining(nextShots);
             setTrainingProgress((progressPrev) => {
               const updated = { ...(progressPrev || {}), carryShots: nextShots };
