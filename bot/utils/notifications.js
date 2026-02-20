@@ -28,14 +28,31 @@ function normalizeAssetPath(assetPath) {
   return path.join(publicPath, assetPath.replace(/^\.\//, ''));
 }
 
-async function safeLoadImage(assetPath) {
+const RECEIPT_IMAGE_RETRY_ATTEMPTS = 6;
+const RECEIPT_IMAGE_RETRY_DELAY_MS = 180;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function safeLoadImage(assetPath, options = {}) {
   const resolved = normalizeAssetPath(assetPath);
   if (!resolved) return null;
-  try {
-    return await loadImage(resolved);
-  } catch {
-    return null;
+
+  const attempts = Math.max(1, Number(options.attempts) || RECEIPT_IMAGE_RETRY_ATTEMPTS);
+  const delayMs = Math.max(0, Number(options.delayMs) || RECEIPT_IMAGE_RETRY_DELAY_MS);
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await loadImage(resolved);
+    } catch {
+      if (attempt < attempts && delayMs > 0) {
+        await sleep(delayMs);
+      }
+    }
   }
+
+  return null;
 }
 
 function roundedRect(ctx, x, y, width, height, radius) {
@@ -68,6 +85,40 @@ function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9') {
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size / 2 - 2, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+function isTonPlaygramAccount(label = '') {
+  if (!label) return false;
+  const normalized = String(label).trim().toLowerCase();
+  return normalized.includes('tonplaygram') || normalized === 'store' || normalized === 'treasury';
+}
+
+function getReceiptAvatarCandidates(photo, label) {
+  const candidates = [];
+  if (photo) candidates.push(photo);
+  if (isTonPlaygramAccount(label)) candidates.push(logoPath);
+  candidates.push(fallbackAvatarPath);
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+async function resolveReceiptAvatar(photo, label) {
+  const candidates = getReceiptAvatarCandidates(photo, label);
+  for (const candidate of candidates) {
+    const avatar = await safeLoadImage(candidate);
+    if (avatar) return avatar;
+  }
+  return null;
+}
+
+function resolveReceiptItemThumbnail(item = {}) {
+  return (
+    item?.itemThumbnail ||
+    item?.thumbnail ||
+    item?.icon ||
+    item?.image ||
+    item?.imageUrl ||
+    null
+  );
 }
 
 export async function generateReceiptImage({
@@ -104,10 +155,14 @@ export async function generateReceiptImage({
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  const logo = await safeLoadImage(logoPath);
+  const logo = await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 });
   if (logo) {
-    const logoSize = 88;
-    ctx.drawImage(logo, width / 2 - logoSize / 2, 96, logoSize, logoSize);
+    roundedRect(ctx, width / 2 - 110, 84, 220, 110, 26);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.fill();
+
+    const logoSize = 92;
+    ctx.drawImage(logo, width / 2 - logoSize / 2, 94, logoSize, logoSize);
   }
 
   ctx.fillStyle = '#e2e8f0';
@@ -133,7 +188,7 @@ export async function generateReceiptImage({
   ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
   ctx.fill();
 
-  const coin = await safeLoadImage(coinPath);
+  const coin = await safeLoadImage(coinPath, { attempts: 8, delayMs: 220 });
   if (coin) {
     ctx.drawImage(coin, amountBoxX + 32, amountBoxY + 31, 84, 84);
   }
@@ -148,8 +203,8 @@ export async function generateReceiptImage({
   ctx.textAlign = 'left';
   ctx.fillText(`${sign}${formatted} TPC`, amountBoxX + 132, amountBoxY + 92);
 
-  const fromAvatar = (await safeLoadImage(fromPhoto)) || (await safeLoadImage(fallbackAvatarPath));
-  const toAvatar = (await safeLoadImage(toPhoto)) || (await safeLoadImage(fallbackAvatarPath));
+  const fromAvatar = await resolveReceiptAvatar(fromPhoto, fromName);
+  const toAvatar = await resolveReceiptAvatar(toPhoto, toName);
 
   const blockY = 590;
   const avatarSize = 120;
@@ -172,7 +227,7 @@ export async function generateReceiptImage({
   ctx.fillText(toName || 'Receiver', width - 200, blockY + avatarSize + 44);
 
   if (itemThumbnail) {
-    const thumb = await safeLoadImage(itemThumbnail);
+    const thumb = await safeLoadImage(itemThumbnail, { attempts: 8, delayMs: 220 });
     const itemBoxY = 820;
     roundedRect(ctx, 120, itemBoxY, width - 240, 250, 24);
     ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
@@ -189,7 +244,7 @@ export async function generateReceiptImage({
     ctx.fillStyle = '#f8fafc';
     ctx.textAlign = 'left';
     ctx.font = '700 30px Sans';
-    ctx.fillText('Item included', 374, itemBoxY + 98);
+    ctx.fillText('NFT included', 374, itemBoxY + 98);
     ctx.font = '500 26px Sans';
     ctx.fillStyle = '#cbd5e1';
     ctx.fillText(itemLabel || 'Store / NFT item', 374, itemBoxY + 150);
@@ -269,7 +324,7 @@ export async function sendGiftNotification(bot, toId, gift, senderName, date, op
     toName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     fromPhoto: options.senderPhoto,
     toPhoto: toInfo?.photoUrl,
-    itemThumbnail: gift?.icon,
+    itemThumbnail: resolveReceiptItemThumbnail(gift),
     itemLabel: `${gift?.name || 'Gift'} • ${gift?.price || 0} TPC`,
   });
 
@@ -288,7 +343,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    itemThumbnail: payload.thumbnail,
+    itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
 
