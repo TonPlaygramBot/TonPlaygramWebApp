@@ -115,6 +115,7 @@ const BASIS_TRANSCODER_PATH =
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
+const TRAINING_SCRATCH_ATTEMPT_COST = 2;
 const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-1', attempts: 1, price: 100, label: 'Starter heart' }),
   Object.freeze({ id: 'training-attempts-5', attempts: 5, price: 450, label: 'Pocket run deal' }),
@@ -1673,7 +1674,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // match Snooker Royal rail throw for consistent cushion response
+const RAIL_SPIN_THROW_SCALE = 0; // keep spin active while preventing spin-based rail deflection from shifting cue-ball target line
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
@@ -13943,7 +13944,8 @@ function PoolRoyaleGame({
   const shotContextRef = useRef({
     placedFromHand: false,
     contactMade: false,
-    cushionAfterContact: false
+    cushionAfterContact: false,
+    attemptsPenaltyApplied: false
   });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
@@ -14722,16 +14724,11 @@ const powerRef = useRef(hud.power);
   const goToLobby = useCallback(() => {
     const winnerId = frameRef.current?.winner ?? frameState.winner;
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
-    if (tournamentMode) {
-      const search = location.search && location.search.length ? location.search : '';
-      window.location.assign(`/pool-royale-bracket.html${search}`);
-      return;
-    }
     const lobbyUrl = winnerParam
       ? `/games/poolroyale/lobby?winner=${winnerParam}`
       : '/games/poolroyale/lobby';
     window.location.assign(lobbyUrl);
-  }, [frameState.winner, location.search, tournamentMode]);
+  }, [frameState.winner]);
   const resetTableLayoutForRematch = useCallback(() => {
     if (skipReplayRef.current) {
       skipReplayRef.current();
@@ -23496,6 +23493,9 @@ const powerRef = useRef(hud.power);
         const frameSnapshot = frameRef.current ?? frameState;
         const variant =
           frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
+        if (hudRef.current?.inHand || isTraining) {
+          return true;
+        }
         return variant !== 'uk';
       };
 
@@ -24197,6 +24197,7 @@ const powerRef = useRef(hud.power);
           placedFromHand,
           contactMade: false,
           cushionAfterContact: false,
+          attemptsPenaltyApplied: false,
           spin: {
             x: appliedSpinSnapshot.x ?? 0,
             y: appliedSpinSnapshot.y ?? 0
@@ -27157,8 +27158,16 @@ const powerRef = useRef(hud.power);
         let remainingTrainingShots = Math.max(0, Number(trainingShotsRemaining) || 0);
         let trainingOutOfAttempts = false;
         if (isTraining && !safeState?.frameOver) {
-          const penalty = pottedObjectCount === 0 ? TRAINING_MISS_ATTEMPT_COST : 0;
-          if (penalty > 0) {
+          const penalty = cueBallPotted
+            ? TRAINING_SCRATCH_ATTEMPT_COST
+            : pottedObjectCount === 0
+              ? TRAINING_MISS_ATTEMPT_COST
+              : 0;
+          if (penalty > 0 && !shotContextRef.current?.attemptsPenaltyApplied) {
+            shotContextRef.current = {
+              ...shotContextRef.current,
+              attemptsPenaltyApplied: true
+            };
             const nextShots = Math.max(0, remainingTrainingShots - penalty);
             remainingTrainingShots = nextShots;
             setTrainingShotsRemaining(nextShots);
@@ -27379,6 +27388,7 @@ const powerRef = useRef(hud.power);
           placedFromHand: false,
           contactMade: false,
           cushionAfterContact: false,
+          attemptsPenaltyApplied: false,
           spin: { x: 0, y: 0 }
         };
         let nextInHand = cueBallPotted;
@@ -29393,7 +29403,7 @@ const powerRef = useRef(hud.power);
                   }
                 }
                 if (isTraining) {
-                  setTrainingPenaltyPopup('-2❤️');
+                  setTrainingPenaltyPopup(`-${TRAINING_SCRATCH_ATTEMPT_COST}❤️`);
                   if (trainingPenaltyPopupTimeoutRef.current) {
                     clearTimeout(trainingPenaltyPopupTimeoutRef.current);
                   }
@@ -30877,7 +30887,7 @@ const powerRef = useRef(hud.power);
             ) : null}
             {tournamentMode && !winnerOverlay.userWon ? (
               <div className="max-w-md rounded-2xl border border-rose-300/55 bg-rose-400/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100">
-                You’ve been disqualified. Try a new tournament or return to lobby.
+                You’ve been disqualified. Return to lobby.
               </div>
             ) : null}
             {finalPotLabel ? (
@@ -30946,18 +30956,7 @@ const powerRef = useRef(hud.power);
                 >
                   Continue tournament
                 </button>
-              ) : tournamentMode && !winnerOverlay.userWon ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetTournamentState();
-                    navigate('/games/poolroyale/lobby?type=tournament');
-                  }}
-                  className="rounded-full border border-rose-300 bg-rose-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.22em] text-black shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition hover:bg-rose-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-                >
-                  New tournament
-                </button>
-              ) : (
+              ) : tournamentMode && !winnerOverlay.userWon ? null : (
                 <button
                   type="button"
                   onClick={handlePlayAgain}
@@ -32673,7 +32672,7 @@ export default function PoolRoyale() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/poolroyale/lobby');
+        window.location.assign('/games/poolroyale/lobby');
       }
     });
   });
@@ -32688,7 +32687,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/poolroyale/lobby');
+          window.location.assign('/games/poolroyale/lobby');
         }
       });
     };
@@ -32699,7 +32698,7 @@ export default function PoolRoyale() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, navigate]);
+  }, [confirmExit, exitMessage]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
