@@ -141,43 +141,21 @@ export function markCareerStageCompleted (stageId) {
 }
 
 export function syncCareerProgressWithTraining (
-  trainingProgress,
+  _trainingProgress,
   careerProgress = loadCareerProgress()
 ) {
-  const completedTraining = new Set(
-    Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []
-  )
-  const completedCareer = new Set(careerProgress.completedStageIds || [])
-  let dirty = false
-  for (const stage of CAREER_STAGES) {
-    if (stage.type !== 'training') continue
-    if (!completedTraining.has(stage.trainingLevel)) continue
-    if (completedCareer.has(stage.id)) continue
-    completedCareer.add(stage.id)
-    dirty = true
-  }
-  if (!dirty) return normalizeProgress(careerProgress)
-  return persistCareerProgress({
-    ...careerProgress,
-    completedStageIds: [...completedCareer],
-    updatedAt: Date.now()
-  })
+  return normalizeProgress(careerProgress)
 }
 
 export function getCareerRoadmap (
-  trainingProgress,
+  _trainingProgress,
   careerProgress = loadCareerProgress()
 ) {
-  const completedTraining = new Set(
-    Array.isArray(trainingProgress?.completed) ? trainingProgress.completed : []
-  )
   const completedCareer = new Set(careerProgress.completedStageIds || [])
 
   let previousLocked = false
   return CAREER_STAGES.map((stage) => {
-    const completed =
-      completedCareer.has(stage.id) ||
-      (stage.type === 'training' && completedTraining.has(stage.trainingLevel))
+    const completed = completedCareer.has(stage.id)
     const locked = previousLocked
     const playable = !locked && !completed
     if (!completed) previousLocked = true
