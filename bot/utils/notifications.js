@@ -66,7 +66,29 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9') {
+
+function drawTonPlaygramMark(ctx, x, y, size, options = {}) {
+  const label = options.label || 'TP';
+  const radius = size / 2;
+  const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+  gradient.addColorStop(0, '#22d3ee');
+  gradient.addColorStop(1, '#6366f1');
+
+  ctx.save();
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#e0f2fe';
+  ctx.font = `700 ${Math.floor(size * 0.38)}px Sans`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + radius, y + radius + 1);
+  ctx.restore();
+}
+
+function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9', label = '') {
   ctx.save();
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
@@ -74,6 +96,8 @@ function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9') {
   ctx.clip();
   if (image) {
     ctx.drawImage(image, x, y, size, size);
+  } else if (isTonPlaygramAccount(label)) {
+    drawTonPlaygramMark(ctx, x, y, size, { label: 'TP' });
   } else {
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(x, y, size, size);
@@ -95,8 +119,8 @@ function isTonPlaygramAccount(label = '') {
 
 function getReceiptAvatarCandidates(photo, label) {
   const candidates = [];
-  if (photo) candidates.push(photo);
   if (isTonPlaygramAccount(label)) candidates.push(logoPath);
+  if (photo) candidates.push(photo);
   candidates.push(fallbackAvatarPath);
   return [...new Set(candidates.filter(Boolean))];
 }
@@ -156,14 +180,17 @@ export async function generateReceiptImage({
   ctx.stroke();
 
   const logo = await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 });
-  if (logo) {
-    roundedRect(ctx, width / 2 - 110, 84, 220, 110, 26);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.fill();
+  roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.fill();
 
-    const logoSize = 92;
-    ctx.drawImage(logo, width / 2 - logoSize / 2, 94, logoSize, logoSize);
+  const logoSize = 108;
+  if (logo) {
+    ctx.drawImage(logo, width / 2 - logoSize / 2, 68, logoSize, logoSize);
+  } else {
+    drawTonPlaygramMark(ctx, width / 2 - logoSize / 2, 68, logoSize, { label: 'TP' });
   }
+
 
   ctx.fillStyle = '#e2e8f0';
   ctx.font = '700 42px Sans';
@@ -188,10 +215,9 @@ export async function generateReceiptImage({
   ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
   ctx.fill();
 
-  const coin = await safeLoadImage(coinPath, { attempts: 8, delayMs: 220 });
-  if (coin) {
-    ctx.drawImage(coin, amountBoxX + 32, amountBoxY + 31, 84, 84);
-  }
+  const coin =
+    (await safeLoadImage(coinPath, { attempts: 8, delayMs: 220 })) ||
+    (await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 }));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
@@ -201,15 +227,30 @@ export async function generateReceiptImage({
   ctx.fillStyle = '#f8fafc';
   ctx.font = '700 52px Sans';
   ctx.textAlign = 'left';
-  ctx.fillText(`${sign}${formatted} TPC`, amountBoxX + 132, amountBoxY + 92);
+  const amountText = `${sign}${formatted}`;
+  const amountTextX = amountBoxX + 42;
+  const amountTextY = amountBoxY + 92;
+  ctx.fillText(amountText, amountTextX, amountTextY);
+
+  const amountTextWidth = ctx.measureText(amountText).width;
+  const tokenStartX = amountTextX + amountTextWidth + 22;
+  if (coin) {
+    ctx.drawImage(coin, tokenStartX, amountBoxY + 44, 52, 52);
+  } else {
+    drawTonPlaygramMark(ctx, tokenStartX, amountBoxY + 44, 52, { label: 'TPC' });
+  }
+
+  ctx.font = '700 38px Sans';
+  ctx.fillStyle = '#a5f3fc';
+  ctx.fillText('TPC', tokenStartX + 66, amountBoxY + 88);
 
   const fromAvatar = await resolveReceiptAvatar(fromPhoto, fromName);
   const toAvatar = await resolveReceiptAvatar(toPhoto, toName);
 
   const blockY = 590;
   const avatarSize = 120;
-  drawAvatar(ctx, fromAvatar, 140, blockY, avatarSize, '#38bdf8');
-  drawAvatar(ctx, toAvatar, width - 140 - avatarSize, blockY, avatarSize, '#818cf8');
+  drawAvatar(ctx, fromAvatar, 140, blockY, avatarSize, '#38bdf8', fromName);
+  drawAvatar(ctx, toAvatar, width - 140 - avatarSize, blockY, avatarSize, '#818cf8', toName);
 
   ctx.strokeStyle = 'rgba(148,163,184,0.7)';
   ctx.lineWidth = 4;
@@ -343,6 +384,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
+    toPhoto: logoPath,
     itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
