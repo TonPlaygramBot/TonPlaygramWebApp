@@ -14358,38 +14358,13 @@ const powerRef = useRef(hud.power);
       : !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
 
     if (isCareerTrainingSession) {
-      const completedSet = new Set(
-        (previous?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-      );
-      const rewardedSet = new Set(
-        (previous?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-      );
-      completedSet.add(completedLevel);
-      if (shouldAwardReward) rewardedSet.add(completedLevel);
-      const completed = Array.from(completedSet).sort((a, b) => a - b);
-      const rewarded = Array.from(rewardedSet).sort((a, b) => a - b);
-      const lastLevel = Math.max(previous?.lastLevel ?? 1, completedLevel);
       const carryShots = Math.max(0, trainingShotsRemaining);
-      const updated = {
-        ...previous,
-        completed,
-        rewarded,
-        lastLevel,
-        carryShots,
-        attemptsAwardedLevels: Array.isArray(previous?.attemptsAwardedLevels)
-          ? previous.attemptsAwardedLevels
-          : []
-      };
-      persistTrainingProgress(updated);
-      setTrainingProgress(updated);
-      trainingProgressRef.current = updated;
-      const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
       setTrainingShotsRemaining(carryShots);
-      setPendingTrainingLevel(nextPlayable);
+      setPendingTrainingLevel(completedLevel);
       setLastCompletedLevel(completedLevel);
       setTrainingTaskTransition({
         fromLevel: completedLevel,
-        toLevel: nextPlayable,
+        toLevel: completedLevel,
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward
       });
