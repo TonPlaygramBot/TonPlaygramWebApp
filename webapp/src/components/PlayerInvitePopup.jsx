@@ -3,22 +3,22 @@ import { createPortal } from 'react-dom';
 import RoomSelector from './RoomSelector.jsx';
 import GiftPopup from './GiftPopup.jsx';
 import GiftIcon from './GiftIcon.jsx';
-import { FaTv } from 'react-icons/fa';
+import { FaCircle, FaDesktop, FaTimes, FaTv } from 'react-icons/fa';
 import { getAccountInfo, getSnakeResults, getWatchCount } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
+import gamesCatalog from '../config/gamesCatalog.js';
+import { getGameThumbnail } from '../config/gameAssets.js';
 
 function getGameFromTableId(id) {
   if (!id) return 'snake';
-  const prefix = id.split('-')[0];
-  if (
-    [
-      'snake',
-      'goalrush',
-      'poolroyale',
-      'poolroyale',
-    ].includes(prefix)
-  )
-    return prefix;
+  const lowerId = String(id).toLowerCase();
+  const matched = gamesCatalog.find((game) => {
+    const slug = String(game.slug || '').toLowerCase();
+    if (!slug) return false;
+    const normalizedSlug = slug.replace(/[^a-z0-9]/g, '');
+    return lowerId.startsWith(`${slug}-`) || lowerId.startsWith(`${normalizedSlug}-`);
+  });
+  if (matched?.slug) return matched.slug;
   return 'snake';
 }
 
@@ -29,12 +29,14 @@ export default function PlayerInvitePopup({
   onStakeChange,
   onInvite,
   onClose,
+  onlineStatus,
 }) {
   const [info, setInfo] = useState(null);
   const [records, setRecords] = useState([]);
   const [giftOpen, setGiftOpen] = useState(false);
   const [game, setGame] = useState('snake');
   const [watchCount, setWatchCount] = useState(0);
+  const [watchFrame, setWatchFrame] = useState(null);
 
   useEffect(() => {
     if (!open || !player) return;
@@ -62,11 +64,39 @@ export default function PlayerInvitePopup({
       .catch(() => {});
   }, [open, player]);
 
+  useEffect(() => {
+    if (!open) setWatchFrame(null);
+  }, [open, player?.currentTableId]);
+
   if (!open || !player) return null;
 
   const gifts = info?.gifts || [];
   const balance = info?.balance ?? player.balance;
   const name = player.nickname || `${player.firstName || ''} ${player.lastName || ''}`.trim();
+  const isPlaying = !!player.currentTableId;
+  const statusLabel = isPlaying ? 'Playing' : onlineStatus || 'offline';
+  const statusColor = isPlaying
+    ? 'text-red-500'
+    : statusLabel === 'online'
+      ? 'text-green-500'
+      : statusLabel === 'busy'
+        ? 'text-orange-500'
+        : 'text-gray-500';
+  const inviteGames = gamesCatalog.map((catalogGame) => ({
+    id: catalogGame.slug,
+    src: getGameThumbnail(catalogGame.slug) || catalogGame.image,
+    alt: catalogGame.name,
+  }));
+
+  const openWatchFrame = () => {
+    if (!player?.currentTableId) return;
+    const liveGame = getGameFromTableId(player.currentTableId);
+    setWatchFrame({
+      game: liveGame,
+      tableId: player.currentTableId,
+      url: `/games/${liveGame}?table=${player.currentTableId}&watch=1`,
+    });
+  };
 
   return createPortal(
     <>
@@ -85,6 +115,22 @@ export default function PlayerInvitePopup({
               className="w-24 h-24 rounded-full mx-auto"
             />
             <p className="font-semibold">{name}</p>
+            <p className="text-xs flex items-center justify-center gap-1 capitalize">
+              <FaCircle className={statusColor} size={9} />
+              <span>{statusLabel}</span>
+              {isPlaying && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openWatchFrame();
+                  }}
+                  className="text-white ml-1 inline-flex items-center gap-1"
+                  title="Watch as spectator"
+                >
+                  <FaDesktop />
+                </button>
+              )}
+            </p>
             {player.accountId && (
               <p className="text-sm break-all">
                 <span className="text-white-shadow">Account:</span>{' '}
@@ -112,12 +158,11 @@ export default function PlayerInvitePopup({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const game = getGameFromTableId(player.currentTableId);
-                    window.location.href = `/games/${game}?table=${player.currentTableId}&watch=1`;
+                    openWatchFrame();
                   }}
                   className="text-white flex items-center space-x-1"
                 >
-                  <FaTv />
+                  <FaTv className="text-brand-gold" />
                   <span>Watch</span>
                   <span className="text-green-500">{watchCount}</span>
                 </button>
@@ -162,28 +207,7 @@ export default function PlayerInvitePopup({
           <div className="space-y-1">
             <p className="font-semibold text-white-shadow">Game</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {[
-              {
-                id: 'snake',
-                src: '/assets/icons/snakes_and_ladders.webp',
-                alt: 'Snake & Ladders',
-              },
-              {
-                id: 'goalrush',
-                src: '/assets/icons/goal_rush_card_1200x675.webp',
-                alt: 'Goal Rush',
-                },
-                {
-                  id: 'poolroyale',
-                  src: '/assets/icons/pool-royale.svg',
-                  alt: 'Pool Royale',
-                },
-                {
-                  id: 'snookerroyale',
-                  src: '/assets/icons/snooker-royale.svg',
-                  alt: 'Snooker Royal',
-                },
-              ].map((g) => (
+              {inviteGames.map((g) => (
                 <img
                   key={g.id}
                   src={g.src}
@@ -223,6 +247,29 @@ export default function PlayerInvitePopup({
           </div>
         </div>
       </div>
+      {watchFrame && (
+        <div className="fixed inset-0 z-[60] bg-black/85 p-3 flex items-center justify-center">
+          <div className="relative bg-surface border border-border rounded-xl w-full max-w-md h-[85vh] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setWatchFrame(null)}
+              className="absolute top-2 right-2 z-10 rounded-full bg-black/70 text-white p-2"
+              aria-label="Close live game frame"
+            >
+              <FaTimes size={14} />
+            </button>
+            <div className="p-3 pr-10 text-sm text-white/90 border-b border-border">
+              Live game stream • watch, chat and send gifts
+            </div>
+            <iframe
+              src={watchFrame.url}
+              title={`Live game ${watchFrame.game}`}
+              className="w-full h-[calc(85vh-48px)] bg-black"
+              allow="clipboard-read; clipboard-write"
+            />
+          </div>
+        </div>
+      )}
       <GiftPopup
         open={giftOpen}
         onClose={() => setGiftOpen(false)}
