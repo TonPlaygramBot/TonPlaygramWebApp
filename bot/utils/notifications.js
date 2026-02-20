@@ -6,18 +6,22 @@ import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
-// Keep Telegram receipt branding aligned with the exact Home page assets.
-const HOME_TOP_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-const HOME_TOP_LOGO_FALLBACK_ASSET = '/assets/icons/file_000000008ab462439ff27618691146eb.png';
-const HOME_WALLET_TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
-const HOME_WALLET_TPC_ICON_FALLBACK_ASSET = '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.webp';
+// Keep Telegram receipt branding aligned with the live app visuals.
+const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const TPC_ICON_ASSET_FALLBACK = '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.png';
+const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const TONPLAYGRAM_LOGO_ASSET_FALLBACK = '/assets/icons/file_000000008ab462439ff27618691146eb.png';
+const RECEIPT_BRAND_ICON_FALLBACKS = [
+  TONPLAYGRAM_LOGO_ASSET_FALLBACK,
+  TPC_ICON_ASSET_FALLBACK,
+];
 
 function resolvePublicAssetPath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return null;
   return path.join(publicPath, assetPath.replace(/^\//, '').replace(/^\.\//, ''));
 }
 
-const coinPath = resolvePublicAssetPath(HOME_WALLET_TPC_ICON_ASSET);
+const coinPath = resolvePublicAssetPath(TPC_ICON_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
@@ -154,17 +158,13 @@ function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9', label = '')
 function isTonPlaygramAccount(label = '') {
   if (!label) return false;
   const normalized = String(label).trim().toLowerCase();
-  return (
-    normalized.includes('tonplaygram') ||
-    normalized.includes('store') ||
-    normalized.includes('treasury')
-  );
+  return normalized.includes('tonplaygram') || normalized === 'store' || normalized === 'treasury';
 }
 
 function getReceiptAvatarCandidates(photo, label) {
   const candidates = [];
   if (isTonPlaygramAccount(label)) {
-    candidates.push(HOME_TOP_LOGO_ASSET, HOME_TOP_LOGO_FALLBACK_ASSET);
+    candidates.push(TONPLAYGRAM_LOGO_ASSET);
   }
   if (photo) candidates.push(photo);
   candidates.push(fallbackAvatarPath);
@@ -234,7 +234,7 @@ export async function generateReceiptImage({
   ctx.stroke();
 
   const logo = await resolveReceiptBrandImage(
-    getReceiptBrandCandidates(HOME_TOP_LOGO_ASSET, [HOME_TOP_LOGO_FALLBACK_ASSET]),
+    getReceiptBrandCandidates(TONPLAYGRAM_LOGO_ASSET, RECEIPT_BRAND_ICON_FALLBACKS),
     { attempts: 8, delayMs: 220 }
   );
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
@@ -272,10 +272,15 @@ export async function generateReceiptImage({
   ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
   ctx.fill();
 
-  const coin = await resolveReceiptBrandImage(
-    getReceiptBrandCandidates(HOME_WALLET_TPC_ICON_ASSET, [HOME_WALLET_TPC_ICON_FALLBACK_ASSET]),
-    { attempts: 8, delayMs: 220 }
-  );
+  const coin =
+    (await resolveReceiptBrandImage(
+      getReceiptBrandCandidates(TPC_ICON_ASSET, [TPC_ICON_ASSET_FALLBACK]),
+      { attempts: 8, delayMs: 220 }
+    )) ||
+    (await resolveReceiptBrandImage(
+      getReceiptBrandCandidates(TONPLAYGRAM_LOGO_ASSET, [TONPLAYGRAM_LOGO_ASSET_FALLBACK]),
+      { attempts: 8, delayMs: 220 }
+    ));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
@@ -442,7 +447,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    toPhoto: HOME_TOP_LOGO_ASSET,
+    toPhoto: TONPLAYGRAM_LOGO_ASSET,
     itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
