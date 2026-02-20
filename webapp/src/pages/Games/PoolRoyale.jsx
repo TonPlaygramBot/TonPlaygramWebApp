@@ -115,7 +115,7 @@ const BASIS_TRANSCODER_PATH =
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
-const TRAINING_SCRATCH_ATTEMPT_COST = 2;
+const TRAINING_SCRATCH_ATTEMPT_COST = 1;
 const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-1', attempts: 1, price: 100, label: 'Starter heart' }),
   Object.freeze({ id: 'training-attempts-5', attempts: 5, price: 450, label: 'Pocket run deal' }),
@@ -12645,6 +12645,7 @@ function PoolRoyaleGame({
   const [trainingModeState, setTrainingModeState] = useState('solo');
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
+  const [careerTaskResultModal, setCareerTaskResultModal] = useState(null);
   const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
   const [pendingTrainingLevel, setPendingTrainingLevel] = useState(null);
   const [showTrainingIntroCard, setShowTrainingIntroCard] = useState(false);
@@ -13109,6 +13110,11 @@ function PoolRoyaleGame({
     setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
     applyTrainingLayoutForLevel(nextLevel);
   }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
+
+  const handleCareerTaskTryAgain = useCallback(() => {
+    setCareerTaskResultModal(null);
+    handleTrainingLevelPick(trainingLevelRef.current || trainingLevel);
+  }, [handleTrainingLevelPick, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -14359,7 +14365,13 @@ const powerRef = useRef(hud.power);
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward
       });
-      setTrainingRoadmapOpen(true);
+      setTrainingRoadmapOpen(false);
+      setCareerTaskResultModal({
+        status: 'won',
+        rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
+        nftReward,
+        nextLabel: 'Continue to next task'
+      });
     } else {
       setTrainingProgress((prev) => {
         const completedSet = new Set(
@@ -27243,6 +27255,7 @@ const powerRef = useRef(hud.power);
         }
         let remainingTrainingShots = Math.max(0, Number(trainingShotsRemainingRef.current) || 0);
         let trainingOutOfAttempts = false;
+        let appliedAttemptPenalty = 0;
         if (usesCareerAttempts && !safeState?.frameOver) {
           const penalty = cueBallPotted
             ? TRAINING_SCRATCH_ATTEMPT_COST
@@ -27255,6 +27268,7 @@ const powerRef = useRef(hud.power);
               attemptsPenaltyApplied: true
             };
             const nextShots = Math.max(0, remainingTrainingShots - penalty);
+            appliedAttemptPenalty = penalty;
             remainingTrainingShots = nextShots;
             trainingShotsRemainingRef.current = nextShots;
             setTrainingShotsRemaining(nextShots);
@@ -27596,7 +27610,12 @@ const powerRef = useRef(hud.power);
             }
             if (usesCareerAttempts && trainingOutOfAttempts) {
               nextInHand = false;
-              setTrainingAttemptsStoreOpen(true);
+              setTrainingAttemptsStoreOpen(false);
+              setTrainingRoadmapOpen(false);
+              setCareerTaskResultModal({
+                status: 'failed',
+                heartPenalty: Math.max(1, appliedAttemptPenalty || TRAINING_MISS_ATTEMPT_COST)
+              });
             }
           }
         } catch (err) {
@@ -32021,6 +32040,71 @@ const powerRef = useRef(hud.power);
                 Return lobby
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {usesCareerAttempts && careerTaskResultModal && (
+        <div className="absolute inset-0 z-[140] flex items-center justify-center bg-black/80 px-4">
+          <div className="w-[min(30rem,92vw)] rounded-2xl border border-emerald-300/60 bg-slate-950/95 p-5 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
+            {careerTaskResultModal.status === 'failed' ? (
+              <>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200">Career task failed</p>
+                <p className="mt-2 text-sm text-white/90">You failed to complete the task.</p>
+                <p className="mt-1 text-xs text-rose-100/90">❤️ -{Math.max(1, Number(careerTaskResultModal.heartPenalty) || 1)} attempt deducted.</p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCareerTaskTryAgain}
+                    className="rounded-full border border-rose-300/70 bg-rose-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100 transition hover:bg-rose-500/30"
+                  >
+                    Try again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToLobby}
+                    className="rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
+                  >
+                    Return to lobby
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Career task complete</p>
+                <p className="mt-2 text-sm text-white/90">Congratulations! You completed the task.</p>
+                <div className="mt-3 space-y-1 text-xs text-emerald-100">
+                  {Number(careerTaskResultModal.rewardAmount) > 0 ? (
+                    <p className="inline-flex items-center gap-1">
+                      <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-4 w-4" />
+                      +{Number(careerTaskResultModal.rewardAmount).toLocaleString('en-US')} TPC Coins
+                    </p>
+                  ) : null}
+                  {careerTaskResultModal.nftReward ? (
+                    <p>🎁 Gift unlocked: {careerTaskResultModal.nftReward.name}</p>
+                  ) : null}
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCareerTaskResultModal(null);
+                      handleTrainingRoadmapContinue();
+                    }}
+                    className="rounded-full border border-emerald-300/70 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100 transition hover:bg-emerald-500/30"
+                  >
+                    Continue next task
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToLobby}
+                    className="rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
+                  >
+                    Return to lobby
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
