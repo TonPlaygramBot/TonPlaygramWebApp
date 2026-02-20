@@ -9,9 +9,27 @@ const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-const coinPath = path.join(publicPath, TPC_ICON_ASSET);
-const logoPath = path.join(publicPath, TONPLAYGRAM_LOGO_ASSET);
+
+function resolvePublicAssetPath(assetPath) {
+  if (!assetPath || typeof assetPath !== 'string') return null;
+  return path.join(publicPath, assetPath.replace(/^\//, '').replace(/^\.\//, ''));
+}
+
+const coinPath = resolvePublicAssetPath(TPC_ICON_ASSET);
+const logoPath = resolvePublicAssetPath(TONPLAYGRAM_LOGO_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
+
+const TPC_ICON_FALLBACK_ASSETS = [
+  TPC_ICON_ASSET,
+  '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.png',
+  '/assets/icons/generated/app-icon-192.png',
+];
+
+const TONPLAYGRAM_LOGO_FALLBACK_ASSETS = [
+  TONPLAYGRAM_LOGO_ASSET,
+  '/assets/icons/file_000000003f7861f481d50537fb031e13.png',
+  '/assets/icons/generated/app-icon-512.png',
+];
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
   const baseUrl =
@@ -25,10 +43,7 @@ function normalizeAssetPath(assetPath) {
   if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
     return assetPath;
   }
-  if (assetPath.startsWith('/')) {
-    return path.join(publicPath, assetPath);
-  }
-  return path.join(publicPath, assetPath.replace(/^\.\//, ''));
+  return resolvePublicAssetPath(assetPath);
 }
 
 function getBrandAssetCandidates(assetPath) {
@@ -44,7 +59,8 @@ function getBrandAssetCandidates(assetPath) {
 }
 
 async function loadBrandAsset(assetPath, options = {}) {
-  const candidates = getBrandAssetCandidates(assetPath);
+  const variants = Array.isArray(assetPath) ? assetPath : [assetPath];
+  const candidates = variants.flatMap((variant) => getBrandAssetCandidates(variant));
   for (const candidate of candidates) {
     const image = await safeLoadImage(candidate, options);
     if (image) return image;
@@ -205,7 +221,7 @@ export async function generateReceiptImage({
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  const logo = await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 });
+  const logo = await loadBrandAsset(TONPLAYGRAM_LOGO_FALLBACK_ASSETS, { attempts: 8, delayMs: 220 });
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
   ctx.fill();
@@ -242,8 +258,8 @@ export async function generateReceiptImage({
   ctx.fill();
 
   const coin =
-    (await loadBrandAsset(TPC_ICON_ASSET, { attempts: 8, delayMs: 220 })) ||
-    (await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 }));
+    (await loadBrandAsset(TPC_ICON_FALLBACK_ASSETS, { attempts: 8, delayMs: 220 })) ||
+    (await loadBrandAsset(TONPLAYGRAM_LOGO_FALLBACK_ASSETS, { attempts: 8, delayMs: 220 }));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
