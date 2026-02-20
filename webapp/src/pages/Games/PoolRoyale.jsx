@@ -98,6 +98,7 @@ import {
   TRAINING_LEVEL_COUNT,
   addTrainingAttempts
 } from '../../utils/poolRoyaleTrainingProgress.js';
+import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
@@ -11908,6 +11909,14 @@ function PoolRoyaleGame({
     return Number.isFinite(requested) && requested > 0 ? requested : 8;
   }, [location.search]);
   const tournamentKey = tgId || 'anon';
+  const careerMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('career') === '1';
+  }, [location.search]);
+  const careerStageId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('careerStageId') || '';
+  }, [location.search]);
   const tournamentStateKey = useMemo(
     () => `poolRoyaleTournamentState_${tournamentKey}`,
     [tournamentKey]
@@ -15043,6 +15052,8 @@ const powerRef = useRef(hud.power);
           st.complete = true;
         }
         if (winnerSeed !== userSeed) {
+          st.disqualifiedSeed = userSeed;
+          st.eliminatedRound = r;
           simulateRemaining(st, r);
         } else {
           simulateRoundAI(st, r);
@@ -16007,6 +16018,9 @@ const powerRef = useRef(hud.power);
           userWon,
           tournamentAdvance: tournamentMode && userWon && !tournamentOutcome?.complete
         };
+        if (careerMode && careerStageId && userWon && (!tournamentMode || tournamentOutcome?.complete)) {
+          markCareerStageCompleted(careerStageId);
+        }
         setWinnerOverlay(overlayData);
         if (overlayData.nftReward && userWon) {
           setRevealedRewardNft(overlayData.nftReward);
@@ -16058,6 +16072,8 @@ const powerRef = useRef(hud.power);
     stakeAmount,
     stakeToken,
     tournamentMode,
+    careerMode,
+    careerStageId,
     tournamentPlayers,
     triggerCoinBurst,
     waitForActiveReplay
