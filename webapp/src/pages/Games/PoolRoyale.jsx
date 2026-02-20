@@ -1830,23 +1830,23 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.14; // add extra butt clearance so the cue never clips newly raised cushions
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.1; // lift cue helper path to match raised cushions and updated ball lift
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.2; // keep a stronger safety gap so cue helpers stay above cushions and wooden rails
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.16; // lift helper trajectories a touch more to avoid rail/cushion contact
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.8;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.15;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
-const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
+const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.72;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.52;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.12, CUE_TIP_RADIUS * 1.55);
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.2, CUE_TIP_RADIUS * 1.75);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -28028,7 +28028,7 @@ const powerRef = useRef(hud.power);
           viewCamera = null,
           cueOffset = null
         ) {
-          if (!cue?.pos || !dirVec3) return 0;
+          if (!cue?.pos || !dirVec3 || !Number.isFinite(cue?.pos?.x) || !Number.isFinite(cue?.pos?.y)) return 0;
           if (viewCamera?.getWorldDirection) {
             viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
             TMP_VEC3_CAM_DIR.y = 0;
@@ -28052,6 +28052,7 @@ const powerRef = useRef(hud.power);
             }
           }
           const reach = cueLen + pullDistance + CUE_TIP_GAP;
+          if (!Number.isFinite(reach) || reach <= 1e-6) return 0;
           const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
           let strength = 0;
           const applyRailObstruction = (railPos, axis) => {
@@ -28080,7 +28081,13 @@ const powerRef = useRef(hud.power);
           applyRailObstruction(RAIL_LIMIT_Y, 'y');
           applyRailObstruction(-RAIL_LIMIT_Y, 'y');
           balls.forEach((b) => {
-            if (!b?.active || b === cue) return;
+            if (
+              !b?.active ||
+              b === cue ||
+              !b?.pos ||
+              !Number.isFinite(b.pos.x) ||
+              !Number.isFinite(b.pos.y)
+            ) return;
             const delta = b.pos.clone().sub(origin);
             const along = delta.dot(backward);
             if (along < 0 || along > reach) return;
@@ -28123,6 +28130,14 @@ const powerRef = useRef(hud.power);
             pullDistance,
             cueSpinOffset
           );
+          if (
+            !tipTarget ||
+            !Number.isFinite(tipTarget.x) ||
+            !Number.isFinite(tipTarget.y) ||
+            !Number.isFinite(tipTarget.z)
+          ) {
+            return strength;
+          }
           TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
           TMP_VEC3_CUE_SAMPLE_END
             .copy(tipTarget)
@@ -28134,7 +28149,13 @@ const powerRef = useRef(hud.power);
             const point = CUE_OBSTRUCTION_SAMPLE_POINTS[i];
             point.lerpVectors(TMP_VEC3_CUE_SAMPLE_START, TMP_VEC3_CUE_SAMPLE_END, t);
             for (const b of balls) {
-              if (!b?.active || b === cue) continue;
+              if (
+                !b?.active ||
+                b === cue ||
+                !b?.pos ||
+                !Number.isFinite(b.pos.x) ||
+                !Number.isFinite(b.pos.y)
+              ) continue;
               TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
               const gap =
                 point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
@@ -28142,7 +28163,7 @@ const powerRef = useRef(hud.power);
               if (gap < minDistance) minDistance = gap;
             }
             for (const box of cushionBoxes) {
-              if (!box) continue;
+              if (!box || typeof box.distanceToPoint !== 'function') continue;
               const gap = box.distanceToPoint(point);
               if (gap < minDistance) minDistance = gap;
             }
@@ -31882,12 +31903,12 @@ const powerRef = useRef(hud.power);
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
           {showTrainingIntroCard && (
             <div className="pointer-events-none w-60 rounded-2xl border border-emerald-400/50 bg-black/80 p-3 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-emerald-200">Training start</p>
+              <p className="text-[11px] uppercase tracking-[0.28em] text-emerald-200">Practice start</p>
               <p className="mt-1 text-base font-semibold leading-tight">
                 Level {currentTrainingInfo.level}: {currentTrainingInfo.title}
               </p>
               <p className="mt-1 text-xs text-white/80">{currentTrainingInfo.objective}</p>
-              <p className="mt-1 text-[11px] text-rose-200">{usesCareerAttempts ? `Missed-shot cost: ❤️ -${TRAINING_MISS_ATTEMPT_COST} attempt.` : "Free training mode: unlimited attempts."}</p>
+              <p className="mt-1 text-[11px] text-rose-200">{usesCareerAttempts ? `Missed-shot cost: ❤️ -${TRAINING_MISS_ATTEMPT_COST} attempt.` : "Free practice mode: unlimited attempts."}</p>
             </div>
           )}
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
@@ -31897,7 +31918,7 @@ const powerRef = useRef(hud.power);
             type="button"
             onClick={() => setTrainingMenuOpen((open) => !open)}
             aria-expanded={trainingMenuOpen}
-            aria-label="Toggle training menu"
+            aria-label="Toggle practice menu"
             className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
           >
             <svg
@@ -31915,12 +31936,12 @@ const powerRef = useRef(hud.power);
             {trainingMenuOpen && (
             <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training menu</span>
+                <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Practice menu</span>
                 <button
                   type="button"
                   onClick={() => setTrainingMenuOpen(false)}
                   className="rounded-full p-1 text-white/70 transition hover:text-white"
-                  aria-label="Close training menu"
+                  aria-label="Close practice menu"
                 >
                   ×
                 </button>
@@ -31935,7 +31956,7 @@ const powerRef = useRef(hud.power);
                     Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
                   </p>
                   <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
-                  <p className="mt-1 text-[11px] text-white/60">{usesCareerAttempts ? `Heart bank: ${trainingShotsRemaining}` : "Heart bank: Free training"}</p>
+                  <p className="mt-1 text-[11px] text-white/60">{usesCareerAttempts ? `Heart bank: ${trainingShotsRemaining}` : "Heart bank: Free practice"}</p>
                   <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
@@ -31946,7 +31967,7 @@ const powerRef = useRef(hud.power);
                   onClick={() => setTrainingRoadmapOpen(true)}
                   className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
                 >
-                  Open training roadmap
+                  Open practice roadmap
                 </button>
               </div>
             </div>
@@ -32117,7 +32138,7 @@ const powerRef = useRef(hud.power);
           <div className="w-[min(34rem,92vw)] rounded-2xl border border-emerald-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Training roadmap</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Practice roadmap</p>
                 <p className="text-sm text-white/80">{lastCompletedLevel ? `Level ${lastCompletedLevel} cleared.` : `Track your ${TRAINING_LEVEL_COUNT}-level progression.`}</p>
               </div>
               <div className="flex items-center gap-2" />
@@ -32223,7 +32244,7 @@ const powerRef = useRef(hud.power);
                                 ? 'border-white/35 bg-black/45 text-white/90 hover:border-white/65'
                                 : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
                           }`}
-                          aria-label={`Play training level ${levelNum}`}
+                          aria-label={`Play practice level ${levelNum}`}
                         >
                           {active ? (
                             <img
