@@ -9,8 +9,14 @@ const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-const coinPath = path.join(publicPath, TPC_ICON_ASSET);
-const logoPath = path.join(publicPath, TONPLAYGRAM_LOGO_ASSET);
+
+function resolvePublicAssetPath(assetPath) {
+  if (!assetPath || typeof assetPath !== 'string') return null;
+  return path.join(publicPath, assetPath.replace(/^\//, '').replace(/^\.\//, ''));
+}
+
+const coinPath = resolvePublicAssetPath(TPC_ICON_ASSET);
+const logoPath = resolvePublicAssetPath(TONPLAYGRAM_LOGO_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
@@ -25,10 +31,13 @@ function normalizeAssetPath(assetPath) {
   if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
     return assetPath;
   }
-  if (assetPath.startsWith('/')) {
-    return path.join(publicPath, assetPath);
+  if (assetPath.startsWith('/assets/') || assetPath.startsWith('/store-thumbs/')) {
+    return resolvePublicAssetPath(assetPath);
   }
-  return path.join(publicPath, assetPath.replace(/^\.\//, ''));
+  if (path.isAbsolute(assetPath)) {
+    return assetPath;
+  }
+  return resolvePublicAssetPath(assetPath);
 }
 
 function getBrandAssetCandidates(assetPath) {
@@ -44,7 +53,8 @@ function getBrandAssetCandidates(assetPath) {
 }
 
 async function loadBrandAsset(assetPath, options = {}) {
-  const candidates = getBrandAssetCandidates(assetPath);
+  const variants = Array.isArray(assetPath) ? assetPath : [assetPath];
+  const candidates = variants.flatMap((variant) => getBrandAssetCandidates(variant));
   for (const candidate of candidates) {
     const image = await safeLoadImage(candidate, options);
     if (image) return image;
@@ -145,7 +155,7 @@ function isTonPlaygramAccount(label = '') {
 
 function getReceiptAvatarCandidates(photo, label) {
   const candidates = [];
-  if (isTonPlaygramAccount(label)) candidates.push(logoPath);
+  if (isTonPlaygramAccount(label)) candidates.push(TONPLAYGRAM_LOGO_ASSET);
   if (photo) candidates.push(photo);
   candidates.push(fallbackAvatarPath);
   return [...new Set(candidates.filter(Boolean))];
@@ -410,7 +420,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    toPhoto: logoPath,
+    toPhoto: TONPLAYGRAM_LOGO_ASSET,
     itemThumbnail: resolveReceiptItemThumbnail(payload),
     itemLabel: payload.itemLabel,
   });
