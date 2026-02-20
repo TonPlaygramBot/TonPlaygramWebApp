@@ -3705,7 +3705,8 @@ export default function SnakeBoard3D({
   onDiceAnchorChange,
   appearance = {},
   appearanceKey,
-  frameRate = 90
+  frameRate = 90,
+  cameraViewMode = '3d'
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -3740,6 +3741,52 @@ export default function SnakeBoard3D({
     frameAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
   }, [frameRate]);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    const camera = cameraRef.current;
+    const controls = board?.controls;
+    const boardLookTarget = board?.boardLookTarget;
+    if (!board || !camera || !controls || !boardLookTarget) return;
+
+    const topDownPolar = 0.001;
+    if (cameraViewMode === '2d') {
+      if (!cameraRestoreRef.current) {
+        cameraRestoreRef.current = {
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          enableRotate: controls.enableRotate,
+          minPolarAngle: controls.minPolarAngle,
+          maxPolarAngle: controls.maxPolarAngle,
+          minAzimuthAngle: controls.minAzimuthAngle,
+          maxAzimuthAngle: controls.maxAzimuthAngle
+        };
+      }
+      const topDownDistance = clamp(CAM.minR * 1.5, CAM.minR, CAM.maxR);
+      camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
+      controls.target.copy(boardLookTarget);
+      controls.enableRotate = false;
+      controls.minPolarAngle = topDownPolar;
+      controls.maxPolarAngle = topDownPolar;
+      controls.minAzimuthAngle = -Infinity;
+      controls.maxAzimuthAngle = Infinity;
+      controls.update();
+      return;
+    }
+
+    if (cameraRestoreRef.current) {
+      const restore = cameraRestoreRef.current;
+      camera.position.copy(restore.position);
+      controls.target.copy(restore.target);
+      controls.enableRotate = restore.enableRotate;
+      controls.minPolarAngle = restore.minPolarAngle;
+      controls.maxPolarAngle = restore.maxPolarAngle;
+      controls.minAzimuthAngle = restore.minAzimuthAngle;
+      controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+      controls.update();
+      cameraRestoreRef.current = null;
+    }
+  }, [cameraViewMode]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
