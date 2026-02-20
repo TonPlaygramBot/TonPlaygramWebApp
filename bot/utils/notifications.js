@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCanvas, loadImage } from 'canvas';
+import sharp from 'sharp';
 import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -86,6 +87,19 @@ async function safeLoadImage(assetPath, options = {}) {
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      const isWebp = /\.webp($|\?)/i.test(resolved);
+      if (isWebp) {
+        let sourceBuffer;
+        if (resolved.startsWith('http://') || resolved.startsWith('https://')) {
+          const response = await fetch(resolved);
+          if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+          sourceBuffer = Buffer.from(await response.arrayBuffer());
+        } else {
+          sourceBuffer = await fs.readFile(resolved);
+        }
+        const pngBuffer = await sharp(sourceBuffer).png().toBuffer();
+        return await loadImage(pngBuffer);
+      }
       return await loadImage(resolved);
     } catch {
       if (attempt < attempts && delayMs > 0) {
