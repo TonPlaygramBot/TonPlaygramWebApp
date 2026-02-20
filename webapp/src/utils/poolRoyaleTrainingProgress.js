@@ -1,5 +1,6 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
 export const TRAINING_LEVEL_COUNT = 50
+export const PRACTICE_OBJECT_BALL_COUNT = 15
 const BASE_ATTEMPTS_PER_LEVEL = 3
 const TRAINING_MAX_LAYOUT_BALLS = 25
 const MIN_LAYOUT_GAP = 0.08
@@ -181,6 +182,32 @@ export function describeTrainingLevel (level) {
 
 export function getTrainingLayout (level) {
   return describeTrainingLevel(level).layout
+}
+
+export function getPracticeLayout () {
+  const baseX = 0.24
+  const baseZ = 0
+  const spacing = 0.056
+  const balls = []
+  let rackIndex = 0
+
+  for (let row = 0; row < 5; row++) {
+    const rowX = baseX + (row * spacing)
+    const rowStartZ = baseZ - ((row * spacing) / 2)
+    for (let col = 0; col <= row; col++) {
+      balls.push({
+        rackIndex,
+        x: rowX,
+        z: rowStartZ + (col * spacing)
+      })
+      rackIndex += 1
+    }
+  }
+
+  return {
+    cue: { x: -0.68, z: 0 },
+    balls
+  }
 }
 
 export function loadTrainingProgress () {

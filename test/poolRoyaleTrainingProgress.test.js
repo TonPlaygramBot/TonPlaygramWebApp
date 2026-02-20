@@ -1,4 +1,10 @@
-import { describeTrainingLevel, getTrainingLayout, resolvePlayableTrainingLevel } from '../webapp/src/utils/poolRoyaleTrainingProgress.js';
+import {
+  describeTrainingLevel,
+  getPracticeLayout,
+  getTrainingLayout,
+  PRACTICE_OBJECT_BALL_COUNT,
+  resolvePlayableTrainingLevel
+} from '../webapp/src/utils/poolRoyaleTrainingProgress.js';
 
 describe('resolvePlayableTrainingLevel', () => {
   test('caps requested levels to the next incomplete slot', () => {
@@ -14,6 +20,14 @@ describe('resolvePlayableTrainingLevel', () => {
   test('falls back to the last level when every task is already complete', () => {
     const progress = { completed: Array.from({ length: 50 }, (_, i) => i + 1), lastLevel: 4 };
     expect(resolvePlayableTrainingLevel(null, progress)).toBe(4);
+  });
+});
+
+describe('pool royale practice layout', () => {
+  test('uses a full 15-ball rack without roadmap task scaling', () => {
+    const layout = getPracticeLayout();
+    expect(Array.isArray(layout.balls)).toBe(true);
+    expect(layout.balls.length).toBe(PRACTICE_OBJECT_BALL_COUNT);
   });
 });
 
