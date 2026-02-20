@@ -90,20 +90,13 @@ function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9') {
 function isTonPlaygramAccount(label = '') {
   if (!label) return false;
   const normalized = String(label).trim().toLowerCase();
-  return (
-    normalized.includes('tonplaygram') ||
-    normalized.includes('store') ||
-    normalized.includes('shop') ||
-    normalized === 'treasury'
-  );
+  return normalized.includes('tonplaygram') || normalized === 'store' || normalized === 'treasury';
 }
 
 function getReceiptAvatarCandidates(photo, label) {
   const candidates = [];
-  const prefersBrandAvatar = isTonPlaygramAccount(label);
-  if (prefersBrandAvatar) candidates.push(logoPath);
   if (photo) candidates.push(photo);
-  if (!prefersBrandAvatar) candidates.push(logoPath);
+  if (isTonPlaygramAccount(label)) candidates.push(logoPath);
   candidates.push(fallbackAvatarPath);
   return [...new Set(candidates.filter(Boolean))];
 }
@@ -164,12 +157,12 @@ export async function generateReceiptImage({
 
   const logo = await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 });
   if (logo) {
-    roundedRect(ctx, width / 2 - 120, 72, 240, 120, 28);
+    roundedRect(ctx, width / 2 - 110, 84, 220, 110, 26);
     ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     ctx.fill();
 
-    const logoSize = 96;
-    ctx.drawImage(logo, width / 2 - logoSize / 2, 84, logoSize, logoSize);
+    const logoSize = 92;
+    ctx.drawImage(logo, width / 2 - logoSize / 2, 94, logoSize, logoSize);
   }
 
   ctx.fillStyle = '#e2e8f0';
@@ -196,35 +189,19 @@ export async function generateReceiptImage({
   ctx.fill();
 
   const coin = await safeLoadImage(coinPath, { attempts: 8, delayMs: 220 });
+  if (coin) {
+    ctx.drawImage(coin, amountBoxX + 32, amountBoxY + 31, 84, 84);
+  }
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const amountValue = `${sign}${formatted}`;
-
   ctx.fillStyle = '#f8fafc';
   ctx.font = '700 52px Sans';
-  ctx.textAlign = 'center';
-  ctx.fillText(amountValue, width / 2 - 60, amountBoxY + 92);
-
-  const tpcBadgeX = width / 2 + 95;
-  const tpcBadgeY = amountBoxY + 44;
-  const tpcBadgeW = 170;
-  const tpcBadgeH = 68;
-  roundedRect(ctx, tpcBadgeX, tpcBadgeY, tpcBadgeW, tpcBadgeH, 20);
-  ctx.fillStyle = 'rgba(51, 65, 85, 0.95)';
-  ctx.fill();
-
-  if (coin) {
-    ctx.drawImage(coin, tpcBadgeX + 12, tpcBadgeY + 10, 48, 48);
-  }
-
-  ctx.fillStyle = '#a5f3fc';
-  ctx.font = '700 30px Sans';
   ctx.textAlign = 'left';
-  ctx.fillText('TPC', tpcBadgeX + 72, tpcBadgeY + 44);
+  ctx.fillText(`${sign}${formatted} TPC`, amountBoxX + 132, amountBoxY + 92);
 
   const fromAvatar = await resolveReceiptAvatar(fromPhoto, fromName);
   const toAvatar = await resolveReceiptAvatar(toPhoto, toName);
