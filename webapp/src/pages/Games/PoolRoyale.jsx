@@ -116,6 +116,7 @@ const BASIS_TRANSCODER_PATH =
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
 const TRAINING_SCRATCH_ATTEMPT_COST = 1;
+const PRACTICE_FREEPLAY_LEVEL = 15;
 const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-1', attempts: 1, price: 100, label: 'Starter heart' }),
   Object.freeze({ id: 'training-attempts-5', attempts: 5, price: 450, label: 'Pocket run deal' }),
@@ -12670,6 +12671,9 @@ function PoolRoyaleGame({
     attemptsAwardedStageIds: []
   });
   const [trainingLevel, setTrainingLevel] = useState(() => {
+    if (isTraining && !careerMode) {
+      return PRACTICE_FREEPLAY_LEVEL;
+    }
     const requested = Number(initialTrainingLevel);
     if (Number.isFinite(requested) && requested > 0) {
       return Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Math.floor(requested)));
@@ -12725,6 +12729,11 @@ function PoolRoyaleGame({
   }, [trainingShotsRemaining]);
   useEffect(() => {
     const stored = loadTrainingProgress();
+    if (isTraining && !usesCareerAttempts) {
+      setTrainingShotsRemaining(0);
+      setTrainingLevel(PRACTICE_FREEPLAY_LEVEL);
+      return;
+    }
     const requestedTrainingLevel = Number(initialTrainingLevel);
     const playableLevel = resolvePlayableTrainingLevel(
       Number.isFinite(requestedTrainingLevel) && requestedTrainingLevel > 0
@@ -12754,7 +12763,7 @@ function PoolRoyaleGame({
       setTrainingShotsRemaining(0);
     }
     setTrainingLevel(playableLevel);
-  }, [careerStageId, initialTrainingLevel, usesCareerAttempts]);
+  }, [careerStageId, initialTrainingLevel, isTraining, usesCareerAttempts]);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
@@ -13081,6 +13090,13 @@ function PoolRoyaleGame({
   }, [applyTrainingLayoutForLevel, isTraining]);
 
   const handleTrainingRoadmapContinue = useCallback(() => {
+    if (usesCareerAttempts) {
+      setCareerTaskResultModal(null);
+      setTrainingRoadmapOpen(false);
+      setTrainingMenuOpen(false);
+      navigate('/games/poolroyale/lobby?type=career&autostart=1');
+      return;
+    }
     const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
     const computedNextLevel = resolvePlayableTrainingLevel(
       completedLevel + 1,
@@ -13112,7 +13128,15 @@ function PoolRoyaleGame({
     }));
     setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
     applyTrainingLayoutForLevel(nextLevel);
-  }, [applyTrainingLayoutForLevel, grantTrainingAttemptsForLevel, lastCompletedLevel, pendingTrainingLevel, trainingLevel]);
+  }, [
+    applyTrainingLayoutForLevel,
+    grantTrainingAttemptsForLevel,
+    lastCompletedLevel,
+    navigate,
+    pendingTrainingLevel,
+    trainingLevel,
+    usesCareerAttempts
+  ]);
 
   const handleCareerTaskTryAgain = useCallback(() => {
     setCareerTaskResultModal(null);
@@ -14358,13 +14382,16 @@ const powerRef = useRef(hud.power);
       : !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
 
     if (isCareerTrainingSession) {
+      if (careerStageId) {
+        markCareerStageCompleted(careerStageId);
+      }
       const carryShots = Math.max(0, trainingShotsRemaining);
       setTrainingShotsRemaining(carryShots);
-      setPendingTrainingLevel(completedLevel);
+      setPendingTrainingLevel(completedLevel + 1);
       setLastCompletedLevel(completedLevel);
       setTrainingTaskTransition({
         fromLevel: completedLevel,
-        toLevel: completedLevel,
+        toLevel: completedLevel + 1,
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward
       });
@@ -14425,6 +14452,7 @@ const powerRef = useRef(hud.power);
   }, [
     applyTrainingLayoutForLevel,
     awardTrainingTaskPayout,
+    careerStageId,
     frameState.frameOver,
     isTraining,
     usesCareerAttempts,
@@ -31965,9 +31993,10 @@ const powerRef = useRef(hud.power);
                 <button
                   type="button"
                   onClick={() => setTrainingRoadmapOpen(true)}
+                  disabled={!usesCareerAttempts}
                   className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
                 >
-                  Open practice roadmap
+                  {usesCareerAttempts ? 'Open practice roadmap' : 'Practice roadmap moved to Career'}
                 </button>
               </div>
             </div>
@@ -32133,7 +32162,7 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {isTraining && trainingRoadmapOpen && (
+      {usesCareerAttempts && trainingRoadmapOpen && (
         <div className="absolute inset-0 z-[125] flex items-center justify-center bg-black/70 px-4">
           <div className="w-[min(34rem,92vw)] rounded-2xl border border-emerald-300/60 bg-slate-950/95 p-4 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
             <div className="flex items-center justify-between gap-2">
