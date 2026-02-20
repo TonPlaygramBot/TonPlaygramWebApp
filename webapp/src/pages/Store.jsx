@@ -2517,8 +2517,12 @@ export default function Store() {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 shadow-sm">
-              <span className="text-lg">🛍️</span>
+            <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-white/10 shadow-sm">
+              <img
+                src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                alt="TonPlaygram store avatar"
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-wide">TonPlaygram</div>
