@@ -7,8 +7,10 @@ import { fetchTelegramInfo } from './telegram.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
-const coinPath = path.join(publicPath, 'assets/icons/ezgif-54c96d8a9b9236.webp');
-const logoPath = path.join(publicPath, 'assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const coinPath = path.join(publicPath, TPC_ICON_ASSET);
+const logoPath = path.join(publicPath, TONPLAYGRAM_LOGO_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
@@ -27,6 +29,27 @@ function normalizeAssetPath(assetPath) {
     return path.join(publicPath, assetPath);
   }
   return path.join(publicPath, assetPath.replace(/^\.\//, ''));
+}
+
+function getBrandAssetCandidates(assetPath) {
+  const candidates = [];
+  const baseUrl = process.env.WEBAPP_BASE_URL || 'https://tonplaygramwebapp.onrender.com';
+  if (assetPath) {
+    candidates.push(assetPath);
+    if (assetPath.startsWith('/')) {
+      candidates.push(`${baseUrl.replace(/\/$/, '')}${assetPath}`);
+    }
+  }
+  return [...new Set(candidates)];
+}
+
+async function loadBrandAsset(assetPath, options = {}) {
+  const candidates = getBrandAssetCandidates(assetPath);
+  for (const candidate of candidates) {
+    const image = await safeLoadImage(candidate, options);
+    if (image) return image;
+  }
+  return null;
 }
 
 const RECEIPT_IMAGE_RETRY_ATTEMPTS = 6;
@@ -69,7 +92,7 @@ function roundedRect(ctx, x, y, width, height, radius) {
 
 
 function drawTonPlaygramMark(ctx, x, y, size, options = {}) {
-  const label = options.label || 'TP';
+  const label = options.label || '';
   const radius = size / 2;
   const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
   gradient.addColorStop(0, '#22d3ee');
@@ -81,11 +104,13 @@ function drawTonPlaygramMark(ctx, x, y, size, options = {}) {
   ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = '#e0f2fe';
-  ctx.font = `700 ${Math.floor(size * 0.38)}px Sans`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, x + radius, y + radius + 1);
+  if (label) {
+    ctx.fillStyle = '#e0f2fe';
+    ctx.font = `700 ${Math.floor(size * 0.38)}px Sans`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + radius, y + radius + 1);
+  }
   ctx.restore();
 }
 
@@ -98,7 +123,7 @@ function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9', label = '')
   if (image) {
     ctx.drawImage(image, x, y, size, size);
   } else if (isTonPlaygramAccount(label)) {
-    drawTonPlaygramMark(ctx, x, y, size, { label: 'TP' });
+    drawTonPlaygramMark(ctx, x, y, size);
   } else {
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(x, y, size, size);
@@ -180,7 +205,7 @@ export async function generateReceiptImage({
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  const logo = await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 });
+  const logo = await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 });
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
   ctx.fill();
@@ -189,7 +214,7 @@ export async function generateReceiptImage({
   if (logo) {
     ctx.drawImage(logo, width / 2 - logoSize / 2, 68, logoSize, logoSize);
   } else {
-    drawTonPlaygramMark(ctx, width / 2 - logoSize / 2, 68, logoSize, { label: 'TP' });
+    drawTonPlaygramMark(ctx, width / 2 - logoSize / 2, 68, logoSize);
   }
 
 
@@ -217,8 +242,8 @@ export async function generateReceiptImage({
   ctx.fill();
 
   const coin =
-    (await safeLoadImage(coinPath, { attempts: 8, delayMs: 220 })) ||
-    (await safeLoadImage(logoPath, { attempts: 8, delayMs: 220 }));
+    (await loadBrandAsset(TPC_ICON_ASSET, { attempts: 8, delayMs: 220 })) ||
+    (await loadBrandAsset(TONPLAYGRAM_LOGO_ASSET, { attempts: 8, delayMs: 220 }));
 
   const sign = amount > 0 ? '+' : '';
   const formatted = Number(amount || 0).toLocaleString(undefined, {
@@ -238,7 +263,7 @@ export async function generateReceiptImage({
   if (coin) {
     ctx.drawImage(coin, tokenStartX, amountBoxY + 44, 52, 52);
   } else {
-    drawTonPlaygramMark(ctx, tokenStartX, amountBoxY + 44, 52, { label: 'TPC' });
+    drawTonPlaygramMark(ctx, tokenStartX, amountBoxY + 44, 52);
   }
 
   ctx.font = '700 38px Sans';
