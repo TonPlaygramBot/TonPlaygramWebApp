@@ -70,29 +70,6 @@ function drawAvatar(ctx, image, x, y, size, borderColor = '#67e8f9') {
   ctx.stroke();
 }
 
-function isTonPlaygramAccount(label = '') {
-  if (!label) return false;
-  const normalized = String(label).trim().toLowerCase();
-  return normalized.includes('tonplaygram') || normalized === 'store' || normalized === 'treasury';
-}
-
-function resolveReceiptAvatar(photo, label) {
-  if (photo) return photo;
-  if (isTonPlaygramAccount(label)) return logoPath;
-  return fallbackAvatarPath;
-}
-
-function resolveReceiptItemThumbnail(item = {}) {
-  return (
-    item?.itemThumbnail ||
-    item?.thumbnail ||
-    item?.icon ||
-    item?.image ||
-    item?.imageUrl ||
-    null
-  );
-}
-
 export async function generateReceiptImage({
   title,
   subtitle,
@@ -129,12 +106,8 @@ export async function generateReceiptImage({
 
   const logo = await safeLoadImage(logoPath);
   if (logo) {
-    roundedRect(ctx, width / 2 - 110, 84, 220, 110, 26);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.fill();
-
-    const logoSize = 92;
-    ctx.drawImage(logo, width / 2 - logoSize / 2, 94, logoSize, logoSize);
+    const logoSize = 88;
+    ctx.drawImage(logo, width / 2 - logoSize / 2, 96, logoSize, logoSize);
   }
 
   ctx.fillStyle = '#e2e8f0';
@@ -175,8 +148,8 @@ export async function generateReceiptImage({
   ctx.textAlign = 'left';
   ctx.fillText(`${sign}${formatted} TPC`, amountBoxX + 132, amountBoxY + 92);
 
-  const fromAvatar = await safeLoadImage(resolveReceiptAvatar(fromPhoto, fromName));
-  const toAvatar = await safeLoadImage(resolveReceiptAvatar(toPhoto, toName));
+  const fromAvatar = (await safeLoadImage(fromPhoto)) || (await safeLoadImage(fallbackAvatarPath));
+  const toAvatar = (await safeLoadImage(toPhoto)) || (await safeLoadImage(fallbackAvatarPath));
 
   const blockY = 590;
   const avatarSize = 120;
@@ -216,7 +189,7 @@ export async function generateReceiptImage({
     ctx.fillStyle = '#f8fafc';
     ctx.textAlign = 'left';
     ctx.font = '700 30px Sans';
-    ctx.fillText('NFT included', 374, itemBoxY + 98);
+    ctx.fillText('Item included', 374, itemBoxY + 98);
     ctx.font = '500 26px Sans';
     ctx.fillStyle = '#cbd5e1';
     ctx.fillText(itemLabel || 'Store / NFT item', 374, itemBoxY + 150);
@@ -296,7 +269,7 @@ export async function sendGiftNotification(bot, toId, gift, senderName, date, op
     toName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     fromPhoto: options.senderPhoto,
     toPhoto: toInfo?.photoUrl,
-    itemThumbnail: resolveReceiptItemThumbnail(gift),
+    itemThumbnail: gift?.icon,
     itemLabel: `${gift?.name || 'Gift'} • ${gift?.price || 0} TPC`,
   });
 
@@ -315,7 +288,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
     fromName: `${toInfo?.firstName || ''}${toInfo?.lastName ? ` ${toInfo.lastName}` : ''}`.trim() || 'You',
     toName: 'TonPlaygram Store',
     fromPhoto: toInfo?.photoUrl,
-    itemThumbnail: resolveReceiptItemThumbnail(payload),
+    itemThumbnail: payload.thumbnail,
     itemLabel: payload.itemLabel,
   });
 
