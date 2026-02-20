@@ -58,13 +58,6 @@ export default function LeaderboardCard() {
   const [mode, setMode] = useState('1v1');
   const [selected, setSelected] = useState([]);
   const [groupPopup, setGroupPopup] = useState(false);
-  const [watchFrame, setWatchFrame] = useState(null);
-
-  const openWatchFrame = (tableId) => {
-    if (!tableId) return;
-    const game = getGameFromTableId(tableId);
-    setWatchFrame({ tableId, game });
-  };
 
   useEffect(() => {
     const saved = loadAvatar();
@@ -289,20 +282,7 @@ export default function LeaderboardCard() {
                       alt="avatar"
                       className="w-12 h-12 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
-                    {u.currentTableId && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openWatchFrame(u.currentTableId);
-                        }}
-                        className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-black/80 text-white text-[11px] flex items-center justify-center border border-white/70 hover:bg-black"
-                        aria-label="Open live game frame"
-                        title="Watch live game"
-                      >
-                        🖥
-                      </button>
-                    )}
+                    {u.accountId !== accountId && null}
                   </td>
                   <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
@@ -376,26 +356,6 @@ export default function LeaderboardCard() {
                       alt="avatar"
                       className="w-12 h-12 hexagon border-2 border-brand-gold object-cover shadow-[0_0_12px_rgba(241,196,15,0.8)]"
                     />
-                    {(() => {
-                      const myTable = leaderboard.find(
-                        (u) => u.accountId === accountId
-                      )?.currentTableId;
-                      if (!myTable) return null;
-                      return (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openWatchFrame(myTable);
-                          }}
-                          className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-black/80 text-white text-[11px] flex items-center justify-center border border-white/70 hover:bg-black"
-                          aria-label="Open live game frame"
-                          title="Watch live game"
-                        >
-                          🖥
-                        </button>
-                      );
-                    })()}
                   </td>
                   <td className="p-2 flex flex-col items-start">
                     <div className="flex items-center">
@@ -546,46 +506,6 @@ export default function LeaderboardCard() {
       >
         ☝️
       </button>
-
-      {watchFrame && (
-        <div
-          className="fixed inset-0 z-[70] bg-black/75 p-3 sm:p-6"
-          onClick={() => setWatchFrame(null)}
-        >
-          <div
-            className="h-full max-w-4xl mx-auto bg-surface border border-border rounded-xl overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-2 border-b border-border">
-              <div className="text-sm sm:text-base font-semibold">🖥 Live Game</div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = `/games/${watchFrame.game}?table=${watchFrame.tableId}&watch=1`;
-                  }}
-                  className="px-2 py-1 text-xs rounded bg-primary hover:bg-primary-hover text-white"
-                >
-                  Open full
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWatchFrame(null)}
-                  className="px-2 py-1 text-xs rounded border border-border hover:bg-black/20"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            <iframe
-              title="Live game frame"
-              src={`/games/${watchFrame.game}?table=${watchFrame.tableId}&watch=1&embed=1`}
-              className="w-full flex-1 bg-black"
-              allow="autoplay; fullscreen"
-            />
-          </div>
-        </div>
-      )}
     </>
   );
 }
