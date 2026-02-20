@@ -9,6 +9,14 @@ const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const TPC_ICON_FALLBACKS = [
+  TPC_ICON_ASSET,
+  '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
+];
+const TONPLAYGRAM_LOGO_FALLBACKS = [
+  TONPLAYGRAM_LOGO_ASSET,
+  '/assets/icons/generated/app-icon-512.png',
+];
 
 function resolvePublicAssetPath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return null;
@@ -49,6 +57,14 @@ function getBrandAssetCandidates(assetPath) {
     }
   }
   return [...new Set(candidates)];
+}
+
+function getBrandAssetCandidatesList(assetPaths = []) {
+  const candidates = [];
+  for (const assetPath of assetPaths) {
+    candidates.push(...getBrandAssetCandidates(assetPath));
+  }
+  return [...new Set(candidates.filter(Boolean))];
 }
 
 const RECEIPT_IMAGE_RETRY_ATTEMPTS = 6;
@@ -215,10 +231,7 @@ export async function generateReceiptImage({
   ctx.stroke();
 
   const logo = await resolveReceiptBrandImage(
-    [
-      TONPLAYGRAM_LOGO_ASSET,
-      ...getBrandAssetCandidates(TONPLAYGRAM_LOGO_ASSET),
-    ],
+    getBrandAssetCandidatesList(TONPLAYGRAM_LOGO_FALLBACKS),
     { attempts: 8, delayMs: 220 }
   );
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
@@ -258,17 +271,11 @@ export async function generateReceiptImage({
 
   const coin =
     (await resolveReceiptBrandImage(
-      [
-        TPC_ICON_ASSET,
-        ...getBrandAssetCandidates(TPC_ICON_ASSET),
-      ],
+      getBrandAssetCandidatesList(TPC_ICON_FALLBACKS),
       { attempts: 8, delayMs: 220 }
     )) ||
     (await resolveReceiptBrandImage(
-      [
-        TONPLAYGRAM_LOGO_ASSET,
-        ...getBrandAssetCandidates(TONPLAYGRAM_LOGO_ASSET),
-      ],
+      getBrandAssetCandidatesList(TONPLAYGRAM_LOGO_FALLBACKS),
       { attempts: 8, delayMs: 220 }
     ));
 
