@@ -1187,6 +1187,7 @@ export default function SnakeAndLadder() {
   const [forfeitMsg, setForfeitMsg] = useState(false);
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [cameraViewMode, setCameraViewMode] = useState('3d');
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -3501,6 +3502,7 @@ export default function SnakeAndLadder() {
           appearance={resolvedAppearance}
           appearanceKey={appearanceKey}
           frameRate={frameRateValue}
+          cameraViewMode={cameraViewMode}
         />
       </div>
       <div
@@ -3748,6 +3750,7 @@ export default function SnakeAndLadder() {
           <BottomLeftIcons
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            onCamera2d={() => setCameraViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
             style={{
               left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
               bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
@@ -3755,7 +3758,10 @@ export default function SnakeAndLadder() {
             className="fixed z-20 flex flex-col items-center gap-2"
             showInfo={false}
             showMute={false}
-            order={['chat', 'gift']}
+            showCamera2d
+            camera2dActive={cameraViewMode === '2d'}
+            cameraLabel="2D"
+            order={['chat', 'gift', 'camera2d']}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
