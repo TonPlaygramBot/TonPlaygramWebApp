@@ -9,6 +9,10 @@ const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const RECEIPT_BRAND_ICON_FALLBACKS = [
+  '/assets/icons/generated/app-icon-192.png',
+  '/assets/icons/generated/app-icon-512.png',
+];
 
 function resolvePublicAssetPath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return null;
@@ -49,6 +53,19 @@ function getBrandAssetCandidates(assetPath) {
     }
   }
   return [...new Set(candidates)];
+}
+
+function getReceiptBrandCandidates(primaryAsset, fallbackAssets = []) {
+  const candidates = [
+    primaryAsset,
+    ...getBrandAssetCandidates(primaryAsset),
+  ];
+
+  for (const fallback of fallbackAssets.filter(Boolean)) {
+    candidates.push(fallback, ...getBrandAssetCandidates(fallback));
+  }
+
+  return [...new Set(candidates.filter(Boolean))];
 }
 
 const RECEIPT_IMAGE_RETRY_ATTEMPTS = 6;
@@ -215,10 +232,7 @@ export async function generateReceiptImage({
   ctx.stroke();
 
   const logo = await resolveReceiptBrandImage(
-    [
-      TONPLAYGRAM_LOGO_ASSET,
-      ...getBrandAssetCandidates(TONPLAYGRAM_LOGO_ASSET),
-    ],
+    getReceiptBrandCandidates(TONPLAYGRAM_LOGO_ASSET, RECEIPT_BRAND_ICON_FALLBACKS),
     { attempts: 8, delayMs: 220 }
   );
   roundedRect(ctx, width / 2 - 130, 58, 260, 130, 30);
@@ -258,17 +272,11 @@ export async function generateReceiptImage({
 
   const coin =
     (await resolveReceiptBrandImage(
-      [
-        TPC_ICON_ASSET,
-        ...getBrandAssetCandidates(TPC_ICON_ASSET),
-      ],
+      getReceiptBrandCandidates(TPC_ICON_ASSET, RECEIPT_BRAND_ICON_FALLBACKS),
       { attempts: 8, delayMs: 220 }
     )) ||
     (await resolveReceiptBrandImage(
-      [
-        TONPLAYGRAM_LOGO_ASSET,
-        ...getBrandAssetCandidates(TONPLAYGRAM_LOGO_ASSET),
-      ],
+      getReceiptBrandCandidates(TONPLAYGRAM_LOGO_ASSET, RECEIPT_BRAND_ICON_FALLBACKS),
       { attempts: 8, delayMs: 220 }
     ));
 
