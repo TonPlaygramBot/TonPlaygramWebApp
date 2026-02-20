@@ -6,9 +6,8 @@ import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
-// Keep Telegram receipts aligned with the same assets used in the webapp UI.
 const coinPath = path.join(publicPath, 'assets/icons/ezgif-54c96d8a9b9236.webp');
-const logoPath = path.join(publicPath, 'assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+const logoPath = path.join(publicPath, 'assets/icons/generated/app-icon-512.png');
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
@@ -65,16 +64,6 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.arcTo(x, y + height, x, y, r);
   ctx.arcTo(x, y, x + width, y, r);
   ctx.closePath();
-}
-
-function drawImageContain(ctx, image, x, y, width, height) {
-  if (!image || !image.width || !image.height) return;
-  const scale = Math.min(width / image.width, height / image.height);
-  const drawWidth = image.width * scale;
-  const drawHeight = image.height * scale;
-  const drawX = x + (width - drawWidth) / 2;
-  const drawY = y + (height - drawHeight) / 2;
-  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
 }
 
 
@@ -195,11 +184,10 @@ export async function generateReceiptImage({
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
   ctx.fill();
 
-  const logoBounds = { x: width / 2 - 118, y: 66, width: 236, height: 114 };
+  const logoSize = 108;
   if (logo) {
-    drawImageContain(ctx, logo, logoBounds.x, logoBounds.y, logoBounds.width, logoBounds.height);
+    ctx.drawImage(logo, width / 2 - logoSize / 2, 68, logoSize, logoSize);
   } else {
-    const logoSize = 108;
     drawTonPlaygramMark(ctx, width / 2 - logoSize / 2, 68, logoSize, { label: 'TP' });
   }
 
