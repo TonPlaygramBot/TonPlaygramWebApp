@@ -15,18 +15,18 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
 import InvitePopup from './InvitePopup.jsx';
 import PlayerInvitePopup from './PlayerInvitePopup.jsx';
-import gamesCatalog from '../config/gamesCatalog.js';
 
 function getGameFromTableId(id) {
   if (!id) return 'snake';
-  const lowerId = String(id).toLowerCase();
-  const matched = gamesCatalog.find((game) => {
-    const slug = String(game.slug || '').toLowerCase();
-    if (!slug) return false;
-    const normalizedSlug = slug.replace(/[^a-z0-9]/g, '');
-    return lowerId.startsWith(`${slug}-`) || lowerId.startsWith(`${normalizedSlug}-`);
-  });
-  if (matched?.slug) return matched.slug;
+  const prefix = id.split('-')[0];
+  if (
+    [
+      'snake',
+      'goalrush',
+      'poolroyale',
+    ].includes(prefix)
+  )
+    return prefix;
   return 'snake';
 }
 
@@ -489,7 +489,6 @@ export default function LeaderboardCard() {
       <PlayerInvitePopup
         open={!!inviteTarget}
         player={inviteTarget}
-        onlineStatus={inviteTarget ? onlineUsers[String(inviteTarget.accountId)] : 'offline'}
         stake={stake}
         onStakeChange={setStake}
         onInvite={(game) => {
