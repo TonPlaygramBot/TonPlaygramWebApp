@@ -15,18 +15,18 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
 import InvitePopup from './InvitePopup.jsx';
 import PlayerInvitePopup from './PlayerInvitePopup.jsx';
-import gamesCatalog from '../config/gamesCatalog.js';
 
 function getGameFromTableId(id) {
   if (!id) return 'snake';
-  const lowerId = String(id).toLowerCase();
-  const matched = gamesCatalog.find((game) => {
-    const slug = String(game.slug || '').toLowerCase();
-    if (!slug) return false;
-    const normalizedSlug = slug.replace(/[^a-z0-9]/g, '');
-    return lowerId.startsWith(`${slug}-`) || lowerId.startsWith(`${normalizedSlug}-`);
-  });
-  if (matched?.slug) return matched.slug;
+  const prefix = id.split('-')[0];
+  if (
+    [
+      'snake',
+      'goalrush',
+      'poolroyale',
+    ].includes(prefix)
+  )
+    return prefix;
   return 'snake';
 }
 
@@ -267,12 +267,8 @@ export default function LeaderboardCard() {
                     u.accountId === accountId ? 'bg-accent text-black' : 'cursor-pointer'
                   }`}
                   onClick={() => {
-                    if (u.accountId === accountId) return;
+                    if (u.accountId === accountId || u.currentTableId) return;
                     if (mode === 'group') {
-                      if (u.currentTableId) {
-                        setInviteTarget(u);
-                        return;
-                      }
                       setSelected((prev) => {
                         const exists = prev.find((p) => p.accountId === u.accountId);
                         if (exists) return prev.filter((p) => p.accountId !== u.accountId);
@@ -322,19 +318,12 @@ export default function LeaderboardCard() {
                           className="mr-1"
                         />
                       )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (u.accountId === accountId) return;
-                          setInviteTarget(u);
-                        }}
-                        className="text-white inline-flex items-center"
+                      <span
+                        className="text-white"
                         style={{ WebkitTextStroke: '1px black' }}
                       >
-                        <span>{u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}</span>
-                        {u.currentTableId && <FaTv className="ml-1 text-red-500" size={10} />}
-                      </button>
+                        {u.nickname || `${u.firstName} ${u.lastName}`.trim() || 'User'}
+                      </span>
                       {(() => {
                         const userStatus = u.currentTableId
                           ? 'playing'
@@ -500,7 +489,6 @@ export default function LeaderboardCard() {
       <PlayerInvitePopup
         open={!!inviteTarget}
         player={inviteTarget}
-        onlineStatus={inviteTarget ? onlineUsers[String(inviteTarget.accountId)] : 'offline'}
         stake={stake}
         onStakeChange={setStake}
         onInvite={(game) => {
