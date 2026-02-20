@@ -2165,6 +2165,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [isCamera2d, setIsCamera2d] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -2576,6 +2577,10 @@ export default function MurlanRoyaleArena({ search }) {
     setCommentaryMuted((prev) => !prev);
   }, [commentaryMuted, unlockCommentary]);
 
+  const handleToggleCamera2d = useCallback(() => {
+    setIsCamera2d((prev) => !prev);
+  }, []);
+
   const handleSelectCommentaryPreset = useCallback(
     (presetId) => {
       if (!presetId || presetId === commentaryPresetId) return;
@@ -2840,6 +2845,7 @@ export default function MurlanRoyaleArena({ search }) {
   const prevStateRef = useRef(null);
   const tableBuildTokenRef = useRef(0);
   const characterActionRef = useRef({ lastActionId: 0 });
+  const cameraViewRestoreRef = useRef(null);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -2884,6 +2890,48 @@ export default function MurlanRoyaleArena({ search }) {
 
     setSeatAnchors(anchors);
   }, []);
+
+  useEffect(() => {
+    const three = threeStateRef.current;
+    const { camera, controls } = three;
+    if (!camera || !controls) return;
+
+    if (isCamera2d) {
+      cameraViewRestoreRef.current = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        enablePan: controls.enablePan,
+        enableRotate: controls.enableRotate,
+        minPolarAngle: controls.minPolarAngle,
+        maxPolarAngle: controls.maxPolarAngle,
+        minAzimuthAngle: controls.minAzimuthAngle,
+        maxAzimuthAngle: controls.maxAzimuthAngle
+      };
+      const target = controls.target.clone();
+      const radius = Math.max(controls.minDistance || 0, camera.position.distanceTo(target));
+      camera.position.set(target.x, target.y + radius, target.z);
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.minPolarAngle = 0.0001;
+      controls.maxPolarAngle = 0.0001;
+      controls.update();
+    } else {
+      const restore = cameraViewRestoreRef.current;
+      if (restore) {
+        camera.position.copy(restore.position);
+        controls.target.copy(restore.target);
+        controls.enablePan = restore.enablePan;
+        controls.enableRotate = restore.enableRotate;
+        controls.minPolarAngle = restore.minPolarAngle;
+        controls.maxPolarAngle = restore.maxPolarAngle;
+        controls.minAzimuthAngle = restore.minAzimuthAngle;
+        controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+        controls.update();
+      }
+    }
+
+    updateSeatAnchors();
+  }, [isCamera2d, updateSeatAnchors]);
 
   const applyRendererQuality = useCallback(() => {
     const renderer = threeStateRef.current.renderer;
@@ -4645,10 +4693,13 @@ export default function MurlanRoyaleArena({ search }) {
           <BottomLeftIcons
             className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['info', 'mute', 'chat', 'gift']}
+            order={['info', 'mute', 'chat', 'gift', 'camera2d']}
+            showCamera2d
+            camera2dActive={isCamera2d}
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            onCamera2d={handleToggleCamera2d}
           />
         </div>
         <div className="mt-auto px-4 pb-6 pointer-events-none">
