@@ -97,7 +97,10 @@ import {
   TRAINING_LEVELS,
   TRAINING_LEVEL_COUNT
 } from '../../utils/poolRoyaleTrainingProgress.js';
-import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
+import {
+  CAREER_STAGES,
+  markCareerStageCompleted
+} from '../../utils/poolRoyaleCareerProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
@@ -13118,6 +13121,50 @@ function PoolRoyaleGame({
     setCareerTaskResultModal(null);
     handleTrainingLevelPick(trainingLevelRef.current || trainingLevel);
   }, [handleTrainingLevelPick, trainingLevel]);
+
+  const handleCareerTaskContinue = useCallback(() => {
+    setCareerTaskResultModal(null);
+    if (!careerMode || !careerStageId) {
+      handleTrainingRoadmapContinue();
+      return;
+    }
+
+    const currentStageIndex = CAREER_STAGES.findIndex((stage) => stage.id === careerStageId);
+    const nextStage = currentStageIndex >= 0 ? CAREER_STAGES[currentStageIndex + 1] : null;
+    if (!nextStage) {
+      goToLobby();
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    params.set('career', '1');
+    params.set('careerStageId', nextStage.id);
+    params.set('careerStageTitle', nextStage.title || `Stage ${nextStage.level}`);
+    if (nextStage.type === 'tournament' && nextStage.players) {
+      params.set('players', String(nextStage.players));
+    } else {
+      params.delete('players');
+    }
+    if (nextStage.type === 'training') {
+      params.set('type', 'training');
+      params.set(
+        'trainingLevel',
+        String(Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(nextStage.trainingLevel) || 1)))
+      );
+    } else {
+      params.set('type', nextStage.type === 'friendly' ? 'regular' : 'tournament');
+      params.delete('trainingLevel');
+    }
+
+    navigate(`/games/poolroyale?${params.toString()}`);
+  }, [
+    careerMode,
+    careerStageId,
+    goToLobby,
+    handleTrainingRoadmapContinue,
+    location.search,
+    navigate
+  ]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -32111,10 +32158,7 @@ const powerRef = useRef(hud.power);
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setCareerTaskResultModal(null);
-                      handleTrainingRoadmapContinue();
-                    }}
+                    onClick={handleCareerTaskContinue}
                     className="rounded-full border border-emerald-300/70 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100 transition hover:bg-emerald-500/30"
                   >
                     Continue next task
