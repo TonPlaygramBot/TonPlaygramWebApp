@@ -8,9 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
-const TPC_ICON_ASSET_FALLBACK = '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.png';
+const TPC_ICON_ASSET_FALLBACK = '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.webp';
 const TONPLAYGRAM_LOGO_ASSET = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-const TONPLAYGRAM_LOGO_ASSET_FALLBACK = '/assets/icons/file_000000008ab462439ff27618691146eb.png';
+const TONPLAYGRAM_LOGO_ASSET_FALLBACK = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
 const RECEIPT_BRAND_ICON_FALLBACKS = [
   TONPLAYGRAM_LOGO_ASSET_FALLBACK,
   TPC_ICON_ASSET_FALLBACK,
@@ -162,10 +162,11 @@ function isTonPlaygramAccount(label = '') {
 }
 
 function getReceiptAvatarCandidates(photo, label) {
-  const candidates = [];
   if (isTonPlaygramAccount(label)) {
-    candidates.push(TONPLAYGRAM_LOGO_ASSET);
+    return [TONPLAYGRAM_LOGO_ASSET, TONPLAYGRAM_LOGO_ASSET_FALLBACK];
   }
+
+  const candidates = [];
   if (photo) candidates.push(photo);
   candidates.push(fallbackAvatarPath);
   return [...new Set(candidates.filter(Boolean))];
