@@ -6,8 +6,9 @@ import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
+// Keep Telegram receipt branding aligned with the live app visuals.
 const coinPath = path.join(publicPath, 'assets/icons/ezgif-54c96d8a9b9236.webp');
-const logoPath = path.join(publicPath, 'assets/icons/generated/app-icon-512.png');
+const logoPath = path.join(publicPath, 'assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
 export function getInviteUrl(roomId, token, amount, game = 'snake') {
