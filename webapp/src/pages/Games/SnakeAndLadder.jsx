@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
-import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
+import SnakeBoard, { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
   dropSound,
   snakeSound,
@@ -1208,6 +1208,7 @@ export default function SnakeAndLadder() {
   });
   const [showConfig, setShowConfig] = useState(false);
   const [showTrailEnabled, setShowTrailEnabled] = useState(true);
+  const [isCamera2d, setIsCamera2d] = useState(false);
   const [appearance, setAppearance] = useState(() => {
     try {
       if (typeof window === 'undefined') return DEFAULT_APPEARANCE;
@@ -1279,6 +1280,9 @@ export default function SnakeAndLadder() {
     [frameRateId]
   );
   const frameRateValue = activeFrameRateOption?.fps ?? DEFAULT_FRAME_RATE_OPTION?.fps ?? 90;
+  const handleToggleCamera2d = useCallback(() => {
+    setIsCamera2d((prev) => !prev);
+  }, []);
   const activeCommentaryPreset = useMemo(
     () =>
       SNAKE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
@@ -3478,30 +3482,53 @@ export default function SnakeAndLadder() {
   return (
     <div className="relative w-screen h-dvh overflow-hidden bg-[#05070f] text-text select-none">
       <div className="absolute inset-0">
-        <SnakeBoard3D
-          players={players}
-          highlight={highlight}
-          trail={showTrailEnabled ? trail : []}
-          pot={pot}
-          snakes={snakes}
-          ladders={ladders}
-          snakeOffsets={snakeOffsets}
-          ladderOffsets={ladderOffsets}
-          offsetPopup={offsetPopup}
-          celebrate={celebrate}
-          tokenType={tokenType}
-          rollingIndex={rollingIndex}
-          currentTurn={currentTurn}
-          burning={burning}
-          slide={slideAnimation}
-          onSlideComplete={handleSlideComplete}
-          diceEvent={diceBoardEvent}
-          onSeatPositionsChange={setSeatAnchors}
-          onDiceAnchorChange={setDiceAnchor}
-          appearance={resolvedAppearance}
-          appearanceKey={appearanceKey}
-          frameRate={frameRateValue}
-        />
+        {isCamera2d ? (
+          <div className="flex h-full w-full items-center justify-center overflow-auto px-2 py-16">
+            <SnakeBoard
+              players={players}
+              highlight={highlight}
+              trail={showTrailEnabled ? trail : []}
+              pot={pot}
+              snakes={snakes}
+              ladders={ladders}
+              snakeOffsets={snakeOffsets}
+              ladderOffsets={ladderOffsets}
+              offsetPopup={offsetPopup}
+              celebrate={celebrate}
+              token={token}
+              tokenType={tokenType}
+              diceCells={diceCells}
+              rollingIndex={rollingIndex}
+              currentTurn={currentTurn}
+              burning={burning}
+            />
+          </div>
+        ) : (
+          <SnakeBoard3D
+            players={players}
+            highlight={highlight}
+            trail={showTrailEnabled ? trail : []}
+            pot={pot}
+            snakes={snakes}
+            ladders={ladders}
+            snakeOffsets={snakeOffsets}
+            ladderOffsets={ladderOffsets}
+            offsetPopup={offsetPopup}
+            celebrate={celebrate}
+            tokenType={tokenType}
+            rollingIndex={rollingIndex}
+            currentTurn={currentTurn}
+            burning={burning}
+            slide={slideAnimation}
+            onSlideComplete={handleSlideComplete}
+            diceEvent={diceBoardEvent}
+            onSeatPositionsChange={setSeatAnchors}
+            onDiceAnchorChange={setDiceAnchor}
+            appearance={resolvedAppearance}
+            appearanceKey={appearanceKey}
+            frameRate={frameRateValue}
+          />
+        )}
       </div>
       <div
         className="absolute z-30 pointer-events-auto"
@@ -3748,6 +3775,7 @@ export default function SnakeAndLadder() {
           <BottomLeftIcons
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            onCamera2d={handleToggleCamera2d}
             style={{
               left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
               bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
@@ -3755,7 +3783,9 @@ export default function SnakeAndLadder() {
             className="fixed z-20 flex flex-col items-center gap-2"
             showInfo={false}
             showMute={false}
-            order={['chat', 'gift']}
+            showCamera2d
+            camera2dActive={isCamera2d}
+            order={['chat', 'gift', 'camera2d']}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
