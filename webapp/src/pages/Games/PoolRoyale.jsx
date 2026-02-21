@@ -98,7 +98,11 @@ import {
   TRAINING_LEVELS,
   TRAINING_LEVEL_COUNT
 } from '../../utils/poolRoyaleTrainingProgress.js';
-import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
+import {
+  getNextCareerStage,
+  loadCareerProgress,
+  markCareerStageCompleted
+} from '../../utils/poolRoyaleCareerProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
@@ -1342,6 +1346,7 @@ const CHALK_RAIL_SURFACE_LIFT = BALL_R * 0.42; // raise chalk blocks with the ra
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
+const PENALTY_SPOT_Z = PLAY_H / 2 - BAULK_FROM_BAULK;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.965; // match snooker middle pocket mouth width
 const POCKET_SIDE_MOUTH_SCALE =
@@ -5063,8 +5068,8 @@ function applySnookerScaling({
     if (markings.dArc) {
       markings.dArc.position.set(center.x, markingY, baulkZ);
     }
-    if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
-      const [yellow, brown, green, blue, pink, black] = markings.spots;
+    if (Array.isArray(markings.spots) && markings.spots.length >= 7) {
+      const [yellow, brown, green, blue, pink, black, penalty] = markings.spots;
       const spotY = yellow?.position?.y ?? markingY;
       if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
       if (brown) brown.position.set(0, spotY, baulkZ);
@@ -5075,6 +5080,7 @@ function applySnookerScaling({
       const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
       if (pink) pink.position.set(0, spotY, pinkZ);
       if (black) black.position.set(0, spotY, blackZ);
+      if (penalty) penalty.position.set(0, spotY, topCushion - BAULK_FROM_BAULK_REF * mmToUnits);
     }
   }
   if (Array.isArray(balls)) {
@@ -8183,6 +8189,7 @@ export function Table3D(
   const topCushionZ = PLAY_H / 2;
   addSpot(0, (topCushionZ + 0) / 2);
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
+  addSpot(0, PENALTY_SPOT_Z);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -11957,6 +11964,10 @@ function PoolRoyaleGame({
     const params = new URLSearchParams(location.search);
     return params.get('careerStageId') || '';
   }, [location.search]);
+  const [activeCareerStageId, setActiveCareerStageId] = useState(careerStageId);
+  useEffect(() => {
+    setActiveCareerStageId(careerStageId);
+  }, [careerStageId]);
   const tournamentStateKey = useMemo(
     () => `poolRoyaleTournamentState_${tournamentKey}`,
     [tournamentKey]
@@ -12766,7 +12777,7 @@ function PoolRoyaleGame({
     if (usesCareerAttempts) {
       const attemptsStored = loadCareerAttemptsProgress();
       const awardedStages = new Set(attemptsStored.attemptsAwardedStageIds || []);
-      const activeStageId = careerStageId || '';
+      const activeStageId = activeCareerStageId || '';
       let nextAttempts = attemptsStored;
       if (activeStageId && !awardedStages.has(activeStageId)) {
         awardedStages.add(activeStageId);
@@ -12783,7 +12794,7 @@ function PoolRoyaleGame({
       setTrainingShotsRemaining(0);
     }
     setTrainingLevel(playableLevel);
-  }, [careerStageId, initialTrainingLevel, isTraining, usesCareerAttempts]);
+  }, [activeCareerStageId, initialTrainingLevel, isTraining, usesCareerAttempts]);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
@@ -12831,7 +12842,7 @@ function PoolRoyaleGame({
 
   const grantTrainingAttemptsForLevel = useCallback((rawLevel) => {
     if (!isTraining || !usesCareerAttempts) return;
-    const stageId = careerStageId || `career-training-level-${Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1))}`;
+    const stageId = activeCareerStageId || `career-training-level-${Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1))}`;
     const previous = careerAttemptsProgressRef.current || {
       carryShots: 0,
       attemptsAwardedStageIds: []
@@ -12847,7 +12858,7 @@ function PoolRoyaleGame({
     careerAttemptsProgressRef.current = updated;
     setCareerAttemptsProgress(updated);
     setTrainingShotsRemaining(Math.max(0, Number(updated?.carryShots) || 0));
-  }, [careerStageId, isTraining, usesCareerAttempts]);
+  }, [activeCareerStageId, isTraining, usesCareerAttempts]);
 
 
   const handleTrainingAttemptsPurchase = useCallback(async (bundle) => {
@@ -13110,9 +13121,51 @@ function PoolRoyaleGame({
 
   const handleTrainingRoadmapContinue = useCallback(() => {
     if (usesCareerAttempts) {
+      const nextCareerStage = getNextCareerStage(
+        trainingProgressRef.current,
+        loadCareerProgress()
+      );
+      if (!nextCareerStage) {
+        setCareerTaskResultModal(null);
+        setTrainingRoadmapOpen(false);
+        navigate('/games/poolroyale/lobby?type=career');
+        return;
+      }
+      const nextLevel = Math.max(
+        1,
+        Math.min(TRAINING_LEVEL_COUNT, Number(nextCareerStage.trainingLevel) || 1)
+      );
+      const params = new URLSearchParams(location.search);
+      params.set('career', '1');
+      params.set('careerStageId', nextCareerStage.id);
+      params.set('trainingLevel', String(nextLevel));
+      params.set('type', 'training');
+      if (nextCareerStage.title) {
+        params.set('careerStageTitle', nextCareerStage.title);
+      }
+      setActiveCareerStageId(nextCareerStage.id);
+      setTrainingLevel(nextLevel);
+      setPendingTrainingLevel(null);
       setCareerTaskResultModal(null);
       setTrainingRoadmapOpen(false);
-      navigate('/games/poolroyale/lobby?type=career&autostart=1');
+      setTrainingTaskTransition(null);
+      setRuleToast(null);
+      setPottedBySeat({ A: [], B: [] });
+      lastPottedBySeatRef.current = { A: null, B: null };
+      pocketDropRef.current.clear();
+      pocketRestIndexRef.current.clear();
+      pocketPopupRef.current = [];
+      pocketPopupPendingRef.current = [];
+      setFrameState((prev) => ({
+        ...prev,
+        frameOver: false,
+        winner: undefined,
+        foul: undefined,
+        activePlayer: 'A'
+      }));
+      setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
+      applyTrainingLayoutForLevel(nextLevel);
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
       return;
     }
     const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
@@ -13150,6 +13203,8 @@ function PoolRoyaleGame({
     grantTrainingAttemptsForLevel,
     lastCompletedLevel,
     navigate,
+    location.pathname,
+    location.search,
     pendingTrainingLevel,
     trainingLevel,
     usesCareerAttempts
@@ -14420,8 +14475,8 @@ const powerRef = useRef(hud.power);
       : !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
 
     if (isCareerTrainingSession) {
-      if (careerStageId) {
-        markCareerStageCompleted(careerStageId);
+      if (activeCareerStageId) {
+        markCareerStageCompleted(activeCareerStageId);
       }
       const carryShots = Math.max(0, trainingShotsRemaining);
       setTrainingShotsRemaining(carryShots);
@@ -14490,7 +14545,7 @@ const powerRef = useRef(hud.power);
   }, [
     applyTrainingLayoutForLevel,
     awardTrainingTaskPayout,
-    careerStageId,
+    activeCareerStageId,
     frameState.frameOver,
     isTraining,
     usesCareerAttempts,
@@ -16166,8 +16221,8 @@ const powerRef = useRef(hud.power);
           userWon,
           tournamentAdvance: tournamentMode && userWon && !tournamentOutcome?.complete
         };
-        if (careerMode && careerStageId && userWon && (!tournamentMode || tournamentOutcome?.complete)) {
-          markCareerStageCompleted(careerStageId);
+        if (careerMode && activeCareerStageId && userWon && (!tournamentMode || tournamentOutcome?.complete)) {
+          markCareerStageCompleted(activeCareerStageId);
         }
         setWinnerOverlay(overlayData);
         if (overlayData.nftReward && userWon) {
@@ -16221,7 +16276,7 @@ const powerRef = useRef(hud.power);
     stakeToken,
     tournamentMode,
     careerMode,
-    careerStageId,
+    activeCareerStageId,
     tournamentPlayers,
     triggerCoinBurst,
     waitForActiveReplay,

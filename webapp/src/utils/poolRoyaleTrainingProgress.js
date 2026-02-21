@@ -133,7 +133,6 @@ const buildTrainingLayout = (level) => {
   }
 }
 
-
 const buildTrainingDefinition = (level) => {
   const discipline = level <= 17 ? '8-Ball' : level <= 34 ? '9-Ball' : 'Pool Position Play'
   const targetCount = getTrainingTargetCount(level)
@@ -168,25 +167,25 @@ export function getTrainingLayout (level) {
 
 export function getPracticeLayout () {
   const triangleRows = 5
-  const triangleSpacingX = 0.086
-  const triangleSpacingZ = 0.094
-  const apexX = 0.2
-  const maxX = 0.44
-  const maxZ = 0.31
+  const triangleSpacingX = 0.094
+  const triangleSpacingZ = 0.086
+  const apexZ = 0.42
+  const maxX = 0.31
+  const maxZ = 0.44
   const balls = []
 
   for (let row = 0; row < triangleRows; row += 1) {
     const rowBallCount = row + 1
-    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
-    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
+    const z = clampLayoutCoord(apexZ - row * triangleSpacingZ, -maxZ, maxZ)
+    const rowStartX = -((rowBallCount - 1) * triangleSpacingX) / 2
     for (let col = 0; col < rowBallCount; col += 1) {
-      const z = clampLayoutCoord(rowStartZ + col * triangleSpacingZ, -maxZ, maxZ)
+      const x = clampLayoutCoord(rowStartX + col * triangleSpacingX, -maxX, maxX)
       balls.push({ rackIndex: balls.length, x, z })
     }
   }
 
   return {
-    cue: { x: -0.7, z: 0 },
+    cue: { x: 0, z: -0.62 },
     balls
   }
 }
