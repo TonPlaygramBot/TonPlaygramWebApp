@@ -164,6 +164,10 @@ const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
+const TURN_CAMERA_ROTATE_DURATION = 520;
+const DICE_CAMERA_LOOK_IN_DURATION = 260;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 780;
+const DICE_CAMERA_LOOK_OUT_DURATION = 240;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -1566,6 +1570,102 @@ function createTokenCameraFollowAnimation(camera, controls, followState, restore
     returnTarget: restoreState?.target,
     onComplete
   });
+}
+
+function createCameraTargetLookAnimation(
+  camera,
+  controls,
+  {
+    toTarget,
+    durationIn = 320,
+    hold = 0,
+    durationOut = 0,
+    type,
+    returnTarget,
+    onComplete
+  }
+) {
+  if (!camera || !controls || !toTarget) return null;
+  const startTarget = controls?.target ? controls.target.clone() : new THREE.Vector3();
+  const goalTarget = toTarget.clone();
+  const finalTarget = returnTarget ? returnTarget.clone() : goalTarget.clone();
+  const tempTarget = new THREE.Vector3();
+  const start = performance.now();
+  const total = durationIn + hold + durationOut;
+
+  return {
+    type,
+    update: (now) => {
+      const elapsed = now - start;
+      if (elapsed <= durationIn) {
+        const t = durationIn > 0 ? easeInOut(Math.min(Math.max(elapsed / durationIn, 0), 1)) : 1;
+        tempTarget.copy(startTarget).lerp(goalTarget, t);
+        controls.target.copy(tempTarget);
+        camera.lookAt(tempTarget);
+        controls.update();
+        return false;
+      }
+      if (elapsed <= durationIn + hold) {
+        controls.target.copy(goalTarget);
+        camera.lookAt(goalTarget);
+        controls.update();
+        return false;
+      }
+      if (elapsed <= total) {
+        const t = durationOut > 0
+          ? easeInOut(Math.min(Math.max((elapsed - durationIn - hold) / durationOut, 0), 1))
+          : 1;
+        tempTarget.copy(goalTarget).lerp(finalTarget, t);
+        controls.target.copy(tempTarget);
+        camera.lookAt(tempTarget);
+        controls.update();
+        return false;
+      }
+      controls.target.copy(finalTarget);
+      camera.lookAt(finalTarget);
+      controls.update();
+      if (typeof onComplete === 'function') onComplete();
+      return true;
+    }
+  };
+}
+
+function createTurnCameraOrbitAnimation(camera, controls, lookTarget, seatAnchor, duration = TURN_CAMERA_ROTATE_DURATION) {
+  if (!camera || !controls || !lookTarget || !seatAnchor) return null;
+  const seatWorld = new THREE.Vector3();
+  seatAnchor.getWorldPosition(seatWorld);
+  const seatDirection = seatWorld.clone().sub(lookTarget);
+  seatDirection.y = 0;
+  if (seatDirection.lengthSq() < 1e-6) return null;
+  seatDirection.normalize();
+
+  const startOffset = camera.position.clone().sub(lookTarget);
+  const radius = Math.sqrt(startOffset.x * startOffset.x + startOffset.z * startOffset.z);
+  if (radius < 1e-4) return null;
+  const height = startOffset.y;
+  const startAngle = Math.atan2(startOffset.z, startOffset.x);
+  const endAngle = Math.atan2(seatDirection.z, seatDirection.x);
+  let delta = endAngle - startAngle;
+  if (delta > Math.PI) delta -= Math.PI * 2;
+  if (delta < -Math.PI) delta += Math.PI * 2;
+  const start = performance.now();
+
+  return {
+    type: 'cameraTurnFocus',
+    update: (now) => {
+      const t = duration > 0 ? easeInOut(Math.min(Math.max((now - start) / duration, 0), 1)) : 1;
+      const angle = startAngle + delta * t;
+      camera.position.set(
+        lookTarget.x + Math.cos(angle) * radius,
+        lookTarget.y + height,
+        lookTarget.z + Math.sin(angle) * radius
+      );
+      controls.target.copy(lookTarget);
+      camera.lookAt(lookTarget);
+      controls.update();
+      return t >= 1;
+    }
+  };
 }
 
 function captureCameraState(camera, controls) {
@@ -3723,6 +3823,7 @@ export default function SnakeBoard3D({
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
   const prevPlayerPositionsRef = useRef([]);
+  const prevTurnRef = useRef(null);
   const cameraRestoreRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
@@ -4054,6 +4155,23 @@ export default function SnakeBoard3D({
   }, [highlight, trail, offsetPopup, keyForEffect]);
 
   useEffect(() => {
+    if (cameraViewMode === '2d') return;
+    const board = boardRef.current;
+    const camera = cameraRef.current;
+    const controls = board?.controls;
+    const boardLookTarget = board?.boardLookTarget;
+    const seatAnchors = board?.seatAnchors;
+    if (!board || !camera || !controls || !boardLookTarget || !Array.isArray(seatAnchors) || !seatAnchors.length) return;
+    if (!Number.isInteger(currentTurn) || currentTurn < 0 || currentTurn >= seatAnchors.length) return;
+    if (prevTurnRef.current === currentTurn) return;
+    prevTurnRef.current = currentTurn;
+
+    removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+    const orbitAnimation = createTurnCameraOrbitAnimation(camera, controls, boardLookTarget, seatAnchors[currentTurn]);
+    if (orbitAnimation) animationsRef.current.push(orbitAnimation);
+  }, [currentTurn, cameraViewMode]);
+
+  useEffect(() => {
     if (!boardRef.current) return;
     const board = boardRef.current;
     updateTokens(board.tokensGroup, players, board.indexToPosition, board.serpentineIndexToXZ, {
@@ -4309,6 +4427,23 @@ export default function SnakeBoard3D({
           edgeNormals
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
+
+        if (cameraViewMode !== '2d') {
+          const camera = cameraRef.current;
+          const controls = board.controls;
+          const diceFocusTarget = active
+            .reduce((sum, die) => sum.add(die.position), new THREE.Vector3())
+            .multiplyScalar(1 / Math.max(active.length, 1));
+          const lookAnimation = createCameraTargetLookAnimation(camera, controls, {
+            toTarget: diceFocusTarget,
+            durationIn: DICE_CAMERA_LOOK_IN_DURATION,
+            hold: DICE_CAMERA_LOOK_HOLD_DURATION,
+            durationOut: DICE_CAMERA_LOOK_OUT_DURATION,
+            type: 'cameraDiceZoom',
+            returnTarget: board.boardLookTarget
+          });
+          if (lookAnimation) animationsRef.current.push(lookAnimation);
+        }
       }
     } else if (diceEvent.phase === 'end') {
       if (diceStateRef.current.currentId !== diceEvent.id) return;
