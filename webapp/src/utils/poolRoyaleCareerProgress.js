@@ -3,7 +3,7 @@ import {
   describeTrainingLevel
 } from './poolRoyaleTrainingProgress.js'
 
-const CAREER_PROGRESS_KEY = 'poolRoyaleCareerProgress'
+const CAREER_PROGRESS_KEY = 'poolRoyaleCareerProgress_v2'
 export const CAREER_LEVEL_COUNT = 100
 
 const FRIENDLY_TITLES = [

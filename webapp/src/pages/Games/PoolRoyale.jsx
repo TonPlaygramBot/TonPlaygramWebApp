@@ -93,6 +93,7 @@ import {
   persistTrainingProgress,
   resolvePlayableTrainingLevel,
   getTrainingLayout,
+  getPracticeLayout,
   BASE_ATTEMPTS_PER_LEVEL,
   TRAINING_LEVELS,
   TRAINING_LEVEL_COUNT
@@ -11979,6 +11980,7 @@ function PoolRoyaleGame({
   const [isTournamentFinalMatch, setIsTournamentFinalMatch] = useState(false);
   const [showTournamentFinalWelcome, setShowTournamentFinalWelcome] = useState(false);
   const [revealedRewardNft, setRevealedRewardNft] = useState(null);
+  const [rewardFireworkSeed, setRewardFireworkSeed] = useState(0);
   const tournamentLastResult = useMemo(() => {
     if (!tournamentMode || typeof window === 'undefined') return null;
     try {
@@ -12099,6 +12101,15 @@ function PoolRoyaleGame({
         0% { transform: scale(0.9); opacity: 0; }
         45% { opacity: 0.8; }
         100% { transform: scale(1.5); opacity: 0; }
+      }
+      @keyframes prRewardFirework {
+        0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+        100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1); opacity: 0; }
+      }
+      @keyframes prGiftReveal {
+        0% { transform: scale(0.48); opacity: 0.2; }
+        45% { transform: scale(1.85); opacity: 1; }
+        100% { transform: scale(1.45); opacity: 1; }
       }
       .pr-coin-burst {
         position: fixed;
@@ -12705,6 +12716,7 @@ function PoolRoyaleGame({
           name: nft.name,
           icon: nft.icon,
           price: nft.price,
+          thumbnail: nft.thumbnail,
           wonAt: Date.now()
         });
         window.localStorage.setItem(rewardNftStorageKey, JSON.stringify(list.slice(0, 20)));
@@ -12714,6 +12726,14 @@ function PoolRoyaleGame({
     },
     [rewardNftStorageKey]
   );
+
+
+  const openRewardGift = useCallback((nft) => {
+    if (!nft) return;
+    setRevealedRewardNft(nft);
+    setRewardFireworkSeed((prev) => prev + 1);
+    triggerCoinBurst(28);
+  }, [triggerCoinBurst]);
 
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
@@ -12993,7 +13013,7 @@ function PoolRoyaleGame({
 
   const applyTrainingLayoutForLevel = useCallback((level) => {
     if (!isTraining) return;
-    const trainingLayout = getTrainingLayout(level);
+    const trainingLayout = usesCareerAttempts ? getTrainingLayout(level) : getPracticeLayout();
     const startingBalls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!startingBalls.length || !trainingLayout) {
       trainingLayoutReadyRef.current = false;
@@ -13077,7 +13097,7 @@ function PoolRoyaleGame({
     const activeObjectCount = snapshot.filter((entry) => entry.id !== 'cue' && entry.active).length;
     trainingLayoutReadyRef.current = activeObjectCount > 0 && entries.length > 0;
     initialLayoutRef.current = snapshot;
-  }, [ensureTrainingBallPoolForLayout, isTraining]);
+  }, [ensureTrainingBallPoolForLayout, isTraining, usesCareerAttempts]);
 
   const flushPendingTrainingLayout = useCallback(() => {
     if (!isTraining) return;
@@ -14464,7 +14484,7 @@ const powerRef = useRef(hud.power);
     }
     if (nftReward) {
       persistRewardNft(nftReward);
-      setRevealedRewardNft(nftReward);
+      openRewardGift(nftReward);
     }
     triggerCoinBurst(nftReward ? 26 : 18);
   }, [
@@ -14474,6 +14494,7 @@ const powerRef = useRef(hud.power);
     frameState.frameOver,
     isTraining,
     usesCareerAttempts,
+    openRewardGift,
     persistRewardNft,
     trainingShotsRemaining,
     triggerCoinBurst
@@ -16150,7 +16171,7 @@ const powerRef = useRef(hud.power);
         }
         setWinnerOverlay(overlayData);
         if (overlayData.nftReward && userWon) {
-          setRevealedRewardNft(overlayData.nftReward);
+          openRewardGift(overlayData.nftReward);
         }
         const burstCount =
           overlayData.prizeText ||
@@ -16203,7 +16224,8 @@ const powerRef = useRef(hud.power);
     careerStageId,
     tournamentPlayers,
     triggerCoinBurst,
-    waitForActiveReplay
+    waitForActiveReplay,
+    openRewardGift
   ]);
   useEffect(() => {
     if (!rematchStatus?.expiresAt) {
@@ -22760,7 +22782,9 @@ const powerRef = useRef(hud.power);
         return entries.length > 0;
       };
 
-      const trainingLayout = isTraining ? getTrainingLayout(trainingLevelRef.current || 1) : null;
+      const trainingLayout = isTraining
+        ? (usesCareerAttempts ? getTrainingLayout(trainingLevelRef.current || 1) : getPracticeLayout())
+        : null;
       const appliedTraining = isTraining ? placeTrainingLayout(trainingLayout) : false;
 
       if (!appliedTraining) {
@@ -31109,7 +31133,7 @@ const powerRef = useRef(hud.power);
             {winnerOverlay.nftReward ? (
               <button
                 type="button"
-                onClick={() => setRevealedRewardNft(winnerOverlay.nftReward)}
+                onClick={() => openRewardGift(winnerOverlay.nftReward)}
                 className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-300/20 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.4)]"
               >
                 <span className="text-base">🎁</span>
@@ -31181,11 +31205,28 @@ const powerRef = useRef(hud.power);
       )}
       {revealedRewardNft ? (
         <div className="absolute inset-0 z-[140] flex items-center justify-center bg-black/80 px-4">
-          <div className="w-[min(92vw,24rem)] rounded-3xl border border-amber-300/70 bg-slate-950/95 p-5 text-center text-white shadow-[0_26px_58px_rgba(0,0,0,0.65)]">
-            <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
+          <div className="relative w-[min(92vw,24rem)] overflow-hidden rounded-3xl border border-amber-300/70 bg-slate-950/95 p-5 text-center text-white shadow-[0_26px_58px_rgba(0,0,0,0.65)]">
+            <div className="pointer-events-none absolute inset-0" key={rewardFireworkSeed} aria-hidden="true">
+              {Array.from({ length: 22 }).map((_, idx) => {
+                const angle = (Math.PI * 2 * idx) / 22;
+                const radius = 34 + (idx % 5) * 12;
+                return (
+                  <span
+                    key={`firework-${idx}`}
+                    className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-amber-200"
+                    style={{
+                      '--dx': `${Math.cos(angle) * radius}px`,
+                      '--dy': `${Math.sin(angle) * radius}px`,
+                      animation: `prRewardFirework 950ms ease-out ${idx * 25}ms forwards`
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div className="relative mx-auto flex h-32 w-32 items-center justify-center">
               <span className="absolute inset-2 rounded-full bg-amber-300/35 blur-xl animate-[prRewardGlow_900ms_ease-out_forwards]" aria-hidden="true" />
               <span className="absolute inset-0 rounded-full border border-amber-200/70 animate-[prRewardHalo_1400ms_ease-out_infinite]" aria-hidden="true" />
-              <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-amber-200/80 bg-amber-300/20 text-3xl shadow-[0_0_22px_rgba(251,191,36,0.45)] animate-[prRewardPop_700ms_ease-out]">
+              <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-amber-200/80 bg-amber-300/20 text-4xl shadow-[0_0_22px_rgba(251,191,36,0.45)] animate-[prGiftReveal_780ms_ease-out]">
                 {revealedRewardNft.thumbnail ? (
                   <img src={revealedRewardNft.thumbnail} alt={revealedRewardNft.name} className="h-full w-full object-cover" />
                 ) : (
@@ -31194,12 +31235,12 @@ const powerRef = useRef(hud.power);
               </div>
             </div>
             <p className="mt-3 text-sm font-black uppercase tracking-[0.22em] text-amber-100">Congratulations 👏</p>
-            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">You won an NFT</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">NFT unlocked</p>
             <p className="mt-1 text-lg font-semibold text-white">{revealedRewardNft.name}</p>
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/75">
               <img src={resolvedPlayerAvatar || '/assets/icons/profile.svg'} alt="Player avatar" className="h-8 w-8 rounded-full border border-amber-200/60 object-cover" />
               <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-5 w-5 animate-bounce" />
-              <span>Pool Royale reward unlocked</span>
+              <span>Career reward opened</span>
             </div>
             <button
               type="button"
@@ -32124,7 +32165,7 @@ const powerRef = useRef(hud.power);
               <>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Career task complete</p>
                 <p className="mt-2 text-sm text-white/90">Congratulations! You completed the task.</p>
-                <div className="mt-3 space-y-1 text-xs text-emerald-100">
+                <div className="mt-3 space-y-2 text-xs text-emerald-100">
                   {Number(careerTaskResultModal.rewardAmount) > 0 ? (
                     <p className="inline-flex items-center gap-1">
                       <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-4 w-4" />
@@ -32132,7 +32173,15 @@ const powerRef = useRef(hud.power);
                     </p>
                   ) : null}
                   {careerTaskResultModal.nftReward ? (
-                    <p>🎁 Gift unlocked: {careerTaskResultModal.nftReward.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => openRewardGift(careerTaskResultModal.nftReward)}
+                      className="inline-flex min-w-[10rem] flex-col items-center rounded-2xl border border-amber-200/70 bg-amber-300/10 px-4 py-2 text-amber-100 transition hover:bg-amber-300/20"
+                    >
+                      <span className="text-2xl">🎁</span>
+                      <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em]">Open</span>
+                      <span className="mt-1 text-[11px] font-semibold">{careerTaskResultModal.nftReward.name}</span>
+                    </button>
                   ) : null}
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -32224,7 +32273,7 @@ const powerRef = useRef(hud.power);
                   {trainingTaskTransition?.nftReward ? (
                     <button
                       type="button"
-                      onClick={() => setRevealedRewardNft(trainingTaskTransition.nftReward)}
+                      onClick={() => openRewardGift(trainingTaskTransition.nftReward)}
                       className="inline-flex items-center gap-1 rounded-full border border-amber-200/70 bg-amber-300/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-100"
                     >
                       <span>🎁</span>
