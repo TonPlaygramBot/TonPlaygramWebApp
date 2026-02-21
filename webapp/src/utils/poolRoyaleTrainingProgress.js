@@ -104,6 +104,38 @@ const resolveLayoutSlot = (pattern, index, level) => {
 
 const buildTrainingLayout = (level) => {
   const targetCount = getTrainingTargetCount(level)
+  const isPracticeFreePlayLayout = clampLevel(level) === 15
+
+  if (isPracticeFreePlayLayout) {
+    const triangleSpacingX = 0.082
+    const triangleSpacingZ = 0.086
+    const apexZ = -0.36
+    const maxX = 0.26
+    const maxZ = 0.34
+
+    const balls = []
+    let row = 0
+    while (balls.length < targetCount) {
+      const rowBallCount = row + 1
+      const z = clampLayoutCoord(apexZ + row * triangleSpacingZ, -maxZ, maxZ)
+      const rowStartX = -((rowBallCount - 1) * triangleSpacingX) / 2
+      for (let column = 0; column < rowBallCount && balls.length < targetCount; column += 1) {
+        const x = clampLayoutCoord(rowStartX + column * triangleSpacingX, -maxX, maxX)
+        balls.push({
+          rackIndex: balls.length,
+          x,
+          z
+        })
+      }
+      row += 1
+    }
+
+    return {
+      cue: { x: 0, z: 0.52 },
+      balls
+    }
+  }
+
   const triangleSpacingX = 0.085
   const triangleSpacingZ = 0.09
   const apexX = 0.18
