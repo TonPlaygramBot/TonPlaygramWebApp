@@ -51,6 +51,7 @@ import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { NFT_GIFTS } from '../../utils/nftGifts.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -75,8 +76,7 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
   POOL_ROYALE_BASE_VARIANTS,
-  POOL_ROYALE_OPTION_LABELS,
-  POOL_ROYALE_STORE_ITEMS
+  POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -163,6 +163,7 @@ function persistCareerAttemptsProgress(progress) {
   return normalized;
 }
 
+const POOL_ROYALE_REWARDABLE_NFT_IDS = Object.freeze(['surprise_box', 'magic_trick', 'bullseye']);
 const POOL_ROYALE_REWARD_NFT_KEY_PREFIX = 'poolRoyaleRewardNfts_';
 
 function parseCareerStageLevel(stageId) {
@@ -173,43 +174,24 @@ function parseCareerStageLevel(stageId) {
   return Number.isFinite(level) && level > 0 ? Math.floor(level) : null;
 }
 
-function toCareerTaskAwardKey(stageId, levelFallback) {
-  const parsedLevel = parseCareerStageLevel(stageId);
-  const level = Number.isFinite(parsedLevel) && parsedLevel > 0
-    ? parsedLevel
-    : Math.max(1, Math.floor(Number(levelFallback) || 1));
-  return `career-task-${String(level).padStart(2, '0')}`;
-}
-
-function pickPoolRoyaleRewardNftForLevel(level) {
-  const poolStoreCandidates = POOL_ROYALE_STORE_ITEMS
-    .filter((item) =>
-      Number(item?.price) > 0 &&
-      item?.type !== 'poolTrainingAttempt' &&
+function pickPoolRoyaleRewardNft() {
+  const mediumTier = NFT_GIFTS.filter(
+    (item) =>
+      Number(item?.tier) === 2 &&
+      POOL_ROYALE_REWARDABLE_NFT_IDS.includes(item?.id) &&
       typeof item?.thumbnail === 'string' &&
       item.thumbnail.trim().length > 0
-    )
-    .sort((a, b) => Number(a.price) - Number(b.price));
-  if (!poolStoreCandidates.length) return null;
-
-  const safeLevel = Math.max(1, Number(level) || 1);
-  const levelProgress = Math.min(1, (safeLevel - 1) / Math.max(1, TRAINING_LEVEL_COUNT - 1));
-  const targetIndex = Math.floor(levelProgress * (poolStoreCandidates.length - 1));
-
-  const minIndex = Math.max(0, targetIndex - 1);
-  const maxIndex = Math.min(poolStoreCandidates.length - 1, targetIndex + 1);
-  const band = poolStoreCandidates.slice(minIndex, maxIndex + 1);
-  const selected = band[Math.floor(Math.random() * band.length)] || poolStoreCandidates[targetIndex] || poolStoreCandidates[0];
-
-  return {
-    id: selected.id,
-    name: selected.name,
-    icon: '🎁',
-    price: Number(selected.price) || 0,
-    thumbnail: selected.thumbnail,
-    type: selected.type,
-    optionId: selected.optionId
-  };
+  );
+  const source = mediumTier.length
+    ? mediumTier
+    : NFT_GIFTS.filter(
+      (item) =>
+        Number(item?.tier) === 2 &&
+        typeof item?.thumbnail === 'string' &&
+        item.thumbnail.trim().length > 0
+    );
+  if (!source.length) return null;
+  return source[Math.floor(Math.random() * source.length)] || null;
 }
 
 function safePolygonUnion(...parts) {
@@ -12807,7 +12789,7 @@ function PoolRoyaleGame({
     if (usesCareerAttempts) {
       const attemptsStored = loadCareerAttemptsProgress();
       const awardedStages = new Set(attemptsStored.attemptsAwardedStageIds || []);
-      const activeStageId = toCareerTaskAwardKey(careerStageId, playableLevel);
+      const activeStageId = careerStageId || '';
       let nextAttempts = attemptsStored;
       if (activeStageId && !awardedStages.has(activeStageId)) {
         awardedStages.add(activeStageId);
@@ -12872,7 +12854,7 @@ function PoolRoyaleGame({
 
   const grantTrainingAttemptsForLevel = useCallback((rawLevel) => {
     if (!isTraining || !usesCareerAttempts) return;
-    const stageId = toCareerTaskAwardKey(careerStageId, rawLevel);
+    const stageId = careerStageId || `career-training-level-${Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1))}`;
     const previous = careerAttemptsProgressRef.current || {
       carryShots: 0,
       attemptsAwardedStageIds: []
@@ -14466,11 +14448,9 @@ const powerRef = useRef(hud.power);
     const completedRewardAmount = Number(completedLevelInfo?.rewardAmount) || 0;
     const careerStageLevel = parseCareerStageLevel(careerStageId) || completedLevel;
     const nftMilestoneReached = usesCareerAttempts
-      ? careerStageLevel % 3 === 0
+      ? careerStageLevel % 5 === 0
       : completedLevel % 5 === 0;
-    const nftReward = nftMilestoneReached
-      ? (usesCareerAttempts ? pickPoolRoyaleRewardNftForLevel(careerStageLevel) : null)
-      : null;
+    const nftReward = nftMilestoneReached ? pickPoolRoyaleRewardNft() : null;
     const nftReceipt = nftReward
       ? {
         id: `PR-${String(careerStageLevel).padStart(3, '0')}-${Date.now().toString(36).toUpperCase()}`,
@@ -31314,16 +31294,23 @@ const powerRef = useRef(hud.power);
               <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-5 w-5 animate-bounce" />
               <span>Career reward opened</span>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setRevealedRewardNft(null);
-                setRevealedRewardMeta(null);
-              }}
-              className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
-            >
-              Close
-            </button>
+            {usesCareerAttempts ? (
+              <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                Closing automatically… then choose continue or lobby in task panel.
+              </p>
+            ) : null}
+            {!usesCareerAttempts ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setRevealedRewardNft(null);
+                  setRevealedRewardMeta(null);
+                }}
+                className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
+              >
+                Awesome
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -32251,6 +32238,7 @@ const powerRef = useRef(hud.power);
                     <button
                       type="button"
                       onClick={() => openRewardGift(careerTaskResultModal.nftReward, {
+                        autoCloseMs: 3200,
                         receipt: careerTaskResultModal.nftReceipt || null
                       })}
                       className="inline-flex min-w-[10rem] flex-col items-center rounded-2xl border border-amber-200/70 bg-amber-300/10 px-4 py-2 text-amber-100 transition hover:bg-amber-300/20"
