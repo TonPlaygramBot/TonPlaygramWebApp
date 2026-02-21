@@ -1910,7 +1910,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.34
+  z: -TABLE_RADIUS * 0.42
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2170,6 +2170,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [isCamera2d, setIsCamera2d] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -2581,6 +2582,10 @@ export default function MurlanRoyaleArena({ search }) {
     setCommentaryMuted((prev) => !prev);
   }, [commentaryMuted, unlockCommentary]);
 
+  const handleToggleCamera2d = useCallback(() => {
+    setIsCamera2d((prev) => !prev);
+  }, []);
+
   const handleSelectCommentaryPreset = useCallback(
     (presetId) => {
       if (!presetId || presetId === commentaryPresetId) return;
@@ -2849,8 +2854,7 @@ export default function MurlanRoyaleArena({ search }) {
   const prevStateRef = useRef(null);
   const tableBuildTokenRef = useRef(0);
   const characterActionRef = useRef({ lastActionId: 0 });
-  const initialCameraTargetRef = useRef(new THREE.Vector3(0, TABLE_HEIGHT, 0));
-  const desiredCameraTargetRef = useRef(new THREE.Vector3(0, TABLE_HEIGHT, 0));
+  const cameraViewRestoreRef = useRef(null);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -2895,6 +2899,48 @@ export default function MurlanRoyaleArena({ search }) {
 
     setSeatAnchors(anchors);
   }, []);
+
+  useEffect(() => {
+    const three = threeStateRef.current;
+    const { camera, controls } = three;
+    if (!camera || !controls) return;
+
+    if (isCamera2d) {
+      cameraViewRestoreRef.current = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        enablePan: controls.enablePan,
+        enableRotate: controls.enableRotate,
+        minPolarAngle: controls.minPolarAngle,
+        maxPolarAngle: controls.maxPolarAngle,
+        minAzimuthAngle: controls.minAzimuthAngle,
+        maxAzimuthAngle: controls.maxAzimuthAngle
+      };
+      const target = controls.target.clone();
+      const radius = Math.max(controls.minDistance || 0, camera.position.distanceTo(target));
+      camera.position.set(target.x, target.y + radius * 1.06, target.z);
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.minPolarAngle = 0.0001;
+      controls.maxPolarAngle = 0.0001;
+      controls.update();
+    } else {
+      const restore = cameraViewRestoreRef.current;
+      if (restore) {
+        camera.position.copy(restore.position);
+        controls.target.copy(restore.target);
+        controls.enablePan = restore.enablePan;
+        controls.enableRotate = restore.enableRotate;
+        controls.minPolarAngle = restore.minPolarAngle;
+        controls.maxPolarAngle = restore.maxPolarAngle;
+        controls.minAzimuthAngle = restore.minAzimuthAngle;
+        controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+        controls.update();
+      }
+    }
+
+    updateSeatAnchors();
+  }, [isCamera2d, updateSeatAnchors]);
 
   const applyRendererQuality = useCallback(() => {
     const renderer = threeStateRef.current.renderer;
@@ -3024,14 +3070,6 @@ export default function MurlanRoyaleArena({ search }) {
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
 
-    const activeSeat = seatConfigs?.[state.activePlayer];
-    if (activeSeat?.focus) {
-      const nextTarget = humanTurn
-        ? initialCameraTargetRef.current.clone()
-        : activeSeat.focus.clone().setY(TABLE_HEIGHT + CARD_H * 0.82);
-      desiredCameraTargetRef.current.copy(nextTarget);
-    }
-
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
@@ -3090,7 +3128,6 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1.16);
       updateCardFace(mesh, 'front');
-      setCardReadabilityBoost(mesh, true);
       const target = tableAnchor.clone();
       target.x += tableStartX + idx * tableSpacing;
       target.y += 0.075 * MODEL_SCALE;
@@ -3122,7 +3159,6 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setCardReadabilityBoost(mesh, false);
       const layer = idx;
       const target = discardAnchor.clone();
       target.x += layer * discardSpacing;
@@ -3140,7 +3176,6 @@ export default function MurlanRoyaleArena({ search }) {
     three.cardMap.forEach(({ mesh }, id) => {
       if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
       mesh.scale.setScalar(1);
-      setCardReadabilityBoost(mesh, false);
       mesh.visible = false;
       if (mesh.userData?.animation) {
         mesh.userData.animation.cancelled = true;
@@ -4098,9 +4133,9 @@ export default function MurlanRoyaleArena({ search }) {
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.enablePan = false;
+      controls.enablePan = true;
       controls.enableZoom = false;
-      controls.enableRotate = false;
+      controls.enableRotate = true;
       controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       controls.minAzimuthAngle = -Infinity;
@@ -4109,8 +4144,6 @@ export default function MurlanRoyaleArena({ search }) {
       controls.maxDistance = desiredRadius;
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
-      initialCameraTargetRef.current.copy(target);
-      desiredCameraTargetRef.current.copy(target);
       controls.update();
       controls.addEventListener('change', updateSeatAnchors);
 
@@ -4159,11 +4192,6 @@ export default function MurlanRoyaleArena({ search }) {
           const appliedDelta = Math.min(delta, maxFrameTime);
           lastRenderTime = time - Math.max(0, delta - appliedDelta);
           stepAnimations(time);
-          const desiredTarget = desiredCameraTargetRef.current;
-          if (desiredTarget) {
-            const follow = THREE.MathUtils.clamp(1 - Math.exp(-(Math.max(0.001, appliedDelta) / 1000) * 7.2), 0.04, 0.25);
-            controls.target.lerp(desiredTarget, follow);
-          }
           controls.update();
           updateSeatAnchors();
           renderer.render(scene, camera);
@@ -4683,10 +4711,13 @@ export default function MurlanRoyaleArena({ search }) {
           <BottomLeftIcons
             className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['info', 'mute', 'chat', 'gift']}
+            order={['info', 'mute', 'chat', 'gift', 'camera2d']}
+            showCamera2d
+            camera2dActive={isCamera2d}
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            onCamera2d={handleToggleCamera2d}
           />
         </div>
         <div className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
@@ -5380,21 +5411,6 @@ function updateCardFace(mesh, mode) {
   mesh.userData.cardFace = 'front';
 }
 
-function setCardReadabilityBoost(mesh, enabled) {
-  const frontMaterial = mesh?.userData?.frontMaterial;
-  if (!frontMaterial) return;
-  if (enabled) {
-    frontMaterial.roughness = 0.16;
-    frontMaterial.metalness = 0.03;
-    if (frontMaterial.color) frontMaterial.color.set('#ffffff');
-  } else {
-    frontMaterial.roughness = 0.35;
-    frontMaterial.metalness = 0.08;
-    if (frontMaterial.color) frontMaterial.color.set('#ffffff');
-  }
-  frontMaterial.needsUpdate = true;
-}
-
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -5491,16 +5507,10 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   g.fillStyle = color;
   g.font = 'bold 160px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'center';
-  g.lineWidth = 18;
-  g.strokeStyle = 'rgba(255,255,255,0.92)';
-  g.strokeText(suit, w / 2, h / 2 + 56);
   g.fillText(suit, w / 2, h / 2 + 56);
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.generateMipmaps = true;
-  tex.anisotropy = 12;
+  tex.anisotropy = 8;
   return tex;
 }
 
@@ -5530,10 +5540,7 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   }
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.anisotropy = 12;
+  texture.anisotropy = 8;
   return texture;
 }
 
