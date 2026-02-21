@@ -124,19 +124,13 @@ const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
   Object.freeze({ id: 'training-attempts-30', attempts: 30, price: 2100, label: 'Champion heart vault' })
 ]);
 
-const CAREER_ATTEMPTS_STORAGE_VERSION = 2;
-const CAREER_ATTEMPTS_KEY = `poolRoyaleCareerAttempts_v${CAREER_ATTEMPTS_STORAGE_VERSION}`;
-const LEGACY_CAREER_ATTEMPTS_KEYS = ['poolRoyaleCareerAttempts', 'poolRoyaleCareerAttempts_v1'];
+const CAREER_ATTEMPTS_KEY = 'poolRoyaleCareerAttempts';
 
 function loadCareerAttemptsProgress() {
   if (typeof window === 'undefined') {
     return { carryShots: 0, attemptsAwardedStageIds: [] };
   }
   try {
-    LEGACY_CAREER_ATTEMPTS_KEYS.forEach((legacyKey) => {
-      if (!legacyKey || legacyKey === CAREER_ATTEMPTS_KEY) return;
-      window.localStorage.removeItem(legacyKey);
-    });
     const raw = window.localStorage.getItem(CAREER_ATTEMPTS_KEY);
     if (!raw) return { carryShots: 0, attemptsAwardedStageIds: [] };
     const parsed = JSON.parse(raw);
@@ -12118,30 +12112,6 @@ function PoolRoyaleGame({
     document.head.appendChild(style);
     coinStyleInjectedRef.current = true;
   }, []);
-  const triggerFireworksBurst = useCallback((count = 18) => {
-    if (typeof document === 'undefined') return;
-    ensureCoinBurstStyles();
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.inset = '0';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '75';
-    document.body.appendChild(container);
-    const particles = ['✨', '🎆', '🎇', '💥'];
-    for (let i = 0; i < count; i += 1) {
-      const spark = document.createElement('span');
-      spark.textContent = particles[i % particles.length];
-      spark.style.position = 'fixed';
-      spark.style.left = `${8 + Math.random() * 84}vw`;
-      spark.style.top = `${12 + Math.random() * 58}vh`;
-      spark.style.fontSize = `${20 + Math.random() * 26}px`;
-      spark.style.opacity = '0';
-      spark.style.animation = `prRewardHalo ${0.95 + Math.random() * 0.5}s ease-out ${Math.random() * 0.45}s forwards`;
-      container.appendChild(spark);
-    }
-    window.setTimeout(() => container.remove(), 2100);
-  }, [ensureCoinBurstStyles]);
-
   const triggerCoinBurst = useCallback(
     (count = 20) => {
       if (typeof document === 'undefined') return;
@@ -12677,7 +12647,6 @@ function PoolRoyaleGame({
   const [trainingRulesOn, setTrainingRulesOn] = useState(true);
   const [trainingRoadmapOpen, setTrainingRoadmapOpen] = useState(false);
   const [careerTaskResultModal, setCareerTaskResultModal] = useState(null);
-  const [careerRewardRevealOpen, setCareerRewardRevealOpen] = useState(false);
   const [lastCompletedLevel, setLastCompletedLevel] = useState(null);
   const [pendingTrainingLevel, setPendingTrainingLevel] = useState(null);
   const [showTrainingIntroCard, setShowTrainingIntroCard] = useState(false);
@@ -12735,7 +12704,6 @@ function PoolRoyaleGame({
           id: nft.id,
           name: nft.name,
           icon: nft.icon,
-          thumbnail: nft.thumbnail,
           price: nft.price,
           wonAt: Date.now()
         });
@@ -14510,14 +14478,6 @@ const powerRef = useRef(hud.power);
     trainingShotsRemaining,
     triggerCoinBurst
   ]);
-
-  useEffect(() => {
-    if (careerTaskResultModal?.status === 'won' && careerTaskResultModal?.nftReward) {
-      setCareerRewardRevealOpen(false);
-    } else {
-      setCareerRewardRevealOpen(true);
-    }
-  }, [careerTaskResultModal]);
 
   useEffect(() => {
     if (!isTraining && trainingAutoAdvanceTimeoutRef.current) {
@@ -32172,35 +32132,7 @@ const powerRef = useRef(hud.power);
                     </p>
                   ) : null}
                   {careerTaskResultModal.nftReward ? (
-                    <div className="mt-2 flex flex-col items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (careerRewardRevealOpen) return;
-                          setCareerRewardRevealOpen(true);
-                          triggerFireworksBurst(24);
-                          triggerCoinBurst(14);
-                        }}
-                        className="group flex flex-col items-center gap-2"
-                      >
-                        {!careerRewardRevealOpen ? (
-                          <>
-                            <span className="inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-200/70 bg-black/35 text-5xl shadow-[0_10px_28px_rgba(245,158,11,0.35)]">🎁</span>
-                            <span className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-100 underline decoration-dotted underline-offset-4">Open</span>
-                          </>
-                        ) : (
-                          <span className="relative inline-flex h-24 w-24 items-center justify-center">
-                            <span className="absolute inset-0 rounded-full bg-amber-300/30 animate-[prRewardGlow_850ms_ease-out_forwards]" />
-                            <img
-                              src={careerTaskResultModal.nftReward.thumbnail || careerTaskResultModal.nftReward.icon || '/assets/icons/gift.png'}
-                              alt={careerTaskResultModal.nftReward.name}
-                              className="relative h-24 w-24 rounded-2xl border border-amber-100/80 object-cover shadow-[0_14px_36px_rgba(245,158,11,0.45)] animate-[prRewardPop_700ms_ease-out_forwards]"
-                            />
-                          </span>
-                        )}
-                      </button>
-                      <p className="text-center text-xs text-amber-100">🎁 Gift unlocked: {careerTaskResultModal.nftReward.name}</p>
-                    </div>
+                    <p>🎁 Gift unlocked: {careerTaskResultModal.nftReward.name}</p>
                   ) : null}
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
