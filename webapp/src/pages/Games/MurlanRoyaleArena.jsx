@@ -1910,7 +1910,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.84
+  z: -TABLE_RADIUS * 0.42
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2918,7 +2918,7 @@ export default function MurlanRoyaleArena({ search }) {
       };
       const target = controls.target.clone();
       const radius = Math.max(controls.minDistance || 0, camera.position.distanceTo(target));
-      camera.position.set(target.x, target.y + radius, target.z);
+      camera.position.set(target.x, target.y + radius * 1.06, target.z);
       controls.enableRotate = false;
       controls.enablePan = false;
       controls.minPolarAngle = 0.0001;
