@@ -1910,7 +1910,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.34
+  z: -TABLE_RADIUS * 0.42
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -1936,8 +1936,6 @@ const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2000;
-const CAMERA_TURN_DURATION_MS = 360;
-const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(1.2);
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2172,6 +2170,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [isCamera2d, setIsCamera2d] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -2583,6 +2582,10 @@ export default function MurlanRoyaleArena({ search }) {
     setCommentaryMuted((prev) => !prev);
   }, [commentaryMuted, unlockCommentary]);
 
+  const handleToggleCamera2d = useCallback(() => {
+    setIsCamera2d((prev) => !prev);
+  }, []);
+
   const handleSelectCommentaryPreset = useCallback(
     (presetId) => {
       if (!presetId || presetId === commentaryPresetId) return;
@@ -2851,8 +2854,7 @@ export default function MurlanRoyaleArena({ search }) {
   const prevStateRef = useRef(null);
   const tableBuildTokenRef = useRef(0);
   const characterActionRef = useRef({ lastActionId: 0 });
-  const cameraDefaultTargetRef = useRef(new THREE.Vector3(0, TABLE_HEIGHT, 0));
-  const cameraTurnAnimationRef = useRef(null);
+  const cameraViewRestoreRef = useRef(null);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -2898,69 +2900,47 @@ export default function MurlanRoyaleArena({ search }) {
     setSeatAnchors(anchors);
   }, []);
 
-  const stopCameraTurnAnimation = useCallback(() => {
-    if (cameraTurnAnimationRef.current != null) {
-      cancelAnimationFrame(cameraTurnAnimationRef.current);
-      cameraTurnAnimationRef.current = null;
-    }
-  }, []);
+  useEffect(() => {
+    const three = threeStateRef.current;
+    const { camera, controls } = three;
+    if (!camera || !controls) return;
 
-  const turnCameraTowardTarget = useCallback(
-    (target, options = {}) => {
-      const three = threeStateRef.current;
-      const { controls } = three;
-      if (!controls || !target) return;
-
-      const from = controls.target.clone();
-      const to = target.clone();
-      if (from.distanceToSquared(to) <= 1e-6) return;
-
-      if (options.animate === false) {
-        stopCameraTurnAnimation();
-        controls.target.copy(to);
-        controls.update();
-        updateSeatAnchors();
-        return;
-      }
-
-      const flatFrom = from.clone().setY(0);
-      const flatTo = to.clone().setY(0);
-      if (flatFrom.lengthSq() > 1e-6 && flatTo.lengthSq() > 1e-6) {
-        const fromDir = flatFrom.normalize();
-        const toDir = flatTo.normalize();
-        const deltaYaw = Math.atan2(
-          fromDir.clone().cross(toDir).dot(new THREE.Vector3(0, 1, 0)),
-          THREE.MathUtils.clamp(fromDir.dot(toDir), -1, 1)
-        );
-        if (Math.abs(deltaYaw) <= CAMERA_TURN_SNAP_EPSILON) {
-          controls.target.copy(to);
-          controls.update();
-          updateSeatAnchors();
-          return;
-        }
-      }
-
-      stopCameraTurnAnimation();
-      const durationMs = options.durationMs ?? CAMERA_TURN_DURATION_MS;
-      const startTime = performance.now();
-      const animateStep = (now) => {
-        const t = Math.min(1, (now - startTime) / Math.max(1, durationMs));
-        const eased = t * (2 - t);
-        controls.target.lerpVectors(from, to, eased);
-        controls.update();
-        updateSeatAnchors();
-        if (t < 1) {
-          cameraTurnAnimationRef.current = requestAnimationFrame(animateStep);
-        } else {
-          controls.target.copy(to);
-          controls.update();
-          cameraTurnAnimationRef.current = null;
-        }
+    if (isCamera2d) {
+      cameraViewRestoreRef.current = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        enablePan: controls.enablePan,
+        enableRotate: controls.enableRotate,
+        minPolarAngle: controls.minPolarAngle,
+        maxPolarAngle: controls.maxPolarAngle,
+        minAzimuthAngle: controls.minAzimuthAngle,
+        maxAzimuthAngle: controls.maxAzimuthAngle
       };
-      cameraTurnAnimationRef.current = requestAnimationFrame(animateStep);
-    },
-    [stopCameraTurnAnimation, updateSeatAnchors]
-  );
+      const target = controls.target.clone();
+      const radius = Math.max(controls.minDistance || 0, camera.position.distanceTo(target));
+      camera.position.set(target.x, target.y + radius * 1.06, target.z);
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.minPolarAngle = 0.0001;
+      controls.maxPolarAngle = 0.0001;
+      controls.update();
+    } else {
+      const restore = cameraViewRestoreRef.current;
+      if (restore) {
+        camera.position.copy(restore.position);
+        controls.target.copy(restore.target);
+        controls.enablePan = restore.enablePan;
+        controls.enableRotate = restore.enableRotate;
+        controls.minPolarAngle = restore.minPolarAngle;
+        controls.maxPolarAngle = restore.maxPolarAngle;
+        controls.minAzimuthAngle = restore.minAzimuthAngle;
+        controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+        controls.update();
+      }
+    }
+
+    updateSeatAnchors();
+  }, [isCamera2d, updateSeatAnchors]);
 
   const applyRendererQuality = useCallback(() => {
     const renderer = threeStateRef.current.renderer;
@@ -3123,7 +3103,6 @@ export default function MurlanRoyaleArena({ search }) {
         const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
         target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        setCommunityCardLegibility(mesh, false);
         setMeshPosition(
           mesh,
           target,
@@ -3149,7 +3128,6 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1.16);
       updateCardFace(mesh, 'front');
-      setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
       target.x += tableStartX + idx * tableSpacing;
       target.y += 0.075 * MODEL_SCALE;
@@ -3181,7 +3159,6 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setCommunityCardLegibility(mesh, false);
       const layer = idx;
       const target = discardAnchor.clone();
       target.x += layer * discardSpacing;
@@ -3814,32 +3791,6 @@ export default function MurlanRoyaleArena({ search }) {
 
   useEffect(() => {
     if (!threeReady) return;
-    const three = threeStateRef.current;
-    const controls = three?.controls;
-    if (!controls) return;
-
-    const activeIndex = gameState?.activePlayer;
-    const activeSeat = Number.isInteger(activeIndex) ? three.seatConfigs?.[activeIndex] : null;
-    const activePlayer = Number.isInteger(activeIndex) ? gameState?.players?.[activeIndex] : null;
-    const fallbackTarget = cameraDefaultTargetRef.current.clone();
-
-    if (gameState?.status !== 'PLAYING') {
-      turnCameraTowardTarget(fallbackTarget, { animate: true });
-      return;
-    }
-
-    if (!activeSeat || !activePlayer?.isHuman) {
-      const seatFocus = activeSeat?.focus?.clone?.() ?? fallbackTarget;
-      seatFocus.y = Math.max(seatFocus.y, TABLE_HEIGHT + CARD_H * 0.5);
-      turnCameraTowardTarget(seatFocus, { animate: true });
-      return;
-    }
-
-    turnCameraTowardTarget(fallbackTarget, { animate: true });
-  }, [gameState.activePlayer, gameState.players, gameState.status, threeReady, turnCameraTowardTarget]);
-
-  useEffect(() => {
-    if (!threeReady) return;
     const lastActionId = gameState?.lastActionId ?? 0;
     if (!lastActionId || characterActionRef.current.lastActionId === lastActionId) return;
     characterActionRef.current.lastActionId = lastActionId;
@@ -4182,9 +4133,9 @@ export default function MurlanRoyaleArena({ search }) {
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.enablePan = false;
+      controls.enablePan = true;
       controls.enableZoom = false;
-      controls.enableRotate = false;
+      controls.enableRotate = true;
       controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       controls.minAzimuthAngle = -Infinity;
@@ -4194,7 +4145,7 @@ export default function MurlanRoyaleArena({ search }) {
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
       controls.update();
-      cameraDefaultTargetRef.current.copy(target);
+      controls.addEventListener('change', updateSeatAnchors);
 
       const resize = () => {
         applyRendererQuality();
@@ -4288,8 +4239,8 @@ export default function MurlanRoyaleArena({ search }) {
       if (frameId) {
         cancelAnimationFrame(frameId);
       }
-      stopCameraTurnAnimation();
       observer?.disconnect?.();
+      controls?.removeEventListener('change', updateSeatAnchors);
       controls?.dispose?.();
       disposeEnvironmentRef.current?.();
       envTextureRef.current = null;
@@ -4437,7 +4388,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, rebuildTable, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, rebuildTable, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -4760,10 +4711,13 @@ export default function MurlanRoyaleArena({ search }) {
           <BottomLeftIcons
             className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['info', 'mute', 'chat', 'gift']}
+            order={['info', 'mute', 'chat', 'gift', 'camera2d']}
+            showCamera2d
+            camera2dActive={isCamera2d}
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            onCamera2d={handleToggleCamera2d}
           />
         </div>
         <div className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
@@ -5457,26 +5411,6 @@ function updateCardFace(mesh, mode) {
   mesh.userData.cardFace = 'front';
 }
 
-function setCommunityCardLegibility(mesh, highlighted) {
-  const frontMaterial = mesh?.userData?.frontMaterial;
-  if (!frontMaterial) return;
-  if (!frontMaterial.emissive) {
-    frontMaterial.emissive = new THREE.Color('#000000');
-  }
-  if (highlighted) {
-    frontMaterial.roughness = 0.22;
-    frontMaterial.metalness = 0.04;
-    frontMaterial.emissive.set('#2c2c2c');
-    frontMaterial.emissiveIntensity = 0.14;
-  } else {
-    frontMaterial.roughness = 0.35;
-    frontMaterial.metalness = 0.08;
-    frontMaterial.emissive.set('#000000');
-    frontMaterial.emissiveIntensity = 0;
-  }
-  frontMaterial.needsUpdate = true;
-}
-
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -5526,22 +5460,19 @@ function createCardMesh(card, geometry, cache, theme) {
   return mesh;
 }
 
-function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
+function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const g = canvas.getContext('2d');
   g.fillStyle = theme.frontBackground || '#ffffff';
   g.fillRect(0, 0, w, h);
-  g.strokeStyle = theme.frontBorder || '#d1d5db';
-  g.lineWidth = 10;
+  g.strokeStyle = theme.frontBorder || '#e5e7eb';
+  g.lineWidth = 8;
   roundRect(g, 6, 6, w - 12, h - 12, 32);
   g.stroke();
   const color = SUIT_COLORS[suit] || '#111111';
   g.fillStyle = color;
-  g.strokeStyle = 'rgba(255,255,255,0.72)';
-  g.lineWidth = 7;
-  g.lineJoin = 'round';
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   const padding = 36;
   const topRankY = 96;
@@ -5550,23 +5481,19 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const bottomRankY = bottomSuitY - 76;
   g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'left';
-  g.strokeText(label, padding, topRankY);
   g.fillText(label, padding, topRankY);
   g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, padding, topSuitY);
   g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
-  g.strokeText(label, padding, bottomRankY);
   g.fillText(label, padding, bottomRankY);
   g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, padding, bottomSuitY);
   g.textAlign = 'right';
   g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
-  g.strokeText(label, w - padding, topRankY);
   g.fillText(label, w - padding, topRankY);
   g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, w - padding, topSuitY);
   g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
-  g.strokeText(label, w - padding, bottomRankY);
   g.fillText(label, w - padding, bottomRankY);
   g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, w - padding, bottomSuitY);
@@ -5578,21 +5505,12 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     g.fill();
   }
   g.fillStyle = color;
-  g.font = 'bold 180px "Inter", "Segoe UI", sans-serif';
+  g.font = 'bold 160px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'center';
-  g.shadowColor = 'rgba(15,23,42,0.42)';
-  g.shadowBlur = 16;
-  g.strokeStyle = 'rgba(255,255,255,0.55)';
-  g.lineWidth = 8;
-  g.strokeText(suit, w / 2, h / 2 + 64);
-  g.fillText(suit, w / 2, h / 2 + 64);
-  g.shadowBlur = 0;
+  g.fillText(suit, w / 2, h / 2 + 56);
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
-  tex.anisotropy = 12;
-  tex.magFilter = THREE.LinearFilter;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
+  tex.anisotropy = 8;
   return tex;
 }
 
