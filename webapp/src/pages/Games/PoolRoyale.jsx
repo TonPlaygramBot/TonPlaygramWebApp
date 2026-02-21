@@ -93,7 +93,6 @@ import {
   persistTrainingProgress,
   resolvePlayableTrainingLevel,
   getTrainingLayout,
-  getPracticeLayout,
   BASE_ATTEMPTS_PER_LEVEL,
   TRAINING_LEVELS,
   TRAINING_LEVEL_COUNT
@@ -13013,7 +13012,25 @@ function PoolRoyaleGame({
 
   const applyTrainingLayoutForLevel = useCallback((level) => {
     if (!isTraining) return;
-    const trainingLayout = usesCareerAttempts ? getTrainingLayout(level) : getPracticeLayout();
+    if (!usesCareerAttempts) {
+      const baselineSnapshot = initialLayoutRef.current;
+      if (Array.isArray(baselineSnapshot) && baselineSnapshot.length > 0) {
+        if (applyBallSnapshotRef.current) {
+          applyBallSnapshotRef.current(baselineSnapshot);
+        } else {
+          pendingLayoutRef.current = baselineSnapshot;
+        }
+        const activeObjectCount = baselineSnapshot.filter(
+          (entry) => entry?.id !== 'cue' && entry?.active
+        ).length;
+        trainingLayoutExpectedBallsRef.current = activeObjectCount;
+        trainingLayoutReadyRef.current = activeObjectCount > 0;
+        pendingTrainingLayoutLevelRef.current = null;
+      }
+      return;
+    }
+
+    const trainingLayout = getTrainingLayout(level);
     const startingBalls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!startingBalls.length || !trainingLayout) {
       trainingLayoutReadyRef.current = false;
@@ -13111,9 +13128,6 @@ function PoolRoyaleGame({
   const handleTrainingRoadmapContinue = useCallback(() => {
     if (usesCareerAttempts) {
       setCareerTaskResultModal(null);
-      setTrainingRoadmapOpen(false);
-      navigate('/games/poolroyale/lobby?type=career&autostart=1');
-      return;
     }
     const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
     const computedNextLevel = resolvePlayableTrainingLevel(
@@ -13149,7 +13163,6 @@ function PoolRoyaleGame({
     applyTrainingLayoutForLevel,
     grantTrainingAttemptsForLevel,
     lastCompletedLevel,
-    navigate,
     pendingTrainingLevel,
     trainingLevel,
     usesCareerAttempts
@@ -22782,8 +22795,8 @@ const powerRef = useRef(hud.power);
         return entries.length > 0;
       };
 
-      const trainingLayout = isTraining
-        ? (usesCareerAttempts ? getTrainingLayout(trainingLevelRef.current || 1) : getPracticeLayout())
+      const trainingLayout = isTraining && usesCareerAttempts
+        ? getTrainingLayout(trainingLevelRef.current || 1)
         : null;
       const appliedTraining = isTraining ? placeTrainingLayout(trainingLayout) : false;
 
@@ -32138,7 +32151,7 @@ const powerRef = useRef(hud.power);
 
       {usesCareerAttempts && careerTaskResultModal && (
         <div className="absolute inset-0 z-[140] flex items-center justify-center bg-black/80 px-4">
-          <div className="w-[min(30rem,92vw)] rounded-2xl border border-emerald-300/60 bg-slate-950/95 p-5 text-white shadow-[0_24px_54px_rgba(0,0,0,0.65)]">
+          <div className="w-[min(30rem,92vw)] p-5 text-white">
             {careerTaskResultModal.status === 'failed' ? (
               <>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200">Career task failed</p>
