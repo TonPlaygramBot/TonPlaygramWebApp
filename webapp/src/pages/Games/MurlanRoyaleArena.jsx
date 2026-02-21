@@ -2901,10 +2901,7 @@ export default function MurlanRoyaleArena({ search }) {
         position: camera.position.clone(),
         target: controls.target.clone(),
         enablePan: controls.enablePan,
-        enableZoom: controls.enableZoom,
         enableRotate: controls.enableRotate,
-        minDistance: controls.minDistance,
-        maxDistance: controls.maxDistance,
         minPolarAngle: controls.minPolarAngle,
         maxPolarAngle: controls.maxPolarAngle,
         minAzimuthAngle: controls.minAzimuthAngle,
@@ -2912,14 +2909,9 @@ export default function MurlanRoyaleArena({ search }) {
       };
       const target = controls.target.clone();
       const radius = Math.max(controls.minDistance || 0, camera.position.distanceTo(target));
-      const min2dDistance = Math.max(0.2, radius * 0.9);
-      const max2dDistance = radius * 1.12;
       camera.position.set(target.x, target.y + radius, target.z);
       controls.enableRotate = false;
       controls.enablePan = false;
-      controls.enableZoom = true;
-      controls.minDistance = min2dDistance;
-      controls.maxDistance = max2dDistance;
       controls.minPolarAngle = 0.0001;
       controls.maxPolarAngle = 0.0001;
       controls.update();
@@ -2929,10 +2921,7 @@ export default function MurlanRoyaleArena({ search }) {
         camera.position.copy(restore.position);
         controls.target.copy(restore.target);
         controls.enablePan = restore.enablePan;
-        controls.enableZoom = restore.enableZoom;
         controls.enableRotate = restore.enableRotate;
-        controls.minDistance = restore.minDistance;
-        controls.maxDistance = restore.maxDistance;
         controls.minPolarAngle = restore.minPolarAngle;
         controls.maxPolarAngle = restore.maxPolarAngle;
         controls.minAzimuthAngle = restore.minAzimuthAngle;
@@ -3070,7 +3059,6 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
 
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
-    const revealAllHands = isCamera2d;
     humanTurnRef.current = humanTurn;
 
     const humanMeshes = [];
@@ -3098,7 +3086,7 @@ export default function MurlanRoyaleArena({ search }) {
         if (!entry) return;
         const mesh = entry.mesh;
         mesh.visible = true;
-        updateCardFace(mesh, player.isHuman || revealAllHands ? 'front' : 'back');
+        updateCardFace(mesh, player.isHuman ? 'front' : 'back');
         handsVisible.add(card.id);
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
@@ -3109,7 +3097,7 @@ export default function MurlanRoyaleArena({ search }) {
           mesh,
           target,
           focus,
-          { face: player.isHuman || revealAllHands ? 'front' : 'back' },
+          { face: player.isHuman ? 'front' : 'back' },
           immediate,
           three.animations
         );
@@ -3188,7 +3176,7 @@ export default function MurlanRoyaleArena({ search }) {
     if (three.renderer?.domElement) {
       three.renderer.domElement.style.cursor = humanTurn ? 'pointer' : 'default';
     }
-  }, [isCamera2d]);
+  }, []);
 
   const rebuildTable = useCallback(
     async (tableTheme, tableFinish, tableCloth) => {
@@ -4135,14 +4123,14 @@ export default function MurlanRoyaleArena({ search }) {
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.enablePan = true;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.enableRotate = true;
       controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.minDistance = desiredRadius * 0.9;
-      controls.maxDistance = desiredRadius * 1.15;
+      controls.minDistance = desiredRadius;
+      controls.maxDistance = desiredRadius;
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
       controls.update();
