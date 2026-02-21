@@ -1925,6 +1925,9 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 4.8 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
 const HUMAN_CHAIR_PULLBACK = -0.22 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
+const CHAIR_INWARD_OFFSET = 0.64 * MODEL_SCALE;
+const HUMAN_SEAT_INWARD_BIAS = 0.36 * MODEL_SCALE;
+const AI_SEAT_INWARD_BIAS = 0.22 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -4082,7 +4085,10 @@ export default function MurlanRoyaleArena({ search }) {
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
-        const seatRadius = chairRadius - (isHumanSeat ? 0.55 * MODEL_SCALE : 0.24 * MODEL_SCALE);
+        const seatRadius =
+          chairRadius -
+          CHAIR_INWARD_OFFSET -
+          (isHumanSeat ? 0.55 * MODEL_SCALE + HUMAN_SEAT_INWARD_BIAS : 0.24 * MODEL_SCALE + AI_SEAT_INWARD_BIAS);
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT;
