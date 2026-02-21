@@ -32810,11 +32810,21 @@ const powerRef = useRef(hud.power);
 export default function PoolRoyale() {
   const navigate = useNavigate();
   const location = useLocation();
+  const playType = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('type');
+    if (requested === 'training') return 'training';
+    if (requested === 'tournament') return 'tournament';
+    return 'regular';
+  }, [location.search]);
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('variant');
+    if (playType === 'training') {
+      return 'uk';
+    }
     return resolvePoolVariant(requested).id;
-  }, [location.search]);
+  }, [location.search, playType]);
   const ballSetKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('ballSet');
@@ -32825,13 +32835,6 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
-  }, [location.search]);
-  const playType = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('type');
-    if (requested === 'training') return 'training';
-    if (requested === 'tournament') return 'tournament';
-    return 'regular';
   }, [location.search]);
   const mode = useMemo(() => {
     const params = new URLSearchParams(location.search);
