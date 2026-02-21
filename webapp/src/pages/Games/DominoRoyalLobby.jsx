@@ -5,12 +5,18 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
+import {
+  ensureAccountId,
+  getTelegramId,
+  getTelegramPhotoUrl,
+  getTelegramUsername
+} from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { socket } from '../../utils/socket.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -60,7 +66,9 @@ export default function DominoRoyalLobby() {
 
   useEffect(() => {
     try {
-      const storedFrameRate = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      const storedFrameRate = window.localStorage?.getItem(
+        FRAME_RATE_STORAGE_KEY
+      );
       if (storedFrameRate) {
         setFrameRateId(storedFrameRate);
       }
@@ -90,6 +98,43 @@ export default function DominoRoyalLobby() {
     setFlags(seededFlags);
   }, [mode, flagPickerCount, flags.length, chessPlayerFlag, chessAiFlag]);
 
+  const launchGame = ({
+    flagOverride = flags,
+    accountId = '',
+    tgId = '',
+    tableId = '',
+    token = stake.token,
+    amount = stake.amount
+  } = {}) => {
+    const params = new URLSearchParams();
+    params.set('mode', mode);
+    params.set('players', String(totalPlayers));
+    if (mode !== 'local' && token) params.set('token', token);
+    if (mode !== 'local' && amount) params.set('amount', amount);
+    if (avatar) params.set('avatar', avatar);
+    params.set('uhd', '1');
+    const username = getTelegramUsername();
+    if (username) params.set('username', username);
+    const aiFlagSelection =
+      flagOverride && flagOverride.length ? flagOverride : flags;
+    if (mode === 'local') {
+      params.set('avatars', 'flags');
+      if (aiFlagSelection.length)
+        params.set('flags', aiFlagSelection.join(','));
+    }
+    params.set('entry', 'hallway');
+    if (tgId) params.set('tgId', tgId);
+    if (accountId) params.set('accountId', accountId);
+    if (tableId) params.set('tableId', tableId);
+    const initData = window.Telegram?.WebApp?.initData;
+    if (initData) params.set('init', encodeURIComponent(initData));
+    if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
+    if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
+    if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
+    if (frameRateId) params.set('frameRateId', frameRateId);
+    navigate(`/games/domino-royal?${params.toString()}`);
+  };
+
   const startGame = async (flagOverride = flags) => {
     let tgId;
     let accountId;
@@ -104,36 +149,70 @@ export default function DominoRoyalLobby() {
         }
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'domino',
-          accountId,
+          accountId
         });
       }
     } catch {}
 
-    const params = new URLSearchParams();
-    params.set('mode', mode);
-    params.set('players', String(totalPlayers));
-    if (mode !== 'local' && stake.token) params.set('token', stake.token);
-    if (mode !== 'local' && stake.amount) params.set('amount', stake.amount);
-    if (avatar) params.set('avatar', avatar);
-    params.set('uhd', '1');
-    const username = getTelegramUsername();
-    if (username) params.set('username', username);
-    const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
-    if (mode === 'local') {
-      params.set('avatars', 'flags');
-      if (aiFlagSelection.length) params.set('flags', aiFlagSelection.join(','));
+    if (mode === 'online' && accountId) {
+      socket.emit('register', { playerId: accountId });
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          gameType: 'domino-royal',
+          stake: Number(stake.amount) || 0,
+          maxPlayers: totalPlayers,
+          playerName: getTelegramUsername() || 'Player',
+          avatar,
+          mode: 'online',
+          token: stake.token
+        },
+        (res = {}) => {
+          if (!res.success || !res.tableId) {
+            alert('Unable to join Domino online table. Please try again.');
+            return;
+          }
+          socket.emit('confirmReady', { accountId, tableId: res.tableId });
+        }
+      );
+      return;
     }
-    params.set('entry', 'hallway');
-    if (tgId) params.set('tgId', tgId);
-    if (accountId) params.set('accountId', accountId);
-    const initData = window.Telegram?.WebApp?.initData;
-    if (initData) params.set('init', encodeURIComponent(initData));
-    if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
-    if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
-    if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
-    if (frameRateId) params.set('frameRateId', frameRateId);
-    navigate(`/games/domino-royal?${params.toString()}`);
+
+    launchGame({ flagOverride, accountId, tgId });
   };
+
+  useEffect(() => {
+    if (mode !== 'online') return undefined;
+
+    const handleGameStart = ({ tableId, players, stake: onlineStake }) => {
+      const accountId = ensureAccountId().catch(() => '');
+      Promise.resolve(accountId).then((resolvedAccountId) => {
+        const seat = Array.isArray(players)
+          ? players.find(
+              (player) =>
+                String(player?.id || '') === String(resolvedAccountId || '')
+            )
+          : null;
+        const token = stake.token || onlineStake?.token || 'TPC';
+        const amount = Number(onlineStake?.amount || stake.amount || 0);
+        launchGame({
+          accountId: resolvedAccountId,
+          tgId: getTelegramId(),
+          tableId,
+          token,
+          amount,
+          flagOverride: flags
+        });
+        if (seat?.avatar && !avatar) setAvatar(seat.avatar);
+      });
+    };
+
+    socket.on('gameStart', handleGameStart);
+    return () => {
+      socket.off('gameStart', handleGameStart);
+    };
+  }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags]);
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -146,18 +225,28 @@ export default function DominoRoyalLobby() {
         />
 
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">
+            Player Profile
+          </p>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
               {avatar ? (
-                <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                <img
+                  src={avatar}
+                  alt="Your avatar"
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                <div className="flex h-full w-full items-center justify-center text-lg">
+                  🙂
+                </div>
               )}
             </div>
             <div className="text-sm text-white/80">
               <p className="font-semibold">Seat ready</p>
-              <p className="text-xs text-white/50">Flags: {flags.length ? 'Custom' : 'Auto'}</p>
+              <p className="text-xs text-white/50">
+                Flags: {flags.length ? 'Custom' : 'Auto'}
+              </p>
             </div>
           </div>
           <div className="mt-3 grid gap-2">
@@ -166,16 +255,26 @@ export default function DominoRoyalLobby() {
               onClick={openAiFlagPicker}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
             >
-              <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flags</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50">
+                AI Flags
+              </div>
               <div className="flex items-center gap-2 text-base font-semibold">
                 <span className="text-lg">
-                  {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+                  {flags.length
+                    ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ')
+                    : '🌐'}
                 </span>
-                <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+                <span>
+                  {flags.length
+                    ? 'Custom AI avatars'
+                    : 'Auto-pick from global flags'}
+                </span>
               </div>
             </button>
           </div>
-          <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the domino match start.</p>
+          <p className="mt-3 text-xs text-white/60">
+            Your lobby choices persist into the domino match start.
+          </p>
         </div>
 
         {mode === 'local' ? (
@@ -188,7 +287,9 @@ export default function DominoRoyalLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Stake</h3>
-                <p className="text-xs text-white/60">Local AI matches are free — no stake required.</p>
+                <p className="text-xs text-white/60">
+                  Local AI matches are free — no stake required.
+                </p>
               </div>
             </div>
           </div>
@@ -202,14 +303,21 @@ export default function DominoRoyalLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Stake</h3>
-                <p className="text-xs text-white/60">Lock your entry with TPC.</p>
+                <p className="text-xs text-white/60">
+                  Lock your entry with TPC.
+                </p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector
+                selected={stake}
+                onSelect={setStake}
+                tokens={['TPC']}
+              />
             </div>
             <p className="text-center text-white/60 text-xs">
-              Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+              Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max:{' '}
+              {stake.amount.toLocaleString('en-US')} TPC
             </p>
           </div>
         )}
@@ -217,7 +325,9 @@ export default function DominoRoyalLobby() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Players</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Seats</span>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              Seats
+            </span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {PLAYER_OPTIONS.map((value) => (
@@ -226,7 +336,9 @@ export default function DominoRoyalLobby() {
                 type="button"
                 onClick={() => setPlayerCount(value)}
                 className={`lobby-option-card ${
-                  playerCount === value ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  playerCount === value
+                    ? 'lobby-option-card-active'
+                    : 'lobby-option-card-inactive'
                 }`}
               >
                 <div className="lobby-option-thumb bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent">
@@ -251,7 +363,9 @@ export default function DominoRoyalLobby() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Mode</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              Queue
+            </span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
@@ -266,10 +380,10 @@ export default function DominoRoyalLobby() {
               {
                 id: 'online',
                 label: 'Online',
-                desc: 'Coming soon',
+                desc: 'Hosted table matchmaking',
                 accent: 'from-indigo-400/30 via-sky-500/10 to-transparent',
                 icon: '⚔️',
-                disabled: true
+                disabled: false
               }
             ].map(({ id, label, desc, accent, icon, disabled }) => {
               const active = mode === id;
@@ -279,11 +393,15 @@ export default function DominoRoyalLobby() {
                     type="button"
                     onClick={() => !disabled && setMode(id)}
                     className={`lobby-option-card ${
-                      active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
                     } ${disabled ? 'lobby-option-card-disabled' : ''}`}
                     disabled={disabled}
                   >
-                    <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                    <div
+                      className={`lobby-option-thumb bg-gradient-to-br ${accent}`}
+                    >
                       <div className="lobby-option-thumb-inner">
                         <OptionIcon
                           src={getLobbyIcon('domino-royal', `mode-${id}`)}
@@ -295,7 +413,9 @@ export default function DominoRoyalLobby() {
                     </div>
                     <div className="text-center">
                       <p className="lobby-option-label">{label}</p>
-                      <p className="lobby-option-subtitle">{disabled ? 'Under development' : desc}</p>
+                      <p className="lobby-option-subtitle">
+                        {disabled ? 'Under development' : desc}
+                      </p>
                     </div>
                   </button>
                 </div>
@@ -303,7 +423,8 @@ export default function DominoRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            Local mode keeps the match offline while the arena loads instantly.
+            Local mode is instant vs AI. Online mode now seats players in hosted
+            tables before launch.
           </p>
         </div>
 
