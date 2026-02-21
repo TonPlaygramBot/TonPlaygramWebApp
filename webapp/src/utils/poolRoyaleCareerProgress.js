@@ -21,13 +21,30 @@ const TOURNAMENT_TITLES = [
   'Legend Circuit'
 ]
 
+const CAREER_TYPE_SEQUENCE = [
+  'training',
+  'training',
+  'friendly',
+  'training',
+  'league',
+  'training',
+  'friendly',
+  'tournament',
+  'training',
+  'showdown'
+]
+
+const GIFT_THUMBNAILS = [
+  '/store-thumbs/poolRoyale/tableFinish/oakVeneer01.png',
+  '/store-thumbs/poolRoyale/tableFinish/woodTable001.png',
+  '/store-thumbs/poolRoyale/tableFinish/peelingPaintWeathered.png'
+]
+
 const CAREER_TRAINING_STAGE_COUNT = TRAINING_LEVEL_COUNT
 
 const getStageType = (level) => {
-  if (level <= CAREER_TRAINING_STAGE_COUNT) return 'training'
-  if (level % 10 === 0) return 'tournament'
-  if (level % 4 === 0) return 'friendly'
-  return 'training'
+  if (level <= 6) return 'training'
+  return CAREER_TYPE_SEQUENCE[(level - 1) % CAREER_TYPE_SEQUENCE.length]
 }
 
 const getTournamentPlayers = (level) => {
@@ -42,11 +59,22 @@ const buildReward = (level, type) => {
   const tpc =
     120 +
     level * 22 +
-    (type === 'tournament' ? 380 : type === 'friendly' ? 160 : 0)
+    (type === 'tournament'
+      ? 420
+      : type === 'showdown'
+        ? 520
+        : type === 'league'
+          ? 250
+          : type === 'friendly'
+            ? 160
+            : 0)
   const hasGift = level % 5 === 0
   return {
     tpc,
     hasGift,
+    giftThumbnail: hasGift
+      ? GIFT_THUMBNAILS[(Math.floor(level / 5) - 1) % GIFT_THUMBNAILS.length]
+      : null,
     label: `${tpc.toLocaleString('en-US')} TPC${hasGift ? ' + 🎁 Bonus Crate' : ''}`
   }
 }
@@ -70,33 +98,55 @@ const buildStage = (level) => {
       reward: trainingTask.reward,
       rewardTpc: Number(trainingTask.rewardAmount) || reward.tpc,
       hasGift: reward.hasGift,
+      giftThumbnail: reward.giftThumbnail,
       trainingLevel,
       players: null
     }
   }
 
-  const titleSource =
-    type === 'friendly'
-      ? FRIENDLY_TITLES
-      : TOURNAMENT_TITLES
-  const titleBase = titleSource[(level - 1) % titleSource.length]
+  const stageMetaByType = {
+    friendly: {
+      titleBase: FRIENDLY_TITLES[(level - 1) % FRIENDLY_TITLES.length],
+      icon: '🤝',
+      objective: 'Win a tactical friendly against an adaptive AI rival.',
+      players: null
+    },
+    league: {
+      titleBase: 'League Fixture',
+      icon: '🗓️',
+      objective: 'Win the scheduled league match to keep your table ranking alive.',
+      players: null
+    },
+    showdown: {
+      titleBase: 'Rival Showdown',
+      icon: '⚡',
+      objective: 'Defeat the featured rival in a high-pressure race-to-win set.',
+      players: 2
+    },
+    tournament: {
+      titleBase: TOURNAMENT_TITLES[(level - 1) % TOURNAMENT_TITLES.length],
+      icon: '🏆',
+      objective: `Win a ${getTournamentPlayers(level)}-player bracket and secure promotion.`,
+      players: getTournamentPlayers(level)
+    }
+  }
+
+  const stageMeta = stageMetaByType[type] || stageMetaByType.friendly
 
   return {
     id: `career-stage-${String(level).padStart(3, '0')}`,
     level,
     phase: phaseIndex + 1,
-    title: `${titleBase} ${String(level).padStart(2, '0')}`,
+    title: `${stageMeta.titleBase} ${String(level).padStart(2, '0')}`,
     type,
-    icon: type === 'friendly' ? '🤝' : '🏆',
-    objective:
-      type === 'friendly'
-        ? 'Win a tactical friendly against an adaptive AI rival.'
-        : `Win a ${getTournamentPlayers(level)}-player bracket and secure promotion.`,
+    icon: stageMeta.icon,
+    objective: stageMeta.objective,
     reward: reward.label,
     rewardTpc: reward.tpc,
     hasGift: reward.hasGift,
+    giftThumbnail: reward.giftThumbnail,
     trainingLevel,
-    players: type === 'tournament' ? getTournamentPlayers(level) : null
+    players: stageMeta.players
   }
 }
 

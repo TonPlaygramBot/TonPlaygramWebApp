@@ -32,11 +32,15 @@ describe('pool royale career progression isolation', () => {
     expect(nextStage?.id).toBe(CAREER_STAGES[0].id)
   })
 
-  test('career starts with the full training task set', () => {
-    const openingStages = CAREER_STAGES.slice(0, 50)
-    expect(openingStages.every((stage) => stage.type === 'training')).toBe(true)
+  test('career roadmap mixes drills, matches, and tournaments after onboarding', () => {
+    const openingStages = CAREER_STAGES.slice(0, 20)
+    const uniqueTypes = new Set(openingStages.map((stage) => stage.type))
+    expect(uniqueTypes.has('training')).toBe(true)
+    expect(uniqueTypes.has('friendly')).toBe(true)
+    expect(uniqueTypes.has('tournament')).toBe(true)
+    expect(uniqueTypes.has('league')).toBe(true)
+    expect(uniqueTypes.has('showdown')).toBe(true)
     expect(openingStages[0].title).toContain('Task 01')
-    expect(openingStages[49].title).toContain('Task 50')
   })
 
   test('career training stages use training objectives and rewards', () => {
@@ -44,6 +48,12 @@ describe('pool royale career progression isolation', () => {
     expect(firstStage.objective).toContain('Clear')
     expect(firstStage.reward).toContain('TPC')
     expect(firstStage.rewardTpc).toBeGreaterThan(0)
+  })
+
+  test('gift milestones provide gift thumbnails for roadmap previews', () => {
+    const giftStage = CAREER_STAGES.find((stage) => stage.hasGift)
+    expect(giftStage).toBeTruthy()
+    expect(giftStage.giftThumbnail).toContain('/store-thumbs/poolRoyale/tableFinish/')
   })
 
 })

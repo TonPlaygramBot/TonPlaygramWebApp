@@ -936,7 +936,11 @@ export default function PoolRoyaleLobby() {
                               ? '🎯 Drill'
                               : stage.type === 'friendly'
                                 ? '🤝 Match'
-                                : '🏆 Tournament'}
+                                : stage.type === 'league'
+                                  ? '🗓️ League'
+                                  : stage.type === 'showdown'
+                                    ? '⚡ Showdown'
+                                    : '🏆 Tournament'}
                           </span>
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
                             <img
@@ -953,6 +957,17 @@ export default function PoolRoyaleLobby() {
                             <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
                               <span>🎁</span>
                               Gift bonus
+                            </span>
+                          ) : null}
+                          {stage.hasGift && stage.giftThumbnail ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200/50 bg-black/25 px-1.5 py-1 text-[10px] font-semibold text-amber-50">
+                              <img
+                                src={stage.giftThumbnail}
+                                alt="Gift reward thumbnail"
+                                className="h-7 w-7 rounded object-cover"
+                                loading="lazy"
+                              />
+                              Gift preview
                             </span>
                           ) : null}
                         </div>
