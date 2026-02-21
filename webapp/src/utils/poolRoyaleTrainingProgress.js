@@ -106,7 +106,9 @@ const buildTrainingLayout = (level) => {
   const targetCount = getTrainingTargetCount(level)
   const triangleSpacingX = 0.085
   const triangleSpacingZ = 0.09
-  const apexX = 0.18
+  // Keep practice racks oriented exactly like the main 8-ball rack:
+  // apex up-table and rows opening left/right from center.
+  const apexZ = 0.18
   const maxX = 0.44
   const maxZ = 0.31
 
@@ -114,10 +116,10 @@ const buildTrainingLayout = (level) => {
   let row = 0
   while (balls.length < targetCount) {
     const rowBallCount = row + 1
-    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
-    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
+    const z = clampLayoutCoord(apexZ + row * triangleSpacingZ, -maxZ, maxZ)
+    const rowStartX = -((rowBallCount - 1) * triangleSpacingX) / 2
     for (let column = 0; column < rowBallCount && balls.length < targetCount; column += 1) {
-      const z = clampLayoutCoord(rowStartZ + column * triangleSpacingZ, -maxZ, maxZ)
+      const x = clampLayoutCoord(rowStartX + column * triangleSpacingX, -maxX, maxX)
       balls.push({
         rackIndex: balls.length,
         x,
