@@ -12637,6 +12637,7 @@ function PoolRoyaleGame({
   ]);
   const isTraining = playType === 'training';
   const usesCareerAttempts = isTraining && careerMode;
+  const isFreePractice = isTraining && !usesCareerAttempts;
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
   const [trainingPurchaseState, setTrainingPurchaseState] = useState('idle');
@@ -13138,6 +13139,27 @@ function PoolRoyaleGame({
     setCareerTaskResultModal(null);
     handleTrainingLevelPick(trainingLevelRef.current || trainingLevel);
   }, [handleTrainingLevelPick, trainingLevel]);
+
+  const handlePracticeRestart = useCallback(() => {
+    if (!isFreePractice) return;
+    const activeLevel = trainingLevelRef.current || trainingLevel || 1;
+    setRuleToast(null);
+    setPottedBySeat({ A: [], B: [] });
+    lastPottedBySeatRef.current = { A: null, B: null };
+    pocketDropRef.current.clear();
+    pocketRestIndexRef.current.clear();
+    pocketPopupRef.current = [];
+    pocketPopupPendingRef.current = [];
+    setFrameState((prev) => ({
+      ...prev,
+      frameOver: false,
+      winner: undefined,
+      foul: undefined,
+      activePlayer: 'A'
+    }));
+    setHud((prev) => ({ ...prev, over: false, turn: 0, inHand: false }));
+    applyTrainingLayoutForLevel(activeLevel);
+  }, [applyTrainingLayoutForLevel, isFreePractice, trainingLevel]);
 
   useEffect(() => {
     applyTrainingLayoutForLevel(trainingLevel);
@@ -29529,7 +29551,7 @@ const powerRef = useRef(hud.power);
                 const shouldAutoRespawnCueAtCenter = isTraining;
                 if (shouldAutoRespawnCueAtCenter) {
                   const centerX = 0;
-                  const centerZ = 0;
+                  const centerZ = baulkZ;
                   b.pos.set(centerX, centerZ);
                   if (b.mesh) {
                     b.mesh.visible = true;
@@ -31952,7 +31974,7 @@ const powerRef = useRef(hud.power);
 
       {isTraining && !replayActive && (
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
-          {showTrainingIntroCard && (
+          {usesCareerAttempts && showTrainingIntroCard && (
             <div className="pointer-events-none w-60 rounded-2xl border border-emerald-400/50 bg-black/80 p-3 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
               <p className="text-[11px] uppercase tracking-[0.28em] text-emerald-200">Practice start</p>
               <p className="mt-1 text-base font-semibold leading-tight">
@@ -31962,9 +31984,21 @@ const powerRef = useRef(hud.power);
               <p className="mt-1 text-[11px] text-rose-200">{usesCareerAttempts ? `Missed-shot cost: ❤️ -${TRAINING_MISS_ATTEMPT_COST} attempt.` : "Free practice mode: unlimited attempts."}</p>
             </div>
           )}
-          <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-            L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done{usesCareerAttempts ? ` • ❤️ ${trainingShotsRemaining}` : " • ♾️ Free"}
-          </div>
+          {usesCareerAttempts ? (
+            <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+              L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done • ❤️ {trainingShotsRemaining}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handlePracticeRestart}
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-300/70 bg-black/65 text-xl text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/80"
+              aria-label="Restart practice"
+              title="Restart practice"
+            >
+              ↻
+            </button>
+          )}
         </div>
       )}
 
@@ -32332,7 +32366,7 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
-      {!replayActive && (
+      {!replayActive && !isFreePractice && (
         <div className="pointer-events-auto">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
@@ -32365,7 +32399,7 @@ const powerRef = useRef(hud.power);
           }}
         >
             <div
-              className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
               style={{
                 transform: `scale(${bottomHudScale})`,
                 transformOrigin: 'bottom center',
@@ -32373,7 +32407,7 @@ const powerRef = useRef(hud.power);
               }}
             >
             <div
-              className={playerPanelClass}
+              className={isFreePractice ? 'flex min-w-0 justify-center' : playerPanelClass}
               style={playerPanelStyle}
               data-player-index="0"
             >
@@ -32400,74 +32434,80 @@ const powerRef = useRef(hud.power);
                       }`}
                     />
                   )}
-                  <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                    {player.name}
-                  </span>
+                  {!isFreePractice && (
+                    <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
+                      {player.name}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1">
                   {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
                 </div>
               </div>
             </div>
-            <div
-              className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
-            >
-              <span className="text-amber-300">{hud.A}</span>
-              <span className="text-white/50">-</span>
-              <span>{hud.B}</span>
-            </div>
-            <div
-              className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
-              style={opponentPanelStyle}
-              data-player-index="1"
-            >
-              {isOnlineMatch ? (
-                <div className="flex min-w-0 flex-col">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <img
-                      src={opponentDisplayAvatar}
-                      alt="opponent avatar"
-                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                        isOpponentTurn
-                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                      }`}
-                    />
-                    <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                      {opponentDisplayName}
-                    </span>
-                  </div>
-                  <div className="mt-1">
-                    {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                  </div>
+            {!isFreePractice && (
+              <>
+                <div
+                  className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
+                >
+                  <span className="text-amber-300">{hud.A}</span>
+                  <span className="text-white/50">-</span>
+                  <span>{hud.B}</span>
                 </div>
-              ) : (
-                <div className="flex min-w-0 flex-col">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <img
-                      src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
-                      alt="opponent avatar"
-                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                        isOpponentTurn
-                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                      }`}
-                    />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                      {aiFlagLabel}
-                    </span>
-                  </div>
-                  <div className="mt-1">
-                    {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                  </div>
+                <div
+                  className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
+                  style={opponentPanelStyle}
+                  data-player-index="1"
+                >
+                  {isOnlineMatch ? (
+                    <div className="flex min-w-0 flex-col">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <img
+                          src={opponentDisplayAvatar}
+                          alt="opponent avatar"
+                          className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                            isOpponentTurn
+                              ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                          }`}
+                        />
+                        <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
+                          {opponentDisplayName}
+                        </span>
+                      </div>
+                      <div className="mt-1">
+                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex min-w-0 flex-col">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <img
+                          src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
+                          alt="opponent avatar"
+                          className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                            isOpponentTurn
+                              ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                          }`}
+                        />
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                          {aiFlagLabel}
+                        </span>
+                      </div>
+                      <div className="mt-1">
+                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {chatBubbles.map((bubble) => (
+      {!isFreePractice && chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble pool-royale-chat-bubble">
           <span>{bubble.text}</span>
           <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
@@ -32481,11 +32521,12 @@ const powerRef = useRef(hud.power);
           info={infoText}
         />
       </div>
-      <div className="pointer-events-auto">
-        <QuickMessagePopup
-          open={showChat}
-          onClose={() => setShowChat(false)}
-          title="Quick Chat"
+      {!isFreePractice && (
+        <div className="pointer-events-auto">
+          <QuickMessagePopup
+            open={showChat}
+            onClose={() => setShowChat(false)}
+            title="Quick Chat"
           headerClassName={chatGiftHeaderClass}
           titleClassName={chatGiftTitleClass}
           closeButtonClassName={chatGiftCloseButtonClass}
@@ -32512,14 +32553,16 @@ const powerRef = useRef(hud.power);
               4500
             );
           }}
-        />
-      </div>
-      <div className="pointer-events-auto">
-        <GiftPopup
-          open={showGift}
-          onClose={() => setShowGift(false)}
-          players={giftPlayers}
-          senderIndex={0}
+          />
+        </div>
+      )}
+      {!isFreePractice && (
+        <div className="pointer-events-auto">
+          <GiftPopup
+            open={showGift}
+            onClose={() => setShowGift(false)}
+            players={giftPlayers}
+            senderIndex={0}
           overlayClassName={chatGiftOverlayClass}
           panelClassName={chatGiftPanelClass}
           title="Send Gift"
@@ -32621,8 +32664,9 @@ const powerRef = useRef(hud.power);
               animation.onfinish = () => icon.remove();
             }
           }}
-        />
-      </div>
+          />
+        </div>
+      )}
 
       {err && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
