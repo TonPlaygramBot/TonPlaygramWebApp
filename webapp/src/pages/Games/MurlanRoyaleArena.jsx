@@ -1930,6 +1930,8 @@ const HUMAN_SEAT_INWARD_BIAS = 0.44 * MODEL_SCALE;
 const AI_SEAT_INWARD_BIAS = 0.3 * MODEL_SCALE;
 const SIDE_SEAT_EXTRA_INWARD = 0.3 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(7);
+const COMMUNITY_CARD_SCALE = 1.25;
+const COMMUNITY_CARD_SPACING_MULTIPLIER = 0.88;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -3151,7 +3153,9 @@ export default function MurlanRoyaleArena({ search }) {
     const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
     const bottomCardSpacing = humanSeat?.spacing ?? 0.12 * MODEL_SCALE;
     const bottomCardMaxSpread = humanSeat?.maxSpread ?? 2.1 * MODEL_SCALE;
-    const tableSpread = tableCount > 1 ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread) : 0;
+    const tableSpread = tableCount > 1
+      ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread) * COMMUNITY_CARD_SPACING_MULTIPLIER
+      : 0;
     const tableSpacing = tableCount > 1 ? tableSpread / (tableCount - 1) : 0;
     const tableStartX = tableCount > 1 ? -tableSpread / 2 : 0;
     const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
@@ -3160,7 +3164,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
-      mesh.scale.setScalar(1);
+      mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
