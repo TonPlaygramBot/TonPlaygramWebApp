@@ -1,11 +1,11 @@
-import * as THREE from "/vendor/three/build/three.module.js";
-import { OrbitControls } from "/vendor/three/examples/jsm/controls/OrbitControls.js";
-import { RoomEnvironment } from "/vendor/three/examples/jsm/environments/RoomEnvironment.js";
-import { RoundedBoxGeometry } from "/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { GLTFLoader } from "/vendor/three/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "/vendor/three/examples/jsm/loaders/RGBELoader.js";
-import { DRACOLoader } from "/vendor/three/examples/jsm/loaders/DRACOLoader.js";
-import "./flag-emojis.js";
+import * as THREE from '/vendor/three/build/three.module.js';
+import { OrbitControls } from '/vendor/three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from '/vendor/three/examples/jsm/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
+import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
+import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -28,7 +28,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.1,
     pixelRatioCap: 1.5,
     resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Murlan Royale frame pacing.'
+    description:
+      '1080p-focused profile that mirrors the Murlan Royale frame pacing.'
   },
   {
     id: 'qhd90',
@@ -37,7 +38,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.25,
     pixelRatioCap: 1.7,
     resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    description:
+      'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
@@ -64,7 +66,10 @@ function isTelegramRuntime() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return false;
   }
-  return /Telegram/i.test(navigator.userAgent || '') || Boolean(window?.Telegram?.WebApp);
+  return (
+    /Telegram/i.test(navigator.userAgent || '') ||
+    Boolean(window?.Telegram?.WebApp)
+  );
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
@@ -98,7 +103,10 @@ function detectCoarsePointer() {
 }
 
 function detectHighRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return false;
   }
   const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
@@ -115,10 +123,17 @@ function detectHighRefreshDisplay() {
 }
 
 function detectLowRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return false;
   }
-  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  const queries = [
+    '(max-refresh-rate: 59hz)',
+    '(max-refresh-rate: 50hz)',
+    '(prefers-reduced-motion: reduce)'
+  ];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -193,7 +208,11 @@ function classifyRendererTier(rendererString) {
   ) {
     return 'desktopHigh';
   }
-  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+  if (
+    signature.includes('intel') ||
+    signature.includes('iris') ||
+    signature.includes('uhd')
+  ) {
     return 'desktopMid';
   }
   return 'unknown';
@@ -208,10 +227,12 @@ function detectPreferredFrameRateId() {
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobileUA =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
-  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const deviceMemory =
+    typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
@@ -222,10 +243,17 @@ function detectPreferredFrameRateId() {
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
-    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+    if (
+      (deviceMemory !== null && deviceMemory <= 4) ||
+      hardwareConcurrency <= 4
+    ) {
       return 'hd50';
     }
-    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+    if (
+      highRefresh &&
+      hardwareConcurrency >= 8 &&
+      (deviceMemory == null || deviceMemory >= 6)
+    ) {
       return 'uhd120';
     }
     if (
@@ -257,19 +285,24 @@ function resolveDefaultPixelRatioCap() {
 }
 
 function buildFrameQuality(optionId) {
-  const fallback = FRAME_RATE_OPTIONS_BY_ID[DEFAULT_FRAME_RATE_ID] ?? FRAME_RATE_OPTIONS[0];
-  const option = FRAME_RATE_OPTIONS_BY_ID[optionId] ?? fallback ?? FRAME_RATE_OPTIONS[0];
-  const fps = Number.isFinite(option?.fps) && option.fps > 0
-    ? option.fps
-    : Number.isFinite(fallback?.fps) && fallback.fps > 0
-      ? fallback.fps
-      : 60;
+  const fallback =
+    FRAME_RATE_OPTIONS_BY_ID[DEFAULT_FRAME_RATE_ID] ?? FRAME_RATE_OPTIONS[0];
+  const option =
+    FRAME_RATE_OPTIONS_BY_ID[optionId] ?? fallback ?? FRAME_RATE_OPTIONS[0];
+  const fps =
+    Number.isFinite(option?.fps) && option.fps > 0
+      ? option.fps
+      : Number.isFinite(fallback?.fps) && fallback.fps > 0
+        ? fallback.fps
+        : 60;
   const renderScale =
-    typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+    typeof option?.renderScale === 'number' &&
+    Number.isFinite(option.renderScale)
       ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
       : 1;
   const pixelRatioCap =
-    typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+    typeof option?.pixelRatioCap === 'number' &&
+    Number.isFinite(option.pixelRatioCap)
       ? Math.max(1, option.pixelRatioCap)
       : resolveDefaultPixelRatioCap();
   return {
@@ -284,7 +317,8 @@ function buildFrameQuality(optionId) {
 }
 
 function buildFrameTiming(quality) {
-  const fps = Number.isFinite(quality?.fps) && quality.fps > 0 ? quality.fps : 60;
+  const fps =
+    Number.isFinite(quality?.fps) && quality.fps > 0 ? quality.fps : 60;
   const targetMs = 1000 / fps;
   return {
     id: quality?.id ?? DEFAULT_FRAME_RATE_ID,
@@ -306,7 +340,10 @@ function resolveInitialFrameRateId() {
         return stored;
       }
     } catch (error) {
-      console.warn('Failed to read Domino graphics selection, falling back', error);
+      console.warn(
+        'Failed to read Domino graphics selection, falling back',
+        error
+      );
     }
   }
   const detected = detectPreferredFrameRateId();
@@ -343,18 +380,25 @@ function persistFrameRateSelection(id) {
 }
 
 function prefersReducedMotion() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function')
+    return false;
   try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)')?.matches ?? false;
+    return (
+      window.matchMedia('(prefers-reduced-motion: reduce)')?.matches ?? false
+    );
   } catch {
     return false;
   }
 }
 
 function prefersReducedAudio() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function')
+    return false;
   try {
-    const quietMediaQueries = ['(prefers-reduced-motion: reduce)', '(prefers-reduced-transparency: reduce)'];
+    const quietMediaQueries = [
+      '(prefers-reduced-motion: reduce)',
+      '(prefers-reduced-transparency: reduce)'
+    ];
     return quietMediaQueries.some((query) => window.matchMedia(query)?.matches);
   } catch {
     return false;
@@ -390,14 +434,20 @@ function readFeedbackSettings() {
 function persistFeedbackSettings(settings) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage?.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(settings));
+    window.localStorage?.setItem(
+      FEEDBACK_STORAGE_KEY,
+      JSON.stringify(settings)
+    );
   } catch {}
 }
 
 let feedbackSettings = readFeedbackSettings();
 
 function setFeedbackSettings(next, { refreshUi = true } = {}) {
-  feedbackSettings = normalizeFeedbackSettings({ ...feedbackSettings, ...next });
+  feedbackSettings = normalizeFeedbackSettings({
+    ...feedbackSettings,
+    ...next
+  });
   persistFeedbackSettings(feedbackSettings);
   if (typeof updateQuickActionMute === 'function') {
     updateQuickActionMute();
@@ -420,14 +470,30 @@ const COMMENTARY_PRESETS = [
       {
         id: 'atlas',
         role: 'playByPlay',
-        voiceHints: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+        voiceHints: [
+          'en-US',
+          'English',
+          'male',
+          'David',
+          'Guy',
+          'Daniel',
+          'Alex'
+        ],
         rate: 1,
         pitch: 0.96
       },
       {
         id: 'luna',
         role: 'color',
-        voiceHints: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma'],
+        voiceHints: [
+          'en-GB',
+          'English',
+          'female',
+          'Sonia',
+          'Hazel',
+          'Kate',
+          'Emma'
+        ],
         rate: 1.04,
         pitch: 1.06
       }
@@ -462,14 +528,32 @@ const COMMENTARY_PRESETS = [
       {
         id: 'atlas',
         role: 'playByPlay',
-        voiceHints: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+        voiceHints: [
+          'ru-RU',
+          'ru',
+          'Russian',
+          'male',
+          'Dmitri',
+          'Ivan',
+          'Sergey',
+          'Alexey'
+        ],
         rate: 1,
         pitch: 0.95
       },
       {
         id: 'luna',
         role: 'color',
-        voiceHints: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga'],
+        voiceHints: [
+          'ru-RU',
+          'ru',
+          'Russian',
+          'female',
+          'Anna',
+          'Svetlana',
+          'Irina',
+          'Olga'
+        ],
         rate: 1.03,
         pitch: 1.02
       }
@@ -483,14 +567,30 @@ const COMMENTARY_PRESETS = [
       {
         id: 'atlas',
         role: 'playByPlay',
-        voiceHints: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+        voiceHints: [
+          'es-ES',
+          'es-MX',
+          'Spanish',
+          'male',
+          'Jorge',
+          'Carlos',
+          'Miguel'
+        ],
         rate: 1.05,
         pitch: 1
       },
       {
         id: 'luna',
         role: 'color',
-        voiceHints: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila'],
+        voiceHints: [
+          'es-ES',
+          'es-MX',
+          'Spanish',
+          'female',
+          'Isabella',
+          'Lucia',
+          'Camila'
+        ],
         rate: 1.08,
         pitch: 1.1
       }
@@ -511,7 +611,14 @@ const COMMENTARY_PRESETS = [
       {
         id: 'luna',
         role: 'color',
-        voiceHints: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte'],
+        voiceHints: [
+          'fr-FR',
+          'French',
+          'female',
+          'Amelie',
+          'Marie',
+          'Charlotte'
+        ],
         rate: 1.04,
         pitch: 1.06
       }
@@ -607,7 +714,8 @@ const COMMENTARY_LINES = {
 };
 
 const speechSynth = (() => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  if (typeof window === 'undefined' || !('speechSynthesis' in window))
+    return null;
   try {
     return window.speechSynthesis;
   } catch (error) {
@@ -616,7 +724,9 @@ const speechSynth = (() => {
   }
 })();
 const speechUtteranceCtor =
-  typeof SpeechSynthesisUtterance === 'function' ? SpeechSynthesisUtterance : null;
+  typeof SpeechSynthesisUtterance === 'function'
+    ? SpeechSynthesisUtterance
+    : null;
 let commentaryVoices = [];
 let commentaryPresetId = COMMENTARY_PRESETS[0]?.id || 'atlas';
 let commentaryMuted = false;
@@ -649,10 +759,15 @@ function readCommentaryPrefs() {
   if (typeof window === 'undefined') return;
   try {
     const storedPreset = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
-    if (storedPreset && COMMENTARY_PRESETS.some((preset) => preset.id === storedPreset)) {
+    if (
+      storedPreset &&
+      COMMENTARY_PRESETS.some((preset) => preset.id === storedPreset)
+    ) {
       commentaryPresetId = storedPreset;
     }
-    const storedMute = window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+    const storedMute = window.localStorage?.getItem(
+      COMMENTARY_MUTE_STORAGE_KEY
+    );
     if (storedMute === '1') commentaryMuted = true;
     if (storedMute === '0') commentaryMuted = false;
   } catch {}
@@ -662,7 +777,10 @@ function persistCommentaryPrefs() {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, commentaryPresetId);
-    window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    window.localStorage?.setItem(
+      COMMENTARY_MUTE_STORAGE_KEY,
+      commentaryMuted ? '1' : '0'
+    );
   } catch {}
 }
 
@@ -680,7 +798,9 @@ function refreshCommentaryVoices() {
 
 function findVoiceMatch(voices, hints = [], excludeNames = []) {
   if (!voices.length) return null;
-  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean);
+  const normalizedHints = hints
+    .map((hint) => String(hint || '').toLowerCase())
+    .filter(Boolean);
   const filteredVoices = excludeNames.length
     ? voices.filter((voice) => !excludeNames.includes(voice.name))
     : voices;
@@ -698,17 +818,25 @@ function findVoiceMatch(voices, hints = [], excludeNames = []) {
 }
 
 function getActiveCommentaryPreset() {
-  return COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) || COMMENTARY_PRESETS[0];
+  return (
+    COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ||
+    COMMENTARY_PRESETS[0]
+  );
 }
 
 function resolveCommentaryVoice(profile, excludeNames = []) {
   if (!profile) return findVoiceMatch(commentaryVoices, [], excludeNames);
-  return findVoiceMatch(commentaryVoices, profile.voiceHints || [], excludeNames);
+  return findVoiceMatch(
+    commentaryVoices,
+    profile.voiceHints || [],
+    excludeNames
+  );
 }
 
 function getCommentaryVoiceProfiles() {
   const preset = getActiveCommentaryPreset();
-  if (Array.isArray(preset?.voices) && preset.voices.length) return preset.voices;
+  if (Array.isArray(preset?.voices) && preset.voices.length)
+    return preset.voices;
   return preset ? [preset] : [];
 }
 
@@ -717,7 +845,9 @@ function getVoiceProfileForKind(kind) {
   if (!profiles.length) return null;
   const desiredRole = COMMENTARY_VOICE_BY_KIND[kind];
   if (desiredRole) {
-    const matched = profiles.find((profile) => profile.role === desiredRole || profile.id === desiredRole);
+    const matched = profiles.find(
+      (profile) => profile.role === desiredRole || profile.id === desiredRole
+    );
     if (matched) return matched;
   }
   const profile = profiles[commentaryVoiceCycleIndex % profiles.length];
@@ -795,7 +925,10 @@ function buildCommentaryLine(kind, context = {}) {
   return template
     .replace('{name}', context.name || formatSeatName(context.player ?? human))
     .replace('{tile}', context.tileLabel || formatTileName(context.tile))
-    .replace('{count}', Number.isFinite(context.tilesLeft) ? String(context.tilesLeft) : '')
+    .replace(
+      '{count}',
+      Number.isFinite(context.tilesLeft) ? String(context.tilesLeft) : ''
+    )
     .replace('{countLabel}', formatTileCount(context.tilesLeft));
 }
 
@@ -819,7 +952,10 @@ function scheduleCommentaryVoicesRetry() {
   }, 600);
 }
 
-function speakCommentary(text, { interrupt = false, priority = false, kind = '' } = {}) {
+function speakCommentary(
+  text,
+  { interrupt = false, priority = false, kind = '' } = {}
+) {
   if (!speechSynth || !speechUtteranceCtor || commentaryMuted || !text) return;
   if (!commentaryReady) {
     refreshCommentaryVoices();
@@ -834,13 +970,16 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
   }
   ensureSpeechUnlocked();
   const now = performance.now();
-  if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
+  if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS)
+    return;
   if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
   const profile = getVoiceProfileForKind(kind);
   const utterance = new speechUtteranceCtor(text);
   const primaryVoice = resolveCommentaryVoice(profile);
   const secondaryVoice = resolveCommentaryVoice(
-    getCommentaryVoiceProfiles().find((voiceProfile) => voiceProfile !== profile),
+    getCommentaryVoiceProfiles().find(
+      (voiceProfile) => voiceProfile !== profile
+    ),
     primaryVoice?.name ? [primaryVoice.name] : []
   );
   const activeVoice = primaryVoice || secondaryVoice;
@@ -910,7 +1049,10 @@ function unlockInteractiveAudio() {
 }
 
 ['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
-  window.addEventListener(eventName, unlockInteractiveAudio, { once: true, passive: true });
+  window.addEventListener(eventName, unlockInteractiveAudio, {
+    once: true,
+    passive: true
+  });
 });
 
 function isSoundEnabled() {
@@ -929,7 +1071,10 @@ function getSoundGainMultiplier() {
 function vibratePattern(pattern = []) {
   if (!isHapticsEnabled()) return;
   try {
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    if (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.vibrate === 'function'
+    ) {
       navigator.vibrate(pattern);
     }
   } catch {}
@@ -996,7 +1141,12 @@ function playBuffer(buffer, { gain = 0.5, playbackRate = 1 } = {}) {
   src.start();
 }
 
-function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.28 }) {
+function playGlide({
+  startFreq = 420,
+  endFreq = 140,
+  duration = 0.35,
+  gain = 0.28
+}) {
   const gainMultiplier = getSoundGainMultiplier();
   if (gainMultiplier <= 0) return;
   const ctx = ensureAudioContext();
@@ -1035,7 +1185,9 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
   });
 }
 
-const KNOCK_SFX_URL = encodeURI('/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3');
+const KNOCK_SFX_URL = encodeURI(
+  '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3'
+);
 
 const sfxBuffers = {
   placeFallback: null,
@@ -1054,16 +1206,22 @@ function ensureSfxBuffers() {
       const strikeEnv = Math.exp(-t * 72);
       const bodyEnv = Math.exp(-t * 14);
       const click = Math.sin((i + 11) * 0.22) * strikeEnv * 0.52;
-      const rasp = ((Math.sin(i * 12.9898) * 43758.5453) % 1 - 0.5) * strikeEnv * 0.24;
+      const rasp =
+        (((Math.sin(i * 12.9898) * 43758.5453) % 1) - 0.5) * strikeEnv * 0.24;
       const knock = Math.sin(2 * Math.PI * 128 * t) * bodyEnv * 0.46;
-      const woodBody = Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * 0.28;
-      const lowThump = Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * 0.32;
+      const woodBody =
+        Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * 0.28;
+      const lowThump =
+        Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * 0.32;
       return (click + rasp + knock + woodBody + lowThump) * 0.88;
     });
     sfxBuffers.draw = createBuffer(ctx, 0.26, (t, i, length) => {
       const env = Math.exp(-t * 16);
-      const swirl = Math.sin(2 * Math.PI * (240 + 220 * Math.sin(t * 5.8)) * t) * 0.42;
-      const breath = (Math.sin((i + 13) * 0.19) * 0.5 + Math.sin((length - i) * 0.013)) * 0.18;
+      const swirl =
+        Math.sin(2 * Math.PI * (240 + 220 * Math.sin(t * 5.8)) * t) * 0.42;
+      const breath =
+        (Math.sin((i + 13) * 0.19) * 0.5 + Math.sin((length - i) * 0.013)) *
+        0.18;
       return (swirl + breath) * env;
     });
     sfxBuffers.block = createBuffer(ctx, 0.32, (t, i) => {
@@ -1085,7 +1243,8 @@ function loadPlaceBuffer() {
   }
   placeBufferPromise = fetch(KNOCK_SFX_URL)
     .then((res) => {
-      if (!res?.ok) throw new Error(`Failed to fetch knock SFX: ${res?.status}`);
+      if (!res?.ok)
+        throw new Error(`Failed to fetch knock SFX: ${res?.status}`);
       return res.arrayBuffer();
     })
     .then((data) => ctx.decodeAudioData(data))
@@ -1101,7 +1260,10 @@ const SFX = {
   place() {
     ensureSfxBuffers();
     loadPlaceBuffer().then((buffer) =>
-      playBuffer(buffer || sfxBuffers.placeFallback, { gain: 0.55, playbackRate: 1.02 })
+      playBuffer(buffer || sfxBuffers.placeFallback, {
+        gain: 0.55,
+        playbackRate: 1.02
+      })
     );
     triggerHaptics('place');
   },
@@ -1133,8 +1295,8 @@ const SFX = {
   }
 };
 
-  /* ---------- Renderer / Scene ---------- */
-const app = document.getElementById("app");
+/* ---------- Renderer / Scene ---------- */
+const app = document.getElementById('app');
 function createRendererWithFallback() {
   const attempts = [
     { antialias: true, alpha: true, powerPreference: 'high-performance' },
@@ -1159,7 +1321,8 @@ try {
 } catch (error) {
   console.error('Domino Royal renderer initialization failed', error);
   if (app) {
-    app.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;color:#fff;text-align:center;background:#061219">Unable to initialize 3D graphics on this device. Please reload or lower graphics quality.</div>';
+    app.innerHTML =
+      '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;color:#fff;text-align:center;background:#061219">Unable to initialize 3D graphics on this device. Please reload or lower graphics quality.</div>';
   }
   throw error;
 }
@@ -1168,29 +1331,39 @@ renderer.shadowMap.enabled = !IS_TELEGRAM_RUNTIME;
 renderer.shadowMap.autoUpdate = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
-renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
+renderer.outputColorSpace = THREE.SRGBColorSpace; // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.85;
-function setRendererSize(quality = frameQuality){
-  const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
-  const scale = typeof quality?.renderScale === 'number' ? quality.renderScale : 1;
+function setRendererSize(quality = frameQuality) {
+  const vv = window.visualViewport;
+  const w = vv ? vv.width : window.innerWidth;
+  const h = vv ? vv.height : window.innerHeight;
+  const scale =
+    typeof quality?.renderScale === 'number' ? quality.renderScale : 1;
   renderer.setSize(w * scale, h * scale, false);
   renderer.domElement.style.width = '100%';
   renderer.domElement.style.height = '100%';
 }
 function applyRendererQuality(quality = frameQuality) {
-  const dpr = typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
-    ? window.devicePixelRatio
-    : 1;
+  const dpr =
+    typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+      ? window.devicePixelRatio
+      : 1;
   const pixelRatioCap =
-    typeof quality?.pixelRatioCap === 'number' && Number.isFinite(quality.pixelRatioCap)
+    typeof quality?.pixelRatioCap === 'number' &&
+    Number.isFinite(quality.pixelRatioCap)
       ? quality.pixelRatioCap
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 2) : pixelRatioCap;
-  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME ? Math.min(cappedRatio, 1) : cappedRatio;
+  const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME
+    ? Math.min(cappedRatio, 1)
+    : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
   if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
-    setRendererSize({ ...quality, renderScale: Math.min(quality.renderScale || 1, 1) });
+    setRendererSize({
+      ...quality,
+      renderScale: Math.min(quality.renderScale || 1, 1)
+    });
   } else {
     setRendererSize(quality);
   }
@@ -1269,15 +1442,24 @@ const CAMERA_NEAR = 0.1;
 const CAMERA_FAR = 5000;
 const CAMERA_MIN_POLAR = 0.92;
 const CAMERA_MAX_POLAR = 1.22;
-const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(CAMERA_MIN_POLAR, CAMERA_MAX_POLAR, 0.35);
+const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(
+  CAMERA_MIN_POLAR,
+  CAMERA_MAX_POLAR,
+  0.35
+);
 const CAMERA_BASE_RADIUS = TABLE_RADIUS;
 const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
-const CAMERA_DEFAULT_AZIMUTH = CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
+const CAMERA_DEFAULT_AZIMUTH =
+  CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
 const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
 const CAMERA_REAR_OFFSET = { portrait: 1.85, landscape: 1.35 };
 const CAMERA_HEIGHT_BOOST = { portrait: 1.95, landscape: 1.58 };
-const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
+const CAMERA_TARGET = new THREE.Vector3(
+  0,
+  TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA,
+  0
+);
 const CAMERA_TOPDOWN_RADIUS = TABLE_RADIUS * 2.35;
 const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
@@ -1287,6 +1469,7 @@ const CAMERA_TOPDOWN_FRAMING = Object.freeze({
   portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
   landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
 });
+const CAMERA_TURN_FOCUS_LERP = 0.13;
 const UP = new THREE.Vector3(0, 1, 0);
 const USE_MINIMAL_STAGE = true;
 
@@ -1296,7 +1479,11 @@ let cameraViewMode = VIEW_MODES.threeD;
 function normalizeAvatarSource(src = '') {
   const trimmed = src.trim();
   if (!trimmed) return '';
-  if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+  if (
+    trimmed.startsWith('http') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('/')
+  ) {
     return trimmed;
   }
   if (trimmed.startsWith('assets/')) {
@@ -1310,7 +1497,11 @@ const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
 const accountId = (urlParams.get('accountId') || '').trim();
-const telegramId = (urlParams.get('tgId') || urlParams.get('telegramId') || '').trim();
+const telegramId = (
+  urlParams.get('tgId') ||
+  urlParams.get('telegramId') ||
+  ''
+).trim();
 let seatAvatarPhoto = normalizeAvatarSource(urlParams.get('avatar') || '');
 let seatAvatarUsername = (urlParams.get('username') || '').trim();
 const telegramUser = window?.Telegram?.WebApp?.initDataUnsafe?.user;
@@ -1318,7 +1509,12 @@ if (!seatAvatarPhoto && telegramUser?.photo_url) {
   seatAvatarPhoto = normalizeAvatarSource(telegramUser.photo_url);
 }
 if (!seatAvatarUsername && telegramUser) {
-  seatAvatarUsername = (telegramUser.username || telegramUser.first_name || telegramUser.last_name || '').trim();
+  seatAvatarUsername = (
+    telegramUser.username ||
+    telegramUser.first_name ||
+    telegramUser.last_name ||
+    ''
+  ).trim();
 }
 const lobbyAvatarFallback = (() => {
   try {
@@ -1330,7 +1526,9 @@ const lobbyAvatarFallback = (() => {
 })();
 const DEFAULT_AVATAR_EMOJI = '🌐';
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
-const FLAG_EMOJI_POOL = Array.isArray(window.FLAG_EMOJIS) ? window.FLAG_EMOJIS : [];
+const FLAG_EMOJI_POOL = Array.isArray(window.FLAG_EMOJIS)
+  ? window.FLAG_EMOJIS
+  : [];
 const aiAvatarMode = (urlParams.get('avatars') || 'flags').toLowerCase();
 const selectedFlagAvatars = (urlParams.get('flags') || '')
   .split(',')
@@ -1353,7 +1551,11 @@ function emojiToRegionCode(flag = '') {
 
 function avatarToName(source = '') {
   if (!source) return '';
-  if (!source.startsWith('/') && !source.startsWith('http') && !source.startsWith('data:')) {
+  if (
+    !source.startsWith('/') &&
+    !source.startsWith('http') &&
+    !source.startsWith('data:')
+  ) {
     const region = emojiToRegionCode(source.trim());
     if (region) {
       try {
@@ -1365,14 +1567,18 @@ function avatarToName(source = '') {
     return '';
   }
   const filename = source.split('/').pop() || '';
-  const base = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
+  const base = filename
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]/g, ' ')
+    .trim();
   if (!base) return '';
   return base.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function pickFlagForSeat(index = 0) {
   if (aiAvatarMode === 'flags') {
-    const explicit = selectedFlagAvatars[index] ?? selectedFlagAvatars[index - 1];
+    const explicit =
+      selectedFlagAvatars[index] ?? selectedFlagAvatars[index - 1];
     if (explicit) return explicit;
   }
   if (FLAG_EMOJI_POOL.length) {
@@ -1402,13 +1608,21 @@ async function loadHumanProfileFromApi() {
     return null;
   }
   try {
-    const user = await window.fbApi.getUserInfo({ accountId, tgId: telegramId });
+    const user = await window.fbApi.getUserInfo({
+      accountId,
+      tgId: telegramId
+    });
     if (user) {
       if (!seatAvatarPhoto) {
         seatAvatarPhoto = normalizeAvatarSource(user.photo_url || '');
       }
       if (!seatAvatarUsername) {
-        seatAvatarUsername = (user.username || user.first_name || user.last_name || '').trim();
+        seatAvatarUsername = (
+          user.username ||
+          user.first_name ||
+          user.last_name ||
+          ''
+        ).trim();
       }
     }
   } catch (error) {
@@ -1443,15 +1657,27 @@ function seatBasisForAngle(angle, radius = CHAIR_RADIUS) {
 
 function seatBasisForIndex(index = 0) {
   const safeIndex = Number.isFinite(index) ? index : 0;
-  const angle = CHAIR_SEAT_ANGLES[safeIndex % CHAIR_SEAT_ANGLES.length] ?? CAMERA_DEFAULT_AZIMUTH;
-  const radius = CHAIR_SEAT_RADII[safeIndex % CHAIR_SEAT_RADII.length] ?? CHAIR_RADIUS;
+  const angle =
+    CHAIR_SEAT_ANGLES[safeIndex % CHAIR_SEAT_ANGLES.length] ??
+    CAMERA_DEFAULT_AZIMUTH;
+  const radius =
+    CHAIR_SEAT_RADII[safeIndex % CHAIR_SEAT_RADII.length] ?? CHAIR_RADIUS;
   return seatBasisForAngle(angle, radius);
 }
 
-const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
-function fitCamera(){
-  const vv = window.visualViewport; const w= vv?vv.width:innerWidth; const h= vv?vv.height:innerHeight;
-  camera.aspect = w/h; camera.updateProjectionMatrix(); applyRendererQuality();
+const camera = new THREE.PerspectiveCamera(
+  CAMERA_FOV,
+  1,
+  CAMERA_NEAR,
+  CAMERA_FAR
+);
+function fitCamera() {
+  const vv = window.visualViewport;
+  const w = vv ? vv.width : innerWidth;
+  const h = vv ? vv.height : innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  applyRendererQuality();
 }
 fitCamera();
 
@@ -1472,6 +1698,7 @@ controls.touches.ONE = THREE.TOUCH.ROTATE;
 controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
 controls.target.copy(CAMERA_TARGET);
+const turnFocusTarget = controls.target.clone();
 
 let cameraHasUserControl = false;
 controls.addEventListener('start', () => {
@@ -1501,9 +1728,15 @@ function computeDesiredCameraPosition() {
   const seatAnchor = seat.position.clone();
   seatAnchor.y = seatHeight;
 
-  const retreat = isPortrait ? CAMERA_REAR_OFFSET.portrait : CAMERA_REAR_OFFSET.landscape;
-  const lateral = isPortrait ? CAMERA_LATERAL_OFFSET.portrait : CAMERA_LATERAL_OFFSET.landscape;
-  const elevation = isPortrait ? CAMERA_HEIGHT_BOOST.portrait : CAMERA_HEIGHT_BOOST.landscape;
+  const retreat = isPortrait
+    ? CAMERA_REAR_OFFSET.portrait
+    : CAMERA_REAR_OFFSET.landscape;
+  const lateral = isPortrait
+    ? CAMERA_LATERAL_OFFSET.portrait
+    : CAMERA_LATERAL_OFFSET.landscape;
+  const elevation = isPortrait
+    ? CAMERA_HEIGHT_BOOST.portrait
+    : CAMERA_HEIGHT_BOOST.landscape;
 
   const desiredPosition = seatAnchor
     .clone()
@@ -1515,7 +1748,9 @@ function computeDesiredCameraPosition() {
 
 function getTopDownFramingOffset() {
   const { isPortrait } = getViewportMetrics();
-  const framing = isPortrait ? CAMERA_TOPDOWN_FRAMING.portrait : CAMERA_TOPDOWN_FRAMING.landscape;
+  const framing = isPortrait
+    ? CAMERA_TOPDOWN_FRAMING.portrait
+    : CAMERA_TOPDOWN_FRAMING.landscape;
   const { right = 0, forward = 0 } = framing || {};
   return new THREE.Vector3(right, 0, forward);
 }
@@ -1528,7 +1763,10 @@ function getActiveCameraTarget() {
 }
 
 function computeTopDownCameraPosition(target = CAMERA_TARGET) {
-  const lift = Math.max(TABLE_HEIGHT + CAMERA_TARGET_EXTRA, CAMERA_TOPDOWN_RADIUS);
+  const lift = Math.max(
+    TABLE_HEIGHT + CAMERA_TARGET_EXTRA,
+    CAMERA_TOPDOWN_RADIUS
+  );
   return target.clone().add(new THREE.Vector3(0, lift, 0.0001));
 }
 
@@ -1558,7 +1796,8 @@ function getDesiredCameraPosition(target = getActiveCameraTarget()) {
 }
 
 function applyCameraConstraints() {
-  const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
+  const { minPolar, maxPolar, minRadius, maxRadius } =
+    getActiveCameraConstraints();
   controls.minPolarAngle = minPolar;
   controls.maxPolarAngle = maxPolar;
   controls.minDistance = minRadius;
@@ -1567,15 +1806,24 @@ function applyCameraConstraints() {
 }
 
 function clampCameraPosition(position, target = getActiveCameraTarget()) {
-  const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
+  const { minPolar, maxPolar, minRadius, maxRadius } =
+    getActiveCameraConstraints();
   const offset = position.clone().sub(target);
   const spherical = new THREE.Spherical().setFromVector3(offset);
   if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
     spherical.radius = minRadius;
     spherical.theta = CAMERA_DEFAULT_AZIMUTH;
-    spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, minPolar, maxPolar);
+    spherical.phi = THREE.MathUtils.clamp(
+      CAMERA_INITIAL_PHI,
+      minPolar,
+      maxPolar
+    );
   }
-  spherical.radius = THREE.MathUtils.clamp(spherical.radius, minRadius, maxRadius);
+  spherical.radius = THREE.MathUtils.clamp(
+    spherical.radius,
+    minRadius,
+    maxRadius
+  );
   spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
   const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
   return target.clone().add(clampedOffset);
@@ -1597,7 +1845,22 @@ function positionCameraForViewport({ force = false } = {}) {
   }
 
   controls.target.copy(target);
+  turnFocusTarget.copy(target);
   controls.update();
+}
+
+function updateTurnCameraFocus() {
+  if (cameraViewMode === VIEW_MODES.twoD || !Number.isInteger(current)) {
+    turnFocusTarget.copy(getActiveCameraTarget());
+    controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
+    return;
+  }
+
+  const focusSeat = seatBasisForIndex(current % Math.max(1, N));
+  const focusTarget = focusSeat.position.clone();
+  focusTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
+  turnFocusTarget.copy(focusTarget);
+  controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
 }
 
 function updateViewToggleLabel() {
@@ -1625,10 +1888,10 @@ function setCameraViewMode(mode = VIEW_MODES.threeD) {
 }
 
 function toggleCameraViewMode() {
-  const next = cameraViewMode === VIEW_MODES.twoD ? VIEW_MODES.threeD : VIEW_MODES.twoD;
+  const next =
+    cameraViewMode === VIEW_MODES.twoD ? VIEW_MODES.threeD : VIEW_MODES.twoD;
   setCameraViewMode(next);
 }
-
 
 /* ---------- Lights ---------- */
 const ambient = new THREE.AmbientLight(0xffffff, 0.35);
@@ -1643,7 +1906,14 @@ scene.add(fillLight);
 const rimLight = new THREE.DirectionalLight(0xffffff, 0.9);
 rimLight.position.set(0, 6, -6);
 scene.add(rimLight);
-const spot = new THREE.SpotLight(0xffffff, 0.8, TABLE_RADIUS * 10, Math.PI / 3, 0.38, 1);
+const spot = new THREE.SpotLight(
+  0xffffff,
+  0.8,
+  TABLE_RADIUS * 10,
+  Math.PI / 3,
+  0.38,
+  1
+);
 spot.position.set(0, 4.2, 4.6);
 scene.add(spot);
 const spotTarget = new THREE.Object3D();
@@ -1676,19 +1946,19 @@ const getPoolCarpetTextures = (() => {
   };
   return (renderer) => {
     if (cache) return cache;
-    if (typeof document === "undefined") {
+    if (typeof document === 'undefined') {
       cache = { map: null, bump: null };
       return cache;
     }
     const size = 1024;
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
 
     // Match Pool Royale's crimson carpet palette.
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, "#7c242f");
-    gradient.addColorStop(1, "#9d3642");
+    gradient.addColorStop(0, '#7c242f');
+    gradient.addColorStop(1, '#9d3642');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
 
@@ -1701,7 +1971,10 @@ const getPoolCarpetTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const fiber = (Math.sin((x / size) * Math.PI * 14) + Math.cos((y / size) * Math.PI * 16)) * 0.08;
+        const fiber =
+          (Math.sin((x / size) * Math.PI * 14) +
+            Math.cos((y / size) * Math.PI * 16)) *
+          0.08;
         const grain = (rand() - 0.5) * 0.12;
         const shade = clamp01(0.55 + fiber * 0.75 + grain * 0.6);
         const r = baseColor.r + (highlightColor.r - baseColor.r) * shade;
@@ -1715,7 +1988,7 @@ const getPoolCarpetTextures = (() => {
     ctx.putImageData(image, 0, 0);
 
     ctx.globalAlpha = 0.04;
-    ctx.fillStyle = "#4f1119";
+    ctx.fillStyle = '#4f1119';
     for (let row = 0; row < size; row += 3) {
       ctx.fillRect(0, row, size, 1);
     }
@@ -1726,10 +1999,17 @@ const getPoolCarpetTextures = (() => {
     const stripeRadius = size * 0.08;
     const stripeWidth = size * 0.012;
     ctx.lineWidth = stripeWidth;
-    ctx.strokeStyle = "#f2b7b4";
-    ctx.shadowColor = "rgba(80,20,30,0.18)";
+    ctx.strokeStyle = '#f2b7b4';
+    ctx.shadowColor = 'rgba(80,20,30,0.18)';
     ctx.shadowBlur = stripeWidth * 0.8;
-    drawRoundedRect(ctx, stripeInset, stripeInset, size - stripeInset * 2, size - stripeInset * 2, stripeRadius);
+    drawRoundedRect(
+      ctx,
+      stripeInset,
+      stripeInset,
+      size - stripeInset * 2,
+      size - stripeInset * 2,
+      stripeRadius
+    );
     ctx.stroke();
     ctx.shadowBlur = 0;
 
@@ -1741,9 +2021,9 @@ const getPoolCarpetTextures = (() => {
     texture.generateMipmaps = true;
     texture.colorSpace = THREE.SRGBColorSpace;
 
-    const bumpCanvas = document.createElement("canvas");
+    const bumpCanvas = document.createElement('canvas');
     bumpCanvas.width = bumpCanvas.height = size;
-    const bumpCtx = bumpCanvas.getContext("2d");
+    const bumpCtx = bumpCanvas.getContext('2d');
     bumpCtx.drawImage(canvas, 0, 0);
     const bumpImage = bumpCtx.getImageData(0, 0, size, size);
     const bumpData = bumpImage.data;
@@ -1775,38 +2055,148 @@ const getPoolCarpetTextures = (() => {
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
-  id: "crimsonVelvet",
-  label: "Crimson Velvet",
-  seatColor: "#8b1538",
-  legColor: "#1f1f1f",
-  highlight: "#d35a7a"
+  id: 'crimsonVelvet',
+  label: 'Crimson Velvet',
+  seatColor: '#8b1538',
+  legColor: '#1f1f1f',
+  highlight: '#d35a7a'
 });
 
-const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
+const POLYHAVEN_THUMB = (id) =>
+  `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
 
 const MURLAN_BASE_STOOL_THEMES = [
-  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f', price: 0, description: 'Default ruby cushions with noir legs.' },
-  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a', price: 210, description: 'Slate seats with midnight legs.' },
-  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a', price: 230, description: 'Teal cushions with deep green support.' },
-  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410', price: 250, description: 'Amber seats with rich brown legs.' },
-  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059', price: 270, description: 'Violet cushions with twilight framing.' },
-  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a', price: 290, description: 'Frosted charcoal seats with dark legs.' },
-  { id: 'leather', label: 'Leather', seatColor: '#6a4a32', legColor: '#1a1410', price: 320, description: 'Leather-wrapped seats with dark studio legs.' }
+  {
+    id: 'ruby',
+    label: 'Ruby',
+    seatColor: '#8b0000',
+    legColor: '#1f1f1f',
+    price: 0,
+    description: 'Default ruby cushions with noir legs.'
+  },
+  {
+    id: 'slate',
+    label: 'Slate',
+    seatColor: '#374151',
+    legColor: '#0f172a',
+    price: 210,
+    description: 'Slate seats with midnight legs.'
+  },
+  {
+    id: 'teal',
+    label: 'Teal',
+    seatColor: '#0f766e',
+    legColor: '#082f2a',
+    price: 230,
+    description: 'Teal cushions with deep green support.'
+  },
+  {
+    id: 'amber',
+    label: 'Amber',
+    seatColor: '#b45309',
+    legColor: '#2f2410',
+    price: 250,
+    description: 'Amber seats with rich brown legs.'
+  },
+  {
+    id: 'violet',
+    label: 'Violet',
+    seatColor: '#7c3aed',
+    legColor: '#2b1059',
+    price: 270,
+    description: 'Violet cushions with twilight framing.'
+  },
+  {
+    id: 'frost',
+    label: 'Ice',
+    seatColor: '#1f2937',
+    legColor: '#0f172a',
+    price: 290,
+    description: 'Frosted charcoal seats with dark legs.'
+  },
+  {
+    id: 'leather',
+    label: 'Leather',
+    seatColor: '#6a4a32',
+    legColor: '#1a1410',
+    price: 320,
+    description: 'Leather-wrapped seats with dark studio legs.'
+  }
 ];
 
 const MURLAN_POLYHAVEN_CHAIR_THEMES = [
-  { id: 'ArmChair_01', label: 'Arm Chair 01', source: 'polyhaven', assetId: 'ArmChair_01' },
-  { id: 'BarberShopChair_01', label: 'Barber Shop Chair 01', source: 'polyhaven', assetId: 'BarberShopChair_01' },
-  { id: 'GreenChair_01', label: 'Green Chair 01', source: 'polyhaven', assetId: 'GreenChair_01' },
-  { id: 'SchoolChair_01', label: 'School Chair 01', source: 'polyhaven', assetId: 'SchoolChair_01' },
-  { id: 'dining_chair_02', label: 'Dining Chair 02', source: 'polyhaven', assetId: 'dining_chair_02' },
-  { id: 'gallinera_chair', label: 'Gallinera Chair', source: 'polyhaven', assetId: 'gallinera_chair' },
-  { id: 'mid_century_lounge_chair', label: 'Mid-Century Lounge', source: 'polyhaven', assetId: 'mid_century_lounge_chair' },
-  { id: 'modern_arm_chair_01', label: 'Modern Arm Chair', source: 'polyhaven', assetId: 'modern_arm_chair_01' },
-  { id: 'painted_wooden_chair_01', label: 'Painted Wooden Chair 01', source: 'polyhaven', assetId: 'painted_wooden_chair_01' },
-  { id: 'painted_wooden_chair_02', label: 'Painted Wooden Chair 02', source: 'polyhaven', assetId: 'painted_wooden_chair_02' },
-  { id: 'plastic_monobloc_chair_01', label: 'Plastic Monobloc Chair', source: 'polyhaven', assetId: 'plastic_monobloc_chair_01' },
-  { id: 'wheelchair_01', label: 'Wheelchair 01', source: 'polyhaven', assetId: 'wheelchair_01' }
+  {
+    id: 'ArmChair_01',
+    label: 'Arm Chair 01',
+    source: 'polyhaven',
+    assetId: 'ArmChair_01'
+  },
+  {
+    id: 'BarberShopChair_01',
+    label: 'Barber Shop Chair 01',
+    source: 'polyhaven',
+    assetId: 'BarberShopChair_01'
+  },
+  {
+    id: 'GreenChair_01',
+    label: 'Green Chair 01',
+    source: 'polyhaven',
+    assetId: 'GreenChair_01'
+  },
+  {
+    id: 'SchoolChair_01',
+    label: 'School Chair 01',
+    source: 'polyhaven',
+    assetId: 'SchoolChair_01'
+  },
+  {
+    id: 'dining_chair_02',
+    label: 'Dining Chair 02',
+    source: 'polyhaven',
+    assetId: 'dining_chair_02'
+  },
+  {
+    id: 'gallinera_chair',
+    label: 'Gallinera Chair',
+    source: 'polyhaven',
+    assetId: 'gallinera_chair'
+  },
+  {
+    id: 'mid_century_lounge_chair',
+    label: 'Mid-Century Lounge',
+    source: 'polyhaven',
+    assetId: 'mid_century_lounge_chair'
+  },
+  {
+    id: 'modern_arm_chair_01',
+    label: 'Modern Arm Chair',
+    source: 'polyhaven',
+    assetId: 'modern_arm_chair_01'
+  },
+  {
+    id: 'painted_wooden_chair_01',
+    label: 'Painted Wooden Chair 01',
+    source: 'polyhaven',
+    assetId: 'painted_wooden_chair_01'
+  },
+  {
+    id: 'painted_wooden_chair_02',
+    label: 'Painted Wooden Chair 02',
+    source: 'polyhaven',
+    assetId: 'painted_wooden_chair_02'
+  },
+  {
+    id: 'plastic_monobloc_chair_01',
+    label: 'Plastic Monobloc Chair',
+    source: 'polyhaven',
+    assetId: 'plastic_monobloc_chair_01'
+  },
+  {
+    id: 'wheelchair_01',
+    label: 'Wheelchair 01',
+    source: 'polyhaven',
+    assetId: 'wheelchair_01'
+  }
 ].map((option, index) => ({
   ...option,
   thumbnail: POLYHAVEN_THUMB(option.assetId),
@@ -1815,59 +2205,71 @@ const MURLAN_POLYHAVEN_CHAIR_THEMES = [
   preserveMaterials: true
 }));
 
-const MURLAN_STOOL_THEMES = Object.freeze([...MURLAN_BASE_STOOL_THEMES, ...MURLAN_POLYHAVEN_CHAIR_THEMES]);
+const MURLAN_STOOL_THEMES = Object.freeze([
+  ...MURLAN_BASE_STOOL_THEMES,
+  ...MURLAN_POLYHAVEN_CHAIR_THEMES
+]);
 
-const MURLAN_TABLE_THEMES = Object.freeze([
-  {
-    id: 'murlan-default',
-    label: 'Murlan Default Table',
-    source: 'procedural',
-    price: 0,
-    thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
-    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
-  },
-  { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
-  { id: 'WoodenTable_01', label: 'Wooden Table 01' },
-  { id: 'WoodenTable_02', label: 'Wooden Table 02' },
-  { id: 'WoodenTable_03', label: 'Wooden Table 03' },
-  { id: 'chinese_console_table', label: 'Chinese Console Table' },
-  { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
-  { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
-  { id: 'gallinera_table', label: 'Gallinera Table' },
-  { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
-  { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
-  { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
-  { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
-  { id: 'painted_wooden_table', label: 'Painted Wooden Table' },
-  { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
-  { id: 'side_table_01', label: 'Side Table 01' },
-  { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
-  { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' },
-  { id: 'wooden_table_02', label: 'Wooden Table 02 (Alt)' }
-].map((option, index) => ({
-  ...option,
-  assetId: option.assetId || option.id,
-  source: option.source || 'polyhaven',
-  thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
-  price: option.price ?? 980 + index * 40,
-  preserveMaterials: option.preserveMaterials ?? true,
-  description: option.description || `${option.label} with preserved Poly Haven materials.`
-})));
+const MURLAN_TABLE_THEMES = Object.freeze(
+  [
+    {
+      id: 'murlan-default',
+      label: 'Murlan Default Table',
+      source: 'procedural',
+      price: 0,
+      thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
+      description:
+        'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+    },
+    { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
+    { id: 'WoodenTable_01', label: 'Wooden Table 01' },
+    { id: 'WoodenTable_02', label: 'Wooden Table 02' },
+    { id: 'WoodenTable_03', label: 'Wooden Table 03' },
+    { id: 'chinese_console_table', label: 'Chinese Console Table' },
+    { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
+    { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
+    { id: 'gallinera_table', label: 'Gallinera Table' },
+    { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
+    { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
+    { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
+    { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
+    { id: 'painted_wooden_table', label: 'Painted Wooden Table' },
+    { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
+    { id: 'side_table_01', label: 'Side Table 01' },
+    { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
+    { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' },
+    { id: 'wooden_table_02', label: 'Wooden Table 02 (Alt)' }
+  ].map((option, index) => ({
+    ...option,
+    assetId: option.assetId || option.id,
+    source: option.source || 'polyhaven',
+    thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
+    price: option.price ?? 980 + index * 40,
+    preserveMaterials: option.preserveMaterials ?? true,
+    description:
+      option.description ||
+      `${option.label} with preserved Poly Haven materials.`
+  }))
+);
 
 const CHAIR_THEME_OPTIONS = Object.freeze(
   MURLAN_STOOL_THEMES.map((theme, idx) => ({
     ...theme,
-    seatColor: theme.seatColor || theme.baseColor || DEFAULT_CHAIR_THEME.seatColor,
+    seatColor:
+      theme.seatColor || theme.baseColor || DEFAULT_CHAIR_THEME.seatColor,
     legColor: theme.legColor || '#1f1f1f',
-    highlight: theme.highlight || theme.accentColor || adjustHexColor(theme.seatColor || DEFAULT_CHAIR_THEME.seatColor, 0.22),
+    highlight:
+      theme.highlight ||
+      theme.accentColor ||
+      adjustHexColor(theme.seatColor || DEFAULT_CHAIR_THEME.seatColor, 0.22),
     idx
   }))
 );
 
 const CHAIR_MODEL_URLS = [
-  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb",
-  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb",
-  "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb"
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const polyhavenModelCache = new Map();
 
@@ -1884,7 +2286,7 @@ function createPolyhavenGltfLoader({ assetId, resolution }) {
   });
   const loader = new GLTFLoader(manager);
   const draco = new DRACOLoader();
-  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
   return loader;
@@ -1909,7 +2311,10 @@ async function loadPolyhavenModel(assetId) {
   let lastError = null;
   for (const candidate of candidates) {
     try {
-      const loader = createPolyhavenGltfLoader({ assetId, resolution: candidate.resolution });
+      const loader = createPolyhavenGltfLoader({
+        assetId,
+        resolution: candidate.resolution
+      });
       gltf = await loader.loadAsync(candidate.url);
       break;
     } catch (error) {
@@ -1917,7 +2322,9 @@ async function loadPolyhavenModel(assetId) {
     }
   }
   if (!gltf) {
-    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+    throw (
+      lastError || new Error(`Failed to load Poly Haven model for ${assetId}`)
+    );
   }
   const root = gltf.scene || gltf.scenes?.[0];
   if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
@@ -1934,7 +2341,11 @@ async function loadPolyhavenModel(assetId) {
   polyhavenModelCache.set(assetId, root);
   return root.clone(true);
 }
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(
+  1.3162499970197679,
+  1.9173749900311232,
+  1.7001562547683715
+);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 
@@ -1953,7 +2364,11 @@ const chairTemplateCache = new Map();
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const targetMax = Math.max(
+    TARGET_CHAIR_SIZE.x,
+    TARGET_CHAIR_SIZE.y,
+    TARGET_CHAIR_SIZE.z
+  );
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -2001,11 +2416,15 @@ async function ensureMurlanChairTemplate(theme = null) {
       const model = await loadPolyhavenModel(theme.assetId);
       fitChairModelToFootprint(model);
       chairTemplateBounds = new THREE.Box3().setFromObject(model);
-      return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
+      return {
+        chairTemplate: model,
+        materials: extractChairMaterials(model),
+        preserveMaterials: theme.preserveMaterials ?? true
+      };
     }
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
-    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setCrossOrigin('anonymous');
     loader.setDRACOLoader(draco);
 
@@ -2020,12 +2439,12 @@ async function ensureMurlanChairTemplate(theme = null) {
       }
     }
     if (!gltf) {
-      throw lastError || new Error("Failed to load chair model");
+      throw lastError || new Error('Failed to load chair model');
     }
 
     const model = gltf.scene || gltf.scenes?.[0];
     if (!model) {
-      throw new Error("Chair model missing scene");
+      throw new Error('Chair model missing scene');
     }
 
     model.traverse((obj) => {
@@ -2057,7 +2476,11 @@ async function ensureChairTemplateForTheme(theme) {
         const model = await loadPolyhavenModel(theme.assetId);
         fitChairModelToFootprint(model);
         chairTemplateBounds = new THREE.Box3().setFromObject(model);
-        return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
+        return {
+          chairTemplate: model,
+          materials: extractChairMaterials(model),
+          preserveMaterials: theme.preserveMaterials ?? true
+        };
       } catch (error) {
         console.warn('Poly Haven chair load failed, falling back', error);
       }
@@ -2082,10 +2505,17 @@ function cloneChairWithTheme(chairData, option) {
       const next = mat.clone();
       if (preserveMaterials) return next;
       if (upholsterySet.has(mat)) {
-        if (next.color) next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
-        if (next.emissive) next.emissive.set(option?.highlight ?? option?.seatColor ?? DEFAULT_CHAIR_THEME.highlight);
+        if (next.color)
+          next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
+        if (next.emissive)
+          next.emissive.set(
+            option?.highlight ??
+              option?.seatColor ??
+              DEFAULT_CHAIR_THEME.highlight
+          );
       } else if (metalSet.has(mat)) {
-        if (next.color) next.color.set(option?.legColor ?? DEFAULT_CHAIR_THEME.legColor);
+        if (next.color)
+          next.color.set(option?.legColor ?? DEFAULT_CHAIR_THEME.legColor);
       }
       return next;
     });
@@ -2106,20 +2536,84 @@ const hslToHexNumber = (h, s, l) => {
   color.setHSL(normalizeHue(h) / 360, clamp01f(s), clamp01f(l));
   return color.getHex();
 };
-const hslToHexString = (h, s, l) => `#${hslToHexNumber(h, s, l).toString(16).padStart(6, '0')}`;
+const hslToHexString = (h, s, l) =>
+  `#${hslToHexNumber(h, s, l).toString(16).padStart(6, '0')}`;
 const shiftLightness = (light, delta) => clamp01f(light + delta);
 const shiftSaturation = (sat, delta) => clamp01f(sat + delta);
 
 const WOOD_FINISH_PRESETS = Object.freeze([
-  Object.freeze({ id: 'birch', label: 'Birch', hue: 38, sat: 0.25, light: 0.84, contrast: 0.42 }),
-  Object.freeze({ id: 'maple', label: 'Maple', hue: 35, sat: 0.22, light: 0.78, contrast: 0.44 }),
-  Object.freeze({ id: 'oak', label: 'Oak', hue: 32, sat: 0.34, light: 0.7, contrast: 0.52 }),
-  Object.freeze({ id: 'cherry', label: 'Cherry', hue: 14, sat: 0.42, light: 0.6, contrast: 0.58 }),
-  Object.freeze({ id: 'teak', label: 'Teak', hue: 28, sat: 0.4, light: 0.52, contrast: 0.6 }),
-  Object.freeze({ id: 'walnut', label: 'Walnut', hue: 22, sat: 0.4, light: 0.44, contrast: 0.64 }),
-  Object.freeze({ id: 'smokedOak', label: 'Smoked Oak', hue: 28, sat: 0.35, light: 0.28, contrast: 0.75 }),
-  Object.freeze({ id: 'wenge', label: 'Wenge', hue: 24, sat: 0.38, light: 0.22, contrast: 0.8 }),
-  Object.freeze({ id: 'ebony', label: 'Eben', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
+  Object.freeze({
+    id: 'birch',
+    label: 'Birch',
+    hue: 38,
+    sat: 0.25,
+    light: 0.84,
+    contrast: 0.42
+  }),
+  Object.freeze({
+    id: 'maple',
+    label: 'Maple',
+    hue: 35,
+    sat: 0.22,
+    light: 0.78,
+    contrast: 0.44
+  }),
+  Object.freeze({
+    id: 'oak',
+    label: 'Oak',
+    hue: 32,
+    sat: 0.34,
+    light: 0.7,
+    contrast: 0.52
+  }),
+  Object.freeze({
+    id: 'cherry',
+    label: 'Cherry',
+    hue: 14,
+    sat: 0.42,
+    light: 0.6,
+    contrast: 0.58
+  }),
+  Object.freeze({
+    id: 'teak',
+    label: 'Teak',
+    hue: 28,
+    sat: 0.4,
+    light: 0.52,
+    contrast: 0.6
+  }),
+  Object.freeze({
+    id: 'walnut',
+    label: 'Walnut',
+    hue: 22,
+    sat: 0.4,
+    light: 0.44,
+    contrast: 0.64
+  }),
+  Object.freeze({
+    id: 'smokedOak',
+    label: 'Smoked Oak',
+    hue: 28,
+    sat: 0.35,
+    light: 0.28,
+    contrast: 0.75
+  }),
+  Object.freeze({
+    id: 'wenge',
+    label: 'Wenge',
+    hue: 24,
+    sat: 0.38,
+    light: 0.22,
+    contrast: 0.8
+  }),
+  Object.freeze({
+    id: 'ebony',
+    label: 'Eben',
+    hue: 25,
+    sat: 0.35,
+    light: 0.18,
+    contrast: 0.85
+  })
 ]);
 
 const WOOD_PRESETS_BY_ID = Object.freeze(
@@ -2212,7 +2706,11 @@ function makeNaturalWoodTexture(width, height, hue, sat, light, contrast) {
     const y = Math.random() * height;
     const grainLen = 50 + Math.random() * 200;
     const curve = Math.sin(y / 40 + Math.random() * 2) * 10;
-    ctx.strokeStyle = hslString(hue, sat * 0.6, light - Math.random() * contrast);
+    ctx.strokeStyle = hslString(
+      hue,
+      sat * 0.6,
+      light - Math.random() * contrast
+    );
     ctx.lineWidth = 0.8 + Math.random() * 1.2;
     ctx.globalAlpha = 0.25 + Math.random() * 0.3;
     ctx.beginPath();
@@ -2278,7 +2776,11 @@ function disposeWoodTextures(material) {
   if (material.map && material.map.dispose) {
     material.map.dispose();
   }
-  if (material.roughnessMap && material.roughnessMap !== material.map && material.roughnessMap.dispose) {
+  if (
+    material.roughnessMap &&
+    material.roughnessMap !== material.map &&
+    material.roughnessMap.dispose
+  ) {
     material.roughnessMap.dispose();
   }
   material.map = null;
@@ -2324,8 +2826,20 @@ function ensureSharedWoodTextures({
   });
   let entry = WOOD_TEXTURE_BASE_CACHE.get(key);
   if (!entry) {
-    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
-    const roughnessMap = makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance);
+    const map = makeNaturalWoodTexture(
+      textureSize,
+      textureSize,
+      hue,
+      sat,
+      light,
+      contrast
+    );
+    const roughnessMap = makeRoughnessMap(
+      roughnessSize,
+      roughnessSize,
+      roughnessBase,
+      roughnessVariance
+    );
     if (map) {
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.center.set(0.5, 0.5);
@@ -2377,11 +2891,27 @@ function applyWoodTextures(
           sharedKey
         })
       : {
-          map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
-          roughnessMap: makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance)
+          map: makeNaturalWoodTexture(
+            textureSize,
+            textureSize,
+            hue,
+            sat,
+            light,
+            contrast
+          ),
+          roughnessMap: makeRoughnessMap(
+            roughnessSize,
+            roughnessSize,
+            roughnessBase,
+            roughnessVariance
+          )
         };
     map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
-    roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
+    roughnessMap = cloneWoodTexture(
+      baseTextures.roughnessMap,
+      repeatVec,
+      rotation
+    );
     if (map) {
       map.colorSpace = THREE.SRGBColorSpace;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
@@ -2397,7 +2927,10 @@ function applyWoodTextures(
   material.color.setHex(0xffffff);
   material.needsUpdate = true;
   material.userData = material.userData || {};
-  material.userData.__woodTextures = { map: material.map, roughnessMap: material.roughnessMap };
+  material.userData.__woodTextures = {
+    map: material.map,
+    roughnessMap: material.roughnessMap
+  };
   material.userData.__woodOptions = {
     hue,
     sat,
@@ -2426,40 +2959,146 @@ function makeTableWoodOption({ id, label, presetId, grainId }) {
     presetId,
     grainId,
     baseHex: hslToHexString(preset.hue, preset.sat, preset.light),
-    rimHex: hslToHexString(preset.hue, shiftSaturation(preset.sat, 0.04), shiftLightness(preset.light, -0.08)),
-    accentHex: hslToHexString(preset.hue, shiftSaturation(preset.sat, 0.12), shiftLightness(preset.light, -0.18))
+    rimHex: hslToHexString(
+      preset.hue,
+      shiftSaturation(preset.sat, 0.04),
+      shiftLightness(preset.light, -0.08)
+    ),
+    accentHex: hslToHexString(
+      preset.hue,
+      shiftSaturation(preset.sat, 0.12),
+      shiftLightness(preset.light, -0.18)
+    )
   });
 }
 
 function resolveWoodComponents(option) {
   const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
-  const preset = (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
-  const fallbackGrain = WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
-  const grain = (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || fallbackGrain;
+  const preset =
+    (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
+  const fallbackGrain =
+    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+  const grain =
+    (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) ||
+    fallbackGrain;
   return { preset, grain };
 }
 
 const TABLE_WOOD_OPTIONS = Object.freeze([
-  makeTableWoodOption({ id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' }),
-  makeTableWoodOption({ id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' })
+  makeTableWoodOption({
+    id: 'oakEstate',
+    label: 'Lis Estate',
+    presetId: 'oak',
+    grainId: 'estateBands'
+  }),
+  makeTableWoodOption({
+    id: 'teakStudio',
+    label: 'Tik Studio',
+    presetId: 'teak',
+    grainId: 'studioVeins'
+  })
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  { id: "crimson", label: "Crimson Cloth", feltTop: "#960019", feltBottom: "#4a0012", border: "#210308", emissive: "#210308", emissiveIntensity: dimIntensity(0.42) },
-  { id: "emerald", label: "Emerald Cloth", feltTop: "#0f6a2f", feltBottom: "#054d24", border: "#021a0b", emissive: "#021a0b", emissiveIntensity: dimIntensity(0.42) },
-  { id: "arctic", label: "Arctic Cloth", feltTop: "#2563eb", feltBottom: "#1d4ed8", border: "#071a42", emissive: "#071a42", emissiveIntensity: dimIntensity(0.42) },
-  { id: "sunset", label: "Sunset Cloth", feltTop: "#ea580c", feltBottom: "#c2410c", border: "#320e03", emissive: "#320e03", emissiveIntensity: dimIntensity(0.42) },
-  { id: "violet", label: "Violet Cloth", feltTop: "#7c3aed", feltBottom: "#5b21b6", border: "#1f0a47", emissive: "#1f0a47", emissiveIntensity: dimIntensity(0.42) },
-  { id: "amber", label: "Amber Cloth", feltTop: "#b7791f", feltBottom: "#92571a", border: "#2b1402", emissive: "#2b1402", emissiveIntensity: dimIntensity(0.42) }
+  {
+    id: 'crimson',
+    label: 'Crimson Cloth',
+    feltTop: '#960019',
+    feltBottom: '#4a0012',
+    border: '#210308',
+    emissive: '#210308',
+    emissiveIntensity: dimIntensity(0.42)
+  },
+  {
+    id: 'emerald',
+    label: 'Emerald Cloth',
+    feltTop: '#0f6a2f',
+    feltBottom: '#054d24',
+    border: '#021a0b',
+    emissive: '#021a0b',
+    emissiveIntensity: dimIntensity(0.42)
+  },
+  {
+    id: 'arctic',
+    label: 'Arctic Cloth',
+    feltTop: '#2563eb',
+    feltBottom: '#1d4ed8',
+    border: '#071a42',
+    emissive: '#071a42',
+    emissiveIntensity: dimIntensity(0.42)
+  },
+  {
+    id: 'sunset',
+    label: 'Sunset Cloth',
+    feltTop: '#ea580c',
+    feltBottom: '#c2410c',
+    border: '#320e03',
+    emissive: '#320e03',
+    emissiveIntensity: dimIntensity(0.42)
+  },
+  {
+    id: 'violet',
+    label: 'Violet Cloth',
+    feltTop: '#7c3aed',
+    feltBottom: '#5b21b6',
+    border: '#1f0a47',
+    emissive: '#1f0a47',
+    emissiveIntensity: dimIntensity(0.42)
+  },
+  {
+    id: 'amber',
+    label: 'Amber Cloth',
+    feltTop: '#b7791f',
+    feltBottom: '#92571a',
+    border: '#2b1402',
+    emissive: '#2b1402',
+    emissiveIntensity: dimIntensity(0.42)
+  }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
-  { id: "obsidian", label: "Obsidian Base", base: "#141414", column: "#0b0d10", trim: "#1f232a" },
-  { id: "forestBronze", label: "Forest Base", base: "#101714", column: "#0a0f0c", trim: "#1f2d24" },
-  { id: "midnightChrome", label: "Midnight Base", base: "#0f172a", column: "#0a1020", trim: "#1e2f4a" },
-  { id: "emberCopper", label: "Copper Base", base: "#231312", column: "#140707", trim: "#5c2d1b" },
-  { id: "violetShadow", label: "Violet Shadow Base", base: "#1f1130", column: "#130622", trim: "#3f1b5b" },
-  { id: "desertGold", label: "Desert Base", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
+  {
+    id: 'obsidian',
+    label: 'Obsidian Base',
+    base: '#141414',
+    column: '#0b0d10',
+    trim: '#1f232a'
+  },
+  {
+    id: 'forestBronze',
+    label: 'Forest Base',
+    base: '#101714',
+    column: '#0a0f0c',
+    trim: '#1f2d24'
+  },
+  {
+    id: 'midnightChrome',
+    label: 'Midnight Base',
+    base: '#0f172a',
+    column: '#0a1020',
+    trim: '#1e2f4a'
+  },
+  {
+    id: 'emberCopper',
+    label: 'Copper Base',
+    base: '#231312',
+    column: '#140707',
+    trim: '#5c2d1b'
+  },
+  {
+    id: 'violetShadow',
+    label: 'Violet Shadow Base',
+    base: '#1f1130',
+    column: '#130622',
+    trim: '#3f1b5b'
+  },
+  {
+    id: 'desertGold',
+    label: 'Desert Base',
+    base: '#1c1a12',
+    column: '#0f0d06',
+    trim: '#5a4524'
+  }
 ]);
 
 const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
@@ -2473,20 +3112,146 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     environmentIntensity: 1.12,
     backgroundIntensity: 1.06
   },
-  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
-  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
-  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
-  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
-  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
-  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
-  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
-  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
-  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
-  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
-  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
-  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
+  {
+    id: 'colorfulStudio',
+    name: 'Colorful Studio',
+    assetId: 'colorful_studio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.02,
+    environmentIntensity: 0.92,
+    backgroundIntensity: 0.92
+  },
+  {
+    id: 'dancingHall',
+    name: 'Dancing Hall',
+    assetId: 'dancing_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.12,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.04
+  },
+  {
+    id: 'abandonedHall',
+    name: 'Abandoned Hall',
+    assetId: 'abandoned_hall_01',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'entranceHall',
+    name: 'Entrance Hall',
+    assetId: 'entrance_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'mirroredHall',
+    name: 'Mirrored Hall',
+    assetId: 'mirrored_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.15,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.06
+  },
+  {
+    id: 'musicHall02',
+    name: 'Music Hall 02',
+    assetId: 'music_hall_02',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.11,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.04
+  },
+  {
+    id: 'oldHall',
+    name: 'Old Hall',
+    assetId: 'old_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 0.99
+  },
+  {
+    id: 'blockyPhotoStudio',
+    name: 'Blocky Photo Studio',
+    assetId: 'blocky_photo_studio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.12,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.05
+  },
+  {
+    id: 'cycloramaHardLight',
+    name: 'Cyclorama Hard Light',
+    assetId: 'cyclorama_hard_light',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.16,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.08
+  },
+  {
+    id: 'abandonedGarage',
+    name: 'Abandoned Garage',
+    assetId: 'abandoned_garage',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'vestibule',
+    name: 'Vestibule',
+    assetId: 'vestibule',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02
+  },
+  {
+    id: 'countryClub',
+    name: 'Country Club',
+    assetId: 'country_club',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.11,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.03
+  },
+  {
+    id: 'sepulchralChapelRotunda',
+    name: 'Sepulchral Chapel Rotunda',
+    assetId: 'sepulchral_chapel_rotunda',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'squashCourt',
+    name: 'Squash Court',
+    assetId: 'squash_court',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02
+  }
 ]);
 
 const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
@@ -2774,14 +3539,22 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_SETUP_SECTIONS = [
-  { key: "environmentHdri", label: "HDR Environments", options: ENVIRONMENT_HDRI_OPTIONS },
-  { key: "tableTheme", label: "Table Theme", options: TABLE_THEME_OPTIONS },
-  { key: "tableWood", label: "Table Wood", options: TABLE_WOOD_OPTIONS },
-  { key: "tableCloth", label: "Table Cloth", options: TABLE_CLOTH_OPTIONS },
-  { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
-  { key: "dominoStyle", label: "Domino", options: DOMINO_STYLE_OPTIONS },
-  { key: "highlightStyle", label: "Highlights", options: HIGHLIGHT_STYLE_OPTIONS },
-  { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
+  {
+    key: 'environmentHdri',
+    label: 'HDR Environments',
+    options: ENVIRONMENT_HDRI_OPTIONS
+  },
+  { key: 'tableTheme', label: 'Table Theme', options: TABLE_THEME_OPTIONS },
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'tableBase', label: 'Bazamenti', options: TABLE_BASE_OPTIONS },
+  { key: 'dominoStyle', label: 'Domino', options: DOMINO_STYLE_OPTIONS },
+  {
+    key: 'highlightStyle',
+    label: 'Highlights',
+    options: HIGHLIGHT_STYLE_OPTIONS
+  },
+  { key: 'chairTheme', label: 'Stolat', options: CHAIR_THEME_OPTIONS }
 ];
 
 const DOMINO_OPTIONS_BY_KEY = Object.freeze({
@@ -2802,7 +3575,7 @@ const DOMINO_DEFAULT_UNLOCKS = Object.freeze(
   }, {})
 );
 
-const DOMINO_INVENTORY_STORAGE_KEY = "dominoRoyalInventoryByAccount";
+const DOMINO_INVENTORY_STORAGE_KEY = 'dominoRoyalInventoryByAccount';
 
 const copyDominoDefaults = () =>
   Object.entries(DOMINO_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
@@ -2812,40 +3585,43 @@ const copyDominoDefaults = () =>
 
 const resolveDominoAccountId = (accountId) => {
   if (accountId) return accountId;
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     try {
-      const stored = window.localStorage.getItem("accountId");
+      const stored = window.localStorage.getItem('accountId');
       if (stored) return stored;
     } catch (error) {
-      console.warn("Failed to read Domino account id, using guest", error);
+      console.warn('Failed to read Domino account id, using guest', error);
     }
   }
-  return "guest";
+  return 'guest';
 };
 
 const readDominoInventories = () => {
-  if (typeof window === "undefined") return {};
+  if (typeof window === 'undefined') return {};
   try {
     const raw = window.localStorage.getItem(DOMINO_INVENTORY_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch (error) {
-    console.warn("Failed to read domino inventory, resetting", error);
+    console.warn('Failed to read domino inventory, resetting', error);
     return {};
   }
 };
 
 const writeDominoInventories = (payload) => {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(DOMINO_INVENTORY_STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(
+      DOMINO_INVENTORY_STORAGE_KEY,
+      JSON.stringify(payload)
+    );
   } catch (error) {
-    console.warn("Failed to persist domino inventory", error);
+    console.warn('Failed to persist domino inventory', error);
   }
 };
 
 const normalizeDominoInventory = (rawInventory) => {
   const base = copyDominoDefaults();
-  if (!rawInventory || typeof rawInventory !== "object") return base;
+  if (!rawInventory || typeof rawInventory !== 'object') return base;
   const merged = { ...base };
   Object.entries(rawInventory).forEach(([key, value]) => {
     if (!Array.isArray(value)) return;
@@ -2858,7 +3634,7 @@ function getDominoInventory(accountId) {
   const resolvedAccountId = resolveDominoAccountId(accountId);
   const inventories = readDominoInventories();
   const normalized = normalizeDominoInventory(inventories[resolvedAccountId]);
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     writeDominoInventories({
       ...inventories,
       [resolvedAccountId]: normalized
@@ -2870,7 +3646,7 @@ function getDominoInventory(accountId) {
 function isDominoOptionUnlocked(type, optionId, inventoryOrAccountId) {
   if (!type || !optionId) return false;
   const inventory =
-    typeof inventoryOrAccountId === "string" || !inventoryOrAccountId
+    typeof inventoryOrAccountId === 'string' || !inventoryOrAccountId
       ? getDominoInventory(inventoryOrAccountId)
       : inventoryOrAccountId;
   return Array.isArray(inventory?.[type]) && inventory[type].includes(optionId);
@@ -2888,28 +3664,31 @@ const DEFAULT_APPEARANCE = Object.freeze(
     return acc;
   }, {})
 );
-const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
-const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
+const APPEARANCE_STORAGE_KEY = 'dominoRoyalArenaAppearanceV2';
+const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearance'];
 let appearance = { ...DEFAULT_APPEARANCE };
 let dominoInventory = getDominoInventory();
 
 function normalizeAppearance(raw) {
   const normalized = { ...DEFAULT_APPEARANCE };
-  const source = raw && typeof raw === "object" ? raw : {};
+  const source = raw && typeof raw === 'object' ? raw : {};
   const limits = [
-    ["environmentHdri", ENVIRONMENT_HDRI_OPTIONS.length],
-    ["tableTheme", TABLE_THEME_OPTIONS.length],
-    ["tableWood", TABLE_WOOD_OPTIONS.length],
-    ["tableCloth", TABLE_CLOTH_OPTIONS.length],
-    ["tableBase", TABLE_BASE_OPTIONS.length],
-    ["dominoStyle", DOMINO_STYLE_OPTIONS.length],
-    ["highlightStyle", HIGHLIGHT_STYLE_OPTIONS.length],
-    ["chairTheme", CHAIR_THEME_OPTIONS.length]
+    ['environmentHdri', ENVIRONMENT_HDRI_OPTIONS.length],
+    ['tableTheme', TABLE_THEME_OPTIONS.length],
+    ['tableWood', TABLE_WOOD_OPTIONS.length],
+    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
+    ['tableBase', TABLE_BASE_OPTIONS.length],
+    ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
+    ['highlightStyle', HIGHLIGHT_STYLE_OPTIONS.length],
+    ['chairTheme', CHAIR_THEME_OPTIONS.length]
   ];
   limits.forEach(([key, max]) => {
     const value = Number(source[key]);
     if (Number.isFinite(value)) {
-      normalized[key] = Math.min(Math.max(0, Math.round(value)), Math.max(0, max - 1));
+      normalized[key] = Math.min(
+        Math.max(0, Math.round(value)),
+        Math.max(0, max - 1)
+      );
     }
   });
   return normalized;
@@ -2930,15 +3709,23 @@ function sanitizeAppearance(rawAppearance, inventory = dominoInventory) {
 
 function getUnlockedOptions(key, inventory = dominoInventory) {
   const options = DOMINO_OPTIONS_BY_KEY[key] || [];
-  return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
+  return options.filter((option) =>
+    isDominoOptionUnlocked(key, option.id, inventory)
+  );
 }
 
 const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
-const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
-const isLowProfileDevice = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
+  navigator.userAgent || ''
+);
+const isLowMemoryDevice =
+  typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+const isLowCoreDevice =
+  typeof navigator.hardwareConcurrency === 'number' &&
+  navigator.hardwareConcurrency <= 4;
+const isLowProfileDevice =
+  isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   if (prefersUhd) return ['4k', '2k'];
@@ -2965,7 +3752,9 @@ async function loadHdriEnvironment(variant) {
   if (!shouldLoadExternalHdri()) return null;
   const allowedResolutions = resolveHdriResolutionOrder();
   const preferred = Array.isArray(variant.preferredResolutions)
-    ? variant.preferredResolutions.filter((res) => allowedResolutions.includes(res))
+    ? variant.preferredResolutions.filter((res) =>
+        allowedResolutions.includes(res)
+      )
     : [];
   const order = preferred.length ? preferred : allowedResolutions;
   let lastError = null;
@@ -3008,16 +3797,21 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
     if (scene.environment && scene.environment !== fallbackEnvTexture) {
       scene.environment.dispose?.();
     }
-    if (hdriBackground && hdriBackground !== envMap && hdriBackground !== fallbackEnvTexture) {
+    if (
+      hdriBackground &&
+      hdriBackground !== envMap &&
+      hdriBackground !== fallbackEnvTexture
+    ) {
       hdriBackground.dispose?.();
     }
     scene.environment = envMap || fallbackEnvTexture;
     scene.background = envMap || null;
     hdriBackground = envMap || fallbackEnvTexture;
-    renderer.toneMappingExposure = variant.exposure ?? renderer.toneMappingExposure;
+    renderer.toneMappingExposure =
+      variant.exposure ?? renderer.toneMappingExposure;
     activeEnvironmentHdri = variant;
   } catch (error) {
-    console.warn("Failed to apply Domino HDRI", error);
+    console.warn('Failed to apply Domino HDRI', error);
     if (token !== environmentApplyToken) return;
     scene.environment = fallbackEnvTexture;
     scene.background = null;
@@ -3032,23 +3826,27 @@ try {
     const stored = window.localStorage?.getItem(key);
     if (!stored) continue;
     const parsed = JSON.parse(stored);
-    if (parsed && typeof parsed === "object") {
+    if (parsed && typeof parsed === 'object') {
       appearance = sanitizeAppearance({ ...appearance, ...parsed });
       if (key !== APPEARANCE_STORAGE_KEY) {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+        window.localStorage?.setItem(
+          APPEARANCE_STORAGE_KEY,
+          JSON.stringify(appearance)
+        );
       }
       break;
     }
   }
   appearance = sanitizeAppearance(appearance);
 } catch (error) {
-  console.warn("Failed to load Domino Royal appearance", error);
+  console.warn('Failed to load Domino Royal appearance', error);
   appearance = sanitizeAppearance(appearance);
 }
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
+  const target =
+    amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
 }
@@ -3081,7 +3879,9 @@ function createCarbonFiberTexture(
       ctx.fillStyle = evenCell ? primary : secondary;
       ctx.fillRect(x, y, cell, cell);
 
-      ctx.fillStyle = evenCell ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.25)';
+      ctx.fillStyle = evenCell
+        ? 'rgba(255, 255, 255, 0.05)'
+        : 'rgba(0, 0, 0, 0.25)';
       ctx.beginPath();
       ctx.moveTo(x, y + cell * 0.15);
       ctx.lineTo(x + cell * 0.85, y + cell);
@@ -3117,7 +3917,8 @@ function createCarbonFiberTexture(
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(tile, tile);
   const maxAnisotropy =
-    (renderer?.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
+    (renderer?.capabilities &&
+    typeof renderer.capabilities.getMaxAnisotropy === 'function'
       ? renderer.capabilities.getMaxAnisotropy()
       : renderer?.capabilities?.anisotropy) || 4;
   texture.anisotropy = Math.min(maxAnisotropy, 16);
@@ -3127,15 +3928,15 @@ function createCarbonFiberTexture(
 }
 
 function createChairClothTexture(option, renderer) {
-  if (typeof document === "undefined") {
+  if (typeof document === 'undefined') {
     return null;
   }
-  const primary = option?.seatColor ?? "#8b0000";
+  const primary = option?.seatColor ?? '#8b0000';
   const accent = adjustHexColor(primary, -0.28);
   const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
-  const canvas = document.createElement("canvas");
+  const canvas = document.createElement('canvas');
   canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const shadow = adjustHexColor(accent, -0.22);
@@ -3155,7 +3956,11 @@ function createChairClothTexture(option, renderer) {
   ctx.strokeStyle = seam;
   ctx.lineWidth = lineWidth;
   ctx.globalAlpha = 0.9;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+  for (
+    let offset = -canvas.height;
+    offset <= canvas.width + canvas.height;
+    offset += spacing
+  ) {
     ctx.beginPath();
     ctx.moveTo(offset, 0);
     ctx.lineTo(offset - canvas.height, canvas.height);
@@ -3171,7 +3976,11 @@ function createChairClothTexture(option, renderer) {
   ctx.strokeStyle = adjustHexColor(highlight, 0.18);
   ctx.lineWidth = lineWidth * 0.55;
   ctx.globalAlpha = 0.55;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+  for (
+    let offset = -canvas.height;
+    offset <= canvas.width + canvas.height;
+    offset += spacing
+  ) {
     ctx.beginPath();
     ctx.moveTo(offset + halfSpacing, 0);
     ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
@@ -3184,18 +3993,26 @@ function createChairClothTexture(option, renderer) {
   }
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
   const tuftRadius = Math.max(1.8, spacing * 0.08);
   for (let y = -spacing; y <= canvas.height + spacing; y += spacing) {
     for (let x = -spacing; x <= canvas.width + spacing; x += spacing) {
       ctx.beginPath();
-      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.85, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        x + halfSpacing,
+        y + halfSpacing,
+        tuftRadius,
+        tuftRadius * 0.85,
+        0,
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     }
   }
 
   ctx.save();
-  ctx.globalCompositeOperation = "overlay";
+  ctx.globalCompositeOperation = 'overlay';
   const sheenGradient = ctx.createRadialGradient(
     canvas.width * 0.28,
     canvas.height * 0.32,
@@ -3204,9 +4021,9 @@ function createChairClothTexture(option, renderer) {
     canvas.height * 0.32,
     canvas.width * 0.75
   );
-  sheenGradient.addColorStop(0, "rgba(255, 255, 255, 0.26)");
-  sheenGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.08)");
-  sheenGradient.addColorStop(1, "rgba(0, 0, 0, 0.35)");
+  sheenGradient.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
+  sheenGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
+  sheenGradient.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
   ctx.fillStyle = sheenGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
@@ -3231,7 +4048,7 @@ function createChairClothTexture(option, renderer) {
 
 function createChairFabricMaterial(option, renderer) {
   const texture = createChairClothTexture(option, renderer);
-  const primary = option?.seatColor ?? "#8b0000";
+  const primary = option?.seatColor ?? '#8b0000';
   const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.2);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(adjustHexColor(primary, 0.04)),
@@ -3242,13 +4059,13 @@ function createChairFabricMaterial(option, renderer) {
     clearcoatRoughness: 0.28,
     sheen: 0.18
   });
-  if ("sheenColor" in material) {
+  if ('sheenColor' in material) {
     material.sheenColor.set(sheenColor);
   }
-  if ("sheenRoughness" in material) {
+  if ('sheenRoughness' in material) {
     material.sheenRoughness = 0.32;
   }
-  if ("specularIntensity" in material) {
+  if ('specularIntensity' in material) {
     material.specularIntensity = 0.65;
   }
   return material;
@@ -3273,16 +4090,19 @@ const CHAIR_DIMENSIONS = Object.freeze({
 });
 
 function createDominoChair(option, renderer, sharedMaterials = null) {
-  const material = sharedMaterials?.fabric ?? createChairFabricMaterial(option, renderer);
-  const legMaterial = sharedMaterials?.leg ??
+  const material =
+    sharedMaterials?.fabric ?? createChairFabricMaterial(option, renderer);
+  const legMaterial =
+    sharedMaterials?.leg ??
     new THREE.MeshStandardMaterial({
-      color: new THREE.Color(option?.legColor ?? "#1f1f1f"),
+      color: new THREE.Color(option?.legColor ?? '#1f1f1f'),
       metalness: 0.6,
       roughness: 0.35
     });
-  const metalAccent = sharedMaterials?.accent ??
+  const metalAccent =
+    sharedMaterials?.accent ??
     new THREE.MeshStandardMaterial({
-      color: new THREE.Color("#2a2a2a"),
+      color: new THREE.Color('#2a2a2a'),
       metalness: 0.75,
       roughness: 0.32
     });
@@ -3290,14 +4110,27 @@ function createDominoChair(option, renderer, sharedMaterials = null) {
   const group = new THREE.Group();
   const dims = CHAIR_DIMENSIONS;
 
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(dims.baseRadius, dims.baseRadius * 1.02, dims.baseThickness, 32), legMaterial);
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      dims.baseRadius,
+      dims.baseRadius * 1.02,
+      dims.baseThickness,
+      32
+    ),
+    legMaterial
+  );
   base.position.y = dims.baseThickness / 2;
   base.castShadow = true;
   base.receiveShadow = true;
   group.add(base);
 
   const column = new THREE.Mesh(
-    new THREE.CylinderGeometry(dims.columnRadiusBottom, dims.columnRadiusTop, dims.columnHeight, 24),
+    new THREE.CylinderGeometry(
+      dims.columnRadiusBottom,
+      dims.columnRadiusTop,
+      dims.columnHeight,
+      24
+    ),
     legMaterial
   );
   column.position.y = dims.baseThickness + dims.columnHeight / 2;
@@ -3305,7 +4138,10 @@ function createDominoChair(option, renderer, sharedMaterials = null) {
   column.receiveShadow = true;
   group.add(column);
 
-  const footRing = new THREE.Mesh(new THREE.TorusGeometry(dims.footRingRadius, dims.footRingTube, 16, 48), metalAccent);
+  const footRing = new THREE.Mesh(
+    new THREE.TorusGeometry(dims.footRingRadius, dims.footRingTube, 16, 48),
+    metalAccent
+  );
   footRing.rotation.x = Math.PI / 2;
   footRing.position.y = dims.baseThickness + dims.columnHeight * 0.45;
   footRing.castShadow = true;
@@ -3315,13 +4151,18 @@ function createDominoChair(option, renderer, sharedMaterials = null) {
     new THREE.BoxGeometry(dims.seatWidth, dims.seatThickness, dims.seatDepth),
     material
   );
-  seat.position.y = dims.baseThickness + dims.columnHeight + dims.seatThickness / 2;
+  seat.position.y =
+    dims.baseThickness + dims.columnHeight + dims.seatThickness / 2;
   seat.castShadow = true;
   seat.receiveShadow = true;
   group.add(seat);
 
   const cushion = new THREE.Mesh(
-    new THREE.BoxGeometry(dims.seatWidth * 0.92, dims.seatThickness * 0.6, dims.seatDepth * 0.92),
+    new THREE.BoxGeometry(
+      dims.seatWidth * 0.92,
+      dims.seatThickness * 0.6,
+      dims.seatDepth * 0.92
+    ),
     material
   );
   cushion.position.y = seat.position.y + dims.seatThickness * 0.2;
@@ -3330,29 +4171,53 @@ function createDominoChair(option, renderer, sharedMaterials = null) {
   group.add(cushion);
 
   const back = new THREE.Mesh(
-    new THREE.BoxGeometry(dims.seatWidth * 0.98, dims.backHeight, dims.backThickness),
+    new THREE.BoxGeometry(
+      dims.seatWidth * 0.98,
+      dims.backHeight,
+      dims.backThickness
+    ),
     material
   );
-  back.position.set(0, seat.position.y + dims.backHeight / 2 - dims.seatThickness / 2, dims.seatDepth / 2 - dims.backThickness / 2);
+  back.position.set(
+    0,
+    seat.position.y + dims.backHeight / 2 - dims.seatThickness / 2,
+    dims.seatDepth / 2 - dims.backThickness / 2
+  );
   back.castShadow = true;
   back.receiveShadow = true;
   group.add(back);
 
-  const armGeo = new THREE.BoxGeometry(dims.armThickness, dims.armHeight, dims.armDepth);
+  const armGeo = new THREE.BoxGeometry(
+    dims.armThickness,
+    dims.armHeight,
+    dims.armDepth
+  );
   const armY = seat.position.y + dims.armHeight / 2 - dims.seatThickness * 0.25;
   const armOffsetZ = (dims.armDepth - dims.seatDepth) / 2;
   const armLeft = new THREE.Mesh(armGeo, material);
-  armLeft.position.set(-dims.seatWidth / 2 + dims.armThickness / 2, armY, armOffsetZ);
+  armLeft.position.set(
+    -dims.seatWidth / 2 + dims.armThickness / 2,
+    armY,
+    armOffsetZ
+  );
   armLeft.castShadow = true;
   armLeft.receiveShadow = true;
   group.add(armLeft);
   const armRight = new THREE.Mesh(armGeo, material);
-  armRight.position.set(dims.seatWidth / 2 - dims.armThickness / 2, armY, armOffsetZ);
+  armRight.position.set(
+    dims.seatWidth / 2 - dims.armThickness / 2,
+    armY,
+    armOffsetZ
+  );
   armRight.castShadow = true;
   armRight.receiveShadow = true;
   group.add(armRight);
 
-  const armCapGeo = new THREE.BoxGeometry(dims.armThickness * 0.9, dims.armThickness * 0.35, dims.armDepth * 0.92);
+  const armCapGeo = new THREE.BoxGeometry(
+    dims.armThickness * 0.9,
+    dims.armThickness * 0.35,
+    dims.armDepth * 0.92
+  );
   const armCapY = armY + dims.armHeight / 2 - (dims.armThickness * 0.35) / 2;
   const armCapLeft = new THREE.Mesh(armCapGeo, material);
   armCapLeft.position.set(armLeft.position.x, armCapY, armOffsetZ * 0.94);
@@ -3365,7 +4230,15 @@ function createDominoChair(option, renderer, sharedMaterials = null) {
   armCapRight.receiveShadow = true;
   group.add(armCapRight);
 
-  const columnCap = new THREE.Mesh(new THREE.CylinderGeometry(dims.columnRadiusTop * 1.05, dims.columnRadiusTop * 1.05, 0.02, 24), metalAccent);
+  const columnCap = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      dims.columnRadiusTop * 1.05,
+      dims.columnRadiusTop * 1.05,
+      0.02,
+      24
+    ),
+    metalAccent
+  );
   columnCap.position.y = dims.baseThickness + dims.columnHeight + 0.01;
   columnCap.castShadow = true;
   columnCap.receiveShadow = true;
@@ -3394,7 +4267,11 @@ let walkwayEntryZ = TABLE_RADIUS * 2.4;
 if (!USE_MINIMAL_STAGE) {
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(FLOOR_RADIUS, 96),
-    new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.92, metalness: 0.12 })
+    new THREE.MeshStandardMaterial({
+      color: 0x0b1120,
+      roughness: 0.92,
+      metalness: 0.12
+    })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0;
@@ -3418,7 +4295,10 @@ if (!USE_MINIMAL_STAGE) {
     carpetMat.bumpMap.needsUpdate = true;
     carpetMat.bumpMap.repeat.set(5, 5);
   }
-  const carpet = new THREE.Mesh(new THREE.CircleGeometry(CARPET_RADIUS, 96), carpetMat);
+  const carpet = new THREE.Mesh(
+    new THREE.CircleGeometry(CARPET_RADIUS, 96),
+    carpetMat
+  );
   carpet.rotation.x = -Math.PI / 2;
   carpet.position.y = 0.01;
   carpet.receiveShadow = true;
@@ -3446,9 +4326,17 @@ if (!USE_MINIMAL_STAGE) {
   wall.castShadow = false;
   arenaG.add(wall);
 
-  const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
-  const carbonFiberTextureBase = createCarbonFiberTexture(renderer, { tile: 4.5 });
-  const hallwayDoorTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+  const ARENA_DOOR_DIMENSIONS = Object.freeze({
+    width: 2.8,
+    height: 3.4,
+    thickness: 0.12
+  });
+  const carbonFiberTextureBase = createCarbonFiberTexture(renderer, {
+    tile: 4.5
+  });
+  const hallwayDoorTexture = carbonFiberTextureBase
+    ? carbonFiberTextureBase.clone()
+    : null;
   if (hallwayDoorTexture) {
     hallwayDoorTexture.repeat.set(2.6, 2.8);
     hallwayDoorTexture.needsUpdate = true;
@@ -3462,7 +4350,9 @@ if (!USE_MINIMAL_STAGE) {
   if (hallwayDoorTexture) {
     hallwayDoorMaterialConfig.map = hallwayDoorTexture;
   }
-  const hallwayDoorMaterial = new THREE.MeshStandardMaterial(hallwayDoorMaterialConfig);
+  const hallwayDoorMaterial = new THREE.MeshStandardMaterial(
+    hallwayDoorMaterialConfig
+  );
   const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
     color: 0xffd87c,
     metalness: 1,
@@ -3470,9 +4360,14 @@ if (!USE_MINIMAL_STAGE) {
     emissive: 0xffeab5,
     emissiveIntensity: dimIntensity(0.28)
   });
-  hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
+  hallwayDoorZ =
+    ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
   const hallwayDoorPivot = new THREE.Group();
-  hallwayDoorPivot.position.set(-ARENA_DOOR_DIMENSIONS.width / 2, ARENA_DOOR_DIMENSIONS.height / 2, hallwayDoorZ);
+  hallwayDoorPivot.position.set(
+    -ARENA_DOOR_DIMENSIONS.width / 2,
+    ARENA_DOOR_DIMENSIONS.height / 2,
+    hallwayDoorZ
+  );
 
   const hallwayDoor = new THREE.Mesh(
     new THREE.BoxGeometry(
@@ -3506,9 +4401,16 @@ if (!USE_MINIMAL_STAGE) {
   hallwayHandlePlate.receiveShadow = false;
   hallwayDoor.add(hallwayHandlePlate);
 
-  const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 24), hallwayHandleMaterial);
+  const hallwayHandle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.3, 24),
+    hallwayHandleMaterial
+  );
   hallwayHandle.rotation.z = Math.PI / 2;
-  hallwayHandle.position.set(ARENA_DOOR_DIMENSIONS.width - 0.6, -0.35, ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03);
+  hallwayHandle.position.set(
+    ARENA_DOOR_DIMENSIONS.width - 0.6,
+    -0.35,
+    ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03
+  );
   hallwayHandle.castShadow = true;
   hallwayHandle.receiveShadow = false;
   hallwayDoor.add(hallwayHandle);
@@ -3527,7 +4429,11 @@ if (!USE_MINIMAL_STAGE) {
       emissiveIntensity: dimIntensity(0.4)
     })
   );
-  hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
+  hallwayDoorFrame.position.set(
+    ARENA_DOOR_DIMENSIONS.width / 2,
+    0,
+    -ARENA_DOOR_DIMENSIONS.thickness * 0.45
+  );
   hallwayDoorFrame.castShadow = false;
   hallwayDoorFrame.receiveShadow = false;
   hallwayDoorPivot.add(hallwayDoorFrame);
@@ -3552,7 +4458,9 @@ if (!USE_MINIMAL_STAGE) {
   walkwayFloor.position.set(
     0,
     0.005,
-    hallwayDoorZ + ARENA_WALKWAY_LENGTH / 2 - ARENA_DOOR_DIMENSIONS.thickness * 0.5
+    hallwayDoorZ +
+      ARENA_WALKWAY_LENGTH / 2 -
+      ARENA_DOOR_DIMENSIONS.thickness * 0.5
   );
   walkwayFloor.receiveShadow = true;
   arenaG.add(walkwayFloor);
@@ -3565,7 +4473,10 @@ if (!USE_MINIMAL_STAGE) {
   if (carpetTextures.map) {
     const walkwayMap = carpetTextures.map.clone();
     walkwayMap.wrapS = walkwayMap.wrapT = THREE.RepeatWrapping;
-    walkwayMap.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+    walkwayMap.repeat.set(
+      ARENA_WALKWAY_WIDTH / 1.6,
+      ARENA_WALKWAY_LENGTH / 3.2
+    );
     walkwayMap.colorSpace = THREE.SRGBColorSpace;
     walkwayMap.needsUpdate = true;
     walkwayRunnerMaterialConfig.map = walkwayMap;
@@ -3573,17 +4484,27 @@ if (!USE_MINIMAL_STAGE) {
   if (carpetTextures.bump) {
     const walkwayBump = carpetTextures.bump.clone();
     walkwayBump.wrapS = walkwayBump.wrapT = THREE.RepeatWrapping;
-    walkwayBump.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+    walkwayBump.repeat.set(
+      ARENA_WALKWAY_WIDTH / 1.6,
+      ARENA_WALKWAY_LENGTH / 3.2
+    );
     walkwayBump.needsUpdate = true;
     walkwayRunnerMaterialConfig.bumpMap = walkwayBump;
     walkwayRunnerMaterialConfig.bumpScale = 0.18;
   }
   const walkwayRunner = new THREE.Mesh(
-    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH * 0.42, ARENA_WALKWAY_LENGTH * 0.92),
+    new THREE.PlaneGeometry(
+      ARENA_WALKWAY_WIDTH * 0.42,
+      ARENA_WALKWAY_LENGTH * 0.92
+    ),
     new THREE.MeshStandardMaterial(walkwayRunnerMaterialConfig)
   );
   walkwayRunner.rotation.x = -Math.PI / 2;
-  walkwayRunner.position.set(0, walkwayFloor.position.y + 0.008, walkwayFloor.position.z);
+  walkwayRunner.position.set(
+    0,
+    walkwayFloor.position.y + 0.008,
+    walkwayFloor.position.z
+  );
   walkwayRunner.receiveShadow = true;
   arenaG.add(walkwayRunner);
 
@@ -3594,14 +4515,19 @@ if (!USE_MINIMAL_STAGE) {
     emissive: 0xffc978,
     emissiveIntensity: dimIntensity(0.25)
   });
-  const walkwayTrimGeo = new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.2, 0.12, 0.4);
+  const walkwayTrimGeo = new THREE.BoxGeometry(
+    ARENA_WALKWAY_WIDTH + 0.2,
+    0.12,
+    0.4
+  );
   const walkwayFrontTrim = new THREE.Mesh(walkwayTrimGeo, walkwayTrimMat);
   walkwayFrontTrim.position.set(0, 0.06, hallwayDoorZ - 0.2);
   walkwayFrontTrim.castShadow = false;
   walkwayFrontTrim.receiveShadow = false;
   arenaG.add(walkwayFrontTrim);
   const walkwayOuterTrim = walkwayFrontTrim.clone();
-  walkwayOuterTrim.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.2;
+  walkwayOuterTrim.position.z =
+    walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.2;
   arenaG.add(walkwayOuterTrim);
 
   const walkwaySideGeo = new THREE.BoxGeometry(0.35, 1.2, ARENA_WALKWAY_LENGTH);
@@ -3618,7 +4544,11 @@ if (!USE_MINIMAL_STAGE) {
     metalness: 0.4,
     envMapIntensity: 0.8
   });
-  const walkwaySideAccentGeo = new THREE.BoxGeometry(0.12, 0.9, ARENA_WALKWAY_LENGTH - 0.6);
+  const walkwaySideAccentGeo = new THREE.BoxGeometry(
+    0.12,
+    0.9,
+    ARENA_WALKWAY_LENGTH - 0.6
+  );
   const walkwaySideAccentMat = new THREE.MeshStandardMaterial({
     color: 0x321c46,
     roughness: 0.32,
@@ -3626,7 +4556,11 @@ if (!USE_MINIMAL_STAGE) {
     emissive: 0xffb964,
     emissiveIntensity: dimIntensity(0.4)
   });
-  const walkwaySideCrownGeo = new THREE.BoxGeometry(0.38, 0.1, ARENA_WALKWAY_LENGTH);
+  const walkwaySideCrownGeo = new THREE.BoxGeometry(
+    0.38,
+    0.1,
+    ARENA_WALKWAY_LENGTH
+  );
   const walkwaySideCrownMat = new THREE.MeshStandardMaterial({
     color: 0xf2c36b,
     roughness: 0.22,
@@ -3652,7 +4586,11 @@ if (!USE_MINIMAL_STAGE) {
     crown.receiveShadow = false;
     sideGroup.add(crown);
 
-    const lightStripGeo = new THREE.BoxGeometry(0.18, 0.08, ARENA_WALKWAY_LENGTH - 0.4);
+    const lightStripGeo = new THREE.BoxGeometry(
+      0.18,
+      0.08,
+      ARENA_WALKWAY_LENGTH - 0.4
+    );
     const lightStripMat = new THREE.MeshStandardMaterial({
       color: 0xffd27e,
       emissive: 0xfff1b5,
@@ -3674,9 +4612,14 @@ if (!USE_MINIMAL_STAGE) {
   const walkwaySideLeft = createWalkwaySide(-ARENA_WALKWAY_WIDTH / 2 - 0.175);
   const walkwaySideRight = createWalkwaySide(ARENA_WALKWAY_WIDTH / 2 + 0.175);
 
-  const walkwayPortalHeaderTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+  const walkwayPortalHeaderTexture = carbonFiberTextureBase
+    ? carbonFiberTextureBase.clone()
+    : null;
   if (walkwayPortalHeaderTexture) {
-    walkwayPortalHeaderTexture.repeat.set((ARENA_WALKWAY_WIDTH + 0.4) / 1.4, 1.6);
+    walkwayPortalHeaderTexture.repeat.set(
+      (ARENA_WALKWAY_WIDTH + 0.4) / 1.4,
+      1.6
+    );
     walkwayPortalHeaderTexture.needsUpdate = true;
   }
   const walkwayPortalHeaderMaterialConfig = {
@@ -3714,7 +4657,10 @@ if (!USE_MINIMAL_STAGE) {
   arenaG.add(walkwayPortalCrown);
 
   const walkwayCeiling = new THREE.Mesh(
-    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH + 0.8, ARENA_WALKWAY_LENGTH + 1.2),
+    new THREE.PlaneGeometry(
+      ARENA_WALKWAY_WIDTH + 0.8,
+      ARENA_WALKWAY_LENGTH + 1.2
+    ),
     new THREE.MeshStandardMaterial({
       color: 0x18111f,
       side: THREE.DoubleSide,
@@ -3753,7 +4699,11 @@ if (!USE_MINIMAL_STAGE) {
   );
   chandelierCore.position.y = -0.35;
   chandelier.add(chandelierCore);
-  chandelier.position.set(0, walkwayCeiling.position.y - 0.18, walkwayFloor.position.z);
+  chandelier.position.set(
+    0,
+    walkwayCeiling.position.y - 0.18,
+    walkwayFloor.position.z
+  );
   arenaG.add(chandelier);
 
   const walkwayFrontLight = new THREE.Mesh(
@@ -3769,11 +4719,21 @@ if (!USE_MINIMAL_STAGE) {
   walkwayFrontLight.position.set(0, 0.18, hallwayDoorZ + 0.18);
   arenaG.add(walkwayFrontLight);
   const walkwayRearLight = walkwayFrontLight.clone();
-  walkwayRearLight.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.25;
+  walkwayRearLight.position.z =
+    walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.25;
   arenaG.add(walkwayRearLight);
 
-  const hallwayAmbient = new THREE.PointLight(0xffe2b5, dimIntensity(1.3), 18, 1.8);
-  hallwayAmbient.position.set(0, walkwayCeiling.position.y - 0.05, walkwayFloor.position.z);
+  const hallwayAmbient = new THREE.PointLight(
+    0xffe2b5,
+    dimIntensity(1.3),
+    18,
+    1.8
+  );
+  hallwayAmbient.position.set(
+    0,
+    walkwayCeiling.position.y - 0.05,
+    walkwayFloor.position.z
+  );
   hallwayAmbient.castShadow = true;
   arenaG.add(hallwayAmbient);
 
@@ -3828,7 +4788,10 @@ function configureEntryCurves(finalPosition, target = CAMERA_TARGET) {
 function startHallwayEntry() {
   fitCamera();
   const target = getActiveCameraTarget();
-  const finalDesired = clampCameraPosition(getDesiredCameraPosition(target), target);
+  const finalDesired = clampCameraPosition(
+    getDesiredCameraPosition(target),
+    target
+  );
   configureEntryCurves(finalDesired, target);
   entrySequenceActive = true;
   entryStartTime = performance.now();
@@ -3867,18 +4830,26 @@ function updateEntrySequence(now) {
   }
 
   if (entryCameraCurve) {
-    const cameraPhase = easeInOutCubic(Math.min(Math.max((progress - 0.05) / 0.85, 0), 1));
+    const cameraPhase = easeInOutCubic(
+      Math.min(Math.max((progress - 0.05) / 0.85, 0), 1)
+    );
     const point = entryCameraCurve.getPoint(cameraPhase);
     camera.position.copy(point);
   }
 
   if (entryTargetCurve) {
-    const targetPhase = easeInOutCubic(Math.min(Math.max((progress - 0.08) / 0.75, 0), 1));
+    const targetPhase = easeInOutCubic(
+      Math.min(Math.max((progress - 0.08) / 0.75, 0), 1)
+    );
     const targetPoint = entryTargetCurve.getPoint(targetPhase);
     controls.target.copy(targetPoint);
   }
 
-  if (shouldRunHallwayEntry && seatLabelShouldDisplay && progress >= ENTRY_SEAT_REMOVAL_PROGRESS) {
+  if (
+    shouldRunHallwayEntry &&
+    seatLabelShouldDisplay &&
+    progress >= ENTRY_SEAT_REMOVAL_PROGRESS
+  ) {
     disposeSeatLabel();
   }
 
@@ -3910,11 +4881,15 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
-function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
+function makeClothTexture({
+  top = '#155c2a',
+  bottom = '#0b3a1d',
+  border = '#041f10'
+} = {}) {
   const size = 512;
-  const canvas = document.createElement("canvas");
+  const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   const gradient = ctx.createLinearGradient(0, 0, size, size);
   gradient.addColorStop(0, top);
   gradient.addColorStop(1, bottom);
@@ -3922,11 +4897,18 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
   ctx.fillRect(0, 0, size, size);
 
   ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  const glow = ctx.createRadialGradient(size * 0.5, size * 0.45, size * 0.12, size * 0.5, size * 0.45, size * 0.6);
-  glow.addColorStop(0, "rgba(255,255,255,0.25)");
-  glow.addColorStop(0.65, "rgba(255,255,255,0.08)");
-  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.globalCompositeOperation = 'screen';
+  const glow = ctx.createRadialGradient(
+    size * 0.5,
+    size * 0.45,
+    size * 0.12,
+    size * 0.5,
+    size * 0.45,
+    size * 0.6
+  );
+  glow.addColorStop(0, 'rgba(255,255,255,0.25)');
+  glow.addColorStop(0.65, 'rgba(255,255,255,0.08)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
@@ -3938,7 +4920,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
   ctx.globalAlpha = 1;
 
   ctx.globalAlpha = 0.16;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = '#ffffff';
   for (let i = 0; i < size; i += 6) {
     ctx.fillRect(i, 0, 1, size);
     ctx.fillRect(0, i, size, 1);
@@ -4006,7 +4988,8 @@ const tableMaterials = {
 };
 
 function updateTableMaterials() {
-  const wood = TABLE_WOOD_OPTIONS[appearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+  const wood =
+    TABLE_WOOD_OPTIONS[appearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
   const { preset, grain } = resolveWoodComponents(wood);
   const sharedKey = `domino-wood-${wood?.id ?? preset.id ?? 'default'}`;
   applyWoodTextures(tableMaterials.top, {
@@ -4042,18 +5025,28 @@ function updateTableMaterials() {
   tableMaterials.accent.color.set(wood.accentHex);
   tableMaterials.accent.needsUpdate = true;
 
-  const cloth = TABLE_CLOTH_OPTIONS[appearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+  const cloth =
+    TABLE_CLOTH_OPTIONS[appearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
   tableMaterials.felt.color.set(0xffffff);
-  tableMaterials.felt.emissive.set(cloth.emissive ?? adjustHexColor(cloth.feltTop, 0.2));
-  tableMaterials.felt.emissiveIntensity = dimIntensity(cloth.emissiveIntensity ?? 0.34);
+  tableMaterials.felt.emissive.set(
+    cloth.emissive ?? adjustHexColor(cloth.feltTop, 0.2)
+  );
+  tableMaterials.felt.emissiveIntensity = dimIntensity(
+    cloth.emissiveIntensity ?? 0.34
+  );
   if (tableMaterials.felt.map) {
     tableMaterials.felt.map.dispose();
   }
-  tableMaterials.felt.map = makeClothTexture({ top: cloth.feltTop, bottom: cloth.feltBottom, border: cloth.border });
+  tableMaterials.felt.map = makeClothTexture({
+    top: cloth.feltTop,
+    bottom: cloth.feltBottom,
+    border: cloth.border
+  });
   tableMaterials.felt.map.needsUpdate = true;
   tableMaterials.felt.needsUpdate = true;
 
-  const base = TABLE_BASE_OPTIONS[appearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+  const base =
+    TABLE_BASE_OPTIONS[appearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
   tableMaterials.base.color.set(base.base);
   tableMaterials.column.color.set(base.column);
   tableMaterials.trim.color.set(base.trim);
@@ -4065,7 +5058,9 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
   object.traverse((child) => {
     if (!child.isMesh) return;
     if (child.geometry?.dispose) child.geometry.dispose();
-    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    const mats = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
       if (disposeTextures && mat.map && mat.map.dispose) {
@@ -4104,7 +5099,9 @@ function setProceduralTableVisible(flag = true) {
   });
 }
 
-async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]) {
+async function applyTableTheme(
+  option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]
+) {
   const theme = option || TABLE_THEME_OPTIONS[0];
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
@@ -4154,7 +5151,9 @@ function buildSeatNames(count = N) {
 }
 
 function isAvatarUrl(str = '') {
-  return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/');
+  return (
+    /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/')
+  );
 }
 
 function buildSeatAvatarSources(count = N) {
@@ -4174,7 +5173,10 @@ function buildSeatAvatarSources(count = N) {
   });
 }
 
-async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI, fallback = DEFAULT_AVATAR_EMOJI) {
+async function createSeatAvatarTexture(
+  source = DEFAULT_AVATAR_EMOJI,
+  fallback = DEFAULT_AVATAR_EMOJI
+) {
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
@@ -4182,7 +5184,10 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI, fallback =
   ctx.clearRect(0, 0, size, size);
 
   const center = size / 2;
-  const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  const label =
+    typeof source === 'string' && source.trim()
+      ? source.trim()
+      : DEFAULT_AVATAR_EMOJI;
   ctx.fillStyle = '#fffbe6';
   ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
   ctx.textAlign = 'center';
@@ -4217,16 +5222,26 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI, fallback =
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  texture.anisotropy = Math.min(
+    renderer.capabilities.getMaxAnisotropy?.() || 4,
+    8
+  );
   texture.needsUpdate = true;
   return texture;
 }
 
 async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
   if (!sprite) return null;
-  const texture = await createSeatAvatarTexture(source, pickFlagForSeat(HUMAN_SEAT_INDEX));
+  const texture = await createSeatAvatarTexture(
+    source,
+    pickFlagForSeat(HUMAN_SEAT_INDEX)
+  );
   if (!sprite.material) {
-    sprite.material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    sprite.material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false
+    });
   } else {
     sprite.material.map?.dispose?.();
     sprite.material.map = texture;
@@ -4238,7 +5253,9 @@ async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
 function refreshSeatAvatars() {
   const sources = buildSeatAvatarSources(N);
   return Promise.all(
-    seatAvatars.map((sprite, idx) => applySeatAvatarTexture(sprite, sources[idx] ?? DEFAULT_AVATAR_EMOJI))
+    seatAvatars.map((sprite, idx) =>
+      applySeatAvatarTexture(sprite, sources[idx] ?? DEFAULT_AVATAR_EMOJI)
+    )
   ).catch((error) => console.warn('Failed to refresh seat avatars', error));
 }
 
@@ -4246,14 +5263,18 @@ const projectedSeatTarget = new THREE.Vector3();
 function updateSeatBadgePositions() {
   if (!seatBadges.length || !chairs.length || !renderer?.domElement) return;
   const rect = renderer.domElement.getBoundingClientRect();
-  const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
+  const gradient =
+    (currentHighlightStyle && currentHighlightStyle.gradient) ||
     'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
-  seatBadges.forEach((badge) => badge?.style?.setProperty?.('--timer-gradient', gradient));
+  seatBadges.forEach((badge) =>
+    badge?.style?.setProperty?.('--timer-gradient', gradient)
+  );
   chairs.forEach((wrapper, idx) => {
     const badge = seatBadges[idx];
     if (!badge) return;
     const world = wrapper.getWorldPosition(projectedSeatTarget);
-    world.y += CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
+    world.y +=
+      CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
     world.project(camera);
     const x = (world.x * 0.5 + 0.5) * rect.width + rect.left;
     const y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
@@ -4299,7 +5320,10 @@ function disposeSeatBadges() {
 
 function applyBadgeAvatar(target, source = DEFAULT_AVATAR_EMOJI) {
   if (!target) return;
-  const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  const label =
+    typeof source === 'string' && source.trim()
+      ? source.trim()
+      : DEFAULT_AVATAR_EMOJI;
   target.textContent = label || DEFAULT_AVATAR_EMOJI;
   target.style.backgroundImage = '';
   target.classList.remove('has-photo');
@@ -4350,7 +5374,8 @@ function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
 
 function refreshSeatBadges(avatars = [], names = []) {
   disposeSeatBadges();
-  const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
+  const gradient =
+    (currentHighlightStyle && currentHighlightStyle.gradient) ||
     'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
   const avatarSources = avatars.length ? avatars : buildSeatAvatarSources(N);
   const nameSources = names.length ? names : buildSeatNames(N);
@@ -4397,18 +5422,32 @@ function createSeatLabelMesh() {
   ctx.textBaseline = 'middle';
   ctx.fillText('SEAT', canvas.width / 2, canvas.height / 2);
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  texture.anisotropy = Math.min(
+    renderer.capabilities.getMaxAnisotropy?.() || 4,
+    8
+  );
   texture.colorSpace = THREE.SRGBColorSpace;
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false
+  });
   const geometry = new THREE.PlaneGeometry(1.6, 0.8);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 12;
   return mesh;
 }
 
-function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI, scaleMultiplier = 1) {
+function createSeatAvatarSprite(
+  source = DEFAULT_AVATAR_EMOJI,
+  scaleMultiplier = 1
+) {
   const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ transparent: true, depthWrite: false, alphaTest: 0.4 })
+    new THREE.SpriteMaterial({
+      transparent: true,
+      depthWrite: false,
+      alphaTest: 0.4
+    })
   );
   const diameter = DOMINO_WIDTH * 6.5 * scaleMultiplier;
   sprite.scale.set(diameter, diameter, diameter);
@@ -4432,8 +5471,15 @@ function createSeatNameTag(label = '') {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  texture.anisotropy = Math.min(
+    renderer.capabilities.getMaxAnisotropy?.() || 4,
+    8
+  );
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false
+  });
   const geometry = new THREE.PlaneGeometry(1.65, 0.52);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 3;
@@ -4473,7 +5519,10 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableParts.top = topMesh;
   proceduralTableParts.push(topMesh);
 
-  const feltGeo = new THREE.ExtrudeGeometry(feltShape, { depth: 0.01, bevelEnabled: false });
+  const feltGeo = new THREE.ExtrudeGeometry(feltShape, {
+    depth: 0.01,
+    bevelEnabled: false
+  });
   feltGeo.rotateX(-Math.PI / 2);
   const feltMesh = new THREE.Mesh(feltGeo, tableMaterials.felt);
   feltMesh.position.y = CLOTH_TOP + 0.0025;
@@ -4502,7 +5551,10 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
   const accentShape = rimInnerShape.clone();
   accentShape.holes.push(feltShape);
-  const accentGeo = new THREE.ExtrudeGeometry(accentShape, { depth: 0.012, bevelEnabled: false });
+  const accentGeo = new THREE.ExtrudeGeometry(accentShape, {
+    depth: 0.012,
+    bevelEnabled: false
+  });
   accentGeo.rotateX(-Math.PI / 2);
   const accentMesh = new THREE.Mesh(accentGeo, tableMaterials.accent);
   accentMesh.position.y = CLOTH_TOP - 0.003;
@@ -4512,7 +5564,12 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
   const columnHeight = TABLE_HEIGHT + 0.25;
   const column = new THREE.Mesh(
-    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.34, TABLE_OUTER_RADIUS * 0.48, columnHeight, 48),
+    new THREE.CylinderGeometry(
+      TABLE_OUTER_RADIUS * 0.34,
+      TABLE_OUTER_RADIUS * 0.48,
+      columnHeight,
+      48
+    ),
     tableMaterials.column
   );
   column.position.y = TABLE_BASE_Y - columnHeight / 2;
@@ -4528,12 +5585,14 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
-const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
+const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.1;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
 const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.58;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.6;
+const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.18;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -4546,15 +5605,20 @@ const SHARED_DOMINO_MATERIALS = new Set();
 let porcelainMat = null;
 let pipMat = null;
 let accentMat = null;
-let currentDominoStyleOption = DOMINO_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0];
+let currentDominoStyleOption =
+  DOMINO_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoStyle] ??
+  DOMINO_STYLE_OPTIONS[0];
 let dominoStyleProfile = {
   ringInner: currentDominoStyleOption?.accent?.ringInner ?? 0.107,
   ringOuter: currentDominoStyleOption?.accent?.ringOuter ?? 0.12,
   midlineDepth: currentDominoStyleOption?.accent?.midlineDepth ?? 0.01,
   pipRadius: currentDominoStyleOption?.pip?.radius ?? 0.085,
-  ringEmissiveIntensity: currentDominoStyleOption?.accent?.ringEmissiveIntensity ?? 0.55
+  ringEmissiveIntensity:
+    currentDominoStyleOption?.accent?.ringEmissiveIntensity ?? 0.55
 };
-let currentHighlightStyle = HIGHLIGHT_STYLE_OPTIONS[DEFAULT_APPEARANCE.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0];
+let currentHighlightStyle =
+  HIGHLIGHT_STYLE_OPTIONS[DEFAULT_APPEARANCE.highlightStyle] ??
+  HIGHLIGHT_STYLE_OPTIONS[0];
 let markers = { L: null, R: null };
 
 function disposeDominoBaseMaterials() {
@@ -4667,24 +5731,26 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
     ringEmissiveIntensity:
       typeof ringIntensitySource === 'number'
         ? dimIntensity(ringIntensitySource)
-        : accentMat.emissiveIntensity ?? dimIntensity(0.55)
+        : (accentMat.emissiveIntensity ?? dimIntensity(0.55))
   };
 }
 
 applyDominoStyle(currentDominoStyleOption);
 const markerMat = new THREE.MeshStandardMaterial({
-  color: "#facc15",
+  color: '#facc15',
   emissive: new THREE.Color('#eab308'),
-  roughness: .6,
+  roughness: 0.6,
   metalness: 0,
   transparent: true,
-  opacity: .62,
+  opacity: 0.62,
   side: THREE.DoubleSide
 });
 
 function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   currentHighlightStyle = option ?? HIGHLIGHT_STYLE_OPTIONS[0];
-  const gradient = currentHighlightStyle.gradient ?? 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
+  const gradient =
+    currentHighlightStyle.gradient ??
+    'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
   markerMat.color.set(currentHighlightStyle.color ?? '#15d16f');
   if (markerMat.emissive) {
     markerMat.emissive.set(currentHighlightStyle.emissive ?? '#0f172a');
@@ -4694,13 +5760,17 @@ function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   markerMat.needsUpdate = true;
   if (markers?.L?.material) {
     markers.L.material.color.copy(markerMat.color);
-    markers.L.material.emissive?.copy?.(markerMat.emissive ?? new THREE.Color('#0f172a'));
+    markers.L.material.emissive?.copy?.(
+      markerMat.emissive ?? new THREE.Color('#0f172a')
+    );
     markers.L.material.opacity = markerMat.opacity;
     markers.L.material.needsUpdate = true;
   }
   if (markers?.R?.material) {
     markers.R.material.color.copy(markerMat.color);
-    markers.R.material.emissive?.copy?.(markerMat.emissive ?? new THREE.Color('#0f172a'));
+    markers.R.material.emissive?.copy?.(
+      markerMat.emissive ?? new THREE.Color('#0f172a')
+    );
     markers.R.material.opacity = markerMat.opacity;
     markers.R.material.needsUpdate = true;
   }
@@ -4721,7 +5791,11 @@ let boneyard = [];
 let chain = [];
 
 const boneyardStackG = new THREE.Group();
-const BONEYARD_STACK_POSITION = new THREE.Vector3(0, CLOTH_TOP + 0.0075, CLOTH_RADIUS * 0.45);
+const BONEYARD_STACK_POSITION = new THREE.Vector3(
+  0,
+  CLOTH_TOP + 0.0075,
+  CLOTH_RADIUS * 0.45
+);
 boneyardStackG.position.copy(BONEYARD_STACK_POSITION);
 piecesG.add(boneyardStackG);
 const BONEYARD_STACK_STEP = DOMINO_WORLD_SCALE * 0.22 * 0.1 * 1.02;
@@ -4740,53 +5814,59 @@ const TMP_WORLD_POS = new THREE.Vector3();
 const TMP_WORLD_QUAT = new THREE.Quaternion();
 const TMP_WORLD_SCALE = new THREE.Vector3();
 
-function disposeDominoMesh(mesh){
-  if(!mesh) return;
+function disposeDominoMesh(mesh) {
+  if (!mesh) return;
   piecesG.remove(mesh);
-  try{
-    mesh.traverse((child)=>{
-      if(!child.isMesh) return;
-      if(child.geometry?.dispose){
-        try{ child.geometry.dispose(); }catch{}
+  try {
+    mesh.traverse((child) => {
+      if (!child.isMesh) return;
+      if (child.geometry?.dispose) {
+        try {
+          child.geometry.dispose();
+        } catch {}
       }
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      materials.forEach((material)=>{
-        if(!material || SHARED_DOMINO_MATERIALS.has(material)) return;
-        if(material.dispose){
-          try{ material.dispose(); }catch{}
+      const materials = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
+      materials.forEach((material) => {
+        if (!material || SHARED_DOMINO_MATERIALS.has(material)) return;
+        if (material.dispose) {
+          try {
+            material.dispose();
+          } catch {}
         }
       });
     });
-  }catch{}
+  } catch {}
 }
 
-function clearExistingDominoMeshes(){
-  if(Array.isArray(players)){
-    players.forEach((player)=>{
-      player?.hand?.forEach((tile)=>{
-        if(tile?.mesh){
+function clearExistingDominoMeshes() {
+  if (Array.isArray(players)) {
+    players.forEach((player) => {
+      player?.hand?.forEach((tile) => {
+        if (tile?.mesh) {
           disposeDominoMesh(tile.mesh);
           tile.mesh = null;
         }
       });
     });
   }
-  if(Array.isArray(chain)){
-    chain.forEach((segment)=>{
-      if(segment?.mesh){
+  if (Array.isArray(chain)) {
+    chain.forEach((segment) => {
+      if (segment?.mesh) {
         disposeDominoMesh(segment.mesh);
         segment.mesh = null;
       }
     });
   }
-  drawAnimations.forEach((anim)=>{
-    if(anim?.mesh){
+  drawAnimations.forEach((anim) => {
+    if (anim?.mesh) {
       disposeDominoMesh(anim.mesh);
     }
   });
   drawAnimations.length = 0;
-  placementAnimations.forEach((anim)=>{
-    if(anim?.mesh){
+  placementAnimations.forEach((anim) => {
+    if (anim?.mesh) {
       disposeDominoMesh(anim.mesh);
     }
   });
@@ -4820,12 +5900,22 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = sanitizeAppearance(appearance);
-  applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
-  applyTableTheme(TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]);
+  applyEnvironmentHdri(
+    ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
+      ENVIRONMENT_HDRI_OPTIONS[0]
+  );
+  applyTableTheme(
+    TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]
+  );
   clearExistingDominoMeshes();
   updateTableMaterials();
-  applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
-  applyHighlightStyle(HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0]);
+  applyDominoStyle(
+    DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]
+  );
+  applyHighlightStyle(
+    HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ??
+      HIGHLIGHT_STYLE_OPTIONS[0]
+  );
   Object.values(tableMaterials).forEach((material) => {
     if (material && typeof material.needsUpdate === 'boolean') {
       material.needsUpdate = true;
@@ -4837,7 +5927,9 @@ function applyAppearanceChange({ refresh = true } = {}) {
       material.roughnessMap.needsUpdate = true;
     }
   });
-  buildChairs(CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME);
+  buildChairs(
+    CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME
+  );
   renderHands();
   renderChain();
   renderBoneyardStack();
@@ -4849,13 +5941,18 @@ function applyAppearanceChange({ refresh = true } = {}) {
 }
 
 function applyFrameRateSelection(optionId, { refreshUi = true } = {}) {
-  const resolvedId = FRAME_RATE_OPTIONS_BY_ID[optionId] ? optionId : DEFAULT_FRAME_RATE_ID;
+  const resolvedId = FRAME_RATE_OPTIONS_BY_ID[optionId]
+    ? optionId
+    : DEFAULT_FRAME_RATE_ID;
   frameRateId = resolvedId;
   frameQuality = buildFrameQuality(resolvedId);
   frameTiming = buildFrameTiming(frameQuality);
   persistFrameRateSelection(resolvedId);
   applyRendererQuality(frameQuality);
-  applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
+  applyEnvironmentHdri(
+    ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
+      ENVIRONMENT_HDRI_OPTIONS[0]
+  );
   if (refreshUi) {
     refreshConfigUI();
   }
@@ -4879,7 +5976,8 @@ function createOptionPreview(key, option) {
   swatch.style.border = '1px solid rgba(255,255,255,0.12)';
   switch (key) {
     case 'environmentHdri': {
-      swatch.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
+      swatch.style.background =
+        'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
       const badge = document.createElement('span');
       badge.textContent = option?.name || option?.label || 'HDRI';
       badge.style.display = 'inline-block';
@@ -4920,12 +6018,15 @@ function createOptionPreview(key, option) {
         const sheen = document.createElement('div');
         sheen.style.position = 'absolute';
         sheen.style.inset = '0';
-        sheen.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.14), rgba(15,23,42,0.55))';
+        sheen.style.background =
+          'linear-gradient(135deg, rgba(255,255,255,0.14), rgba(15,23,42,0.55))';
         sheen.style.pointerEvents = 'none';
         swatch.appendChild(sheen);
       }
       {
-        const grain = (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || WOOD_GRAIN_OPTIONS[0];
+        const grain =
+          (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) ||
+          WOOD_GRAIN_OPTIONS[0];
         if (grain?.label) {
           const badge = document.createElement('span');
           badge.textContent = grain.label.slice(0, 16);
@@ -4955,9 +6056,10 @@ function createOptionPreview(key, option) {
       swatch.style.position = 'relative';
       swatch.style.overflow = 'hidden';
       {
-        const [topColor, bottomColor] = Array.isArray(option.preview) && option.preview.length >= 2
-          ? option.preview
-          : ['#1f2937', '#0f172a'];
+        const [topColor, bottomColor] =
+          Array.isArray(option.preview) && option.preview.length >= 2
+            ? option.preview
+            : ['#1f2937', '#0f172a'];
         swatch.style.background = `linear-gradient(135deg, ${topColor}, ${bottomColor})`;
       }
       {
@@ -4990,12 +6092,16 @@ function createOptionPreview(key, option) {
     case 'highlightStyle': {
       swatch.style.position = 'relative';
       swatch.style.overflow = 'hidden';
-      swatch.style.background = 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(0,0,0,0.1))';
+      swatch.style.background =
+        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(0,0,0,0.1))';
       const ring = document.createElement('div');
       ring.className = 'avatar-timer-ring';
       ring.style.position = 'absolute';
       ring.style.inset = '0.25rem';
-      ring.style.setProperty('--timer-gradient', option.gradient ?? 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)');
+      ring.style.setProperty(
+        '--timer-gradient',
+        option.gradient ?? 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)'
+      );
       swatch.appendChild(ring);
       const icon = document.createElement('div');
       icon.style.position = 'absolute';
@@ -5061,10 +6167,14 @@ function refreshConfigUI() {
     muteButton.classList.add('active');
   }
   const muteLabel = document.createElement('span');
-  muteLabel.textContent = commentaryMuted ? 'Commentary muted' : 'Commentary on';
+  muteLabel.textContent = commentaryMuted
+    ? 'Commentary muted'
+    : 'Commentary on';
   muteButton.appendChild(muteLabel);
   const muteHelper = document.createElement('div');
-  muteHelper.textContent = commentaryMuted ? 'Tap to unmute the announcer' : 'Tap to mute the announcer';
+  muteHelper.textContent = commentaryMuted
+    ? 'Tap to unmute the announcer'
+    : 'Tap to mute the announcer';
   muteHelper.style.fontSize = '0.65rem';
   muteHelper.style.color = 'rgba(226,232,240,0.78)';
   muteHelper.style.fontWeight = '700';
@@ -5077,7 +6187,8 @@ function refreshConfigUI() {
   commentaryWrapper.appendChild(commentaryGrid);
   if (!commentarySupported) {
     const commentaryNote = document.createElement('p');
-    commentaryNote.textContent = 'Voice commentary requires a browser with Web Speech support.';
+    commentaryNote.textContent =
+      'Voice commentary requires a browser with Web Speech support.';
     commentaryNote.style.margin = '0';
     commentaryNote.style.fontSize = '0.65rem';
     commentaryNote.style.color = 'rgba(226,232,240,0.7)';
@@ -5125,10 +6236,19 @@ function refreshConfigUI() {
   feedbackWrapper.appendChild(feedbackLabel);
   const feedbackGrid = document.createElement('div');
   feedbackGrid.className = 'config-options';
-  feedbackGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
+  feedbackGrid.style.gridTemplateColumns =
+    'repeat(auto-fit, minmax(140px, 1fr))';
   [
-    { key: 'sound', label: feedbackSettings.sound ? 'Sound on' : 'Sound muted', helper: 'Procedural knocks & win jingles' },
-    { key: 'haptics', label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off', helper: 'Short vibrations on plays' }
+    {
+      key: 'sound',
+      label: feedbackSettings.sound ? 'Sound on' : 'Sound muted',
+      helper: 'Procedural knocks & win jingles'
+    },
+    {
+      key: 'haptics',
+      label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off',
+      helper: 'Short vibrations on plays'
+    }
   ].forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -5153,7 +6273,8 @@ function refreshConfigUI() {
     feedbackGrid.appendChild(button);
   });
   const feedbackHint = document.createElement('p');
-  feedbackHint.textContent = 'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
+  feedbackHint.textContent =
+    'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
   feedbackHint.style.margin = '0';
   feedbackHint.style.fontSize = '0.65rem';
   feedbackHint.style.color = 'rgba(226,232,240,0.7)';
@@ -5169,7 +6290,8 @@ function refreshConfigUI() {
   graphicsWrapper.appendChild(graphicsLabel);
   const graphicsGrid = document.createElement('div');
   graphicsGrid.className = 'config-options';
-  graphicsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+  graphicsGrid.style.gridTemplateColumns =
+    'repeat(auto-fit, minmax(200px, 1fr))';
   FRAME_RATE_OPTIONS.forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -5249,7 +6371,11 @@ configButtonEl?.addEventListener('click', () => {
 configCloseEl?.addEventListener('click', () => closeConfigPanel());
 document.addEventListener('click', (event) => {
   if (!configPanelEl?.classList.contains('active')) return;
-  if (configPanelEl.contains(event.target) || configButtonEl?.contains(event.target)) return;
+  if (
+    configPanelEl.contains(event.target) ||
+    configButtonEl?.contains(event.target)
+  )
+    return;
   closeConfigPanel();
 });
 document.addEventListener('keydown', (event) => {
@@ -5283,7 +6409,9 @@ function disposeChairResources(root) {
     if (child.geometry?.dispose) {
       child.geometry.dispose();
     }
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
     materials.forEach((material) => {
       if (!material) return;
       CHAIR_TEXTURE_PROPS.forEach((prop) => {
@@ -5320,7 +6448,10 @@ function placeChairsWithOption(option, chairData, token) {
     : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
   const labelHeight = chairData
     ? seatBottomOffset + chairTemplateBounds.max.y + 0.12
-    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness + 0.72;
+    : CHAIR_DIMENSIONS.baseThickness +
+      CHAIR_DIMENSIONS.columnHeight +
+      CHAIR_DIMENSIONS.seatThickness +
+      0.72;
   const labelDepth = chairData
     ? -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35
     : -CHAIR_DIMENSIONS.seatDepth * 0.35;
@@ -5330,12 +6461,14 @@ function placeChairsWithOption(option, chairData, token) {
     : {
         fabric: createChairFabricMaterial(option, renderer),
         leg: new THREE.MeshStandardMaterial({
-          color: new THREE.Color(option.legColor ?? "#1f1f1f"),
+          color: new THREE.Color(option.legColor ?? '#1f1f1f'),
           metalness: 0.6,
           roughness: 0.35
         }),
         accent: new THREE.MeshStandardMaterial({
-          color: new THREE.Color(adjustHexColor(option.legColor ?? "#1f1f1f", 0.15)),
+          color: new THREE.Color(
+            adjustHexColor(option.legColor ?? '#1f1f1f', 0.15)
+          ),
           metalness: 0.75,
           roughness: 0.32
         })
@@ -5360,7 +6493,11 @@ function placeChairsWithOption(option, chairData, token) {
     tableG.add(wrapper);
     chairs.push(wrapper);
 
-    if (seatLabelShouldDisplay && shouldShowSeatLabel && index === HUMAN_SEAT_INDEX) {
+    if (
+      seatLabelShouldDisplay &&
+      shouldShowSeatLabel &&
+      index === HUMAN_SEAT_INDEX
+    ) {
       seatLabelMesh = createSeatLabelMesh();
       seatLabelMesh.position.set(0, labelHeight, labelDepth);
       seatLabelMesh.rotation.x = -Math.PI / 16;
@@ -5371,16 +6508,22 @@ function placeChairsWithOption(option, chairData, token) {
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
 }
 
-async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
+async function buildChairs(
+  option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME
+) {
   const token = ++chairBuildToken;
-  const chairDataPromise = ensureChairTemplateForTheme(option).catch((error) => {
-    console.warn("Falling back to procedural chair for Domino", error);
-    return null;
-  });
+  const chairDataPromise = ensureChairTemplateForTheme(option).catch(
+    (error) => {
+      console.warn('Falling back to procedural chair for Domino', error);
+      return null;
+    }
+  );
 
   const chairData = await Promise.race([
     chairDataPromise,
-    new Promise((resolve) => setTimeout(() => resolve(null), CHAIR_MODEL_TIMEOUT_MS))
+    new Promise((resolve) =>
+      setTimeout(() => resolve(null), CHAIR_MODEL_TIMEOUT_MS)
+    )
   ]);
 
   placeChairsWithOption(option, chairData, token);
@@ -5394,57 +6537,84 @@ async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
-function isValidTile(t){
-  if(!t || typeof t.a!=="number" || typeof t.b!=="number") return false;
-  if(t.a<0||t.b<0||t.a>6||t.b>6) return false; return true;
+function isValidTile(t) {
+  if (!t || typeof t.a !== 'number' || typeof t.b !== 'number') return false;
+  if (t.a < 0 || t.b < 0 || t.a > 6 || t.b > 6) return false;
+  return true;
 }
-function canonTile(t){
-  if(!isValidTile(t)) return null; let {a,b}=t; if(a>b){ const k=a; a=b; b=k; } return {a,b};
+function canonTile(t) {
+  if (!isValidTile(t)) return null;
+  let { a, b } = t;
+  if (a > b) {
+    const k = a;
+    a = b;
+    b = k;
+  }
+  return { a, b };
 }
 
 /* ---------- Domino EXACT for your request ---------- */
-function pipPositions(){
+function pipPositions() {
   return [
-    [-0.3, 0.6], [0, 0.6], [0.3, 0.6],
-    [-0.3, 0.3], [0, 0.3], [0.3, 0.3],
-    [-0.3, 0.0], [0, 0.0], [0.3, 0.0],
+    [-0.3, 0.6],
+    [0, 0.6],
+    [0.3, 0.6],
+    [-0.3, 0.3],
+    [0, 0.3],
+    [0.3, 0.3],
+    [-0.3, 0.0],
+    [0, 0.0],
+    [0.3, 0.0]
   ];
 }
-const INDEX_SETS = { 0: [], 1: [4], 2: [0,8], 3: [0,4,8], 4: [0,2,6,8], 5: [0,2,4,6,8], 6: [0,2,3,5,6,8] };
+const INDEX_SETS = {
+  0: [],
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8]
+};
 
-function addAccentPerimeter(domino){
+function addAccentPerimeter(domino) {
   const inset = 0.04;
-  const w = 1 - inset*2;
-  const h = 2 - inset*2;
+  const w = 1 - inset * 2;
+  const h = 2 - inset * 2;
   const shape = new THREE.Shape();
-  shape.moveTo(-w/2, -h/2);
-  shape.lineTo( w/2, -h/2);
-  shape.lineTo( w/2,  h/2);
-  shape.lineTo(-w/2,  h/2);
-  shape.lineTo(-w/2, -h/2);
+  shape.moveTo(-w / 2, -h / 2);
+  shape.lineTo(w / 2, -h / 2);
+  shape.lineTo(w / 2, h / 2);
+  shape.lineTo(-w / 2, h / 2);
+  shape.lineTo(-w / 2, -h / 2);
   const hole = new THREE.Path();
   const t = 0.015;
-  hole.moveTo(-w/2 + t, -h/2 + t);
-  hole.lineTo( w/2 - t, -h/2 + t);
-  hole.lineTo( w/2 - t,  h/2 - t);
-  hole.lineTo(-w/2 + t,  h/2 - t);
-  hole.lineTo(-w/2 + t, -h/2 + t);
+  hole.moveTo(-w / 2 + t, -h / 2 + t);
+  hole.lineTo(w / 2 - t, -h / 2 + t);
+  hole.lineTo(w / 2 - t, h / 2 - t);
+  hole.lineTo(-w / 2 + t, h / 2 - t);
+  hole.lineTo(-w / 2 + t, -h / 2 + t);
   shape.holes.push(hole);
   const frameDepth = Math.max(0.004, dominoStyleProfile.midlineDepth ?? 0.01);
-  const extrude = new THREE.ExtrudeGeometry(shape, { depth: frameDepth, bevelEnabled: false });
+  const extrude = new THREE.ExtrudeGeometry(shape, {
+    depth: frameDepth,
+    bevelEnabled: false
+  });
   const frame = new THREE.Mesh(extrude, accentMat.clone());
-  frame.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? frame.material.emissiveIntensity;
+  frame.material.emissiveIntensity =
+    dominoStyleProfile.ringEmissiveIntensity ??
+    frame.material.emissiveIntensity;
   frame.position.z = 0.11;
   frame.renderOrder = 5; // sit on top
   domino.add(frame);
 }
 
-function addPips(dominoFace, count, yOffset){
+function addPips(dominoFace, count, yOffset) {
   const positions = pipPositions();
   const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
   const pipRadius = dominoStyleProfile.pipRadius ?? 0.085;
   const pipGeo = new THREE.SphereGeometry(pipRadius, 32, 32);
-  idxs.forEach(i => {
+  idxs.forEach((i) => {
     const [px, py] = positions[i];
     const sphere = new THREE.Mesh(pipGeo, pipMat);
     sphere.position.set(px, py + yOffset, 0.11);
@@ -5452,22 +6622,32 @@ function addPips(dominoFace, count, yOffset){
 
     // Luxury accent ring around each pip
     const innerR = dominoStyleProfile.ringInner ?? 0.107;
-    const outerR = dominoStyleProfile.ringOuter ?? 0.120;
+    const outerR = dominoStyleProfile.ringOuter ?? 0.12;
     const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
     const ring = new THREE.Mesh(ringGeo, accentMat.clone());
-    ring.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? ring.material.emissiveIntensity;
+    ring.material.emissiveIntensity =
+      dominoStyleProfile.ringEmissiveIntensity ??
+      ring.material.emissiveIntensity;
     ring.position.set(px, py + yOffset, 0.11);
     ring.renderOrder = 6; // above porcelain & pip
     dominoFace.add(ring);
   });
 }
 
-function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
-  const tile = {a,b};
-  if(!isValidTile(tile)){ return new THREE.Group(); }
+function makeDomino(
+  a,
+  b,
+  { flat = true, faceUp = true, preserveOrder = false } = {}
+) {
+  const tile = { a, b };
+  if (!isValidTile(tile)) {
+    return new THREE.Group();
+  }
   const oriented = preserveOrder ? tile : canonTile(tile);
-  if(!oriented){ return new THREE.Group(); }
-  ({a,b} = oriented);
+  if (!oriented) {
+    return new THREE.Group();
+  }
+  ({ a, b } = oriented);
 
   const group = new THREE.Group();
 
@@ -5476,17 +6656,23 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   const bodyMaterial = porcelainMat.clone();
   bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
   const body = new THREE.Mesh(bodyGeo, bodyMaterial);
-  body.castShadow = true; body.receiveShadow = true;
+  body.castShadow = true;
+  body.receiveShadow = true;
 
   // Center line — accent
-  const midW = 1 - 0.08;         // sipas kodit
+  const midW = 1 - 0.08; // sipas kodit
   const midH = 0.03;
   const midR = 0.06;
-  const midShape = roundedRectAbs(midW, midH, Math.min(midR, midH/2));
+  const midShape = roundedRectAbs(midW, midH, Math.min(midR, midH / 2));
   const midDepth = Math.max(0.004, dominoStyleProfile.midlineDepth ?? 0.01);
-  const midGeo = new THREE.ExtrudeGeometry(midShape, { depth: midDepth, bevelEnabled: false });
+  const midGeo = new THREE.ExtrudeGeometry(midShape, {
+    depth: midDepth,
+    bevelEnabled: false
+  });
   const midLine = new THREE.Mesh(midGeo, accentMat.clone());
-  midLine.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? midLine.material.emissiveIntensity;
+  midLine.material.emissiveIntensity =
+    dominoStyleProfile.ringEmissiveIntensity ??
+    midLine.material.emissiveIntensity;
   midLine.position.z = 0.11;
   midLine.renderOrder = 5;
   body.add(midLine);
@@ -5495,16 +6681,20 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   addAccentPerimeter(body);
 
   // Dots per your code — top & bottom faces (in body coordinates)
-  if(faceUp){
+  if (faceUp) {
     addPips(body, a, -0.8);
-    addPips(body, b,  0.2);
+    addPips(body, b, 0.2);
   }
 
   group.add(body);
 
   // Invisible collider to make touch / pick detection more forgiving on mobile
   const colliderGeo = new THREE.BoxGeometry(1, 1, 1);
-  const colliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  const colliderMat = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false
+  });
   const collider = new THREE.Mesh(colliderGeo, colliderMat);
   collider.name = 'touchCollider';
   collider.renderOrder = -1;
@@ -5513,10 +6703,14 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   group.add(collider);
 
   // Integration with the existing system: on the board they must be flat (face up)
-  if(flat){ group.rotation.x = -Math.PI/2; }
+  if (flat) {
+    group.rotation.x = -Math.PI / 2;
+  }
 
   // Keep the existing world scale (same as before the change)
-  const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
+  const sx = 0.1 / 1.0,
+    sy = flat ? 0.016 / 0.22 : 0.2 / 2.0,
+    sz = flat ? 0.2 / 2.0 : 0.016 / 0.22;
   const scaleVec = new THREE.Vector3(
     DOMINO_WORLD_SCALE * sx,
     DOMINO_WORLD_SCALE * sy,
@@ -5530,7 +6724,7 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
     DOMINO_WIDTH / scaleVec.z
   );
 
-  group.userData.val = [a,b];
+  group.userData.val = [a, b];
   return group;
 }
 
@@ -5566,7 +6760,8 @@ const muteLabel = document.getElementById('muteLabel');
 
 let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
-let current = 0; let human = 0;
+let current = 0;
+let human = 0;
 let selectedTile = null;
 let selectedHighlight = null;
 let selectedHighlightHost = null;
@@ -5581,12 +6776,14 @@ let winnerHighlight = null;
 let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
 
-function tileKey(tile){
+function tileKey(tile) {
   const ct = canonTile(tile);
   return ct ? `${ct.a}|${ct.b}` : '';
 }
 
-function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t; }
+function setStatus(t) {
+  statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t;
+}
 
 let contextLost = false;
 let contextLossReloadTimer = null;
@@ -5603,21 +6800,32 @@ function scheduleContextLossRecovery(reason = '') {
   if (contextLossReloadTimer || typeof window === 'undefined') return;
   const autoReloadEnabled = !IS_TELEGRAM_RUNTIME;
   const message = autoReloadEnabled
-    ? (reason ? `Graphics reset (${reason}). Reloading...` : 'Graphics reset. Reloading...')
-    : (reason ? `Graphics reset (${reason}). Reconnecting renderer…` : 'Graphics reset. Reconnecting renderer…');
+    ? reason
+      ? `Graphics reset (${reason}). Reloading...`
+      : 'Graphics reset. Reloading...'
+    : reason
+      ? `Graphics reset (${reason}). Reconnecting renderer…`
+      : 'Graphics reset. Reconnecting renderer…';
   setStatus(message);
-  contextLossReloadTimer = window.setTimeout(() => {
-    if (!contextLost) {
+  contextLossReloadTimer = window.setTimeout(
+    () => {
+      if (!contextLost) {
+        clearContextLossTimer();
+        return;
+      }
+      if (autoReloadEnabled) {
+        window.location.reload();
+        return;
+      }
+      setStatus(
+        'Graphics paused to protect Telegram stability. Reopen the game if visuals do not recover.'
+      );
       clearContextLossTimer();
-      return;
-    }
-    if (autoReloadEnabled) {
-      window.location.reload();
-      return;
-    }
-    setStatus('Graphics paused to protect Telegram stability. Reopen the game if visuals do not recover.');
-    clearContextLossTimer();
-  }, autoReloadEnabled ? CONTEXT_LOSS_RELOAD_DELAY_MS : CONTEXT_LOSS_RESTORE_GRACE_MS);
+    },
+    autoReloadEnabled
+      ? CONTEXT_LOSS_RELOAD_DELAY_MS
+      : CONTEXT_LOSS_RESTORE_GRACE_MS
+  );
 }
 
 function handleWebglContextLoss(event) {
@@ -5638,13 +6846,37 @@ function handleWebglContextRestored() {
   setControlEnabled(false);
 }
 
-renderer.domElement.addEventListener('webglcontextlost', handleWebglContextLoss, { passive: false });
-renderer.domElement.addEventListener('webglcontextrestored', handleWebglContextRestored);
+renderer.domElement.addEventListener(
+  'webglcontextlost',
+  handleWebglContextLoss,
+  { passive: false }
+);
+renderer.domElement.addEventListener(
+  'webglcontextrestored',
+  handleWebglContextRestored
+);
 
-function genSet(){ const set=[]; for(let a=0;a<=6;a++){ for(let b=a;b<=6;b++){ set.push({a,b}); } } return set; }
-function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+function genSet() {
+  const set = [];
+  for (let a = 0; a <= 6; a++) {
+    for (let b = a; b <= 6; b++) {
+      set.push({ a, b });
+    }
+  }
+  return set;
+}
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
-const requestedPlayers = Number.parseInt(urlParams.get('players') || urlParams.get('playerCount') || '', 10);
+const requestedPlayers = Number.parseInt(
+  urlParams.get('players') || urlParams.get('playerCount') || '',
+  10
+);
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
 }
@@ -5658,7 +6890,7 @@ if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
 applyAppearanceChange({ refresh: false });
 refreshConfigUI();
 
-function layoutSeat(idx){
+function layoutSeat(idx) {
   const EDGE = CLOTH_RADIUS;
   const MARGIN = EDGE * 0.16;
   const south = [0, EDGE - MARGIN, 0];
@@ -5669,8 +6901,15 @@ function layoutSeat(idx){
   return seats[idx % seats.length];
 }
 
-function renderHands(){
-  players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
+function renderHands() {
+  players.forEach((p) =>
+    p.hand.forEach((h) => {
+      if (h.mesh) {
+        piecesG.remove(h.mesh);
+        h.mesh = null;
+      }
+    })
+  );
   clearSelectedHighlight();
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
@@ -5680,12 +6919,13 @@ function renderHands(){
 
   const isTopDown = cameraViewMode === VIEW_MODES.twoD;
 
-  players.forEach((p,pi)=>{
-    const [x0,z0] = layoutSeat(pi);
+  players.forEach((p, pi) => {
+    const [x0, z0] = layoutSeat(pi);
     const isHuman = pi === human;
-    const faceUp = revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
+    const faceUp =
+      revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
     const count = p.hand.length;
-    const isSide = (pi===1 || pi===3);
+    const isSide = pi === 1 || pi === 3;
     const openFlat = isTopDown && isHuman;
 
     const gapBase = openFlat ? BASE_GAP * 1.12 : BASE_GAP;
@@ -5693,47 +6933,55 @@ function renderHands(){
 
     let span = 0;
     let gap = 0;
-    if(count>1){
-      const desiredSpan = gapBase * (count-1);
-      const minSpan = Math.min(MIN_GAP * (count-1), MAX_SPAN);
+    if (count > 1) {
+      const desiredSpan = gapBase * (count - 1);
+      const minSpan = Math.min(MIN_GAP * (count - 1), MAX_SPAN);
       span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
-      gap = span/(count-1);
+      gap = span / (count - 1);
     }
 
-    let start = count>1 ? -span/2 : 0;
-    if(count>1){
+    let start = count > 1 ? -span / 2 : 0;
+    if (count > 1) {
       const axisCenter = isSide ? z0 : x0;
       const minLimit = -EDGE_SPAN;
       const maxLimit = EDGE_SPAN;
       const minStart = minLimit - axisCenter;
       const maxStart = maxLimit - axisCenter - span;
-      if(minStart <= maxStart){
-        if(start < minStart) start = minStart;
-        if(start > maxStart) start = maxStart;
+      if (minStart <= maxStart) {
+        if (start < minStart) start = minStart;
+        if (start > maxStart) start = maxStart;
       } else {
         start = (minStart + maxStart) / 2;
       }
     }
 
-    p.hand.forEach((h,hi)=>{
-      const m = makeDomino(h.a,h.b,{flat: openFlat, faceUp});
-      const offset = count>1 ? start + gap*hi : 0;
-      if(isSide){
+    p.hand.forEach((h, hi) => {
+      const m = makeDomino(h.a, h.b, { flat: openFlat, faceUp });
+      const offset = count > 1 ? start + gap * hi : 0;
+      if (isHuman && !openFlat) {
+        const handAnchorZ = z0 + HUMAN_HAND_OUTWARD_OFFSET;
+        m.position.set(
+          x0 + offset,
+          handY - HUMAN_HAND_VERTICAL_OFFSET,
+          handAnchorZ
+        );
+      } else if (isSide) {
         m.position.set(x0, handY, z0 + offset);
-      }
-      else{
+      } else {
         m.position.set(x0 + offset, handY, z0);
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
-      if(openFlat){
+      if (openFlat) {
         const yaw = isHuman ? 0 : yawTowardCenter;
         orientDominoFlat(m, yaw);
       } else {
-        m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
-        m.rotation.z += (Math.random()*0.006-0.003);
+        m.rotation.set(0, pi === human ? 0 : yawTowardCenter, 0);
+        m.rotation.z += Math.random() * 0.006 - 0.003;
       }
-      h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
-      if(selectedTile === h){
+      h.mesh = m;
+      m.userData = { tile: h, owner: pi };
+      piecesG.add(m);
+      if (selectedTile === h) {
         applySelectedHighlight(m);
       }
     });
@@ -5766,18 +7014,22 @@ function orientDominoFlat(domino, yawAngle = 0) {
   domino.setRotationFromMatrix(DOMINO_BASIS);
 }
 
-function renderChain(){
-  chain.forEach(c=>{
-    if(c.mesh){
+function renderChain() {
+  chain.forEach((c) => {
+    if (c.mesh) {
       piecesG.remove(c.mesh);
       c.mesh = null;
     }
   });
-  chain.forEach(c=>{
-    if(c.animating){
+  chain.forEach((c) => {
+    if (c.animating) {
       return;
     }
-    const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true, preserveOrder: true });
+    const domino = makeDomino(c.tile.a, c.tile.b, {
+      flat: true,
+      faceUp: true,
+      preserveOrder: true
+    });
     const yPos = CHAIN_TILE_Y;
     domino.position.set(c.x, yPos, c.z);
     domino.renderOrder = 5;
@@ -5793,43 +7045,49 @@ function renderChain(){
   });
 }
 
-function renderBoneyardStack(){
+function renderBoneyardStack() {
   boneyardStackG.clear();
   const available = Array.isArray(boneyard) ? boneyard.length : 0;
   const visible = Math.min(available, MAX_BONEYARD_DISPLAY);
   boneyardStackVisible = visible;
   boneyardStackTopLocal = visible > 0 ? (visible - 1) * BONEYARD_STACK_STEP : 0;
-  if(visible === 0){
+  if (visible === 0) {
     return;
   }
 
-  for(let i=0;i<visible;i++){
-    const domino = makeDomino(0,0,{flat:true, faceUp:false});
-    orientDominoFlat(domino, Math.PI/2);
+  for (let i = 0; i < visible; i++) {
+    const domino = makeDomino(0, 0, { flat: true, faceUp: false });
+    orientDominoFlat(domino, Math.PI / 2);
     domino.rotation.z = Math.PI;
-    domino.position.set((i%2===0?1:-1)*0.0045, i * BONEYARD_STACK_STEP, (i%3-1)*0.0035);
-    domino.userData = { stock:true };
+    domino.position.set(
+      (i % 2 === 0 ? 1 : -1) * 0.0045,
+      i * BONEYARD_STACK_STEP,
+      ((i % 3) - 1) * 0.0035
+    );
+    domino.userData = { stock: true };
     boneyardStackG.add(domino);
   }
 }
 
-function getBoneyardTopWorld(){
-  if(!boneyardStackVisible){
+function getBoneyardTopWorld() {
+  if (!boneyardStackVisible) {
     return null;
   }
   const localTop = new THREE.Vector3(0, boneyardStackTopLocal, 0);
   return boneyardStackG.localToWorld(localTop);
 }
 
-function spawnDrawAnimation(startWorld, seatIndex = human){
-  if(!startWorld){
+function spawnDrawAnimation(startWorld, seatIndex = human) {
+  if (!startWorld) {
     return;
   }
-  const start = startWorld.clone ? startWorld.clone() : new THREE.Vector3().copy(startWorld);
-  const domino = makeDomino(0,0,{flat:true, faceUp:false});
-  orientDominoFlat(domino, Math.PI/2);
+  const start = startWorld.clone
+    ? startWorld.clone()
+    : new THREE.Vector3().copy(startWorld);
+  const domino = makeDomino(0, 0, { flat: true, faceUp: false });
+  orientDominoFlat(domino, Math.PI / 2);
   domino.rotation.z = Math.PI;
-  domino.userData = { stockAnim:true };
+  domino.userData = { stockAnim: true };
   domino.position.copy(start);
   piecesG.add(domino);
 
@@ -5845,37 +7103,41 @@ function spawnDrawAnimation(startWorld, seatIndex = human){
   });
 }
 
-function clearWinnerHighlight(){
-  if(!winnerHighlight){
+function clearWinnerHighlight() {
+  if (!winnerHighlight) {
     return;
   }
-  if(winnerHighlight.parent){
+  if (winnerHighlight.parent) {
     winnerHighlight.parent.remove(winnerHighlight);
   }
-  try{
+  try {
     winnerHighlight.geometry?.dispose?.();
-  }catch{}
+  } catch {}
   const mat = winnerHighlight.material;
-  try{
+  try {
     mat?.dispose?.();
-  }catch{}
+  } catch {}
   winnerHighlight = null;
   winnerHighlightStart = 0;
 }
 
-function showWinnerHighlight(index){
+function showWinnerHighlight(index) {
   clearWinnerHighlight();
-  if(!Number.isInteger(index) || index < 0 || index >= chairs.length){
+  if (!Number.isInteger(index) || index < 0 || index >= chairs.length) {
     return;
   }
   const seat = chairs[index];
-  if(!seat){
+  if (!seat) {
     return;
   }
   const radius = SEAT_WIDTH * 0.72;
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(radius, 0.028, 32, 96),
-    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.6 })
+    new THREE.MeshBasicMaterial({
+      color: 0xffd24a,
+      transparent: true,
+      opacity: 0.6
+    })
   );
   ring.rotation.x = -Math.PI / 2;
   ring.position.set(seat.position.x, 0.04, seat.position.z);
@@ -5885,13 +7147,13 @@ function showWinnerHighlight(index){
   winnerHighlightStart = performance.now();
 }
 
-function attachMeshPreserveWorld(mesh){
-  if(!mesh){
+function attachMeshPreserveWorld(mesh) {
+  if (!mesh) {
     return;
   }
   mesh.updateMatrixWorld(true);
   mesh.matrixWorld.decompose(TMP_WORLD_POS, TMP_WORLD_QUAT, TMP_WORLD_SCALE);
-  if(mesh.parent){
+  if (mesh.parent) {
     mesh.parent.remove(mesh);
   }
   piecesG.add(mesh);
@@ -5900,8 +7162,8 @@ function attachMeshPreserveWorld(mesh){
   mesh.scale.copy(TMP_WORLD_SCALE);
 }
 
-function takeTileMeshForAnimation(tile){
-  if(!tile || !tile.mesh){
+function takeTileMeshForAnimation(tile) {
+  if (!tile || !tile.mesh) {
     return null;
   }
   const mesh = tile.mesh;
@@ -5914,15 +7176,19 @@ function takeTileMeshForAnimation(tile){
   return mesh;
 }
 
-function spawnPlacementAnimation(tile, segment, { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}){
-  if(!segment){
+function spawnPlacementAnimation(
+  tile,
+  segment,
+  { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}
+) {
+  if (!segment) {
     return;
   }
   let mesh = providedMesh;
-  if(!mesh){
+  if (!mesh) {
     mesh = takeTileMeshForAnimation(tile);
   } else {
-    if(tile && tile.mesh === mesh){
+    if (tile && tile.mesh === mesh) {
       tile.mesh = null;
     }
     const data = mesh.userData || (mesh.userData = {});
@@ -5931,15 +7197,15 @@ function spawnPlacementAnimation(tile, segment, { duration = PLACE_ANIM_DURATION
     data.animating = true;
     attachMeshPreserveWorld(mesh);
   }
-  if(!mesh){
+  if (!mesh) {
     segment.animating = false;
     renderChain();
     return;
   }
 
   mesh.renderOrder = 6;
-  mesh.traverse((child)=>{
-    if(child.isMesh){
+  mesh.traverse((child) => {
+    if (child.isMesh) {
       child.renderOrder = 6;
     }
   });
@@ -5968,10 +7234,10 @@ function spawnPlacementAnimation(tile, segment, { duration = PLACE_ANIM_DURATION
 }
 
 /* ---------- Start / Turn Order ---------- */
-function drawTileFromStock(){
-  while(boneyard.length){
+function drawTileFromStock() {
+  while (boneyard.length) {
     const tile = boneyard.pop();
-    if(!isValidTile(tile)){
+    if (!isValidTile(tile)) {
       continue;
     }
     renderBoneyardStack();
@@ -5981,136 +7247,161 @@ function drawTileFromStock(){
   return null;
 }
 
-function highestDoubleIndex(hand){ let best=-1, idx=-1; hand.forEach((t,i)=>{ if(t.a===t.b && t.a>best){best=t.a; idx=i;} }); return idx; }
-function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
+function highestDoubleIndex(hand) {
+  let best = -1,
+    idx = -1;
+  hand.forEach((t, i) => {
+    if (t.a === t.b && t.a > best) {
+      best = t.a;
+      idx = i;
+    }
+  });
+  return idx;
+}
+function pipSum(hand) {
+  return hand.reduce((s, t) => s + t.a + t.b, 0);
+}
 
 const VALUE_MAX_OCCURRENCES = 8; // each pip value appears 8 times in a double-six set (including doubles)
 
-function valueOccurrencesInTiles(tiles, value, skipIndex=-1){
+function valueOccurrencesInTiles(tiles, value, skipIndex = -1) {
   let total = 0;
-  tiles.forEach((t,i)=>{
-    if(skipIndex===i) return;
-    if(!isValidTile(t)) return;
-    if(t.a===value) total++;
-    if(t.b===value) total++;
+  tiles.forEach((t, i) => {
+    if (skipIndex === i) return;
+    if (!isValidTile(t)) return;
+    if (t.a === value) total++;
+    if (t.b === value) total++;
   });
   return total;
 }
 
-function valueOccurrencesInChain(value){
+function valueOccurrencesInChain(value) {
   let total = 0;
-  chain.forEach(c=>{
-    const {a,b} = c.tile;
-    if(a===value) total++;
-    if(b===value) total++;
+  chain.forEach((c) => {
+    const { a, b } = c.tile;
+    if (a === value) total++;
+    if (b === value) total++;
   });
   return total;
 }
 
-function enumerateMoves(hand){
+function enumerateMoves(hand) {
   const moves = [];
-  if(!hand || !hand.length) return moves;
-  if(!ends){
-    hand.forEach((tile,index)=>{
-      if(!isValidTile(tile)) return;
-      moves.push({tile,index,side:1,match:tile.a,other:tile.b});
+  if (!hand || !hand.length) return moves;
+  if (!ends) {
+    hand.forEach((tile, index) => {
+      if (!isValidTile(tile)) return;
+      moves.push({ tile, index, side: 1, match: tile.a, other: tile.b });
     });
     return moves;
   }
-  hand.forEach((tile,index)=>{
-    if(!isValidTile(tile)) return;
-    const {L,R} = validSidesFor(tile);
-    if(L){
+  hand.forEach((tile, index) => {
+    if (!isValidTile(tile)) return;
+    const { L, R } = validSidesFor(tile);
+    if (L) {
       const match = ends.L.v;
-      const other = (tile.a===match) ? tile.b : tile.a;
-      moves.push({tile,index,side:-1,match,other});
+      const other = tile.a === match ? tile.b : tile.a;
+      moves.push({ tile, index, side: -1, match, other });
     }
-    if(R){
+    if (R) {
       const match = ends.R.v;
-      const other = (tile.a===match) ? tile.b : tile.a;
-      moves.push({tile,index,side:1,match,other});
+      const other = tile.a === match ? tile.b : tile.a;
+      moves.push({ tile, index, side: 1, match, other });
     }
   });
   return moves;
 }
 
-function scoreMove(player, move){
-  const {tile,index,other,side} = move;
+function scoreMove(player, move) {
+  const { tile, index, other, side } = move;
   const futureHand = [];
-  player.hand.forEach((t, i) => { if (i !== index && isValidTile(t)) futureHand.push(t); });
+  player.hand.forEach((t, i) => {
+    if (i !== index && isValidTile(t)) futureHand.push(t);
+  });
 
   let score = 0;
   const sum = tile.a + tile.b;
   score += sum * 1.1; // prefer dumping high pips to avoid being stuck later
-  if(tile.a===tile.b){
+  if (tile.a === tile.b) {
     score += 8; // doubles can open/close branches effectively
   }
 
   const sameValueRemaining = valueOccurrencesInTiles(player.hand, other, index);
   score += sameValueRemaining * 2.75; // keeping follow-up options for ourselves
 
-  const occurrencesFromTile = (tile.a === tile.b) ? 2 : ((tile.a === other || tile.b === other) ? 1 : 0);
-  const knownElsewhere = valueOccurrencesInChain(other) + sameValueRemaining + occurrencesFromTile;
-  const remainingElsewhere = Math.max(0, VALUE_MAX_OCCURRENCES - knownElsewhere);
-  if(remainingElsewhere === 0){
+  const occurrencesFromTile =
+    tile.a === tile.b ? 2 : tile.a === other || tile.b === other ? 1 : 0;
+  const knownElsewhere =
+    valueOccurrencesInChain(other) + sameValueRemaining + occurrencesFromTile;
+  const remainingElsewhere = Math.max(
+    0,
+    VALUE_MAX_OCCURRENCES - knownElsewhere
+  );
+  if (remainingElsewhere === 0) {
     score += 7.5; // completely choke the value — strong blocking move
-  } else if(remainingElsewhere <= 2){
+  } else if (remainingElsewhere <= 2) {
     score += 3.75;
-  } else if(remainingElsewhere >= 5 && sameValueRemaining === 0){
+  } else if (remainingElsewhere >= 5 && sameValueRemaining === 0) {
     score -= 1.5; // avoid handing tempo back when opponents likely own the value
   }
   score += (VALUE_MAX_OCCURRENCES - remainingElsewhere) * 1.1;
 
-  if(ends){
+  if (ends) {
     const leftEnd = ends.L;
     const rightEnd = ends.R;
-    const currentEndValue = (side < 0 ? leftEnd?.v : rightEnd?.v);
-    if(currentEndValue === other && tile.a !== tile.b){
+    const currentEndValue = side < 0 ? leftEnd?.v : rightEnd?.v;
+    if (currentEndValue === other && tile.a !== tile.b) {
       // keeping the same value on the end makes it predictable — slight penalty unless it's a double
       score -= 1.5;
     }
-    if(sameValueRemaining === 0 && remainingElsewhere > 0){
+    if (sameValueRemaining === 0 && remainingElsewhere > 0) {
       // avoid stranding ourselves with no follow-up on that end unless it is a blocking move
       score -= 2.4;
     }
     const probeEnd = side < 0 ? leftEnd : rightEnd;
     if (probeEnd) {
       const projection = nextCandidate(probeEnd);
-      if (Math.abs(projection.nx) > XMAX * 0.92 || Math.abs(projection.nz) > ZMAX * 0.92) {
+      if (
+        Math.abs(projection.nx) > XMAX * 0.92 ||
+        Math.abs(projection.nz) > ZMAX * 0.92
+      ) {
         score += 1.1; // reward steering the snake before it hits the rails
       }
     }
 
-    const futureLeftValue = (side < 0 ? other : leftEnd?.v);
-    const futureRightValue = (side > 0 ? other : rightEnd?.v);
+    const futureLeftValue = side < 0 ? other : leftEnd?.v;
+    const futureRightValue = side > 0 ? other : rightEnd?.v;
     const countMatches = (value) => {
-      if(!Number.isFinite(value)) return 0;
-      return futureHand.reduce((count, t) => count + ((t.a === value || t.b === value) ? 1 : 0), 0);
+      if (!Number.isFinite(value)) return 0;
+      return futureHand.reduce(
+        (count, t) => count + (t.a === value || t.b === value ? 1 : 0),
+        0
+      );
     };
     const leftMatches = countMatches(futureLeftValue);
     const rightMatches = countMatches(futureRightValue);
-    if(Number.isFinite(futureLeftValue)){
+    if (Number.isFinite(futureLeftValue)) {
       score += leftMatches * 1.4;
-      if(leftMatches === 0){
+      if (leftMatches === 0) {
         score -= remainingElsewhere > 0 ? 3.5 : 0.75;
       }
     }
-    if(Number.isFinite(futureRightValue)){
+    if (Number.isFinite(futureRightValue)) {
       score += rightMatches * 1.4;
-      if(rightMatches === 0){
+      if (rightMatches === 0) {
         score -= remainingElsewhere > 0 ? 3.5 : 0.75;
       }
     }
   } else {
     // opening move heuristics: reward heavy doubles slightly more to secure tempo
-    if(tile.a === tile.b){
+    if (tile.a === tile.b) {
       score += 5 + tile.a * 0.6;
     } else {
       score += sum * 0.35;
     }
   }
 
-  if(sameValueRemaining >= 2){
+  if (sameValueRemaining >= 2) {
     score += 1.2; // encourage offloading duplicate values early
   }
 
@@ -6118,7 +7409,10 @@ function scoreMove(player, move){
   score += (42 - futurePipSum) * 0.12; // bias toward lighter remaining hand
 
   const futureValues = new Set();
-  futureHand.forEach((t) => { futureValues.add(t.a); futureValues.add(t.b); });
+  futureHand.forEach((t) => {
+    futureValues.add(t.a);
+    futureValues.add(t.b);
+  });
   if (!futureValues.has(other) && remainingElsewhere === 0) {
     score += 6; // we lock that value completely
   }
@@ -6134,34 +7428,34 @@ function scoreMove(player, move){
   return score;
 }
 
-function cpuDrawUntilPlayable(player){
+function cpuDrawUntilPlayable(player) {
   let drew = false;
-  while(boneyard.length){
+  while (boneyard.length) {
     const tile = drawTileFromStock();
-    if(!tile) break;
+    if (!tile) break;
     player.hand.push(tile);
     drew = true;
-    if(!ends) break;
-    const {L,R} = validSidesFor(tile);
-    if(L || R) break;
+    if (!ends) break;
+    const { L, R } = validSidesFor(tile);
+    if (L || R) break;
   }
   return drew;
 }
 
-function startGame(){
+function startGame() {
   clearMarkers();
   clearExistingDominoMeshes();
-  selectedTile=null;
+  selectedTile = null;
   clearSelectedHighlight();
-  chain=[];
-  ends=null;
+  chain = [];
+  ends = null;
   usedTileKeys.clear();
   gameFinished = false;
   winnerIndex = null;
   revealAllHands = false;
   lastAnnouncedTurn = null;
   clearWinnerHighlight();
-  if(cpuMoveTimeout){
+  if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
   }
@@ -6169,95 +7463,156 @@ function startGame(){
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
   refreshSeatAvatars();
-  players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
-  boneyard=shuffle(genSet());
+  players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
+  boneyard = shuffle(genSet());
   renderBoneyardStack();
-  for(let r=0;r<7;r++){
-    players.forEach(p=>{
+  for (let r = 0; r < 7; r++) {
+    players.forEach((p) => {
       const dealt = drawTileFromStock();
-      if(dealt){
+      if (dealt) {
         p.hand.push(dealt);
       }
     });
   }
-  players.forEach(p=> shuffle(p.hand)); // random order every game
+  players.forEach((p) => shuffle(p.hand)); // random order every game
   renderHands();
-  let starter=0, idx=-1, bestD=-1;
-  players.forEach((p,pi)=>{ const i=highestDoubleIndex(p.hand); if(i>=0 && p.hand[i].a>bestD){ bestD=p.hand[i].a; starter=pi; idx=i; } });
-  if(idx<0){ idx=0; }
-  const t=players[starter].hand.splice(idx,1)[0];
-  const firstTile=canonTile(t) || t;
-  const firstRot = (firstTile.a===firstTile.b) ? Math.PI/2 : 0;
-  chain.push({tile:firstTile,x:0,z:0,rot:firstRot,double:firstTile.a===firstTile.b});
+  let starter = 0,
+    idx = -1,
+    bestD = -1;
+  players.forEach((p, pi) => {
+    const i = highestDoubleIndex(p.hand);
+    if (i >= 0 && p.hand[i].a > bestD) {
+      bestD = p.hand[i].a;
+      starter = pi;
+      idx = i;
+    }
+  });
+  if (idx < 0) {
+    idx = 0;
+  }
+  const t = players[starter].hand.splice(idx, 1)[0];
+  const firstTile = canonTile(t) || t;
+  const firstRot = firstTile.a === firstTile.b ? Math.PI / 2 : 0;
+  chain.push({
+    tile: firstTile,
+    x: 0,
+    z: 0,
+    rot: firstRot,
+    double: firstTile.a === firstTile.b
+  });
   usedTileKeys.add(tileKey(firstTile));
-  const step=STEP;
+  const step = STEP;
   const isDoubleStart = firstTile.a === firstTile.b;
-  if(!flipDir){
-    if(isDoubleStart){
-      ends={
-        L:{v:firstTile.a,x: DOUBLE_END_SHIFT,z:0,dir:[-1,0],orient:Math.PI},
-        R:{v:firstTile.b,x:-DOUBLE_END_SHIFT,z:0,dir:[ 1,0],orient:0}
+  if (!flipDir) {
+    if (isDoubleStart) {
+      ends = {
+        L: {
+          v: firstTile.a,
+          x: DOUBLE_END_SHIFT,
+          z: 0,
+          dir: [-1, 0],
+          orient: Math.PI
+        },
+        R: {
+          v: firstTile.b,
+          x: -DOUBLE_END_SHIFT,
+          z: 0,
+          dir: [1, 0],
+          orient: 0
+        }
       };
     } else {
-      ends={
-        L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
-        R:{v:firstTile.b,x: step,z:0,dir:[ 1,0],orient:0}
+      ends = {
+        L: { v: firstTile.a, x: -step, z: 0, dir: [-1, 0], orient: Math.PI },
+        R: { v: firstTile.b, x: step, z: 0, dir: [1, 0], orient: 0 }
       };
     }
-  }
-  else{
-    if(isDoubleStart){
-      ends={
-        L:{v:firstTile.a,x:-DOUBLE_END_SHIFT,z:0,dir:[ 1,0],orient:0},
-        R:{v:firstTile.b,x: DOUBLE_END_SHIFT,z:0,dir:[-1,0],orient:Math.PI}
+  } else {
+    if (isDoubleStart) {
+      ends = {
+        L: {
+          v: firstTile.a,
+          x: -DOUBLE_END_SHIFT,
+          z: 0,
+          dir: [1, 0],
+          orient: 0
+        },
+        R: {
+          v: firstTile.b,
+          x: DOUBLE_END_SHIFT,
+          z: 0,
+          dir: [-1, 0],
+          orient: Math.PI
+        }
       };
     } else {
-      ends={
-        L:{v:firstTile.a,x: step,z:0,dir:[ 1,0],orient:0},
-        R:{v:firstTile.b,x:-step,z:0,dir:[-1,0],orient:Math.PI}
+      ends = {
+        L: { v: firstTile.a, x: step, z: 0, dir: [1, 0], orient: 0 },
+        R: { v: firstTile.b, x: -step, z: 0, dir: [-1, 0], orient: Math.PI }
       };
     }
   }
   renderChain();
-  current=(starter-1+N)%N;
+  current = (starter - 1 + N) % N;
   updateInteractivity();
-  if(current!==human){
+  if (current !== human) {
     scheduleCpuPlay();
   }
   if (!commentaryGreetingPlayed) {
     commentaryGreetingPlayed = true;
-    announceCommentary('greeting', { player: human }, { priority: true, interrupt: true });
+    announceCommentary(
+      'greeting',
+      { player: human },
+      { priority: true, interrupt: true }
+    );
   } else {
     announceCommentary('startRound', { player: starter });
   }
 }
 
 /* ---------- Placement & Snake ---------- */
-function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
-function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
+function canPlayAny(hand) {
+  if (!ends) return true;
+  return hand.some(
+    (t) =>
+      t.a === ends.L.v ||
+      t.b === ends.L.v ||
+      t.a === ends.R.v ||
+      t.b === ends.R.v
+  );
+}
+function validSidesFor(tile) {
+  if (!ends) return { L: false, R: false };
+  return {
+    L: tile.a === ends.L.v || tile.b === ends.L.v,
+    R: tile.a === ends.R.v || tile.b === ends.R.v
+  };
+}
 
-function placeOnBoard(tile, side, options = {}){
-  if(!chain.length || !isValidTile(tile)){
-    return { success:false };
+function placeOnBoard(tile, side, options = {}) {
+  if (!chain.length || !isValidTile(tile)) {
+    return { success: false };
   }
-  const end = (side < 0 ? ends?.L : ends?.R);
-  if(!end){
-    return { success:false };
+  const end = side < 0 ? ends?.L : ends?.R;
+  if (!end) {
+    return { success: false };
   }
   const want = end.v;
-  let a = tile.a, b = tile.b;
-  if(a !== want && b === want){
+  let a = tile.a,
+    b = tile.b;
+  if (a !== want && b === want) {
     [a, b] = [b, a];
   }
-  if(a !== want){
-    return { success:false };
+  if (a !== want) {
+    return { success: false };
   }
   let [dx, dz] = end.dir;
   let nx = end.x + dx * STEP;
   let nz = end.z + dz * STEP;
   const railMargin = STEP * 0.65;
-  const nearRail = Math.abs(nx) > (XMAX - railMargin) || Math.abs(nz) > (ZMAX - railMargin);
-  if(Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX || nearRail){
+  const nearRail =
+    Math.abs(nx) > XMAX - railMargin || Math.abs(nz) > ZMAX - railMargin;
+  if (Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX || nearRail) {
     const centerVecX = -end.x;
     const centerVecZ = -end.z;
     const candidates = [
@@ -6266,52 +7621,72 @@ function placeOnBoard(tile, side, options = {}){
     ];
     let best = null;
     let bestScore = -Infinity;
-    for(const candidate of candidates){
+    for (const candidate of candidates) {
       const candX = end.x + candidate.dx * STEP;
       const candZ = end.z + candidate.dz * STEP;
       const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
-      const towardCenter = candidate.dx * centerVecX + candidate.dz * centerVecZ;
+      const towardCenter =
+        candidate.dx * centerVecX + candidate.dz * centerVecZ;
       const distance = Math.hypot(candX, candZ);
       let score = towardCenter - distance * 0.02;
-      if(exceeds){
+      if (exceeds) {
         score -= STEP * 25;
       }
-      if(score > bestScore){
+      if (score > bestScore) {
         bestScore = score;
-        best = { dx: candidate.dx, dz: candidate.dz, x: candX, z: candZ, exceeds };
+        best = {
+          dx: candidate.dx,
+          dz: candidate.dz,
+          x: candX,
+          z: candZ,
+          exceeds
+        };
       }
     }
-    if(best){
+    if (best) {
       dx = best.dx;
       dz = best.dz;
       nx = best.x;
       nz = best.z;
-      if(best.exceeds){
+      if (best.exceeds) {
         // fallback: clamp within limits if still slightly over the rail
-        nx = Math.max(-XMAX + DOMINO_CHAIN_GAP, Math.min(XMAX - DOMINO_CHAIN_GAP, nx));
-        nz = Math.max(-ZMAX + DOMINO_CHAIN_GAP, Math.min(ZMAX - DOMINO_CHAIN_GAP, nz));
+        nx = Math.max(
+          -XMAX + DOMINO_CHAIN_GAP,
+          Math.min(XMAX - DOMINO_CHAIN_GAP, nx)
+        );
+        nz = Math.max(
+          -ZMAX + DOMINO_CHAIN_GAP,
+          Math.min(ZMAX - DOMINO_CHAIN_GAP, nz)
+        );
       }
     }
   }
-  const isDouble = (a === b);
+  const isDouble = a === b;
   const isHorizontal = Math.abs(dx) >= Math.abs(dz);
   let rot;
-  if(isDouble){
+  if (isDouble) {
     rot = isHorizontal ? Math.PI / 2 : 0;
-  } else if(isHorizontal){
-    rot = (dx >= 0) ? 0 : Math.PI;
+  } else if (isHorizontal) {
+    rot = dx >= 0 ? 0 : Math.PI;
   } else {
-    rot = (dz >= 0) ? Math.PI / 2 : -Math.PI / 2;
+    rot = dz >= 0 ? Math.PI / 2 : -Math.PI / 2;
   }
   const orientedTile = { a, b };
   const key = tileKey(orientedTile);
-  if(usedTileKeys.has(key)){
-    return { success:false };
+  if (usedTileKeys.has(key)) {
+    return { success: false };
   }
 
-  const segment = { tile: orientedTile, x: nx, z: nz, rot, double: isDouble, mesh: null };
+  const segment = {
+    tile: orientedTile,
+    x: nx,
+    z: nz,
+    rot,
+    double: isDouble,
+    mesh: null
+  };
   const animate = !!options.animate;
-  if(animate){
+  if (animate) {
     segment.animating = true;
   }
   chain.push(segment);
@@ -6319,69 +7694,117 @@ function placeOnBoard(tile, side, options = {}){
 
   const newVal = b;
   let nextOrient;
-  if(isHorizontal){
-    nextOrient = (dx >= 0) ? 0 : Math.PI;
+  if (isHorizontal) {
+    nextOrient = dx >= 0 ? 0 : Math.PI;
   } else {
-    nextOrient = (dz >= 0) ? Math.PI / 2 : -Math.PI / 2;
+    nextOrient = dz >= 0 ? Math.PI / 2 : -Math.PI / 2;
   }
-  const updatedEnd = { v: newVal, x: nx, z: nz, dir: [dx, dz], orient: nextOrient };
-  if(side < 0){
+  const updatedEnd = {
+    v: newVal,
+    x: nx,
+    z: nz,
+    dir: [dx, dz],
+    orient: nextOrient
+  };
+  if (side < 0) {
     ends.L = updatedEnd;
   } else {
     ends.R = updatedEnd;
   }
 
-  if(animate){
-    spawnPlacementAnimation(tile, segment, { duration: options.duration, mesh: options.animateMesh });
+  if (animate) {
+    spawnPlacementAnimation(tile, segment, {
+      duration: options.duration,
+      mesh: options.animateMesh
+    });
   } else {
     renderChain();
   }
   SFX.place();
-  return { success:true, segment, end: updatedEnd };
+  return { success: true, segment, end: updatedEnd };
 }
-function nextCandidate(end){
-  let {x,z,dir:[dx,dz]}=end;
-  let nx=x+dx*STEP, nz=z+dz*STEP;
+function nextCandidate(end) {
+  let {
+    x,
+    z,
+    dir: [dx, dz]
+  } = end;
+  let nx = x + dx * STEP,
+    nz = z + dz * STEP;
   const railMargin = STEP * 0.65;
-  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX || Math.abs(nx) > (XMAX - railMargin) || Math.abs(nz) > (ZMAX - railMargin)){
+  if (
+    Math.abs(nx) > XMAX ||
+    Math.abs(nz) > ZMAX ||
+    Math.abs(nx) > XMAX - railMargin ||
+    Math.abs(nz) > ZMAX - railMargin
+  ) {
     const centerVecX = -x;
     const centerVecZ = -z;
     const candidates = [
       { dx: -dz, dz: dx },
       { dx: dz, dz: -dx }
     ];
-    let best = { dx, dz, x: nx, z: nz, exceeds: (Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX) };
+    let best = {
+      dx,
+      dz,
+      x: nx,
+      z: nz,
+      exceeds: Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX
+    };
     let bestScore = -Infinity;
-    for(const candidate of candidates){
+    for (const candidate of candidates) {
       const candX = x + candidate.dx * STEP;
       const candZ = z + candidate.dz * STEP;
       const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
-      const towardCenter = candidate.dx * centerVecX + candidate.dz * centerVecZ;
+      const towardCenter =
+        candidate.dx * centerVecX + candidate.dz * centerVecZ;
       const distance = Math.hypot(candX, candZ);
       let score = towardCenter - distance * 0.02;
-      if(exceeds){
+      if (exceeds) {
         score -= STEP * 25;
       }
-      if(score > bestScore){
+      if (score > bestScore) {
         bestScore = score;
-        best = { dx: candidate.dx, dz: candidate.dz, x: candX, z: candZ, exceeds };
+        best = {
+          dx: candidate.dx,
+          dz: candidate.dz,
+          x: candX,
+          z: candZ,
+          exceeds
+        };
       }
     }
     dx = best.dx;
     dz = best.dz;
-    nx = best.exceeds ? Math.max(-XMAX + DOMINO_CHAIN_GAP, Math.min(XMAX - DOMINO_CHAIN_GAP, best.x)) : best.x;
-    nz = best.exceeds ? Math.max(-ZMAX + DOMINO_CHAIN_GAP, Math.min(ZMAX - DOMINO_CHAIN_GAP, best.z)) : best.z;
+    nx = best.exceeds
+      ? Math.max(
+          -XMAX + DOMINO_CHAIN_GAP,
+          Math.min(XMAX - DOMINO_CHAIN_GAP, best.x)
+        )
+      : best.x;
+    nz = best.exceeds
+      ? Math.max(
+          -ZMAX + DOMINO_CHAIN_GAP,
+          Math.min(ZMAX - DOMINO_CHAIN_GAP, best.z)
+        )
+      : best.z;
   }
-  const ang=Math.atan2(dz,dx);
-  return {nx,nz,rot:ang,dx,dz};
+  const ang = Math.atan2(dz, dx);
+  return { nx, nz, rot: ang, dx, dz };
 }
 
 /* ---------- Markers for manual placement ---------- */
-function clearSelectedHighlight(){
-  selectedHighlightMaterials.forEach((child)=>{
-    if(child?.userData?.__origMaterial){
-      if(child.material && child.material !== child.userData.__origMaterial && child.material.dispose){
-        try{ child.material.dispose(); }catch{}
+function clearSelectedHighlight() {
+  selectedHighlightMaterials.forEach((child) => {
+    if (child?.userData?.__origMaterial) {
+      if (
+        child.material &&
+        child.material !== child.userData.__origMaterial &&
+        child.material.dispose
+      ) {
+        try {
+          child.material.dispose();
+        } catch {}
       }
       child.material = child.userData.__origMaterial;
       delete child.userData.__origMaterial;
@@ -6389,53 +7812,75 @@ function clearSelectedHighlight(){
   });
   selectedHighlightMaterials.length = 0;
   const disposables = [selectedHighlight, ...selectedHighlightExtras];
-  disposables.forEach((hl)=>{
-    if(!hl) return;
-    if(hl.parent){
+  disposables.forEach((hl) => {
+    if (!hl) return;
+    if (hl.parent) {
       hl.parent.remove(hl);
     }
-    try{ hl.geometry?.dispose?.(); }catch{}
-    try{ hl.material?.dispose?.(); }catch{}
+    try {
+      hl.geometry?.dispose?.();
+    } catch {}
+    try {
+      hl.material?.dispose?.();
+    } catch {}
   });
   selectedHighlightExtras.length = 0;
   selectedHighlight = null;
   selectedHighlightHost = null;
 }
 
-function applySelectedHighlight(mesh){
-  if(!mesh){
+function applySelectedHighlight(mesh) {
+  if (!mesh) {
     return;
   }
   clearSelectedHighlight();
 
-  mesh.traverse((child)=>{
-    if(!child.isMesh || child.userData?.marker) return;
-    const isPip = child.material === pipMat || SHARED_DOMINO_MATERIALS.has(child.material);
-    if(!child.userData.__origMaterial && !isPip){
+  mesh.traverse((child) => {
+    if (!child.isMesh || child.userData?.marker) return;
+    const isPip =
+      child.material === pipMat || SHARED_DOMINO_MATERIALS.has(child.material);
+    if (!child.userData.__origMaterial && !isPip) {
       child.userData.__origMaterial = child.material;
     }
-    if(isPip){
+    if (isPip) {
       selectedHighlightMaterials.push(child);
       return;
     }
-    const clonedMat = child.material?.clone ? child.material.clone() : child.material;
-    if(clonedMat && clonedMat.color){
-      clonedMat.color = clonedMat.color.clone ? clonedMat.color.clone() : new THREE.Color(clonedMat.color);
+    const clonedMat = child.material?.clone
+      ? child.material.clone()
+      : child.material;
+    if (clonedMat && clonedMat.color) {
+      clonedMat.color = clonedMat.color.clone
+        ? clonedMat.color.clone()
+        : new THREE.Color(clonedMat.color);
       clonedMat.color.lerp(new THREE.Color('#facc15'), 0.9);
     }
-    if(clonedMat && clonedMat.emissive){
-      clonedMat.emissive = clonedMat.emissive.clone ? clonedMat.emissive.clone() : new THREE.Color(clonedMat.emissive);
+    if (clonedMat && clonedMat.emissive) {
+      clonedMat.emissive = clonedMat.emissive.clone
+        ? clonedMat.emissive.clone()
+        : new THREE.Color(clonedMat.emissive);
       clonedMat.emissive.lerp(new THREE.Color('#fde047'), 0.92);
-      clonedMat.emissiveIntensity = Math.max(1.05, clonedMat.emissiveIntensity ?? 0.6);
+      clonedMat.emissiveIntensity = Math.max(
+        1.05,
+        clonedMat.emissiveIntensity ?? 0.6
+      );
     }
     child.material = clonedMat;
     selectedHighlightMaterials.push(child);
   });
 
-  const plateGeometry = new THREE.PlaneGeometry(DOMINO_LENGTH * 1.08, DOMINO_WIDTH * 1.18);
+  const plateGeometry = new THREE.PlaneGeometry(
+    DOMINO_LENGTH * 1.08,
+    DOMINO_WIDTH * 1.18
+  );
   const plate = new THREE.Mesh(
     plateGeometry,
-    new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({
+      color: 0xfde047,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    })
   );
   plate.rotation.x = -Math.PI / 2;
   plate.position.set(0, 0.011, 0);
@@ -6444,7 +7889,12 @@ function applySelectedHighlight(mesh){
 
   const outline = new THREE.LineSegments(
     new THREE.EdgesGeometry(plateGeometry),
-    new THREE.LineBasicMaterial({ color: '#eab308', transparent: true, opacity: 0.9, linewidth: 2 })
+    new THREE.LineBasicMaterial({
+      color: '#eab308',
+      transparent: true,
+      opacity: 0.9,
+      linewidth: 2
+    })
   );
   outline.rotation.copy(plate.rotation);
   outline.position.copy(plate.position).add(new THREE.Vector3(0, 0.0005, 0));
@@ -6456,82 +7906,146 @@ function applySelectedHighlight(mesh){
   selectedHighlightHost = mesh;
 }
 
-function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){
+function clearMarkers() {
+  if (markers.L) {
+    piecesG.remove(markers.L);
+    markers.L = null;
+  }
+  if (markers.R) {
+    piecesG.remove(markers.R);
+    markers.R = null;
+  }
+}
+function makeMarker() {
   const marker = new THREE.Group();
   marker.userData.marker = true;
 
-  const bodyGeo = new RoundedBoxGeometry(DOMINO_LENGTH, DOMINO_WIDTH, DOMINO_WIDTH * 0.3, 6, DOMINO_WIDTH * 0.18);
+  const bodyGeo = new RoundedBoxGeometry(
+    DOMINO_LENGTH,
+    DOMINO_WIDTH,
+    DOMINO_WIDTH * 0.3,
+    6,
+    DOMINO_WIDTH * 0.18
+  );
   const plateMat = markerMat.clone();
   plateMat.color = markerMat.color.clone();
   plateMat.opacity = 0.68;
-  const plate=new THREE.Mesh(bodyGeo, plateMat);
-  plate.rotation.x=-Math.PI/2;
-  plate.position.y=CLOTH_TOP+DOMINO_WIDTH*0.16;
-  plate.renderOrder=10;
+  const plate = new THREE.Mesh(bodyGeo, plateMat);
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.y = CLOTH_TOP + DOMINO_WIDTH * 0.16;
+  plate.renderOrder = 10;
   plate.userData.marker = true;
   marker.add(plate);
 
   const outline = new THREE.LineSegments(
     new THREE.EdgesGeometry(bodyGeo),
-    new THREE.LineBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0.95, linewidth: 2 })
+    new THREE.LineBasicMaterial({
+      color: '#f59e0b',
+      transparent: true,
+      opacity: 0.95,
+      linewidth: 2
+    })
   );
   outline.rotation.copy(plate.rotation);
-  outline.position.copy(plate.position).add(new THREE.Vector3(0, DOMINO_WIDTH * 0.02, 0));
+  outline.position
+    .copy(plate.position)
+    .add(new THREE.Vector3(0, DOMINO_WIDTH * 0.02, 0));
   outline.renderOrder = 11;
   marker.add(outline);
 
   return marker;
 }
-function showMarkersFor(tile){
-  clearMarkers(); if(!ends) return;
-  const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
-  if(canL){ const c=nextCandidate(ends.L); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.rotation.y = c.rot ?? 0; mk.userData={marker:true, side:-1}; piecesG.add(mk); markers.L=mk; }
-  if(canR){ const c=nextCandidate(ends.R); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.rotation.y = c.rot ?? 0; mk.userData={marker:true, side:1}; piecesG.add(mk); markers.R=mk; }
+function showMarkersFor(tile) {
+  clearMarkers();
+  if (!ends) return;
+  const canL = tile.a === ends.L.v || tile.b === ends.L.v,
+    canR = tile.a === ends.R.v || tile.b === ends.R.v;
+  if (canL) {
+    const c = nextCandidate(ends.L);
+    const mk = makeMarker();
+    mk.position.x = c.nx;
+    mk.position.z = c.nz;
+    mk.rotation.y = c.rot ?? 0;
+    mk.userData = { marker: true, side: -1 };
+    piecesG.add(mk);
+    markers.L = mk;
+  }
+  if (canR) {
+    const c = nextCandidate(ends.R);
+    const mk = makeMarker();
+    mk.position.x = c.nx;
+    mk.position.z = c.nz;
+    mk.rotation.y = c.rot ?? 0;
+    mk.userData = { marker: true, side: 1 };
+    piecesG.add(mk);
+    markers.R = mk;
+  }
 }
 
 /* ---------- Interactivity ---------- */
-const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
 raycaster.params.Mesh = raycaster.params.Mesh || {};
 const RAYCAST_THRESHOLD = { normal: 0.14, topdown: 0.18 };
 const updateRaycasterThreshold = () => {
-  raycaster.params.Mesh.threshold = cameraViewMode === VIEW_MODES.twoD ? RAYCAST_THRESHOLD.topdown : RAYCAST_THRESHOLD.normal;
+  raycaster.params.Mesh.threshold =
+    cameraViewMode === VIEW_MODES.twoD
+      ? RAYCAST_THRESHOLD.topdown
+      : RAYCAST_THRESHOLD.normal;
 };
 updateRaycasterThreshold();
 const activePointers = new Set();
-function findPickRoot(o){
-  let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
+function findPickRoot(o) {
+  let n = o;
+  while (n) {
+    if (n.userData && (n.userData.owner !== undefined || n.userData.marker))
+      return n;
+    n = n.parent;
+  }
+  return o;
 }
-function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; applySelectedHighlight(obj); showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
+function humanPickTile(obj) {
+  const tile = obj.userData.tile;
+  selectedTile = tile;
+  applySelectedHighlight(obj);
+  showMarkersFor(tile);
+  setStatus('Pick a side (tap marker)');
+}
 
-renderer.domElement.addEventListener('pointerdown',ev=>{
+renderer.domElement.addEventListener('pointerdown', (ev) => {
   activePointers.add(ev.pointerId);
-  if(gameFinished){
+  if (gameFinished) {
     return;
   }
   updateRaycasterThreshold();
-  if(ev.pointerType==='touch' && activePointers.size>1){
+  if (ev.pointerType === 'touch' && activePointers.size > 1) {
     return;
   }
   // FIX: use the exact canvas size (rect) for the NDC coordinates
   const rect = renderer.domElement.getBoundingClientRect();
-  const x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
-  const y = -(((ev.clientY - rect.top)/rect.height)*2 - 1);
-  pointer.set(x,y); raycaster.setFromCamera(pointer,camera);
-  const hits=raycaster.intersectObjects(piecesG.children,true); if(!hits.length) return; const hit=hits[0];
-  const obj=findPickRoot(hit.object);
-  const isHumanTurn=(current===human);
-  if(!isHumanTurn) return;
-  if(obj.userData && obj.userData.owner===human){ humanPickTile(obj); return; }
-  if(obj.userData && obj.userData.marker && selectedTile){
-    const side=obj.userData.side;
-    const idx=players[human].hand.indexOf(selectedTile);
+  const x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  const y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+  pointer.set(x, y);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(piecesG.children, true);
+  if (!hits.length) return;
+  const hit = hits[0];
+  const obj = findPickRoot(hit.object);
+  const isHumanTurn = current === human;
+  if (!isHumanTurn) return;
+  if (obj.userData && obj.userData.owner === human) {
+    humanPickTile(obj);
+    return;
+  }
+  if (obj.userData && obj.userData.marker && selectedTile) {
+    const side = obj.userData.side;
+    const idx = players[human].hand.indexOf(selectedTile);
     let playedTile = null;
-    if(idx>=0){
-      const [picked] = players[human].hand.splice(idx,1);
+    if (idx >= 0) {
+      const [picked] = players[human].hand.splice(idx, 1);
       const placement = placeOnBoard(picked, side, { animate: true });
-      if(!placement.success){
-        players[human].hand.splice(idx,0,picked);
+      if (!placement.success) {
+        players[human].hand.splice(idx, 0, picked);
         selectedTile = picked;
         clearMarkers();
         renderHands();
@@ -6541,38 +8055,63 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
       playedTile = picked;
     }
     if (playedTile) {
-      announceCommentary(playedTile.a === playedTile.b ? 'playDouble' : 'playTile', { player: human, tile: playedTile });
+      announceCommentary(
+        playedTile.a === playedTile.b ? 'playDouble' : 'playTile',
+        { player: human, tile: playedTile }
+      );
       if (players[human].hand.length === 1) {
-        announceCommentary('nearWin', { player: human, tilesLeft: players[human].hand.length }, { priority: true });
+        announceCommentary(
+          'nearWin',
+          { player: human, tilesLeft: players[human].hand.length },
+          { priority: true }
+        );
       }
     }
-    selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
+    selectedTile = null;
+    clearMarkers();
+    renderHands();
+    nextTurn();
+    return;
   }
 });
-renderer.domElement.addEventListener('pointerup',ev=>{ activePointers.delete(ev.pointerId); });
-renderer.domElement.addEventListener('pointercancel',ev=>{ activePointers.delete(ev.pointerId); });
-renderer.domElement.addEventListener('pointerleave',ev=>{ activePointers.delete(ev.pointerId); });
+renderer.domElement.addEventListener('pointerup', (ev) => {
+  activePointers.delete(ev.pointerId);
+});
+renderer.domElement.addEventListener('pointercancel', (ev) => {
+  activePointers.delete(ev.pointerId);
+});
+renderer.domElement.addEventListener('pointerleave', (ev) => {
+  activePointers.delete(ev.pointerId);
+});
 
-btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) return; let drewTile=false;
-  while(boneyard.length){
+btnDraw.addEventListener('click', () => {
+  if (current !== human || gameFinished) return;
+  let drewTile = false;
+  while (boneyard.length) {
     const startWorld = getBoneyardTopWorld();
-    const t=drawTileFromStock();
-    if(!t) break;
+    const t = drawTileFromStock();
+    if (!t) break;
     players[human].hand.push(t);
     spawnDrawAnimation(startWorld, human);
     drewTile = true;
-    const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
-    if(canL||canR) break;
+    const canL = t.a === ends?.L?.v || t.b === ends?.L?.v;
+    const canR = t.a === ends?.R?.v || t.b === ends?.R?.v;
+    if (canL || canR) break;
   }
-  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
+  clearMarkers();
+  selectedTile = null;
+  renderHands();
+  if (drewTile) {
+    SFX.drawTile();
+  }
   if (drewTile) {
     announceCommentary('draw', { player: human });
   }
 });
-btnPass.addEventListener('click',()=>{
-  if(current===human && !gameFinished){
+btnPass.addEventListener('click', () => {
+  if (current === human && !gameFinished) {
     clearMarkers();
-    selectedTile=null;
+    selectedTile = null;
     SFX.pass();
     announceCommentary('pass', { player: human });
     nextTurn();
@@ -6597,48 +8136,67 @@ bootstrapDominoRoyal().catch((error) => {
   setControlEnabled(false);
 });
 
-function blockedAndWinner(){
-  if(!ends) return null;
-  const nobodyCan = players.every(p=> !canPlayAny(p.hand));
-  if(nobodyCan && boneyard.length===0){
-    let best=Infinity, win=-1; players.forEach((p,pi)=>{ const s=pipSum(p.hand); if(s<best){best=s;win=pi;} });
-    return {blocked:true, winner:win, reason:`Blocked. Lowest hand = Player ${win+1} (${best})`};
+function blockedAndWinner() {
+  if (!ends) return null;
+  const nobodyCan = players.every((p) => !canPlayAny(p.hand));
+  if (nobodyCan && boneyard.length === 0) {
+    let best = Infinity,
+      win = -1;
+    players.forEach((p, pi) => {
+      const s = pipSum(p.hand);
+      if (s < best) {
+        best = s;
+        win = pi;
+      }
+    });
+    return {
+      blocked: true,
+      winner: win,
+      reason: `Blocked. Lowest hand = Player ${win + 1} (${best})`
+    };
   }
   return null;
 }
 
-function scheduleCpuPlay(delay = CPU_PLAY_DELAY){
-  if(cpuMoveTimeout){
+function scheduleCpuPlay(delay = CPU_PLAY_DELAY) {
+  if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
   }
-  if(gameFinished){
+  if (gameFinished) {
     return;
   }
-  const safeDelay = Math.max(0, Number.isFinite(delay) ? delay : CPU_PLAY_DELAY);
-  cpuMoveTimeout = setTimeout(()=>{
+  const safeDelay = Math.max(
+    0,
+    Number.isFinite(delay) ? delay : CPU_PLAY_DELAY
+  );
+  cpuMoveTimeout = setTimeout(() => {
     cpuMoveTimeout = null;
-    if(!gameFinished){
+    if (!gameFinished) {
       cpuPlay();
     }
   }, safeDelay);
 }
 
-function finishGame({ winner = null, reason = '', revealAll = false } = {}){
-  if(gameFinished){
+function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
+  if (gameFinished) {
     return;
   }
   gameFinished = true;
   winnerIndex = Number.isInteger(winner) ? winner : null;
   revealAllHands = !!revealAll;
-  if(cpuMoveTimeout){
+  if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
   }
-  if(revealAllHands === false && Number.isInteger(winnerIndex) && winnerIndex >= 0){
+  if (
+    revealAllHands === false &&
+    Number.isInteger(winnerIndex) &&
+    winnerIndex >= 0
+  ) {
     showWinnerHighlight(winnerIndex);
-  } else if(revealAllHands){
-    if(Number.isInteger(winnerIndex) && winnerIndex >= 0){
+  } else if (revealAllHands) {
+    if (Number.isInteger(winnerIndex) && winnerIndex >= 0) {
       showWinnerHighlight(winnerIndex);
     } else {
       clearWinnerHighlight();
@@ -6651,93 +8209,115 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   clearSelectedHighlight();
   renderHands();
   renderChain();
-  if(reason){
+  if (reason) {
     setStatus(reason);
-  } else if(winnerIndex !== null){
-    setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
+  } else if (winnerIndex !== null) {
+    setStatus(
+      winnerIndex === human ? 'You won!' : `Player ${winnerIndex + 1} won!`
+    );
   } else {
     setStatus('Game over');
   }
 
   if (reason && reason.toLowerCase().includes('blocked')) {
-    announceCommentary('blocked', { player: winnerIndex }, { priority: true, interrupt: true });
+    announceCommentary(
+      'blocked',
+      { player: winnerIndex },
+      { priority: true, interrupt: true }
+    );
   } else if (winnerIndex !== null) {
-    announceCommentary(winnerIndex === human ? 'win' : 'lose', { player: winnerIndex }, { priority: true, interrupt: true });
+    announceCommentary(
+      winnerIndex === human ? 'win' : 'lose',
+      { player: winnerIndex },
+      { priority: true, interrupt: true }
+    );
   }
 
-  if(winnerIndex !== null){
+  if (winnerIndex !== null) {
     SFX.win();
   } else {
     SFX.drawGame();
   }
 }
 
-function checkForBlockedGame(){
-  if(gameFinished){
+function checkForBlockedGame() {
+  if (gameFinished) {
     return true;
   }
   const blk = blockedAndWinner();
-  if(blk){
+  if (blk) {
     finishGame({ winner: blk.winner, reason: blk.reason, revealAll: true });
     return true;
   }
   return false;
 }
 
-function updateInteractivity(){
-  if(gameFinished){
+function updateInteractivity() {
+  if (gameFinished) {
     renderHands();
     renderChain();
     return;
   }
-  setStatus(`Turn: Player ${current+1}`);
+  setStatus(`Turn: Player ${current + 1}`);
   if (lastAnnouncedTurn !== current) {
     lastAnnouncedTurn = current;
-    announceCommentary(current === human ? 'yourTurn' : 'opponentTurn', { player: current });
+    announceCommentary(current === human ? 'yourTurn' : 'opponentTurn', {
+      player: current
+    });
   }
-  renderHands(); renderChain();
+  renderHands();
+  renderChain();
 }
-function nextTurn(){
-  if(gameFinished){
+function nextTurn() {
+  if (gameFinished) {
     return;
   }
   const player = players[current];
-  if(player && player.hand.length === 0){
-    finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
+  if (player && player.hand.length === 0) {
+    finishGame({
+      winner: current,
+      reason: current === human ? 'You won!' : `Player ${current + 1} won!`
+    });
     return;
   }
-  if(checkForBlockedGame()){
+  if (checkForBlockedGame()) {
     return;
   }
-  current=(current-1+N)%N;
-  if(checkForBlockedGame()){
+  current = (current - 1 + N) % N;
+  if (checkForBlockedGame()) {
     return;
   }
   updateInteractivity();
-  if(gameFinished){
+  if (gameFinished) {
     return;
   }
-  if(current!==human){
+  if (current !== human) {
     scheduleCpuPlay();
   }
 }
-function cpuPlay(){
-  if(gameFinished){
+function cpuPlay() {
+  if (gameFinished) {
     return;
   }
   const player = players[current];
-  if(!player){ nextTurn(); return; }
+  if (!player) {
+    nextTurn();
+    return;
+  }
 
-  const moves = enumerateMoves(player.hand).map(move => ({ ...move, score: scoreMove(player, move) }));
-  moves.sort((a,b)=> b.score - a.score);
+  const moves = enumerateMoves(player.hand).map((move) => ({
+    ...move,
+    score: scoreMove(player, move)
+  }));
+  moves.sort((a, b) => b.score - a.score);
 
-  if(!moves.length){
+  if (!moves.length) {
     const drew = cpuDrawUntilPlayable(player);
-    if(drew){
+    if (drew) {
       renderHands();
       SFX.drawTile();
       announceCommentary('draw', { player: current });
-      if(canPlayAny(player.hand)){
+      if (canPlayAny(player.hand)) {
         scheduleCpuPlay();
       } else {
         SFX.pass();
@@ -6752,34 +8332,44 @@ function cpuPlay(){
     return;
   }
 
-  for(const move of moves){
+  for (const move of moves) {
     const tile = player.hand[move.index];
-    if(!tile) continue;
-    const picked = player.hand.splice(move.index,1)[0];
+    if (!tile) continue;
+    const picked = player.hand.splice(move.index, 1)[0];
     const placement = placeOnBoard(picked, move.side, { animate: true });
-    if(placement.success){
+    if (placement.success) {
       renderHands();
-      announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', { player: current, tile: picked });
+      announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', {
+        player: current,
+        tile: picked
+      });
       if (player.hand.length === 1) {
-        announceCommentary('nearWin', { player: current, tilesLeft: player.hand.length }, { priority: true });
+        announceCommentary(
+          'nearWin',
+          { player: current, tilesLeft: player.hand.length },
+          { priority: true }
+        );
       }
-      if(player.hand.length===0){
-        finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
+      if (player.hand.length === 0) {
+        finishGame({
+          winner: current,
+          reason: current === human ? 'You won!' : `Player ${current + 1} won!`
+        });
         return;
       }
       nextTurn();
       return;
     }
-    player.hand.splice(move.index,0,picked);
+    player.hand.splice(move.index, 0, picked);
   }
 
   // Fallback: if all scored moves failed (shouldn't happen) just draw or pass
   const drew = cpuDrawUntilPlayable(player);
-  if(drew){
+  if (drew) {
     renderHands();
     SFX.drawTile();
     announceCommentary('draw', { player: current });
-    if(canPlayAny(player.hand)){
+    if (canPlayAny(player.hand)) {
       scheduleCpuPlay();
     } else {
       SFX.pass();
@@ -6808,41 +8398,66 @@ const QUICK_MESSAGES = [
   'Yay! 🎉',
   'This is fun 🤩',
   "I'm lost 🤯",
-  'Great comeback 🏆',
+  'Great comeback 🏆'
 ];
 const NFT_GIFTS = [
-  { id: 'fireworks',    name: 'Fireworks',    icon: '🎆', price: 200,  tier: 1 },
-  { id: 'laugh_bomb',   name: 'Laugh Bomb',   icon: '😂', price: 300,  tier: 1 },
-  { id: 'pizza_slice',  name: 'Pizza Slice',  icon: '🍕', price: 500,  tier: 1 },
-  { id: 'coffee_boost', name: 'Coffee Boost', icon: '☕', price: 750,  tier: 1 },
-  { id: 'baby_chick',   name: 'Baby Chick',   icon: '🐣', price: 1000, tier: 1 },
-  { id: 'poop',         name: 'Poop',         icon: '💩', price: 1200, tier: 2 },
-  { id: 'speed_racer',  name: 'Speed Racer',  icon: '/assets/icons/futuristic_racing_car.webp', price: 1800,  tier: 2 },
-  { id: 'bullseye',     name: 'Bullseye',     icon: '🎯', price: 3000,  tier: 2 },
-  { id: 'magic_trick',  name: 'Magic Trick',  icon: '🎩', price: 5000,  tier: 2 },
-  { id: 'surprise_box', name: 'Surprise Box', icon: '🎁', price: 8000,  tier: 2 },
-  { id: 'dragon_burst', name: 'Dragon Burst', icon: '🐉', price: 20000,  tier: 3 },
-  { id: 'rocket_blast', name: 'Rocket Blast', icon: '🚀', price: 35000,  tier: 3 },
-  { id: 'royal_crown',  name: 'Royal Crown',  icon: '👑', price: 90000,  tier: 3 },
-  { id: 'alien_visit',  name: 'Alien Visit',  icon: '🛸', price: 150000, tier: 3 },
+  { id: 'fireworks', name: 'Fireworks', icon: '🎆', price: 200, tier: 1 },
+  { id: 'laugh_bomb', name: 'Laugh Bomb', icon: '😂', price: 300, tier: 1 },
+  { id: 'pizza_slice', name: 'Pizza Slice', icon: '🍕', price: 500, tier: 1 },
+  { id: 'coffee_boost', name: 'Coffee Boost', icon: '☕', price: 750, tier: 1 },
+  { id: 'baby_chick', name: 'Baby Chick', icon: '🐣', price: 1000, tier: 1 },
+  { id: 'poop', name: 'Poop', icon: '💩', price: 1200, tier: 2 },
+  {
+    id: 'speed_racer',
+    name: 'Speed Racer',
+    icon: '/assets/icons/futuristic_racing_car.webp',
+    price: 1800,
+    tier: 2
+  },
+  { id: 'bullseye', name: 'Bullseye', icon: '🎯', price: 3000, tier: 2 },
+  { id: 'magic_trick', name: 'Magic Trick', icon: '🎩', price: 5000, tier: 2 },
+  {
+    id: 'surprise_box',
+    name: 'Surprise Box',
+    icon: '🎁',
+    price: 8000,
+    tier: 2
+  },
+  {
+    id: 'dragon_burst',
+    name: 'Dragon Burst',
+    icon: '🐉',
+    price: 20000,
+    tier: 3
+  },
+  {
+    id: 'rocket_blast',
+    name: 'Rocket Blast',
+    icon: '🚀',
+    price: 35000,
+    tier: 3
+  },
+  { id: 'royal_crown', name: 'Royal Crown', icon: '👑', price: 90000, tier: 3 },
+  { id: 'alien_visit', name: 'Alien Visit', icon: '🛸', price: 150000, tier: 3 }
 ];
 const GIFT_SOUNDS = {
-  fireworks: "/assets/sounds/fireworks-29629.mp3",
-  laugh_bomb: "/assets/sounds/080998_bullet-hit-39870.mp3",
-  pizza_slice: "/assets/sounds/life_is_beautiful_italiano-108264.mp3",
-  coffee_boost: "/assets/sounds/drinking-coffee-214463.mp3",
-  baby_chick: "/assets/sounds/bebek-220068.mp3",
-  speed_racer: "/assets/sounds/race-care-151963.mp3",
-  bullseye: "/assets/sounds/080998_bullet-hit-39870.mp3",
-  magic_trick: "/assets/sounds/ah-good-morning-sir-would-you-like-a-cup-of-tea-26151.mp3",
-  surprise_box: "/assets/sounds/082229_pinkie-pie-39surprise39wav-86428.mp3",
-  poop: "/assets/sounds/fart-5-228245.mp3",
-  dragon_burst: "/assets/sounds/snake-hissing-high-quality-240154.mp3",
-  rocket_blast: "/assets/sounds/launch-85216.mp3",
-  royal_crown: "/assets/sounds/king-conversation-48272.mp3",
-  alien_visit: "/assets/sounds/ufo-sound-effect-240256.mp3",
+  fireworks: '/assets/sounds/fireworks-29629.mp3',
+  laugh_bomb: '/assets/sounds/080998_bullet-hit-39870.mp3',
+  pizza_slice: '/assets/sounds/life_is_beautiful_italiano-108264.mp3',
+  coffee_boost: '/assets/sounds/drinking-coffee-214463.mp3',
+  baby_chick: '/assets/sounds/bebek-220068.mp3',
+  speed_racer: '/assets/sounds/race-care-151963.mp3',
+  bullseye: '/assets/sounds/080998_bullet-hit-39870.mp3',
+  magic_trick:
+    '/assets/sounds/ah-good-morning-sir-would-you-like-a-cup-of-tea-26151.mp3',
+  surprise_box: '/assets/sounds/082229_pinkie-pie-39surprise39wav-86428.mp3',
+  poop: '/assets/sounds/fart-5-228245.mp3',
+  dragon_burst: '/assets/sounds/snake-hissing-high-quality-240154.mp3',
+  rocket_blast: '/assets/sounds/launch-85216.mp3',
+  royal_crown: '/assets/sounds/king-conversation-48272.mp3',
+  alien_visit: '/assets/sounds/ufo-sound-effect-240256.mp3'
 };
-const CHAT_BEEP_URL = "/assets/sounds/080998_bullet-hit-39870.mp3";
+const CHAT_BEEP_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 let activeChatMessage = QUICK_MESSAGES[0];
 let selectedGift = NFT_GIFTS[0];
 let selectedGiftTarget = 0;
@@ -6893,7 +8508,12 @@ function playEffectSound(url, { delay = 0, maxDuration } = {}) {
 }
 
 function createAvatarNode(source) {
-  if (typeof source === 'string' && (source.startsWith('/') || source.startsWith('http') || source.startsWith('data:'))) {
+  if (
+    typeof source === 'string' &&
+    (source.startsWith('/') ||
+      source.startsWith('http') ||
+      source.startsWith('data:'))
+  ) {
     const img = document.createElement('img');
     img.src = source;
     img.alt = '';
@@ -6929,9 +8549,13 @@ function showChatBubble(text, seatIndex = human) {
 }
 
 function animateGift(fromIndex, toIndex, gift) {
-  const icon = typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
-    ? Object.assign(document.createElement('img'), { src: gift.icon })
-    : Object.assign(document.createElement('div'), { textContent: gift.icon });
+  const icon =
+    typeof gift.icon === 'string' &&
+    gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+      ? Object.assign(document.createElement('img'), { src: gift.icon })
+      : Object.assign(document.createElement('div'), {
+          textContent: gift.icon
+        });
   icon.style.position = 'fixed';
   icon.style.left = '0';
   icon.style.top = '0';
@@ -6953,9 +8577,9 @@ function animateGift(fromIndex, toIndex, gift) {
     [
       { transform: `translate(${startX}px, ${startY}px) scale(1)` },
       { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-      { transform: `translate(${endX}px, ${endY}px) scale(1)` },
+      { transform: `translate(${endX}px, ${endY}px) scale(1)` }
     ],
-    { duration: 3500, easing: 'linear' },
+    { duration: 3500, easing: 'linear' }
   );
   animation.onfinish = () => icon.remove();
 }
@@ -7061,9 +8685,15 @@ function openGiftModal() {
 updateQuickActionMute();
 
 /* ---------- Rules panel handlers ---------- */
-btnRules.addEventListener('click',()=>{ panelRules.style.display='flex'; });
-closeRules.addEventListener('click',()=>{ panelRules.style.display='none'; });
-panelRules.addEventListener('click',(e)=>{ if(e.target===panelRules) panelRules.style.display='none'; });
+btnRules.addEventListener('click', () => {
+  panelRules.style.display = 'flex';
+});
+closeRules.addEventListener('click', () => {
+  panelRules.style.display = 'none';
+});
+panelRules.addEventListener('click', (e) => {
+  if (e.target === panelRules) panelRules.style.display = 'none';
+});
 if (quickActions) {
   quickActions.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
@@ -7109,8 +8739,12 @@ if (giftSend) {
     const recipient = selectedGiftTarget;
     toggleModal(giftModal, false);
     animateGift(human, recipient, selectedGift);
-    playEffectSound(GIFT_SOUNDS[selectedGift.id], { delay: selectedGift.id === 'bullseye' ? 2500 : 0 });
-    showToast(`Sent ${selectedGift.name} to ${getSeatUsernames(N)[recipient] || `Player ${recipient + 1}`}`);
+    playEffectSound(GIFT_SOUNDS[selectedGift.id], {
+      delay: selectedGift.id === 'bullseye' ? 2500 : 0
+    });
+    showToast(
+      `Sent ${selectedGift.name} to ${getSeatUsernames(N)[recipient] || `Player ${recipient + 1}`}`
+    );
   });
 }
 if (viewToggle) {
@@ -7119,44 +8753,78 @@ if (viewToggle) {
 updateViewToggleLabel();
 
 /* ---------- Mini tests (console) ---------- */
-console.assert(document.getElementById('draw') && document.getElementById('pass'), 'UI buttons exist');
-(()=>{ const s=genSet(); const key=t=>`${t.a},${t.b}`; const uniq=new Set(s.map(key));
-  console.assert(s.length===28 && uniq.size===28,'double-six: 28 unique');
-  console.assert(s.some(t=>t.a===0&&t.b===0) && s.some(t=>t.a===6&&t.b===6),'set contains 00 and 66');
-  console.assert(s.every(t=>t.a>=0 && t.b>=0 && t.a<=6 && t.b<=6 && t.a<=t.b),'values in range and sorted');
+console.assert(
+  document.getElementById('draw') && document.getElementById('pass'),
+  'UI buttons exist'
+);
+(() => {
+  const s = genSet();
+  const key = (t) => `${t.a},${t.b}`;
+  const uniq = new Set(s.map(key));
+  console.assert(s.length === 28 && uniq.size === 28, 'double-six: 28 unique');
+  console.assert(
+    s.some((t) => t.a === 0 && t.b === 0) &&
+      s.some((t) => t.a === 6 && t.b === 6),
+    'set contains 00 and 66'
+  );
+  console.assert(
+    s.every((t) => t.a >= 0 && t.b >= 0 && t.a <= 6 && t.b <= 6 && t.a <= t.b),
+    'values in range and sorted'
+  );
 })();
-(()=>{ const ct1=canonTile({a:6,b:2}); const ct2=canonTile({a:2,b:6});
-  console.assert(ct1.a===2 && ct1.b===6 && ct2.a===2 && ct2.b===6,'canonTile symmetric and idempotent');
+(() => {
+  const ct1 = canonTile({ a: 6, b: 2 });
+  const ct2 = canonTile({ a: 2, b: 6 });
+  console.assert(
+    ct1.a === 2 && ct1.b === 6 && ct2.a === 2 && ct2.b === 6,
+    'canonTile symmetric and idempotent'
+  );
 })();
-(()=>{ const bad1=canonTile({a:-1,b:3}); const bad2=canonTile({a:9,b:1});
-  console.assert(bad1===null && bad2===null,'canonTile rejects out-of-range values');
+(() => {
+  const bad1 = canonTile({ a: -1, b: 3 });
+  const bad2 = canonTile({ a: 9, b: 1 });
+  console.assert(
+    bad1 === null && bad2 === null,
+    'canonTile rejects out-of-range values'
+  );
 })();
-(()=>{ const m=makeDomino(6,6,{flat:true,faceUp:true}); const anyRing=m.children.some(ch=>ch.geometry?.type==='RingGeometry'); console.assert(anyRing,'perimeter/pip rings exist (flat)'); })();
-(()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pips exist'); })();
+(() => {
+  const m = makeDomino(6, 6, { flat: true, faceUp: true });
+  const anyRing = m.children.some((ch) => ch.geometry?.type === 'RingGeometry');
+  console.assert(anyRing, 'perimeter/pip rings exist (flat)');
+})();
+(() => {
+  const m = makeDomino(3, 4, { flat: false, faceUp: true });
+  const pipCount = m.children.reduce(
+    (n, ch) => n + (ch.geometry?.type === 'SphereGeometry' ? 1 : 0),
+    0
+  );
+  console.assert(pipCount > 0, 'pips exist');
+})();
 
-function updateDrawAnimations(now){
+function updateDrawAnimations(now) {
   const timestamp = Number.isFinite(now) ? now : performance.now();
-  for(let i=drawAnimations.length-1;i>=0;i--){
+  for (let i = drawAnimations.length - 1; i >= 0; i--) {
     const anim = drawAnimations[i];
     const elapsed = timestamp - anim.startTime;
     const t = Math.min(1, elapsed / (anim.duration || DRAW_ANIM_DURATION));
     const ease = 1 - Math.pow(1 - t, 3);
     const pos = anim.start.clone();
     pos.lerp(anim.end, ease);
-    if(anim.arc){
+    if (anim.arc) {
       pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
     anim.mesh.position.copy(pos);
-    if(t >= 1){
+    if (t >= 1) {
       piecesG.remove(anim.mesh);
-      drawAnimations.splice(i,1);
+      drawAnimations.splice(i, 1);
     }
   }
 }
 
-function updatePlacementAnimations(now){
+function updatePlacementAnimations(now) {
   const timestamp = Number.isFinite(now) ? now : performance.now();
-  for(let i=placementAnimations.length-1;i>=0;i--){
+  for (let i = placementAnimations.length - 1; i >= 0; i--) {
     const anim = placementAnimations[i];
     const elapsed = timestamp - anim.startTime;
     const duration = anim.duration || PLACE_ANIM_DURATION;
@@ -7164,38 +8832,38 @@ function updatePlacementAnimations(now){
     const ease = 1 - Math.pow(1 - t, 3);
 
     const pos = anim.start.clone().lerp(anim.end, ease);
-    if(anim.arc){
+    if (anim.arc) {
       pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
     anim.mesh.position.copy(pos);
 
-    if(anim.endQuat && anim.startQuat){
+    if (anim.endQuat && anim.startQuat) {
       const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
       anim.mesh.quaternion.copy(quat);
     }
 
-    if(anim.endScale && anim.startScale){
+    if (anim.endScale && anim.startScale) {
       const scale = anim.startScale.clone().lerp(anim.endScale, ease);
       anim.mesh.scale.copy(scale);
     }
 
-    if(t >= 1){
-      if(anim.segment){
+    if (t >= 1) {
+      if (anim.segment) {
         anim.segment.animating = false;
       }
       disposeDominoMesh(anim.mesh);
-      placementAnimations.splice(i,1);
+      placementAnimations.splice(i, 1);
       renderChain();
     }
   }
 }
 
-function updateWinnerHighlight(now){
-  if(!winnerHighlight){
+function updateWinnerHighlight(now) {
+  if (!winnerHighlight) {
     return;
   }
   const mat = winnerHighlight.material;
-  if(!mat){
+  if (!mat) {
     return;
   }
   const timestamp = Number.isFinite(now) ? now : performance.now();
@@ -7207,11 +8875,16 @@ function updateWinnerHighlight(now){
 }
 
 function monitorFrameHealth(elapsedMs, timing) {
-  if (!timing || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
+  if (
+    !timing ||
+    (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+  ) {
     slowFrameAccumulatorMs = 0;
     return;
   }
-  const targetMs = Number.isFinite(timing.targetMs) ? timing.targetMs : 1000 / 60;
+  const targetMs = Number.isFinite(timing.targetMs)
+    ? timing.targetMs
+    : 1000 / 60;
   const slowThreshold = targetMs * FRAME_DROP_THRESHOLD;
   const skipThreshold = targetMs * 6;
   if (elapsedMs > skipThreshold) {
@@ -7221,10 +8894,16 @@ function monitorFrameHealth(elapsedMs, timing) {
   if (elapsedMs > slowThreshold) {
     slowFrameAccumulatorMs += elapsedMs;
   } else {
-    slowFrameAccumulatorMs = Math.max(0, slowFrameAccumulatorMs - targetMs * 0.5);
+    slowFrameAccumulatorMs = Math.max(
+      0,
+      slowFrameAccumulatorMs - targetMs * 0.5
+    );
   }
   const now = performance.now();
-  if (slowFrameAccumulatorMs >= FRAME_DROP_WINDOW_MS && now - lastFailsafeTimestamp > FRAME_FAILSAFE_COOLDOWN_MS) {
+  if (
+    slowFrameAccumulatorMs >= FRAME_DROP_WINDOW_MS &&
+    now - lastFailsafeTimestamp > FRAME_FAILSAFE_COOLDOWN_MS
+  ) {
     const fallbackId = findFallbackFrameRateId(frameRateId);
     if (fallbackId && fallbackId !== frameRateId) {
       applyFrameRateSelection(fallbackId);
@@ -7236,7 +8915,7 @@ function monitorFrameHealth(elapsedMs, timing) {
 }
 
 /* ---------- Loop & Resize ---------- */
-function tick(now){
+function tick(now) {
   const current = Number.isFinite(now) ? now : performance.now();
   requestAnimationFrame(tick);
   if (contextLost || renderer.getContext?.()?.isContextLost?.()) {
@@ -7244,7 +8923,9 @@ function tick(now){
     return;
   }
   const timing = frameTiming ?? buildFrameTiming(frameQuality);
-  const targetMs = Number.isFinite(timing?.targetMs) ? timing.targetMs : 1000 / 60;
+  const targetMs = Number.isFinite(timing?.targetMs)
+    ? timing.targetMs
+    : 1000 / 60;
   const maxMs = Number.isFinite(timing?.maxMs)
     ? timing.maxMs
     : targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER;
@@ -7260,8 +8941,9 @@ function tick(now){
     updatePlacementAnimations(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
+    updateTurnCameraFocus();
     controls.update(deltaSeconds);
-    renderer.render(scene,camera);
+    renderer.render(scene, camera);
   } catch (error) {
     console.error('Domino Royal render loop failed', error);
     contextLost = true;
@@ -7271,23 +8953,30 @@ function tick(now){
 }
 let lastFrameTime = performance.now();
 requestAnimationFrame(tick);
-function onResize(){
+function onResize() {
   applyRendererQuality(frameQuality);
   if (entrySequenceActive) {
     fitCamera();
     const target = getActiveCameraTarget();
-    const finalDesired = clampCameraPosition(getDesiredCameraPosition(target), target);
+    const finalDesired = clampCameraPosition(
+      getDesiredCameraPosition(target),
+      target
+    );
     configureEntryCurves(finalDesired, target);
     const now = performance.now();
     const elapsed = Math.max(0, now - entryStartTime);
     const progress = Math.min(elapsed / ENTRY_TOTAL_DURATION, 1);
     if (entryCameraCurve) {
-      const cameraPhase = easeInOutCubic(Math.min(Math.max((progress - 0.05) / 0.85, 0), 1));
+      const cameraPhase = easeInOutCubic(
+        Math.min(Math.max((progress - 0.05) / 0.85, 0), 1)
+      );
       const point = entryCameraCurve.getPoint(cameraPhase);
       camera.position.copy(point);
     }
     if (entryTargetCurve) {
-      const targetPhase = easeInOutCubic(Math.min(Math.max((progress - 0.08) / 0.75, 0), 1));
+      const targetPhase = easeInOutCubic(
+        Math.min(Math.max((progress - 0.08) / 0.75, 0), 1)
+      );
       const targetPoint = entryTargetCurve.getPoint(targetPhase);
       controls.target.copy(targetPoint);
     }
@@ -7296,7 +8985,10 @@ function onResize(){
   }
   updateSeatBadgePositions();
 }
-addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
+addEventListener('resize', onResize);
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', onResize);
+}
 document.addEventListener('visibilitychange', () => {
   slowFrameAccumulatorMs = 0;
 });
