@@ -17,8 +17,14 @@ test('detect single/joker', () => {
   const singleJR = detectCombo([card('JR')], DEFAULT_CONFIG);
   const single2 = detectCombo([card('2')], DEFAULT_CONFIG);
   assert.equal(singleJB.type, ComboType.SINGLE);
-  assert(singleJB.strength > singleJR.strength);
-  assert(singleJR.strength > single2.strength);
+  assert(singleJR.strength > singleJB.strength);
+  assert(singleJB.strength > single2.strength);
+});
+
+test('red joker beats black joker', () => {
+  const table = detectCombo([card('JB')], DEFAULT_CONFIG);
+  const red = detectCombo([card('JR')], DEFAULT_CONFIG);
+  assert.equal(canBeat(red, table, DEFAULT_CONFIG), true);
 });
 
 test('detect pair/trips', () => {
