@@ -128,21 +128,24 @@ const CAREER_ATTEMPTS_KEY = 'poolRoyaleCareerAttempts';
 
 function loadCareerAttemptsProgress() {
   if (typeof window === 'undefined') {
-    return { carryShots: 0, attemptsAwardedStageIds: [] };
+    return { carryShots: 0, attemptsAwardedStageIds: [], bonusAwardedStageIds: [] };
   }
   try {
     const raw = window.localStorage.getItem(CAREER_ATTEMPTS_KEY);
-    if (!raw) return { carryShots: 0, attemptsAwardedStageIds: [] };
+    if (!raw) return { carryShots: 0, attemptsAwardedStageIds: [], bonusAwardedStageIds: [] };
     const parsed = JSON.parse(raw);
     return {
       carryShots: Math.max(0, Math.floor(Number(parsed?.carryShots) || 0)),
       attemptsAwardedStageIds: Array.isArray(parsed?.attemptsAwardedStageIds)
         ? parsed.attemptsAwardedStageIds.filter((id) => typeof id === 'string' && id.trim())
+        : [],
+      bonusAwardedStageIds: Array.isArray(parsed?.bonusAwardedStageIds)
+        ? parsed.bonusAwardedStageIds.filter((id) => typeof id === 'string' && id.trim())
         : []
     };
   } catch (err) {
     console.warn('Failed to load Pool Royale career attempts', err);
-    return { carryShots: 0, attemptsAwardedStageIds: [] };
+    return { carryShots: 0, attemptsAwardedStageIds: [], bonusAwardedStageIds: [] };
   }
 }
 
@@ -151,6 +154,9 @@ function persistCareerAttemptsProgress(progress) {
     carryShots: Math.max(0, Math.floor(Number(progress?.carryShots) || 0)),
     attemptsAwardedStageIds: Array.isArray(progress?.attemptsAwardedStageIds)
       ? progress.attemptsAwardedStageIds.filter((id) => typeof id === 'string' && id.trim())
+      : [],
+    bonusAwardedStageIds: Array.isArray(progress?.bonusAwardedStageIds)
+      ? progress.bonusAwardedStageIds.filter((id) => typeof id === 'string' && id.trim())
       : []
   };
   if (typeof window !== 'undefined') {
@@ -163,8 +169,28 @@ function persistCareerAttemptsProgress(progress) {
   return normalized;
 }
 
-const POOL_ROYALE_REWARDABLE_NFT_IDS = Object.freeze(['surprise_box', 'magic_trick', 'bullseye']);
 const POOL_ROYALE_REWARD_NFT_KEY_PREFIX = 'poolRoyaleRewardNfts_';
+const POOL_ROYALE_STORE_NFT_CANDIDATES = Object.freeze(
+  [...POOL_ROYALE_BASE_VARIANTS, ...POOL_ROYALE_HDRI_VARIANTS]
+    .filter(
+      (item) =>
+        Number(item?.price) > 0 &&
+        typeof item?.thumbnail === 'string' &&
+        item.thumbnail.trim().length > 0
+    )
+    .sort((a, b) => Number(a.price || 0) - Number(b.price || 0))
+    .map((item) =>
+      Object.freeze({
+        id: `pool-royale-store-${item.id}`,
+        name: item.name,
+        icon: '🎁',
+        price: Number(item.price) || 0,
+        tier: 2,
+        thumbnail: item.thumbnail,
+        section: 'Pool Royale Store'
+      })
+    )
+);
 
 function parseCareerStageLevel(stageId) {
   if (typeof stageId !== 'string' || !stageId.trim()) return null;
@@ -174,24 +200,17 @@ function parseCareerStageLevel(stageId) {
   return Number.isFinite(level) && level > 0 ? Math.floor(level) : null;
 }
 
-function pickPoolRoyaleRewardNft() {
-  const mediumTier = NFT_GIFTS.filter(
-    (item) =>
-      Number(item?.tier) === 2 &&
-      POOL_ROYALE_REWARDABLE_NFT_IDS.includes(item?.id) &&
-      typeof item?.thumbnail === 'string' &&
-      item.thumbnail.trim().length > 0
-  );
-  const source = mediumTier.length
-    ? mediumTier
-    : NFT_GIFTS.filter(
-      (item) =>
-        Number(item?.tier) === 2 &&
-        typeof item?.thumbnail === 'string' &&
-        item.thumbnail.trim().length > 0
-    );
+function pickPoolRoyaleRewardNft(level) {
+  const source = POOL_ROYALE_STORE_NFT_CANDIDATES;
   if (!source.length) return null;
-  return source[Math.floor(Math.random() * source.length)] || null;
+  const normalizedLevel = Math.max(1, Math.floor(Number(level) || 1));
+  const progress = Math.max(0, Math.min(1, (normalizedLevel - 1) / Math.max(1, TRAINING_LEVEL_COUNT - 1)));
+  const maxIndex = source.length - 1;
+  const floorIndex = Math.max(0, Math.min(maxIndex, Math.floor(progress * maxIndex)));
+  const tierWindow = Math.max(0, Math.min(maxIndex, Math.floor(source.length * 0.12)));
+  const randomizedOffset = tierWindow > 0 ? Math.floor(Math.random() * (tierWindow + 1)) : 0;
+  const index = Math.min(maxIndex, floorIndex + randomizedOffset);
+  return source[index] || source[maxIndex] || null;
 }
 
 function safePolygonUnion(...parts) {
@@ -12687,7 +12706,8 @@ function PoolRoyaleGame({
   });
   const [careerAttemptsProgress, setCareerAttemptsProgress] = useState({
     carryShots: 0,
-    attemptsAwardedStageIds: []
+    attemptsAwardedStageIds: [],
+    bonusAwardedStageIds: []
   });
   const [trainingLevel, setTrainingLevel] = useState(() => {
     if (isTraining && !careerMode) {
@@ -12857,7 +12877,8 @@ function PoolRoyaleGame({
     const stageId = careerStageId || `career-training-level-${Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1))}`;
     const previous = careerAttemptsProgressRef.current || {
       carryShots: 0,
-      attemptsAwardedStageIds: []
+      attemptsAwardedStageIds: [],
+      bonusAwardedStageIds: []
     };
     const awardedSet = new Set(previous?.attemptsAwardedStageIds || []);
     if (awardedSet.has(stageId)) return;
@@ -12898,7 +12919,8 @@ function PoolRoyaleGame({
       }
       const previous = careerAttemptsProgressRef.current || {
         carryShots: 0,
-        attemptsAwardedStageIds: []
+        attemptsAwardedStageIds: [],
+        bonusAwardedStageIds: []
       };
       const updated = persistCareerAttemptsProgress({
         ...previous,
@@ -14447,10 +14469,17 @@ const powerRef = useRef(hud.power);
     const completedLevelInfo = describeTrainingLevel(completedLevel);
     const completedRewardAmount = Number(completedLevelInfo?.rewardAmount) || 0;
     const careerStageLevel = parseCareerStageLevel(careerStageId) || completedLevel;
+    const rewardStageId = careerStageId || `career-training-level-${careerStageLevel}`;
+    const careerAttemptsState = careerAttemptsProgressRef.current || {
+      carryShots: 0,
+      attemptsAwardedStageIds: [],
+      bonusAwardedStageIds: []
+    };
+    const rewardedBonusStageIds = new Set(careerAttemptsState?.bonusAwardedStageIds || []);
     const nftMilestoneReached = usesCareerAttempts
-      ? careerStageLevel % 5 === 0
-      : completedLevel % 5 === 0;
-    const nftReward = nftMilestoneReached ? pickPoolRoyaleRewardNft() : null;
+      ? careerStageLevel % 3 === 0 && !rewardedBonusStageIds.has(rewardStageId)
+      : completedLevel % 3 === 0;
+    const nftReward = nftMilestoneReached ? pickPoolRoyaleRewardNft(careerStageLevel) : null;
     const nftReceipt = nftReward
       ? {
         id: `PR-${String(careerStageLevel).padStart(3, '0')}-${Date.now().toString(36).toUpperCase()}`,
@@ -14532,6 +14561,15 @@ const powerRef = useRef(hud.power);
       awardTrainingTaskPayout(completedLevel, completedRewardAmount);
     }
     if (nftReward) {
+      if (usesCareerAttempts) {
+        rewardedBonusStageIds.add(rewardStageId);
+        const updatedCareerAttempts = persistCareerAttemptsProgress({
+          ...careerAttemptsState,
+          bonusAwardedStageIds: Array.from(rewardedBonusStageIds)
+        });
+        careerAttemptsProgressRef.current = updatedCareerAttempts;
+        setCareerAttemptsProgress(updatedCareerAttempts);
+      }
       persistRewardNft(nftReward);
     }
     triggerCoinBurst(nftReward ? 26 : 18);
@@ -31294,23 +31332,16 @@ const powerRef = useRef(hud.power);
               <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-5 w-5 animate-bounce" />
               <span>Career reward opened</span>
             </div>
-            {usesCareerAttempts ? (
-              <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-white/70">
-                Closing automatically… then choose continue or lobby in task panel.
-              </p>
-            ) : null}
-            {!usesCareerAttempts ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setRevealedRewardNft(null);
-                  setRevealedRewardMeta(null);
-                }}
-                className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
-              >
-                Awesome
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setRevealedRewardNft(null);
+                setRevealedRewardMeta(null);
+              }}
+              className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
+            >
+              Close
+            </button>
           </div>
         </div>
       ) : null}
@@ -32238,7 +32269,7 @@ const powerRef = useRef(hud.power);
                     <button
                       type="button"
                       onClick={() => openRewardGift(careerTaskResultModal.nftReward, {
-                        autoCloseMs: 3200,
+                        autoCloseMs: 0,
                         receipt: careerTaskResultModal.nftReceipt || null
                       })}
                       className="inline-flex min-w-[10rem] flex-col items-center rounded-2xl border border-amber-200/70 bg-amber-300/10 px-4 py-2 text-amber-100 transition hover:bg-amber-300/20"
