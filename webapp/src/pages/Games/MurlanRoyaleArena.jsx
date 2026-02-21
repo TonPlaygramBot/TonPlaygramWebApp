@@ -14,18 +14,9 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import {
-  applyRendererSRGB,
-  applySRGBColorSpace
-} from '../../utils/colorSpace.js';
-import {
-  ARENA_CAMERA_DEFAULTS,
-  buildArenaCameraConfig
-} from '../../utils/arenaCameraConfig.js';
-import {
-  applyTableMaterials,
-  createMurlanStyleTable
-} from '../../utils/murlanTable.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
@@ -47,10 +38,7 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
-import {
-  POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
-} from '../../config/poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
   MURLAN_STOOL_THEMES as STOOL_THEMES,
@@ -82,47 +70,26 @@ const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
 }));
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
-  MURLAN_HDRI_OPTIONS.findIndex(
-    (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
-  )
+  MURLAN_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
 );
-const DEFAULT_HDRI_VARIANT =
-  MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0] ?? null;
+const DEFAULT_HDRI_VARIANT = MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0] ?? null;
 const resolveHdriVariant = (index) => {
   const max = MURLAN_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(index)
-    ? Math.min(Math.max(Math.round(index), 0), max)
-    : DEFAULT_HDRI_INDEX;
-  return (
-    MURLAN_HDRI_OPTIONS[idx] ??
-    MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
-    MURLAN_HDRI_OPTIONS[0]
-  );
+  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
+  return MURLAN_HDRI_OPTIONS[idx] ?? MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0];
 };
 
 const DEFAULT_TABLE_FINISH_INDEX = 0;
 const DEFAULT_TABLE_CLOTH_INDEX = 0;
 const resolveTableFinish = (index) => {
   const max = MURLAN_TABLE_FINISHES.length - 1;
-  const idx = Number.isFinite(index)
-    ? Math.min(Math.max(Math.round(index), 0), max)
-    : DEFAULT_TABLE_FINISH_INDEX;
-  return (
-    MURLAN_TABLE_FINISHES[idx] ??
-    MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] ??
-    null
-  );
+  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_FINISH_INDEX;
+  return MURLAN_TABLE_FINISHES[idx] ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] ?? null;
 };
 const resolveTableCloth = (index) => {
   const max = MURLAN_TABLE_CLOTHS.length - 1;
-  const idx = Number.isFinite(index)
-    ? Math.min(Math.max(Math.round(index), 0), max)
-    : DEFAULT_TABLE_CLOTH_INDEX;
-  return (
-    MURLAN_TABLE_CLOTHS[idx] ??
-    MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] ??
-    null
-  );
+  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_CLOTH_INDEX;
+  return MURLAN_TABLE_CLOTHS[idx] ?? MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] ?? null;
 };
 
 const DEFAULT_FRAME_RATE_ID = 'uhd120';
@@ -180,17 +147,10 @@ function detectCoarsePointer() {
 }
 
 function detectLowRefreshDisplay() {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
-  const queries = [
-    '(max-refresh-rate: 59hz)',
-    '(max-refresh-rate: 50hz)',
-    '(prefers-reduced-motion: reduce)'
-  ];
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -204,10 +164,7 @@ function detectLowRefreshDisplay() {
 }
 
 function detectHighRefreshDisplay() {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
   const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
@@ -285,11 +242,7 @@ function classifyRendererTier(rendererString) {
   ) {
     return 'desktopHigh';
   }
-  if (
-    signature.includes('intel') ||
-    signature.includes('iris') ||
-    signature.includes('uhd')
-  ) {
+  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
     return 'desktopMid';
   }
   return 'unknown';
@@ -308,12 +261,10 @@ function detectPreferredFrameRateId() {
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
-  const isMobileUA =
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
-  const deviceMemory =
-    typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
@@ -324,17 +275,10 @@ function detectPreferredFrameRateId() {
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
-    if (
-      (deviceMemory !== null && deviceMemory <= 4) ||
-      hardwareConcurrency <= 4
-    ) {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'hd50';
     }
-    if (
-      highRefresh &&
-      hardwareConcurrency >= 8 &&
-      (deviceMemory == null || deviceMemory >= 6)
-    ) {
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
     }
     if (
@@ -365,8 +309,7 @@ const CHAIR_MODEL_URLS = [
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
-const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 
 let sharedKtx2Loader = null;
@@ -407,12 +350,8 @@ function extractAllHttpUrls(apiJson) {
 
 function pickBestModelUrl(urls) {
   const modelUrls = urls.filter(isModelUrl);
-  const glbs = modelUrls.filter((u) =>
-    stripQueryHash(u).toLowerCase().endsWith('.glb')
-  );
-  const gltfs = modelUrls.filter((u) =>
-    stripQueryHash(u).toLowerCase().endsWith('.gltf')
-  );
+  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
+  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
 
   const score = (u) => {
     const lu = u.toLowerCase();
@@ -431,10 +370,7 @@ function pickBestModelUrl(urls) {
   return glbs[0] || gltfs[0] || null;
 }
 
-function pickBestTextureUrls(
-  apiJson,
-  preferredSizes = PREFERRED_TEXTURE_SIZES
-) {
+function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) {
   if (!apiJson || typeof apiJson !== 'object') {
     return { diffuse: null, normal: null, roughness: null };
   }
@@ -447,10 +383,7 @@ function pickBestTextureUrls(
     }
     if (typeof value === 'string') {
       const lower = value.toLowerCase();
-      if (
-        value.startsWith('http') &&
-        (lower.includes('.jpg') || lower.includes('.png'))
-      ) {
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
         urls.push(value);
       }
       return;
@@ -496,18 +429,13 @@ function pickBestTextureUrls(
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
-  const resolutions =
-    Array.isArray(preferred) && preferred.length
-      ? preferred
-      : DEFAULT_HDRI_RESOLUTIONS;
+  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
   for (const res of resolutions) {
     const entry = json[res];
     if (entry?.hdr) return entry.hdr;
     if (entry?.exr) return entry.exr;
   }
-  const fallback = Object.values(json).find(
-    (value) => value?.hdr || value?.exr
-  );
+  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
   if (!fallback) return null;
   return fallback.hdr || fallback.exr || null;
 };
@@ -519,12 +447,10 @@ async function resolvePolyHavenHdriUrl(config = {}) {
       : null;
   const preferred = forcedResolution
     ? [forcedResolution]
-    : Array.isArray(config?.preferredResolutions) &&
-        config.preferredResolutions.length
+    : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes =
-    forcedResolution || config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '8k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
@@ -532,18 +458,13 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     for (const res of preferred) {
       if (config.assetUrls[res]) return config.assetUrls[res];
     }
-    const manual = Object.values(config.assetUrls).find(
-      (value) => typeof value === 'string' && value.length
-    );
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
     if (manual) return manual;
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length)
-    return config.assetUrl;
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
-    const response = await fetch(
-      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
-    );
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
     const picked = pickPolyHavenHdriUrl(json, preferred);
@@ -613,12 +534,7 @@ function normalizePbrTexture(texture, maxAnisotropy = 1) {
   texture.needsUpdate = true;
 }
 
-async function loadPolyhavenTextureSet(
-  assetId,
-  textureLoader,
-  maxAnisotropy = 1,
-  cache = null
-) {
+async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
   if (!assetId || !textureLoader) return null;
   const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
   if (cache?.has(key)) {
@@ -627,9 +543,7 @@ async function loadPolyhavenTextureSet(
 
   const promise = (async () => {
     try {
-      const response = await fetch(
-        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
-      );
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
       if (!response.ok) {
         return null;
       }
@@ -641,17 +555,11 @@ async function loadPolyhavenTextureSet(
 
       const [diffuse, normal, roughness] = await Promise.all([
         loadTexture(textureLoader, urls.diffuse, true, maxAnisotropy),
-        urls.normal
-          ? loadTexture(textureLoader, urls.normal, false, maxAnisotropy)
-          : null,
-        urls.roughness
-          ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy)
-          : null
+        urls.normal ? loadTexture(textureLoader, urls.normal, false, maxAnisotropy) : null,
+        urls.roughness ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy) : null
       ]);
 
-      [diffuse, normal, roughness]
-        .filter(Boolean)
-        .forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
+      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
 
       return { diffuse, normal, roughness };
     } catch (error) {
@@ -666,12 +574,7 @@ async function loadPolyhavenTextureSet(
   return promise;
 }
 
-function applyTextureSetToModel(
-  model,
-  textureSet,
-  fallbackTexture,
-  maxAnisotropy = 1
-) {
+function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
   const normalizeTexture = (texture, isColor = false) => {
     if (!texture) return null;
     if (isColor) applySRGBColorSpace(texture);
@@ -732,11 +635,9 @@ function prepareLoadedModel(model) {
     }
   });
 }
-const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3162499970197679,
-  1.9173749900311232,
-  1.7001562547683715
-).multiplyScalar(CHAIR_SIZE_SCALE);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
+  CHAIR_SIZE_SCALE
+);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
@@ -934,11 +835,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.07, pitch: 1.04, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: {
-        rate: 0.98,
-        pitch: 0.98,
-        volume: 1
-      },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.98, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.96, pitch: 0.94, volume: 1 }
     }
   },
@@ -1053,17 +950,12 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.06, pitch: 1.08, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: {
-        rate: 0.98,
-        pitch: 0.98,
-        volume: 1
-      },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.98, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.95, pitch: 0.94, volume: 1 }
     }
-  }
+  },
 ]);
-const DEFAULT_COMMENTARY_PRESET_ID =
-  MURLAN_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
+const DEFAULT_COMMENTARY_PRESET_ID = MURLAN_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({
   english: MURLAN_ROYALE_SPEAKERS.analyst,
   'latin-pulse': MURLAN_ROYALE_SPEAKERS.analyst
@@ -1075,19 +967,9 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   ...(ENABLE_3D_HUMAN_CHARACTERS
-    ? [
-        {
-          key: 'characters',
-          label: '3D Players',
-          options: MURLAN_CHARACTER_THEMES
-        }
-      ]
+    ? [{ key: 'characters', label: '3D Players', options: MURLAN_CHARACTER_THEMES }]
     : []),
-  {
-    key: 'environmentHdri',
-    label: 'HDR Environment',
-    options: MURLAN_HDRI_OPTIONS
-  }
+  { key: 'environmentHdri', label: 'HDR Environment', options: MURLAN_HDRI_OPTIONS }
 ];
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
@@ -1128,11 +1010,7 @@ function normalizeAppearance(value = {}) {
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(
-    TARGET_CHAIR_SIZE.x,
-    TARGET_CHAIR_SIZE.y,
-    TARGET_CHAIR_SIZE.z
-  );
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -1268,13 +1146,7 @@ async function createPolyhavenInstance(
   if (textureLoader) {
     try {
       const textures =
-        textureSet ??
-        (await loadPolyhavenTextureSet(
-          assetId,
-          textureLoader,
-          maxAnisotropy,
-          textureCache
-        ));
+        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
       if (textures || fallbackTexture) {
         applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
       }
@@ -1327,11 +1199,7 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   return loader;
 }
 
-async function loadGltfChair(
-  urls = CHAIR_MODEL_URLS,
-  rotationY = 0,
-  renderer = null
-) {
+async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
 
   let gltf = null;
@@ -1378,8 +1246,7 @@ async function loadCharacterModel(theme, renderer = null) {
     const loader = createConfiguredGLTFLoader(renderer);
     const gltf = await loader.loadAsync(theme.url);
     const root = gltf?.scene || gltf?.scenes?.[0];
-    if (!root)
-      throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
+    if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
     prepareLoadedModel(root);
     return root;
   })();
@@ -1388,27 +1255,13 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
-function createCharacterCards({
-  handLift = 0.96,
-  handCardsInput = [],
-  cardTheme = CARD_THEMES[0],
-  playerColor = '#1d4ed8'
-} = {}) {
+function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8' } = {}) {
   const cardsGroup = new THREE.Group();
-  const handCards =
-    Array.isArray(handCardsInput) && handCardsInput.length
-      ? handCardsInput.slice(0, 5)
-      : [
-          { rank: 'A', suit: '♠' },
-          { rank: 'K', suit: '♥' },
-          { rank: 'Q', suit: '♣' }
-        ];
+  const handCards = Array.isArray(handCardsInput) && handCardsInput.length
+    ? handCardsInput.slice(0, 5)
+    : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
   const safeCount = Math.max(handCards.length, 2);
-  const cardGeometry = new THREE.BoxGeometry(
-    0.22 * MODEL_SCALE,
-    0.32 * MODEL_SCALE,
-    0.012 * MODEL_SCALE
-  );
+  const cardGeometry = new THREE.BoxGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE, 0.012 * MODEL_SCALE);
   const edgeMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
     roughness: 0.55,
@@ -1421,13 +1274,7 @@ function createCharacterCards({
   const spread = 0.12 * MODEL_SCALE;
   for (let idx = 0; idx < safeCount; idx++) {
     const handCard = handCards[idx] || handCards[handCards.length - 1];
-    const faceTexture = makeCardFace(
-      handCard.rank,
-      handCard.suit,
-      cardTheme,
-      256,
-      360
-    );
+    const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, 256, 360);
     managedTextures.push(faceTexture);
     const frontMaterial = new THREE.MeshStandardMaterial({
       map: faceTexture,
@@ -1437,28 +1284,15 @@ function createCharacterCards({
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backTexture,
-      color: new THREE.Color(
-        idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'
-      ),
+      color: new THREE.Color(idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'),
       roughness: 0.6,
       metalness: 0.15
     });
     managedMaterials.push(frontMaterial, backMaterial);
-    const sideMaterials = [
-      edgeMaterial,
-      edgeMaterial,
-      edgeMaterial,
-      edgeMaterial,
-      frontMaterial,
-      backMaterial
-    ];
+    const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
     const card = new THREE.Mesh(cardGeometry, sideMaterials);
     const centered = idx - (safeCount - 1) / 2;
-    card.position.set(
-      centered * spread,
-      handLift * MODEL_SCALE + Math.abs(centered) * 0.008,
-      idx * 0.004
-    );
+    card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
       THREE.MathUtils.degToRad(-72),
       THREE.MathUtils.degToRad(-centered * 8),
@@ -1509,112 +1343,20 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function createCharacterRig(
-  instance,
-  seatRoot,
-  seatConfig,
-  characterTheme,
-  player,
-  playerIndex,
-  cardTheme
-) {
-  const hips = findBoneByHints(instance, [
-    'hips',
-    'pelvis',
-    'pelvisjoint',
-    'hip_joint'
-  ]);
+function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme) {
+  const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
-  const head = findBoneByHints(instance, [
-    'head',
-    'neck',
-    'headjoint',
-    'head_joint'
-  ]);
-  const rightUpperArm = findBoneByHints(instance, [
-    'rightarm',
-    'arm.r',
-    'r_upperarm',
-    'rightshoulder',
-    'armjointr',
-    'arm_joint_r_1',
-    'arm_joint_r',
-    'shoulderr'
-  ]);
-  const rightForeArm = findBoneByHints(instance, [
-    'rightforearm',
-    'r_forearm',
-    'rightlowerarm',
-    'forearmr',
-    'elbowr',
-    'arm_joint_r_2',
-    'arm_joint_r_3'
-  ]);
-  const rightHand = findBoneByHints(instance, [
-    'righthand',
-    'hand.r',
-    'r_hand',
-    'handjointr',
-    'hand_joint_r'
-  ]);
-  const leftUpperArm = findBoneByHints(instance, [
-    'leftarm',
-    'arm.l',
-    'l_upperarm',
-    'leftshoulder',
-    'armjointl',
-    'arm_joint_l_1',
-    'arm_joint_l',
-    'shoulderl'
-  ]);
-  const leftForeArm = findBoneByHints(instance, [
-    'leftforearm',
-    'l_forearm',
-    'leftlowerarm',
-    'forearml',
-    'elbowl',
-    'arm_joint_l_2',
-    'arm_joint_l_3'
-  ]);
-  const leftHand = findBoneByHints(instance, [
-    'lefthand',
-    'hand.l',
-    'l_hand',
-    'handjointl',
-    'hand_joint_l'
-  ]);
-  const leftThigh = findBoneByHints(instance, [
-    'leftupleg',
-    'leftthigh',
-    'l_thigh',
-    'legjointl1',
-    'leg_joint_l_1',
-    'leg_joint_l'
-  ]);
-  const leftCalf = findBoneByHints(instance, [
-    'leftleg',
-    'leftcalf',
-    'l_calf',
-    'legjointl2',
-    'leg_joint_l_2',
-    'leg_joint_l_3'
-  ]);
-  const rightThigh = findBoneByHints(instance, [
-    'rightupleg',
-    'rightthigh',
-    'r_thigh',
-    'legjointr1',
-    'leg_joint_r_1',
-    'leg_joint_r'
-  ]);
-  const rightCalf = findBoneByHints(instance, [
-    'rightleg',
-    'rightcalf',
-    'r_calf',
-    'legjointr2',
-    'leg_joint_r_2',
-    'leg_joint_r_3'
-  ]);
+  const head = findBoneByHints(instance, ['head', 'neck', 'headjoint', 'head_joint']);
+  const rightUpperArm = findBoneByHints(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']);
+  const rightForeArm = findBoneByHints(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']);
+  const rightHand = findBoneByHints(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']);
+  const leftUpperArm = findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']);
+  const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
+  const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
+  const leftThigh = findBoneByHints(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']);
+  const leftCalf = findBoneByHints(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']);
+  const rightThigh = findBoneByHints(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']);
+  const rightCalf = findBoneByHints(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3']);
 
   const heldCards = createCharacterCards({
     handLift: characterTheme.handLift ?? 0.94,
@@ -1623,24 +1365,12 @@ function createCharacterRig(
     playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8'
   });
 
-  heldCards.userData.playerColor =
-    PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
-  heldCards.userData.cardsSignature = (player?.hand ?? [])
-    .slice(0, 5)
-    .map((card) => `${card.rank || ''}${card.suit || ''}`)
-    .join('-');
+  heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
+  heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
   instance.add(heldCards);
-  heldCards.position.set(
-    0.0 * MODEL_SCALE,
-    0.7 * MODEL_SCALE,
-    0.95 * MODEL_SCALE
-  );
-  heldCards.rotation.set(
-    THREE.MathUtils.degToRad(-18),
-    THREE.MathUtils.degToRad(0),
-    THREE.MathUtils.degToRad(0)
-  );
+  heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
   heldCards.scale.setScalar(1.45);
 
   if (!leftThigh || !rightThigh) {
@@ -1692,42 +1422,12 @@ function createCharacterRig(
   applyRotationOffset(hips, THREE.MathUtils.degToRad(-4), 0, 0);
   applyRotationOffset(spine, THREE.MathUtils.degToRad(-2), 0, 0);
   applyRotationOffset(head, THREE.MathUtils.degToRad(2), 0, 0);
-  applyRotationOffset(
-    leftUpperArm,
-    THREE.MathUtils.degToRad(-22),
-    THREE.MathUtils.degToRad(3),
-    THREE.MathUtils.degToRad(2)
-  );
-  applyRotationOffset(
-    leftForeArm,
-    THREE.MathUtils.degToRad(-28),
-    0,
-    THREE.MathUtils.degToRad(4)
-  );
-  applyRotationOffset(
-    leftHand,
-    THREE.MathUtils.degToRad(10),
-    THREE.MathUtils.degToRad(6),
-    0
-  );
-  applyRotationOffset(
-    rightUpperArm,
-    THREE.MathUtils.degToRad(-22),
-    THREE.MathUtils.degToRad(-3),
-    THREE.MathUtils.degToRad(-2)
-  );
-  applyRotationOffset(
-    rightForeArm,
-    THREE.MathUtils.degToRad(-28),
-    0,
-    THREE.MathUtils.degToRad(-4)
-  );
-  applyRotationOffset(
-    rightHand,
-    THREE.MathUtils.degToRad(10),
-    THREE.MathUtils.degToRad(-6),
-    0
-  );
+  applyRotationOffset(leftUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(3), THREE.MathUtils.degToRad(2));
+  applyRotationOffset(leftForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(4));
+  applyRotationOffset(leftHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(6), 0);
+  applyRotationOffset(rightUpperArm, THREE.MathUtils.degToRad(-22), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  applyRotationOffset(rightForeArm, THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-4));
+  applyRotationOffset(rightHand, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-6), 0);
   applyRotationOffset(leftThigh, THREE.MathUtils.degToRad(74), 0, 0);
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(74), 0, 0);
   applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-82), 0, 0);
@@ -1754,23 +1454,12 @@ function createCharacterRig(
 
 function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme) {
   if (!rig) return;
-  const safeCards =
-    Array.isArray(handCardsInput) && handCardsInput.length
-      ? handCardsInput.slice(0, 5)
-      : [];
+  const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
   const colorChanged = rig.heldCards?.userData?.playerColor !== playerColor;
-  const cardsSignature = safeCards
-    .map((card) => `${card.rank || ''}${card.suit || ''}`)
-    .join('-');
-  const cardsChanged =
-    rig.heldCards?.userData?.cardsSignature !== cardsSignature;
-  if (
-    currentCount === Math.max(safeCards.length, 2) &&
-    !colorChanged &&
-    !cardsChanged
-  )
-    return;
+  const cardsSignature = safeCards.map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
+  const cardsChanged = rig.heldCards?.userData?.cardsSignature !== cardsSignature;
+  if (currentCount === Math.max(safeCards.length, 2) && !colorChanged && !cardsChanged) return;
 
   const parent = rig.heldCards?.parent || null;
   rig.heldCards?.userData?.dispose?.();
@@ -1786,16 +1475,8 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme) {
   nextCards.userData.cardsSignature = cardsSignature;
 
   rig.instance.add(nextCards);
-  nextCards.position.set(
-    0.0 * MODEL_SCALE,
-    0.7 * MODEL_SCALE,
-    0.95 * MODEL_SCALE
-  );
-  nextCards.rotation.set(
-    THREE.MathUtils.degToRad(-18),
-    THREE.MathUtils.degToRad(0),
-    THREE.MathUtils.degToRad(0)
-  );
+  nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+  nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
   nextCards.scale.setScalar(1.45);
 
   rig.heldCards = nextCards;
@@ -1825,20 +1506,13 @@ function buildPoseVariant(basePose, overrides = {}) {
   Object.entries(overrides).forEach(([key, delta]) => {
     const base = basePose?.[key];
     if (!base) return;
-    out[key] = new THREE.Euler(
-      base.x + (delta.x || 0),
-      base.y + (delta.y || 0),
-      base.z + (delta.z || 0)
-    );
+    out[key] = new THREE.Euler(base.x + (delta.x || 0), base.y + (delta.y || 0), base.z + (delta.z || 0));
   });
   return out;
 }
 
 function createThrownCardMesh(color = '#f8fafc') {
-  const geometry = new THREE.PlaneGeometry(
-    0.2 * MODEL_SCALE,
-    0.3 * MODEL_SCALE
-  );
+  const geometry = new THREE.PlaneGeometry(0.2 * MODEL_SCALE, 0.3 * MODEL_SCALE);
   const material = new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),
     roughness: 0.34,
@@ -1855,15 +1529,7 @@ function createThrownCardMesh(color = '#f8fafc') {
   return card;
 }
 
-function attachSeatedCharacter({
-  template,
-  seatConfig,
-  characterTheme,
-  store,
-  player = null,
-  playerIndex = 0,
-  cardTheme
-}) {
+function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme }) {
   if (!template || !seatConfig?.chair) return;
   const instance = cloneSkeleton(template);
   instance.traverse((obj) => {
@@ -1877,20 +1543,14 @@ function attachSeatedCharacter({
   const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
-  const baseSeatOffsetY =
-    characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38;
-  const baseSeatOffsetZ =
-    characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? 0.18;
+  const baseSeatOffsetY = characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.38;
+  const baseSeatOffsetZ = characterTheme.normalizedSeatOffsetZ ?? characterTheme.seatOffsetZ ?? 0.18;
   seatRoot.position.set(
     0,
     baseSeatOffsetY - 0.06 - scaleDelta * 0.06,
     baseSeatOffsetZ + 0.42 - scaleDelta * 0.1
   );
-  seatRoot.rotation.set(
-    characterTheme.seatPitch ?? -0.06,
-    characterTheme.seatYaw ?? Math.PI,
-    0
-  );
+  seatRoot.rotation.set(characterTheme.seatPitch ?? -0.06, characterTheme.seatYaw ?? Math.PI, 0);
 
   seatRoot.add(instance);
   seatRoot.userData.dispose = () => {
@@ -1898,15 +1558,7 @@ function attachSeatedCharacter({
     rig?.heldCards?.userData?.dispose?.();
   };
 
-  const rig = createCharacterRig(
-    instance,
-    seatRoot,
-    seatConfig,
-    characterTheme,
-    player,
-    playerIndex,
-    cardTheme
-  );
+  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme);
   seatConfig.characterRig = rig;
   seatConfig.characterRoot = seatRoot;
   if (!store.characterRigs) store.characterRigs = new Map();
@@ -1916,22 +1568,18 @@ function attachSeatedCharacter({
   store.characterInstances.push(seatRoot);
 }
 
+
 function runCharacterAction(store, rig, action) {
   if (!store || !rig || !action) return;
   const now = performance.now();
-  const list =
-    store.characterActionAnimations || (store.characterActionAnimations = []);
+  const list = store.characterActionAnimations || (store.characterActionAnimations = []);
   const basePose = rig.seatedPose;
-  const cardsColor =
-    PLAYER_COLORS[action.playerIndex % PLAYER_COLORS.length] ?? '#f8fafc';
+  const cardsColor = PLAYER_COLORS[action.playerIndex % PLAYER_COLORS.length] ?? '#f8fafc';
 
   if (action.type === 'PASS') {
     const knockPose = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-8) },
-      rightUpperArm: {
-        x: THREE.MathUtils.degToRad(-26),
-        z: THREE.MathUtils.degToRad(-10)
-      },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-26), z: THREE.MathUtils.degToRad(-10) },
       rightForeArm: { x: THREE.MathUtils.degToRad(34) },
       rightHand: { x: THREE.MathUtils.degToRad(12) },
       head: { x: THREE.MathUtils.degToRad(4) }
@@ -1953,30 +1601,16 @@ function runCharacterAction(store, rig, action) {
   if (action.type === 'PLAY') {
     const throwPrep = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: {
-        x: THREE.MathUtils.degToRad(-40),
-        y: THREE.MathUtils.degToRad(-14),
-        z: THREE.MathUtils.degToRad(-18)
-      },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-40), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-24) },
-      rightHand: {
-        x: THREE.MathUtils.degToRad(22),
-        y: THREE.MathUtils.degToRad(-16)
-      },
+      rightHand: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-16) },
       head: { x: THREE.MathUtils.degToRad(-6) }
     });
     const throwRelease = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: {
-        x: THREE.MathUtils.degToRad(28),
-        y: THREE.MathUtils.degToRad(-24),
-        z: THREE.MathUtils.degToRad(-24)
-      },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(44) },
-      rightHand: {
-        x: THREE.MathUtils.degToRad(24),
-        y: THREE.MathUtils.degToRad(-8)
-      }
+      rightHand: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-8) }
     });
 
     const thrown = createThrownCardMesh(cardsColor);
@@ -1987,20 +1621,13 @@ function runCharacterAction(store, rig, action) {
       rig.bones.rightHand.getWorldPosition(handPos);
     } else {
       rig.seatRoot.getWorldPosition(handPos);
-      handPos.add(
-        rig.seatConfig?.forward?.clone().multiplyScalar(0.34 * MODEL_SCALE) ??
-          new THREE.Vector3()
-      );
+      handPos.add(rig.seatConfig?.forward?.clone().multiplyScalar(0.34 * MODEL_SCALE) ?? new THREE.Vector3());
       handPos.y += 0.65 * MODEL_SCALE;
     }
 
     const target = (store.tableAnchor || new THREE.Vector3()).clone();
     target.y += 0.08 * MODEL_SCALE;
-    target.add(
-      (rig.seatConfig?.right || new THREE.Vector3(1, 0, 0))
-        .clone()
-        .multiplyScalar(0.08 * MODEL_SCALE)
-    );
+    target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.08 * MODEL_SCALE));
 
     thrown.position.copy(handPos);
     thrown.lookAt(target.clone().setY(handPos.y));
@@ -2061,6 +1688,7 @@ function stepCharacterActions(store, time) {
   });
 }
 
+
 async function loadPolyhavenModel(assetId, renderer = null) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
   const normalizedId = assetId.toLowerCase();
@@ -2076,9 +1704,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
 
     for (const candidateId of assetCandidates) {
       try {
-        const filesJson = await fetch(
-          `https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`
-        ).then((r) => r.json());
+        const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
         const allUrls = extractAllHttpUrls(filesJson);
         const apiModelUrl = pickBestModelUrl(allUrls);
         if (apiModelUrl) modelCandidates.add(apiModelUrl);
@@ -2090,15 +1716,10 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           }, new Map());
         }
       } catch (error) {
-        console.warn(
-          'Poly Haven file lookup failed, falling back to direct URLs',
-          error
-        );
+        console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
       }
 
-      buildPolyhavenModelUrls(candidateId).forEach((u) =>
-        modelCandidates.add(u)
-      );
+      buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
     }
 
     const modelUrlList = Array.from(modelCandidates);
@@ -2130,14 +1751,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     let lastError = null;
     for (const modelUrl of modelUrlList) {
       try {
-        const resolvedUrl = new URL(
-          modelUrl,
-          typeof window !== 'undefined' ? window.location?.href : modelUrl
-        ).href;
-        const resourcePath = resolvedUrl.substring(
-          0,
-          resolvedUrl.lastIndexOf('/') + 1
-        );
+        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
         loader.setResourcePath?.(resourcePath);
         loader.setPath?.('');
         gltf = await loader.loadAsync(resolvedUrl);
@@ -2178,10 +1793,7 @@ function createProceduralChair(theme) {
 
   const chair = new THREE.Group();
 
-  const seatMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
-    seatMaterial
-  );
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
   seatMesh.position.y = SEAT_THICKNESS / 2;
   seatMesh.castShadow = true;
   seatMesh.receiveShadow = true;
@@ -2191,20 +1803,12 @@ function createProceduralChair(theme) {
     new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
     seatMaterial
   );
-  backMesh.position.set(
-    0,
-    SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
-    -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
-  );
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
   backMesh.castShadow = true;
   backMesh.receiveShadow = true;
   chair.add(backMesh);
 
-  const armGeometry = new THREE.BoxGeometry(
-    ARM_THICKNESS,
-    ARM_HEIGHT,
-    ARM_DEPTH
-  );
+  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
   const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
   const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
   const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
@@ -2220,12 +1824,7 @@ function createProceduralChair(theme) {
   chair.add(rightArm);
 
   const legMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.16 * MODEL_SCALE * STOOL_SCALE,
-      0.2 * MODEL_SCALE * STOOL_SCALE,
-      BASE_COLUMN_HEIGHT,
-      18
-    ),
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
     legMaterial
   );
   legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -2268,12 +1867,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
             textureCache
           );
           if (textures || fallbackTexture) {
-            applyTextureSetToModel(
-              model,
-              textures,
-              fallbackTexture,
-              maxAnisotropy
-            );
+            applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
           }
         } catch (error) {
           if (fallbackTexture) {
@@ -2287,31 +1881,16 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
       if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: materials }, theme);
       }
-      return {
-        chairTemplate: model,
-        materials,
-        preserveOriginal: preserveMaterials
-      };
+      return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
-    if (
-      theme?.source === 'gltf' &&
-      Array.isArray(theme.urls) &&
-      theme.urls.length
-    ) {
+    if (theme?.source === 'gltf' && Array.isArray(theme.urls) && theme.urls.length) {
       const gltfChair = await loadGltfChair(theme.urls, rotationY, renderer);
       if (!preserveMaterials) {
-        applyChairThemeMaterials(
-          { chairMaterials: gltfChair.materials },
-          theme
-        );
+        applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
       }
       return { ...gltfChair, preserveOriginal: preserveMaterials };
     }
-    const gltfChair = await loadGltfChair(
-      CHAIR_MODEL_URLS,
-      rotationY,
-      renderer
-    );
+    const gltfChair = await loadGltfChair(CHAIR_MODEL_URLS, rotationY, renderer);
     if (!preserveMaterials) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
@@ -2331,7 +1910,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.36
+  z: -TABLE_RADIUS * 0.42
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2343,8 +1922,7 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = MODEL_SCALE * (0.5 * STOOL_SCALE + 0.08);
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS =
-  4.8 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 4.8 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
 const HUMAN_CHAIR_PULLBACK = 0;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
@@ -2358,8 +1936,6 @@ const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2000;
-const CAMERA_TURN_DURATION_MS = 340;
-const CAMERA_TURN_SNAP_EPSILON = 0.004;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2546,8 +2122,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.25,
     pixelRatioCap: 1.7,
     resolution: 'QHD render • DPR 1.7 cap',
-    description:
-      'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
@@ -2560,8 +2135,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_OPTION =
-  FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ??
-  FRAME_RATE_OPTIONS[0];
+  FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -2570,9 +2144,7 @@ export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
 
-  const [murlanInventory, setMurlanInventory] = useState(() =>
-    getMurlanInventory(murlanAccountId())
-  );
+  const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(murlanAccountId()));
 
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
@@ -2598,15 +2170,13 @@ export default function MurlanRoyaleArena({ search }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [isCamera2d, setIsCamera2d] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (
-        stored &&
-        MURLAN_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)
-      ) {
+      if (stored && MURLAN_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
         return stored;
       }
     }
@@ -2635,29 +2205,23 @@ export default function MurlanRoyaleArena({ search }) {
     return idx >= 0 ? idx : 0;
   }, [players]);
   const humanAvatarUrl = useMemo(
-    () =>
-      getAvatarUrl(
-        players[humanPlayerIndex]?.avatar || players[0]?.avatar || ''
-      ),
-    [players, humanPlayerIndex]
+    () => getAvatarUrl(players[humanPlayerIndex]?.avatar || players[0]?.avatar || ''),
+    [players, humanPlayerIndex],
   );
   const giftPlayers = useMemo(
     () =>
       players.map((player, index) => ({
         ...player,
         index,
-        id:
-          player.id ??
-          (player.isHuman ? resolvedAccountId : `murlan-ai-${index}`),
+        id: player.id ?? (player.isHuman ? resolvedAccountId : `murlan-ai-${index}`),
         photoUrl: getAvatarUrl(player.avatar)
       })),
-    [players, resolvedAccountId]
+    [players, resolvedAccountId],
   );
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
     seatAnchors.forEach((anchor) => {
-      if (anchor && typeof anchor.index === 'number')
-        map.set(anchor.index, anchor);
+      if (anchor && typeof anchor.index === 'number') map.set(anchor.index, anchor);
     });
     return map;
   }, [seatAnchors]);
@@ -2669,15 +2233,11 @@ export default function MurlanRoyaleArena({ search }) {
       ...section,
       options: section.options
         .map((option, idx) => ({ ...option, idx }))
-        .filter(({ id }) =>
-          isMurlanOptionUnlocked(section.key, id, murlanInventory)
-        )
+        .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
     }))
       .filter((section) => section.options.length > 0)
       .filter((section) =>
-        section.key === 'tableFinish' || section.key === 'tableCloth'
-          ? allowTableFinish
-          : true
+        section.key === 'tableFinish' || section.key === 'tableCloth' ? allowTableFinish : true
       );
   }, [appearance.tables, murlanInventory]);
   const [frameRateId, setFrameRateId] = useState(() => {
@@ -2694,9 +2254,7 @@ export default function MurlanRoyaleArena({ search }) {
     return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
   });
   const activeFrameRateOption = useMemo(
-    () =>
-      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
-      DEFAULT_FRAME_RATE_OPTION,
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
   const frameQualityProfile = useMemo(() => {
@@ -2709,13 +2267,11 @@ export default function MurlanRoyaleArena({ search }) {
           ? fallback.fps
           : 60;
     const renderScale =
-      typeof option?.renderScale === 'number' &&
-      Number.isFinite(option.renderScale)
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
         ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
         : 1;
     const pixelRatioCap =
-      typeof option?.pixelRatioCap === 'number' &&
-      Number.isFinite(option.pixelRatioCap)
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
         ? Math.max(1, option.pixelRatioCap)
         : resolveDefaultPixelRatioCap();
     return {
@@ -2732,8 +2288,7 @@ export default function MurlanRoyaleArena({ search }) {
   const resolvedHdriResolution = DEFAULT_HDRI_RESOLUTIONS[0];
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) &&
-      DEFAULT_FRAME_RATE_OPTION.fps > 0
+      Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
         ? DEFAULT_FRAME_RATE_OPTION.fps
         : 60;
     const fps =
@@ -2742,10 +2297,7 @@ export default function MurlanRoyaleArena({ search }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id:
-        frameQualityProfile?.id ??
-        DEFAULT_FRAME_RATE_OPTION?.id ??
-        DEFAULT_FRAME_RATE_ID,
+      id: frameQualityProfile?.id ?? DEFAULT_FRAME_RATE_OPTION?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
@@ -2777,13 +2329,8 @@ export default function MurlanRoyaleArena({ search }) {
       Object.entries(map).forEach(([key, options]) => {
         const idx = Number.isFinite(next[key]) ? next[key] : 0;
         const option = options[idx];
-        if (
-          !option ||
-          !isMurlanOptionUnlocked(key, option.id, murlanInventory)
-        ) {
-          const fallbackIdx = options.findIndex((opt) =>
-            isMurlanOptionUnlocked(key, opt.id, murlanInventory)
-          );
+        if (!option || !isMurlanOptionUnlocked(key, option.id, murlanInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isMurlanOptionUnlocked(key, opt.id, murlanInventory));
           const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
           if (safeIdx !== idx) {
             next[key] = safeIdx;
@@ -2798,10 +2345,7 @@ export default function MurlanRoyaleArena({ search }) {
 
   useEffect(() => {
     const handler = (event) => {
-      if (
-        !event?.detail?.accountId ||
-        event.detail.accountId === murlanAccountId()
-      ) {
+      if (!event?.detail?.accountId || event.detail.accountId === murlanAccountId()) {
         setMurlanInventory(getMurlanInventory(murlanAccountId()));
       }
     };
@@ -2839,14 +2383,11 @@ export default function MurlanRoyaleArena({ search }) {
 
   const activeCommentaryPreset = useMemo(
     () =>
-      MURLAN_ROYALE_COMMENTARY_PRESETS.find(
-        (preset) => preset.id === commentaryPresetId
-      ) ?? MURLAN_ROYALE_COMMENTARY_PRESETS[0],
+      MURLAN_ROYALE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      MURLAN_ROYALE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const [commentarySupported, setCommentarySupported] = useState(() =>
-    getSpeechSupport()
-  );
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentarySpeakers = useMemo(() => {
     const base = [
       MURLAN_ROYALE_SPEAKERS.lead,
@@ -2866,18 +2407,13 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const index = commentarySpeakerIndexRef.current;
     commentarySpeakerIndexRef.current = index + 1;
-    return (
-      commentarySpeakers[index % commentarySpeakers.length] ||
-      MURLAN_ROYALE_SPEAKERS.analyst
-    );
+    return commentarySpeakers[index % commentarySpeakers.length] || MURLAN_ROYALE_SPEAKERS.analyst;
   }, [activeCommentaryPreset?.id, commentarySpeakers]);
 
   useEffect(() => {
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) =>
-      setCommentarySupported(Boolean(supported))
-    );
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
     return () => {
       unsubscribe();
     };
@@ -2896,19 +2432,13 @@ export default function MurlanRoyaleArena({ search }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        COMMENTARY_PRESET_STORAGE_KEY,
-        commentaryPresetId
-      );
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
     }
   }, [commentaryPresetId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        COMMENTARY_MUTE_STORAGE_KEY,
-        commentaryMuted ? '1' : '0'
-      );
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
     }
   }, [commentaryMuted]);
 
@@ -2976,29 +2506,17 @@ export default function MurlanRoyaleArena({ search }) {
           priority,
           preset,
           createdAt: now,
-          maxDelay: priority
-            ? COMMENTARY_PRIORITY_MAX_LATENCY_MS
-            : COMMENTARY_MAX_LATENCY_MS
+          maxDelay: priority ? COMMENTARY_PRIORITY_MAX_LATENCY_MS : COMMENTARY_MAX_LATENCY_MS
         };
         return;
       }
-      if (
-        !priority &&
-        now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS
-      )
-        return;
-      if (
-        !priority &&
-        commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT
-      )
-        return;
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
       const entry = {
         lines,
         preset,
         createdAt: now,
-        maxDelay: priority
-          ? COMMENTARY_PRIORITY_MAX_LATENCY_MS
-          : COMMENTARY_MAX_LATENCY_MS
+        maxDelay: priority ? COMMENTARY_PRIORITY_MAX_LATENCY_MS : COMMENTARY_MAX_LATENCY_MS
       };
       if (priority) {
         commentaryQueueRef.current.unshift(entry);
@@ -3064,6 +2582,10 @@ export default function MurlanRoyaleArena({ search }) {
     setCommentaryMuted((prev) => !prev);
   }, [commentaryMuted, unlockCommentary]);
 
+  const handleToggleCamera2d = useCallback(() => {
+    setIsCamera2d((prev) => !prev);
+  }, []);
+
   const handleSelectCommentaryPreset = useCallback(
     (presetId) => {
       if (!presetId || presetId === commentaryPresetId) return;
@@ -3116,8 +2638,7 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     const handleVisibility = () => {
-      if (document.visibilityState !== 'visible' || commentaryMutedRef.current)
-        return;
+      if (document.visibilityState !== 'visible' || commentaryMutedRef.current) return;
       primeSpeechSynthesis();
       const synth = getSpeechSynthesis();
       if (typeof synth?.resume === 'function') {
@@ -3127,8 +2648,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () =>
-      document.removeEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   useEffect(() => {
@@ -3137,9 +2657,7 @@ export default function MurlanRoyaleArena({ search }) {
     const previousActionId = snapshot.lastActionId;
     const previousStatus = snapshot.status;
     const players = gameState.players || [];
-    const languageKey = resolveMurlanLanguageKey(
-      activeCommentaryPreset?.language ?? commentaryPresetId
-    );
+    const languageKey = resolveMurlanLanguageKey(activeCommentaryPreset?.language ?? commentaryPresetId);
 
     const resolvePlayerName = (index) => {
       const player = players[index];
@@ -3150,14 +2668,9 @@ export default function MurlanRoyaleArena({ search }) {
       const opponent =
         players.find((p, idx) => idx !== index && !p.finished) ||
         players.find((p, idx) => idx !== index);
-      if (!opponent)
-        return getCommentaryFallbackLabel('table', languageKey) || 'the table';
+      if (!opponent) return getCommentaryFallbackLabel('table', languageKey) || 'the table';
       const opponentIndex = players.indexOf(opponent);
-      return resolveLocalizedPlayerName(
-        opponent,
-        opponentIndex >= 0 ? opponentIndex : 0,
-        languageKey
-      );
+      return resolveLocalizedPlayerName(opponent, opponentIndex >= 0 ? opponentIndex : 0, languageKey);
     };
 
     const resolveComboEvent = (combo) => {
@@ -3229,9 +2742,7 @@ export default function MurlanRoyaleArena({ search }) {
         const comboLabel = action.combo
           ? describeCommentaryCombo(action.combo, action.cards, languageKey)
           : action.cards?.length
-            ? action.cards
-                .map((card) => localizedCardLabel(card, languageKey))
-                .join(' ')
+            ? action.cards.map((card) => localizedCardLabel(card, languageKey)).join(' ')
             : getCommentaryFallbackLabel('combo', languageKey);
         const context = {
           player: playerName,
@@ -3245,19 +2756,12 @@ export default function MurlanRoyaleArena({ search }) {
         } else if (action.type === 'PASS') {
           enqueueMurlanCommentaryEvent('pass', context);
         } else {
-          enqueueMurlanCommentaryEvent(
-            resolveComboEvent(action.combo),
-            context
-          );
+          enqueueMurlanCommentaryEvent(resolveComboEvent(action.combo), context);
         }
 
         if (action.tableCleared) {
           const leaderName = resolvePlayerName(gameState.activePlayer);
-          enqueueMurlanCommentaryEvent(
-            'clearTable',
-            { ...context, player: leaderName },
-            { priority: true }
-          );
+          enqueueMurlanCommentaryEvent('clearTable', { ...context, player: leaderName }, { priority: true });
         }
 
         if (action.type === 'PLAY' && cardsLeft > 0 && cardsLeft <= 2) {
@@ -3268,16 +2772,8 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (gameState.status === 'ENDED' && previousStatus !== 'ENDED') {
       const winnerName = resolvePlayerName(gameState.activePlayer);
-      enqueueMurlanCommentaryEvent(
-        'win',
-        { player: winnerName },
-        { priority: true }
-      );
-      enqueueMurlanCommentaryEvent(
-        'outro',
-        { player: winnerName },
-        { priority: true }
-      );
+      enqueueMurlanCommentaryEvent('win', { player: winnerName }, { priority: true });
+      enqueueMurlanCommentaryEvent('outro', { player: winnerName }, { priority: true });
     }
 
     commentaryEventRef.current = {
@@ -3354,19 +2850,11 @@ export default function MurlanRoyaleArena({ search }) {
   const soundsRef = useRef({ card: null, turn: null });
   const bombSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
-  const audioStateRef = useRef({
-    tableIds: [],
-    activePlayer: null,
-    status: null,
-    initialized: false
-  });
+  const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
   const tableBuildTokenRef = useRef(0);
   const characterActionRef = useRef({ lastActionId: 0 });
-  const cameraTurnAnimRef = useRef(null);
-  const cameraHomeTargetRef = useRef(
-    new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0)
-  );
+  const cameraViewRestoreRef = useRef(null);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -3375,12 +2863,7 @@ export default function MurlanRoyaleArena({ search }) {
     three.cardThemeId = theme.id;
     state.allCards.forEach((card) => {
       if (three.cardMap.has(card.id)) return;
-      const mesh = createCardMesh(
-        card,
-        three.cardGeometry,
-        three.faceTextureCache,
-        theme
-      );
+      const mesh = createCardMesh(card, three.cardGeometry, three.faceTextureCache, theme);
       mesh.visible = false;
       mesh.position.set(0, -10, 0);
       three.arena.add(mesh);
@@ -3403,9 +2886,7 @@ export default function MurlanRoyaleArena({ search }) {
         headBone.getWorldPosition(anchorPoint);
         anchorPoint.y += 0.08 * MODEL_SCALE;
       } else {
-        const stool = seat.stoolPosition
-          ? seat.stoolPosition.clone()
-          : new THREE.Vector3();
+        const stool = seat.stoolPosition ? seat.stoolPosition.clone() : new THREE.Vector3();
         stool.y = seat.stoolHeight ?? CHAIR_BASE_HEIGHT;
         anchorPoint.copy(stool);
       }
@@ -3419,56 +2900,47 @@ export default function MurlanRoyaleArena({ search }) {
     setSeatAnchors(anchors);
   }, []);
 
-  const stopCameraTurnAnimation = useCallback(() => {
-    if (cameraTurnAnimRef.current != null) {
-      cancelAnimationFrame(cameraTurnAnimRef.current);
-      cameraTurnAnimRef.current = null;
-    }
-  }, []);
+  useEffect(() => {
+    const three = threeStateRef.current;
+    const { camera, controls } = three;
+    if (!camera || !controls) return;
 
-  const turnCameraTowardsTarget = useCallback(
-    (target, options = {}) => {
-      const three = threeStateRef.current;
-      const controls = three?.controls;
-      if (!controls || !target) return;
-
-      const nextTarget = target.clone();
-      const currentTarget = controls.target.clone();
-      const distance = currentTarget.distanceTo(nextTarget);
-
-      if (distance <= CAMERA_TURN_SNAP_EPSILON || options.animate === false) {
-        stopCameraTurnAnimation();
-        controls.target.copy(nextTarget);
-        controls.update();
-        updateSeatAnchors();
-        return;
-      }
-
-      stopCameraTurnAnimation();
-      const start = currentTarget;
-      const startTime = performance.now();
-      const duration = options.durationMs ?? CAMERA_TURN_DURATION_MS;
-
-      const animateStep = (now) => {
-        const t = Math.min(1, (now - startTime) / Math.max(1, duration));
-        const eased = t * (2 - t);
-        controls.target.copy(start).lerp(nextTarget, eased);
-        controls.update();
-        updateSeatAnchors();
-        if (t < 1) {
-          cameraTurnAnimRef.current = requestAnimationFrame(animateStep);
-        } else {
-          controls.target.copy(nextTarget);
-          controls.update();
-          updateSeatAnchors();
-          cameraTurnAnimRef.current = null;
-        }
+    if (isCamera2d) {
+      cameraViewRestoreRef.current = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        enablePan: controls.enablePan,
+        enableRotate: controls.enableRotate,
+        minPolarAngle: controls.minPolarAngle,
+        maxPolarAngle: controls.maxPolarAngle,
+        minAzimuthAngle: controls.minAzimuthAngle,
+        maxAzimuthAngle: controls.maxAzimuthAngle
       };
+      const target = controls.target.clone();
+      const radius = Math.max(controls.minDistance || 0, camera.position.distanceTo(target));
+      camera.position.set(target.x, target.y + radius * 1.06, target.z);
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.minPolarAngle = 0.0001;
+      controls.maxPolarAngle = 0.0001;
+      controls.update();
+    } else {
+      const restore = cameraViewRestoreRef.current;
+      if (restore) {
+        camera.position.copy(restore.position);
+        controls.target.copy(restore.target);
+        controls.enablePan = restore.enablePan;
+        controls.enableRotate = restore.enableRotate;
+        controls.minPolarAngle = restore.minPolarAngle;
+        controls.maxPolarAngle = restore.maxPolarAngle;
+        controls.minAzimuthAngle = restore.minAzimuthAngle;
+        controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+        controls.update();
+      }
+    }
 
-      cameraTurnAnimRef.current = requestAnimationFrame(animateStep);
-    },
-    [stopCameraTurnAnimation, updateSeatAnchors]
-  );
+    updateSeatAnchors();
+  }, [isCamera2d, updateSeatAnchors]);
 
   const applyRendererQuality = useCallback(() => {
     const renderer = threeStateRef.current.renderer;
@@ -3476,24 +2948,18 @@ export default function MurlanRoyaleArena({ search }) {
     if (!renderer || !host) return;
     const quality = frameQualityRef.current;
     const dpr =
-      typeof window !== 'undefined' &&
-      typeof window.devicePixelRatio === 'number'
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
         ? window.devicePixelRatio
         : 1;
     const pixelRatioCap =
       quality?.pixelRatioCap ??
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
     const renderScale =
-      typeof quality?.renderScale === 'number' &&
-      Number.isFinite(quality.renderScale)
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
         ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
         : 1;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
-    renderer.setSize(
-      host.clientWidth * renderScale,
-      host.clientHeight * renderScale,
-      false
-    );
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -3505,13 +2971,7 @@ export default function MurlanRoyaleArena({ search }) {
   const updateScoreboardDisplay = useCallback((entries = []) => {
     const store = threeStateRef.current;
     const scoreboard = store.scoreboard;
-    if (
-      !scoreboard?.context ||
-      !scoreboard.texture ||
-      !scoreboard.mesh ||
-      !scoreboard.canvas
-    )
-      return;
+    if (!scoreboard?.context || !scoreboard.texture || !scoreboard.mesh || !scoreboard.canvas) return;
     const { canvas, context, texture, mesh } = scoreboard;
     const { width, height } = canvas;
 
@@ -3555,20 +3015,12 @@ export default function MurlanRoyaleArena({ search }) {
       const rowY = 168 + i * (rowHeight + rowGap);
       const isActive = Boolean(entry?.isActive);
       const finished = Boolean(entry?.finished);
-      const displayName =
-        typeof entry?.name === 'string' ? entry.name : 'Player';
+      const displayName = typeof entry?.name === 'string' ? entry.name : 'Player';
       const trimmedName = displayName.trim();
-      const fallbackInitial = trimmedName
-        ? trimmedName.charAt(0).toUpperCase()
-        : '🂠';
-      const avatar =
-        entry?.avatar && !entry.avatar.startsWith('http')
-          ? entry.avatar
-          : fallbackInitial;
+      const fallbackInitial = trimmedName ? trimmedName.charAt(0).toUpperCase() : '🂠';
+      const avatar = entry?.avatar && !entry.avatar.startsWith('http') ? entry.avatar : fallbackInitial;
 
-      context.fillStyle = isActive
-        ? 'rgba(255, 255, 255, 0.2)'
-        : 'rgba(255, 255, 255, 0.08)';
+      context.fillStyle = isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.08)';
       roundRect(context, rowX, rowY, rowWidth, rowHeight, 28);
       context.fill();
       context.strokeStyle = 'rgba(255, 255, 255, 0.06)';
@@ -3602,166 +3054,140 @@ export default function MurlanRoyaleArena({ search }) {
     texture.needsUpdate = true;
   }, []);
 
-  const applyStateToScene = useCallback(
-    (state, selection, immediate = false) => {
-      const three = threeStateRef.current;
-      if (!three.scene) return;
 
-      const selectionSet = new Set(selection);
-      const handsVisible = new Set();
-      const tableSet = new Set(state.tableCards.map((card) => card.id));
-      const discardSet = new Set(state.discardPile.map((card) => card.id));
+  const applyStateToScene = useCallback((state, selection, immediate = false) => {
+    const three = threeStateRef.current;
+    if (!three.scene) return;
 
-      const seatConfigs = three.seatConfigs;
-      const cardMap = three.cardMap;
+    const selectionSet = new Set(selection);
+    const handsVisible = new Set();
+    const tableSet = new Set(state.tableCards.map((card) => card.id));
+    const discardSet = new Set(state.discardPile.map((card) => card.id));
 
-      const humanTurn =
-        state.status === 'PLAYING' &&
-        state.players[state.activePlayer]?.isHuman;
-      humanTurnRef.current = humanTurn;
+    const seatConfigs = three.seatConfigs;
+    const cardMap = three.cardMap;
 
-      state.players.forEach((player, idx) => {
-        const seat = seatConfigs[idx];
-        if (!seat) return;
-        refreshRigHeldCards(
-          seat.characterRig,
-          player.hand ?? [],
-          PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
-          CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
-        );
-        const cards = player.hand;
-        const baseHeight =
-          TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : 0);
-        const forward = seat.forward;
-        const right = seat.right;
-        const radius = seat.radius;
-        const focus = seat.focus;
-        const spacing = seat.spacing;
-        const maxSpread = seat.maxSpread;
-        const spread =
-          cards.length > 1
-            ? Math.min((cards.length - 1) * spacing, maxSpread)
-            : 0;
-        cards.forEach((card, cardIdx) => {
-          const entry = cardMap.get(card.id);
-          if (!entry) return;
-          const mesh = entry.mesh;
-          const isHumanCard = player.isHuman;
-          mesh.visible = !isHumanCard;
-          updateCardFace(mesh, isHumanCard ? 'front' : 'back');
-          if (!isHumanCard) {
-            handsVisible.add(card.id);
-          }
-          const offset =
-            cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
-          const lateral =
-            cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
-          const target = forward
-            .clone()
-            .multiplyScalar(radius)
-            .addScaledVector(right, lateral);
-          target.y =
-            baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
-          if (isHumanCard && selectionSet.has(card.id))
-            target.y += HUMAN_SELECTION_OFFSET;
-          setMeshPosition(
-            mesh,
-            target,
-            focus,
-            { face: isHumanCard ? 'front' : 'back' },
-            immediate,
-            three.animations
-          );
-          mesh.userData.cardId = card.id;
-        });
-      });
+    const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
+    humanTurnRef.current = humanTurn;
 
-      const tableAnchor = three.tableAnchor.clone();
-      const tableCount = state.tableCards.length;
-      const tableSpacing =
-        tableCount > 1
-          ? Math.min(CARD_W * 1.24, (CARD_W * 4.8) / (tableCount - 1))
-          : CARD_W;
-      const tableStartX =
-        tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
-      const tableLookBase = tableAnchor
-        .clone()
-        .setY(tableAnchor.y + 0.28 * MODEL_SCALE);
-      state.tableCards.forEach((card, idx) => {
+    state.players.forEach((player, idx) => {
+      const seat = seatConfigs[idx];
+      if (!seat) return;
+      refreshRigHeldCards(
+        seat.characterRig,
+        player.hand ?? [],
+        PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
+        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
+      );
+      const cards = player.hand;
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : 0);
+      const forward = seat.forward;
+      const right = seat.right;
+      const radius = seat.radius;
+      const focus = seat.focus;
+      const spacing = seat.spacing;
+      const maxSpread = seat.maxSpread;
+      const spread = cards.length > 1 ? Math.min((cards.length - 1) * spacing, maxSpread) : 0;
+      cards.forEach((card, cardIdx) => {
         const entry = cardMap.get(card.id);
         if (!entry) return;
         const mesh = entry.mesh;
-        mesh.visible = true;
-        mesh.scale.setScalar(1.16);
-        updateCardFace(mesh, 'front');
-        const target = tableAnchor.clone();
-        target.x += tableStartX + idx * tableSpacing;
-        target.y += 0.075 * MODEL_SCALE;
-        target.z += 0;
-        setMeshPosition(
-          mesh,
-          target,
-          tableLookBase,
-          { face: 'front', flat: true },
-          immediate,
-          three.animations
-        );
-      });
-
-      const discardCount = state.discardPile.length;
-      const discardSpacing = CARD_W * 0.08;
-      const discardAnchor =
-        three.discardAnchor?.clone() ??
-        tableAnchor
-          .clone()
-          .add(
-            new THREE.Vector3(
-              DISCARD_PILE_OFFSET.x,
-              DISCARD_PILE_OFFSET.y,
-              DISCARD_PILE_OFFSET.z
-            )
-          );
-      state.discardPile.forEach((card, idx) => {
-        const entry = cardMap.get(card.id);
-        if (!entry) return;
-        const mesh = entry.mesh;
-        mesh.visible = true;
-        mesh.scale.setScalar(1);
-        updateCardFace(mesh, 'back');
-        const layer = idx;
-        const target = discardAnchor.clone();
-        target.x += layer * discardSpacing;
-        target.y += layer * 0.0015;
-        setMeshPosition(
-          mesh,
-          target,
-          tableLookBase,
-          { face: 'back', flat: true },
-          immediate,
-          three.animations
-        );
-      });
-
-      three.cardMap.forEach(({ mesh }, id) => {
-        if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id))
-          return;
-        mesh.scale.setScalar(1);
-        mesh.visible = false;
-        if (mesh.userData?.animation) {
-          mesh.userData.animation.cancelled = true;
-          mesh.userData.animation = null;
+        const isHumanCard = player.isHuman;
+        mesh.visible = !isHumanCard;
+        updateCardFace(mesh, isHumanCard ? 'front' : 'back');
+        if (!isHumanCard) {
+          handsVisible.add(card.id);
         }
+        const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
+        const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
+        const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
+        target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
+        if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
+        setMeshPosition(
+          mesh,
+          target,
+          focus,
+          { face: isHumanCard ? 'front' : 'back' },
+          immediate,
+          three.animations
+        );
+        mesh.userData.cardId = card.id;
       });
+    });
 
-      three.selectionTargets = [];
-      if (three.renderer?.domElement) {
-        three.renderer.domElement.style.cursor = humanTurn
-          ? 'pointer'
-          : 'default';
+    const tableAnchor = three.tableAnchor.clone();
+    const tableCount = state.tableCards.length;
+    const tableSpacing =
+      tableCount > 1 ? Math.min(CARD_W * 1.24, (CARD_W * 4.8) / (tableCount - 1)) : CARD_W;
+    const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
+    const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
+    state.tableCards.forEach((card, idx) => {
+      const entry = cardMap.get(card.id);
+      if (!entry) return;
+      const mesh = entry.mesh;
+      mesh.visible = true;
+      mesh.scale.setScalar(1.16);
+      updateCardFace(mesh, 'front');
+      const target = tableAnchor.clone();
+      target.x += tableStartX + idx * tableSpacing;
+      target.y += 0.075 * MODEL_SCALE;
+      target.z += 0;
+      setMeshPosition(
+        mesh,
+        target,
+        tableLookBase,
+        { face: 'front', flat: true },
+        immediate,
+        three.animations
+      );
+    });
+
+    const discardCount = state.discardPile.length;
+    const discardSpacing = CARD_W * 0.08;
+    const discardAnchor = three.discardAnchor?.clone() ??
+      tableAnchor.clone().add(
+        new THREE.Vector3(
+          DISCARD_PILE_OFFSET.x,
+          DISCARD_PILE_OFFSET.y,
+          DISCARD_PILE_OFFSET.z
+        )
+      );
+    state.discardPile.forEach((card, idx) => {
+      const entry = cardMap.get(card.id);
+      if (!entry) return;
+      const mesh = entry.mesh;
+      mesh.visible = true;
+      mesh.scale.setScalar(1);
+      updateCardFace(mesh, 'back');
+      const layer = idx;
+      const target = discardAnchor.clone();
+      target.x += layer * discardSpacing;
+      target.y += layer * 0.0015;
+      setMeshPosition(
+        mesh,
+        target,
+        tableLookBase,
+        { face: 'back', flat: true },
+        immediate,
+        three.animations
+      );
+    });
+
+    three.cardMap.forEach(({ mesh }, id) => {
+      if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
+      mesh.scale.setScalar(1);
+      mesh.visible = false;
+      if (mesh.userData?.animation) {
+        mesh.userData.animation.cancelled = true;
+        mesh.userData.animation = null;
       }
-    },
-    []
-  );
+    });
+
+    three.selectionTargets = [];
+    if (three.renderer?.domElement) {
+      three.renderer.domElement.style.cursor = humanTurn ? 'pointer' : 'default';
+    }
+  }, []);
 
   const rebuildTable = useCallback(
     async (tableTheme, tableFinish, tableCloth) => {
@@ -3774,12 +3200,8 @@ export default function MurlanRoyaleArena({ search }) {
       }
 
       const theme = tableTheme || TABLE_THEMES[0];
-      const finish =
-        tableFinish ||
-        MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] ||
-        null;
-      const cloth =
-        tableCloth || MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] || null;
+      const finish = tableFinish || MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] || null;
+      const cloth = tableCloth || MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] || null;
       let tableInfo = null;
 
       if (theme?.source === 'polyhaven' && theme?.assetId) {
@@ -3843,11 +3265,7 @@ export default function MurlanRoyaleArena({ search }) {
       three.tableThemeId = theme?.id || 'murlan-default';
       three.tableClothId = cloth?.id ?? null;
       three.tableFinishId = finish?.id ?? null;
-      three.tableAnchor = new THREE.Vector3(
-        0,
-        tableInfo.surfaceY + CARD_SURFACE_OFFSET,
-        0
-      );
+      three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
       three.discardAnchor = new THREE.Vector3(
         DISCARD_PILE_OFFSET.x,
         tableInfo.surfaceY + DISCARD_PILE_OFFSET.y,
@@ -3870,8 +3288,7 @@ export default function MurlanRoyaleArena({ search }) {
         textureCache: store.textureCache
       });
       const currentAppearance = normalizeAppearance(appearanceRef.current);
-      const expectedTheme =
-        STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+      const expectedTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       if (expectedTheme.id !== safe.id) return;
       if (store.chairMaterials) {
         const mats = new Set([
@@ -3887,8 +3304,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
       store.chairTemplate = chairBuild.chairTemplate;
       store.chairMaterials = chairBuild.materials;
-      store.chairThemePreserve =
-        chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(safe);
+      store.chairThemePreserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(safe);
       store.chairThemeId = safe.id;
       applyChairThemeMaterials(store, safe);
 
@@ -3943,9 +3359,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
 
       const currentAppearance = normalizeAppearance(appearanceRef.current);
-      const expectedTheme =
-        MURLAN_CHARACTER_THEMES[currentAppearance.characters] ??
-        MURLAN_CHARACTER_THEMES[0];
+      const expectedTheme = MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0];
       if (expectedTheme.id !== safe.id) return;
 
       store.characterThemeId = safe.id;
@@ -3969,8 +3383,7 @@ export default function MurlanRoyaleArena({ search }) {
     async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
       const three = threeStateRef.current;
       if (!three.renderer || !three.scene) return;
-      const activeVariant =
-        variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
       const resolution = resolvedHdriResolution || DEFAULT_HDRI_RESOLUTIONS[0];
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
@@ -3984,17 +3397,13 @@ export default function MurlanRoyaleArena({ search }) {
       const prevTexture = envTextureRef.current;
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.envMap;
-      if (
-        'backgroundIntensity' in three.scene &&
-        typeof activeVariant?.backgroundIntensity === 'number'
-      ) {
+      if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
         three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         three.scene.environmentIntensity = activeVariant.environmentIntensity;
       }
-      three.renderer.toneMappingExposure =
-        activeVariant?.exposure ?? three.renderer.toneMappingExposure;
+      three.renderer.toneMappingExposure = activeVariant?.exposure ?? three.renderer.toneMappingExposure;
       envTextureRef.current = envResult.envMap;
       disposeEnvironmentRef.current = () => {
         if (three.scene) {
@@ -4027,20 +3436,15 @@ export default function MurlanRoyaleArena({ search }) {
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
       const characterTheme = ENABLE_3D_HUMAN_CHARACTERS
-        ? (MURLAN_CHARACTER_THEMES[safe.characters] ??
-          MURLAN_CHARACTER_THEMES[0])
-        : null;
+      ? MURLAN_CHARACTER_THEMES[safe.characters] ?? MURLAN_CHARACTER_THEMES[0]
+      : null;
       const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
       const tableFinish = resolveTableFinish(safe.tableFinish);
       const tableFinishId =
-        tableFinish?.id ??
-        MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX]?.id ??
-        null;
+        tableFinish?.id ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX]?.id ?? null;
       const tableCloth = resolveTableCloth(safe.tableCloth);
       const tableClothId =
-        tableCloth?.id ??
-        MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX]?.id ??
-        null;
+        tableCloth?.id ?? MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX]?.id ?? null;
       const environmentVariant = resolveHdriVariant(safe.environmentHdri);
       hdriVariantRef.current = environmentVariant;
 
@@ -4050,8 +3454,7 @@ export default function MurlanRoyaleArena({ search }) {
         const tableChanged =
           three.tableThemeId !== tableTheme.id ||
           !three.tableInfo ||
-          (tableTheme?.source === 'procedural' &&
-            three.tableFinishId !== tableFinishId);
+          (tableTheme?.source === 'procedural' && three.tableFinishId !== tableFinishId);
         if (tableChanged) {
           await rebuildTable(tableTheme, tableFinish, tableCloth);
         } else if (
@@ -4059,11 +3462,7 @@ export default function MurlanRoyaleArena({ search }) {
           three.tableInfo?.materials &&
           three.tableClothId !== tableClothId
         ) {
-          applyTableMaterials(
-            three.tableInfo.materials,
-            { woodOption: tableFinish?.woodOption, clothOption: tableCloth },
-            three.renderer
-          );
+          applyTableMaterials(three.tableInfo.materials, { woodOption: tableFinish?.woodOption, clothOption: tableCloth }, three.renderer);
           three.tableClothId = tableClothId;
         }
 
@@ -4086,8 +3485,7 @@ export default function MurlanRoyaleArena({ search }) {
         }
         applyOutfitThemeMaterials(three, outfitTheme);
 
-        const shouldRefreshCards =
-          refreshCards || three.appearance?.cards !== safe.cards;
+        const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
         applyCardThemeMaterials(three, cardTheme, shouldRefreshCards);
         void applyHdriEnvironment(environmentVariant);
 
@@ -4116,12 +3514,7 @@ export default function MurlanRoyaleArena({ search }) {
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
             {thumb ? (
-              <img
-                src={thumb}
-                alt={option?.label || 'Table model'}
-                className="h-full w-full object-cover opacity-80"
-                loading="lazy"
-              />
+              <img src={thumb} alt={option?.label || 'Table model'} className="h-full w-full object-cover opacity-80" loading="lazy" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-100/80">
                 {option?.label || 'Table'}
@@ -4207,12 +3600,7 @@ export default function MurlanRoyaleArena({ search }) {
         return (
           <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
             {option.thumbnail ? (
-              <img
-                src={option.thumbnail}
-                alt={option.label}
-                className="h-full w-full object-cover opacity-90"
-                loading="lazy"
-              />
+              <img src={option.thumbnail} alt={option.label} className="h-full w-full object-cover opacity-90" loading="lazy" />
             ) : (
               <div className="h-full w-full bg-gradient-to-br from-slate-700 to-slate-900" />
             )}
@@ -4234,17 +3622,14 @@ export default function MurlanRoyaleArena({ search }) {
               />
             ) : (
               <>
-                <div
-                  className="h-6 w-12 rounded-md"
-                  style={{ background: option.seatColor }}
-                />
+                <div className="h-6 w-12 rounded-md" style={{ background: option.seatColor }} />
                 <div
                   className="absolute bottom-1 h-2 w-14 rounded-full opacity-80"
-                  style={{ background: option.legColor }}
-                />
-              </>
-            )}
-          </div>
+                style={{ background: option.legColor }}
+              />
+            </>
+          )}
+        </div>
         );
       case 'environmentHdri': {
         const [primary, secondary] = option.swatches?.length
@@ -4269,10 +3654,7 @@ export default function MurlanRoyaleArena({ search }) {
       default:
         return (
           <div className="relative flex h-14 w-full items-center justify-center">
-            <div
-              className="relative h-14 w-14 rounded-full"
-              style={{ background: option.baseColor }}
-            >
+            <div className="relative h-14 w-14 rounded-full" style={{ background: option.baseColor }}>
               <div
                 className="absolute inset-1 rounded-full border-2"
                 style={{ borderColor: option.accentColor }}
@@ -4310,45 +3692,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, [threeReady, updateSeatAnchors]);
 
   useEffect(() => {
-    if (!threeReady || gameState?.status !== 'PLAYING') return;
-    const store = threeStateRef.current;
-    if (!store?.controls || !store?.seatConfigs?.length) return;
-
-    const activeSeat = store.seatConfigs[gameState.activePlayer] ?? null;
-    const activeIsHuman = Boolean(
-      gameState.players?.[gameState.activePlayer]?.isHuman
-    );
-
-    if (!activeSeat || activeIsHuman) {
-      turnCameraTowardsTarget(cameraHomeTargetRef.current, { animate: true });
-      return;
-    }
-
-    const turnTarget =
-      activeSeat.focus?.clone() ?? activeSeat.stoolPosition?.clone();
-    if (!turnTarget) return;
-    turnTarget.y = Math.max(
-      turnTarget.y,
-      TABLE_HEIGHT + CARD_SURFACE_OFFSET * 1.2
-    );
-    turnCameraTowardsTarget(turnTarget, { animate: true });
-  }, [
-    gameState?.activePlayer,
-    gameState?.players,
-    gameState?.status,
-    threeReady,
-    turnCameraTowardsTarget
-  ]);
-
-  useEffect(() => {
-    return () => {
-      stopCameraTurnAnimation();
-    };
-  }, [stopCameraTurnAnimation]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof Audio === 'undefined')
-      return undefined;
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
     const card = new Audio('/assets/sounds/flipcard-91468.mp3');
     const turn = new Audio('/assets/sounds/wooden-door-knock-102902.mp3');
     card.preload = 'auto';
@@ -4368,8 +3712,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof Audio === 'undefined')
-      return undefined;
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
     const bomb = new Audio(bombSound);
     const haha = new Audio('/assets/sounds/Haha.mp3');
     bomb.preload = 'auto';
@@ -4417,8 +3760,7 @@ export default function MurlanRoyaleArena({ search }) {
         }
       }
     }
-    const activeChanged =
-      prev.initialized && prev.activePlayer !== gameState.activePlayer;
+    const activeChanged = prev.initialized && prev.activePlayer !== gameState.activePlayer;
     if (activeChanged && gameState.status === 'PLAYING') {
       if (muted) {
         audioStateRef.current = {
@@ -4450,11 +3792,7 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     if (!threeReady) return;
     const lastActionId = gameState?.lastActionId ?? 0;
-    if (
-      !lastActionId ||
-      characterActionRef.current.lastActionId === lastActionId
-    )
-      return;
+    if (!lastActionId || characterActionRef.current.lastActionId === lastActionId) return;
     characterActionRef.current.lastActionId = lastActionId;
 
     const action = gameState?.lastAction;
@@ -4469,10 +3807,7 @@ export default function MurlanRoyaleArena({ search }) {
     appearanceRef.current = appearance;
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage?.setItem(
-          APPEARANCE_STORAGE_KEY,
-          JSON.stringify(appearance)
-        );
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
       } catch (error) {
         console.warn('Failed to persist appearance', error);
       }
@@ -4522,11 +3857,7 @@ export default function MurlanRoyaleArena({ search }) {
     let lastRenderTime = performance.now();
 
     const setup = async () => {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false,
-        powerPreference: 'high-performance'
-      });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
@@ -4574,14 +3905,7 @@ export default function MurlanRoyaleArena({ search }) {
       rim.position.set(0, 6, -6);
       scene.add(rim);
 
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        0.8,
-        0,
-        Math.PI / 4,
-        0.35,
-        1.1
-      );
+      const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
       spot.position.set(0, 4.2, 4.6);
       scene.add(spot);
       const spotTarget = new THREE.Object3D();
@@ -4593,31 +3917,22 @@ export default function MurlanRoyaleArena({ search }) {
       scene.add(arenaGroup);
 
       const currentAppearance = normalizeAppearance(appearanceRef.current);
-      const stoolTheme =
-        STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+      const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const characterTheme = ENABLE_3D_HUMAN_CHARACTERS
-        ? (MURLAN_CHARACTER_THEMES[currentAppearance.characters] ??
-          MURLAN_CHARACTER_THEMES[0])
-        : null;
+      ? MURLAN_CHARACTER_THEMES[currentAppearance.characters] ?? MURLAN_CHARACTER_THEMES[0]
+      : null;
       const cardTheme = CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0];
-      const tableTheme =
-        TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
+      const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const tableFinish = resolveTableFinish(currentAppearance.tableFinish);
       const tableCloth = resolveTableCloth(currentAppearance.tableCloth);
-      const outfitTheme =
-        OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
-      const environmentVariant = resolveHdriVariant(
-        currentAppearance.environmentHdri
-      );
+      const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
+      const environmentVariant = resolveHdriVariant(currentAppearance.environmentHdri);
       hdriVariantRef.current = environmentVariant;
 
       const arenaScale = 1.3 * ARENA_GROWTH;
       const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
       const camConfig = buildArenaCameraConfig(boardSize);
-      const interiorWidth = Math.max(
-        TABLE_RADIUS * ARENA_GROWTH * 3.4,
-        CHAIR_RADIUS * 2 + 4 * MODEL_SCALE
-      );
+      const interiorWidth = Math.max(TABLE_RADIUS * ARENA_GROWTH * 3.4, CHAIR_RADIUS * 2 + 4 * MODEL_SCALE);
       const interiorDepth = interiorWidth;
       const innerHalfWidth = interiorWidth / 2;
       const innerHalfDepth = interiorDepth / 2;
@@ -4641,25 +3956,14 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(
-          innerHalfWidth * 0.9,
-          4.4 * MODEL_SCALE
-        );
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.9, 4.4 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.42;
-        const scoreboardGeometry = new THREE.PlaneGeometry(
-          scoreboardWidth,
-          scoreboardHeight
-        );
-        const scoreboardMesh = new THREE.Mesh(
-          scoreboardGeometry,
-          scoreboardMaterial
-        );
+        const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
+        const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
         const scoreboardY = TABLE_HEIGHT + 1.45 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
-        scoreboardMesh.lookAt(
-          new THREE.Vector3(0, scoreboardMesh.position.y, 0)
-        );
+        scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
         scoreboardMesh.renderOrder = 2;
         scoreboardMesh.visible = false;
         arenaGroup.add(scoreboardMesh);
@@ -4711,12 +4015,9 @@ export default function MurlanRoyaleArena({ search }) {
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
 
-        const angle =
-          CUSTOM_SEAT_ANGLES[i] ??
-          Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
+        const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
-        const seatRadius =
-          chairRadius - (isHumanSeat ? 0.55 * MODEL_SCALE : 0.24 * MODEL_SCALE);
+        const seatRadius = chairRadius - (isHumanSeat ? 0.55 * MODEL_SCALE : 0.24 * MODEL_SCALE);
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT;
@@ -4728,13 +4029,9 @@ export default function MurlanRoyaleArena({ search }) {
         const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
         const focus = forward
           .clone()
-          .multiplyScalar(
-            seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE)
-          );
+          .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
-        const stoolPosition = forward
-          .clone()
-          .multiplyScalar(seatRadius - 0.08 * MODEL_SCALE);
+        const stoolPosition = forward.clone().multiplyScalar(seatRadius - 0.08 * MODEL_SCALE);
         stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
         const stoolHeight = STOOL_HEIGHT;
         seatConfigs.push({
@@ -4749,18 +4046,15 @@ export default function MurlanRoyaleArena({ search }) {
           stoolPosition,
           stoolHeight
         });
+
       }
 
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
-      const humanSeatConfig =
-        humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
+      const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
       if (ENABLE_3D_HUMAN_CHARACTERS && characterTheme) {
         try {
-          const characterTemplate = await loadCharacterModel(
-            characterTheme,
-            renderer
-          );
+          const characterTemplate = await loadCharacterModel(characterTheme, renderer);
           for (let i = 0; i < seatConfigs.length; i++) {
             const seatConfig = seatConfigs[i];
             const player = players[i] ?? null;
@@ -4781,8 +4075,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       threeStateRef.current.outfitParts = [];
       threeStateRef.current.appearance = { ...currentAppearance };
-      threeStateRef.current.characterThemeId =
-        ENABLE_3D_HUMAN_CHARACTERS && characterTheme ? characterTheme.id : null;
+      threeStateRef.current.characterThemeId = ENABLE_3D_HUMAN_CHARACTERS && characterTheme ? characterTheme.id : null;
 
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
       spot.target.updateMatrixWorld();
@@ -4798,54 +4091,34 @@ export default function MurlanRoyaleArena({ search }) {
       let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
       let initialCameraPosition;
       if (humanSeatConfig) {
-        const humanSeatAngle = Math.atan2(
-          humanSeatConfig.forward.z,
-          humanSeatConfig.forward.x
-        );
-        const stoolAnchor =
-          humanSeatConfig.stoolPosition?.clone() ??
+        const humanSeatAngle = Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x);
+        const stoolAnchor = humanSeatConfig.stoolPosition?.clone() ??
           new THREE.Vector3(
             Math.cos(humanSeatAngle) * chairRadius,
             TABLE_HEIGHT,
             Math.sin(humanSeatAngle) * chairRadius
           );
-        const stoolHeight =
-          humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
+        const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
         const retreatOffset = isPortrait ? 1.95 : 1.45;
         const elevation = isPortrait ? 1.95 : 1.58;
-        initialCameraPosition = stoolAnchor.addScaledVector(
-          humanSeatConfig.forward,
-          -retreatOffset
-        );
+        initialCameraPosition = stoolAnchor.addScaledVector(humanSeatConfig.forward, -retreatOffset);
         initialCameraPosition.y = stoolHeight + elevation;
-        target = new THREE.Vector3(
-          0,
-          TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE,
-          0
-        );
+        target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
       } else {
         const humanSeatAngle = Math.PI / 2;
         const cameraBackOffset = isPortrait ? 1.65 : 1.05;
         const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
         const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
         initialCameraPosition = new THREE.Vector3(
-          Math.cos(humanSeatAngle) *
-            (chairRadius + cameraBackOffset - cameraForwardOffset),
+          Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
           TABLE_HEIGHT + cameraHeightOffset,
-          Math.sin(humanSeatAngle) *
-            (chairRadius + cameraBackOffset - cameraForwardOffset)
+          Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
         );
       }
       const initialOffset = initialCameraPosition.clone().sub(target);
       const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-      const safeHorizontalReach = Math.max(
-        2.6 * MODEL_SCALE,
-        cameraBoundRadius
-      );
-      const maxOrbitRadius = Math.max(
-        3.6 * MODEL_SCALE,
-        safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax)
-      );
+      const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
+      const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
       const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1);
       spherical.radius = desiredRadius;
@@ -4854,17 +4127,15 @@ export default function MurlanRoyaleArena({ search }) {
         ARENA_CAMERA_DEFAULTS.phiMin,
         ARENA_CAMERA_DEFAULTS.phiMax
       );
-      const nextPosition = new THREE.Vector3()
-        .setFromSpherical(spherical)
-        .add(target);
+      const nextPosition = new THREE.Vector3().setFromSpherical(spherical).add(target);
       camera.position.copy(nextPosition);
       camera.lookAt(target);
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.enablePan = false;
+      controls.enablePan = true;
       controls.enableZoom = false;
-      controls.enableRotate = false;
+      controls.enableRotate = true;
       controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       controls.minAzimuthAngle = -Infinity;
@@ -4874,7 +4145,6 @@ export default function MurlanRoyaleArena({ search }) {
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
       controls.update();
-      cameraHomeTargetRef.current.copy(target);
       controls.addEventListener('change', updateSeatAnchors);
 
       const resize = () => {
@@ -4916,8 +4186,7 @@ export default function MurlanRoyaleArena({ search }) {
         const frameTiming = frameTimingRef.current;
         const targetFrameTime = frameTiming?.targetMs ?? 1000 / 60;
         const maxFrameTime =
-          frameTiming?.maxMs ??
-          targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+          frameTiming?.maxMs ?? targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
         const delta = time - lastRenderTime;
         if (delta >= targetFrameTime - 0.5) {
           const appliedDelta = Math.min(delta, maxFrameTime);
@@ -4953,10 +4222,7 @@ export default function MurlanRoyaleArena({ search }) {
           -((event.clientY - rect.top) / rect.height) * 2 + 1
         );
         threeStateRef.current.raycaster.setFromCamera(pointer, camera);
-        const intersects = threeStateRef.current.raycaster.intersectObjects(
-          threeStateRef.current.selectionTargets,
-          false
-        );
+        const intersects = threeStateRef.current.raycaster.intersectObjects(threeStateRef.current.selectionTargets, false);
         if (!intersects.length) return;
         const picked = intersects[0].object;
         const cardId = picked.userData.cardId || picked.parent?.userData.cardId;
@@ -4965,9 +4231,7 @@ export default function MurlanRoyaleArena({ search }) {
       dom.addEventListener('pointerdown', handlePointerDown);
     };
 
-    setup().catch((error) =>
-      console.error('Failed to set up Murlan Royale arena', error)
-    );
+    setup().catch((error) => console.error('Failed to set up Murlan Royale arena', error));
 
     return () => {
       disposed = true;
@@ -4989,12 +4253,9 @@ export default function MurlanRoyaleArena({ search }) {
       renderer?.dispose?.();
       cardGeometry?.dispose?.();
       store.cardMap.forEach(({ mesh }) => {
-        const list = Array.isArray(mesh.material)
-          ? mesh.material
-          : [mesh.material];
+        const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
-        const { frontMaterial, backMaterial, hiddenMaterial } =
-          mesh.userData ?? {};
+        const { frontMaterial, backMaterial, hiddenMaterial } = mesh.userData ?? {};
         [frontMaterial, backMaterial, hiddenMaterial].forEach((mat) => {
           if (mat) mats.add(mat);
         });
@@ -5076,9 +4337,7 @@ export default function MurlanRoyaleArena({ search }) {
         store.textureCache.forEach((promise) => {
           Promise.resolve(promise).then((set) => {
             if (set) {
-              [set.diffuse, set.normal, set.roughness].forEach((tex) =>
-                tex?.dispose?.()
-              );
+              [set.diffuse, set.normal, set.roughness].forEach((tex) => tex?.dispose?.());
             }
           });
         });
@@ -5102,11 +4361,7 @@ export default function MurlanRoyaleArena({ search }) {
         selectionTargets: [],
         animations: [],
         raycaster: new THREE.Raycaster(),
-        tableAnchor: new THREE.Vector3(
-          0,
-          TABLE_HEIGHT + CARD_SURFACE_OFFSET,
-          0
-        ),
+        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
         discardAnchor: new THREE.Vector3(
           DISCARD_PILE_OFFSET.x,
           TABLE_HEIGHT + DISCARD_PILE_OFFSET.y,
@@ -5133,16 +4388,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [
-    applyRendererQuality,
-    applyStateToScene,
-    ensureCardMeshes,
-    players,
-    rebuildTable,
-    toggleSelection,
-    updateScoreboardDisplay,
-    updateSeatAnchors
-  ]);
+  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, rebuildTable, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -5166,10 +4412,7 @@ export default function MurlanRoyaleArena({ search }) {
     if (state.status !== 'PLAYING') return;
     const active = state.players[state.activePlayer];
     if (!active || !active.isHuman) return;
-    const selectedCards = extractSelectedCards(
-      active.hand,
-      selectedRef.current
-    );
+    const selectedCards = extractSelectedCards(active.hand, selectedRef.current);
     if (!selectedCards.length) {
       setActionError('Select at least one card.');
       return;
@@ -5214,8 +4457,7 @@ export default function MurlanRoyaleArena({ search }) {
     setActionError('');
   }, []);
 
-  const humanPlayer =
-    gameState.players.find((player) => player.isHuman) ?? null;
+  const humanPlayer = gameState.players.find((player) => player.isHuman) ?? null;
   const humanHand = humanPlayer?.hand ?? [];
 
   return (
@@ -5230,9 +4472,7 @@ export default function MurlanRoyaleArena({ search }) {
                 <li key={entry.id}>
                   {entry.name}
                   {entry.isActive ? ' (turn)' : ''}
-                  {entry.finished
-                    ? ' - finished the game'
-                    : ` - ${entry.cardsLeft} cards`}
+                  {entry.finished ? ' - finished the game' : ` - ${entry.cardsLeft} cards`}
                 </li>
               ))}
             </ul>
@@ -5242,8 +4482,7 @@ export default function MurlanRoyaleArena({ search }) {
           {players.map((player, idx) => {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
-            const fallback =
-              FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
+            const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const positionStyle = anchor
               ? {
                   position: 'absolute',
@@ -5251,15 +4490,8 @@ export default function MurlanRoyaleArena({ search }) {
                   top: `${anchor.y}%`,
                   transform: 'translate(-50%, -50%)'
                 }
-              : {
-                  position: 'absolute',
-                  left: fallback.left,
-                  top: fallback.top,
-                  transform: 'translate(-50%, -50%)'
-                };
-            const avatarSize = anchor
-              ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25)
-              : 1;
+              : { position: 'absolute', left: fallback.left, top: fallback.top, transform: 'translate(-50%, -50%)' };
+            const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
             const handCount = activePlayer?.hand?.length ?? 0;
@@ -5305,11 +4537,7 @@ export default function MurlanRoyaleArena({ search }) {
                 className="h-6 w-6"
                 aria-hidden="true"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -5322,9 +4550,7 @@ export default function MurlanRoyaleArena({ search }) {
               <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
-                      Table Setup
-                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
                     <p className="mt-1 text-[0.7rem] text-white/70">
                       Personalize the Murlan Royale table, chairs, and cards.
                     </p>
@@ -5343,30 +4569,20 @@ export default function MurlanRoyaleArena({ search }) {
                       strokeWidth="1.8"
                       className="h-4 w-4"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="m6 6 12 12M18 6 6 18"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
                     </svg>
                   </button>
                 </div>
                 <div className="mt-4 space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                        Personalize Arena
-                      </p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">
-                        Table surface, chairs, and cards.
-                      </p>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table surface, chairs, and cards.</p>
                     </div>
                     <div className="mt-3 space-y-4">
                       {customizationSections.map(({ key, label, options }) => (
                         <div key={key} className="space-y-2">
-                          <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">
-                            {label}
-                          </p>
+                          <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                           <div className="grid grid-cols-2 gap-2">
                             {options.map((option, idx) => {
                               const selected = appearance[key] === idx;
@@ -5374,12 +4590,7 @@ export default function MurlanRoyaleArena({ search }) {
                                 <button
                                   key={option.id}
                                   type="button"
-                                  onClick={() =>
-                                    setAppearance((prev) => ({
-                                      ...prev,
-                                      [key]: idx
-                                    }))
-                                  }
+                                  onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
                                   aria-pressed={selected}
                                   className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                     selected
@@ -5388,9 +4599,7 @@ export default function MurlanRoyaleArena({ search }) {
                                   }`}
                                 >
                                   {renderPreview(key, option)}
-                                  <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                                    {option.label}
-                                  </span>
+                                  <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
                                 </button>
                               );
                             })}
@@ -5400,9 +4609,7 @@ export default function MurlanRoyaleArena({ search }) {
                     </div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                      Graphics
-                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                     <div className="grid gap-2">
                       {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
@@ -5419,13 +4626,9 @@ export default function MurlanRoyaleArena({ search }) {
                             }`}
                           >
                             <span className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
-                                {option.label}
-                              </span>
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
                               <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                                {option.resolution
-                                  ? `${option.resolution} • ${option.fps} FPS`
-                                  : `${option.fps} FPS`}
+                                {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
                               </span>
                             </span>
                             {option.description ? (
@@ -5439,9 +4642,7 @@ export default function MurlanRoyaleArena({ search }) {
                     </div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                      Commentary
-                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
                     <div className="grid gap-2">
                       {MURLAN_ROYALE_COMMENTARY_PRESETS.map((preset) => {
                         const active = preset.id === commentaryPresetId;
@@ -5449,9 +4650,7 @@ export default function MurlanRoyaleArena({ search }) {
                           <button
                             key={preset.id}
                             type="button"
-                            onClick={() =>
-                              handleSelectCommentaryPreset(preset.id)
-                            }
+                            onClick={() => handleSelectCommentaryPreset(preset.id)}
                             aria-pressed={active}
                             disabled={!commentarySupported}
                             className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
@@ -5461,9 +4660,7 @@ export default function MurlanRoyaleArena({ search }) {
                             } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
                           >
                             <span className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
-                                {preset.label}
-                              </span>
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
                               {active && (
                                 <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
                                   Active
@@ -5514,26 +4711,21 @@ export default function MurlanRoyaleArena({ search }) {
           <BottomLeftIcons
             className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['info', 'mute', 'chat', 'gift']}
+            order={['info', 'mute', 'chat', 'gift', 'camera2d']}
+            showCamera2d
+            camera2dActive={isCamera2d}
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            onCamera2d={handleToggleCamera2d}
           />
         </div>
         <div className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
-          <p className="text-sm font-semibold tracking-wide text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
-            {uiState.message}
-          </p>
+          <p className="text-sm font-semibold tracking-wide text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
           {uiState.tableSummary && (
-            <p className="mt-1 text-xs italic tracking-wide text-sky-100/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
-              {uiState.tableSummary}
-            </p>
+            <p className="mt-1 text-xs italic tracking-wide text-sky-100/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
           )}
-          {actionError && (
-            <p className="mt-1 text-xs font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
-              {actionError}
-            </p>
-          )}
+          {actionError && <p className="mt-1 text-xs font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
         </div>
         <div className="mt-auto px-3 pb-5 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
@@ -5552,30 +4744,19 @@ export default function MurlanRoyaleArena({ search }) {
                           ? '-translate-y-3 border-sky-300 ring-2 ring-sky-300/70'
                           : 'border-slate-300 hover:-translate-y-1'
                       }`}
-                      style={{
-                        marginLeft: index === 0 ? 0 : -40,
-                        zIndex: 10 + index
-                      }}
+                      style={{ marginLeft: index === 0 ? 0 : -40, zIndex: 10 + index }}
                       disabled={!uiState.humanTurn}
                     >
-                      <span
-                        className={`absolute left-1.5 top-1.5 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}
-                      >
+                      <span className={`absolute left-1.5 top-1.5 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.rank}
                       </span>
-                      <span
-                        className={`absolute left-2 top-5 text-sm leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}
-                      >
+                      <span className={`absolute left-2 top-5 text-sm leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.suit}
                       </span>
-                      <span
-                        className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-2xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}
-                      >
+                      <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-2xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.suit}
                       </span>
-                      <span
-                        className={`absolute bottom-1.5 right-1.5 rotate-180 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}
-                      >
+                      <span className={`absolute bottom-1.5 right-1.5 rotate-180 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.rank}
                       </span>
                     </button>
@@ -5615,11 +4796,7 @@ export default function MurlanRoyaleArena({ search }) {
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
           <span>{bubble.text}</span>
-          <img
-            src={bubble.photoUrl}
-            alt="avatar"
-            className="w-5 h-5 rounded-full"
-          />
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
       ))}
       <div className="pointer-events-auto">
@@ -5628,21 +4805,15 @@ export default function MurlanRoyaleArena({ search }) {
           onClose={() => setShowChat(false)}
           onSend={(text) => {
             const id = Date.now();
-            setChatBubbles((bubbles) => [
-              ...bubbles,
-              { id, text, photoUrl: humanAvatarUrl }
-            ]);
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: humanAvatarUrl }]);
             if (!muted) {
               const audio = new Audio(chatBeep);
               audio.volume = getGameVolume();
               audio.play().catch(() => {});
             }
             setTimeout(
-              () =>
-                setChatBubbles((bubbles) =>
-                  bubbles.filter((bubble) => bubble.id !== id)
-                ),
-              3000
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000,
             );
           }}
         />
@@ -5654,9 +4825,7 @@ export default function MurlanRoyaleArena({ search }) {
           players={giftPlayers}
           senderIndex={humanPlayerIndex}
           onGiftSent={({ from, to, gift }) => {
-            const start = document.querySelector(
-              `[data-player-index="${from}"]`
-            );
+            const start = document.querySelector(`[data-player-index="${from}"]`);
             const end = document.querySelector(`[data-player-index="${to}"]`);
             if (start && end) {
               const s = start.getBoundingClientRect();
@@ -5664,10 +4833,7 @@ export default function MurlanRoyaleArena({ search }) {
               const cx = window.innerWidth / 2;
               const cy = window.innerHeight / 2;
               let icon;
-              if (
-                typeof gift.icon === 'string' &&
-                gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
-              ) {
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
                 icon = document.createElement('img');
                 icon.src = gift.icon;
                 icon.className = 'w-5 h-5';
@@ -5740,18 +4906,11 @@ export default function MurlanRoyaleArena({ search }) {
               }
               const animation = icon.animate(
                 [
-                  {
-                    transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
-                  },
-                  {
-                    transform: `translate(${cx}px, ${cy}px) scale(3)`,
-                    offset: 0.5
-                  },
-                  {
-                    transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
-                  }
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
                 ],
-                { duration: 3500, easing: 'linear' }
+                { duration: 3500, easing: 'linear' },
               );
               animation.onfinish = () => icon.remove();
             }
@@ -5795,8 +4954,7 @@ function runAiTurn(state) {
 
 function buildPlayState(state, cards, combo) {
   const players = state.players.map((player, idx) => {
-    if (idx !== state.activePlayer)
-      return { ...player, hand: [...player.hand] };
+    if (idx !== state.activePlayer) return { ...player, hand: [...player.hand] };
     const remaining = player.hand.filter((card) => !cards.includes(card));
     return { ...player, hand: remaining, finished: remaining.length === 0 };
   });
@@ -5863,17 +5021,13 @@ function buildPassState(state) {
   let tableCleared = false;
 
   if (tableCombo && passesInRow >= aliveCount - 1) {
-    discardPile = tableCards.length
-      ? [...discardPile, ...tableCards]
-      : discardPile;
+    discardPile = tableCards.length ? [...discardPile, ...tableCards] : discardPile;
     tableCombo = null;
     tableCards = [];
     passesInRow = 0;
     tableCleared = true;
     const winner = state.lastWinner ?? state.activePlayer;
-    activePlayer = players[winner]?.finished
-      ? getNextAlive(players, winner)
-      : winner;
+    activePlayer = players[winner]?.finished ? getNextAlive(players, winner) : winner;
   }
 
   return {
@@ -5908,9 +5062,7 @@ function initializeGame(playersInfo) {
     finished: false
   }));
   const startIdx = playerStates.findIndex((player) =>
-    player.hand.some(
-      (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
-    )
+    player.hand.some((card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit)
   );
   const active = startIdx === -1 ? 0 : startIdx;
   return {
@@ -5930,21 +5082,7 @@ function initializeGame(playersInfo) {
 }
 
 function createDeck() {
-  const ranks = [
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '10',
-    'J',
-    'Q',
-    'K',
-    'A',
-    '2'
-  ];
+  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   const deck = [];
   let id = 0;
   for (const suit of SUITS) {
@@ -6002,13 +5140,8 @@ function computeUiState(state) {
   let humanTurn = false;
 
   if (state.status === 'ENDED') {
-    const winners = scoreboard
-      .filter((entry) => entry.finished)
-      .map((entry) => entry.name);
-    message =
-      winners.length === 1
-        ? `${winners[0]} emerged victorious!`
-        : `Winners: ${winners.join(', ')}`;
+    const winners = scoreboard.filter((entry) => entry.finished).map((entry) => entry.name);
+    message = winners.length === 1 ? `${winners[0]} emerged victorious!` : `Winners: ${winners.join(', ')}`;
   } else {
     const active = state.players[state.activePlayer];
     if (active) {
@@ -6028,8 +5161,7 @@ function computeUiState(state) {
   if (state.tableCards.length) {
     const description = describeCombo(state.tableCombo, state.tableCards);
     if (description) {
-      const owner =
-        state.lastWinner != null ? state.players[state.lastWinner]?.name : null;
+      const owner = state.lastWinner != null ? state.players[state.lastWinner]?.name : null;
       tableSummary = owner ? `${owner} played ${description}` : description;
     }
   }
@@ -6086,20 +5218,11 @@ function buildPlayers(search) {
     : [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
   const basePlayers = [
     { name: username, avatar, isHuman: true },
-    seedFlags[0]
-      ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] }
-      : { name: 'Aria', avatar: '🦊' },
-    seedFlags[1]
-      ? { name: flagName(seedFlags[1]), avatar: seedFlags[1] }
-      : { name: 'Milo', avatar: '🐻' },
-    seedFlags[2]
-      ? { name: flagName(seedFlags[2]), avatar: seedFlags[2] }
-      : { name: 'Sora', avatar: '🐱' }
+    seedFlags[0] ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] } : { name: 'Aria', avatar: '🦊' },
+    seedFlags[1] ? { name: flagName(seedFlags[1]), avatar: seedFlags[1] } : { name: 'Milo', avatar: '🐻' },
+    seedFlags[2] ? { name: flagName(seedFlags[2]), avatar: seedFlags[2] } : { name: 'Sora', avatar: '🐱' }
   ];
-  return basePlayers.map((player, index) => ({
-    ...player,
-    color: PLAYER_COLORS[index % PLAYER_COLORS.length]
-  }));
+  return basePlayers.map((player, index) => ({ ...player, color: PLAYER_COLORS[index % PLAYER_COLORS.length] }));
 }
 
 function flagName(flag) {
@@ -6136,25 +5259,16 @@ function getCommentaryFallbackLabel(kind, languageKey) {
 
 function resolveLocalizedPlayerName(player, index, languageKey) {
   if (!player) {
-    const fallback =
-      getCommentaryFallbackLabel('player', languageKey) || 'Player';
+    const fallback = getCommentaryFallbackLabel('player', languageKey) || 'Player';
     return `${fallback} ${index + 1}`.trim();
   }
-  if (player.isHuman)
-    return (
-      player.name ||
-      `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim()
-    );
+  if (player.isHuman) return player.name || `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim();
   if (player.avatar) {
     const localizedFlag = flagNameForLocale(player.avatar, languageKey);
     if (localizedFlag) return localizedFlag;
   }
   const translated = AI_NAME_TRANSLATIONS[languageKey]?.[player.name];
-  return (
-    translated ||
-    player.name ||
-    `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim()
-  );
+  return translated || player.name || `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim();
 }
 
 function localizedCardLabel(card, languageKey) {
@@ -6184,8 +5298,7 @@ function localizedCardLabel(card, languageKey) {
 
 function describeCommentaryCombo(combo, cards, languageKey) {
   if (!cards?.length) return '';
-  const labels =
-    COMMENTARY_COMBO_LABELS[languageKey] || COMMENTARY_COMBO_LABELS.en;
+  const labels = COMMENTARY_COMBO_LABELS[languageKey] || COMMENTARY_COMBO_LABELS.en;
   const cardNames = cards.map((card) => localizedCardLabel(card, languageKey));
   if (!combo) {
     return cardNames.join(' ');
@@ -6223,14 +5336,7 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function setMeshPosition(
-  mesh,
-  target,
-  lookTarget,
-  orientation,
-  immediate,
-  animations
-) {
+function setMeshPosition(mesh, target, lookTarget, orientation, immediate, animations) {
   if (!mesh) return;
   const orientTarget = lookTarget.clone();
   const orientOptions =
@@ -6290,8 +5396,7 @@ function orientMesh(mesh, lookTarget, options = {}) {
 
 function updateCardFace(mesh, mode) {
   if (!mesh?.material) return;
-  const { frontMaterial, backMaterial, hiddenMaterial, cardFace } =
-    mesh.userData ?? {};
+  const { frontMaterial, backMaterial, hiddenMaterial, cardFace } = mesh.userData ?? {};
   if (!frontMaterial || !backMaterial) return;
   if (mode === cardFace) return;
   if (mode === 'back') {
@@ -6323,18 +5428,12 @@ function createCardMesh(card, geometry, cache, theme) {
     faceTexture = makeCardFace(card.rank, card.suit, theme);
     cache.set(faceKey, faceTexture);
   }
-  const edgeMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(theme.edgeColor),
-    roughness: 0.55,
-    metalness: 0.1
-  });
+  const edgeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.edgeColor), roughness: 0.55, metalness: 0.1 });
   const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
   const frontMat = new THREE.MeshStandardMaterial({
     map: faceTexture,
-    roughness: 0.24,
-    metalness: 0.04,
-    emissive: new THREE.Color('#1f2937'),
-    emissiveIntensity: 0.07,
+    roughness: 0.35,
+    metalness: 0.08,
     color: new THREE.Color('#ffffff')
   });
   const backTexture = makeCardBackTexture(theme);
@@ -6368,19 +5467,13 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   const g = canvas.getContext('2d');
   g.fillStyle = theme.frontBackground || '#ffffff';
   g.fillRect(0, 0, w, h);
-  g.strokeStyle = theme.frontBorder || '#cbd5e1';
-  g.lineWidth = 10;
+  g.strokeStyle = theme.frontBorder || '#e5e7eb';
+  g.lineWidth = 8;
   roundRect(g, 6, 6, w - 12, h - 12, 32);
   g.stroke();
-  g.strokeStyle = 'rgba(15, 23, 42, 0.32)';
-  g.lineWidth = 3;
-  roundRect(g, 14, 14, w - 28, h - 28, 26);
-  g.stroke();
   const color = SUIT_COLORS[suit] || '#111111';
-  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   g.fillStyle = color;
-  g.shadowColor = 'rgba(2, 6, 23, 0.28)';
-  g.shadowBlur = 4;
+  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   const padding = 36;
   const topRankY = 96;
   const topSuitY = topRankY + 76;
@@ -6415,13 +5508,9 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   g.font = 'bold 160px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'center';
   g.fillText(suit, w / 2, h / 2 + 56);
-  g.shadowBlur = 0;
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
-  tex.generateMipmaps = true;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.anisotropy = 12;
+  tex.anisotropy = 8;
   return tex;
 }
 
@@ -6451,18 +5540,14 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   }
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 12;
+  texture.anisotropy = 8;
   return texture;
 }
 
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  const preserve =
-    three?.chairThemePreserve ?? shouldPreserveChairMaterials(theme);
+  const preserve = three?.chairThemePreserve ?? shouldPreserveChairMaterials(theme);
   if (preserve) return;
   const seatColor = theme?.seatColor || '#7c3aed';
   const legColor = theme?.legColor || '#111827';
@@ -6520,8 +5605,7 @@ function applyCardThemeMaterials(three, theme, force = false) {
   three.faceTextureCache.forEach((tex) => tex.dispose());
   three.faceTextureCache.clear();
   three.cardMap.forEach(({ mesh }) => {
-    const { frontMaterial, backMaterial, hiddenMaterial, edgeMaterials, card } =
-      mesh.userData ?? {};
+    const { frontMaterial, backMaterial, hiddenMaterial, edgeMaterials, card } = mesh.userData ?? {};
     if (!frontMaterial || !backMaterial || !edgeMaterials || !card) return;
     const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
     let faceTexture = three.faceTextureCache.get(faceKey);
