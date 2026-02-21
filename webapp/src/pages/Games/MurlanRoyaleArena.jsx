@@ -1928,7 +1928,7 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_INWARD_OFFSET = 1.0 * MODEL_SCALE;
 const HUMAN_SEAT_INWARD_BIAS = 0.44 * MODEL_SCALE;
 const AI_SEAT_INWARD_BIAS = 0.3 * MODEL_SCALE;
-const SIDE_SEAT_EXTRA_INWARD = 0.1 * MODEL_SCALE;
+const SIDE_SEAT_EXTRA_INWARD = 0.3 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(7);
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -1945,9 +1945,8 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2600;
 const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
 const CAMERA_TURN_DURATION_MS = 360;
-const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(1.2);
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
-const CAMERA_HEAD_TURN_FOLLOW_FACTOR = 0.66;
+const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
+const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2928,35 +2927,24 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, []);
 
-  const turnCameraTowardYaw = useCallback(
-    (targetYaw = 0, options = {}) => {
+  const turnCameraTowardTarget = useCallback(
+    (targetPoint = null, options = {}) => {
       const three = threeStateRef.current;
-      const { controls } = three;
+      const { controls, camera } = three;
       const basis = cameraLookBasisRef.current;
-      if (!controls || !basis?.position || !basis?.direction) return;
+      if (!controls || !camera || !basis?.targetDistance) return;
 
-      const safeYaw = THREE.MathUtils.clamp(targetYaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-      const currentVector = controls.target.clone().sub(basis.position);
-      if (currentVector.lengthSq() <= 1e-6) return;
-      const currentDir = currentVector.normalize();
+      const fallbackTarget = cameraDefaultTargetRef.current;
+      const desiredPoint = targetPoint?.clone?.() ?? fallbackTarget.clone();
+      const aimDirection = desiredPoint.sub(camera.position);
+      if (aimDirection.lengthSq() <= 1e-6) return;
+      aimDirection.normalize();
+      const desiredTarget = camera.position.clone().addScaledVector(aimDirection, basis.targetDistance);
+      const snapDistance = controls.target.distanceTo(desiredTarget);
 
-      const currentFlat = currentDir.clone().setY(0);
-      const baseFlat = basis.direction.clone().setY(0);
-      let currentYaw = 0;
-      if (currentFlat.lengthSq() > 1e-6 && baseFlat.lengthSq() > 1e-6) {
-        currentFlat.normalize();
-        baseFlat.normalize();
-        currentYaw = Math.atan2(
-          baseFlat.clone().cross(currentFlat).dot(new THREE.Vector3(0, 1, 0)),
-          THREE.MathUtils.clamp(baseFlat.dot(currentFlat), -1, 1)
-        );
-      }
-      const yawDelta = THREE.MathUtils.euclideanModulo(safeYaw - currentYaw + Math.PI, Math.PI * 2) - Math.PI;
-      if (Math.abs(yawDelta) <= CAMERA_TURN_SNAP_EPSILON || options.animate === false) {
+      if (snapDistance <= CAMERA_TARGET_TURN_SNAP_DISTANCE || options.animate === false) {
         stopCameraTurnAnimation();
-        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), safeYaw);
-        const nextDir = basis.direction.clone().applyQuaternion(yawQuat).normalize();
-        controls.target.copy(basis.position).addScaledVector(nextDir, basis.targetDistance);
+        controls.target.copy(desiredTarget);
         controls.update();
         updateSeatAnchors();
         return;
@@ -2965,14 +2953,11 @@ export default function MurlanRoyaleArena({ search }) {
       stopCameraTurnAnimation();
       const durationMs = options.durationMs ?? CAMERA_TURN_DURATION_MS;
       const startTime = performance.now();
-      const startYaw = currentYaw;
+      const startTarget = controls.target.clone();
       const animateStep = (now) => {
         const t = Math.min(1, (now - startTime) / Math.max(1, durationMs));
         const eased = t * (2 - t);
-        const yaw = startYaw + yawDelta * eased;
-        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        const nextDir = basis.direction.clone().applyQuaternion(yawQuat).normalize();
-        controls.target.copy(basis.position).addScaledVector(nextDir, basis.targetDistance);
+        controls.target.lerpVectors(startTarget, desiredTarget, eased);
         controls.update();
         updateSeatAnchors();
         if (t < 1) {
@@ -3175,7 +3160,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
-      mesh.scale.setScalar(1.16);
+      mesh.scale.setScalar(1);
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
@@ -3186,7 +3171,7 @@ export default function MurlanRoyaleArena({ search }) {
         mesh,
         target,
         tableLookBase,
-        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT },
+        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT, flatYawY: Math.PI },
         immediate,
         three.animations
       );
@@ -3856,26 +3841,15 @@ export default function MurlanRoyaleArena({ search }) {
     clearCameraTurnHoldTimeout();
 
     if (gameState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
-      turnCameraTowardYaw(0, { animate: true });
+      turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
       return;
     }
 
-    const targetDir = activeSeat.stoolPosition.clone().sub(basis.position);
-    targetDir.y = 0;
-    const baseDir = basis.direction.clone();
-    baseDir.y = 0;
-    if (targetDir.lengthSq() <= 1e-6 || baseDir.lengthSq() <= 1e-6) {
-      turnCameraTowardYaw(0, { animate: true });
-      return;
-    }
-    targetDir.normalize();
-    baseDir.normalize();
-    const targetYaw = Math.atan2(
-      baseDir.clone().cross(targetDir).dot(new THREE.Vector3(0, 1, 0)),
-      THREE.MathUtils.clamp(baseDir.dot(targetDir), -1, 1)
-    );
+    const blendedFocus = cameraDefaultTargetRef.current
+      .clone()
+      .lerp(activeSeat.focus, CAMERA_PLAYER_TARGET_WEIGHT);
     cameraTurnHoldTimeoutRef.current = setTimeout(() => {
-      turnCameraTowardYaw(targetYaw * CAMERA_HEAD_TURN_FOLLOW_FACTOR, { animate: true });
+      turnCameraTowardTarget(blendedFocus, { animate: true });
       cameraTurnHoldTimeoutRef.current = null;
     }, CAMERA_PLAYER_SWITCH_HOLD_MS);
 
@@ -3886,7 +3860,7 @@ export default function MurlanRoyaleArena({ search }) {
     gameState.players,
     gameState.status,
     threeReady,
-    turnCameraTowardYaw
+    turnCameraTowardTarget
   ]);
 
   useEffect(() => {
@@ -5491,9 +5465,9 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
 }
 
 function orientMesh(mesh, lookTarget, options = {}) {
-  const { face = 'front', flat = false, flatTiltX = 0 } = options;
+  const { face = 'front', flat = false, flatTiltX = 0, flatYawY = 0 } = options;
   if (flat) {
-    mesh.rotation.set(-Math.PI / 2 + flatTiltX, face === 'back' ? Math.PI : 0, 0);
+    mesh.rotation.set(-Math.PI / 2 + flatTiltX, (face === 'back' ? Math.PI : 0) + flatYawY, 0);
     return;
   }
   mesh.up.set(0, 1, 0);
