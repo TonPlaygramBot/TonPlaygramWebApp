@@ -166,6 +166,31 @@ export function getTrainingLayout (level) {
   return describeTrainingLevel(level).layout
 }
 
+export function getPracticeLayout () {
+  const triangleRows = 5
+  const triangleSpacingX = 0.086
+  const triangleSpacingZ = 0.094
+  const apexX = 0.2
+  const maxX = 0.44
+  const maxZ = 0.31
+  const balls = []
+
+  for (let row = 0; row < triangleRows; row += 1) {
+    const rowBallCount = row + 1
+    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
+    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
+    for (let col = 0; col < rowBallCount; col += 1) {
+      const z = clampLayoutCoord(rowStartZ + col * triangleSpacingZ, -maxZ, maxZ)
+      balls.push({ rackIndex: balls.length, x, z })
+    }
+  }
+
+  return {
+    cue: { x: -0.7, z: 0 },
+    balls
+  }
+}
+
 export function loadTrainingProgress () {
   if (typeof window === 'undefined') { return { completed: [], rewarded: [], lastLevel: 1, carryShots: 0, attemptsAwardedLevels: [] } }
   try {
