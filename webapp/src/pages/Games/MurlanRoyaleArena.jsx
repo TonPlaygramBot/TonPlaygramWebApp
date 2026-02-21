@@ -5491,19 +5491,33 @@ function updateCardFace(mesh, mode) {
 function setCommunityCardLegibility(mesh, highlighted) {
   const frontMaterial = mesh?.userData?.frontMaterial;
   if (!frontMaterial) return;
+  if (!mesh.userData.frontMaterialDefaults) {
+    mesh.userData.frontMaterialDefaults = {
+      roughness: frontMaterial.roughness,
+      metalness: frontMaterial.metalness,
+      emissiveIntensity: frontMaterial.emissiveIntensity ?? 0,
+      envMapIntensity: frontMaterial.envMapIntensity ?? 1,
+      toneMapped: frontMaterial.toneMapped ?? true
+    };
+  }
+  const defaults = mesh.userData.frontMaterialDefaults;
   if (!frontMaterial.emissive) {
     frontMaterial.emissive = new THREE.Color('#000000');
   }
   if (highlighted) {
-    frontMaterial.roughness = 0.22;
-    frontMaterial.metalness = 0.04;
-    frontMaterial.emissive.set('#2c2c2c');
-    frontMaterial.emissiveIntensity = 0.14;
-  } else {
-    frontMaterial.roughness = 0.35;
-    frontMaterial.metalness = 0.08;
+    frontMaterial.roughness = 0.96;
+    frontMaterial.metalness = 0;
+    frontMaterial.envMapIntensity = 0;
+    frontMaterial.toneMapped = false;
     frontMaterial.emissive.set('#000000');
     frontMaterial.emissiveIntensity = 0;
+  } else {
+    frontMaterial.roughness = defaults.roughness;
+    frontMaterial.metalness = defaults.metalness;
+    frontMaterial.envMapIntensity = defaults.envMapIntensity;
+    frontMaterial.toneMapped = defaults.toneMapped;
+    frontMaterial.emissive.set('#000000');
+    frontMaterial.emissiveIntensity = defaults.emissiveIntensity;
   }
   frontMaterial.needsUpdate = true;
 }
