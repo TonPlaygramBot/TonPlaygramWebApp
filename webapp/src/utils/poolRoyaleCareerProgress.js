@@ -4,7 +4,6 @@ import {
 } from './poolRoyaleTrainingProgress.js'
 
 const CAREER_PROGRESS_KEY = 'poolRoyaleCareerProgress'
-const CAREER_PROGRESS_SCHEMA_VERSION = 2
 export const CAREER_LEVEL_COUNT = 100
 
 const FRIENDLY_TITLES = [
@@ -107,21 +106,12 @@ export const CAREER_STAGES = Array.from(
 )
 
 const normalizeProgress = (value) => {
-  const schemaVersion = Number(value?.schemaVersion)
-  if (schemaVersion !== CAREER_PROGRESS_SCHEMA_VERSION) {
-    return {
-      schemaVersion: CAREER_PROGRESS_SCHEMA_VERSION,
-      completedStageIds: [],
-      updatedAt: Date.now()
-    }
-  }
   const completed = Array.isArray(value?.completedStageIds)
     ? value.completedStageIds.filter(
       (entry) => typeof entry === 'string' && entry.trim()
     )
     : []
   return {
-    schemaVersion: CAREER_PROGRESS_SCHEMA_VERSION,
     completedStageIds: [...new Set(completed)],
     updatedAt: Number(value?.updatedAt) || Date.now()
   }
