@@ -1928,6 +1928,7 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_INWARD_OFFSET = 1.0 * MODEL_SCALE;
 const HUMAN_SEAT_INWARD_BIAS = 0.44 * MODEL_SCALE;
 const AI_SEAT_INWARD_BIAS = 0.3 * MODEL_SCALE;
+const SIDE_SEAT_EXTRA_INWARD = 0.1 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(7);
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -1946,7 +1947,7 @@ const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
 const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(1.2);
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
-const CAMERA_HEAD_TURN_FOLLOW_FACTOR = 0.74;
+const CAMERA_HEAD_TURN_FOLLOW_FACTOR = 0.66;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -3174,7 +3175,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
-      mesh.scale.setScalar(1.12);
+      mesh.scale.setScalar(1.16);
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
@@ -4116,10 +4117,12 @@ export default function MurlanRoyaleArena({ search }) {
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
+        const isSideSeat = Math.abs(Math.cos(angle)) > 0.9;
         const seatRadius =
           chairRadius -
           CHAIR_INWARD_OFFSET -
-          (isHumanSeat ? 0.55 * MODEL_SCALE + HUMAN_SEAT_INWARD_BIAS : 0.24 * MODEL_SCALE + AI_SEAT_INWARD_BIAS);
+          (isHumanSeat ? 0.55 * MODEL_SCALE + HUMAN_SEAT_INWARD_BIAS : 0.24 * MODEL_SCALE + AI_SEAT_INWARD_BIAS) -
+          (isHumanSeat || !isSideSeat ? 0 : SIDE_SEAT_EXTRA_INWARD);
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT;
