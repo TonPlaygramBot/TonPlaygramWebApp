@@ -1946,6 +1946,7 @@ const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
 const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(1.2);
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(24);
+const CAMERA_HEAD_TURN_FOLLOW_FACTOR = 0.82;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -3873,7 +3874,7 @@ export default function MurlanRoyaleArena({ search }) {
       THREE.MathUtils.clamp(baseDir.dot(targetDir), -1, 1)
     );
     cameraTurnHoldTimeoutRef.current = setTimeout(() => {
-      turnCameraTowardYaw(targetYaw, { animate: true });
+      turnCameraTowardYaw(targetYaw * CAMERA_HEAD_TURN_FOLLOW_FACTOR, { animate: true });
       cameraTurnHoldTimeoutRef.current = null;
     }, CAMERA_PLAYER_SWITCH_HOLD_MS);
 
