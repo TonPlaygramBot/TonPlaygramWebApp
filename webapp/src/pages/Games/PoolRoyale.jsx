@@ -166,6 +166,14 @@ function persistCareerAttemptsProgress(progress) {
 const POOL_ROYALE_REWARDABLE_NFT_IDS = Object.freeze(['surprise_box', 'magic_trick', 'bullseye']);
 const POOL_ROYALE_REWARD_NFT_KEY_PREFIX = 'poolRoyaleRewardNfts_';
 
+function parseCareerStageLevel(stageId) {
+  if (typeof stageId !== 'string' || !stageId.trim()) return null;
+  const match = stageId.match(/(\d+)$/);
+  if (!match) return null;
+  const level = Number(match[1]);
+  return Number.isFinite(level) && level > 0 ? Math.floor(level) : null;
+}
+
 function pickPoolRoyaleRewardNft() {
   const mediumTier = NFT_GIFTS.filter(
     (item) =>
@@ -11979,6 +11987,7 @@ function PoolRoyaleGame({
   const [isTournamentFinalMatch, setIsTournamentFinalMatch] = useState(false);
   const [showTournamentFinalWelcome, setShowTournamentFinalWelcome] = useState(false);
   const [revealedRewardNft, setRevealedRewardNft] = useState(null);
+  const [revealedRewardMeta, setRevealedRewardMeta] = useState(null);
   const [rewardFireworkSeed, setRewardFireworkSeed] = useState(0);
   const tournamentLastResult = useMemo(() => {
     if (!tournamentMode || typeof window === 'undefined') return null;
@@ -12107,8 +12116,8 @@ function PoolRoyaleGame({
       }
       @keyframes prGiftReveal {
         0% { transform: scale(0.48); opacity: 0.2; }
-        45% { transform: scale(1.85); opacity: 1; }
-        100% { transform: scale(1.45); opacity: 1; }
+        45% { transform: scale(2.05); opacity: 1; }
+        100% { transform: scale(1.75); opacity: 1; }
       }
       .pr-coin-burst {
         position: fixed;
@@ -12727,12 +12736,27 @@ function PoolRoyaleGame({
   );
 
 
-  const openRewardGift = useCallback((nft) => {
+  const openRewardGift = useCallback((nft, options = {}) => {
     if (!nft) return;
+    setRevealedRewardMeta({
+      autoCloseMs: Math.max(0, Number(options?.autoCloseMs) || 0),
+      receipt: options?.receipt || null
+    });
     setRevealedRewardNft(nft);
     setRewardFireworkSeed((prev) => prev + 1);
     triggerCoinBurst(28);
   }, [triggerCoinBurst]);
+
+  useEffect(() => {
+    if (!revealedRewardNft) return undefined;
+    const autoCloseMs = Math.max(0, Number(revealedRewardMeta?.autoCloseMs) || 0);
+    if (!autoCloseMs) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setRevealedRewardNft(null);
+      setRevealedRewardMeta(null);
+    }, autoCloseMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [revealedRewardMeta, revealedRewardNft]);
 
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
@@ -14422,7 +14446,18 @@ const powerRef = useRef(hud.power);
     const completedLevel = trainingLevelRef.current || 1;
     const completedLevelInfo = describeTrainingLevel(completedLevel);
     const completedRewardAmount = Number(completedLevelInfo?.rewardAmount) || 0;
-    const nftReward = completedLevel % 5 === 0 ? pickPoolRoyaleRewardNft() : null;
+    const careerStageLevel = parseCareerStageLevel(careerStageId) || completedLevel;
+    const nftMilestoneReached = usesCareerAttempts
+      ? careerStageLevel % 5 === 0
+      : completedLevel % 5 === 0;
+    const nftReward = nftMilestoneReached ? pickPoolRoyaleRewardNft() : null;
+    const nftReceipt = nftReward
+      ? {
+        id: `PR-${String(careerStageLevel).padStart(3, '0')}-${Date.now().toString(36).toUpperCase()}`,
+        taskLabel: `Task ${careerStageLevel}`,
+        issuedAt: new Date().toISOString()
+      }
+      : null;
     const previous = trainingProgressRef.current || { completed: [], rewarded: [] };
     const previousRewardedSet = new Set(
       (previous?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
@@ -14451,6 +14486,7 @@ const powerRef = useRef(hud.power);
         status: 'won',
         rewardAmount: shouldAwardReward ? completedRewardAmount : 0,
         nftReward,
+        nftReceipt,
         nextLabel: 'Continue to next task'
       });
     } else {
@@ -14497,7 +14533,6 @@ const powerRef = useRef(hud.power);
     }
     if (nftReward) {
       persistRewardNft(nftReward);
-      openRewardGift(nftReward);
     }
     triggerCoinBurst(nftReward ? 26 : 18);
   }, [
@@ -14507,7 +14542,6 @@ const powerRef = useRef(hud.power);
     frameState.frameOver,
     isTraining,
     usesCareerAttempts,
-    openRewardGift,
     persistRewardNft,
     trainingShotsRemaining,
     triggerCoinBurst
@@ -31250,18 +31284,33 @@ const powerRef = useRef(hud.power);
             <p className="mt-3 text-sm font-black uppercase tracking-[0.22em] text-amber-100">Congratulations 👏</p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">NFT unlocked</p>
             <p className="mt-1 text-lg font-semibold text-white">{revealedRewardNft.name}</p>
+            {revealedRewardMeta?.receipt?.id ? (
+              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-100/90">
+                Receipt: {revealedRewardMeta.receipt.id}
+              </p>
+            ) : null}
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/75">
               <img src={resolvedPlayerAvatar || '/assets/icons/profile.svg'} alt="Player avatar" className="h-8 w-8 rounded-full border border-amber-200/60 object-cover" />
               <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-5 w-5 animate-bounce" />
               <span>Career reward opened</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setRevealedRewardNft(null)}
-              className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
-            >
-              Awesome
-            </button>
+            {usesCareerAttempts ? (
+              <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-white/70">
+                Closing automatically… then choose continue or lobby in task panel.
+              </p>
+            ) : null}
+            {!usesCareerAttempts ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setRevealedRewardNft(null);
+                  setRevealedRewardMeta(null);
+                }}
+                className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
+              >
+                Awesome
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -32188,13 +32237,21 @@ const powerRef = useRef(hud.power);
                   {careerTaskResultModal.nftReward ? (
                     <button
                       type="button"
-                      onClick={() => openRewardGift(careerTaskResultModal.nftReward)}
+                      onClick={() => openRewardGift(careerTaskResultModal.nftReward, {
+                        autoCloseMs: 3200,
+                        receipt: careerTaskResultModal.nftReceipt || null
+                      })}
                       className="inline-flex min-w-[10rem] flex-col items-center rounded-2xl border border-amber-200/70 bg-amber-300/10 px-4 py-2 text-amber-100 transition hover:bg-amber-300/20"
                     >
                       <span className="text-2xl">🎁</span>
                       <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em]">Open</span>
                       <span className="mt-1 text-[11px] font-semibold">{careerTaskResultModal.nftReward.name}</span>
                     </button>
+                  ) : null}
+                  {careerTaskResultModal.nftReceipt ? (
+                    <div className="rounded-xl border border-amber-200/45 bg-amber-300/10 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-amber-100/90">
+                      Receipt sent · {careerTaskResultModal.nftReceipt.id}
+                    </div>
                   ) : null}
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
