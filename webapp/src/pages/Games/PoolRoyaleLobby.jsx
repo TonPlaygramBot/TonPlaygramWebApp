@@ -400,8 +400,17 @@ export default function PoolRoyaleLobby() {
 
   useEffect(() => {
     if (playType !== 'training' && playType !== 'career') return;
-    const loadedTraining = loadTrainingProgress();
-    setTrainingProgress(loadedTraining);
+    if (playType === 'training') {
+      const loadedTraining = loadTrainingProgress();
+      setTrainingProgress(loadedTraining);
+    } else {
+      setTrainingProgress({
+        completed: [],
+        rewarded: [],
+        lastLevel: 1,
+        carryShots: 0
+      });
+    }
     setCareerProgress(loadCareerProgress());
   }, [playType]);
 
