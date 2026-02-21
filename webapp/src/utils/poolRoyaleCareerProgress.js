@@ -3,9 +3,7 @@ import {
   describeTrainingLevel
 } from './poolRoyaleTrainingProgress.js'
 
-const CAREER_PROGRESS_STORAGE_VERSION = 2
-const CAREER_PROGRESS_KEY = `poolRoyaleCareerProgress_v${CAREER_PROGRESS_STORAGE_VERSION}`
-const LEGACY_CAREER_PROGRESS_KEYS = ['poolRoyaleCareerProgress', 'poolRoyaleCareerProgress_v1']
+const CAREER_PROGRESS_KEY = 'poolRoyaleCareerProgress'
 export const CAREER_LEVEL_COUNT = 100
 
 const FRIENDLY_TITLES = [
@@ -122,10 +120,6 @@ const normalizeProgress = (value) => {
 export function loadCareerProgress () {
   if (typeof window === 'undefined') return normalizeProgress(null)
   try {
-    LEGACY_CAREER_PROGRESS_KEYS.forEach((legacyKey) => {
-      if (!legacyKey || legacyKey === CAREER_PROGRESS_KEY) return
-      window.localStorage.removeItem(legacyKey)
-    })
     const raw = window.localStorage.getItem(CAREER_PROGRESS_KEY)
     if (!raw) return normalizeProgress(null)
     return normalizeProgress(JSON.parse(raw))
