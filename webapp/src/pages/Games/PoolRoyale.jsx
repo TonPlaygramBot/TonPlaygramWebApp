@@ -12637,7 +12637,6 @@ function PoolRoyaleGame({
   ]);
   const isTraining = playType === 'training';
   const usesCareerAttempts = isTraining && careerMode;
-  const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
   const [trainingPurchaseState, setTrainingPurchaseState] = useState('idle');
@@ -12915,7 +12914,6 @@ function PoolRoyaleGame({
     setTrainingLevel(unlockedLevel);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
-    setTrainingMenuOpen(false);
     setTrainingTaskTransition(null);
     setPottedBySeat({ A: [], B: [] });
     lastPottedBySeatRef.current = { A: null, B: null };
@@ -13093,7 +13091,6 @@ function PoolRoyaleGame({
     if (usesCareerAttempts) {
       setCareerTaskResultModal(null);
       setTrainingRoadmapOpen(false);
-      setTrainingMenuOpen(false);
       navigate('/games/poolroyale/lobby?type=career&autostart=1');
       return;
     }
@@ -13110,7 +13107,6 @@ function PoolRoyaleGame({
     setTrainingLevel(nextLevel);
     setPendingTrainingLevel(null);
     setTrainingRoadmapOpen(false);
-    setTrainingMenuOpen(false);
     setTrainingTaskTransition(null);
     setRuleToast(null);
     setPottedBySeat({ A: [], B: [] });
@@ -29530,18 +29526,45 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               if (isCueBall) {
-                if (b.mesh) {
-                  b.mesh.visible = false;
+                const shouldAutoRespawnCueAtCenter = isTraining;
+                if (shouldAutoRespawnCueAtCenter) {
+                  const centerX = 0;
+                  const centerZ = 0;
+                  b.pos.set(centerX, centerZ);
+                  if (b.mesh) {
+                    b.mesh.visible = true;
+                    b.mesh.position.set(centerX, BALL_CENTER_Y, centerZ);
+                    b.mesh.rotation.set(0, 0, 0);
+                  }
+                  if (b.shadow) {
+                    b.shadow.visible = true;
+                    b.shadow.position.set(centerX, BALL_SHADOW_Y, centerZ);
+                  }
+                  b.vel.set(0, 0);
+                  b.spin?.set(0, 0);
+                  b.pendingSpin?.set(0, 0);
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
+                  b.impacted = false;
+                  b.active = true;
+                  removePocketDropEntry(b.id);
+                  hudRef.current = { ...hudRef.current, inHand: false };
+                  setHud((prev) => ({ ...prev, inHand: false }));
+                } else {
+                  if (b.mesh) {
+                    b.mesh.visible = false;
+                  }
+                  b.vel.set(0, 0);
+                  b.spin?.set(0, 0);
+                  b.pendingSpin?.set(0, 0);
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
+                  b.impacted = false;
+                  b.active = false;
+                  removePocketDropEntry(b.id);
                 }
-                b.vel.set(0, 0);
-                b.spin?.set(0, 0);
-                b.pendingSpin?.set(0, 0);
-                b.spinMode = 'standard';
-                b.swerveStrength = 0;
-                b.swervePowerStrength = 0;
-                b.impacted = false;
-                b.active = false;
-                removePocketDropEntry(b.id);
                 if (isTraining && table) {
                   const scratchPopup = createTrainingScratchPopupMesh();
                   if (scratchPopup) {
@@ -29572,7 +29595,7 @@ const powerRef = useRef(hud.power);
                     trainingPenaltyPopupTimeoutRef.current = null;
                   }, 900);
                 }
-                if (!hudRef.current?.inHand) {
+                if (!shouldAutoRespawnCueAtCenter && !hudRef.current?.inHand) {
                   hudRef.current = { ...hudRef.current, inHand: true };
                   setHud((prev) => ({ ...prev, inHand: true }));
                 }
@@ -31306,7 +31329,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 right-0 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute left-0 top-2 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -31316,7 +31339,7 @@ const powerRef = useRef(hud.power);
           aria-controls="snooker-config-panel"
           style={{
             transform: `scale(${uiScale * 1.08})`,
-            transformOrigin: 'top right'
+            transformOrigin: 'top left'
           }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
@@ -31942,65 +31965,6 @@ const powerRef = useRef(hud.power);
           <div className="pointer-events-auto rounded-full border border-emerald-300/70 bg-black/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.45)] backdrop-blur">
             L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done{usesCareerAttempts ? ` • ❤️ ${trainingShotsRemaining}` : " • ♾️ Free"}
           </div>
-          <button
-            type="button"
-            onClick={() => setTrainingMenuOpen((open) => !open)}
-            aria-expanded={trainingMenuOpen}
-            aria-label="Toggle practice menu"
-            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
-            {trainingMenuOpen && (
-            <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Practice menu</span>
-                <button
-                  type="button"
-                  onClick={() => setTrainingMenuOpen(false)}
-                  className="rounded-full p-1 text-white/70 transition hover:text-white"
-                  aria-label="Close practice menu"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="mt-3 space-y-3">
-                <div className="rounded-xl border border-emerald-400/40 bg-white/5 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Progress</p>
-                  <p className="text-sm font-semibold text-white">Level {currentTrainingInfo.level}: {currentTrainingInfo.title}</p>
-                  <p className="mt-1 text-xs text-white/80">Objective: {currentTrainingInfo.objective}</p>
-                  <p className="mt-1 text-[11px] text-white/60">Completed: {completedTrainingCount || 'None yet'}</p>
-                  <p className="mt-1 text-[11px] text-emerald-200">
-                    Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
-                  </p>
-                  <p className="mt-1 text-[11px] text-white/60">Discipline: {currentTrainingInfo.discipline}</p>
-                  <p className="mt-1 text-[11px] text-white/60">{usesCareerAttempts ? `Heart bank: ${trainingShotsRemaining}` : "Heart bank: Free practice"}</p>
-                  <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
-                </div>
-                <div className="rounded-xl border border-emerald-400/30 bg-white/5 p-3 text-xs text-white/80">
-                  Core objective is shown briefly at level start so your table stays clear. Open this menu any time for full details.
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTrainingRoadmapOpen(true)}
-                  disabled={!usesCareerAttempts}
-                  className="w-full rounded-full border border-emerald-300 bg-emerald-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
-                >
-                  {usesCareerAttempts ? 'Open practice roadmap' : 'Practice roadmap moved to Career'}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
