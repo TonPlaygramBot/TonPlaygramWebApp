@@ -3132,7 +3132,7 @@ export default function MurlanRoyaleArena({ search }) {
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
         const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
-        target.y = baseHeight;
+        target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         setCommunityCardLegibility(mesh, false);
         setMeshPosition(
@@ -3150,7 +3150,7 @@ export default function MurlanRoyaleArena({ search }) {
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
     const tableSpacing =
-      tableCount > 1 ? Math.min(CARD_W * 0.42, (CARD_W * 1.7) / (tableCount - 1)) : CARD_W;
+      tableCount > 1 ? Math.min(CARD_W * 1.24, (CARD_W * 4.8) / (tableCount - 1)) : CARD_W;
     const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
     const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
     state.tableCards.forEach((card, idx) => {
@@ -3158,7 +3158,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
-      mesh.scale.setScalar(1.08);
+      mesh.scale.setScalar(1.16);
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
@@ -4113,8 +4113,8 @@ export default function MurlanRoyaleArena({ search }) {
           right,
           focus,
           radius: (isHumanSeat ? 2.7 : 3.25) * MODEL_SCALE,
-          spacing: 0.12 * MODEL_SCALE,
-          maxSpread: 2.1 * MODEL_SCALE,
+          spacing: (isHumanSeat ? 0.12 : 0.16) * MODEL_SCALE,
+          maxSpread: (isHumanSeat ? 2.1 : 2.3) * MODEL_SCALE,
           stoolPosition,
           stoolHeight
         });
@@ -5576,41 +5576,62 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   canvas.width = w;
   canvas.height = h;
   const g = canvas.getContext('2d');
-
   g.fillStyle = theme.frontBackground || '#ffffff';
   g.fillRect(0, 0, w, h);
   g.strokeStyle = theme.frontBorder || '#d1d5db';
-  g.lineWidth = Math.max(4, Math.round(w * 0.012));
-  roundRect(g, g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth, Math.round(w * 0.12));
+  g.lineWidth = 10;
+  roundRect(g, 6, 6, w - 12, h - 12, 32);
   g.stroke();
-
-  const color = SUIT_COLORS[suit] || '#0f172a';
-  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
-
-  // Match bottom hand cards: top-left rank+suit, center suit, bottom-right rotated rank.
+  const color = SUIT_COLORS[suit] || '#111111';
   g.fillStyle = color;
+  g.strokeStyle = 'rgba(255,255,255,0.72)';
+  g.lineWidth = 7;
+  g.lineJoin = 'round';
+  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
+  const padding = 36;
+  const topRankY = 96;
+  const topSuitY = topRankY + 76;
+  const bottomSuitY = h - 92;
+  const bottomRankY = bottomSuitY - 76;
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, Math.round(w * 0.095), Math.round(h * 0.065));
+  g.strokeText(label, padding, topRankY);
+  g.fillText(label, padding, topRankY);
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
+  g.fillText(suit, padding, topSuitY);
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
+  g.strokeText(label, padding, bottomRankY);
+  g.fillText(label, padding, bottomRankY);
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
+  g.fillText(suit, padding, bottomSuitY);
+  g.textAlign = 'right';
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
+  g.strokeText(label, w - padding, topRankY);
+  g.fillText(label, w - padding, topRankY);
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
+  g.fillText(suit, w - padding, topSuitY);
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
+  g.strokeText(label, w - padding, bottomRankY);
+  g.fillText(label, w - padding, bottomRankY);
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
+  g.fillText(suit, w - padding, bottomSuitY);
 
-  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, Math.round(w * 0.12), Math.round(h * 0.205));
-
+  if (theme.centerAccent) {
+    g.fillStyle = theme.centerAccent;
+    g.beginPath();
+    g.ellipse(w / 2, h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.fillStyle = color;
+  g.font = 'bold 180px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, w / 2, h / 2);
-
-  g.save();
-  g.translate(w - Math.round(w * 0.12), h - Math.round(h * 0.075));
-  g.rotate(Math.PI);
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, 0, 0);
-  g.restore();
-
+  g.shadowColor = 'rgba(15,23,42,0.42)';
+  g.shadowBlur = 16;
+  g.strokeStyle = 'rgba(255,255,255,0.55)';
+  g.lineWidth = 8;
+  g.strokeText(suit, w / 2, h / 2 + 64);
+  g.fillText(suit, w / 2, h / 2 + 64);
+  g.shadowBlur = 0;
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
   tex.anisotropy = 12;
@@ -5621,74 +5642,32 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 }
 
 function makeCardBackTexture(theme, w = 512, h = 720) {
-  void theme;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-
-  // Match murlan-royale.html exactly.
-  const refCardWidth = 92;
-  const stripePx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const borderPx = Math.max(1, Math.round((w * 2) / refCardWidth));
-  const insetPx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const cardRadius = Math.max(4, Math.round((w * 10) / refCardWidth));
-  const innerRadius = Math.max(3, Math.round((w * 8) / refCardWidth));
-
-  const drawBack = (logoImage = null) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#122';
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#233';
-    for (let x = -h; x < w + h; x += stripePx * 2) {
-      ctx.save();
-      ctx.translate(x, 0);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillRect(0, -h, stripePx, h * 3);
-      ctx.restore();
+  const [c1, c2] = theme.backGradient || [theme.backColor, theme.backColor];
+  const gradient = ctx.createLinearGradient(0, 0, w, h);
+  gradient.addColorStop(0, c1);
+  gradient.addColorStop(1, c2);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = theme.backBorder || 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 14;
+  roundRect(ctx, 18, 18, w - 36, h - 36, 48);
+  ctx.stroke();
+  if (theme.backAccent) {
+    ctx.strokeStyle = theme.backAccent;
+    ctx.lineWidth = 8;
+    for (let i = 0; i < 6; i += 1) {
+      const inset = 36 + i * 18;
+      roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, 42);
+      ctx.stroke();
     }
-
-    if (logoImage) {
-      const drawWidth = Math.round(w * 0.6);
-      const ratio = logoImage.height / Math.max(logoImage.width, 1);
-      const drawHeight = Math.round(drawWidth * ratio);
-      ctx.drawImage(logoImage, (w - drawWidth) / 2, (h - drawHeight) / 2, drawWidth, drawHeight);
-    }
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = borderPx;
-    roundRect(ctx, borderPx / 2, borderPx / 2, w - borderPx, h - borderPx, cardRadius);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = borderPx;
-    ctx.setLineDash([borderPx * 2, borderPx * 2]);
-    roundRect(
-      ctx,
-      insetPx,
-      insetPx,
-      w - insetPx * 2,
-      h - insetPx * 2,
-      innerRadius
-    );
-    ctx.stroke();
-    ctx.setLineDash([]);
-  };
-
-  drawBack();
-
+  }
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = 8;
-
-  const logo = new Image();
-  logo.crossOrigin = 'anonymous';
-  logo.onload = () => {
-    drawBack(logo);
-    texture.needsUpdate = true;
-  };
-  logo.src = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-
   return texture;
 }
 
