@@ -323,11 +323,14 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ];
-const AI_ROLL_DELAY_MS = 2000;
-const AI_EXTRA_TURN_DELAY_MS = 1100;
+const AI_ROLL_DELAY_MS = 2800;
+const AI_EXTRA_TURN_DELAY_MS = 1700;
 const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
+const CAMERA_TURN_LOOK_LERP = 0.07;
+const CAMERA_FOCUS_TARGET_LERP = 0.17;
+const CAMERA_TURN_HEIGHT_RATIO = 0.62;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const CHAIR_SIZE_SCALE = 1;
 const CHAIR_MODEL_URLS = [
@@ -2699,6 +2702,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const lastCameraRadiusRef = useRef(null);
   const environmentFloorRef = useRef(0);
   const syncSkyboxToCameraRef = useRef(() => {});
+  const cameraFocusStateRef = useRef(null);
+  const cameraSeatDirRef = useRef(new THREE.Vector3(0, 0, 1));
+  const turnFocusScratchRef = useRef({
+    cameraOffset: new THREE.Vector3(),
+    desiredPos: new THREE.Vector3(),
+    seatPos: new THREE.Vector3(),
+    lookTarget: new THREE.Vector3(),
+    boardCenter: new THREE.Vector3()
+  });
   const tableBuildTokenRef = useRef(0);
   const chairBuildTokenRef = useRef(0);
   const playerColorsRef = useRef(resolvePlayerColors(appearance));
@@ -4627,6 +4639,71 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
+      if (!isCamera2d && camera && controls) {
+        const arenaCameraState = arenaRef.current;
+        const boardTarget = boardLookTargetRef.current;
+        const focusState = cameraFocusStateRef.current;
+        const scratch = turnFocusScratchRef.current;
+        if (arenaCameraState && boardTarget && scratch) {
+          const nowTime = performance.now();
+          let focusPoint = null;
+
+          if (focusState) {
+            if (focusState.expiresAt != null && focusState.expiresAt <= nowTime) {
+              cameraFocusStateRef.current = null;
+            } else {
+              if (focusState.follow && focusState.object?.getWorldPosition) {
+                focusPoint = focusState.object.getWorldPosition(scratch.lookTarget);
+              } else if (focusState.target) {
+                focusPoint = scratch.lookTarget.copy(focusState.target);
+              } else if (focusState.object?.position) {
+                focusPoint = scratch.lookTarget.copy(focusState.object.position);
+              }
+              if (focusPoint) {
+                focusPoint.y += focusState.offset ?? CAMERA_TARGET_LIFT;
+              }
+            }
+          }
+
+          if (focusPoint) {
+            controls.target.lerp(focusPoint, CAMERA_FOCUS_TARGET_LERP);
+          } else {
+            const turn = state?.turn ?? uiRef.current?.turn ?? 0;
+            const turnChair = arenaCameraState.chairs?.[turn]?.group;
+            if (turnChair) {
+              scratch.boardCenter.copy(boardTarget);
+              turnChair.getWorldPosition(scratch.seatPos);
+              scratch.seatPos.y = 0;
+              scratch.desiredPos.copy(scratch.seatPos).sub(scratch.boardCenter).setY(0);
+              if (scratch.desiredPos.lengthSq() > 1e-6) {
+                scratch.desiredPos.normalize();
+                cameraSeatDirRef.current.lerp(scratch.desiredPos, CAMERA_TURN_LOOK_LERP);
+                if (cameraSeatDirRef.current.lengthSq() > 1e-6) {
+                  cameraSeatDirRef.current.normalize();
+                  scratch.cameraOffset.copy(camera.position).sub(scratch.boardCenter);
+                  const planarRadius = Math.max(
+                    CAM.minR * 0.75,
+                    Math.hypot(scratch.cameraOffset.x, scratch.cameraOffset.z)
+                  );
+                  const focusHeight = THREE.MathUtils.clamp(
+                    scratch.cameraOffset.y,
+                    CAM.minR * CAMERA_TURN_HEIGHT_RATIO,
+                    CAM.maxR * CAMERA_TURN_HEIGHT_RATIO
+                  );
+                  scratch.desiredPos
+                    .copy(cameraSeatDirRef.current)
+                    .multiplyScalar(planarRadius)
+                    .setY(focusHeight)
+                    .add(scratch.boardCenter);
+                  camera.position.lerp(scratch.desiredPos, CAMERA_TURN_LOOK_LERP);
+                }
+              }
+            }
+            controls.target.lerp(boardTarget, CAMERA_TURN_LOOK_LERP);
+          }
+        }
+      }
+
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
@@ -4769,7 +4846,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   };
 
-  const setCameraFocus = useCallback(() => {}, []);
+  const setCameraFocus = useCallback((focus = null) => {
+    if (!focus) {
+      cameraFocusStateRef.current = null;
+      return;
+    }
+    const now = performance.now();
+    const ttlMs = Number.isFinite(focus.ttl) ? Math.max(0, focus.ttl * 1000) : null;
+    const next = {
+      ...focus,
+      createdAt: now,
+      expiresAt: ttlMs != null ? now + ttlMs : null,
+      priority: Number.isFinite(focus.priority) ? focus.priority : 0
+    };
+    const active = cameraFocusStateRef.current;
+    if (
+      !focus.force &&
+      active &&
+      active.priority > next.priority &&
+      (active.expiresAt == null || active.expiresAt > now)
+    ) {
+      return;
+    }
+    cameraFocusStateRef.current = next;
+  }, []);
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
     const state = stateRef.current;
