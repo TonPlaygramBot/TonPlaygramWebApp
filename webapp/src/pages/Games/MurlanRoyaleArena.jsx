@@ -3117,10 +3117,11 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
+      mesh.scale.setScalar(1.16);
       updateCardFace(mesh, 'front');
       const target = tableAnchor.clone();
       target.x += tableStartX + idx * tableSpacing;
-      target.y += 0.05 * MODEL_SCALE;
+      target.y += 0.075 * MODEL_SCALE;
       target.z += 0;
       setMeshPosition(
         mesh,
@@ -3136,13 +3137,14 @@ export default function MurlanRoyaleArena({ search }) {
     const discardSpacing = CARD_W * 0.08;
     const discardAnchor = tableAnchor
       .clone()
-      .add(new THREE.Vector3(tableStartX + Math.max(tableCount - 1, 0) * tableSpacing + CARD_W * 1.18, -CARD_H * 0.04, 0));
+      .add(new THREE.Vector3(0, CARD_H * 0.95, -CARD_H * 0.22));
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
-      updateCardFace(mesh, 'front');
+      mesh.scale.setScalar(1);
+      updateCardFace(mesh, 'back');
       const layer = discardCount - idx - 1;
       const target = discardAnchor.clone();
       target.x += layer * discardSpacing;
@@ -3151,7 +3153,7 @@ export default function MurlanRoyaleArena({ search }) {
         mesh,
         target,
         tableLookBase,
-        { face: 'front', flat: true },
+        { face: 'back', flat: true },
         immediate,
         three.animations
       );
@@ -3159,6 +3161,7 @@ export default function MurlanRoyaleArena({ search }) {
 
     three.cardMap.forEach(({ mesh }, id) => {
       if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
+      mesh.scale.setScalar(1);
       mesh.visible = false;
       if (mesh.userData?.animation) {
         mesh.userData.animation.cancelled = true;
