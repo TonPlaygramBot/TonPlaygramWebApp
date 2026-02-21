@@ -1910,7 +1910,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.34
+  z: -TABLE_RADIUS * 0.26
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -1926,8 +1926,9 @@ const BASE_HUMAN_CHAIR_RADIUS = 4.8 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_
 const HUMAN_CHAIR_PULLBACK = -0.22 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_INWARD_OFFSET = 0.9 * MODEL_SCALE;
-const HUMAN_SEAT_INWARD_BIAS = 0.36 * MODEL_SCALE;
-const AI_SEAT_INWARD_BIAS = 0.22 * MODEL_SCALE;
+const HUMAN_SEAT_INWARD_BIAS = 0.44 * MODEL_SCALE;
+const AI_SEAT_INWARD_BIAS = 0.3 * MODEL_SCALE;
+const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(7);
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -3168,7 +3169,7 @@ export default function MurlanRoyaleArena({ search }) {
         mesh,
         target,
         tableLookBase,
-        { face: 'front', flat: true },
+        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT },
         immediate,
         three.animations
       );
@@ -4171,7 +4172,7 @@ export default function MurlanRoyaleArena({ search }) {
           );
         const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
         const retreatOffset = isPortrait ? 1.95 : 1.45;
-        const elevation = isPortrait ? 1.95 : 1.58;
+        const elevation = isPortrait ? 1.8 : 1.45;
         initialCameraPosition = stoolAnchor.addScaledVector(humanSeatConfig.forward, -retreatOffset);
         initialCameraPosition.y = stoolHeight + elevation;
         target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
@@ -4179,7 +4180,7 @@ export default function MurlanRoyaleArena({ search }) {
         const humanSeatAngle = Math.PI / 2;
         const cameraBackOffset = isPortrait ? 1.65 : 1.05;
         const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-        const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+        const cameraHeightOffset = isPortrait ? 1.32 : 1.02;
         initialCameraPosition = new THREE.Vector3(
           Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
           TABLE_HEIGHT + cameraHeightOffset,
@@ -5457,9 +5458,9 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
 }
 
 function orientMesh(mesh, lookTarget, options = {}) {
-  const { face = 'front', flat = false } = options;
+  const { face = 'front', flat = false, flatTiltX = 0 } = options;
   if (flat) {
-    mesh.rotation.set(-Math.PI / 2, face === 'back' ? Math.PI : 0, 0);
+    mesh.rotation.set(-Math.PI / 2 + flatTiltX, face === 'back' ? Math.PI : 0, 0);
     return;
   }
   mesh.up.set(0, 1, 0);
