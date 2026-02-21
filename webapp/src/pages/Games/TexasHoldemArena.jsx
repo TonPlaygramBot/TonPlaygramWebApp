@@ -409,6 +409,8 @@ const TURN_INDICATOR_INNER_RADIUS = CARD_W * 0.24;
 const TURN_INDICATOR_OUTER_RADIUS = CARD_W * 0.36;
 const TURN_INDICATOR_HEIGHT = 0.008 * MODEL_SCALE;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
+const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(0.25);
+const CAMERA_TURN_DURATION_MS = 240;
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -2583,6 +2585,7 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
+  const cameraTurnAnimRef = useRef(null);
   const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
   const humanSeatRef = useRef(null);
   const seatTopPointRef = useRef(null);
@@ -3217,12 +3220,88 @@ function TexasHoldemArena({ search }) {
     three.orientHumanCards?.();
   }, []);
 
-  const findSeatWithAvatar = useCallback((startIndex = 0) => {
+  const stopCameraTurnAnimation = useCallback(() => {
+    if (cameraTurnAnimRef.current != null) {
+      cancelAnimationFrame(cameraTurnAnimRef.current);
+      cameraTurnAnimRef.current = null;
+    }
+  }, []);
+
+  const turnCameraTowardsSeat = useCallback(
+    (seatIndex, options = {}) => {
+      const three = threeRef.current;
+      if (!three || typeof seatIndex !== 'number' || seatIndex < 0) {
+        return;
+      }
+      const seat = three.seatGroups?.[seatIndex];
+      const basis = cameraBasisRef.current;
+      if (!seat?.seatPos || !basis?.position) {
+        return;
+      }
+
+      const fromCamera = seat.seatPos.clone().sub(basis.position);
+      fromCamera.y = 0;
+      if (fromCamera.lengthSq() <= 1e-6) {
+        return;
+      }
+      fromCamera.normalize();
+
+      const forwardFlat = basis.baseForward.clone();
+      forwardFlat.y = 0;
+      if (forwardFlat.lengthSq() <= 1e-6) {
+        return;
+      }
+      forwardFlat.normalize();
+
+      const currentYaw = headAnglesRef.current.yaw;
+      const targetOffsetYaw = Math.atan2(
+        forwardFlat.clone().cross(fromCamera).dot(WORLD_UP),
+        forwardFlat.dot(fromCamera)
+      );
+      const targetYaw = THREE.MathUtils.clamp(targetOffsetYaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
+      const yawDelta = THREE.MathUtils.euclideanModulo(targetYaw - currentYaw + Math.PI, Math.PI * 2) - Math.PI;
+
+      if (Math.abs(yawDelta) <= CAMERA_TURN_SNAP_EPSILON || options.animate === false) {
+        stopCameraTurnAnimation();
+        headAnglesRef.current.yaw = targetYaw;
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+        return;
+      }
+
+      stopCameraTurnAnimation();
+      const startYaw = currentYaw;
+      const startTime = performance.now();
+      const duration = options.durationMs ?? CAMERA_TURN_DURATION_MS;
+      const animateStep = (now) => {
+        const t = Math.min(1, (now - startTime) / Math.max(1, duration));
+        const eased = t * (2 - t);
+        headAnglesRef.current.yaw = startYaw + yawDelta * eased;
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+        if (t < 1) {
+          cameraTurnAnimRef.current = requestAnimationFrame(animateStep);
+        } else {
+          headAnglesRef.current.yaw = targetYaw;
+          cameraTurnAnimRef.current = null;
+        }
+      };
+      cameraTurnAnimRef.current = requestAnimationFrame(animateStep);
+    },
+    [applyHeadOrientation, stopCameraTurnAnimation]
+  );
+
+  const findSeatWithAvatar = useCallback((startIndex = 0, options = {}) => {
     const state = gameStateRef.current;
     const players = state?.players ?? [];
     if (!players.length) return null;
+    const skipFolded = options.skipFolded !== false;
     for (let offset = 0; offset < players.length; offset += 1) {
       const idx = (startIndex + offset) % players.length;
+      const player = players[idx];
+      if (skipFolded && player?.folded) {
+        continue;
+      }
       if (hasSeatAvatar(state, idx)) {
         return idx;
       }
@@ -4509,6 +4588,7 @@ function TexasHoldemArena({ search }) {
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationRef.current);
+      stopCameraTurnAnimation();
       lastFrameRef.current = null;
       element.removeEventListener('pointerdown', handlePointerDown);
       element.removeEventListener('pointermove', handlePointerMove);
@@ -4580,7 +4660,7 @@ function TexasHoldemArena({ search }) {
       mount.removeChild(renderer.domElement);
       threeRef.current = null;
     };
-  }, []);
+  }, [stopCameraTurnAnimation]);
 
   useEffect(() => {
     const three = threeRef.current;
@@ -4831,7 +4911,7 @@ function TexasHoldemArena({ search }) {
     }
     const three = threeRef.current;
     if (!three) return;
-    const focusIndex = findSeatWithAvatar(currentActionIndex);
+    const focusIndex = findSeatWithAvatar(currentActionIndex, { skipFolded: true });
     const seatForIndicator = typeof focusIndex === 'number' ? three.seatGroups?.[focusIndex] : null;
     const turnIndicator = three.turnIndicator;
     if (turnIndicator) {
@@ -4854,9 +4934,25 @@ function TexasHoldemArena({ search }) {
     if (typeof focusIndex !== 'number') return;
     const seat = three.seatGroups?.[focusIndex];
     if (seat?.isHuman) {
+      stopCameraTurnAnimation();
+      if (Math.abs(headAnglesRef.current.yaw) > CAMERA_TURN_SNAP_EPSILON) {
+        headAnglesRef.current.yaw = 0;
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+      }
       playSound('knock');
+      return;
     }
-  }, [currentActionIndex, currentStage, findSeatWithAvatar, playSound]);
+    turnCameraTowardsSeat(focusIndex, { animate: true });
+  }, [
+    applyHeadOrientation,
+    currentActionIndex,
+    currentStage,
+    findSeatWithAvatar,
+    playSound,
+    stopCameraTurnAnimation,
+    turnCameraTowardsSeat
+  ]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -5540,12 +5636,12 @@ function TexasHoldemArena({ search }) {
         <BottomLeftIcons
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
-          onCamera2d={() => setOverheadView((prev) => !prev)}
+          onCamera2d={() => {}}
           showInfo={false}
           showMute={false}
-          showCamera2d
+          showCamera2d={false}
           camera2dActive={overheadView}
-          order={['chat', 'gift', 'camera2d']}
+          order={['chat', 'gift']}
           className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
