@@ -70,6 +70,7 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FRAME_MANUAL_OVERRIDE_GRACE_MS = 20000;
+const ALLOW_AUTO_QUALITY_DOWNGRADE = false;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function isTelegramRuntime() {
@@ -1480,7 +1481,10 @@ const CAMERA_TOPDOWN_FRAMING = Object.freeze({
   portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
   landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
 });
-const CAMERA_TURN_FOCUS_LERP = 0.13;
+const CAMERA_TURN_FOCUS_LERP = 0.07;
+const CAMERA_TURN_SEAT_WEIGHT = 0.42;
+const CAMERA_DOMINO_FOCUS_HOLD_MS = 1250;
+const TURN_ADVANCE_AFTER_PLACEMENT_MS = 950;
 const UP = new THREE.Vector3(0, 1, 0);
 const USE_MINIMAL_STAGE = true;
 
@@ -1710,6 +1714,9 @@ controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
 controls.target.copy(CAMERA_TARGET);
 const turnFocusTarget = controls.target.clone();
+const turnSeatTarget = new THREE.Vector3();
+const turnDominoTarget = new THREE.Vector3();
+let turnDominoFocusUntil = 0;
 
 let cameraHasUserControl = false;
 controls.addEventListener('start', () => {
@@ -1868,10 +1875,32 @@ function updateTurnCameraFocus() {
   }
 
   const focusSeat = seatBasisForIndex(current % Math.max(1, N));
-  const focusTarget = focusSeat.position.clone();
-  focusTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
-  turnFocusTarget.copy(focusTarget);
+  const focusCenter = getActiveCameraTarget();
+  turnSeatTarget
+    .copy(focusCenter)
+    .lerp(focusSeat.position, CAMERA_TURN_SEAT_WEIGHT);
+  turnSeatTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
+
+  const now = performance.now();
+  if (now < turnDominoFocusUntil) {
+    turnFocusTarget.copy(turnDominoTarget);
+  } else {
+    turnFocusTarget.copy(turnSeatTarget);
+  }
   controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
+}
+
+function queueDominoCameraFocus(segment) {
+  if (!segment) {
+    return;
+  }
+  if (segment.mesh) {
+    segment.mesh.getWorldPosition(turnDominoTarget);
+  } else {
+    turnDominoTarget.set(segment.x ?? 0, TABLE_HEIGHT, segment.z ?? 0);
+  }
+  turnDominoTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT;
+  turnDominoFocusUntil = performance.now() + CAMERA_DOMINO_FOCUS_HOLD_MS;
 }
 
 function updateViewToggleLabel() {
@@ -5819,7 +5848,7 @@ const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
 const PLACE_ANIM_DURATION = 640;
 const PLACE_ANIM_ARC = 0.05;
-const CPU_PLAY_DELAY = 2000;
+const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
 const TMP_WORLD_QUAT = new THREE.Quaternion();
@@ -6793,6 +6822,7 @@ let revealAllHands = false;
 let winnerHighlight = null;
 let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
+let pendingTurnAdvanceTimeout = null;
 
 function tileKey(tile) {
   const ct = canonTile(tile);
@@ -7480,6 +7510,10 @@ function startGame() {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
   }
+  if (pendingTurnAdvanceTimeout) {
+    clearTimeout(pendingTurnAdvanceTimeout);
+    pendingTurnAdvanceTimeout = null;
+  }
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
@@ -8062,6 +8096,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     const side = obj.userData.side;
     const idx = players[human].hand.indexOf(selectedTile);
     let playedTile = null;
+    let playedPlacement = null;
     if (idx >= 0) {
       const [picked] = players[human].hand.splice(idx, 1);
       const placement = placeOnBoard(picked, side, { animate: true });
@@ -8074,6 +8109,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
         return;
       }
       playedTile = picked;
+      playedPlacement = placement;
     }
     if (playedTile) {
       announceCommentary(
@@ -8091,7 +8127,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     selectedTile = null;
     clearMarkers();
     renderHands();
-    nextTurn();
+    scheduleTurnAdvanceAfterPlacement(playedPlacement?.segment);
     return;
   }
 });
@@ -8199,6 +8235,21 @@ function scheduleCpuPlay(delay = CPU_PLAY_DELAY) {
   }, safeDelay);
 }
 
+function scheduleTurnAdvanceAfterPlacement(segment, delayMs = TURN_ADVANCE_AFTER_PLACEMENT_MS) {
+  queueDominoCameraFocus(segment);
+  if (pendingTurnAdvanceTimeout) {
+    clearTimeout(pendingTurnAdvanceTimeout);
+    pendingTurnAdvanceTimeout = null;
+  }
+  const safeDelay = Math.max(0, Number.isFinite(delayMs) ? delayMs : TURN_ADVANCE_AFTER_PLACEMENT_MS);
+  pendingTurnAdvanceTimeout = setTimeout(() => {
+    pendingTurnAdvanceTimeout = null;
+    if (!gameFinished) {
+      nextTurn();
+    }
+  }, safeDelay);
+}
+
 function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
   if (gameFinished) {
     return;
@@ -8209,6 +8260,10 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
   if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
+  }
+  if (pendingTurnAdvanceTimeout) {
+    clearTimeout(pendingTurnAdvanceTimeout);
+    pendingTurnAdvanceTimeout = null;
   }
   if (
     revealAllHands === false &&
@@ -8378,7 +8433,7 @@ function cpuPlay() {
         });
         return;
       }
-      nextTurn();
+      scheduleTurnAdvanceAfterPlacement(placement.segment);
       return;
     }
     player.hand.splice(move.index, 0, picked);
@@ -8896,6 +8951,9 @@ function updateWinnerHighlight(now) {
 }
 
 function monitorFrameHealth(elapsedMs, timing) {
+  if (!ALLOW_AUTO_QUALITY_DOWNGRADE) {
+    return;
+  }
   if (
     !timing ||
     (typeof document !== 'undefined' && document.visibilityState === 'hidden')
