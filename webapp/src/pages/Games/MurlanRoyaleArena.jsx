@@ -1907,6 +1907,11 @@ const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
 const CARD_SURFACE_OFFSET = CARD_D * 4;
+const DISCARD_PILE_OFFSET = Object.freeze({
+  x: 0,
+  y: CARD_H * 0.96,
+  z: -TABLE_RADIUS * 0.84
+});
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -2814,7 +2819,11 @@ export default function MurlanRoyaleArena({ search }) {
     animations: [],
     raycaster: new THREE.Raycaster(),
     tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
-    discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
+    discardAnchor: new THREE.Vector3(
+      DISCARD_PILE_OFFSET.x,
+      TABLE_HEIGHT + DISCARD_PILE_OFFSET.y,
+      DISCARD_PILE_OFFSET.z
+    ),
     scoreboard: null,
     tableInfo: null,
     tableThemeId: null,
@@ -3135,9 +3144,14 @@ export default function MurlanRoyaleArena({ search }) {
 
     const discardCount = state.discardPile.length;
     const discardSpacing = CARD_W * 0.08;
-    const discardAnchor = tableAnchor
-      .clone()
-      .add(new THREE.Vector3(0, CARD_H * 0.95, -CARD_H * 0.22));
+    const discardAnchor = three.discardAnchor?.clone() ??
+      tableAnchor.clone().add(
+        new THREE.Vector3(
+          DISCARD_PILE_OFFSET.x,
+          DISCARD_PILE_OFFSET.y,
+          DISCARD_PILE_OFFSET.z
+        )
+      );
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -3145,7 +3159,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      const layer = discardCount - idx - 1;
+      const layer = idx;
       const target = discardAnchor.clone();
       target.x += layer * discardSpacing;
       target.y += layer * 0.0015;
@@ -3253,9 +3267,9 @@ export default function MurlanRoyaleArena({ search }) {
       three.tableFinishId = finish?.id ?? null;
       three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
       three.discardAnchor = new THREE.Vector3(
-        -TABLE_RADIUS * 0.76,
-        tableInfo.surfaceY - CARD_H * 0.3,
-        -TABLE_RADIUS * 0.62
+        DISCARD_PILE_OFFSET.x,
+        tableInfo.surfaceY + DISCARD_PILE_OFFSET.y,
+        DISCARD_PILE_OFFSET.z
       );
       return tableInfo;
     },
@@ -4348,7 +4362,11 @@ export default function MurlanRoyaleArena({ search }) {
         animations: [],
         raycaster: new THREE.Raycaster(),
         tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
-        discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
+        discardAnchor: new THREE.Vector3(
+          DISCARD_PILE_OFFSET.x,
+          TABLE_HEIGHT + DISCARD_PILE_OFFSET.y,
+          DISCARD_PILE_OFFSET.z
+        ),
         scoreboard: null,
         tableInfo: null,
         tableThemeId: null,
