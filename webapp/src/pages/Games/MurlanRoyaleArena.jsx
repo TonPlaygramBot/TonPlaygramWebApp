@@ -3061,8 +3061,6 @@ export default function MurlanRoyaleArena({ search }) {
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
 
-    const humanMeshes = [];
-
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
@@ -3085,40 +3083,35 @@ export default function MurlanRoyaleArena({ search }) {
         const entry = cardMap.get(card.id);
         if (!entry) return;
         const mesh = entry.mesh;
-        mesh.visible = true;
-        updateCardFace(mesh, player.isHuman ? 'front' : 'back');
-        handsVisible.add(card.id);
+        const isHumanCard = player.isHuman;
+        mesh.visible = !isHumanCard;
+        updateCardFace(mesh, isHumanCard ? 'front' : 'back');
+        if (!isHumanCard) {
+          handsVisible.add(card.id);
+        }
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
         const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
         target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
-        if (player.isHuman && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
+        if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         setMeshPosition(
           mesh,
           target,
           focus,
-          { face: player.isHuman ? 'front' : 'back' },
+          { face: isHumanCard ? 'front' : 'back' },
           immediate,
           three.animations
         );
         mesh.userData.cardId = card.id;
-        if (player.isHuman) humanMeshes.push(mesh);
       });
     });
 
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
     const tableSpacing =
-      tableCount > 1 ? Math.min(CARD_W * 1.28, (CARD_W * 5.2) / (tableCount - 1)) : CARD_W;
+      tableCount > 1 ? Math.min(CARD_W * 1.24, (CARD_W * 4.8) / (tableCount - 1)) : CARD_W;
     const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
-    const humanIndex = state.players.findIndex((player) => player.isHuman);
-    const humanSeat = humanIndex >= 0 ? seatConfigs[humanIndex] : null;
-    const tableLookBase = humanSeat
-      ? tableAnchor
-          .clone()
-          .add(humanSeat.forward.clone().multiplyScalar(1.15 * MODEL_SCALE))
-          .setY(tableAnchor.y + 0.32 * MODEL_SCALE)
-      : tableAnchor.clone().setY(tableAnchor.y + 0.32 * MODEL_SCALE);
+    const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
     state.tableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -3127,36 +3120,37 @@ export default function MurlanRoyaleArena({ search }) {
       updateCardFace(mesh, 'front');
       const target = tableAnchor.clone();
       target.x += tableStartX + idx * tableSpacing;
-      target.y += 0.06 * MODEL_SCALE + idx * 0.014;
-      target.z += (idx - (tableCount - 1) / 2) * 0.06;
-      const lookTarget = tableLookBase.clone();
+      target.y += 0.05 * MODEL_SCALE;
+      target.z += 0;
       setMeshPosition(
         mesh,
         target,
-        lookTarget,
-        { face: 'front' },
+        tableLookBase,
+        { face: 'front', flat: true },
         immediate,
         three.animations
       );
     });
 
-    const discardBase = three.discardAnchor.clone();
+    const discardCount = state.discardPile.length;
+    const discardSpacing = CARD_W * 0.08;
+    const discardAnchor = tableAnchor
+      .clone()
+      .add(new THREE.Vector3(tableStartX + Math.max(tableCount - 1, 0) * tableSpacing + CARD_W * 1.18, -CARD_H * 0.04, 0));
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
       updateCardFace(mesh, 'front');
-      const row = Math.floor(idx / 12);
-      const col = idx % 12;
-      const target = discardBase.clone();
-      target.x += (col - 5.5) * CARD_W * 0.4;
-      target.z += row * CARD_W * 0.32;
-      target.y -= row * 0.05;
+      const layer = discardCount - idx - 1;
+      const target = discardAnchor.clone();
+      target.x += layer * discardSpacing;
+      target.y += layer * 0.0015;
       setMeshPosition(
         mesh,
         target,
-        target.clone().setY(target.y + 0.1),
+        tableLookBase,
         { face: 'front', flat: true },
         immediate,
         three.animations
@@ -3172,7 +3166,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
     });
 
-    three.selectionTargets = humanTurn ? humanMeshes : [];
+    three.selectionTargets = [];
     if (three.renderer?.domElement) {
       three.renderer.domElement.style.cursor = humanTurn ? 'pointer' : 'default';
     }
@@ -4442,6 +4436,9 @@ export default function MurlanRoyaleArena({ search }) {
     setActionError('');
   }, []);
 
+  const humanPlayer = gameState.players.find((player) => player.isHuman) ?? null;
+  const humanHand = humanPlayer?.hand ?? [];
+
   return (
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
@@ -4702,14 +4699,51 @@ export default function MurlanRoyaleArena({ search }) {
             onCamera2d={handleToggleCamera2d}
           />
         </div>
-        <div className="mt-auto px-4 pb-6 pointer-events-none">
-          <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
-            <p className="text-sm text-gray-100">{uiState.message}</p>
-            {uiState.tableSummary && (
-              <p className="mt-2 text-xs text-gray-300">{uiState.tableSummary}</p>
-            )}
-            {actionError && <p className="mt-2 text-xs text-red-400">{actionError}</p>}
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
+          <p className="text-sm font-semibold tracking-wide text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+          {uiState.tableSummary && (
+            <p className="mt-1 text-xs italic tracking-wide text-sky-100/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+          )}
+          {actionError && <p className="mt-1 text-xs font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+        </div>
+        <div className="mt-auto px-3 pb-5 pointer-events-none">
+          <div className="mx-auto w-full max-w-2xl pointer-events-auto">
+            <div className="mb-3 flex min-h-[6.25rem] items-end justify-center overflow-x-auto px-2 py-1">
+              <div className="flex min-w-max items-end justify-center">
+                {humanHand.map((card, index) => {
+                  const selected = selectedIds.includes(card.id);
+                  const redSuit = card.suit === '♥' || card.suit === '♦';
+                  return (
+                    <button
+                      type="button"
+                      key={card.id}
+                      onClick={() => toggleSelection(card.id)}
+                      className={`relative h-24 w-16 shrink-0 rounded-xl border-2 bg-white text-left shadow-[0_8px_22px_rgba(0,0,0,0.45)] transition-transform ${
+                        selected
+                          ? '-translate-y-3 border-sky-300 ring-2 ring-sky-300/70'
+                          : 'border-slate-300 hover:-translate-y-1'
+                      }`}
+                      style={{ marginLeft: index === 0 ? 0 : -40, zIndex: 10 + index }}
+                      disabled={!uiState.humanTurn}
+                    >
+                      <span className={`absolute left-1.5 top-1.5 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.rank}
+                      </span>
+                      <span className={`absolute left-2 top-5 text-sm leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.suit}
+                      </span>
+                      <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-2xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.suit}
+                      </span>
+                      <span className={`absolute bottom-1.5 right-1.5 rotate-180 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.rank}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={handlePass}
@@ -5327,12 +5361,13 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
 
 function orientMesh(mesh, lookTarget, options = {}) {
   const { face = 'front', flat = false } = options;
+  if (flat) {
+    mesh.rotation.set(-Math.PI / 2, face === 'back' ? Math.PI : 0, 0);
+    return;
+  }
   mesh.up.set(0, 1, 0);
   mesh.lookAt(lookTarget);
   mesh.rotation.z = 0;
-  if (flat) {
-    mesh.rotateX(-Math.PI / 2);
-  }
   if (face === 'back') {
     mesh.rotateY(Math.PI);
   }
