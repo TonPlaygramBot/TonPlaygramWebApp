@@ -49,6 +49,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2,
     resolution: 'Ultra HD render • DPR 2.0 cap',
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -60,6 +69,7 @@ const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
 const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
+const FRAME_MANUAL_OVERRIDE_GRACE_MS = 20000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function isTelegramRuntime() {
@@ -109,7 +119,7 @@ function detectHighRefreshDisplay() {
   ) {
     return false;
   }
-  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  const queries = ['(min-refresh-rate: 143hz)', '(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -267,7 +277,7 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    return 'uhd120';
+    return 'ultra144';
   }
 
   if (rendererTier === 'desktopMid') {
@@ -369,6 +379,7 @@ let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
 let slowFrameAccumulatorMs = 0;
 let lastFailsafeTimestamp = 0;
+let lastManualFrameRateSelectionAt = 0;
 
 function persistFrameRateSelection(id) {
   if (typeof window === 'undefined') return;
@@ -5940,10 +5951,17 @@ function applyAppearanceChange({ refresh = true } = {}) {
   }
 }
 
-function applyFrameRateSelection(optionId, { refreshUi = true } = {}) {
+function applyFrameRateSelection(
+  optionId,
+  { refreshUi = true, source = 'system' } = {}
+) {
   const resolvedId = FRAME_RATE_OPTIONS_BY_ID[optionId]
     ? optionId
     : DEFAULT_FRAME_RATE_ID;
+  if (source === 'manual') {
+    lastManualFrameRateSelectionAt = performance.now();
+    slowFrameAccumulatorMs = 0;
+  }
   frameRateId = resolvedId;
   frameQuality = buildFrameQuality(resolvedId);
   frameTiming = buildFrameTiming(frameQuality);
@@ -6338,7 +6356,7 @@ function refreshConfigUI() {
     }
     button.addEventListener('click', () => {
       if (frameRateId === option.id) return;
-      applyFrameRateSelection(option.id, { refreshUi: false });
+      applyFrameRateSelection(option.id, { refreshUi: false, source: 'manual' });
       refreshConfigUI();
     });
     graphicsGrid.appendChild(button);
@@ -6840,7 +6858,10 @@ function handleWebglContextRestored() {
   clearContextLossTimer();
   const fallbackFrameRateId = findFallbackFrameRateId(frameQuality?.id);
   if (fallbackFrameRateId && fallbackFrameRateId !== frameQuality?.id) {
-    applyFrameRateById(fallbackFrameRateId, { persist: true, announce: false });
+    applyFrameRateSelection(fallbackFrameRateId, {
+      refreshUi: true,
+      source: 'context-recovery'
+    });
   }
   setStatus('Graphics restored.');
   setControlEnabled(false);
@@ -8900,6 +8921,9 @@ function monitorFrameHealth(elapsedMs, timing) {
     );
   }
   const now = performance.now();
+  if (now - lastManualFrameRateSelectionAt <= FRAME_MANUAL_OVERRIDE_GRACE_MS) {
+    return;
+  }
   if (
     slowFrameAccumulatorMs >= FRAME_DROP_WINDOW_MS &&
     now - lastFailsafeTimestamp > FRAME_FAILSAFE_COOLDOWN_MS
