@@ -437,6 +437,46 @@ export default function PoolRoyaleLobby() {
     () => getNextCareerStage(trainingProgress, careerProgress),
     [trainingProgress, careerProgress]
   );
+  const careerProgressOverview = useMemo(() => {
+    const totals = {
+      training: 0,
+      friendly: 0,
+      league: 0,
+      showdown: 0,
+      tournament: 0
+    };
+    const completed = {
+      training: 0,
+      friendly: 0,
+      league: 0,
+      showdown: 0,
+      tournament: 0
+    };
+
+    careerRoadmapNodes.forEach((stage) => {
+      if (!totals[stage.type] && totals[stage.type] !== 0) return;
+      totals[stage.type] += 1;
+      if (stage.completed) completed[stage.type] += 1;
+    });
+
+    const leagueTotal = totals.league;
+    const leagueDone = completed.league;
+    const tournamentTotal = totals.tournament;
+    const tournamentDone = completed.tournament;
+
+    return {
+      completedStages: careerRoadmapNodes.filter((node) => node.completed).length,
+      upcomingPhase: nextCareerTask?.phaseLabel || 'All phases cleared',
+      leagueDone,
+      leagueTotal,
+      tournamentDone,
+      tournamentTotal,
+      leaguePercent: leagueTotal ? Math.round((leagueDone / leagueTotal) * 100) : 0,
+      tournamentPercent: tournamentTotal
+        ? Math.round((tournamentDone / tournamentTotal) * 100)
+        : 0
+    };
+  }, [careerRoadmapNodes, nextCareerTask]);
 
   const tournamentKey = getTelegramId() || 'anon';
   const tournamentStateKey = `poolRoyaleTournamentState_${tournamentKey}`;
@@ -819,46 +859,64 @@ export default function PoolRoyaleLobby() {
         )}
 
         {playType === 'career' && (
-          <div className="space-y-3 rounded-2xl border border-amber-300/30 bg-gradient-to-br from-amber-500/12 via-black/35 to-indigo-500/12 p-4">
-            <div className="flex items-center justify-between gap-3">
+          <div className="space-y-3 rounded-3xl border border-amber-300/35 bg-gradient-to-br from-[#3f2a0d]/55 via-[#130f1f]/90 to-[#10253a]/80 p-3.5 shadow-[0_20px_48px_rgba(0,0,0,0.45)] sm:p-4">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-white">Career Roadmap</h3>
-                <p className="text-xs text-white/60">
-                  Elite path with drills, friendlies, and championship brackets.
+                <h3 className="font-semibold text-white">Career Command Center</h3>
+                <p className="text-xs text-white/70">
+                  Advanced roadmap with tracked leagues, tournament brackets, and activity milestones.
                 </p>
               </div>
-              <span className="text-xs font-semibold text-amber-200">
-                {careerRoadmapNodes.filter((node) => node.completed).length}/
-                {CAREER_LEVEL_COUNT}
+              <span className="rounded-full border border-amber-200/40 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
+                {careerProgressOverview.completedStages}/{CAREER_LEVEL_COUNT}
               </span>
             </div>
-            {nextCareerTask ? (
-              <div className="rounded-xl border border-amber-300/45 bg-amber-300/10 p-3 text-xs text-amber-50">
-                <p className="font-semibold uppercase tracking-[0.16em]">
-                  Next milestone
-                </p>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-2.5">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-100/80">League tracker</p>
                 <p className="mt-1 text-sm font-semibold text-white">
-                  {nextCareerTask.icon} {nextCareerTask.title}
+                  {careerProgressOverview.leagueDone}/{careerProgressOverview.leagueTotal}
                 </p>
-                <p className="mt-1 text-white/75">{nextCareerTask.objective}</p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-300/70 to-emerald-300/80"
+                    style={{ width: `${careerProgressOverview.leaguePercent}%` }}
+                  />
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-2.5">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-violet-100/80">Tournament tracker</p>
+                <p className="mt-1 text-sm font-semibold text-white">
+                  {careerProgressOverview.tournamentDone}/{careerProgressOverview.tournamentTotal}
+                </p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-300/70 to-amber-300/80"
+                    style={{ width: `${careerProgressOverview.tournamentPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {nextCareerTask ? (
+              <div className="rounded-2xl border border-amber-200/45 bg-amber-300/10 p-3 text-xs text-amber-50">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold uppercase tracking-[0.16em]">Now active</p>
+                  <span className="rounded-full border border-amber-100/40 bg-black/20 px-2 py-0.5 text-[10px] font-semibold">{careerProgressOverview.upcomingPhase}</span>
+                </div>
+                <p className="mt-1 text-sm font-semibold text-white">{nextCareerTask.icon} {nextCareerTask.title}</p>
+                <p className="mt-1 text-white/80">{nextCareerTask.activitySummary || nextCareerTask.objective}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                    <img
-                      src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                      alt="TPC"
-                      className="h-3.5 w-3.5"
-                    />
-                    {Number(nextCareerTask.rewardTpc || 0).toLocaleString(
-                      'en-US'
-                    )}{' '}
-                    TPC
+                  <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    {nextCareerTask.typeLabel || nextCareerTask.type}
                   </span>
-                  {nextCareerTask.hasGift ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
-                      <span>🎁</span>
-                      Bonus crate
-                    </span>
-                  ) : null}
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                    <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-3.5 w-3.5" />
+                    {Number(nextCareerTask.rewardTpc || 0).toLocaleString('en-US')} TPC
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-100">⭐ {Number(nextCareerTask.rewardXp || 0)} XP</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/30 px-2 py-0.5 text-[10px] font-semibold text-white/85">⏱ {nextCareerTask.durationMinutes || 4}m</span>
                 </div>
               </div>
             ) : (
@@ -866,115 +924,77 @@ export default function PoolRoyaleLobby() {
                 Career complete. You are the Pool Royale Legend.
               </div>
             )}
+
             <button
               type="button"
               onClick={() => startGame()}
               disabled={!nextCareerTask}
-              className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              className={`w-full rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                 nextCareerTask
                   ? 'bg-amber-300 text-black hover:bg-amber-200'
                   : 'cursor-not-allowed bg-white/10 text-white/45'
               }`}
             >
-              {nextCareerTask ? 'Launch next career match' : 'Career complete'}
+              {nextCareerTask ? 'Play active career stage' : 'Career complete'}
             </button>
-            <div className="max-h-96 overflow-y-auto pr-1">
-              <div className="relative pl-2">
-                <div className="absolute left-[1.35rem] top-2 bottom-2 w-[2px] rounded-full bg-gradient-to-b from-amber-300/60 via-indigo-300/45 to-emerald-300/20" />
-                <div className="space-y-2.5">
-                  {careerRoadmapNodes.map((stage, index) => (
-                    <div
-                      key={stage.id}
-                      className="relative flex items-start gap-3"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => stage.playable && startGame()}
-                        disabled={!stage.playable}
-                        className={`relative z-10 mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-base font-semibold shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition ${
-                          stage.completed
-                            ? 'border-emerald-200 bg-emerald-300/20 text-emerald-50'
-                            : stage.playable
-                              ? 'border-amber-200 bg-amber-300/20 text-amber-50'
-                              : 'cursor-not-allowed border-white/15 bg-black/35 text-white/35'
-                        }`}
-                        aria-label={`Launch career stage ${stage.level}`}
-                      >
-                        {stage.icon}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => stage.playable && startGame()}
-                        disabled={!stage.playable}
-                        className={`flex min-w-0 flex-1 flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left transition ${
-                          stage.playable
-                            ? 'border-amber-300/55 bg-amber-300/10 shadow-[0_10px_24px_rgba(251,191,36,0.18)]'
-                            : stage.completed
-                              ? 'border-emerald-300/50 bg-emerald-400/10'
-                              : 'cursor-not-allowed border-white/10 bg-white/[0.01]'
-                        }`}
-                      >
-                        <div className="flex w-full min-w-0 items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-white">
-                              Stage {String(index + 1).padStart(3, '0')} ·{' '}
-                              {stage.title}
-                            </p>
-                            <p className="mt-0.5 truncate text-[10px] text-white/70">
-                              {stage.objective}
-                            </p>
-                          </div>
-                          <span
-                            className={`ml-2 shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] ${stage.completed ? 'text-emerald-200' : stage.playable ? 'text-amber-100' : 'text-white/35'}`}
-                          >
-                            {stage.statusLabel}
-                          </span>
-                        </div>
-                        <div className="flex w-full flex-wrap items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90">
-                            {stage.type === 'training'
-                              ? '🎯 Drill'
-                              : stage.type === 'friendly'
-                                ? '🤝 Match'
-                                : stage.type === 'league'
-                                  ? '🗓️ League'
-                                  : stage.type === 'showdown'
-                                    ? '⚡ Showdown'
-                                    : '🏆 Tournament'}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                            <img
-                              src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                              alt="TPC"
-                              className="h-3.5 w-3.5"
-                            />
-                            {Number(stage.rewardTpc || 0).toLocaleString(
-                              'en-US'
-                            )}{' '}
-                            TPC
-                          </span>
-                          {stage.hasGift ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
-                              <span>🎁</span>
-                              Gift bonus
-                            </span>
-                          ) : null}
-                          {stage.hasGift && stage.giftThumbnail ? (
-                            <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200/50 bg-black/25 px-1.5 py-1 text-[10px] font-semibold text-amber-50">
-                              <img
-                                src={stage.giftThumbnail}
-                                alt="Gift reward thumbnail"
-                                className="h-7 w-7 rounded object-cover"
-                                loading="lazy"
-                              />
-                              Gift preview
-                            </span>
-                          ) : null}
-                        </div>
-                      </button>
+
+            <div className="max-h-[56vh] overflow-y-auto pr-1">
+              <div className="space-y-2.5">
+                {careerRoadmapNodes.map((stage, index) => (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => stage.playable && startGame()}
+                    disabled={!stage.playable}
+                    className={`w-full rounded-2xl border p-3 text-left transition ${
+                      stage.playable
+                        ? 'border-amber-300/55 bg-gradient-to-br from-amber-300/12 to-indigo-400/12 shadow-[0_10px_24px_rgba(251,191,36,0.18)]'
+                        : stage.completed
+                          ? 'border-emerald-300/45 bg-emerald-400/10'
+                          : 'cursor-not-allowed border-white/10 bg-white/[0.02]'
+                    }`}
+                    aria-label={`Launch career stage ${stage.level}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold text-white">
+                          {stage.icon} Stage {String(index + 1).padStart(3, '0')} · {stage.title}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-white/70 line-clamp-2">{stage.objective}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${stage.completed ? 'bg-emerald-300/20 text-emerald-100' : stage.playable ? 'bg-amber-300/20 text-amber-100' : 'bg-white/10 text-white/45'}`}>
+                        {stage.statusLabel}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/25 px-2 py-0.5 text-[10px] font-semibold text-white/90">{stage.phaseLabel} · {stage.intensity}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90">{stage.typeLabel || stage.type}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-100">🎬 {stage.trackerItems?.[0] || 'Activity'}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                        <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-3.5 w-3.5" />
+                        {Number(stage.rewardTpc || 0).toLocaleString('en-US')} TPC
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200/40 bg-indigo-300/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-100">⭐ {Number(stage.rewardXp || 0)} XP</span>
+                      {stage.hasGift ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                          <span>🎁</span>
+                          Gift bonus
+                        </span>
+                      ) : null}
+                      {stage.hasGift && stage.giftThumbnail ? (
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200/50 bg-black/25 px-1.5 py-1 text-[10px] font-semibold text-amber-50">
+                          <img
+                            src={stage.giftThumbnail}
+                            alt="Gift reward thumbnail"
+                            className="h-7 w-7 rounded object-cover"
+                            loading="lazy"
+                          />
+                          Preview
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
