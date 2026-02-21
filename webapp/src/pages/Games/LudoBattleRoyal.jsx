@@ -323,11 +323,15 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ];
-const AI_ROLL_DELAY_MS = 2000;
-const AI_EXTRA_TURN_DELAY_MS = 1100;
+const AI_ROLL_DELAY_MS = 2800;
+const AI_EXTRA_TURN_DELAY_MS = 1700;
 const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
+const CAMERA_TURN_SEAT_WEIGHT = 0.58;
+const CAMERA_FOCUS_TURN_LERP = 0.08;
+const CAMERA_FOCUS_ACTION_LERP = 0.16;
+const CAMERA_TURN_ORBIT_LERP = 0.06;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const CHAIR_SIZE_SCALE = 1;
 const CHAIR_MODEL_URLS = [
@@ -2489,6 +2493,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const humanRollTimeoutRef = useRef(null);
   const turnAdvanceTimeoutRef = useRef(null);
   const humanSelectionRef = useRef(null);
+  const cameraFocusRef = useRef(null);
   const fitRef = useRef(() => {});
   const cameraRef = useRef(null);
   const boardLookTargetRef = useRef(null);
@@ -4661,6 +4666,56 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         seatPositionsRef.current = [];
         setSeatAnchors([]);
       }
+
+      if (controls && camera && !isCamera2d) {
+        const stateForTurn = stateRef.current;
+        const turnTarget =
+          stateForTurn && Number.isInteger(stateForTurn.turn)
+            ? resolveTurnCameraTarget(stateForTurn.turn)
+            : null;
+
+        const nowMs = performance.now();
+        const focusState = cameraFocusRef.current;
+        if (focusState?.expiresAt && nowMs >= focusState.expiresAt) {
+          cameraFocusRef.current = null;
+        }
+
+        const activeFocus = cameraFocusRef.current;
+        let focusTarget = turnTarget;
+        let followSpeed = CAMERA_FOCUS_TURN_LERP;
+        let shouldOrbitTurn = true;
+
+        if (activeFocus) {
+          const origin = activeFocus.object?.position ?? activeFocus.target;
+          if (origin) {
+            const nextTarget = origin.clone ? origin.clone() : new THREE.Vector3().copy(origin);
+            nextTarget.y += activeFocus.offset ?? CAMERA_TARGET_LIFT;
+            focusTarget = nextTarget;
+            followSpeed = CAMERA_FOCUS_ACTION_LERP;
+            shouldOrbitTurn = false;
+          }
+        }
+
+        if (focusTarget) {
+          controls.target.lerp(focusTarget, followSpeed);
+        }
+
+        if (shouldOrbitTurn && turnTarget && boardLookTargetRef.current) {
+          const boardCenter = boardLookTargetRef.current;
+          const offset = camera.position.clone().sub(boardCenter);
+          const spherical = new THREE.Spherical().setFromVector3(offset);
+          const seatVector = turnTarget.clone().sub(boardCenter);
+          seatVector.y = 0;
+          if (seatVector.lengthSq() > 1e-6 && Number.isFinite(spherical.radius)) {
+            const desiredTheta = Math.atan2(seatVector.x, seatVector.z);
+            const nextTheta = THREE.MathUtils.lerp(spherical.theta, desiredTheta, CAMERA_TURN_ORBIT_LERP);
+            spherical.theta = nextTheta;
+            const updatedOffset = new THREE.Vector3().setFromSpherical(spherical);
+            camera.position.copy(boardCenter).add(updatedOffset);
+          }
+        }
+      }
+
       controls?.update();
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
@@ -4769,7 +4824,40 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   };
 
-  const setCameraFocus = useCallback(() => {}, []);
+  const resolveTurnCameraTarget = useCallback((playerIndex) => {
+    const arena = arenaRef.current;
+    const boardLookTarget = boardLookTargetRef.current;
+    if (!boardLookTarget) return null;
+    const target = boardLookTarget.clone();
+    const seatAnchor = arena?.seatAnchors?.[playerIndex];
+    if (seatAnchor?.getWorldPosition) {
+      const seatPos = seatAnchor.getWorldPosition(new THREE.Vector3());
+      target.lerp(seatPos, CAMERA_TURN_SEAT_WEIGHT);
+    }
+    target.y = boardLookTarget.y;
+    return target;
+  }, []);
+
+  const setCameraFocus = useCallback((config = null) => {
+    if (!config) {
+      cameraFocusRef.current = null;
+      return;
+    }
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const ttlMs = Number.isFinite(config.ttl) ? Math.max(0, config.ttl * 1000) : null;
+    const expiresAt = ttlMs == null ? null : now + ttlMs;
+    const nextFocus = {
+      ...config,
+      priority: Number.isFinite(config.priority) ? config.priority : 1,
+      offset: Number.isFinite(config.offset) ? config.offset : CAMERA_TARGET_LIFT,
+      expiresAt,
+      createdAt: now
+    };
+    const current = cameraFocusRef.current;
+    if (!current || config.force || nextFocus.priority >= (current.priority ?? 0)) {
+      cameraFocusRef.current = nextFocus;
+    }
+  }, []);
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
     const state = stateRef.current;
