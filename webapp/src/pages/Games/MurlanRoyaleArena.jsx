@@ -3171,7 +3171,7 @@ export default function MurlanRoyaleArena({ search }) {
         mesh,
         target,
         tableLookBase,
-        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT, flatYawY: Math.PI },
+        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT },
         immediate,
         three.animations
       );
