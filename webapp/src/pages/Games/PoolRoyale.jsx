@@ -11979,6 +11979,7 @@ function PoolRoyaleGame({
   const [isTournamentFinalMatch, setIsTournamentFinalMatch] = useState(false);
   const [showTournamentFinalWelcome, setShowTournamentFinalWelcome] = useState(false);
   const [revealedRewardNft, setRevealedRewardNft] = useState(null);
+  const [careerGiftPendingOpen, setCareerGiftPendingOpen] = useState(null);
   const tournamentLastResult = useMemo(() => {
     if (!tournamentMode || typeof window === 'undefined') return null;
     try {
@@ -12100,6 +12101,16 @@ function PoolRoyaleGame({
         45% { opacity: 0.8; }
         100% { transform: scale(1.5); opacity: 0; }
       }
+      @keyframes prRewardUnbox {
+        0% { transform: scale(0.34); opacity: 0; }
+        38% { transform: scale(1.42); opacity: 1; }
+        72% { transform: scale(1.18); opacity: 1; }
+        100% { transform: scale(1.25); opacity: 1; }
+      }
+      @keyframes prFireworkBurst {
+        0% { transform: translate3d(0, 0, 0) scale(0.3); opacity: 1; }
+        100% { transform: translate3d(var(--tx), var(--ty), 0) scale(1.15); opacity: 0; }
+      }
       .pr-coin-burst {
         position: fixed;
         top: -24px;
@@ -12107,6 +12118,16 @@ function PoolRoyaleGame({
         height: 32px;
         pointer-events: none;
         z-index: 70;
+        will-change: transform, opacity;
+      }
+      .pr-firework-burst {
+        position: fixed;
+        left: var(--x);
+        top: var(--y);
+        font-size: var(--size);
+        animation: prFireworkBurst var(--dur) ease-out forwards;
+        pointer-events: none;
+        z-index: 150;
         will-change: transform, opacity;
       }`;
     document.head.appendChild(style);
@@ -12139,6 +12160,34 @@ function PoolRoyaleGame({
     },
     [ensureCoinBurstStyles]
   );
+  const triggerFireworkBurst = useCallback((count = 28) => {
+    if (typeof document === 'undefined') return;
+    ensureCoinBurstStyles();
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.inset = '0';
+    container.style.pointerEvents = 'none';
+    container.style.zIndex = '150';
+    document.body.appendChild(container);
+    const particles = ['✨', '🎆', '🎇', '💥', '🪙'];
+    for (let i = 0; i < count; i += 1) {
+      const node = document.createElement('span');
+      node.className = 'pr-firework-burst';
+      node.textContent = particles[i % particles.length];
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 80 + Math.random() * 220;
+      node.style.setProperty('--x', `${45 + Math.random() * 10}vw`);
+      node.style.setProperty('--y', `${38 + Math.random() * 18}vh`);
+      node.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+      node.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+      node.style.setProperty('--dur', `${850 + Math.random() * 700}ms`);
+      node.style.setProperty('--size', `${15 + Math.random() * 16}px`);
+      container.appendChild(node);
+    }
+    window.setTimeout(() => {
+      container.remove();
+    }, 1900);
+  }, [ensureCoinBurstStyles]);
   const [poolInventory, setPoolInventory] = useState(() =>
     getCachedPoolRoyalInventory(resolvedAccountId)
   );
@@ -12793,7 +12842,7 @@ function PoolRoyaleGame({
     [trainingProgress]
   );
   useEffect(() => {
-    if (!isTraining) {
+    if (!isTraining || isFreePractice) {
       trainingIntroShownRef.current = false;
       setShowTrainingIntroCard(false);
       return;
@@ -12805,7 +12854,7 @@ function PoolRoyaleGame({
       setShowTrainingIntroCard(false);
     }, 3200);
     return () => window.clearTimeout(timeoutId);
-  }, [isTraining]);
+  }, [isFreePractice, isTraining]);
 
 
 
@@ -12956,7 +13005,7 @@ function PoolRoyaleGame({
   }, [resolvedAccountId]);
 
   const ensureTrainingBallPoolForLayout = useCallback((trainingLayout) => {
-    if (!isTraining) return;
+    if (!isTraining || isFreePractice) return;
     const table = trainingTableRef.current;
     const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!table || !balls.length || !trainingLayout) return;
@@ -12989,10 +13038,10 @@ function PoolRoyaleGame({
       }
       balls.push(objectBall);
     }
-  }, [isTraining]);
+  }, [isFreePractice, isTraining]);
 
   const applyTrainingLayoutForLevel = useCallback((level) => {
-    if (!isTraining) return;
+    if (!isTraining || isFreePractice) return;
     const trainingLayout = getTrainingLayout(level);
     const startingBalls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!startingBalls.length || !trainingLayout) {
@@ -13077,16 +13126,16 @@ function PoolRoyaleGame({
     const activeObjectCount = snapshot.filter((entry) => entry.id !== 'cue' && entry.active).length;
     trainingLayoutReadyRef.current = activeObjectCount > 0 && entries.length > 0;
     initialLayoutRef.current = snapshot;
-  }, [ensureTrainingBallPoolForLayout, isTraining]);
+  }, [ensureTrainingBallPoolForLayout, isFreePractice, isTraining]);
 
   const flushPendingTrainingLayout = useCallback(() => {
-    if (!isTraining) return;
+    if (!isTraining || isFreePractice) return;
     const pendingLevel = pendingTrainingLayoutLevelRef.current;
     if (!pendingLevel) return;
     const balls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!balls.length) return;
     applyTrainingLayoutForLevel(pendingLevel);
-  }, [applyTrainingLayoutForLevel, isTraining]);
+  }, [applyTrainingLayoutForLevel, isFreePractice, isTraining]);
 
   const handleTrainingRoadmapContinue = useCallback(() => {
     if (usesCareerAttempts) {
@@ -13136,6 +13185,7 @@ function PoolRoyaleGame({
   ]);
 
   const handleCareerTaskTryAgain = useCallback(() => {
+    setCareerGiftPendingOpen(null);
     setCareerTaskResultModal(null);
     handleTrainingLevelPick(trainingLevelRef.current || trainingLevel);
   }, [handleTrainingLevelPick, trainingLevel]);
@@ -13162,6 +13212,7 @@ function PoolRoyaleGame({
   }, [applyTrainingLayoutForLevel, isFreePractice, trainingLevel]);
 
   useEffect(() => {
+    if (isFreePractice) return undefined;
     applyTrainingLayoutForLevel(trainingLevel);
     const retryA = window.setTimeout(() => {
       if (trainingLayoutReadyRef.current) return;
@@ -13175,7 +13226,7 @@ function PoolRoyaleGame({
       window.clearTimeout(retryA);
       window.clearTimeout(retryB);
     };
-  }, [applyTrainingLayoutForLevel, trainingLevel]);
+  }, [applyTrainingLayoutForLevel, isFreePractice, trainingLevel]);
 
   useEffect(() => {
     flushPendingTrainingLayout();
@@ -14366,7 +14417,7 @@ const powerRef = useRef(hud.power);
     }));
   }, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
   useEffect(() => {
-    if (!isTraining) {
+    if (!isTraining || isFreePractice) {
       trainingCompletionHandledRef.current = false;
       if (trainingAutoAdvanceTimeoutRef.current) {
         window.clearTimeout(trainingAutoAdvanceTimeoutRef.current);
@@ -14420,6 +14471,7 @@ const powerRef = useRef(hud.power);
         nftReward,
         nextLabel: 'Continue to next task'
       });
+      setCareerGiftPendingOpen(nftReward || null);
     } else {
       setTrainingProgress((prev) => {
         const completedSet = new Set(
@@ -14464,7 +14516,9 @@ const powerRef = useRef(hud.power);
     }
     if (nftReward) {
       persistRewardNft(nftReward);
-      setRevealedRewardNft(nftReward);
+      if (!isCareerTrainingSession) {
+        setRevealedRewardNft(nftReward);
+      }
     }
     triggerCoinBurst(nftReward ? 26 : 18);
   }, [
@@ -14472,6 +14526,7 @@ const powerRef = useRef(hud.power);
     awardTrainingTaskPayout,
     careerStageId,
     frameState.frameOver,
+    isFreePractice,
     isTraining,
     usesCareerAttempts,
     persistRewardNft,
@@ -22760,8 +22815,9 @@ const powerRef = useRef(hud.power);
         return entries.length > 0;
       };
 
-      const trainingLayout = isTraining ? getTrainingLayout(trainingLevelRef.current || 1) : null;
-      const appliedTraining = isTraining ? placeTrainingLayout(trainingLayout) : false;
+      const shouldUseTrainingLayout = isTraining && !isFreePractice;
+      const trainingLayout = shouldUseTrainingLayout ? getTrainingLayout(trainingLevelRef.current || 1) : null;
+      const appliedTraining = shouldUseTrainingLayout ? placeTrainingLayout(trainingLayout) : false;
 
       if (!appliedTraining) {
         const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
@@ -22814,7 +22870,7 @@ const powerRef = useRef(hud.power);
       if (!initialLayoutRef.current && captureBallSnapshot) {
         initialLayoutRef.current = captureBallSnapshot();
       }
-      if (isTraining) {
+      if (isTraining && !isFreePractice) {
         flushPendingTrainingLayout();
         applyTrainingLayoutForLevel(trainingLevelRef.current || 1);
       }
@@ -27661,6 +27717,7 @@ const powerRef = useRef(hud.power);
               nextInHand = false;
               setTrainingAttemptsStoreOpen(false);
               setTrainingRoadmapOpen(false);
+              setCareerGiftPendingOpen(null);
               setCareerTaskResultModal({
                 status: 'failed',
                 heartPenalty: Math.max(1, appliedAttemptPenalty || TRAINING_MISS_ATTEMPT_COST)
@@ -31185,7 +31242,7 @@ const powerRef = useRef(hud.power);
             <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
               <span className="absolute inset-2 rounded-full bg-amber-300/35 blur-xl animate-[prRewardGlow_900ms_ease-out_forwards]" aria-hidden="true" />
               <span className="absolute inset-0 rounded-full border border-amber-200/70 animate-[prRewardHalo_1400ms_ease-out_infinite]" aria-hidden="true" />
-              <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-amber-200/80 bg-amber-300/20 text-3xl shadow-[0_0_22px_rgba(251,191,36,0.45)] animate-[prRewardPop_700ms_ease-out]">
+              <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-amber-200/80 bg-amber-300/20 text-4xl shadow-[0_0_22px_rgba(251,191,36,0.45)] animate-[prRewardUnbox_860ms_ease-out_forwards]">
                 {revealedRewardNft.thumbnail ? (
                   <img src={revealedRewardNft.thumbnail} alt={revealedRewardNft.name} className="h-full w-full object-cover" />
                 ) : (
@@ -31203,7 +31260,10 @@ const powerRef = useRef(hud.power);
             </div>
             <button
               type="button"
-              onClick={() => setRevealedRewardNft(null)}
+              onClick={() => {
+                setRevealedRewardNft(null);
+                setCareerGiftPendingOpen(null);
+              }}
               className="mt-5 rounded-full border border-emerald-300 bg-emerald-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
             >
               Awesome
@@ -32113,7 +32173,10 @@ const powerRef = useRef(hud.power);
                   </button>
                   <button
                     type="button"
-                    onClick={goToLobby}
+                    onClick={() => {
+                      setCareerGiftPendingOpen(null);
+                      goToLobby();
+                    }}
                     className="rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
                   >
                     Return to lobby
@@ -32131,15 +32194,46 @@ const powerRef = useRef(hud.power);
                       +{Number(careerTaskResultModal.rewardAmount).toLocaleString('en-US')} TPC Coins
                     </p>
                   ) : null}
-                  {careerTaskResultModal.nftReward ? (
-                    <p>🎁 Gift unlocked: {careerTaskResultModal.nftReward.name}</p>
-                  ) : null}
                 </div>
+                {careerGiftPendingOpen ? (
+                  <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-amber-300/45 bg-amber-400/10 px-4 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRevealedRewardNft(careerGiftPendingOpen);
+                        triggerFireworkBurst(36);
+                      }}
+                      className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/70 bg-amber-300/20 text-4xl shadow-[0_0_20px_rgba(251,191,36,0.4)]"
+                      aria-label="Open NFT gift"
+                    >
+                      {careerGiftPendingOpen.thumbnail ? (
+                        <img
+                          src={careerGiftPendingOpen.thumbnail}
+                          alt={careerGiftPendingOpen.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        '🎁'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRevealedRewardNft(careerGiftPendingOpen);
+                        triggerFireworkBurst(36);
+                      }}
+                      className="mt-2 text-[11px] font-black uppercase tracking-[0.24em] text-amber-100 underline decoration-amber-200/70 underline-offset-4"
+                    >
+                      Open
+                    </button>
+                  </div>
+                ) : null}
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setCareerTaskResultModal(null);
+                      setCareerGiftPendingOpen(null);
                       handleTrainingRoadmapContinue();
                     }}
                     className="rounded-full border border-emerald-300/70 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100 transition hover:bg-emerald-500/30"
@@ -32148,7 +32242,10 @@ const powerRef = useRef(hud.power);
                   </button>
                   <button
                     type="button"
-                    onClick={goToLobby}
+                    onClick={() => {
+                      setCareerGiftPendingOpen(null);
+                      goToLobby();
+                    }}
                     className="rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/20"
                   >
                     Return to lobby
