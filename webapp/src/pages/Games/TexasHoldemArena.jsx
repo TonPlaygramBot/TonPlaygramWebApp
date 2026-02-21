@@ -385,6 +385,10 @@ const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.16 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
+const OVERHEAD_ZOOM_DEFAULT = 1;
+const OVERHEAD_ZOOM_MIN = 0.9;
+const OVERHEAD_ZOOM_MAX = 1.1;
+const OVERHEAD_ZOOM_STEP = 0.04;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.64;
@@ -2667,6 +2671,7 @@ function TexasHoldemArena({ search }) {
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const [overheadView, setOverheadView] = useState(false);
+  const [overheadZoom, setOverheadZoom] = useState(OVERHEAD_ZOOM_DEFAULT);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -3860,7 +3865,8 @@ function TexasHoldemArena({ search }) {
 
     const applyOverheadCamera = (options = {}) => {
       const animate = Boolean(options.animate);
-      const height = TABLE_HEIGHT + BOARD_SIZE * 0.88;
+      const zoom = THREE.MathUtils.clamp(options.zoom ?? OVERHEAD_ZOOM_DEFAULT, OVERHEAD_ZOOM_MIN, OVERHEAD_ZOOM_MAX);
+      const height = TABLE_HEIGHT + BOARD_SIZE * 0.88 * zoom;
       const lateralPull = humanSeat?.forward.clone().setY(0).normalize().multiplyScalar(TABLE_RADIUS * 0.12) ??
         new THREE.Vector3();
       const targetPosition = new THREE.Vector3(lateralPull.x, height, lateralPull.z + 0.001);
@@ -3902,7 +3908,7 @@ function TexasHoldemArena({ search }) {
 
     viewControlsRef.current = { applySeatedCamera, applyOverheadCamera };
     if (overheadView) {
-      applyOverheadCamera();
+      applyOverheadCamera({ zoom: overheadZoom });
     } else {
       applySeatedCamera(mount.clientWidth, mount.clientHeight);
     }
@@ -4567,7 +4573,7 @@ function TexasHoldemArena({ search }) {
               .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
               .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
               .addScaledVector(forward, 0);
-        const face = seat.isHuman || state.showdown ? 'front' : 'back';
+        const face = overheadView || seat.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
         setCardFace(mesh, face);
         if (seat.isHuman) {
@@ -4722,7 +4728,7 @@ function TexasHoldemArena({ search }) {
       stage: state.stage,
       actionIndex: state.actionIndex
     };
-  }, [gameState, playSound]);
+  }, [gameState, overheadView, playSound]);
 
   const currentActionIndex = gameState?.actionIndex;
   const currentStage = gameState?.stage;
@@ -5165,13 +5171,21 @@ function TexasHoldemArena({ search }) {
       });
     }
     if (overheadView) {
-      controls.applyOverheadCamera?.({ animate });
+      controls.applyOverheadCamera?.({ animate, zoom: overheadZoom });
     } else {
       const width = mount?.clientWidth ?? window.innerWidth;
       const height = mount?.clientHeight ?? window.innerHeight;
       controls.applySeatedCamera?.(width, height, { animate });
     }
-  }, [overheadView]);
+  }, [overheadView, overheadZoom]);
+
+  const handleOverheadZoomIn = useCallback(() => {
+    setOverheadZoom((prev) => Math.max(OVERHEAD_ZOOM_MIN, +(prev - OVERHEAD_ZOOM_STEP).toFixed(2)));
+  }, []);
+
+  const handleOverheadZoomOut = useCallback(() => {
+    setOverheadZoom((prev) => Math.min(OVERHEAD_ZOOM_MAX, +(prev + OVERHEAD_ZOOM_STEP).toFixed(2)));
+  }, []);
 
   return (
     <div className="relative w-full h-full">
@@ -5451,6 +5465,29 @@ function TexasHoldemArena({ search }) {
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
         />
+
+        {overheadView && (
+          <div className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-20 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={handleOverheadZoomIn}
+              disabled={overheadZoom <= OVERHEAD_ZOOM_MIN}
+              className="flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border border-white/20 bg-transparent p-0 text-xl text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)] disabled:opacity-40"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={handleOverheadZoomOut}
+              disabled={overheadZoom >= OVERHEAD_ZOOM_MAX}
+              className="flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border border-white/20 bg-transparent p-0 text-xl text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)] disabled:opacity-40"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+          </div>
+        )}
         <BottomLeftIcons
           onInfo={() => setShowInfo(true)}
           showChat={false}
