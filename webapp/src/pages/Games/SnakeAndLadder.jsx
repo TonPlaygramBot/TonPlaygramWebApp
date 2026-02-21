@@ -180,6 +180,8 @@ const PLAYERS = 4;
 // while keeping the total cell count at 100
 const FINAL_TILE = BOARD_FINAL_TILE;
 const TURN_TIME = 15;
+const AI_ROLL_DELAY_MS = 3400;
+const AI_EXTRA_ROLL_DELAY_MS = 2600;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -2994,7 +2996,7 @@ export default function SnakeAndLadder() {
       setDiceVisible(true);
       setMoving(false);
       if (extraTurn && next === index) {
-        setTimeout(() => triggerAIRoll(index), 1800);
+        setTimeout(() => triggerAIRoll(index), AI_EXTRA_ROLL_DELAY_MS);
       }
     };
 
@@ -3068,7 +3070,7 @@ export default function SnakeAndLadder() {
       if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
       aiRollTimeoutRef.current = setTimeout(() => {
         setAiRollTrigger((t) => t + 1);
-      }, 1800);
+      }, AI_EXTRA_ROLL_DELAY_MS);
       return () => clearTimeout(aiRollTimeoutRef.current);
     }
   }, [aiRollingIndex]);
@@ -3094,7 +3096,7 @@ export default function SnakeAndLadder() {
         setTimeLeft(parseFloat(remaining.toFixed(1)));
       }, 100);
       if (!isMultiplayer) {
-        aiRollTimeRef.current = Date.now() + 2500;
+        aiRollTimeRef.current = Date.now() + AI_ROLL_DELAY_MS;
         if (aiRollTimeoutRef.current) clearInterval(aiRollTimeoutRef.current);
         aiRollTimeoutRef.current = setInterval(() => {
           if (Date.now() >= aiRollTimeRef.current) {

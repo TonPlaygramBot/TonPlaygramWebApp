@@ -164,6 +164,10 @@ const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
+const TURN_CAMERA_TURN_IN_DURATION = 620;
+const DICE_CAMERA_LOOK_IN_DURATION = 360;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
+const DICE_CAMERA_LOOK_OUT_DURATION = 420;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -1566,6 +1570,54 @@ function createTokenCameraFollowAnimation(camera, controls, followState, restore
     returnTarget: restoreState?.target,
     onComplete
   });
+}
+
+function computeTurnCameraFocusState(board, camera, turnIndex) {
+  if (!board || !camera) return null;
+  const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
+  const seatIndex = Number.isInteger(turnIndex) ? turnIndex : Number(turnIndex);
+  if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
+  const anchor = anchors[seatIndex];
+  const boardLookTarget = board.boardLookTarget;
+  if (!anchor || !boardLookTarget) return null;
+
+  const seatWorld = new THREE.Vector3();
+  anchor.getWorldPosition(seatWorld);
+  const target = boardLookTarget.clone().lerp(seatWorld, 0.34);
+  target.y = boardLookTarget.y;
+
+  const currentDistance = camera.position.distanceTo(boardLookTarget);
+  const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
+  if (direction.lengthSq() < 1e-6) return null;
+  direction.normalize();
+  const orbitDirection = direction.clone().multiplyScalar(-1);
+  const position = target.clone().addScaledVector(orbitDirection, currentDistance);
+  position.y = camera.position.y;
+
+  return { position, target };
+}
+
+function computeDiceCameraFocusState(board, camera) {
+  if (!board || !camera) return null;
+  const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
+  if (!diceSet.length) return null;
+  const boardLookTarget = board.boardLookTarget;
+  if (!boardLookTarget) return null;
+
+  const diceCenter = new THREE.Vector3();
+  diceSet.forEach((die) => diceCenter.add(die.position));
+  diceCenter.multiplyScalar(1 / diceSet.length);
+
+  const target = diceCenter.clone();
+  target.y += DICE_SIZE * 0.45;
+  const currentDistance = camera.position.distanceTo(boardLookTarget);
+  const direction = camera.position.clone().sub(boardLookTarget).setY(0);
+  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
+  direction.normalize();
+
+  const position = target.clone().addScaledVector(direction, currentDistance);
+  position.y = camera.position.y;
+  return { position, target };
 }
 
 function captureCameraState(camera, controls) {
@@ -3724,6 +3776,9 @@ export default function SnakeBoard3D({
   const lastDiceAnchorRef = useRef(null);
   const prevPlayerPositionsRef = useRef([]);
   const cameraRestoreRef = useRef(null);
+  const turnCameraStateRef = useRef(null);
+  const cinematicRestoreRef = useRef(null);
+  const previousTurnRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const frameAccumulatorRef = useRef(0);
@@ -3741,6 +3796,37 @@ export default function SnakeBoard3D({
     frameAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
   }, [frameRate]);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    const camera = cameraRef.current;
+    const controls = board?.controls;
+    if (!board || !camera || !controls || cameraViewMode === '2d') return;
+    if (!Number.isInteger(currentTurn) || currentTurn < 0) return;
+    if (previousTurnRef.current === currentTurn) return;
+    previousTurnRef.current = currentTurn;
+
+    const focusState = computeTurnCameraFocusState(board, camera, currentTurn);
+    if (!focusState) return;
+    turnCameraStateRef.current = {
+      position: focusState.position.clone(),
+      target: focusState.target.clone()
+    };
+
+    removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+    removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+    const turnAnimation = createCameraTransitionAnimation(camera, controls, {
+      toPosition: focusState.position,
+      toTarget: focusState.target,
+      durationIn: TURN_CAMERA_TURN_IN_DURATION,
+      hold: 0,
+      durationOut: 0,
+      type: 'cameraTurnFocus',
+      returnPosition: focusState.position,
+      returnTarget: focusState.target
+    });
+    if (turnAnimation) animationsRef.current.push(turnAnimation);
+  }, [currentTurn, cameraViewMode]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -4097,20 +4183,16 @@ export default function SnakeBoard3D({
       if (camera && controls && followState) {
         removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
         removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-        if (!cameraRestoreRef.current) {
-          cameraRestoreRef.current = captureCameraState(camera, controls);
-        }
-        const restoreState = cameraRestoreRef.current;
+        const restoreState =
+          turnCameraStateRef.current ||
+          cinematicRestoreRef.current ||
+          captureCameraState(camera, controls);
+        cinematicRestoreRef.current = restoreState;
         const followAnimation = createTokenCameraFollowAnimation(
           camera,
           controls,
           followState,
-          restoreState,
-          () => {
-            if (cameraRestoreRef.current === restoreState) {
-              cameraRestoreRef.current = null;
-            }
-          }
+          restoreState
         );
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
@@ -4188,20 +4270,16 @@ export default function SnakeBoard3D({
     if (camera && controls && followState && shouldFollowTileChange(slide.from, slide.to)) {
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-      if (!cameraRestoreRef.current) {
-        cameraRestoreRef.current = captureCameraState(camera, controls);
-      }
-      const restoreState = cameraRestoreRef.current;
+      const restoreState =
+        turnCameraStateRef.current ||
+        cinematicRestoreRef.current ||
+        captureCameraState(camera, controls);
+      cinematicRestoreRef.current = restoreState;
       const followAnimation = createTokenCameraFollowAnimation(
         camera,
         controls,
         followState,
-        restoreState,
-        () => {
-          if (cameraRestoreRef.current === restoreState) {
-            cameraRestoreRef.current = null;
-          }
-        }
+        restoreState
       );
       if (followAnimation) animationsRef.current.push(followAnimation);
     }
@@ -4299,6 +4377,25 @@ export default function SnakeBoard3D({
       };
       const active = diceSet.filter((_, idx) => idx < count);
       if (active.length) {
+        const camera = cameraRef.current;
+        const controls = board.controls;
+        const diceCameraState = computeDiceCameraFocusState(board, camera);
+        if (camera && controls && diceCameraState && cameraViewMode !== '2d') {
+          removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+          const restoreState = turnCameraStateRef.current || captureCameraState(camera, controls);
+          const diceCameraAnimation = createCameraTransitionAnimation(camera, controls, {
+            toPosition: diceCameraState.position,
+            toTarget: diceCameraState.target,
+            durationIn: DICE_CAMERA_LOOK_IN_DURATION,
+            hold: DICE_CAMERA_LOOK_HOLD_DURATION,
+            durationOut: DICE_CAMERA_LOOK_OUT_DURATION,
+            type: 'cameraDiceZoom',
+            returnPosition: restoreState?.position,
+            returnTarget: restoreState?.target
+          });
+          if (diceCameraAnimation) animationsRef.current.push(diceCameraAnimation);
+        }
+
         const rollAnimation = createDiceRollAnimation(active, {
           basePositions,
           baseY: diceBaseY,
@@ -4346,7 +4443,7 @@ export default function SnakeBoard3D({
         lastSeatIndex
       };
     }
-  }, [diceEvent]);
+  }, [diceEvent, cameraViewMode]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
