@@ -1941,10 +1941,11 @@ const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0.06 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
-const AI_TURN_DELAY = 2000;
+const AI_TURN_DELAY = 2600;
+const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
 const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(1.2);
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(84);
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(24);
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2865,6 +2866,7 @@ export default function MurlanRoyaleArena({ search }) {
     targetDistance: 1
   });
   const cameraTurnAnimationRef = useRef(null);
+  const cameraTurnHoldTimeoutRef = useRef(null);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -2914,6 +2916,13 @@ export default function MurlanRoyaleArena({ search }) {
     if (cameraTurnAnimationRef.current != null) {
       cancelAnimationFrame(cameraTurnAnimationRef.current);
       cameraTurnAnimationRef.current = null;
+    }
+  }, []);
+
+  const clearCameraTurnHoldTimeout = useCallback(() => {
+    if (cameraTurnHoldTimeoutRef.current != null) {
+      clearTimeout(cameraTurnHoldTimeoutRef.current);
+      cameraTurnHoldTimeoutRef.current = null;
     }
   }, []);
 
@@ -3842,6 +3851,8 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (!basis?.position || !basis?.direction) return;
 
+    clearCameraTurnHoldTimeout();
+
     if (gameState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
       turnCameraTowardYaw(0, { animate: true });
       return;
@@ -3861,8 +3872,20 @@ export default function MurlanRoyaleArena({ search }) {
       baseDir.clone().cross(targetDir).dot(new THREE.Vector3(0, 1, 0)),
       THREE.MathUtils.clamp(baseDir.dot(targetDir), -1, 1)
     );
-    turnCameraTowardYaw(targetYaw, { animate: true });
-  }, [gameState.activePlayer, gameState.players, gameState.status, threeReady, turnCameraTowardYaw]);
+    cameraTurnHoldTimeoutRef.current = setTimeout(() => {
+      turnCameraTowardYaw(targetYaw, { animate: true });
+      cameraTurnHoldTimeoutRef.current = null;
+    }, CAMERA_PLAYER_SWITCH_HOLD_MS);
+
+    return () => clearCameraTurnHoldTimeout();
+  }, [
+    clearCameraTurnHoldTimeout,
+    gameState.activePlayer,
+    gameState.players,
+    gameState.status,
+    threeReady,
+    turnCameraTowardYaw
+  ]);
 
   useEffect(() => {
     if (!threeReady) return;
