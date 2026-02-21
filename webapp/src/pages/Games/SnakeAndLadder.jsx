@@ -3068,7 +3068,7 @@ export default function SnakeAndLadder() {
       if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
       aiRollTimeoutRef.current = setTimeout(() => {
         setAiRollTrigger((t) => t + 1);
-      }, 1800);
+      }, 2600);
       return () => clearTimeout(aiRollTimeoutRef.current);
     }
   }, [aiRollingIndex]);
@@ -3094,7 +3094,7 @@ export default function SnakeAndLadder() {
         setTimeLeft(parseFloat(remaining.toFixed(1)));
       }, 100);
       if (!isMultiplayer) {
-        aiRollTimeRef.current = Date.now() + 2500;
+        aiRollTimeRef.current = Date.now() + 3600;
         if (aiRollTimeoutRef.current) clearInterval(aiRollTimeoutRef.current);
         aiRollTimeoutRef.current = setInterval(() => {
           if (Date.now() >= aiRollTimeRef.current) {
