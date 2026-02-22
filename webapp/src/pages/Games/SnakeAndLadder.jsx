@@ -262,7 +262,7 @@ const SNAKE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = SNAKE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SEAT_LAYOUTS = {
   1: [0],
-  2: [0, 2],
+  2: [3, 1],
   3: [0, 1, 3],
   4: [0, 1, 2, 3]
 };
@@ -3792,6 +3792,15 @@ export default function SnakeAndLadder() {
                     if (p.index !== myIdx) setPlayerPopup(p);
                   }}
                 />
+                <div className="mt-2 flex min-w-[5.5rem] items-center justify-center rounded-full border border-amber-200/30 bg-[linear-gradient(180deg,rgba(152,98,56,0.95),rgba(92,58,30,0.95))] px-2 py-1 shadow-[0_8px_20px_rgba(0,0,0,0.45)]">
+                  <div className="mr-1 h-2.5 w-2.5 rounded-full bg-black/20" />
+                  <div
+                    className="h-3.5 w-3.5 rounded-full border border-white/60 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+                    style={{ backgroundColor: p.color || '#ffffff' }}
+                    title={`${getPlayerName(p.index)} token`}
+                  />
+                  <div className="ml-1 h-2.5 w-2.5 rounded-full bg-black/20" />
+                </div>
               </div>
             );
           })}
