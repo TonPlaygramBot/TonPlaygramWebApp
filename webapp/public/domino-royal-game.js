@@ -17,17 +17,17 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     label: 'HD Performance (50 Hz)',
     fps: 50,
     renderScale: 1,
-    pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
     description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
   },
   {
     id: 'fhd90',
     label: 'Full HD (90 Hz)',
     fps: 90,
-    renderScale: 1.12,
-    pixelRatioCap: 1.55,
-    resolution: 'Full HD render • DPR 1.55 cap',
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
     description:
       '1080p-focused profile tuned to match the Murlan Royale 3D quality preset.'
   },
@@ -35,18 +35,18 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'qhd90',
     label: 'Quad HD (105 Hz)',
     fps: 105,
-    renderScale: 1.22,
-    pixelRatioCap: 1.72,
-    resolution: 'QHD render • DPR 1.72 cap',
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: 'QHD render • DPR 1.7 cap',
     description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
     label: 'Ultra HD (120 Hz cap)',
     fps: 120,
-    renderScale: 1.28,
-    pixelRatioCap: 1.85,
-    resolution: 'Ultra HD render • DPR 1.85 cap',
+    renderScale: 1.35,
+    pixelRatioCap: 2.0,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
@@ -76,7 +76,8 @@ function isTelegramRuntime() {
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
-  chairClothTextureSize: 1024
+  chairClothTextureSize: 1024,
+  dominoTextureSize: 2048
 });
 
 function detectCoarsePointer() {
@@ -2528,7 +2529,7 @@ async function ensureChairTemplateForTheme(theme) {
 }
 
 function cloneChairWithTheme(chairData, option) {
-  const { chairTemplate, materials, preserveMaterials } = chairData;
+  const { chairTemplate, materials, preserveMaterials = true } = chairData;
   const clone = chairTemplate.clone(true);
   const upholsterySet = new Set(materials.upholstery);
   const metalSet = new Set(materials.metal);
@@ -5076,14 +5077,12 @@ async function applyTableTheme(
     child?.removeFromParent?.();
   }
   const token = ++tableThemeToken;
-  if (!theme || theme.id === 'murlan-default') {
+  if (!theme) {
     setProceduralTableVisible(true);
-    activeTableThemeId = 'murlan-default';
+    activeTableThemeId = null;
     return;
   }
-  if (theme && theme.id !== 'murlan-default') {
-    setProceduralTableVisible(false);
-  }
+  setProceduralTableVisible(false);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
     if (token !== tableThemeToken || !model) {
@@ -5650,6 +5649,74 @@ function buildDominoMaterial(options = {}, defaults = {}) {
   return material;
 }
 
+
+const getDominoSurfaceTextures = (() => {
+  let cache = null;
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
+      return cache;
+    }
+    const size = MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize;
+    const porcelainCanvas = document.createElement('canvas');
+    porcelainCanvas.width = porcelainCanvas.height = size;
+    const pctx = porcelainCanvas.getContext('2d');
+    const grad = pctx.createLinearGradient(0, 0, size, size);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(1, '#eceff4');
+    pctx.fillStyle = grad;
+    pctx.fillRect(0, 0, size, size);
+    const image = pctx.getImageData(0, 0, size, size);
+    const data = image.data;
+    let seed = 1337;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    for (let i = 0; i < data.length; i += 4) {
+      const n = Math.floor((rand() - 0.5) * 8);
+      data[i] = Math.min(255, Math.max(0, data[i] + n));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + n));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + n));
+    }
+    pctx.putImageData(image, 0, 0);
+
+    const roughCanvas = document.createElement('canvas');
+    roughCanvas.width = roughCanvas.height = size;
+    const rctx = roughCanvas.getContext('2d');
+    rctx.fillStyle = '#8b8b8b';
+    rctx.fillRect(0, 0, size, size);
+
+    const pipCanvas = document.createElement('canvas');
+    pipCanvas.width = pipCanvas.height = size;
+    const pipCtx = pipCanvas.getContext('2d');
+    const pipGrad = pipCtx.createLinearGradient(0, 0, size, size);
+    pipGrad.addColorStop(0, '#151515');
+    pipGrad.addColorStop(1, '#050505');
+    pipCtx.fillStyle = pipGrad;
+    pipCtx.fillRect(0, 0, size, size);
+
+    const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+    const porcelainMap = new THREE.CanvasTexture(porcelainCanvas);
+    porcelainMap.colorSpace = THREE.SRGBColorSpace;
+    porcelainMap.anisotropy = Math.min(maxAnisotropy, 16);
+    porcelainMap.generateMipmaps = true;
+
+    const porcelainRoughness = new THREE.CanvasTexture(roughCanvas);
+    porcelainRoughness.anisotropy = Math.min(maxAnisotropy, 8);
+    porcelainRoughness.generateMipmaps = true;
+
+    const pipMap = new THREE.CanvasTexture(pipCanvas);
+    pipMap.colorSpace = THREE.SRGBColorSpace;
+    pipMap.anisotropy = Math.min(maxAnisotropy, 16);
+    pipMap.generateMipmaps = true;
+
+    cache = { porcelainMap, porcelainRoughness, pipMap };
+    return cache;
+  };
+})();
+
 function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
   const style = option ?? DOMINO_STYLE_OPTIONS[0];
   currentDominoStyleOption = style;
@@ -5674,6 +5741,11 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
     sheen: 0.12,
     envMapIntensity: 0.85
   });
+  const dominoTextures = getDominoSurfaceTextures();
+  porcelainMat.map = dominoTextures.porcelainMap;
+  porcelainMat.roughnessMap = dominoTextures.porcelainRoughness;
+  pipMat.map = dominoTextures.pipMap;
+
   accentMat = buildDominoMaterial(style.accent, {
     color: '#d7b03b',
     emissive: '#593d00',
