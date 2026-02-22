@@ -2799,6 +2799,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const boardLookTarget = boardLookTargetRef.current;
     if (!camera || !controls || !boardLookTarget) return;
 
+    const topDownPolar = 0.001;
+
     if (nextIs2d) {
       if (!saved3dCameraStateRef.current) {
         saved3dCameraStateRef.current = {
@@ -2806,22 +2808,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           target: controls.target.clone(),
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
+          minAzimuthAngle: controls.minAzimuthAngle,
+          maxAzimuthAngle: controls.maxAzimuthAngle,
           enableRotate: controls.enableRotate
         };
       }
-      const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const fallbackRadius = baseCameraRadiusRef.current ?? currentRadius;
-      const radius = clamp(fallbackRadius, CAM.minR, CAM.maxR);
+      const radius = clamp(CAM.minR * 1.5, CAM.minR, CAM.maxR);
       camera.position.set(boardLookTarget.x, boardLookTarget.y + radius, boardLookTarget.z + 0.001);
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
-      controls.minPolarAngle = 0;
-      controls.maxPolarAngle = 0;
+      controls.minPolarAngle = topDownPolar;
+      controls.maxPolarAngle = topDownPolar;
+      controls.minAzimuthAngle = -Infinity;
+      controls.maxAzimuthAngle = Infinity;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
+      controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
+      controls.maxAzimuthAngle = saved?.maxAzimuthAngle ?? Infinity;
       if (saved?.position && saved?.target) {
         camera.position.copy(saved.position);
         controls.target.copy(saved.target);
