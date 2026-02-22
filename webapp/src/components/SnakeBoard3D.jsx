@@ -165,7 +165,7 @@ const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
 const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
-const TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD = 0.82;
+const TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD = 0.6;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND = 0.8;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
@@ -1577,10 +1577,16 @@ function createTokenCameraFollowAnimation(camera, controls, followState, restore
   });
 }
 
-function computeTurnCameraFocusState(board, camera, turnIndex) {
+function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (!board || !camera) return null;
   const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
-  const seatIndex = Number.isInteger(turnIndex) ? turnIndex : Number(turnIndex);
+  const player = Array.isArray(players) ? players[turnIndex] : null;
+  const rawSeatIndex = Number.isFinite(player?.seatIndex)
+    ? Number(player.seatIndex)
+    : Number.isInteger(turnIndex)
+    ? turnIndex
+    : Number(turnIndex);
+  const seatIndex = Math.trunc(rawSeatIndex);
   if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
   const anchor = anchors[seatIndex];
   const boardLookTarget = board.boardLookTarget;
@@ -1604,7 +1610,8 @@ function computeTurnCameraFocusState(board, camera, turnIndex) {
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
   if (boardToCamera.lengthSq() > 1e-6) {
     boardToCamera.normalize();
-    if (direction.dot(boardToCamera) >= TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD) {
+    const facingCameraDot = direction.dot(boardToCamera);
+    if (facingCameraDot >= TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD) {
       return null;
     }
   }
@@ -3143,7 +3150,10 @@ function updateTokens(
     baseLevelTop = 0,
     tokenTheme = {},
     tokenShape = null,
-    tokenPrototypes = null
+    tokenPrototypes = null,
+    seatAnchors = [],
+    boardLookTarget = null,
+    boardRoot = null
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -3406,9 +3416,32 @@ function updateTokens(
       baseVector.y += TOKEN_HEIGHT * 0.02;
       worldPos = baseVector;
     } else {
-      const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
-      worldPos = serpentineIndexToXZ(fallbackIndex).clone();
-      worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+      const seatAnchor = Number.isFinite(seatIndex) ? seatAnchors?.[seatIndex] : null;
+      if (seatAnchor && boardLookTarget && boardRoot) {
+        const seatWorld = new THREE.Vector3();
+        seatAnchor.getWorldPosition(seatWorld);
+        const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+        if (seatDirection.lengthSq() > 0.0001) {
+          seatDirection.normalize();
+          const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+          const restRadius = BOARD_RADIUS + TILE_SIZE * 1.7;
+          const railSpread = TOKEN_RADIUS * 0.78;
+          const pairIndex = index % 2;
+          const pairSign = pairIndex === 0 ? -1 : 1;
+          const railWorld = boardLookTarget
+            .clone()
+            .addScaledVector(seatDirection, restRadius)
+            .addScaledVector(lateral, railSpread * pairSign);
+          worldPos = railWorld.clone();
+          boardRoot.worldToLocal(worldPos);
+          worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+        }
+      }
+      if (!worldPos) {
+        const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
+        worldPos = serpentineIndexToXZ(fallbackIndex).clone();
+        worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+      }
     }
 
     if (!token.userData.isSliding && worldPos) {
@@ -3785,7 +3818,7 @@ export default function SnakeBoard3D({
     if (previousTurnRef.current === currentTurn) return;
     previousTurnRef.current = currentTurn;
 
-    const focusState = computeTurnCameraFocusState(board, camera, currentTurn);
+    const focusState = computeTurnCameraFocusState(board, camera, currentTurn, players);
     if (!focusState) return;
     turnCameraStateRef.current = {
       position: focusState.position.clone(),
@@ -4128,7 +4161,10 @@ export default function SnakeBoard3D({
       baseLevelTop: board.baseLevelTop,
       tokenTheme,
       tokenShape,
-      tokenPrototypes: board.tokenPrototypes
+      tokenPrototypes: board.tokenPrototypes,
+      seatAnchors: board.seatAnchors,
+      boardLookTarget: board.boardLookTarget,
+      boardRoot: board.root
     });
 
     const sanitizedPositions = players.map((player) => {
