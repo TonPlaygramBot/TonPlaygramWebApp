@@ -93,13 +93,13 @@ const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 0.8; // shrink board footprint by 20%
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 0.95; // widen board footprint closer to the coin-vase span
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.2; // Raise pyramid tiers 20% taller
+const PYRAMID_HEIGHT_MULTIPLIER = 1.32; // Lift pyramid tiers a bit more for a taller board profile
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -2541,9 +2541,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const isPortrait = host.clientHeight > host.clientWidth;
   const cameraSeatAngle = Math.PI / 2;
-  const cameraBackOffset = isPortrait ? 1.56 : 1.0;
+  const cameraBackOffset = isPortrait ? 1.48 : 0.95;
   const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-  const cameraHeightOffset = isPortrait ? 1.56 : 1.18;
+  const cameraHeightOffset = isPortrait ? 1.64 : 1.23;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
