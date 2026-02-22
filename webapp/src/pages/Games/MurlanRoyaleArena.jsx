@@ -1928,9 +1928,10 @@ const CHAIR_INWARD_OFFSET = 0.18 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWARD_OFFSET;
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
+const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 0.8 });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.14, landscape: 0.72 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.22, landscape: 0.86 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
@@ -1954,7 +1955,7 @@ const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
 const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.91;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.88;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -3307,6 +3308,11 @@ export default function MurlanRoyaleArena({ search }) {
         return null;
       }
 
+      if ((theme?.id || 'murlan-default') === 'murlan-default' && tableInfo?.group) {
+        tableInfo.group.scale.set(1.15, 1, 1.15);
+        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * 1.15;
+      }
+
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
       three.tableClothId = cloth?.id ?? null;
@@ -4102,7 +4108,7 @@ export default function MurlanRoyaleArena({ search }) {
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
-        const seatRadius = isHumanSeat ? chairRadius : AI_CHAIR_RADIUS;
+        const seatRadius = (isHumanSeat ? chairRadius : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT;
