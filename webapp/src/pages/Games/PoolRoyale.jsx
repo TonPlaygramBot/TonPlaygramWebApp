@@ -27378,6 +27378,8 @@ const powerRef = useRef(hud.power);
         });
         const currentState =
           frameRef.current && typeof frameRef.current === 'object' ? frameRef.current : frameState;
+        const fallbackState =
+          frameState && typeof frameState === 'object' ? frameState : initialFrame;
         const cueBallPotted = potted.some((entry) => entry.color === 'CUE');
         const pottedObjectCount = potted.filter((entry) => String(entry.id || '').toLowerCase() !== 'cue').length;
         const noCushionAfterContact =
@@ -27392,7 +27394,8 @@ const powerRef = useRef(hud.power);
           noCushionAfterContact,
           variant: variantId
         };
-        let safeState = currentState;
+        let safeState =
+          currentState && typeof currentState === 'object' ? currentState : fallbackState;
         let shotResolved = false;
         try {
           const resolved = rules.applyShot(currentState, shotEvents, shotContext);
@@ -27801,8 +27804,16 @@ const powerRef = useRef(hud.power);
         } catch (err) {
           console.error('Pool Royale post-resolution update failed:', err);
         } finally {
-          frameRef.current = safeState;
-          setFrameState(safeState);
+          const resolvedState =
+            safeState && typeof safeState === 'object' ? safeState : fallbackState;
+          if (resolvedState !== safeState) {
+            console.warn('Pool Royale recovered from invalid shot state payload.', {
+              safeState,
+              fallbackState
+            });
+          }
+          frameRef.current = resolvedState;
+          setFrameState(resolvedState);
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({
             ...prev,
@@ -27813,7 +27824,7 @@ const powerRef = useRef(hud.power);
             const layout = captureBallSnapshot();
             socket.emit('poolShot', {
               tableId,
-              state: safeState,
+              state: resolvedState,
               hud: hudRef.current,
               layout
             });
