@@ -347,7 +347,7 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
-const COMMUNITY_SPACING = CARD_W * 0.62;
+const COMMUNITY_SPACING = CARD_W * 1.08;
 const COMMUNITY_CARD_FORWARD_OFFSET = 0;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
@@ -3863,10 +3863,7 @@ function TexasHoldemArena({ search }) {
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
     humanSeatRef.current = humanSeat;
     seatTopPointRef.current = seatTopPoint;
-    const communityRowRotation = Math.atan2(humanSeat.right.z, humanSeat.right.x);
-    const resolvedCommunityRowRotation = Number.isFinite(communityRowRotation)
-      ? communityRowRotation
-      : COMMUNITY_ROW_ROTATION;
+    const resolvedCommunityRowRotation = COMMUNITY_ROW_ROTATION;
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 
@@ -4912,7 +4909,7 @@ function TexasHoldemArena({ search }) {
       const surfaceY = three.tableInfo?.surfaceY ?? TABLE_HEIGHT;
       const slotPosition = computeCommunitySlotPosition(idx, { rotationY: rowRotation, surfaceY });
       mesh.position.copy(slotPosition);
-      const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, COMMUNITY_ROW_ROTATION);
+      const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, rowRotation);
       const lookTarget = slotPosition
         .clone()
         .add(new THREE.Vector3(0, COMMUNITY_CARD_LOOK_LIFT, 0))
