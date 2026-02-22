@@ -2799,6 +2799,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const boardLookTarget = boardLookTargetRef.current;
     if (!camera || !controls || !boardLookTarget) return;
 
+    const topDownPolar = 0.001;
     if (nextIs2d) {
       if (!saved3dCameraStateRef.current) {
         saved3dCameraStateRef.current = {
@@ -2806,22 +2807,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           target: controls.target.clone(),
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
+          minAzimuthAngle: controls.minAzimuthAngle,
+          maxAzimuthAngle: controls.maxAzimuthAngle,
           enableRotate: controls.enableRotate
         };
       }
-      const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const fallbackRadius = baseCameraRadiusRef.current ?? currentRadius;
-      const radius = clamp(fallbackRadius, CAM.minR, CAM.maxR);
-      camera.position.set(boardLookTarget.x, boardLookTarget.y + radius, boardLookTarget.z + 0.001);
+      const topDownDistance = clamp(CAM.minR * 1.35, CAM.minR, CAM.maxR);
+      camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
-      controls.minPolarAngle = 0;
-      controls.maxPolarAngle = 0;
+      controls.minPolarAngle = topDownPolar;
+      controls.maxPolarAngle = topDownPolar;
+      controls.minAzimuthAngle = -Infinity;
+      controls.maxAzimuthAngle = Infinity;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
+      controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
+      controls.maxAzimuthAngle = saved?.maxAzimuthAngle ?? Infinity;
       if (saved?.position && saved?.target) {
         camera.position.copy(saved.position);
         controls.target.copy(saved.target);
@@ -4836,6 +4841,46 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     cameraFocusFrameRef.current = requestAnimationFrame(step);
   }, []);
 
+  const animateCameraView = useCallback((toPosition, toTarget, duration = 320) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls || !toPosition || !toTarget) return;
+    const fromPosition = camera.position.clone();
+    const fromTarget = controls.target.clone();
+    const destinationPosition = toPosition.clone();
+    const destinationTarget = toTarget.clone();
+
+    cancelCameraViewAnimation();
+    if (duration <= 0) {
+      camera.position.copy(destinationPosition);
+      controls.target.copy(destinationTarget);
+      cameraTurnStateRef.current.currentTarget = destinationTarget.clone();
+      controls.update();
+      syncSkyboxToCameraRef.current?.();
+      return;
+    }
+
+    const started = performance.now();
+    const step = () => {
+      const now = performance.now();
+      const t = Math.min(1, (now - started) / Math.max(duration, 1));
+      const eased = easeInOutQuad(t);
+      camera.position.copy(fromPosition).lerp(destinationPosition, eased);
+      controls.target.copy(fromTarget).lerp(destinationTarget, eased);
+      cameraTurnStateRef.current.currentTarget = controls.target.clone();
+      controls.update();
+      syncSkyboxToCameraRef.current?.();
+      if (t < 1) {
+        cameraViewFrameRef.current = requestAnimationFrame(step);
+      } else {
+        cameraViewFrameRef.current = 0;
+      }
+    };
+
+    cameraViewFrameRef.current = requestAnimationFrame(step);
+  }, [cancelCameraViewAnimation]);
+
+
   const resolveTurnLookTarget = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
     const controls = controlsRef.current;
     const arena = arenaRef.current;
@@ -4857,17 +4902,41 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
-    void player;
-    void duration;
-    cancelCameraViewAnimation();
-  }, [cancelCameraViewAnimation]);
+    if (isCamera2d) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const arena = arenaRef.current;
+    const boardLookTarget = boardLookTargetRef.current;
+    if (!camera || !controls || !arena?.seatAnchors?.length || !boardLookTarget) return;
+    const seatAnchor = arena.seatAnchors[player];
+    if (!seatAnchor) return;
+
+    const seatWorld = seatAnchor.getWorldPosition(new THREE.Vector3());
+    const target = boardLookTarget.clone().lerp(seatWorld, 0.34);
+    target.y = boardLookTarget.y;
+
+    const currentDistance = camera.position.distanceTo(boardLookTarget);
+    const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
+    if (direction.lengthSq() < 1e-6) return;
+    direction.normalize();
+
+    const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
+    const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
+    const orbitDirection = boardToCamera.lengthSq() > 1e-6
+      ? boardToCamera.normalize().lerp(desiredOrbitDirection, 0.8).normalize()
+      : desiredOrbitDirection;
+
+    const position = target.clone().addScaledVector(orbitDirection, currentDistance);
+    position.y = camera.position.y;
+    animateCameraView(position, target, duration);
+  }, [animateCameraView, isCamera2d]);
 
   const setCameraFocus = useCallback(
     (focus = {}) => {
       const state = stateRef.current;
       const controls = controlsRef.current;
-      if (!state || !controls) return;
-      const { object, target, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
+      if (!state || !controls || isCamera2d) return;
+      const { object, target, ttl = 0, priority = 0, force = false, follow = false, duration = 280, offset = CAMERA_TARGET_LIFT } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
 
       let nextTarget = null;
@@ -4883,7 +4952,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!nextTarget) return;
 
       cameraTurnStateRef.current.activePriority = priority;
-      animateCameraTarget(nextTarget, 280);
+      if (follow) {
+        const camera = cameraRef.current;
+        const fromTarget = controls.target.clone();
+        const delta = nextTarget.clone().sub(fromTarget);
+        const nextPosition = camera ? camera.position.clone().add(delta) : null;
+        if (nextPosition) {
+          animateCameraView(nextPosition, nextTarget, duration);
+        } else {
+          animateCameraTarget(nextTarget, duration);
+        }
+      } else {
+        animateCameraTarget(nextTarget, duration);
+      }
       if (ttl > 0) {
         if (cameraFocusTimeoutRef.current) {
           clearTimeout(cameraFocusTimeoutRef.current);
@@ -4898,7 +4979,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }, Math.max(0, ttl * 1000));
       }
     },
-    [animateCameraTarget, resolveTurnLookTarget]
+    [animateCameraTarget, animateCameraView, isCamera2d, resolveTurnLookTarget]
   );
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
