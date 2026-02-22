@@ -167,6 +167,7 @@ const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
 const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
 const TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD = 0.82;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
+const TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND = 0.8;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
 const DICE_CAMERA_LOOK_OUT_DURATION = 420;
@@ -1594,6 +1595,12 @@ function computeTurnCameraFocusState(board, camera, turnIndex) {
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
+
+  const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
+  if (isTopOrBottomSeat) {
+    return null;
+  }
+
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
   if (boardToCamera.lengthSq() > 1e-6) {
     boardToCamera.normalize();
@@ -1601,7 +1608,11 @@ function computeTurnCameraFocusState(board, camera, turnIndex) {
       return null;
     }
   }
-  const orbitDirection = direction.clone().multiplyScalar(-1);
+
+  const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
+  const orbitDirection = boardToCamera.lengthSq() > 1e-6
+    ? boardToCamera.clone().lerp(desiredOrbitDirection, TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND).normalize()
+    : desiredOrbitDirection;
   const position = target.clone().addScaledVector(orbitDirection, currentDistance);
   position.y = camera.position.y;
 
