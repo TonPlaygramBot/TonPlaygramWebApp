@@ -4170,7 +4170,7 @@ export default function MurlanRoyaleArena({ search }) {
         camConfig.near,
         camConfig.far
       );
-      const targetHeightOffset = 0.11 * MODEL_SCALE;
+      const targetHeightOffset = 0.16 * MODEL_SCALE;
       let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
       let initialCameraPosition;
       if (humanSeatConfig) {
@@ -4183,7 +4183,7 @@ export default function MurlanRoyaleArena({ search }) {
           );
         const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
         const retreatOffset = isPortrait ? 1.95 : 1.45;
-        const elevation = isPortrait ? 1.62 : 1.29;
+        const elevation = isPortrait ? 1.52 : 1.21;
         initialCameraPosition = stoolAnchor.addScaledVector(humanSeatConfig.forward, -retreatOffset);
         initialCameraPosition.y = stoolHeight + elevation;
         target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.15 * MODEL_SCALE, 0);
