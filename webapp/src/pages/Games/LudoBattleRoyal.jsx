@@ -368,6 +368,12 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const PORTRAIT_CAMERA_TUNING = Object.freeze({
+  backOffset: 1.24,
+  forwardOffset: 0.58,
+  heightOffset: 1.18,
+  targetLift: 0.06 * MODEL_SCALE
+});
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
@@ -4192,9 +4198,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = Math.PI / 2;
-      const cameraBackOffset = isPortrait ? 2.05 : 1.45;
-      const cameraForwardOffset = isPortrait ? 0.12 : 0.25;
-      const cameraHeightOffset = isPortrait ? 1.6 : 1.26;
+      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.45;
+      const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.25;
+      const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.26;
       const chairRadius = AI_CHAIR_RADIUS;
       const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
       camera.position.set(
@@ -4285,11 +4291,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     boardGroup.rotation.y = BOARD_ROTATION_Y;
     tableInfo.group.add(boardGroup);
 
-    const boardLookTarget = new THREE.Vector3(
-      0,
-      tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
-      0
-    );
+    const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
+    const boardLookTarget = new THREE.Vector3(0, tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE, 0);
     boardLookTargetRef.current = boardLookTarget;
     camera.lookAt(boardLookTarget);
 
