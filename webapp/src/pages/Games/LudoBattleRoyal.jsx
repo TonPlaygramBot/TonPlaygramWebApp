@@ -1515,11 +1515,6 @@ const CAM = {
   phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
-const HEAD_LOOK_DISTANCE = Math.max(TABLE_RADIUS * 1.9, BOARD_RADIUS * 1.5);
-const HEAD_LOOK_YAW_SENSITIVITY = 0.0042;
-const HEAD_LOOK_PITCH_SENSITIVITY = 0.0032;
-const HEAD_LOOK_MIN_PITCH = -0.58;
-const HEAD_LOOK_MAX_PITCH = 0.34;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -2803,8 +2798,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           target: controls.target.clone(),
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
-          enableRotate: controls.enableRotate,
-          enableZoom: controls.enableZoom
+          enableRotate: controls.enableRotate
         };
       }
       const currentRadius = camera.position.distanceTo(boardLookTarget);
@@ -2817,8 +2811,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.maxPolarAngle = 0;
     } else {
       const saved = saved3dCameraStateRef.current;
-      controls.enableRotate = saved?.enableRotate ?? false;
-      controls.enableZoom = saved?.enableZoom ?? false;
+      controls.enableRotate = saved?.enableRotate ?? true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       if (saved?.position && saved?.target) {
@@ -4134,9 +4127,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     let cancelled = false;
     let onPointerDown = null;
-    let onPointerMove = null;
     let onPointerUp = null;
-    let onPointerReleaseView = null;
     let onResize = null;
 
   const setupScene = async () => {
@@ -4201,9 +4192,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = Math.PI / 2;
-      const cameraBackOffset = isPortrait ? 2.18 : 1.45;
-      const cameraForwardOffset = isPortrait ? 0.08 : 0.25;
-      const cameraHeightOffset = isPortrait ? 1.44 : 1.26;
+      const cameraBackOffset = isPortrait ? 2.05 : 1.45;
+      const cameraForwardOffset = isPortrait ? 0.12 : 0.25;
+      const cameraHeightOffset = isPortrait ? 1.6 : 1.26;
       const chairRadius = AI_CHAIR_RADIUS;
       const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
       camera.position.set(
@@ -4296,33 +4287,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const boardLookTarget = new THREE.Vector3(
       0,
-      tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.08 * MODEL_SCALE,
+      tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
       0
     );
     boardLookTargetRef.current = boardLookTarget;
     camera.lookAt(boardLookTarget);
 
-    const lookDirection = boardLookTarget.clone().sub(camera.position).normalize();
-    let headYaw = Math.atan2(lookDirection.x, lookDirection.z);
-    let headPitch = Math.asin(clamp(lookDirection.y, -0.99, 0.99));
-    const syncHeadLookTarget = () => {
-      const cosPitch = Math.cos(headPitch);
-      const direction = new THREE.Vector3(
-        Math.sin(headYaw) * cosPitch,
-        Math.sin(headPitch),
-        Math.cos(headYaw) * cosPitch
-      ).normalize();
-      const target = camera.position.clone().addScaledVector(direction, HEAD_LOOK_DISTANCE);
-      controls?.target.copy(target);
-      camera.lookAt(target);
-    };
-
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableRotate = false;
-    controls.enableZoom = false;
+    controls.enableZoom = true;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR;
@@ -4353,21 +4328,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const h = host.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const tableSpan = TABLE_RADIUS * 2.7;
-      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.7;
+      const tableSpan = TABLE_RADIUS * 2.6;
+      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
       const currentRadius = camera.position.distanceTo(boardLookTarget);
       const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
-      const direction = camera.position.clone().sub(boardLookTarget).normalize();
-      camera.position.copy(boardLookTarget).addScaledVector(direction, radius);
-      const nextLookDirection = boardLookTarget.clone().sub(camera.position).normalize();
-      headYaw = Math.atan2(nextLookDirection.x, nextLookDirection.z);
-      headPitch = Math.asin(clamp(nextLookDirection.y, -0.99, 0.99));
+      const dir = camera.position.clone().sub(boardLookTarget).normalize();
+      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       if (baseCameraRadiusRef.current == null) {
         baseCameraRadiusRef.current = radius;
       }
-      syncHeadLookTarget();
       controls.update();
       applyRendererQuality();
       syncSkyboxToCameraRef.current?.();
@@ -4542,11 +4513,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return true;
     };
     let pointerLocked = false;
-    let draggingView = false;
-    let dragMoved = false;
-    let dragPointerId = null;
-    let dragLastX = 0;
-    let dragLastY = 0;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
@@ -4558,54 +4524,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         pointerLocked = true;
         if (controls) controls.enabled = false;
         event.preventDefault();
-        return;
       }
-      draggingView = true;
-      dragMoved = false;
-      dragPointerId = event.pointerId;
-      dragLastX = clientX;
-      dragLastY = clientY;
-      renderer.domElement.style.cursor = 'grabbing';
-      renderer.domElement.setPointerCapture?.(event.pointerId);
-    };
-    onPointerMove = (event) => {
-      if (!draggingView) return;
-      if (dragPointerId != null && event.pointerId !== dragPointerId) return;
-      const { clientX, clientY } = event;
-      if (clientX == null || clientY == null) return;
-      const dx = clientX - dragLastX;
-      const dy = clientY - dragLastY;
-      if (!dragMoved && Math.hypot(dx, dy) >= 3) {
-        dragMoved = true;
-      }
-      dragLastX = clientX;
-      dragLastY = clientY;
-      if (!dragMoved) return;
-      headYaw += dx * HEAD_LOOK_YAW_SENSITIVITY;
-      headPitch = clamp(headPitch + dy * HEAD_LOOK_PITCH_SENSITIVITY, HEAD_LOOK_MIN_PITCH, HEAD_LOOK_MAX_PITCH);
-      syncHeadLookTarget();
-      event.preventDefault();
     };
     onPointerUp = () => {
       if (!pointerLocked) return;
       pointerLocked = false;
       if (controls) controls.enabled = true;
-      return;
-    };
-    onPointerReleaseView = (event) => {
-      if (!draggingView) return;
-      if (dragPointerId != null && event?.pointerId != null && event.pointerId !== dragPointerId) return;
-      draggingView = false;
-      dragMoved = false;
-      dragPointerId = null;
-      renderer.domElement.style.cursor = 'grab';
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
-    renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: false });
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
-    window.addEventListener('pointerup', onPointerReleaseView, { passive: true });
-    window.addEventListener('pointercancel', onPointerReleaseView, { passive: true });
 
     let lastRenderTime = performance.now();
     const animTemp = new THREE.Vector3();
@@ -4771,14 +4699,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (renderer?.domElement && onPointerDown) {
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       }
-      if (renderer?.domElement && onPointerMove) {
-        renderer.domElement.removeEventListener('pointermove', onPointerMove);
-      }
       if (onPointerUp) {
         window.removeEventListener('pointerup', onPointerUp);
         window.removeEventListener('pointercancel', onPointerUp);
-        window.removeEventListener('pointerup', onPointerReleaseView);
-        window.removeEventListener('pointercancel', onPointerReleaseView);
       }
       if (controls && syncSkyboxToCameraRef.current) {
         controls.removeEventListener('change', syncSkyboxToCameraRef.current);
