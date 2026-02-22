@@ -166,11 +166,10 @@ export const MURLAN_TABLE_THEMES = [
   {
     id: 'murlan-default',
     label: 'Murlan Default Table',
-    source: 'polyhaven',
-    assetId: 'WoodenTable_01',
+    source: 'procedural',
     price: 0,
-    thumbnail: polyHavenThumb('WoodenTable_01'),
-    description: 'Standard Murlan Royale table using the original WoodenTable_01 GLTF textures.'
+    thumbnail: polyHavenThumb('CoffeeTable_01'),
+    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
