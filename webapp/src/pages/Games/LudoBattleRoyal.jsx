@@ -369,10 +369,15 @@ const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.24,
+  backOffset: 1.1,
   forwardOffset: 0.58,
   heightOffset: 1.18,
   targetLift: 0.06 * MODEL_SCALE
+});
+
+const TURN_CAMERA_AZIMUTH = Object.freeze({
+  1: 0,
+  3: Math.PI
 });
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -2496,6 +2501,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const turnAdvanceTimeoutRef = useRef(null);
   const cameraFocusTimeoutRef = useRef(null);
   const cameraFocusFrameRef = useRef(0);
+  const cameraViewFrameRef = useRef(0);
   const cameraTurnStateRef = useRef({
     currentTarget: null,
     activePriority: -Infinity
@@ -4198,7 +4204,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = Math.PI / 2;
-      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.45;
+      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.28;
       const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.25;
       const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.26;
       const chairRadius = AI_CHAIR_RADIUS;
@@ -4401,6 +4407,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     moveDiceToRail(0, true);
     updateTurnIndicator(0, true);
     setCameraFocus({ target: resolveTurnLookTarget(0), priority: 1, force: true });
+    setCameraViewForTurn(0, 0);
 
     stateRef.current = {
       paths: boardData.paths,
@@ -4717,6 +4724,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       saved3dCameraStateRef.current = null;
       stopDiceTransition();
       cancelCameraFocusAnimation();
+      cancelCameraViewAnimation();
       diceRef.current = null;
       const arena = arenaRef.current;
       if (arena) {
@@ -4792,6 +4800,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     cameraTurnStateRef.current.activePriority = -Infinity;
   }, []);
 
+  const cancelCameraViewAnimation = useCallback(() => {
+    if (cameraViewFrameRef.current) {
+      cancelAnimationFrame(cameraViewFrameRef.current);
+      cameraViewFrameRef.current = 0;
+    }
+  }, []);
+
   const animateCameraTarget = useCallback((toTarget, duration = 300) => {
     const controls = controlsRef.current;
     if (!controls || !toTarget) return;
@@ -4844,6 +4859,60 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     lookTarget.y = baseTarget.y;
     return lookTarget;
   }, []);
+
+  const setCameraViewForTurn = useCallback((player, duration = 280) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+    const desiredAzimuth = TURN_CAMERA_AZIMUTH[player];
+    if (!Number.isFinite(desiredAzimuth)) {
+      cancelCameraViewAnimation();
+      return;
+    }
+
+    const center = controls.target.clone();
+    const offset = camera.position.clone().sub(center);
+    const radiusXZ = Math.hypot(offset.x, offset.z);
+    if (radiusXZ < 1e-4) return;
+    const height = offset.y;
+    const startAzimuth = Math.atan2(offset.z, offset.x);
+    const delta = THREE.MathUtils.euclideanModulo(desiredAzimuth - startAzimuth + Math.PI, Math.PI * 2) - Math.PI;
+    if (Math.abs(delta) < 1e-3) return;
+
+    cancelCameraViewAnimation();
+
+    if (duration <= 0) {
+      camera.position.set(
+        center.x + Math.cos(desiredAzimuth) * radiusXZ,
+        center.y + height,
+        center.z + Math.sin(desiredAzimuth) * radiusXZ
+      );
+      controls.update();
+      syncSkyboxToCameraRef.current?.();
+      return;
+    }
+
+    const start = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / Math.max(duration, 1));
+      const eased = easeInOutQuad(t);
+      const azimuth = startAzimuth + delta * eased;
+      camera.position.set(
+        center.x + Math.cos(azimuth) * radiusXZ,
+        center.y + height,
+        center.z + Math.sin(azimuth) * radiusXZ
+      );
+      controls.update();
+      syncSkyboxToCameraRef.current?.();
+      if (t < 1) {
+        cameraViewFrameRef.current = requestAnimationFrame(step);
+      } else {
+        cameraViewFrameRef.current = 0;
+      }
+    };
+
+    cameraViewFrameRef.current = requestAnimationFrame(step);
+  }, [cancelCameraViewAnimation]);
 
   const setCameraFocus = useCallback(
     (focus = {}) => {
@@ -5153,6 +5222,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
       setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
+      setCameraViewForTurn(nextTurn);
       updated = true;
       const status =
         nextTurn === 0
@@ -5481,12 +5551,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               </svg>
               <span className="sr-only">Open table customization</span>
             </button>
-          </div>
-          <div className="rounded bg-white/10 px-3 py-2 text-xs">
-            <div className="font-semibold">{ui.status}</div>
-            {ui.dice != null && (
-              <div className="mt-1 text-[10px]">Rolled: {ui.dice}</div>
-            )}
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 flex max-h-[80vh] w-72 max-w-[80vw] flex-col overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
