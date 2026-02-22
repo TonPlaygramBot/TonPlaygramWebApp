@@ -1086,7 +1086,7 @@ function generateDiceCellsLocal(snakes = {}, ladders = {}) {
 
 export default function SnakeAndLadder() {
   const [showLobbyConfirm, setShowLobbyConfirm] = useState(false);
-  const [showQuitInfo, setShowQuitInfo] = useState(true);
+  const [showQuitInfo, setShowQuitInfo] = useState(false);
   useTelegramBackButton(() => setShowLobbyConfirm(true));
   const navigate = useNavigate();
 
@@ -1177,7 +1177,7 @@ export default function SnakeAndLadder() {
   const [message, setMessage] = useState("");
   const [messageColor, setMessageColor] = useState("");
   const [turnMessage, setTurnMessage] = useState("Your turn");
-  const [diceVisible, setDiceVisible] = useState(true);
+  const [, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
   const [pot, setPot] = useState(101);
@@ -1424,7 +1424,7 @@ export default function SnakeAndLadder() {
   const diceRollIdRef = useRef(0);
   const [diceBoardEvent, setDiceBoardEvent] = useState(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [diceAnchor, setDiceAnchor] = useState(null);
+  const [, setDiceAnchor] = useState(null);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -1434,27 +1434,6 @@ export default function SnakeAndLadder() {
     return map;
   }, [seatAnchors]);
 
-  const diceAnchorStyle = useMemo(() => {
-    if (diceAnchor && Number.isFinite(diceAnchor.x) && Number.isFinite(diceAnchor.y)) {
-      return {
-        position: 'absolute',
-        left: `${diceAnchor.x}%`,
-        top: `${diceAnchor.y}%`,
-        transform: 'translate(-50%, -50%)'
-      };
-    }
-    return {
-      position: 'absolute',
-      left: '50%',
-      top: '74%',
-      transform: 'translate(-50%, -50%)'
-    };
-  }, [diceAnchor]);
-
-  const diceAnchorScale = useMemo(() => {
-    if (!diceAnchor || !Number.isFinite(diceAnchor.depth)) return 1;
-    return clampValue(1.25 - (diceAnchor.depth - 2.5) * 0.22, 0.85, 1.18);
-  }, [diceAnchor]);
 
   const requestSlideAnimation = useCallback(
     ({ playerIndex, from, to, type, onComplete }) => {
@@ -1907,6 +1886,8 @@ export default function SnakeAndLadder() {
       setShowQuitInfo(false);
       setShowWatchWelcome(true);
     } else {
+      const isAiMode = aiCount > 0 && (!tableParam || aiParam);
+      setShowQuitInfo(!isAiMode);
       setShowWatchWelcome(false);
     }
     localStorage.removeItem(`snakeGameState_${aiCount}`);
@@ -3223,9 +3204,6 @@ export default function SnakeAndLadder() {
     ? 'Your turn'
     : null;
 
-  const diceRingSize = Math.max(72, Math.round(96 * diceAnchorScale));
-  const diceButtonSize = Math.max(60, Math.round(86 * diceAnchorScale));
-  const diceVisibilityClass = diceVisible ? 'opacity-100' : 'opacity-0 pointer-events-none';
 
   const handleRollButtonClick = () => {
     diceRollerDivRef.current?.click();
@@ -3979,134 +3957,84 @@ export default function SnakeAndLadder() {
           ))}
         </div>
       )}
-      <div className={`absolute inset-0 pointer-events-none z-10 transition-opacity duration-300 ${diceVisibilityClass}`}>
-        <div style={{ ...diceAnchorStyle, pointerEvents: 'none' }} className="flex items-center justify-center">
-          <div
-            className={`rounded-full border-2 transition-all duration-300 ${canRoll ? 'border-amber-300/70 bg-amber-200/12 animate-pulse' : 'border-white/12 bg-slate-900/35'}`}
-            style={{ width: `${diceRingSize}px`, height: `${diceRingSize}px` }}
-          />
-        </div>
-      </div>
       {!isMultiplayer && (
-        <div className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-300 ${diceVisibilityClass}`}>
-          <div style={{ ...diceAnchorStyle, pointerEvents: 'none' }}>
-            <div
-              className="pointer-events-auto flex items-center justify-center"
-              style={{ width: `${diceButtonSize}px`, height: `${diceButtonSize}px` }}
-            >
-              <DiceRoller
-                divRef={diceRollerDivRef}
-                onRollEnd={(vals) => {
-                  startDiceBoardAnimation({
-                    id: diceRollIdRef.current,
-                    phase: 'end',
-                    values: vals,
-                    seatIndex: aiRollingIndex ?? 0
-                  });
-                  if (aiRollingIndex) {
-                    handleAIRoll(aiRollingIndex, vals);
-                    setAiRollingIndex(null);
-                  } else {
-                    handleRoll(vals);
-                    setBonusDice(0);
-                  }
-                  setRollingIndex(null);
-                  setPlayerAutoRolling(false);
-                }}
-                onRollStart={() => {
-                  diceRollIdRef.current += 1;
-                  startDiceBoardAnimation({
-                    id: diceRollIdRef.current,
-                    phase: 'start',
-                    count: diceCount + bonusDice,
-                    seatIndex: aiRollingIndex ?? 0
-                  });
-                  if (timerRef.current) clearInterval(timerRef.current);
-                  timerSoundRef.current?.pause();
-                  setRollingIndex(aiRollingIndex || 0);
-                  if (aiRollingIndex)
-                    return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
-                  if (playerAutoRolling) return setTurnMessage('Rolling...');
-                  return setTurnMessage('Rolling...');
-                }}
-                clickable={
-                  !aiRollingIndex &&
-                  !playerAutoRolling &&
-                  rollCooldown === 0 &&
-                  currentTurn === 0 &&
-                  !moving
-                }
-                numDice={diceCount + bonusDice}
-                trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
-                showButton={false}
-                muted={muted}
-                renderVisual={false}
-                placeholder={
-                  <span
-                    className={`text-[0.65rem] font-semibold uppercase tracking-widest ${canRoll ? 'text-amber-200' : 'text-slate-300/70'}`}
-                  >
-                    {canRoll ? 'Tap Dice' : ''}
-                  </span>
-                }
-                diceWrapperClassName={`w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.25)] ${
-                  canRoll ? 'border-amber-300/80 bg-amber-200/15 animate-pulse' : 'border-white/15 bg-slate-900/45'
-                }`}
-                className="pointer-events-auto w-full h-full space-y-0"
-              />
-            </div>
-          </div>
+        <div className="sr-only" aria-hidden="true">
+          <DiceRoller
+            divRef={diceRollerDivRef}
+            onRollEnd={(vals) => {
+              startDiceBoardAnimation({
+                id: diceRollIdRef.current,
+                phase: 'end',
+                values: vals,
+                seatIndex: aiRollingIndex ?? 0
+              });
+              if (aiRollingIndex) {
+                handleAIRoll(aiRollingIndex, vals);
+                setAiRollingIndex(null);
+              } else {
+                handleRoll(vals);
+                setBonusDice(0);
+              }
+              setRollingIndex(null);
+              setPlayerAutoRolling(false);
+            }}
+            onRollStart={() => {
+              diceRollIdRef.current += 1;
+              startDiceBoardAnimation({
+                id: diceRollIdRef.current,
+                phase: 'start',
+                count: diceCount + bonusDice,
+                seatIndex: aiRollingIndex ?? 0
+              });
+              if (timerRef.current) clearInterval(timerRef.current);
+              timerSoundRef.current?.pause();
+              setRollingIndex(aiRollingIndex || 0);
+              if (aiRollingIndex) return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+              if (playerAutoRolling) return setTurnMessage('Rolling...');
+              return setTurnMessage('Rolling...');
+            }}
+            clickable={
+              !aiRollingIndex &&
+              !playerAutoRolling &&
+              rollCooldown === 0 &&
+              currentTurn === 0 &&
+              !moving
+            }
+            numDice={diceCount + bonusDice}
+            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+            showButton={false}
+            muted={muted}
+          />
         </div>
       )}
       {isMultiplayer && myPlayerIndex !== null && (
-        <div className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-300 ${diceVisibilityClass}`}>
-          <div style={{ ...diceAnchorStyle, pointerEvents: 'none' }}>
-            <div
-              className="pointer-events-auto flex items-center justify-center"
-              style={{ width: `${diceButtonSize}px`, height: `${diceButtonSize}px` }}
-              onClick={() => {
-                if (canRoll) diceRollerDivRef.current?.click();
+        <div className="sr-only" aria-hidden="true">
+          {currentTurn === myPlayerIndex && !moving ? (
+            <DiceRoller
+              clickable
+              showButton={false}
+              muted={muted}
+              emitRollEvent
+              divRef={diceRollerDivRef}
+              onRollStart={() => {
+                diceRollIdRef.current += 1;
+                startDiceBoardAnimation({
+                  id: diceRollIdRef.current,
+                  phase: 'start',
+                  count: diceCount + bonusDice,
+                  seatIndex: currentTurn
+                });
               }}
-            >
-              {currentTurn === myPlayerIndex && !moving ? (
-                <DiceRoller
-                  clickable
-                  showButton={false}
-                  muted={muted}
-                  emitRollEvent
-                  divRef={diceRollerDivRef}
-                  renderVisual={false}
-                  placeholder={
-                    <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-amber-200">
-                      Tap Dice
-                    </span>
-                  }
-                  diceWrapperClassName={`w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.25)] ${
-                    canRoll ? 'border-amber-300/80 bg-amber-200/15 animate-pulse' : 'border-white/15 bg-slate-900/45'
-                  }`}
-                  className="pointer-events-auto w-full h-full space-y-0"
-                  onRollStart={() => {
-                    diceRollIdRef.current += 1;
-                    startDiceBoardAnimation({
-                      id: diceRollIdRef.current,
-                      phase: 'start',
-                      count: diceCount + bonusDice,
-                      seatIndex: currentTurn
-                    });
-                  }}
-                  onRollEnd={(vals) => {
-                    startDiceBoardAnimation({
-                      id: diceRollIdRef.current,
-                      phase: 'end',
-                      values: vals,
-                      seatIndex: currentTurn
-                    });
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full rounded-full border-2 border-white/12 bg-slate-900/35" />
-              )}
-            </div>
-          </div>
+              onRollEnd={(vals) => {
+                startDiceBoardAnimation({
+                  id: diceRollIdRef.current,
+                  phase: 'end',
+                  values: vals,
+                  seatIndex: currentTurn
+                });
+              }}
+            />
+          ) : null}
         </div>
       )}
       {!watchOnly && (

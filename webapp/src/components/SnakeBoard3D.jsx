@@ -2541,9 +2541,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const isPortrait = host.clientHeight > host.clientWidth;
   const cameraSeatAngle = Math.PI / 2;
-  const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+  const cameraBackOffset = isPortrait ? 1.56 : 1.0;
   const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-  const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+  const cameraHeightOffset = isPortrait ? 1.56 : 1.18;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
