@@ -171,6 +171,7 @@ const TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND = 0.8;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
 const DICE_CAMERA_LOOK_OUT_DURATION = 420;
+const USER_BOTTOM_SEAT_INDEX = 0;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -2548,8 +2549,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const isPortrait = host.clientHeight > host.clientWidth;
   const cameraSeatAngle = Math.PI / 2;
-  const cameraBackOffset = isPortrait ? 1.48 : 0.95;
-  const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+  const cameraBackOffset = isPortrait ? 1.36 : 0.88;
+  const cameraForwardOffset = isPortrait ? 0.24 : 0.4;
   const cameraHeightOffset = isPortrait ? 1.64 : 1.23;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
@@ -3424,8 +3425,8 @@ function updateTokens(
         if (seatDirection.lengthSq() > 0.0001) {
           seatDirection.normalize();
           const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-          const baseRestRadius = BOARD_RADIUS + TILE_SIZE * 3.4;
-          const seatRestNudge = seatIndex === 0 ? TILE_SIZE * 0.18 : TILE_SIZE * 0.4;
+          const baseRestRadius = BOARD_RADIUS + TILE_SIZE * 3.65;
+          const seatRestNudge = seatIndex === USER_BOTTOM_SEAT_INDEX ? TILE_SIZE * 0.24 : TILE_SIZE * 0.48;
           const restRadius = baseRestRadius + seatRestNudge;
           const railSpread = TOKEN_RADIUS * 0.78;
           const pairIndex = index % 2;
@@ -4395,7 +4396,8 @@ export default function SnakeBoard3D({
         const camera = cameraRef.current;
         const controls = board.controls;
         const diceCameraState = computeDiceCameraFocusState(board, camera);
-        if (camera && controls && diceCameraState && cameraViewMode !== '2d') {
+        const shouldLockDiceCameraForBottomSeat = seatIndex === USER_BOTTOM_SEAT_INDEX;
+        if (camera && controls && diceCameraState && cameraViewMode !== '2d' && !shouldLockDiceCameraForBottomSeat) {
           removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
           const restoreState = turnCameraStateRef.current || captureCameraState(camera, controls);
           const diceCameraAnimation = createCameraTransitionAnimation(camera, controls, {
