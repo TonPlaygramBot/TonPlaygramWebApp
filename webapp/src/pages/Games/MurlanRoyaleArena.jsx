@@ -1939,7 +1939,7 @@ const HUMAN_HAND_CARD_SCALE = 1.15;
 const COMMUNITY_CARD_TOP_TILT = 0;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
 const COMMUNITY_CARD_SPACING_MULTIPLIER = 0.88;
-const TABLE_CARD_AREA_FORWARD_SHIFT = 0.34 * MODEL_SCALE;
+const TABLE_CARD_AREA_FORWARD_SHIFT = 0.42 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -1958,7 +1958,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.88;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.86;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -4110,7 +4110,11 @@ export default function MurlanRoyaleArena({ search }) {
       for (let i = 0; i < CHAIR_COUNT; i++) {
         const player = players[i] ?? null;
         const chair = new THREE.Group();
-        chair.scale.setScalar(CHAIR_VISUAL_SCALE);
+        chair.scale.set(
+          CHAIR_VISUAL_SCALE,
+          CHAIR_VISUAL_SCALE * 1.08,
+          CHAIR_VISUAL_SCALE
+        );
         const chairModel = chairTemplate.clone(true);
         chair.add(chairModel);
         chair.userData.chairModel = chairModel;
