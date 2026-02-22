@@ -3791,9 +3791,6 @@ export default function SnakeAndLadder() {
                   transform: 'translate(-50%, -50%)'
                 };
             const avatarSize = anchor ? clampValue(1.32 - (anchor.depth - 2.6) * 0.22, 0.86, 1.2) : 1;
-            const tokenColor = p.color || playerColors[seat] || '#f97316';
-            const tokenHighlight = lightenHex(tokenColor, 0.35);
-            const tokenShadow = darkenHex(tokenColor, 0.45);
             return (
               <div
                 key={`player-${p.index}`}
@@ -3817,22 +3814,6 @@ export default function SnakeAndLadder() {
                     if (p.index !== myIdx) setPlayerPopup(p);
                   }}
                 />
-                <div className="flex flex-col items-center gap-1 mt-2">
-                  <div
-                    className="relative rounded-full border border-white/40 shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
-                    style={{
-                      width: '2.125rem',
-                      height: '2.125rem',
-                      background: `radial-gradient(circle at 30% 30%, ${tokenHighlight}, ${tokenColor})`,
-                      boxShadow: `0 4px 8px ${tokenShadow}55`
-                    }}
-                  >
-                    <span className="absolute inset-[28%] rounded-full bg-white/80 opacity-80 mix-blend-screen" />
-                  </div>
-                  <span className="text-[0.55rem] font-semibold uppercase tracking-widest text-slate-100/85">
-                    Token
-                  </span>
-                </div>
               </div>
             );
           })}
