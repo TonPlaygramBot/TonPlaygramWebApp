@@ -1929,15 +1929,17 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWA
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
-const CHAIR_VISUAL_SCALE = 1.12;
+const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.14, landscape: 0.72 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.22, landscape: 0.86 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
-const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(7);
-const COMMUNITY_CARD_SCALE = 1.25;
+const HUMAN_HAND_CARD_SCALE = 1.15;
+const COMMUNITY_CARD_TOP_TILT = 0;
+const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
 const COMMUNITY_CARD_SPACING_MULTIPLIER = 0.88;
+const TABLE_CARD_AREA_FORWARD_SHIFT = 0.34 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -1955,6 +1957,7 @@ const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
 const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
+const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.88;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
@@ -2833,11 +2836,11 @@ export default function MurlanRoyaleArena({ search }) {
     selectionTargets: [],
     animations: [],
     raycaster: new THREE.Raycaster(),
-    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
+    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_CARD_AREA_FORWARD_SHIFT),
     discardAnchor: new THREE.Vector3(
       DISCARD_PILE_OFFSET.x,
       TABLE_HEIGHT + DISCARD_PILE_OFFSET.y,
-      DISCARD_PILE_OFFSET.z
+      DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT
     ),
     scoreboard: null,
     tableInfo: null,
@@ -3140,13 +3143,15 @@ export default function MurlanRoyaleArena({ search }) {
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(right, lateral);
-        target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
+        target.y = baseHeight;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
+        mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : 1);
+        const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         setMeshPosition(
           mesh,
           target,
-          focus,
+          handLookTarget,
           { face: isHumanCard ? 'front' : 'back' },
           immediate,
           three.animations
@@ -3177,7 +3182,6 @@ export default function MurlanRoyaleArena({ search }) {
       const target = tableAnchor.clone();
       target.x += tableStartX + idx * tableSpacing;
       target.y += 0.075 * MODEL_SCALE;
-      target.z += 0;
       setMeshPosition(
         mesh,
         target,
@@ -3188,7 +3192,6 @@ export default function MurlanRoyaleArena({ search }) {
       );
     });
 
-    const discardCount = state.discardPile.length;
     const discardSpacing = CARD_W * 0.08;
     const discardAnchor = three.discardAnchor?.clone() ??
       tableAnchor.clone().add(
@@ -3317,11 +3320,11 @@ export default function MurlanRoyaleArena({ search }) {
       three.tableThemeId = theme?.id || 'murlan-default';
       three.tableClothId = cloth?.id ?? null;
       three.tableFinishId = finish?.id ?? null;
-      three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
+      three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, TABLE_CARD_AREA_FORWARD_SHIFT);
       three.discardAnchor = new THREE.Vector3(
         DISCARD_PILE_OFFSET.x,
         tableInfo.surfaceY + DISCARD_PILE_OFFSET.y,
-        DISCARD_PILE_OFFSET.z
+        DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT
       );
       return tableInfo;
     },
@@ -3813,7 +3816,10 @@ export default function MurlanRoyaleArena({ search }) {
       }
     }
     const activeChanged = prev.initialized && prev.activePlayer !== gameState.activePlayer;
-    if (activeChanged && gameState.status === 'PLAYING') {
+    const activePlayer = Number.isInteger(gameState.activePlayer)
+      ? gameState.players[gameState.activePlayer]
+      : null;
+    if (activeChanged && gameState.status === 'PLAYING' && activePlayer?.isHuman) {
       if (muted) {
         audioStateRef.current = {
           tableIds,
@@ -3864,6 +3870,10 @@ export default function MurlanRoyaleArena({ search }) {
     const blendedFocus = cameraDefaultTargetRef.current
       .clone()
       .lerp(activeSeat.focus, CAMERA_PLAYER_TARGET_WEIGHT);
+    const sideSign = Math.sign(activeSeat?.stoolPosition?.x ?? 0);
+    if (sideSign !== 0) {
+      blendedFocus.x += sideSign * CAMERA_SIDE_LOOK_EXTRA;
+    }
     cameraTurnHoldTimeoutRef.current = setTimeout(() => {
       turnCameraTowardTarget(blendedFocus, { animate: true });
       cameraTurnHoldTimeoutRef.current = null;
@@ -4469,11 +4479,11 @@ export default function MurlanRoyaleArena({ search }) {
         selectionTargets: [],
         animations: [],
         raycaster: new THREE.Raycaster(),
-        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
+        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_CARD_AREA_FORWARD_SHIFT),
         discardAnchor: new THREE.Vector3(
           DISCARD_PILE_OFFSET.x,
           TABLE_HEIGHT + DISCARD_PILE_OFFSET.y,
-          DISCARD_PILE_OFFSET.z
+          DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT
         ),
         scoreboard: null,
         tableInfo: null,
