@@ -348,7 +348,8 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
 const COMMUNITY_SPACING = CARD_W * 1.08;
-const COMMUNITY_CARD_FORWARD_OFFSET = 0;
+const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
+const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
@@ -4274,8 +4275,9 @@ function TexasHoldemArena({ search }) {
             const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
             mesh.position.copy(position);
 
-            const lookTarget = camera.position
+            const lookTarget = humanSeatGroup.focus
               .clone()
+              .addScaledVector(humanSeatGroup.forward, 2.4 * MODEL_SCALE)
               .add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
             lookTarget.y = position.y + HUMAN_CARD_LOOK_LIFT;
             orientCard(mesh, lookTarget, { face: 'front', flat: false });
@@ -4771,8 +4773,9 @@ function TexasHoldemArena({ search }) {
         mesh.position.copy(position);
         const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
         const lookTarget = seat.isHuman
-          ? three.camera.position
+          ? seat.focus
               .clone()
+              .addScaledVector(forward, 2.4 * MODEL_SCALE)
               .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
               .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
           : lookOrigin
