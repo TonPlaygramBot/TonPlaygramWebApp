@@ -262,7 +262,7 @@ const SNAKE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = SNAKE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SEAT_LAYOUTS = {
   1: [0],
-  2: [0, 2],
+  2: [3, 1],
   3: [0, 1, 3],
   4: [0, 1, 2, 3]
 };

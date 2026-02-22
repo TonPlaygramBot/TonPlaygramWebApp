@@ -3143,7 +3143,10 @@ function updateTokens(
     baseLevelTop = 0,
     tokenTheme = {},
     tokenShape = null,
-    tokenPrototypes = null
+    tokenPrototypes = null,
+    seatAnchors = [],
+    boardLookTarget = null,
+    boardRoot = null
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -3406,9 +3409,31 @@ function updateTokens(
       baseVector.y += TOKEN_HEIGHT * 0.02;
       worldPos = baseVector;
     } else {
-      const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
-      worldPos = serpentineIndexToXZ(fallbackIndex).clone();
-      worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+      const seatAnchor = Number.isFinite(seatIndex) ? seatAnchors?.[seatIndex] : null;
+      if (seatAnchor && boardLookTarget && boardRoot) {
+        const seatWorld = new THREE.Vector3();
+        seatAnchor.getWorldPosition(seatWorld);
+        const inward = boardLookTarget.clone().sub(seatWorld).setY(0);
+        if (inward.lengthSq() > 0.0001) {
+          inward.normalize();
+          const lateral = new THREE.Vector3(-inward.z, 0, inward.x);
+          const frontOffset = TOKEN_RADIUS * 1.6;
+          const spreadOffset = TOKEN_RADIUS * 0.95;
+          const offsetSign = index % 2 === 0 ? -1 : 1;
+          const railWorld = seatWorld
+            .clone()
+            .addScaledVector(inward, frontOffset)
+            .addScaledVector(lateral, spreadOffset * offsetSign);
+          worldPos = railWorld.clone();
+          boardRoot.worldToLocal(worldPos);
+          worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+        }
+      }
+      if (!worldPos) {
+        const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
+        worldPos = serpentineIndexToXZ(fallbackIndex).clone();
+        worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+      }
     }
 
     if (!token.userData.isSliding && worldPos) {
@@ -4128,7 +4153,10 @@ export default function SnakeBoard3D({
       baseLevelTop: board.baseLevelTop,
       tokenTheme,
       tokenShape,
-      tokenPrototypes: board.tokenPrototypes
+      tokenPrototypes: board.tokenPrototypes,
+      seatAnchors: board.seatAnchors,
+      boardLookTarget: board.boardLookTarget,
+      boardRoot: board.root
     });
 
     const sanitizedPositions = players.map((player) => {
