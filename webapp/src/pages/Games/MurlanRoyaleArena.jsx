@@ -1910,7 +1910,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.26
+  z: -TABLE_RADIUS * 0.18
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -1939,7 +1939,7 @@ const HUMAN_HAND_CARD_SCALE = 1.15;
 const COMMUNITY_CARD_TOP_TILT = 0;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
 const COMMUNITY_CARD_SPACING_MULTIPLIER = 0.88;
-const TABLE_CARD_AREA_FORWARD_SHIFT = 0.42 * MODEL_SCALE;
+const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -4839,7 +4839,7 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        <div className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
+        <div className="pointer-events-none absolute left-1/2 top-[66%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
           <p className="text-sm font-semibold tracking-wide text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
           {uiState.tableSummary && (
             <p className="mt-1 text-xs italic tracking-wide text-sky-100/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
