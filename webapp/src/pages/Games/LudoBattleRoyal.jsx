@@ -328,6 +328,9 @@ const AI_EXTRA_TURN_DELAY_MS = 1100;
 const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
+const ANIMATION_BASE_FPS = 60;
+const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
+const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const CHAIR_SIZE_SCALE = 1;
 const CHAIR_MODEL_URLS = [
@@ -2691,6 +2694,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
   }, [resolvedFrameTiming]);
+  const resolveFrameSyncedDuration = useCallback((baseDurationMs, { min = 120, max = 2400 } = {}) => {
+    const baseDuration = Number(baseDurationMs);
+    const safeBaseDuration = Number.isFinite(baseDuration) ? Math.max(0, baseDuration) : 0;
+    if (safeBaseDuration <= 0) return 0;
+    const activeFps =
+      Number.isFinite(frameQualityRef.current?.fps) && frameQualityRef.current.fps > 0
+        ? frameQualityRef.current.fps
+        : ANIMATION_BASE_FPS;
+    const speedMultiplier = THREE.MathUtils.clamp(
+      ANIMATION_BASE_FPS / activeFps,
+      MIN_ANIMATION_SPEED_MULTIPLIER,
+      MAX_ANIMATION_SPEED_MULTIPLIER
+    );
+    const resolved = safeBaseDuration * speedMultiplier;
+    return THREE.MathUtils.clamp(resolved, min, max);
+  }, []);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -4821,6 +4840,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   const animateCameraPose = useCallback((toTarget, toPosition = null, duration = 300) => {
+    const resolvedDuration = resolveFrameSyncedDuration(duration, { min: 140, max: 900 });
     const controls = controlsRef.current;
     const camera = cameraRef.current;
     if (!controls || !camera || !toTarget) return;
@@ -4835,7 +4855,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cancelAnimationFrame(cameraFocusFrameRef.current);
       cameraFocusFrameRef.current = 0;
     }
-    if (duration <= 0) {
+    if (resolvedDuration <= 0) {
       controls.target.copy(destination);
       camera.position.copy(destinationPosition);
       cameraTurnStateRef.current.currentTarget.copy(destination);
@@ -4845,7 +4865,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const started = performance.now();
     const step = () => {
       const now = performance.now();
-      const t = Math.min(1, (now - started) / Math.max(duration, 1));
+      const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
       const eased = easeInOutQuad(t);
       controls.target.copy(fromTarget).lerp(destination, eased);
       camera.position.copy(fromPosition).lerp(destinationPosition, eased);
@@ -4858,7 +4878,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     };
     cameraFocusFrameRef.current = requestAnimationFrame(step);
-  }, []);
+  }, [resolveFrameSyncedDuration]);
 
   const resolveTurnCameraState = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
     const arena = arenaRef.current;
@@ -5482,7 +5502,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     playDiceSound();
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
-      duration: AUTO_ROLL_DURATION_MS,
+      duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
