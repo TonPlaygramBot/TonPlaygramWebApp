@@ -2255,8 +2255,9 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Murlan Default Table',
-      source: 'procedural',
+      source: 'polyhaven',
       price: 0,
+      assetId: 'WoodenTable_01',
       thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
       description:
         'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
@@ -3039,62 +3040,30 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
   })
 ]);
 
-const TABLE_CLOTH_OPTIONS = Object.freeze([
-  {
-    id: 'crimson',
-    label: 'Crimson Cloth',
-    feltTop: '#960019',
-    feltBottom: '#4a0012',
-    border: '#210308',
-    emissive: '#210308',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'emerald',
-    label: 'Emerald Cloth',
-    feltTop: '#0f6a2f',
-    feltBottom: '#054d24',
-    border: '#021a0b',
-    emissive: '#021a0b',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'arctic',
-    label: 'Arctic Cloth',
-    feltTop: '#2563eb',
-    feltBottom: '#1d4ed8',
-    border: '#071a42',
-    emissive: '#071a42',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'sunset',
-    label: 'Sunset Cloth',
-    feltTop: '#ea580c',
-    feltBottom: '#c2410c',
-    border: '#320e03',
-    emissive: '#320e03',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'violet',
-    label: 'Violet Cloth',
-    feltTop: '#7c3aed',
-    feltBottom: '#5b21b6',
-    border: '#1f0a47',
-    emissive: '#1f0a47',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'amber',
-    label: 'Amber Cloth',
-    feltTop: '#b7791f',
-    feltBottom: '#92571a',
-    border: '#2b1402',
-    emissive: '#2b1402',
-    emissiveIntensity: dimIntensity(0.42)
-  }
+const POOL_ROYALE_DOMINO_CLOTH_PALETTE = Object.freeze([
+  { id: 'cabanGreenMeadow', label: 'Caban Wool — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#1f6a3f' },
+  { id: 'cabanGreenSpruce', label: 'Caban Wool — Green Spruce', feltTop: '#2ca85f', feltBottom: '#238f4a', border: '#1a5d35' },
+  { id: 'cabanBlueHarbor', label: 'Caban Wool — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0a355a' },
+  { id: 'cabanBlueFjord', label: 'Caban Wool — Blue Fjord', feltTop: '#1589e6', feltBottom: '#0b74c6', border: '#0a355a' },
+  { id: 'polarFleeceGreenMeadow', label: 'Polar Fleece — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#205f40' },
+  { id: 'polarFleeceBlueHarbor', label: 'Polar Fleece — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0b365e' },
+  { id: 'polarFleecePlushGreenMeadow', label: 'Polar Fleece Plush — Green Meadow', feltTop: '#42c47a', feltBottom: '#2ca85f', border: '#1f6b40' },
+  { id: 'polarFleecePlushBlueHarbor', label: 'Polar Fleece Plush — Blue Harbor', feltTop: '#1fa3ff', feltBottom: '#0b74c6', border: '#0b3c66' },
+  { id: 'polarFleeceNatureOceanGreenFern', label: 'Polar Fleece Nature & Ocean — Green Fern', feltTop: '#33b46a', feltBottom: '#238f4a', border: '#1c5a37' },
+  { id: 'polarFleeceNatureOceanBlueCrest', label: 'Polar Fleece Nature & Ocean — Blue Crest', feltTop: '#1589e6', feltBottom: '#095fa4', border: '#0a3458' },
+  { id: 'terryClothGreenMeadow', label: 'Polyhaven Terry Cloth — Green Meadow', feltTop: '#42c47a', feltBottom: '#2ca85f', border: '#1d603b' },
+  { id: 'terryClothBlueHarbor', label: 'Polyhaven Terry Cloth — Blue Harbor', feltTop: '#1fa3ff', feltBottom: '#0b74c6', border: '#0b365f' }
 ]);
+
+const TABLE_CLOTH_OPTIONS = Object.freeze(
+  POOL_ROYALE_DOMINO_CLOTH_PALETTE.map((option) => ({
+    ...option,
+    emissive: option.border,
+    emissiveIntensity: dimIntensity(0.42),
+    swatches: [option.feltTop, option.feltBottom, option.border]
+  }))
+);
+
 
 const TABLE_BASE_OPTIONS = Object.freeze([
   {
@@ -3103,41 +3072,6 @@ const TABLE_BASE_OPTIONS = Object.freeze([
     base: '#141414',
     column: '#0b0d10',
     trim: '#1f232a'
-  },
-  {
-    id: 'forestBronze',
-    label: 'Forest Base',
-    base: '#101714',
-    column: '#0a0f0c',
-    trim: '#1f2d24'
-  },
-  {
-    id: 'midnightChrome',
-    label: 'Midnight Base',
-    base: '#0f172a',
-    column: '#0a1020',
-    trim: '#1e2f4a'
-  },
-  {
-    id: 'emberCopper',
-    label: 'Copper Base',
-    base: '#231312',
-    column: '#140707',
-    trim: '#5c2d1b'
-  },
-  {
-    id: 'violetShadow',
-    label: 'Violet Shadow Base',
-    base: '#1f1130',
-    column: '#130622',
-    trim: '#3f1b5b'
-  },
-  {
-    id: 'desertGold',
-    label: 'Desert Base',
-    base: '#1c1a12',
-    column: '#0f0d06',
-    trim: '#5a4524'
   }
 ]);
 
@@ -3585,9 +3519,8 @@ const TABLE_SETUP_SECTIONS = [
     options: ENVIRONMENT_HDRI_OPTIONS
   },
   { key: 'tableTheme', label: 'Table Theme', options: TABLE_THEME_OPTIONS },
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableWood', label: 'Table Finish', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'tableBase', label: 'Bazamenti', options: TABLE_BASE_OPTIONS },
   { key: 'dominoStyle', label: 'Domino', options: DOMINO_STYLE_OPTIONS },
   {
     key: 'highlightStyle',
@@ -3602,7 +3535,6 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   tableTheme: TABLE_THEME_OPTIONS,
   tableWood: TABLE_WOOD_OPTIONS,
   tableCloth: TABLE_CLOTH_OPTIONS,
-  tableBase: TABLE_BASE_OPTIONS,
   dominoStyle: DOMINO_STYLE_OPTIONS,
   highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
   chairTheme: CHAIR_THEME_OPTIONS
@@ -3717,7 +3649,6 @@ function normalizeAppearance(raw) {
     ['tableTheme', TABLE_THEME_OPTIONS.length],
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
     ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
     ['highlightStyle', HIGHLIGHT_STYLE_OPTIONS.length],
     ['chairTheme', CHAIR_THEME_OPTIONS.length]
@@ -6021,6 +5952,20 @@ function createOptionPreview(key, option) {
   swatch.style.height = '1.5rem';
   swatch.style.borderRadius = '0.75rem';
   swatch.style.border = '1px solid rgba(255,255,255,0.12)';
+  if (option?.thumbnail) {
+    swatch.style.position = 'relative';
+    swatch.style.overflow = 'hidden';
+    swatch.style.height = '3rem';
+    const thumbImage = document.createElement('img');
+    thumbImage.src = option.thumbnail;
+    thumbImage.alt = `${option?.label || option?.id || 'Option'} thumbnail`;
+    thumbImage.loading = 'lazy';
+    thumbImage.decoding = 'async';
+    thumbImage.style.width = '100%';
+    thumbImage.style.height = '100%';
+    thumbImage.style.objectFit = 'cover';
+    swatch.appendChild(thumbImage);
+  }
   switch (key) {
     case 'environmentHdri': {
       swatch.style.background =
@@ -6095,9 +6040,6 @@ function createOptionPreview(key, option) {
       break;
     case 'tableCloth':
       swatch.style.background = `linear-gradient(135deg, ${option.feltTop}, ${option.feltBottom})`;
-      break;
-    case 'tableBase':
-      swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
       break;
     case 'dominoStyle':
       swatch.style.position = 'relative';
@@ -6251,12 +6193,14 @@ function refreshConfigUI() {
     wrapper.appendChild(label);
     const optionsGrid = document.createElement('div');
     optionsGrid.className = 'config-options';
+    optionsGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(110px, 1fr))';
     const availableOptions = getUnlockedOptions(section.key, dominoInventory);
     availableOptions.forEach((option) => {
       const idx = findDominoOptionIndex(section.key, option.id);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'config-option';
+      button.style.alignItems = 'stretch';
       if (appearance[section.key] === idx) {
         button.classList.add('active');
       }
