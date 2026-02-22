@@ -2255,11 +2255,12 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Murlan Default Table',
-      source: 'procedural',
+      source: 'polyhaven',
+      assetId: 'WoodenTable_01',
       price: 0,
       thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
       description:
-        'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+        'Standard Murlan Royale table using the original WoodenTable_01 GLTF textures.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_01', label: 'Wooden Table 01' },
@@ -3039,62 +3040,64 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
   })
 ]);
 
-const TABLE_CLOTH_OPTIONS = Object.freeze([
+const CLOTH_SHADE_SWATCHES = Object.freeze({
+  green: ['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a'],
+  blue: ['#0b74c6', '#0a6eb8', '#1589e6', '#1fa3ff', '#095fa4']
+});
+
+const CLOTH_SHADE_NAMES = Object.freeze({
+  green: ['Meadow', 'Spruce', 'Grove', 'Glade', 'Summit'],
+  blue: ['Harbor', 'Fjord', 'Glacier', 'Sapphire', 'Midnight'],
+  nature: ['Fern', 'Grove', 'Canopy', 'Meadow', 'Wildwood'],
+  ocean: ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss']
+});
+
+const CLOTH_MATERIAL_SERIES = Object.freeze([
+  { prefix: 'caban', label: 'Caban Wool', sourceId: 'caban' },
+  { prefix: 'polarFleece', label: 'Polar Fleece', sourceId: 'polar_fleece' },
   {
-    id: 'crimson',
-    label: 'Crimson Cloth',
-    feltTop: '#960019',
-    feltBottom: '#4a0012',
-    border: '#210308',
-    emissive: '#210308',
-    emissiveIntensity: dimIntensity(0.42)
+    prefix: 'polarFleecePlush',
+    label: 'Polar Fleece Plush',
+    sourceId: 'polar_fleece'
   },
   {
-    id: 'emerald',
-    label: 'Emerald Cloth',
-    feltTop: '#0f6a2f',
-    feltBottom: '#054d24',
-    border: '#021a0b',
-    emissive: '#021a0b',
-    emissiveIntensity: dimIntensity(0.42)
+    prefix: 'polarFleeceNatureOcean',
+    label: 'Polar Fleece Nature & Ocean',
+    sourceId: 'polar_fleece',
+    greenShadeNames: CLOTH_SHADE_NAMES.nature,
+    blueShadeNames: CLOTH_SHADE_NAMES.ocean
   },
   {
-    id: 'arctic',
-    label: 'Arctic Cloth',
-    feltTop: '#2563eb',
-    feltBottom: '#1d4ed8',
-    border: '#071a42',
-    emissive: '#071a42',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'sunset',
-    label: 'Sunset Cloth',
-    feltTop: '#ea580c',
-    feltBottom: '#c2410c',
-    border: '#320e03',
-    emissive: '#320e03',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'violet',
-    label: 'Violet Cloth',
-    feltTop: '#7c3aed',
-    feltBottom: '#5b21b6',
-    border: '#1f0a47',
-    emissive: '#1f0a47',
-    emissiveIntensity: dimIntensity(0.42)
-  },
-  {
-    id: 'amber',
-    label: 'Amber Cloth',
-    feltTop: '#b7791f',
-    feltBottom: '#92571a',
-    border: '#2b1402',
-    emissive: '#2b1402',
-    emissiveIntensity: dimIntensity(0.42)
+    prefix: 'terryCloth',
+    label: 'Polyhaven Terry Cloth',
+    sourceId: 'terry_cloth'
   }
 ]);
+
+const TABLE_CLOTH_OPTIONS = Object.freeze(
+  CLOTH_MATERIAL_SERIES.flatMap((material) =>
+    ['green', 'blue'].flatMap((tone) =>
+      CLOTH_SHADE_SWATCHES[tone].map((hex, idx) => {
+        const toneLabel = tone === 'green' ? 'Green' : 'Blue';
+        const shadeNames = tone === 'green' ? material.greenShadeNames || CLOTH_SHADE_NAMES.green : material.blueShadeNames || CLOTH_SHADE_NAMES.blue;
+        const shade = shadeNames[idx] || `${tone}-${idx + 1}`;
+        const border = adjustHexColor(hex, -0.42);
+        const feltBottom = adjustHexColor(hex, -0.22);
+        return {
+          id: `${material.prefix}${toneLabel}${shade}`,
+          label: `${material.label} — ${toneLabel} ${shade}`,
+          feltTop: hex,
+          feltBottom,
+          border,
+          emissive: border,
+          emissiveIntensity: dimIntensity(0.42),
+          thumbnail: POLYHAVEN_THUMB(material.sourceId),
+          description: `${material.label} cloth texture (${toneLabel.toLowerCase()} ${shade.toLowerCase()}).`
+        };
+      })
+    )
+  )
+);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
   {
@@ -3300,7 +3303,8 @@ const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
 }));
 const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
-  label: variant.label || `${variant.name} HDRI` || variant.id
+  label: variant.label || `${variant.name} HDRI` || variant.id,
+  thumbnail: variant.thumbnail || POLYHAVEN_THUMB(variant.assetId)
 }));
 
 const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
@@ -3585,9 +3589,8 @@ const TABLE_SETUP_SECTIONS = [
     options: ENVIRONMENT_HDRI_OPTIONS
   },
   { key: 'tableTheme', label: 'Table Theme', options: TABLE_THEME_OPTIONS },
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableWood', label: 'Table Finish', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'tableBase', label: 'Bazamenti', options: TABLE_BASE_OPTIONS },
   { key: 'dominoStyle', label: 'Domino', options: DOMINO_STYLE_OPTIONS },
   {
     key: 'highlightStyle',
@@ -3602,7 +3605,6 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   tableTheme: TABLE_THEME_OPTIONS,
   tableWood: TABLE_WOOD_OPTIONS,
   tableCloth: TABLE_CLOTH_OPTIONS,
-  tableBase: TABLE_BASE_OPTIONS,
   dominoStyle: DOMINO_STYLE_OPTIONS,
   highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
   chairTheme: CHAIR_THEME_OPTIONS
@@ -3717,7 +3719,6 @@ function normalizeAppearance(raw) {
     ['tableTheme', TABLE_THEME_OPTIONS.length],
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
     ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
     ['highlightStyle', HIGHLIGHT_STYLE_OPTIONS.length],
     ['chairTheme', CHAIR_THEME_OPTIONS.length]
@@ -5142,7 +5143,14 @@ function setProceduralTableVisible(flag = true) {
 async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]
 ) {
-  const theme = option || TABLE_THEME_OPTIONS[0];
+  const theme =
+    option?.id === 'murlan-default'
+      ? {
+          ...option,
+          id: 'murlan-default',
+          assetId: 'WoodenTable_01'
+        }
+      : option || TABLE_THEME_OPTIONS[0];
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
@@ -5150,14 +5158,12 @@ async function applyTableTheme(
     child?.removeFromParent?.();
   }
   const token = ++tableThemeToken;
-  if (!theme || theme.id === 'murlan-default') {
+  if (!theme) {
     setProceduralTableVisible(true);
     activeTableThemeId = 'murlan-default';
     return;
   }
-  if (theme && theme.id !== 'murlan-default') {
-    setProceduralTableVisible(false);
-  }
+  setProceduralTableVisible(false);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
     if (token !== tableThemeToken || !model) {
@@ -6018,13 +6024,21 @@ window.addEventListener('dominoRoyalInventoryUpdate', (event) => {
 function createOptionPreview(key, option) {
   const swatch = document.createElement('div');
   swatch.style.width = '100%';
-  swatch.style.height = '1.5rem';
+  swatch.style.height = '3rem';
   swatch.style.borderRadius = '0.75rem';
   swatch.style.border = '1px solid rgba(255,255,255,0.12)';
+  swatch.style.overflow = 'hidden';
+  if (option?.thumbnail) {
+    swatch.style.backgroundImage = `linear-gradient(180deg, rgba(2,6,23,0.06), rgba(2,6,23,0.48)), url(${option.thumbnail})`;
+    swatch.style.backgroundSize = 'cover';
+    swatch.style.backgroundPosition = 'center';
+  }
   switch (key) {
     case 'environmentHdri': {
-      swatch.style.background =
-        'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
+      if (!option?.thumbnail) {
+        swatch.style.background =
+          'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
+      }
       const badge = document.createElement('span');
       badge.textContent = option?.name || option?.label || 'HDRI';
       badge.style.display = 'inline-block';
@@ -6038,13 +6052,15 @@ function createOptionPreview(key, option) {
       badge.style.margin = '0.2rem';
       badge.style.pointerEvents = 'none';
       swatch.appendChild(badge);
-      if (Array.isArray(option?.swatches) && option.swatches.length >= 2) {
+      if (!option?.thumbnail && Array.isArray(option?.swatches) && option.swatches.length >= 2) {
         swatch.style.background = `linear-gradient(135deg, ${option.swatches[0]}, ${option.swatches[1]})`;
       }
       break;
     }
     case 'tableTheme': {
-      swatch.style.background = 'linear-gradient(135deg, #0f172a, #1f2937)';
+      if (!option?.thumbnail) {
+        swatch.style.background = 'linear-gradient(135deg, #0f172a, #1f2937)';
+      }
       const label = document.createElement('span');
       label.textContent = option?.label || 'Table';
       label.style.display = 'inline-block';
@@ -6094,7 +6110,9 @@ function createOptionPreview(key, option) {
       }
       break;
     case 'tableCloth':
-      swatch.style.background = `linear-gradient(135deg, ${option.feltTop}, ${option.feltBottom})`;
+      if (!option?.thumbnail) {
+        swatch.style.background = `linear-gradient(135deg, ${option.feltTop}, ${option.feltBottom})`;
+      }
       break;
     case 'tableBase':
       swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
@@ -6162,7 +6180,9 @@ function createOptionPreview(key, option) {
       break;
     }
     case 'chairTheme':
-      swatch.style.background = option.seatColor;
+      if (!option?.thumbnail) {
+        swatch.style.background = option.seatColor;
+      }
       break;
     default:
       swatch.style.background = '#1f2937';
@@ -6251,6 +6271,7 @@ function refreshConfigUI() {
     wrapper.appendChild(label);
     const optionsGrid = document.createElement('div');
     optionsGrid.className = 'config-options';
+    optionsGrid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
     const availableOptions = getUnlockedOptions(section.key, dominoInventory);
     availableOptions.forEach((option) => {
       const idx = findDominoOptionIndex(section.key, option.id);
@@ -6264,6 +6285,15 @@ function refreshConfigUI() {
       const name = document.createElement('span');
       name.textContent = option.label ?? option.id;
       button.appendChild(name);
+      if (option.description) {
+        const helper = document.createElement('div');
+        helper.textContent = option.description;
+        helper.style.fontSize = '0.55rem';
+        helper.style.color = 'rgba(226,232,240,0.72)';
+        helper.style.lineHeight = '1.3';
+        helper.style.textWrap = 'pretty';
+        button.appendChild(helper);
+      }
       button.addEventListener('click', () => {
         if (appearance[section.key] === idx) return;
         appearance[section.key] = idx;
