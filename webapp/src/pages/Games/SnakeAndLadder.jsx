@@ -4042,11 +4042,7 @@ export default function SnakeAndLadder() {
                 muted={muted}
                 renderVisual={false}
                 placeholder={
-                  <span
-                    className={`text-[0.65rem] font-semibold uppercase tracking-widest ${canRoll ? 'text-amber-200' : 'text-slate-300/70'}`}
-                  >
-                    {canRoll ? 'Tap Dice' : ''}
-                  </span>
+                  <span className="sr-only">Roll dice</span>
                 }
                 diceWrapperClassName={`w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.25)] ${
                   canRoll ? 'border-amber-300/80 bg-amber-200/15 animate-pulse' : 'border-white/15 bg-slate-900/45'
@@ -4076,9 +4072,7 @@ export default function SnakeAndLadder() {
                   divRef={diceRollerDivRef}
                   renderVisual={false}
                   placeholder={
-                    <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-amber-200">
-                      Tap Dice
-                    </span>
+                    <span className="sr-only">Roll dice</span>
                   }
                   diceWrapperClassName={`w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.25)] ${
                     canRoll ? 'border-amber-300/80 bg-amber-200/15 animate-pulse' : 'border-white/15 bg-slate-900/45'

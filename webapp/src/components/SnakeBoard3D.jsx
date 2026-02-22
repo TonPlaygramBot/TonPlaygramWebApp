@@ -2541,9 +2541,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const isPortrait = host.clientHeight > host.clientWidth;
   const cameraSeatAngle = Math.PI / 2;
-  const cameraBackOffset = isPortrait ? 1.65 : 1.05;
-  const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-  const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+  const cameraBackOffset = isPortrait ? 1.42 : 1.05;
+  const cameraForwardOffset = isPortrait ? 0.5 : 0.35;
+  const cameraHeightOffset = isPortrait ? 1.28 : 1.12;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
@@ -2556,18 +2556,75 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.enableZoom = true;
-  controls.enableRotate = true;
+  controls.enableZoom = false;
+  controls.enableRotate = false;
   controls.rotateSpeed = 0.6;
   controls.minAzimuthAngle = -Infinity;
   controls.maxAzimuthAngle = Infinity;
-  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.PAN };
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
   controls.minPolarAngle = CAM.phiMin;
   controls.maxPolarAngle = CAM.phiMax;
   controls.target.copy(boardLookTarget);
   controls.update();
+
+  const headLookState = {
+    dragging: false,
+    pointerId: null,
+    lastX: 0,
+    lastY: 0,
+    yaw: 0,
+    pitch: 0,
+    baseForward: new THREE.Vector3(),
+    baseDistance: 1
+  };
+  const resetHeadLookBase = () => {
+    headLookState.baseForward
+      .copy(controls.target)
+      .sub(camera.position)
+      .normalize();
+    headLookState.baseDistance = Math.max(0.5, camera.position.distanceTo(controls.target));
+    headLookState.yaw = 0;
+    headLookState.pitch = 0;
+  };
+  const applyHeadLook = () => {
+    const direction = headLookState.baseForward.clone().applyAxisAngle(WORLD_UP, headLookState.yaw);
+    const right = new THREE.Vector3().crossVectors(direction, WORLD_UP).normalize();
+    direction.applyAxisAngle(right, headLookState.pitch).normalize();
+    controls.target.copy(camera.position).addScaledVector(direction, headLookState.baseDistance);
+    camera.lookAt(controls.target);
+    controls.update();
+  };
+
+  const handlePointerDown = (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    headLookState.dragging = true;
+    headLookState.pointerId = event.pointerId;
+    headLookState.lastX = event.clientX;
+    headLookState.lastY = event.clientY;
+    resetHeadLookBase();
+  };
+  const handlePointerMove = (event) => {
+    if (!headLookState.dragging || headLookState.pointerId !== event.pointerId) return;
+    const dx = event.clientX - headLookState.lastX;
+    const dy = event.clientY - headLookState.lastY;
+    headLookState.lastX = event.clientX;
+    headLookState.lastY = event.clientY;
+    headLookState.yaw = clamp(headLookState.yaw - dx * 0.0042, -Math.PI / 3.4, Math.PI / 3.4);
+    headLookState.pitch = clamp(headLookState.pitch - dy * 0.0032, -0.36, 0.26);
+    applyHeadLook();
+  };
+  const handlePointerEnd = (event) => {
+    if (headLookState.pointerId !== event.pointerId) return;
+    headLookState.dragging = false;
+    headLookState.pointerId = null;
+  };
+
+  renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+  renderer.domElement.addEventListener('pointermove', handlePointerMove);
+  renderer.domElement.addEventListener('pointerup', handlePointerEnd);
+  renderer.domElement.addEventListener('pointercancel', handlePointerEnd);
 
   const fit = () => {
     const w = host.clientWidth;
@@ -2660,6 +2717,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
   disposeHandlers.push(() => {
     disposed = true;
+    renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
+    renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+    renderer.domElement.removeEventListener('pointerup', handlePointerEnd);
+    renderer.domElement.removeEventListener('pointercancel', handlePointerEnd);
     controls.dispose();
     disposeChairMaterials(chairMaterials);
     chairs.forEach(({ group }) => {
