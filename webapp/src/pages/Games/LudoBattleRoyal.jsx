@@ -369,15 +369,10 @@ const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.1,
+  backOffset: 0.98,
   forwardOffset: 0.58,
   heightOffset: 1.18,
   targetLift: 0.06 * MODEL_SCALE
-});
-
-const TURN_CAMERA_AZIMUTH = Object.freeze({
-  1: 0,
-  3: Math.PI
 });
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -4861,57 +4856,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    if (!camera || !controls) return;
-    const desiredAzimuth = TURN_CAMERA_AZIMUTH[player];
-    if (!Number.isFinite(desiredAzimuth)) {
-      cancelCameraViewAnimation();
-      return;
-    }
-
-    const center = controls.target.clone();
-    const offset = camera.position.clone().sub(center);
-    const radiusXZ = Math.hypot(offset.x, offset.z);
-    if (radiusXZ < 1e-4) return;
-    const height = offset.y;
-    const startAzimuth = Math.atan2(offset.z, offset.x);
-    const delta = THREE.MathUtils.euclideanModulo(desiredAzimuth - startAzimuth + Math.PI, Math.PI * 2) - Math.PI;
-    if (Math.abs(delta) < 1e-3) return;
-
+    void player;
+    void duration;
     cancelCameraViewAnimation();
-
-    if (duration <= 0) {
-      camera.position.set(
-        center.x + Math.cos(desiredAzimuth) * radiusXZ,
-        center.y + height,
-        center.z + Math.sin(desiredAzimuth) * radiusXZ
-      );
-      controls.update();
-      syncSkyboxToCameraRef.current?.();
-      return;
-    }
-
-    const start = performance.now();
-    const step = () => {
-      const t = Math.min(1, (performance.now() - start) / Math.max(duration, 1));
-      const eased = easeInOutQuad(t);
-      const azimuth = startAzimuth + delta * eased;
-      camera.position.set(
-        center.x + Math.cos(azimuth) * radiusXZ,
-        center.y + height,
-        center.z + Math.sin(azimuth) * radiusXZ
-      );
-      controls.update();
-      syncSkyboxToCameraRef.current?.();
-      if (t < 1) {
-        cameraViewFrameRef.current = requestAnimationFrame(step);
-      } else {
-        cameraViewFrameRef.current = 0;
-      }
-    };
-
-    cameraViewFrameRef.current = requestAnimationFrame(step);
   }, [cancelCameraViewAnimation]);
 
   const setCameraFocus = useCallback(
