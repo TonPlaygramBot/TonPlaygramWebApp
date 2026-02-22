@@ -12834,12 +12834,15 @@ function PoolRoyaleGame({
       const attemptsStored = loadCareerAttemptsProgress();
       const awardedStages = new Set(attemptsStored.attemptsAwardedStageIds || []);
       const activeStageId = careerStageId || '';
+      const storedCarryShots = Math.max(0, Number(attemptsStored?.carryShots) || 0);
+      const needsStageBootstrap = Boolean(activeStageId) && !awardedStages.has(activeStageId);
+      const needsStageRefill = Boolean(activeStageId) && storedCarryShots <= 0;
       let nextAttempts = attemptsStored;
-      if (activeStageId && !awardedStages.has(activeStageId)) {
+      if (needsStageBootstrap || needsStageRefill) {
         awardedStages.add(activeStageId);
         nextAttempts = persistCareerAttemptsProgress({
           ...attemptsStored,
-          carryShots: Math.max(0, Number(attemptsStored?.carryShots) || 0) + BASE_ATTEMPTS_PER_LEVEL,
+          carryShots: storedCarryShots + BASE_ATTEMPTS_PER_LEVEL,
           attemptsAwardedStageIds: Array.from(awardedStages)
         });
       }
@@ -13239,8 +13242,22 @@ function PoolRoyaleGame({
 
   const handleCareerTaskTryAgain = useCallback(() => {
     setCareerTaskResultModal(null);
+    if (usesCareerAttempts && (Number(trainingShotsRemainingRef.current) || 0) <= 0) {
+      const previous = careerAttemptsProgressRef.current || {
+        carryShots: 0,
+        attemptsAwardedStageIds: [],
+        bonusAwardedStageIds: []
+      };
+      const updated = persistCareerAttemptsProgress({
+        ...previous,
+        carryShots: BASE_ATTEMPTS_PER_LEVEL
+      });
+      careerAttemptsProgressRef.current = updated;
+      setCareerAttemptsProgress(updated);
+      setTrainingShotsRemaining(BASE_ATTEMPTS_PER_LEVEL);
+    }
     handleTrainingLevelPick(trainingLevelRef.current || trainingLevel);
-  }, [handleTrainingLevelPick, trainingLevel]);
+  }, [handleTrainingLevelPick, trainingLevel, usesCareerAttempts]);
 
   const handlePracticeRestart = useCallback(() => {
     if (!isFreePractice) return;
