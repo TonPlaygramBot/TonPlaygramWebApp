@@ -368,10 +368,11 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.98,
-  forwardOffset: 0.58,
-  heightOffset: 1.18,
+  backOffset: 0.82,
+  forwardOffset: 0.6,
+  heightOffset: 1.1,
   targetLift: 0.06 * MODEL_SCALE
 });
 
@@ -4199,9 +4200,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = Math.PI / 2;
-      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.28;
-      const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.25;
-      const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.26;
+      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.08;
+      const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.34;
+      const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.18;
       const chairRadius = AI_CHAIR_RADIUS;
       const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
       camera.position.set(
@@ -4332,8 +4333,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const h = host.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const tableSpan = TABLE_RADIUS * 2.6;
-      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
+      const tableSpan = TABLE_RADIUS * 2.35;
+      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.4;
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
       const currentRadius = camera.position.distanceTo(boardLookTarget);
@@ -4837,22 +4838,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const resolveTurnLookTarget = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
     const controls = controlsRef.current;
-    const camera = cameraRef.current;
     const arena = arenaRef.current;
-    if (!controls || !camera || !arena?.boardLookTarget) return null;
+    if (!controls || !arena?.boardLookTarget) return null;
     const baseTarget = arena.boardLookTarget.clone();
     baseTarget.y = (arena.tableInfo?.surfaceY ?? baseTarget.y) + offset;
-    const rails = diceRef.current?.userData?.railPositions;
-    const rail = rails?.[player];
-    if (!rail) return baseTarget;
-    const local = rail.clone();
-    camera.worldToLocal(local);
-    if (Math.abs(local.x) < 0.28) {
+
+    if (player === 3) {
+      baseTarget.x -= CAMERA_SIDE_LOOK_EXTRA;
       return baseTarget;
     }
-    const lookTarget = rail.clone();
-    lookTarget.y = baseTarget.y;
-    return lookTarget;
+
+    if (player === 1) {
+      baseTarget.x += CAMERA_SIDE_LOOK_EXTRA;
+      return baseTarget;
+    }
+
+    return baseTarget;
   }, []);
 
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
