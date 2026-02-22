@@ -1923,13 +1923,14 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
-const AI_CHAIR_GAP = CARD_W * 0.4;
+const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
+const CHAIR_VISUAL_SCALE = 1.12;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.56, landscape: 0.98 });
-const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 0.98 });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 0.8 });
+const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.14, landscape: 0.82 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(7);
@@ -4091,6 +4092,7 @@ export default function MurlanRoyaleArena({ search }) {
       for (let i = 0; i < CHAIR_COUNT; i++) {
         const player = players[i] ?? null;
         const chair = new THREE.Group();
+        chair.scale.setScalar(CHAIR_VISUAL_SCALE);
         const chairModel = chairTemplate.clone(true);
         chair.add(chairModel);
         chair.userData.chairModel = chairModel;
