@@ -2313,12 +2313,6 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const polyhavenModelCache = new Map();
-const MURLAN_MODEL_RESOLUTION_ORDER = Object.freeze(['2k', '1k']);
-const DOMINO_FACE_GEOMETRY_RESOLUTION = Object.freeze({
-  roundedBoxSegments: 6,
-  pipSegments: 40,
-  ringSegments: 80
-});
 
 function createPolyhavenGltfLoader({ assetId, resolution }) {
   const manager = new THREE.LoadingManager();
@@ -2345,7 +2339,11 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const resolutionOrder = MURLAN_MODEL_RESOLUTION_ORDER;
+  const resolutionOrder = isLowProfileDevice
+    ? ['1k', '2k']
+    : prefersUhd
+      ? ['4k', '2k', '1k']
+      : ['2k', '1k', '4k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
@@ -6606,11 +6604,7 @@ function addPips(dominoFace, count, yOffset) {
   const positions = pipPositions();
   const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
   const pipRadius = dominoStyleProfile.pipRadius ?? 0.085;
-  const pipGeo = new THREE.SphereGeometry(
-    pipRadius,
-    DOMINO_FACE_GEOMETRY_RESOLUTION.pipSegments,
-    DOMINO_FACE_GEOMETRY_RESOLUTION.pipSegments
-  );
+  const pipGeo = new THREE.SphereGeometry(pipRadius, 32, 32);
   idxs.forEach((i) => {
     const [px, py] = positions[i];
     const sphere = new THREE.Mesh(pipGeo, pipMat);
@@ -6620,11 +6614,7 @@ function addPips(dominoFace, count, yOffset) {
     // Luxury accent ring around each pip
     const innerR = dominoStyleProfile.ringInner ?? 0.107;
     const outerR = dominoStyleProfile.ringOuter ?? 0.12;
-    const ringGeo = new THREE.RingGeometry(
-      innerR,
-      outerR,
-      DOMINO_FACE_GEOMETRY_RESOLUTION.ringSegments
-    );
+    const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
     const ring = new THREE.Mesh(ringGeo, accentMat.clone());
     ring.material.emissiveIntensity =
       dominoStyleProfile.ringEmissiveIntensity ??
@@ -6653,13 +6643,7 @@ function makeDomino(
   const group = new THREE.Group();
 
   // Body EXACTLY as in your code
-  const bodyGeo = new RoundedBoxGeometry(
-    1,
-    2,
-    0.22,
-    DOMINO_FACE_GEOMETRY_RESOLUTION.roundedBoxSegments,
-    0.06
-  );
+  const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
   const bodyMaterial = porcelainMat.clone();
   bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
   const body = new THREE.Mesh(bodyGeo, bodyMaterial);
