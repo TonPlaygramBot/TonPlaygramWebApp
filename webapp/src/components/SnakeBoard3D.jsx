@@ -161,9 +161,11 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
 const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
-const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
-const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
-const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
+const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
+const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
+const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
+const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
+const TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD = 0.82;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
@@ -191,11 +193,6 @@ const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.3;
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
-const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
-const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 1.6;
-// Extra distance so side-seat tokens rest closer to their players than the board edge.
-const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 3.2;
-const BACK_HOME_EXTRA_DISTANCE = TILE_SIZE * 3.6;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -1501,7 +1498,7 @@ function createCameraTransitionAnimation(
   };
 }
 
-function computeTokenFollowCameraState(board, fromIndex, toIndex) {
+function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (!board) return null;
   const { indexToPosition, serpentineIndexToXZ } = board;
   const sanitizeIndex = (value) => {
@@ -1537,7 +1534,14 @@ function computeTokenFollowCameraState(board, fromIndex, toIndex) {
   const focusTarget = baseVector.clone();
   focusTarget.y += TOKEN_HEIGHT * 0.65;
 
-  const backward = direction.clone().multiplyScalar(-TOKEN_CAMERA_FOLLOW_DISTANCE);
+  const boardLookTarget = board?.boardLookTarget ?? new THREE.Vector3();
+  const currentDistance = camera ? camera.position.distanceTo(boardLookTarget) : 0;
+  const followDistance = Math.max(
+    TOKEN_CAMERA_FOLLOW_DISTANCE,
+    currentDistance * TOKEN_CAMERA_CURRENT_DISTANCE_BLEND
+  );
+
+  const backward = direction.clone().multiplyScalar(-followDistance);
   const lateral = new THREE.Vector3().crossVectors(direction, WORLD_UP).normalize();
   const cameraPosition = focusTarget
     .clone()
@@ -1590,6 +1594,13 @@ function computeTurnCameraFocusState(board, camera, turnIndex) {
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
+  const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
+  if (boardToCamera.lengthSq() > 1e-6) {
+    boardToCamera.normalize();
+    if (direction.dot(boardToCamera) >= TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD) {
+      return null;
+    }
+  }
   const orbitDirection = direction.clone().multiplyScalar(-1);
   const position = target.clone().addScaledVector(orbitDirection, currentDistance);
   position.y = camera.position.y;
@@ -3118,8 +3129,6 @@ function updateTokens(
     burning = [],
     rollingIndex = null,
     currentTurn = null,
-    boardRoot = null,
-    seatAnchors = [],
     baseLevelTop = 0,
     tokenTheme = {},
     tokenShape = null,
@@ -3143,40 +3152,6 @@ function updateTokens(
   });
 
   const keep = new Set();
-
-  const seatHomes = [];
-  if (boardRoot && Array.isArray(seatAnchors) && seatAnchors.length) {
-    boardRoot.updateMatrixWorld(true);
-    const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
-    const baseY = Number.isFinite(baseLevelTop) ? baseLevelTop : 0;
-    const center = new THREE.Vector3(0, baseY, 0);
-    const forwardLift = HOME_TOKEN_FORWARD_LIFT + HOME_TOKEN_OUTWARD_EXTRA;
-    seatAnchors.forEach((anchor, index) => {
-      if (!anchor) {
-        seatHomes[index] = null;
-        return;
-      }
-      anchor.updateMatrixWorld?.(true);
-      const seatWorld = new THREE.Vector3();
-      anchor.getWorldPosition(seatWorld);
-      const seatLocal = seatWorld.clone();
-      boardRoot.worldToLocal(seatLocal);
-      const direction = seatLocal.clone().sub(center);
-      direction.y = 0;
-      if (direction.lengthSq() < 1e-6) {
-        direction.set(0, 0, 1);
-      } else {
-        direction.normalize();
-      }
-      let seatBonus = 0;
-      if (index === 1 || index === 3) seatBonus = SIDE_HOME_EXTRA_DISTANCE;
-      else if (index === 2) seatBonus = BACK_HOME_EXTRA_DISTANCE;
-      const distanceFromBoard = boardHalf + BOARD_EDGE_BUFFER + forwardLift + seatBonus;
-      const target = center.clone().addScaledVector(direction, distanceFromBoard);
-      target.y = baseY + TOKEN_HEIGHT * 0.02;
-      seatHomes[index] = { position: target, direction };
-    });
-  }
 
   const accentTarget = toThreeColor(tokenTheme.accentTarget, TOKEN_ACCENT_TARGET);
   const sheenBlend = Number.isFinite(tokenTheme.sheenBlend) ? tokenTheme.sheenBlend : 0.55;
@@ -3399,6 +3374,7 @@ function updateTokens(
 
     const rawPosition = Number(player.position);
     const hasBoardPosition = Number.isFinite(rawPosition) && rawPosition >= 1;
+    token.visible = hasBoardPosition;
     let worldPos = null;
     if (hasBoardPosition) {
       const tilePlayers = occupancy.get(rawPosition) || [];
@@ -3420,16 +3396,9 @@ function updateTokens(
       baseVector.y += TOKEN_HEIGHT * 0.02;
       worldPos = baseVector;
     } else {
-      const fallbackHomeIndex = seatHomes.length > 0 ? seatIndex % seatHomes.length : -1;
-      const home =
-        seatHomes[seatIndex] || (fallbackHomeIndex >= 0 ? seatHomes[fallbackHomeIndex] : null) || null;
-      if (home?.position) {
-        worldPos = home.position.clone();
-      } else {
-        const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
-        worldPos = serpentineIndexToXZ(fallbackIndex).clone();
-        worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
-      }
+      const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
+      worldPos = serpentineIndexToXZ(fallbackIndex).clone();
+      worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
     }
 
     if (!token.userData.isSliding && worldPos) {
@@ -4146,8 +4115,6 @@ export default function SnakeBoard3D({
       burning,
       rollingIndex,
       currentTurn,
-      boardRoot: board.root,
-      seatAnchors: board.seatAnchors,
       baseLevelTop: board.baseLevelTop,
       tokenTheme,
       tokenShape,
@@ -4179,7 +4146,7 @@ export default function SnakeBoard3D({
     if (movement && shouldFollowTileChange(movement.from, movement.to)) {
       const camera = cameraRef.current;
       const controls = board.controls;
-      const followState = computeTokenFollowCameraState(board, movement.from, movement.to);
+      const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
       if (camera && controls && followState) {
         removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
         removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
@@ -4266,7 +4233,7 @@ export default function SnakeBoard3D({
     const lift = TOKEN_HEIGHT * 0.6;
     const camera = cameraRef.current;
     const controls = board.controls;
-    const followState = computeTokenFollowCameraState(board, slide.from, slide.to);
+    const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
     if (camera && controls && followState && shouldFollowTileChange(slide.from, slide.to)) {
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
