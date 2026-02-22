@@ -10,54 +10,44 @@ import './flag-emojis.js';
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'uhd120';
+const DEFAULT_FRAME_RATE_ID = 'fhd90';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
     renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
+    description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
   },
   {
-    id: 'fhd60',
-    label: 'Full HD (60 Hz)',
-    fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
+    id: 'fhd90',
+    label: 'Full HD (90 Hz)',
+    fps: 90,
+    renderScale: 1.12,
+    pixelRatioCap: 1.55,
+    resolution: 'Full HD render • DPR 1.55 cap',
     description:
-      '1080p-focused profile that mirrors the Murlan Royale frame pacing.'
+      '1080p-focused profile tuned to match the Murlan Royale 3D quality preset.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
-    fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description:
-      'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    label: 'Quad HD (105 Hz)',
+    fps: 105,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: 'QHD render • DPR 1.72 cap',
+    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
+    label: 'Ultra HD (120 Hz cap)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    renderScale: 1.28,
+    pixelRatioCap: 1.85,
+    resolution: 'Ultra HD render • DPR 1.85 cap',
+    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -84,6 +74,10 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
+const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
+  tableClothTextureSize: 2048,
+  chairClothTextureSize: 1024
+});
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -1990,7 +1984,7 @@ const getPoolCarpetTextures = (() => {
       cache = { map: null, bump: null };
       return cache;
     }
-    const size = 1024;
+    const size = MURLAN_3D_ASSET_RESOLUTION.tableClothTextureSize;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -2092,7 +2086,8 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
+const CHAIR_CLOTH_TEXTURE_SIZE =
+  MURLAN_3D_ASSET_RESOLUTION.chairClothTextureSize;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: 'crimsonVelvet',
@@ -2340,10 +2335,10 @@ async function loadPolyhavenModel(assetId) {
     return cached.clone(true);
   }
   const resolutionOrder = isLowProfileDevice
-    ? ['1k', '2k']
+    ? ['2k', '1k']
     : prefersUhd
       ? ['4k', '2k', '1k']
-      : ['2k', '1k', '4k'];
+      : ['4k', '2k', '1k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
