@@ -375,7 +375,7 @@ const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const POT_BELOW_COMMUNITY_OFFSET = -CARD_H;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
-const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.16 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(175);
 const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
@@ -384,7 +384,7 @@ const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.82, landscape: 1.16 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.5, landscape: 1.1 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -530,6 +530,9 @@ const CHIP_RAIL_LAYOUT = Object.freeze({
 });
 
 const SHOWDOWN_RESET_DELAY = 6500;
+const PLAYER_ACTION_REVEAL_DELAY_MS = 1500;
+const AI_ACTION_DELAY_MS = 4200;
+const AI_ACTION_DELAY_JITTER_MS = 700;
 const CARD_HIGHLIGHT_COLOR = '#facc15';
 const CARD_HIGHLIGHT = new THREE.Color(CARD_HIGHLIGHT_COLOR);
 const CARD_EMISSIVE_OFF = new THREE.Color(0x000000);
@@ -595,6 +598,9 @@ const CAMERA_PLAYER_FOCUS_BLEND = 0.68;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.26;
 const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.42;
 const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
+const SHOWDOWN_WINNER_CARD_Y_OFFSET = CARD_H * 0.82;
+const SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET = CARD_H * 1.62;
+const SHOWDOWN_WINNER_SPACING = HOLE_SPACING * 2.5;
 const HUMAN_TURN_RAIL_FOCUS_BLEND = 0.48;
 const HUMAN_TURN_RAIL_FOCUS_DROP = CARD_H * 0.28;
 const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
@@ -2206,7 +2212,8 @@ function buildInitialState(players, token, stake) {
     winningCommunityCards: [],
     winnerFocusIndex: null,
     lastAction: null,
-    lastActionId: 0
+    lastActionId: 0,
+    pendingActionAdvance: false
   };
 }
 
@@ -2224,6 +2231,7 @@ function resetForNextHand(state) {
   next.winningCommunityCards = [];
   next.winnerFocusIndex = null;
   next.lastAction = null;
+  next.pendingActionAdvance = false;
   next.players = state.players.map((p, idx) => ({
     ...p,
     seatIndex: p.seatIndex ?? idx,
@@ -2451,6 +2459,22 @@ function recordLastAction(state, player, action, amount, toCall) {
   };
 }
 
+function resolvePostActionAdvance(state) {
+  if (allActiveMatched(state)) {
+    advanceStage(state);
+    return;
+  }
+  const nextIndex = getNextActiveIndex(state.players, state.actionIndex);
+  if (nextIndex === state.actionIndex || nextIndex < 0) {
+    if (allActiveMatched(state)) {
+      advanceStage(state);
+    }
+    return;
+  }
+  state.actionIndex = nextIndex;
+  prepareNextAction(state, false);
+}
+
 function performPlayerAction(state, action, raiseSize = ANTE) {
   const player = state.players[state.actionIndex];
   if (!player || player.folded || player.allIn) return;
@@ -2518,19 +2542,8 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
     recordLastAction(state, player, player.chips === 0 ? 'allIn' : action, paid, toCall);
   }
   if (!advanced) return;
-  if (allActiveMatched(state)) {
-    advanceStage(state);
-    return;
-  }
-  const nextIndex = getNextActiveIndex(state.players, state.actionIndex);
-  if (nextIndex === state.actionIndex || nextIndex < 0) {
-    if (allActiveMatched(state)) {
-      advanceStage(state);
-      return;
-    }
-  }
-  state.actionIndex = nextIndex;
-  prepareNextAction(state, false);
+  state.awaitingInput = false;
+  state.pendingActionAdvance = true;
 }
 
 function performAiAction(state) {
@@ -4105,6 +4118,7 @@ function TexasHoldemArena({ search }) {
           chairMeshes,
           tableLayout,
           railLayout,
+          labelOffset: seat.labelOffset,
           nameplate,
           lastBet: 0,
           folded: false,
@@ -4680,6 +4694,23 @@ function TexasHoldemArena({ search }) {
 
     const showdownState = showdownAnimationRef.current;
     const winningCommunity = new Set(state.winningCommunityCards ?? []);
+    const winnerSeatOrder = [];
+    if (state.showdown && Array.isArray(state.winners)) {
+      state.winners.forEach((potEntry) => {
+        const potWinners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
+        potWinners.forEach((winnerInfo) => {
+          const seatIndex = winnerInfo?.index;
+          if (typeof seatIndex !== 'number' || seatIndex < 0) return;
+          if (!winnerSeatOrder.includes(seatIndex)) {
+            winnerSeatOrder.push(seatIndex);
+          }
+        });
+      });
+    }
+    const winnerDisplayIndex = new Map(winnerSeatOrder.map((seatIndex, orderIndex) => [seatIndex, orderIndex]));
+    const winnerDisplayCenter = computePotAnchor({ surfaceY: three.tableInfo?.surfaceY, rotationY: rowRotation })
+      .add(new THREE.Vector3(0, 0, POT_BELOW_COMMUNITY_OFFSET * 0.92));
+    const winnerSpreadOffset = (winnerSeatOrder.length - 1) * 0.5;
 
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
@@ -4724,11 +4755,22 @@ function TexasHoldemArena({ search }) {
           setCardHighlight(mesh, false);
           return;
         }
+        const winnerOrderIndex = winnerDisplayIndex.get(idx);
         const position = baseAnchor
           .clone()
           .addScaledVector(forward, seat.isHuman ? HUMAN_CARD_FORWARD_OFFSET : CARD_FORWARD_OFFSET)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * (seat.isHuman ? HOLE_SPACING : HUMAN_CARD_SPREAD)));
-        position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
+        if (state.showdown && Number.isInteger(winnerOrderIndex)) {
+          position.copy(
+            winnerDisplayCenter
+              .clone()
+              .addScaledVector(humanSeatRef.current?.right ?? right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING)
+              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * HOLE_SPACING)
+          );
+          position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
+        } else {
+          position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
+        }
         mesh.position.copy(position);
         const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
         const lookTarget = seat.isHuman
@@ -4812,6 +4854,26 @@ function TexasHoldemArena({ search }) {
         seat.lastAvatar = labelAvatar;
         label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
         label.userData.texture.needsUpdate = true;
+      }
+      const winnerOrderIndex = winnerDisplayIndex.get(idx);
+      if (label) {
+        if (state.showdown && Number.isInteger(winnerOrderIndex)) {
+          const winnerAnchor = winnerDisplayCenter
+            .clone()
+            .addScaledVector(humanSeatRef.current?.right ?? seat.right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING);
+          label.position.copy(winnerAnchor.clone().setY(winnerAnchor.y + SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET));
+          const lookForward = humanSeatRef.current?.forward?.clone() ?? seat.forward.clone();
+          label.lookAt(label.position.clone().add(lookForward));
+          label.rotateX(NAMEPLATE_BACK_TILT);
+        } else {
+          const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
+          const labelForward = seat.labelOffset?.forward ?? 0;
+          const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
+          label.position.copy(seat.seatPos.clone().add(labelOffset));
+          const seatNameplateFacing = seat.forward.clone().negate().setY(0).normalize();
+          label.lookAt(label.position.clone().add(seatNameplateFacing));
+          label.rotateX(NAMEPLATE_BACK_TILT);
+        }
       }
 
       if (player.folded && !(prevPlayer?.folded)) {
@@ -4900,15 +4962,19 @@ function TexasHoldemArena({ search }) {
 
   const currentActionIndex = gameState?.actionIndex;
   const currentStage = gameState?.stage;
+  const winnerFocusIndex = gameState?.winnerFocusIndex;
   useEffect(() => {
-    if (typeof currentActionIndex !== 'number') return;
     if (currentStage === 'showdown') {
       const indicator = threeRef.current?.turnIndicator;
       if (indicator) {
         indicator.visible = false;
       }
+      if (typeof winnerFocusIndex === 'number') {
+        turnCameraTowardsSeat(winnerFocusIndex, { animate: true, durationMs: 420 });
+      }
       return;
     }
+    if (typeof currentActionIndex !== 'number') return;
     const three = threeRef.current;
     if (!three) return;
     const focusIndex = findSeatWithAvatar(currentActionIndex, { skipFolded: true });
@@ -4948,6 +5014,7 @@ function TexasHoldemArena({ search }) {
     applyHeadOrientation,
     currentActionIndex,
     currentStage,
+    winnerFocusIndex,
     findSeatWithAvatar,
     playSound,
     stopCameraTurnAnimation,
@@ -5082,6 +5149,25 @@ function TexasHoldemArena({ search }) {
         }
       };
     }
+    if (gameState.pendingActionAdvance) {
+      timerRef.current = setTimeout(() => {
+        setGameState((prev) => {
+          const next = cloneState(prev);
+          if (!next.pendingActionAdvance || next.stage === 'showdown') {
+            return next;
+          }
+          next.pendingActionAdvance = false;
+          resolvePostActionAdvance(next);
+          return next;
+        });
+      }, PLAYER_ACTION_REVEAL_DELAY_MS);
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      };
+    }
     const actor = gameState.players[gameState.actionIndex];
     const human = gameState.players.find((p) => p.isHuman);
     const humanToCall = human ? Math.max(0, gameState.currentBet - human.bet) : 0;
@@ -5101,13 +5187,14 @@ function TexasHoldemArena({ search }) {
     } else {
       setUiState({ availableActions: [], toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
       if (!actor?.isHuman) {
+        const thinkDelay = AI_ACTION_DELAY_MS + Math.round(Math.random() * AI_ACTION_DELAY_JITTER_MS);
         timerRef.current = setTimeout(() => {
           setGameState((prev) => {
             const next = cloneState(prev);
             performAiAction(next);
             return next;
           });
-        }, 3000);
+        }, thinkDelay);
       }
     }
     return () => {
