@@ -2799,7 +2799,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const boardLookTarget = boardLookTargetRef.current;
     if (!camera || !controls || !boardLookTarget) return;
 
-    const topDownPolar = 0.001;
     if (nextIs2d) {
       if (!saved3dCameraStateRef.current) {
         saved3dCameraStateRef.current = {
@@ -2807,26 +2806,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           target: controls.target.clone(),
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
-          minAzimuthAngle: controls.minAzimuthAngle,
-          maxAzimuthAngle: controls.maxAzimuthAngle,
           enableRotate: controls.enableRotate
         };
       }
-      const topDownDistance = clamp(CAM.minR * 1.5, CAM.minR, CAM.maxR);
-      camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const fallbackRadius = baseCameraRadiusRef.current ?? currentRadius;
+      const radius = clamp(fallbackRadius, CAM.minR, CAM.maxR);
+      camera.position.set(boardLookTarget.x, boardLookTarget.y + radius, boardLookTarget.z + 0.001);
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
-      controls.minPolarAngle = topDownPolar;
-      controls.maxPolarAngle = topDownPolar;
-      controls.minAzimuthAngle = -Infinity;
-      controls.maxAzimuthAngle = Infinity;
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = 0;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
-      controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
-      controls.maxAzimuthAngle = saved?.maxAzimuthAngle ?? Infinity;
       if (saved?.position && saved?.target) {
         camera.position.copy(saved.position);
         controls.target.copy(saved.target);
@@ -4871,7 +4866,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     (focus = {}) => {
       const state = stateRef.current;
       const controls = controlsRef.current;
-      if (!state || !controls || isCamera2d) return;
+      if (!state || !controls) return;
       const { object, target, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
 
@@ -4903,7 +4898,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }, Math.max(0, ttl * 1000));
       }
     },
-    [animateCameraTarget, isCamera2d, resolveTurnLookTarget]
+    [animateCameraTarget, resolveTurnLookTarget]
   );
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
