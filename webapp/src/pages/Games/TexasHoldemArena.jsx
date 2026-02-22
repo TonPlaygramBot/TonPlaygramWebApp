@@ -1863,24 +1863,34 @@ function getHumanCardAnchor(seatGroup) {
 function computeCommunitySlotPosition(index, options = {}) {
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
-  const base = new THREE.Vector3(
-    -2 * COMMUNITY_SPACING,
-    surfaceY + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
-    COMMUNITY_CARD_FORWARD_OFFSET
-  );
-  const offset = new THREE.Vector3(index * COMMUNITY_SPACING, 0, 0);
+  const right = (options.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
+  const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
   if (rotationY) {
-    base.applyAxisAngle(WORLD_UP, rotationY);
-    offset.applyAxisAngle(WORLD_UP, rotationY);
+    right.applyAxisAngle(WORLD_UP, rotationY);
+    forward.applyAxisAngle(WORLD_UP, rotationY);
   }
-  return base.add(offset);
+  const base = new THREE.Vector3(
+    0,
+    surfaceY + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
+    0
+  );
+  base.addScaledVector(forward, COMMUNITY_CARD_FORWARD_OFFSET);
+  base.addScaledVector(right, -2 * COMMUNITY_SPACING);
+  return base.addScaledVector(right, index * COMMUNITY_SPACING);
 }
 
 function computePotAnchor(options = {}) {
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
-  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY });
-  return new THREE.Vector3(center.x, surfaceY + CARD_SURFACE_OFFSET, center.z + POT_BELOW_COMMUNITY_OFFSET);
+  const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+  if (rotationY) {
+    forward.applyAxisAngle(WORLD_UP, rotationY);
+  }
+  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right: options.right, forward });
+  return center
+    .clone()
+    .setY(surfaceY + CARD_SURFACE_OFFSET)
+    .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET);
 }
 
 function makeNameplate(name, chips, renderer, avatar) {
@@ -3865,6 +3875,10 @@ function TexasHoldemArena({ search }) {
     humanSeatRef.current = humanSeat;
     seatTopPointRef.current = seatTopPoint;
     const resolvedCommunityRowRotation = COMMUNITY_ROW_ROTATION;
+    const communityAxes = {
+      right: humanSeat?.right?.clone?.() ?? new THREE.Vector3(1, 0, 0),
+      forward: humanSeat?.forward?.clone?.() ?? new THREE.Vector3(0, 0, 1)
+    };
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 
@@ -3911,7 +3925,12 @@ function TexasHoldemArena({ search }) {
         : CAMERA_PLAYER_FOCUS_HEIGHT;
       const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
       const rowRotation = threeRef.current?.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
-      const potFocus = computePotAnchor({ surfaceY: tableInfo?.surfaceY, rotationY: rowRotation });
+      const communityAxes = threeRef.current?.communityAxes;
+      const potFocus = computePotAnchor({
+        surfaceY: tableInfo?.surfaceY,
+        rotationY: rowRotation,
+        ...communityAxes
+      });
       const chipFocus = humanSeat.chipAnchor
         .clone()
         .addScaledVector(humanSeat.forward, -focusForwardPull);
@@ -4213,7 +4232,8 @@ function TexasHoldemArena({ search }) {
         mesh.position.copy(
           computeCommunitySlotPosition(idx, {
             rotationY: resolvedCommunityRowRotation,
-            surfaceY: tableInfo?.surfaceY
+            surfaceY: tableInfo?.surfaceY,
+            ...communityAxes
           })
         );
         mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
@@ -4224,7 +4244,8 @@ function TexasHoldemArena({ search }) {
 
       const potAnchor = computePotAnchor({
         surfaceY: tableInfo?.surfaceY,
-        rotationY: resolvedCommunityRowRotation
+        rotationY: resolvedCommunityRowRotation,
+        ...communityAxes
       });
       const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
@@ -4312,7 +4333,8 @@ function TexasHoldemArena({ search }) {
         tableShapeId: initialShape.id,
         tableThemeId: initialTableThemeId,
         cardThemeId: cardTheme.id,
-        communityRowRotation: resolvedCommunityRowRotation
+        communityRowRotation: resolvedCommunityRowRotation,
+        communityAxes
       };
 
       applyRendererQuality();
@@ -4707,8 +4729,15 @@ function TexasHoldemArena({ search }) {
       });
     }
     const winnerDisplayIndex = new Map(winnerSeatOrder.map((seatIndex, orderIndex) => [seatIndex, orderIndex]));
-    const winnerDisplayCenter = computePotAnchor({ surfaceY: three.tableInfo?.surfaceY, rotationY: rowRotation })
-      .add(new THREE.Vector3(0, 0, POT_BELOW_COMMUNITY_OFFSET * 0.92));
+    const winnerOffsetDirection = (three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+    if (rowRotation) {
+      winnerOffsetDirection.applyAxisAngle(WORLD_UP, rowRotation);
+    }
+    const winnerDisplayCenter = computePotAnchor({
+      surfaceY: three.tableInfo?.surfaceY,
+      rotationY: rowRotation,
+      ...three.communityAxes
+    }).addScaledVector(winnerOffsetDirection, POT_BELOW_COMMUNITY_OFFSET * 0.92);
     const winnerSpreadOffset = (winnerSeatOrder.length - 1) * 0.5;
 
     state.players.forEach((player, idx) => {
@@ -4910,9 +4939,16 @@ function TexasHoldemArena({ search }) {
       mesh.visible = true;
       applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
       const surfaceY = three.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const slotPosition = computeCommunitySlotPosition(idx, { rotationY: rowRotation, surfaceY });
+      const slotPosition = computeCommunitySlotPosition(idx, {
+        rotationY: rowRotation,
+        surfaceY,
+        ...three.communityAxes
+      });
       mesh.position.copy(slotPosition);
-      const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, rowRotation);
+      const forward = (three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+      if (rowRotation) {
+        forward.applyAxisAngle(WORLD_UP, rowRotation);
+      }
       const lookTarget = slotPosition
         .clone()
         .add(new THREE.Vector3(0, COMMUNITY_CARD_LOOK_LIFT, 0))
