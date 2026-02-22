@@ -1,4 +1,5 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
@@ -7,26 +8,20 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'oakEstate', label: 'Lis Estate' },
     { id: 'teakStudio', label: 'Tik Studio' }
   ],
-  tableCloth: [
-    { id: 'crimson', label: 'Crimson Cloth' },
-    { id: 'emerald', label: 'Emerald Cloth' },
-    { id: 'arctic', label: 'Arctic Cloth' },
-    { id: 'sunset', label: 'Sunset Cloth' },
-    { id: 'violet', label: 'Violet Cloth' },
-    { id: 'amber', label: 'Amber Cloth' }
-  ],
-  tableBase: [
-    { id: 'obsidian', label: 'Obsidian Base' },
-    { id: 'forestBronze', label: 'Forest Base' },
-    { id: 'midnightChrome', label: 'Midnight Base' },
-    { id: 'emberCopper', label: 'Copper Base' },
-    { id: 'violetShadow', label: 'Violet Shadow Base' },
-    { id: 'desertGold', label: 'Desert Base' }
-  ],
-  tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description }) => ({
+  tableCloth: POOL_ROYALE_CLOTH_VARIANTS.map(({ id, name, price = 0, description, swatches }) => ({
+    id,
+    label: name,
+    price,
+    description,
+    swatches
+  })),
+  tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
     id,
     label,
     price,
+    source: id === 'murlan-default' ? 'polyhaven' : source,
+    assetId: id === 'murlan-default' ? 'WoodenTable_01' : assetId,
+    preserveMaterials: id === 'murlan-default' ? true : preserveMaterials,
     description: description || `${label} table from Murlan Royale`
   })),
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
@@ -66,15 +61,6 @@ const DOMINO_TABLE_CLOTH_THUMBNAILS = Object.freeze({
   amber: swatchThumbnail(['#b7791f', '#92571a', '#fde68a'])
 });
 
-const DOMINO_TABLE_BASE_THUMBNAILS = Object.freeze({
-  obsidian: swatchThumbnail(['#141414', '#1f232a', '#94a3b8']),
-  forestBronze: swatchThumbnail(['#101714', '#1f2d24', '#4ade80']),
-  midnightChrome: swatchThumbnail(['#0f172a', '#1e2f4a', '#93c5fd']),
-  emberCopper: swatchThumbnail(['#231312', '#5c2d1b', '#fdba74']),
-  violetShadow: swatchThumbnail(['#1f1130', '#3f1b5b', '#c4b5fd']),
-  desertGold: swatchThumbnail(['#1c1a12', '#5a4524', '#fcd34d'])
-});
-
 const DOMINO_STYLE_THUMBNAILS = Object.freeze({
   imperialIvory: swatchThumbnail(['#f8fafc', '#cbd5f5', '#e2e8f0']),
   obsidianPlatinum: swatchThumbnail(['#1f2937', '#6b7280', '#e5e7eb']),
@@ -96,7 +82,6 @@ const getDefaultOptionId = (options) => options?.[0]?.id;
 export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
   tableWood: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableWood)].filter(Boolean),
   tableCloth: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableCloth)].filter(Boolean),
-  tableBase: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableBase)].filter(Boolean),
   tableTheme: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableTheme)].filter(Boolean),
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
   dominoStyle: [getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.dominoStyle)].filter(Boolean),
@@ -123,7 +108,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 780,
-    description: 'Alternate premium wood finish for your Domino Royal arena.',
+    description: 'Alternate premium table finish for your Domino Royal arena.',
     thumbnail: DOMINO_TABLE_WOOD_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableCloth.slice(1).map((option, idx) => ({
@@ -131,18 +116,9 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     type: 'tableCloth',
     optionId: option.id,
     name: option.label,
-    price: 340 + idx * 30,
-    description: 'Unlock a new felt tone for the Domino Royal table surface.',
-    thumbnail: DOMINO_TABLE_CLOTH_THUMBNAILS[option.id]
-  })),
-  ...DOMINO_ROYAL_OPTION_SETS.tableBase.slice(1).map((option, idx) => ({
-    id: `domino-base-${option.id}`,
-    type: 'tableBase',
-    optionId: option.id,
-    name: option.label,
-    price: 520 + idx * 40,
-    description: 'Swap in a different pedestal finish beneath the table.',
-    thumbnail: DOMINO_TABLE_BASE_THUMBNAILS[option.id]
+    price: option.price || 340 + idx * 30,
+    description: option.description || 'Unlock a new felt tone for the Domino Royal table surface.',
+    thumbnail: option.swatches?.length ? swatchThumbnail(option.swatches) : DOMINO_TABLE_CLOTH_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableTheme.slice(1).map((option, idx) => ({
     id: `domino-table-theme-${option.id}`,
@@ -206,11 +182,6 @@ export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
     type: 'tableCloth',
     optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableCloth),
     label: getLabelForOption('tableCloth', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableCloth))
-  },
-  {
-    type: 'tableBase',
-    optionId: getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableBase),
-    label: getLabelForOption('tableBase', getDefaultOptionId(DOMINO_ROYAL_OPTION_SETS.tableBase))
   },
   {
     type: 'tableTheme',
