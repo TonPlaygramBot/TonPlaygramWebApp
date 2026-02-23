@@ -40,21 +40,7 @@ const GIFT_THUMBNAILS = [
   '/store-thumbs/poolRoyale/tableFinish/peelingPaintWeathered.png'
 ]
 
-const STAGE_TYPE_LABELS = {
-  training: 'Drill',
-  friendly: 'Friendly',
-  league: 'League',
-  showdown: 'Showdown',
-  tournament: 'Tournament'
-}
-
-const ACTIVITY_TRACKERS = {
-  training: ['Aim calibration', 'Cue control', 'Position play'],
-  friendly: ['Race prep', 'Shot efficiency', 'Pressure focus'],
-  league: ['Fixture points', 'Table difference', 'Promotion pace'],
-  showdown: ['Rival analysis', 'Nerve meter', 'Clutch shots'],
-  tournament: ['Bracket path', 'Round wins', 'Final readiness']
-}
+const CAREER_TRAINING_STAGE_COUNT = TRAINING_LEVEL_COUNT
 
 const getStageType = (level) => {
   if (level <= 6) return 'training'
@@ -98,10 +84,6 @@ const buildStage = (level) => {
   const phaseIndex = Math.min(4, Math.floor((level - 1) / 20))
   const trainingLevel = type === 'training' ? getTrainingLevel(level) : null
   const reward = buildReward(level, type)
-  const phaseLabel = `Phase ${phaseIndex + 1}`
-  const intensity =
-    level <= 20 ? 'Entry' : level <= 45 ? 'Competitive' : level <= 75 ? 'Elite' : 'Legend'
-  const trackerItems = ACTIVITY_TRACKERS[type] || ACTIVITY_TRACKERS.friendly
 
   if (type === 'training') {
     const trainingTask = describeTrainingLevel(trainingLevel || 1)
@@ -115,17 +97,10 @@ const buildStage = (level) => {
       objective: trainingTask.objective,
       reward: trainingTask.reward,
       rewardTpc: Number(trainingTask.rewardAmount) || reward.tpc,
-      rewardXp: 40 + level * 3,
       hasGift: reward.hasGift,
       giftThumbnail: reward.giftThumbnail,
       trainingLevel,
-      players: null,
-      phaseLabel,
-      intensity,
-      typeLabel: STAGE_TYPE_LABELS[type],
-      durationMinutes: 3 + Math.ceil(level / 12),
-      trackerItems,
-      activitySummary: 'Complete skill goals to unlock advanced career fixtures.'
+      players: null
     }
   }
 
@@ -168,24 +143,10 @@ const buildStage = (level) => {
     objective: stageMeta.objective,
     reward: reward.label,
     rewardTpc: reward.tpc,
-    rewardXp: 60 + level * 4,
     hasGift: reward.hasGift,
     giftThumbnail: reward.giftThumbnail,
     trainingLevel,
-    players: stageMeta.players,
-    phaseLabel,
-    intensity,
-    typeLabel: STAGE_TYPE_LABELS[type],
-    durationMinutes: 4 + Math.ceil(level / 10),
-    trackerItems,
-    activitySummary:
-      type === 'tournament'
-        ? 'Advance round by round and secure the title for promotion bonuses.'
-        : type === 'league'
-          ? 'Stack league points each week to stay in the promotion lane.'
-          : type === 'showdown'
-            ? 'Beat featured rivals in high-pressure race sets.'
-            : 'Build consistency before championship fixtures.'
+    players: stageMeta.players
   }
 }
 
