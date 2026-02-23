@@ -104,9 +104,9 @@ const resolveLayoutSlot = (pattern, index, level) => {
 
 const buildTrainingLayout = (level) => {
   const targetCount = getTrainingTargetCount(level)
-  const triangleSpacingX = 0.09
-  const triangleSpacingZ = 0.085
-  const apexZ = 0.16
+  const triangleSpacingX = 0.085
+  const triangleSpacingZ = 0.09
+  const apexX = 0.18
   const maxX = 0.44
   const maxZ = 0.31
 
@@ -114,10 +114,10 @@ const buildTrainingLayout = (level) => {
   let row = 0
   while (balls.length < targetCount) {
     const rowBallCount = row + 1
-    const z = clampLayoutCoord(apexZ + row * triangleSpacingZ, -maxZ, maxZ)
-    const rowStartX = -((rowBallCount - 1) * triangleSpacingX) / 2
+    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
+    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
     for (let column = 0; column < rowBallCount && balls.length < targetCount; column += 1) {
-      const x = clampLayoutCoord(rowStartX + column * triangleSpacingX, -maxX, maxX)
+      const z = clampLayoutCoord(rowStartZ + column * triangleSpacingZ, -maxZ, maxZ)
       balls.push({
         rackIndex: balls.length,
         x,
@@ -128,11 +128,10 @@ const buildTrainingLayout = (level) => {
   }
 
   return {
-    cue: { x: 0, z: -0.68 },
+    cue: { x: -0.68, z: 0 },
     balls
   }
 }
-
 
 
 const buildTrainingDefinition = (level) => {
@@ -169,29 +168,28 @@ export function getTrainingLayout (level) {
 
 export function getPracticeLayout () {
   const triangleRows = 5
-  const triangleSpacingX = 0.094
-  const triangleSpacingZ = 0.086
-  const apexZ = 0.2
+  const triangleSpacingX = 0.086
+  const triangleSpacingZ = 0.094
+  const apexX = 0.2
   const maxX = 0.44
   const maxZ = 0.31
   const balls = []
 
   for (let row = 0; row < triangleRows; row += 1) {
     const rowBallCount = row + 1
-    const z = clampLayoutCoord(apexZ + row * triangleSpacingZ, -maxZ, maxZ)
-    const rowStartX = -((rowBallCount - 1) * triangleSpacingX) / 2
+    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
+    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
     for (let col = 0; col < rowBallCount; col += 1) {
-      const x = clampLayoutCoord(rowStartX + col * triangleSpacingX, -maxX, maxX)
+      const z = clampLayoutCoord(rowStartZ + col * triangleSpacingZ, -maxZ, maxZ)
       balls.push({ rackIndex: balls.length, x, z })
     }
   }
 
   return {
-    cue: { x: 0, z: -0.7 },
+    cue: { x: -0.7, z: 0 },
     balls
   }
 }
-
 
 export function loadTrainingProgress () {
   if (typeof window === 'undefined') { return { completed: [], rewarded: [], lastLevel: 1, carryShots: 0, attemptsAwardedLevels: [] } }
