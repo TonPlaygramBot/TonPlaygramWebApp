@@ -91,7 +91,7 @@ export default function PoolRoyaleCareer() {
     const params = new URLSearchParams();
     params.set('type', stage.type);
     params.set('mode', 'ai');
-    params.set('careerMode', '1');
+    params.set('career', '1');
     params.set('careerStageId', stage.id);
     if (stage.title) params.set('careerStageTitle', stage.title);
     if (stage.type === 'training' && stage.trainingLevel) {
