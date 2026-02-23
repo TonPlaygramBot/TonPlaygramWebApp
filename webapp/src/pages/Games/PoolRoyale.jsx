@@ -2213,30 +2213,6 @@ function getPoolBallId(variant, index) {
   return `ball_${index + 1}`;
 }
 
-function buildTrainingRackIndices(variant, desiredCount) {
-  const maxCount = Math.max(0, Math.floor(Number(desiredCount) || 0));
-  if (maxCount <= 0) return [];
-
-  const fallback = Array.from({ length: maxCount }, (_, idx) => idx);
-  if (variant?.id !== 'american') return fallback;
-
-  const numbers = Array.isArray(variant?.objectNumbers) ? variant.objectNumbers : [];
-  if (!numbers.length) return fallback;
-
-  const eightIndex = numbers.indexOf(8);
-  if (eightIndex < 0) return fallback;
-
-  const withoutEight = numbers
-    .map((num, idx) => ({ num, idx }))
-    .filter((entry) => entry.idx !== eightIndex)
-    .map((entry) => entry.idx);
-
-  if (maxCount === 1) return [eightIndex];
-  const target = withoutEight.slice(0, Math.max(0, maxCount - 1));
-  target.push(eightIndex);
-  return target;
-}
-
 function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   const positions = [];
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
@@ -13154,11 +13130,12 @@ function PoolRoyaleGame({
     }
 
     const entries = Array.isArray(trainingLayout?.balls) ? trainingLayout.balls : [];
-    const trainingRackIndices = buildTrainingRackIndices(variantConfig, entries.length);
     trainingLayoutExpectedBallsRef.current = entries.length;
     const assignedBallIds = new Set();
     entries.forEach((entry, idx) => {
-      const rid = trainingRackIndices[idx] ?? idx;
+      const rid = Number.isFinite(entry?.rackIndex)
+        ? Math.max(0, Math.floor(entry.rackIndex))
+        : idx % Math.max(1, variantConfig?.objectColors?.length || objectBalls.length || 1);
       const targetBallId = getPoolBallId(variantConfig, rid);
       const preferredBall = balls.find((ball) => ball?.id === targetBallId);
       const fallbackBall = objectBalls.find((ball) => ball && !assignedBallIds.has(ball.id));
@@ -22852,7 +22829,6 @@ const powerRef = useRef(hud.power);
           ? variantConfig.objectColors
           : [];
         const entries = Array.isArray(layout.balls) ? layout.balls : [];
-        const trainingRackIndices = buildTrainingRackIndices(variantConfig, entries.length);
         const trainingBallCount = Math.max(rackColors.length, entries.length);
         const spawnedTrainingBalls = [];
         for (let rid = 0; rid < trainingBallCount; rid++) {
@@ -22871,7 +22847,9 @@ const powerRef = useRef(hud.power);
         }
 
         entries.forEach((ball, idx) => {
-          const rid = trainingRackIndices[idx] ?? idx;
+          const rid = Number.isFinite(ball?.rackIndex)
+            ? Math.max(0, Math.floor(ball.rackIndex))
+            : idx % Math.max(1, rackColors.length || 15);
           const ballId = getPoolBallId(variantConfig, rid);
           const objectBall =
             spawnedTrainingBalls.find((entryBall) => entryBall?.id === ballId) ||
@@ -27376,9 +27354,9 @@ const powerRef = useRef(hud.power);
             ballId: entry.id
           });
         });
-        const currentState =
-          frameRef.current && typeof frameRef.current === 'object' ? frameRef.current : frameState;
-        const cueBallPotted = potted.some((entry) => entry.color === 'CUE');
+        const currentState = frameRef.current ?? frameState;
+        const cueBallPotted =
+          potted.some((entry) => entry.color === 'CUE') || !cue.active;
         const pottedObjectCount = potted.filter((entry) => String(entry.id || '').toLowerCase() !== 'cue').length;
         const noCushionAfterContact =
           shotContextRef.current.contactMade &&
