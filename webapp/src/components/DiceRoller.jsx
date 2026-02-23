@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createDiceRollAudio, syncDiceRollAudioVolume } from '../utils/diceAudio.js';
+import { getGameVolume } from '../utils/sound.js';
+import { createDiceRollAudio } from '../utils/diceAudio.js';
 import Dice from './Dice.jsx';
 import { socket } from '../utils/socket.js';
 
@@ -17,7 +18,6 @@ export default function DiceRoller({
   diceTransparent = false,
   renderVisual = true,
   placeholder = null,
-  fixedSoundVolume = null,
   diceWrapperClassName = 'flex space-x-4 items-center justify-center',
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
@@ -34,19 +34,18 @@ export default function DiceRoller({
 
   useEffect(() => {
     soundRef.current = createDiceRollAudio({ muted });
-    syncDiceRollAudioVolume(soundRef.current, { fixedVolume: fixedSoundVolume });
     return () => {
       soundRef.current?.pause();
     };
-  }, [muted, fixedSoundVolume]);
+  }, [muted]);
 
   useEffect(() => {
     const handler = () => {
-      syncDiceRollAudioVolume(soundRef.current, { fixedVolume: fixedSoundVolume });
+      if (soundRef.current) soundRef.current.volume = getGameVolume();
     };
     window.addEventListener('gameVolumeChanged', handler);
     return () => window.removeEventListener('gameVolumeChanged', handler);
-  }, [fixedSoundVolume]);
+  }, []);
 
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
@@ -58,8 +57,6 @@ export default function DiceRoller({
   const rollDice = () => {
     if (rolling) return;
     if (soundRef.current && !muted) {
-      soundRef.current.muted = muted;
-      syncDiceRollAudioVolume(soundRef.current, { fixedVolume: fixedSoundVolume });
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
