@@ -2489,6 +2489,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const stateRef = useRef(null);
   const uiRef = useRef(null);
   const moveSoundRef = useRef(null);
+  const moveStepSoundAtRef = useRef(0);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const diceSoundRef = useRef(null);
@@ -4603,6 +4604,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const seg = anim.segments?.[anim.segment];
         if (anim.highlightIndex !== anim.segment) {
           updateAnimationHighlight(anim, anim.segment);
+          if (anim.segment > 0) {
+            playTokenStepSound();
+          }
         }
         if (!seg) {
           const done = anim.onComplete;
@@ -4791,20 +4795,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
   }, []);
 
-  const playMove = () => {
-    if (!settingsRef.current.soundEnabled) return;
-    if (moveSoundRef.current) {
-      moveSoundRef.current.currentTime = 0;
-      moveSoundRef.current.play().catch(() => {});
-    }
-  };
-
   const playCapture = () => {
     if (!settingsRef.current.soundEnabled) return;
     if (captureSoundRef.current) {
       captureSoundRef.current.currentTime = 0;
       captureSoundRef.current.play().catch(() => {});
     }
+    if (hahaSoundRef.current) {
+      hahaSoundRef.current.currentTime = 0;
+      hahaSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  const playTokenStepSound = () => {
+    if (!settingsRef.current.soundEnabled) return;
+    if (!moveSoundRef.current) return;
+    const now = performance.now();
+    if (now - moveStepSoundAtRef.current < 110) return;
+    moveStepSoundAtRef.current = now;
+    moveSoundRef.current.currentTime = 0;
+    moveSoundRef.current.play().catch(() => {});
   };
 
   const playCheer = () => {
@@ -5116,6 +5126,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       highlightTiles,
       highlightIndex: -1
     };
+    playTokenStepSound();
   };
 
   const getTrackIndexForProgress = (player, progress) => {
@@ -5425,7 +5436,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.tokens[player][tokenIndex].position.copy(finalPos);
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
-      playMove();
       const captures = handleCaptures(player, tokenIndex);
       updateTokenStacks();
       const playerName = resolvePlayerLabel(player);
