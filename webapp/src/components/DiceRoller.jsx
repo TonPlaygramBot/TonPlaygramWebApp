@@ -1,10 +1,10 @@
-import React, { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getGameVolume } from '../utils/sound.js';
 import { createDiceRollAudio } from '../utils/diceAudio.js';
 import Dice from './Dice.jsx';
 import { socket } from '../utils/socket.js';
 
-const DiceRoller = forwardRef(function DiceRoller({
+export default function DiceRoller({
   onRollEnd,
   onRollStart,
   clickable = false,
@@ -19,7 +19,7 @@ const DiceRoller = forwardRef(function DiceRoller({
   renderVisual = true,
   placeholder = null,
   diceWrapperClassName = 'flex space-x-4 items-center justify-center',
-}, ref) {
+}) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
@@ -96,15 +96,6 @@ const DiceRoller = forwardRef(function DiceRoller({
     }, tick);
   };
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      roll: () => rollDice(),
-      isRolling: () => rolling
-    }),
-    [rolling]
-  );
-
   return (
     <div className={`flex flex-col items-center space-y-4 ${className}`}>
       <div
@@ -146,6 +137,4 @@ const DiceRoller = forwardRef(function DiceRoller({
       )}
     </div>
   );
-});
-
-export default DiceRoller;
+}
