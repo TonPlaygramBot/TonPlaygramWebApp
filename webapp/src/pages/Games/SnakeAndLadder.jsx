@@ -96,7 +96,6 @@ import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
-import { createDiceRollAudio } from "../../utils/diceAudio.js";
 import {
   buildSnakeCommentaryLine,
   createSnakeMatchCommentaryScript,
@@ -1419,6 +1418,7 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
   const diceRollerDivRef = useRef(null);
+  const diceRollerRef = useRef(null);
   const slideStateRef = useRef(null);
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
@@ -1751,7 +1751,6 @@ export default function SnakeAndLadder() {
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
-  const diceRollSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
   const reloadingRef = useRef(false);
@@ -1809,8 +1808,6 @@ export default function SnakeAndLadder() {
     cheerSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = vol;
-    diceRollSoundRef.current = createDiceRollAudio({ muted });
-    if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -1824,9 +1821,8 @@ export default function SnakeAndLadder() {
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
-      diceRollSoundRef.current?.pause();
     };
-  }, [accountId, muted]);
+  }, [accountId]);
 
   useEffect(() => {
     [
@@ -1842,7 +1838,6 @@ export default function SnakeAndLadder() {
       badLuckSoundRef,
       cheerSoundRef,
       timerSoundRef,
-      diceRollSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
     });
@@ -2167,11 +2162,6 @@ export default function SnakeAndLadder() {
     const onRolled = ({ value }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
-      if (!muted && diceRollSoundRef.current) {
-        if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
-        diceRollSoundRef.current.currentTime = 0;
-        diceRollSoundRef.current.play().catch(() => {});
-      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -3217,7 +3207,8 @@ export default function SnakeAndLadder() {
 
 
   const handleRollButtonClick = () => {
-    diceRollerDivRef.current?.click();
+    if (diceRollerRef.current?.isRolling?.()) return;
+    diceRollerRef.current?.roll?.();
   };
 
   const renderPreview = (key, option) => {
@@ -3971,6 +3962,7 @@ export default function SnakeAndLadder() {
       {!isMultiplayer && (
         <div className="sr-only" aria-hidden="true">
           <DiceRoller
+            ref={diceRollerRef}
             divRef={diceRollerDivRef}
             onRollEnd={(vals) => {
               startDiceBoardAnimation({
@@ -4015,7 +4007,6 @@ export default function SnakeAndLadder() {
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
-            fixedSoundVolume={1}
           />
         </div>
       )}
@@ -4023,10 +4014,10 @@ export default function SnakeAndLadder() {
         <div className="sr-only" aria-hidden="true">
           {currentTurn === myPlayerIndex && !moving ? (
             <DiceRoller
+              ref={diceRollerRef}
               clickable
               showButton={false}
               muted={muted}
-              fixedSoundVolume={1}
               emitRollEvent
               divRef={diceRollerDivRef}
               onRollStart={() => {
