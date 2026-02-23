@@ -3499,7 +3499,7 @@ export default function SnakeAndLadder() {
       <div
         className="absolute z-30 pointer-events-auto"
         style={{
-          top: 'calc(0.75rem + env(safe-area-inset-top, 0px))',
+          top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
           left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
         }}
       >
@@ -3741,18 +3741,36 @@ export default function SnakeAndLadder() {
           <BottomLeftIcons
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            onCamera2d={() => setCameraViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
             style={{
               left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)'
             }}
             className="fixed z-20 flex flex-col items-center gap-2"
             showInfo={false}
             showMute={false}
+            showCamera2d={false}
+            order={['chat', 'gift']}
+            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            iconClassName="text-2xl leading-none"
+            labelClassName="sr-only"
+          />
+        </div>
+        <div className="pointer-events-auto w-full">
+          <BottomLeftIcons
+            onCamera2d={() => setCameraViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+            style={{
+              right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)'
+            }}
+            className="fixed z-20 flex flex-col items-center gap-2"
+            showInfo={false}
+            showMute={false}
+            showChat={false}
+            showGift={false}
             showCamera2d
             camera2dActive={cameraViewMode === '2d'}
             cameraLabel="2D"
-            order={['chat', 'gift', 'camera2d']}
+            order={['camera2d']}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
@@ -4051,7 +4069,7 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {!watchOnly && (
-        <div className="fixed bottom-6 inset-x-0 flex flex-col items-center z-30 pointer-events-none space-y-3">
+        <div className="fixed bottom-10 inset-x-0 flex flex-col items-center z-30 pointer-events-none space-y-3">
           {displayedTurnMessage && (
             <div className="px-4 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-white text-sm font-semibold backdrop-blur">
               {displayedTurnMessage}
