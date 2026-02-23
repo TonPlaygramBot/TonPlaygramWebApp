@@ -1,13 +1,18 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
-  tableWood: [
-    { id: 'oakEstate', label: 'Lis Estate' },
-    { id: 'teakStudio', label: 'Tik Studio' }
-  ],
+  tableWood: MURLAN_TABLE_FINISHES.map(({ id, label, price = 0, description, swatches, thumbnail }) => ({
+    id,
+    label,
+    price,
+    description,
+    swatches,
+    thumbnail
+  })),
   tableCloth: POOL_ROYALE_CLOTH_VARIANTS.map(({ id, name, price = 0, description, swatches }) => ({
     id,
     label: name,
@@ -47,10 +52,6 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   }))
 });
 
-const DOMINO_TABLE_WOOD_THUMBNAILS = Object.freeze({
-  oakEstate: polyHavenThumb('oak_veneer_01'),
-  teakStudio: polyHavenThumb('kitchen_wood')
-});
 
 const DOMINO_TABLE_CLOTH_THUMBNAILS = Object.freeze({
   crimson: swatchThumbnail(['#960019', '#4a0012', '#fecaca']),
@@ -102,14 +103,15 @@ export const DOMINO_ROYAL_OPTION_LABELS = Object.freeze(
 );
 
 export const DOMINO_ROYAL_STORE_ITEMS = [
-  ...DOMINO_ROYAL_OPTION_SETS.tableWood.slice(1).map((option) => ({
+  ...DOMINO_ROYAL_OPTION_SETS.tableWood.slice(1).map((option, idx) => ({
     id: `domino-wood-${option.id}`,
     type: 'tableWood',
     optionId: option.id,
     name: option.label,
-    price: 780,
-    description: 'Alternate premium table finish for your Domino Royal arena.',
-    thumbnail: DOMINO_TABLE_WOOD_THUMBNAILS[option.id]
+    price: option.price || 980 + idx * 40,
+    description: option.description || 'Alternate premium table finish for your Domino Royal arena.',
+    swatches: option.swatches,
+    thumbnail: option.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableCloth.slice(1).map((option, idx) => ({
     id: `domino-cloth-${option.id}`,
