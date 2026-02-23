@@ -5651,12 +5651,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           </div>
         ) : null}
-        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3">
+        <div className="absolute top-[4.5rem] left-4 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
               type="button"
               onClick={() => setConfigOpen((prev) => !prev)}
               aria-expanded={configOpen}
+              aria-label="Open menu"
               className="flex h-10 w-10 items-center justify-center bg-transparent text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <svg
@@ -5675,7 +5676,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
                 />
               </svg>
-              <span className="sr-only">Open table customization</span>
+              <span className="sr-only">Open menu</span>
             </button>
           </div>
           {configOpen && (
@@ -5874,21 +5875,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           )}
         </div>
         <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          className="absolute right-4 top-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute right-4 top-[4.5rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          showInfo={false}
           showChat={false}
           showGift={false}
-          order={['info', 'mute']}
+          order={['mute']}
           buttonClassName="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           iconClassName="h-5 w-5"
           labelClassName="sr-only"
-          infoIcon={(
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 10.5v5" />
-              <path d="M12 7.5h.01" />
-            </svg>
-          )}
           muteIconOn={(
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
               <path d="M11 5 7.5 8.5H4v7h3.5L11 19V5z" />
