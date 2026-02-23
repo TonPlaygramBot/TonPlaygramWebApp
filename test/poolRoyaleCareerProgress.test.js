@@ -56,4 +56,19 @@ describe('pool royale career progression isolation', () => {
     expect(giftStage.giftThumbnail).toContain('/store-thumbs/poolRoyale/tableFinish/')
   })
 
+
+  test('career roadmap exposes section metadata for tasks, cups, tournaments, leagues, and matches', () => {
+    const eventTypes = new Set(CAREER_STAGES.map((stage) => stage.eventType))
+    expect(eventTypes.has('task')).toBe(true)
+    expect(eventTypes.has('cup')).toBe(true)
+    expect(eventTypes.has('tournament')).toBe(true)
+    expect(eventTypes.has('league')).toBe(true)
+    expect(eventTypes.has('match')).toBe(true)
+
+    const cupStage = CAREER_STAGES.find((stage) => stage.eventType === 'cup')
+    const tournamentStage = CAREER_STAGES.find((stage) => stage.eventType === 'tournament')
+    expect(cupStage?.roundTarget).toBeGreaterThan(1)
+    expect(tournamentStage?.roundTarget).toBeGreaterThan(1)
+  })
+
 })

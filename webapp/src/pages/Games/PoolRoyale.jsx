@@ -12674,7 +12674,7 @@ function PoolRoyaleGame({
     tableFinishId
   ]);
   const isTraining = playType === 'training';
-  const usesCareerAttempts = isTraining && careerMode;
+  const usesCareerAttempts = careerMode;
   const isFreePractice = isTraining && !usesCareerAttempts;
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');

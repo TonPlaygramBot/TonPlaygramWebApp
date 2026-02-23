@@ -824,23 +824,44 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Career Roadmap</h3>
                 <p className="text-xs text-white/60">
-                  Elite path with drills, friendlies, and championship brackets.
+                  Mixed drills, match tasks, and tournaments with detailed phase progression.
                 </p>
               </div>
-              <span className="text-xs font-semibold text-amber-200">
-                {careerRoadmapNodes.filter((node) => node.completed).length}/
-                {CAREER_LEVEL_COUNT}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/games/poolroyale/career')}
+                  className="rounded-lg border border-amber-200/55 bg-black/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100"
+                >
+                  Open
+                </button>
+                <span className="text-xs font-semibold text-amber-200">
+                  {careerRoadmapNodes.filter((node) => node.completed).length}/
+                  {CAREER_LEVEL_COUNT}
+                </span>
+              </div>
             </div>
             {nextCareerTask ? (
               <div className="rounded-xl border border-amber-300/45 bg-amber-300/10 p-3 text-xs text-amber-50">
                 <p className="font-semibold uppercase tracking-[0.16em]">
                   Next milestone
                 </p>
-                <p className="mt-1 text-sm font-semibold text-white">
-                  {nextCareerTask.icon} {nextCareerTask.title}
-                </p>
-                <p className="mt-1 text-white/75">{nextCareerTask.objective}</p>
+                <div className="mt-1 flex items-start gap-2.5">
+                  {nextCareerTask?.giftThumbnail ? (
+                    <img
+                      src={nextCareerTask.giftThumbnail}
+                      alt="Next career gift"
+                      className="h-12 w-16 rounded-lg border border-amber-100/30 object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">
+                      {nextCareerTask.icon} {nextCareerTask.title}
+                    </p>
+                    <p className="mt-1 text-white/75">{nextCareerTask.objective}</p>
+                  </div>
+                </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
                     <img
