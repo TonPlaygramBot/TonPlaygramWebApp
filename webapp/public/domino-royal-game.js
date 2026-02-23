@@ -2251,18 +2251,14 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Murlan Default Table',
-      source: 'polyhaven',
+      source: 'procedural',
       price: 0,
-      assetId: 'WoodenTable_01',
-      thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
+      thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
       description:
         'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
-    { id: 'WoodenTable_01', label: 'Wooden Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
-    { id: 'WoodenTable_03', label: 'Wooden Table 03' },
-    { id: 'chinese_console_table', label: 'Chinese Console Table' },
     { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
     { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
     { id: 'gallinera_table', label: 'Gallinera Table' },
@@ -2270,12 +2266,10 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
     { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
     { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
-    { id: 'painted_wooden_table', label: 'Painted Wooden Table' },
     { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
     { id: 'side_table_01', label: 'Side Table 01' },
     { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
-    { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' },
-    { id: 'wooden_table_02', label: 'Wooden Table 02 (Alt)' }
+    { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' }
   ].map((option, index) => ({
     ...option,
     assetId: option.assetId || option.id,
@@ -5080,6 +5074,11 @@ async function applyTableTheme(
   if (!theme) {
     setProceduralTableVisible(true);
     activeTableThemeId = null;
+    return;
+  }
+  if (theme.source !== 'polyhaven' || !theme.assetId) {
+    setProceduralTableVisible(true);
+    activeTableThemeId = theme.id;
     return;
   }
   setProceduralTableVisible(false);
