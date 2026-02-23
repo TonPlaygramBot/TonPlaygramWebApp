@@ -6,7 +6,7 @@ export default function TexasHoldem() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-app-stable">
       <TexasHoldemArena search={search} />
     </div>
   );
