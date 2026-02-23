@@ -35,9 +35,10 @@ export function applyEffect(startPos, ctx, finalizeMove) {
     ctx.setTrail([{ cell: startPos, type: 'snake' }]);
     ctx.setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
     setTimeout(() => ctx.setOffsetPopup(null), 1000);
-    if (!ctx.muted && ctx.snakeSoundRef?.current) {
-      ctx.snakeSoundRef.current.currentTime = 0;
-      ctx.snakeSoundRef.current.play().catch(() => {});
+    if (!ctx.muted) {
+      ctx.snakeSoundRef?.current?.play().catch(() => {});
+      ctx.oldSnakeSoundRef?.current?.play().catch(() => {});
+      ctx.badLuckSoundRef?.current?.play().catch(() => {});
     }
     const seq = [];
     for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
@@ -63,10 +64,7 @@ export function applyEffect(startPos, ctx, finalizeMove) {
     ctx.setTrail((t) => t.map((h) => (h.cell === startPos ? { ...h, type: 'ladder' } : h)));
     ctx.setOffsetPopup({ cell: startPos, type: 'ladder', amount: offset });
     setTimeout(() => ctx.setOffsetPopup(null), 1000);
-    if (!ctx.muted && ctx.ladderSoundRef?.current) {
-      ctx.ladderSoundRef.current.currentTime = 0;
-      ctx.ladderSoundRef.current.play().catch(() => {});
-    }
+    if (!ctx.muted) ctx.ladderSoundRef?.current?.play().catch(() => {});
     const seq = [];
     for (let i = 1; i <= offset && startPos + i <= ctx.FINAL_TILE; i++) seq.push(startPos + i);
     const target = Math.min(ctx.FINAL_TILE, ladderEnd);
