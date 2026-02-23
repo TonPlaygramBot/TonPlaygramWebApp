@@ -13115,7 +13115,6 @@ function PoolRoyaleGame({
 
     const cueBall = balls.find((ball) => ball?.id === 'cue');
     const objectBalls = balls.filter((ball) => ball?.id !== 'cue');
-    const layoutSideMultiplier = usesCareerAttempts ? -1 : 1;
     const limitX = PLAY_W / 2 - BALL_R * 2.5;
     const limitZ = PLAY_H / 2 - BALL_R * 2.5;
     const normalize = (value, limit) => Math.min(limit, Math.max(-limit, (value ?? 0) * limit));
@@ -13144,7 +13143,7 @@ function PoolRoyaleGame({
     const stateById = new Map(snapshot.map((entry) => [entry.id, entry]));
     if (cueBall) {
       const cueState = stateById.get(cueBall.id);
-      const cueX = normalize((trainingLayout?.cue?.x ?? 0) * layoutSideMultiplier, limitX);
+      const cueX = normalize(trainingLayout?.cue?.x, limitX);
       const cueZ = normalize(trainingLayout?.cue?.z, limitZ);
       if (cueState) {
         cueState.active = true;
@@ -13167,7 +13166,7 @@ function PoolRoyaleGame({
       if (!objectBall || assignedBallIds.has(objectBall.id)) return;
       assignedBallIds.add(objectBall.id);
       const ballState = stateById.get(objectBall.id);
-      const x = normalize((entry?.x ?? 0) * layoutSideMultiplier, limitX);
+      const x = normalize(entry?.x, limitX);
       const z = normalize(entry?.z, limitZ);
       if (!ballState) return;
       ballState.active = true;
@@ -22841,16 +22840,12 @@ const powerRef = useRef(hud.power);
 
       const placeTrainingLayout = (layout) => {
         if (!layout) return false;
-        const layoutSideMultiplier = usesCareerAttempts ? -1 : 1;
         const limitX = PLAY_W / 2 - BALL_R * 2.5;
         const limitZ = PLAY_H / 2 - BALL_R * 2.5;
         const normalize = (val, limit) => Math.min(limit, Math.max(-limit, (val ?? 0) * limit));
         const hideY = -PLAY_H * 0.75;
         if (layout.cue) {
-          cue.pos.set(
-            normalize((layout.cue.x ?? 0) * layoutSideMultiplier, limitX),
-            normalize(layout.cue.z, limitZ)
-          );
+          cue.pos.set(normalize(layout.cue.x, limitX), normalize(layout.cue.z, limitZ));
         }
 
         const rackColors = Array.isArray(variantConfig?.objectColors)
@@ -22882,7 +22877,7 @@ const powerRef = useRef(hud.power);
             spawnedTrainingBalls.find((entryBall) => entryBall?.id === ballId) ||
             spawnedTrainingBalls[idx];
           if (!objectBall) return;
-          const px = normalize((ball?.x ?? 0) * layoutSideMultiplier, limitX);
+          const px = normalize(ball?.x, limitX);
           const pz = normalize(ball?.z, limitZ);
           objectBall.active = true;
           objectBall.pos.set(px, pz);
