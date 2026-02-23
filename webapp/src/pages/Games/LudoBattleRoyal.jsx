@@ -13,7 +13,6 @@ import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
-import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import {
   createMurlanStyleTable,
@@ -2557,7 +2556,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return false;
   });
-  const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [isCamera2d, setIsCamera2d] = useState(false);
@@ -5651,7 +5649,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           </div>
         ) : null}
-        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3">
+        <div className="absolute top-10 left-4 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
               type="button"
@@ -5874,21 +5872,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           )}
         </div>
         <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
           className="absolute right-4 top-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          showInfo={false}
           showChat={false}
           showGift={false}
-          order={['info', 'mute']}
+          order={['mute']}
           buttonClassName="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           iconClassName="h-5 w-5"
           labelClassName="sr-only"
-          infoIcon={(
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 10.5v5" />
-              <path d="M12 7.5h.01" />
-            </svg>
-          )}
           muteIconOn={(
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
               <path d="M11 5 7.5 8.5H4v7h3.5L11 19V5z" />
@@ -5980,14 +5971,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
       ))}
-      <div className="pointer-events-auto">
-        <InfoPopup
-          open={showInfo}
-          onClose={() => setShowInfo(false)}
-          title="Ludo Battle Royal"
-          info="Roll the dice to move your tokens around the track. Bring all four tokens home to win. Landing on an opponent sends them back to start."
-        />
-      </div>
       <div className="pointer-events-auto">
         <QuickMessagePopup
           open={showChat}
