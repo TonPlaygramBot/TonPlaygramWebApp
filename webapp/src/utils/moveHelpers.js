@@ -35,11 +35,7 @@ export function applyEffect(startPos, ctx, finalizeMove) {
     ctx.setTrail([{ cell: startPos, type: 'snake' }]);
     ctx.setOffsetPopup({ cell: startPos, type: 'snake', amount: offset });
     setTimeout(() => ctx.setOffsetPopup(null), 1000);
-    if (!ctx.muted) {
-      ctx.snakeSoundRef?.current?.play().catch(() => {});
-      ctx.oldSnakeSoundRef?.current?.play().catch(() => {});
-      ctx.badLuckSoundRef?.current?.play().catch(() => {});
-    }
+    if (!ctx.muted) ctx.snakeSoundRef?.current?.play().catch(() => {});
     const seq = [];
     for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
     const target = Math.max(0, snakeEnd);
