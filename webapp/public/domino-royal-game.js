@@ -76,7 +76,7 @@ function isTelegramRuntime() {
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
-  chairClothTextureSize: 2048,
+  chairClothTextureSize: 1024,
   dominoTextureSize: 2048
 });
 
@@ -2099,7 +2099,7 @@ const DEFAULT_CHAIR_THEME = Object.freeze({
 });
 
 const POLYHAVEN_THUMB = (id) =>
-  `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=512&height=512`;
+  `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
 
 const MURLAN_BASE_STOOL_THEMES = [
   {
@@ -2981,7 +2981,7 @@ function applyWoodTextures(
   return { map: material.map, roughnessMap: material.roughnessMap };
 }
 
-function makeTableWoodOption({ id, label, presetId, grainId, price, description }) {
+function makeTableWoodOption({ id, label, presetId, grainId }) {
   const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
   const preset = (presetId && WOOD_PRESETS_BY_ID[presetId]) || fallbackPreset;
   return Object.freeze({
@@ -2999,21 +2999,6 @@ function makeTableWoodOption({ id, label, presetId, grainId, price, description 
       preset.hue,
       shiftSaturation(preset.sat, 0.12),
       shiftLightness(preset.light, -0.18)
-    ),
-    price,
-    description,
-    thumbnail: POLYHAVEN_THUMB(
-      id === 'peelingPaintWeathered'
-        ? 'wood_peeling_paint_weathered'
-        : id === 'oakVeneer01'
-          ? 'oak_veneer_01'
-          : id === 'woodTable001'
-            ? 'wood_table_001'
-            : id === 'darkWood'
-              ? 'dark_wood'
-              : id === 'rosewoodVeneer01'
-                ? 'rosewood_veneer_01'
-                : 'wood_table_001'
     )
   });
 }
@@ -3032,44 +3017,16 @@ function resolveWoodComponents(option) {
 
 const TABLE_WOOD_OPTIONS = Object.freeze([
   makeTableWoodOption({
-    id: 'peelingPaintWeathered',
-    label: 'Peeling Paint Weathered',
+    id: 'oakEstate',
+    label: 'Lis Estate',
     presetId: 'oak',
-    grainId: 'estateBands',
-    price: 980,
-    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
+    grainId: 'estateBands'
   }),
   makeTableWoodOption({
-    id: 'oakVeneer01',
-    label: 'Oak Veneer 01',
-    presetId: 'oak',
-    grainId: 'studioVeins',
-    price: 990,
-    description: 'Warm oak veneer rails with smooth satin polish.'
-  }),
-  makeTableWoodOption({
-    id: 'woodTable001',
-    label: 'Wood Table 001',
-    presetId: 'walnut',
-    grainId: 'estateBands',
-    price: 1000,
-    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
-  }),
-  makeTableWoodOption({
-    id: 'darkWood',
-    label: 'Dark Wood',
-    presetId: 'smokedOak',
-    grainId: 'studioVeins',
-    price: 1010,
-    description: 'Deep espresso rails with strong grain contrast.'
-  }),
-  makeTableWoodOption({
-    id: 'rosewoodVeneer01',
-    label: 'Rosewood Veneer 01',
-    presetId: 'cherry',
-    grainId: 'estateBands',
-    price: 1020,
-    description: 'Rosewood veneer rails with rich, reddish undertones.'
+    id: 'teakStudio',
+    label: 'Tik Studio',
+    presetId: 'teak',
+    grainId: 'studioVeins'
   })
 ]);
 
@@ -6115,19 +6072,6 @@ function createOptionPreview(key, option) {
       swatch.style.position = 'relative';
       swatch.style.overflow = 'hidden';
       swatch.style.background = `linear-gradient(135deg, ${option.baseHex ?? option.top}, ${option.accentHex ?? option.rim})`;
-      if (option?.thumbnail) {
-        const thumbImage = document.createElement('img');
-        thumbImage.src = option.thumbnail;
-        thumbImage.alt = `${option?.label || option?.id || 'Table finish'} thumbnail`;
-        thumbImage.loading = 'lazy';
-        thumbImage.decoding = 'async';
-        thumbImage.style.position = 'absolute';
-        thumbImage.style.inset = '0';
-        thumbImage.style.width = '100%';
-        thumbImage.style.height = '100%';
-        thumbImage.style.objectFit = 'cover';
-        swatch.appendChild(thumbImage);
-      }
       {
         const sheen = document.createElement('div');
         sheen.style.position = 'absolute';
