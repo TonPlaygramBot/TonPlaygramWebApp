@@ -3963,7 +3963,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     moveSoundRef.current = new Audio(dropSound);
     captureSoundRef.current = new Audio(bombSound);
     cheerSoundRef.current = new Audio(cheerSound);
-    diceSoundRef.current = createDiceRollAudio();
+    // Match Snake & Ladder dice roll SFX by using the shared dice audio helper.
+    diceSoundRef.current = createDiceRollAudio({ muted: !settingsRef.current.soundEnabled });
     diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     sixRollSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
     hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
@@ -4147,6 +4148,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const level = soundEnabled ? baseVolume : 0;
     [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
       if (ref.current) {
+        ref.current.muted = !soundEnabled;
         ref.current.volume = level;
         if (!soundEnabled) {
           try {
