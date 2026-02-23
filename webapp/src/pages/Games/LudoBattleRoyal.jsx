@@ -2492,6 +2492,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const diceSoundRef = useRef(null);
+  const diceRewardSoundRef = useRef(null);
+  const sixRollSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
   const giftBombSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
@@ -3941,7 +3943,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = level;
           if (!settingsRef.current.soundEnabled) {
@@ -3958,6 +3960,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     captureSoundRef.current = new Audio(bombSound);
     cheerSoundRef.current = new Audio(cheerSound);
     diceSoundRef.current = new Audio(diceSound);
+    diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
+    sixRollSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
     hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
     giftBombSoundRef.current = new Audio(bombSound);
     applyVolume(vol);
@@ -4133,7 +4137,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
-    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
       if (ref.current) {
         ref.current.volume = level;
         if (!soundEnabled) {
@@ -4166,7 +4170,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const setupScene = async () => {
 
       const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
-      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = baseVolume;
         }
@@ -4816,6 +4820,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (diceSoundRef.current) {
       diceSoundRef.current.currentTime = 0;
       diceSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  const playSixRollSound = () => {
+    if (!settingsRef.current.soundEnabled) return;
+    if (diceRewardSoundRef.current) {
+      diceRewardSoundRef.current.currentTime = 0;
+      diceRewardSoundRef.current.play().catch(() => {});
+    }
+    if (sixRollSoundRef.current) {
+      sixRollSoundRef.current.currentTime = 0;
+      sixRollSoundRef.current.play().catch(() => {});
+    }
+    if (cheerSoundRef.current) {
+      cheerSoundRef.current.currentTime = 0;
+      cheerSoundRef.current.play().catch(() => {});
     }
   };
 
@@ -5523,6 +5543,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const playerName = resolvePlayerLabel(player);
     enqueueLudoCommentaryEvent('diceRoll', { player: playerName, roll: value });
     if (value === 6) {
+      playSixRollSound();
       enqueueLudoCommentaryEvent('extraTurn', { player: playerName });
     }
     scheduleDiceClear();
