@@ -31,7 +31,6 @@ import coinConfetti from '../../utils/coinConfetti';
 import {
   chatBeep,
   dropSound,
-  diceSound,
   bombSound,
   cheerSound
 } from '../../assets/soundData.js';
@@ -54,6 +53,7 @@ import {
   ludoBattleAccountId
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { createDiceRollAudio } from '../../utils/diceAudio.js';
 import {
   LUDO_BATTLE_SPEAKERS,
   buildCommentaryLine,
@@ -3963,7 +3963,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     moveSoundRef.current = new Audio(dropSound);
     captureSoundRef.current = new Audio(bombSound);
     cheerSoundRef.current = new Audio(cheerSound);
-    diceSoundRef.current = new Audio(diceSound);
+    diceSoundRef.current = createDiceRollAudio();
     diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     sixRollSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
     hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
