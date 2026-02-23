@@ -1419,6 +1419,7 @@ export default function SnakeAndLadder() {
 
   const diceRollerDivRef = useRef(null);
   const slideStateRef = useRef(null);
+  const slideSoundIntervalRef = useRef(null);
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
   const diceRollIdRef = useRef(0);
@@ -1447,11 +1448,23 @@ export default function SnakeAndLadder() {
         type,
         onComplete
       };
+      if (!muted && moveSoundRef.current) {
+        moveSoundRef.current.currentTime = 0;
+        moveSoundRef.current.play().catch(() => {});
+      }
+      if (!muted) {
+        if (slideSoundIntervalRef.current) clearInterval(slideSoundIntervalRef.current);
+        slideSoundIntervalRef.current = setInterval(() => {
+          if (!slideStateRef.current?.id || !moveSoundRef.current) return;
+          moveSoundRef.current.currentTime = 0;
+          moveSoundRef.current.play().catch(() => {});
+        }, 350);
+      }
       slideStateRef.current = payload;
       setSlideAnimation(payload);
       return true;
     },
-    []
+    [muted]
   );
 
   const handleSlideComplete = useCallback((id) => {
@@ -1459,6 +1472,10 @@ export default function SnakeAndLadder() {
       if (!current || current.id !== id) return current;
       const finalize = current.onComplete;
       slideStateRef.current = null;
+      if (slideSoundIntervalRef.current) {
+        clearInterval(slideSoundIntervalRef.current);
+        slideSoundIntervalRef.current = null;
+      }
       if (typeof finalize === 'function') finalize();
       return null;
     });
@@ -1820,6 +1837,10 @@ export default function SnakeAndLadder() {
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
+      if (slideSoundIntervalRef.current) {
+        clearInterval(slideSoundIntervalRef.current);
+        slideSoundIntervalRef.current = null;
+      }
     };
   }, [accountId]);
 
@@ -4004,6 +4025,7 @@ export default function SnakeAndLadder() {
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
+            fixedSoundVolume={1}
           />
         </div>
       )}
@@ -4014,6 +4036,7 @@ export default function SnakeAndLadder() {
               clickable
               showButton={false}
               muted={muted}
+              fixedSoundVolume={1}
               emitRollEvent
               divRef={diceRollerDivRef}
               onRollStart={() => {
