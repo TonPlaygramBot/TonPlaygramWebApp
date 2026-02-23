@@ -1418,6 +1418,7 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
   const diceRollerDivRef = useRef(null);
+  const diceRollerRef = useRef(null);
   const slideStateRef = useRef(null);
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
@@ -3206,7 +3207,8 @@ export default function SnakeAndLadder() {
 
 
   const handleRollButtonClick = () => {
-    diceRollerDivRef.current?.click();
+    if (diceRollerRef.current?.isRolling?.()) return;
+    diceRollerRef.current?.roll?.();
   };
 
   const renderPreview = (key, option) => {
@@ -3960,6 +3962,7 @@ export default function SnakeAndLadder() {
       {!isMultiplayer && (
         <div className="sr-only" aria-hidden="true">
           <DiceRoller
+            ref={diceRollerRef}
             divRef={diceRollerDivRef}
             onRollEnd={(vals) => {
               startDiceBoardAnimation({
@@ -4011,6 +4014,7 @@ export default function SnakeAndLadder() {
         <div className="sr-only" aria-hidden="true">
           {currentTurn === myPlayerIndex && !moving ? (
             <DiceRoller
+              ref={diceRollerRef}
               clickable
               showButton={false}
               muted={muted}
