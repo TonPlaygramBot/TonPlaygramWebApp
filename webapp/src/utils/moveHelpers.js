@@ -7,19 +7,6 @@ export function flashHighlight(cell, type, ctx, times = 1, done = () => {}) {
   }, 150);
 }
 
-const MOVE_SOUND_FALLBACK_SRC = '/assets/sounds/2FilesMerged_20250717_131957.mp3';
-
-function playMoveSound(audio, muted) {
-  if (!audio || muted) return;
-  audio.play().catch(() => {
-    if (audio.__fallbackApplied) return;
-    audio.__fallbackApplied = true;
-    audio.src = MOVE_SOUND_FALLBACK_SRC;
-    audio.load();
-    audio.play().catch(() => {});
-  });
-}
-
 export function moveSeq(seq, type, ctx, done = () => {}, dir = 'forward') {
   const stepMove = (idx) => {
     if (idx >= seq.length) return done();
@@ -27,7 +14,7 @@ export function moveSeq(seq, type, ctx, done = () => {}, dir = 'forward') {
     ctx.updatePosition(next);
     if (ctx.moveSoundRef?.current) {
       ctx.moveSoundRef.current.currentTime = 0;
-      playMoveSound(ctx.moveSoundRef.current, ctx.muted);
+      if (!ctx.muted) ctx.moveSoundRef.current.play().catch(() => {});
     }
     const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
     ctx.setHighlight({ cell: next, type: hType });
