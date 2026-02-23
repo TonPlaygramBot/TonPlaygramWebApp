@@ -119,9 +119,11 @@ export default function Layout({ children }) {
   }, [location.pathname]);
 
   useEffect(() => {
+    const isCareerPage = location.pathname.includes('/career');
     const isGamePage =
       location.pathname.startsWith('/games/') &&
-      !location.pathname.includes('/lobby');
+      !location.pathname.includes('/lobby') &&
+      !isCareerPage;
     if (isGamePage) {
       document.body.style.overflow = 'hidden';
     } else {
