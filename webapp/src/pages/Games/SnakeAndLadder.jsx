@@ -3468,7 +3468,7 @@ export default function SnakeAndLadder() {
       rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
     });
   return (
-    <div className="relative w-screen h-dvh overflow-hidden bg-[#05070f] text-text select-none">
+    <div className="relative w-screen h-app-stable overflow-hidden bg-[#05070f] text-text select-none">
       <div className="absolute inset-0">
         <SnakeBoard3D
           players={players}

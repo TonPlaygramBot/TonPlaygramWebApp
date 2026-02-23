@@ -8,7 +8,7 @@ export default function MurlanRoyale() {
   const { search } = useLocation();
 
   return (
-    <div className="relative w-full h-screen bg-[#050812]">
+    <div className="relative w-full h-app-stable bg-[#050812]">
       <MurlanRoyaleArena search={search} />
     </div>
   );
