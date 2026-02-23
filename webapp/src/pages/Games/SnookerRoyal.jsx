@@ -144,7 +144,7 @@ function applyTablePhysicsSpec(meta) {
   const restitution = Number.isFinite(meta?.cushionRestitution)
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
-  CUSHION_RESTITUTION = restitution;
+  CUSHION_RESTITUTION = Math.min(0.999, restitution * 1.006);
 }
 
 function detectCoarsePointer() {
@@ -673,7 +673,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends 
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.19; // pull the middle-pocket chrome plates slightly further inward while preserving the existing rounded pocket cut placement
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the Pool Royale fascia edge
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
@@ -1642,12 +1642,12 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.45;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.85; // start avoidance a touch earlier so cue helpers keep a cleaner gap from nearby balls
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.56;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.62; // add a small extra lift whenever helpers approach obstacles
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
-const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
-const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
+const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.78; // increase cushion clearance so cue helpers do not visually touch the rails
+const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.7; // prioritize cushion avoidance when blending obstruction response
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
