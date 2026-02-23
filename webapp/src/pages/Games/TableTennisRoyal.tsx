@@ -1455,8 +1455,8 @@ export default function TableTennisRoyal() {
     <ErrorBoundary>
       <div
         ref={rootRef}
-        className="w-full h-[92vh] relative select-none"
-        style={{ background: "#070b1a", touchAction: "none" }}
+        className="w-full relative select-none"
+        style={{ height: "calc(var(--app-viewport-stable-height, 100dvh) * 0.92)", background: "#070b1a", touchAction: "none" }}
         onPointerDown={(e) => {
           onDown(e);
           if (sim.current.phase === "ready" && sim.current.score.server === "player") serve();
