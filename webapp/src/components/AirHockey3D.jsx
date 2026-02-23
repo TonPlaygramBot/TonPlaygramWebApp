@@ -2457,7 +2457,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   return (
     <div
       ref={hostRef}
-      className="w-full h-app-live bg-black relative overflow-hidden select-none"
+      className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
     >
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur">
         <span className="uppercase tracking-wide">{playType}</span>
