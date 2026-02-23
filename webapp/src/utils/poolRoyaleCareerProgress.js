@@ -23,15 +23,16 @@ const TOURNAMENT_TITLES = [
 
 const CAREER_TYPE_SEQUENCE = [
   'training',
-  'training',
   'friendly',
   'training',
   'league',
-  'training',
   'friendly',
-  'tournament',
   'training',
-  'showdown'
+  'tournament',
+  'friendly',
+  'league',
+  'showdown',
+  'training'
 ]
 
 const GIFT_THUMBNAILS = [
@@ -42,15 +43,61 @@ const GIFT_THUMBNAILS = [
 
 const CAREER_TRAINING_STAGE_COUNT = TRAINING_LEVEL_COUNT
 
+const CAREER_PHASE_DETAILS = [
+  {
+    id: 1,
+    title: 'Academy Foundations',
+    summary:
+      'Focus on cue control, basic positioning, and winning your first mixed fixtures.'
+  },
+  {
+    id: 2,
+    title: 'City Circuit',
+    summary:
+      'Face stronger league rivals, keep streaks alive, and qualify for larger events.'
+  },
+  {
+    id: 3,
+    title: 'National Tour',
+    summary:
+      'Longer brackets, tighter tactical windows, and pressure-tested showdown tables.'
+  },
+  {
+    id: 4,
+    title: 'Continental Stage',
+    summary:
+      'High-stakes draws with elite AI opponents and advanced positional requirements.'
+  },
+  {
+    id: 5,
+    title: 'Legend Arena',
+    summary:
+      'Every frame counts: championship difficulty, prestige gifts, and top-tier payouts.'
+  }
+]
+
 const getStageType = (level) => {
-  if (level <= 6) return 'training'
+  if (level <= 2) return 'training'
   return CAREER_TYPE_SEQUENCE[(level - 1) % CAREER_TYPE_SEQUENCE.length]
+}
+
+const getStageDifficulty = (level) => {
+  if (level <= 12) return 'Rookie'
+  if (level <= 35) return 'Contender'
+  if (level <= 65) return 'Pro'
+  if (level <= 85) return 'Master'
+  return 'Legend'
 }
 
 const getTournamentPlayers = (level) => {
   if (level <= 20) return 8
   if (level <= 60) return 16
   return 32
+}
+
+const getBracketRounds = (players) => {
+  const safePlayers = Math.max(2, Number(players) || 2)
+  return Math.max(1, Math.round(Math.log2(safePlayers)))
 }
 
 const getTrainingLevel = (level) => ((level - 1) % TRAINING_LEVEL_COUNT) + 1
@@ -84,23 +131,41 @@ const buildStage = (level) => {
   const phaseIndex = Math.min(4, Math.floor((level - 1) / 20))
   const trainingLevel = type === 'training' ? getTrainingLevel(level) : null
   const reward = buildReward(level, type)
+  const phase = phaseIndex + 1
+  const phaseDetail =
+    CAREER_PHASE_DETAILS.find((entry) => entry.id === phase) ||
+    CAREER_PHASE_DETAILS[CAREER_PHASE_DETAILS.length - 1]
+  const commonMeta = {
+    phase,
+    phaseTitle: phaseDetail.title,
+    phaseSummary: phaseDetail.summary,
+    difficulty: getStageDifficulty(level),
+    estimatedDurationMins: type === 'tournament' ? 15 : type === 'showdown' ? 9 : 6,
+    entryRequirement:
+      level === 1 ? 'Start your Career journey' : `Complete Stage ${String(level - 1).padStart(3, '0')}`
+  }
 
   if (type === 'training') {
     const trainingTask = describeTrainingLevel(trainingLevel || 1)
     return {
       id: `career-stage-${String(level).padStart(3, '0')}`,
       level,
-      phase: phaseIndex + 1,
+      ...commonMeta,
       title: trainingTask.title,
       type,
       icon: '🎯',
       objective: trainingTask.objective,
+      detailBrief: 'Precision drill focused on cue-ball control and confidence building.',
+      winCondition: 'Clear the guided drill objective in the allocated attempts.',
       reward: trainingTask.reward,
       rewardTpc: Number(trainingTask.rewardAmount) || reward.tpc,
       hasGift: reward.hasGift,
       giftThumbnail: reward.giftThumbnail,
       trainingLevel,
-      players: null
+      players: null,
+      eventType: 'task',
+      roundTarget: 1,
+      competitionLabel: 'Task Objective'
     }
   }
 
@@ -109,25 +174,45 @@ const buildStage = (level) => {
       titleBase: FRIENDLY_TITLES[(level - 1) % FRIENDLY_TITLES.length],
       icon: '🤝',
       objective: 'Win a tactical friendly against an adaptive AI rival.',
-      players: null
+      detailBrief: 'Single fixture designed to test shot selection under moderate pressure.',
+      winCondition: 'Reach the target score before your opponent.',
+      players: null,
+      eventType: 'match',
+      roundTarget: 1,
+      competitionLabel: 'Friendly Match'
     },
     league: {
       titleBase: 'League Fixture',
       icon: '🗓️',
       objective: 'Win the scheduled league match to keep your table ranking alive.',
-      players: null
+      detailBrief: 'Season ladder match where consistency matters more than fast clears.',
+      winCondition: 'Win the frame and avoid foul-heavy play.',
+      players: null,
+      eventType: 'league',
+      roundTarget: 1,
+      competitionLabel: 'League Round'
     },
     showdown: {
       titleBase: 'Rival Showdown',
       icon: '⚡',
       objective: 'Defeat the featured rival in a high-pressure race-to-win set.',
-      players: 2
+      detailBrief: 'Headliner duel with tighter miss tolerance and stronger rival AI.',
+      winCondition: 'Win the race set with clean finishes and no collapse rounds.',
+      players: 2,
+      eventType: 'match',
+      roundTarget: 1,
+      competitionLabel: 'Showdown Match'
     },
     tournament: {
       titleBase: TOURNAMENT_TITLES[(level - 1) % TOURNAMENT_TITLES.length],
       icon: '🏆',
       objective: `Win a ${getTournamentPlayers(level)}-player bracket and secure promotion.`,
-      players: getTournamentPlayers(level)
+      detailBrief: 'Bracket run with progressive opponents and reduced comeback margin.',
+      winCondition: 'Claim the final table to earn promotion and bonus crates.',
+      players: getTournamentPlayers(level),
+      eventType: TOURNAMENT_TITLES[(level - 1) % TOURNAMENT_TITLES.length].toLowerCase().includes('cup') ? 'cup' : 'tournament',
+      roundTarget: getBracketRounds(getTournamentPlayers(level)),
+      competitionLabel: TOURNAMENT_TITLES[(level - 1) % TOURNAMENT_TITLES.length].toLowerCase().includes('cup') ? 'Cup Bracket' : 'Tournament Bracket'
     }
   }
 
@@ -136,17 +221,22 @@ const buildStage = (level) => {
   return {
     id: `career-stage-${String(level).padStart(3, '0')}`,
     level,
-    phase: phaseIndex + 1,
+    ...commonMeta,
     title: `${stageMeta.titleBase} ${String(level).padStart(2, '0')}`,
     type,
     icon: stageMeta.icon,
     objective: stageMeta.objective,
+    detailBrief: stageMeta.detailBrief,
+    winCondition: stageMeta.winCondition,
     reward: reward.label,
     rewardTpc: reward.tpc,
     hasGift: reward.hasGift,
     giftThumbnail: reward.giftThumbnail,
     trainingLevel,
-    players: stageMeta.players
+    players: stageMeta.players,
+    eventType: stageMeta.eventType || (type === 'tournament' ? 'tournament' : 'match'),
+    roundTarget: stageMeta.roundTarget || 1,
+    competitionLabel: stageMeta.competitionLabel || 'Match Round'
   }
 }
 

@@ -42,6 +42,7 @@ const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
+import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
 import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
@@ -184,6 +185,10 @@ export default function App() {
             <Route
               path="/games/poolroyale/lobby"
               element={<PoolRoyaleLobby />}
+            />
+            <Route
+              path="/games/poolroyale/career"
+              element={<PoolRoyaleCareer />}
             />
             <Route path="/games/poolroyale" element={<PoolRoyale />} />
             <Route
