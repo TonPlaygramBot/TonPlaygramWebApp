@@ -4640,7 +4640,7 @@ export default function MurlanRoyaleArena({ search }) {
             );
           })}
         </div>
-        <div className="pointer-events-none flex items-start justify-start px-4 pt-4">
+        <div className="pointer-events-none flex items-start justify-start px-4 pt-7">
           <div className="pointer-events-none flex flex-col items-start gap-2">
             <button
               type="button"
@@ -4833,8 +4833,7 @@ export default function MurlanRoyaleArena({ search }) {
           <BottomLeftIcons
             className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['info', 'mute', 'chat', 'gift']}
-            onInfo={() => setShowInfo(true)}
+            order={['mute', 'chat', 'gift']}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
           />
