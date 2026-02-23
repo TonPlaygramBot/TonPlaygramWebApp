@@ -20,18 +20,6 @@ export default function DiceRoller({
   placeholder = null,
   diceWrapperClassName = 'flex space-x-4 items-center justify-center',
 }) {
-  const playWithFallback = (audio) => {
-    if (!audio || muted) return;
-    const fallbackSrc = audio.__fallbackSrc;
-    audio.play().catch(() => {
-      if (!fallbackSrc || audio.__fallbackApplied) return;
-      audio.__fallbackApplied = true;
-      audio.src = fallbackSrc;
-      audio.load();
-      audio.play().catch(() => {});
-    });
-  };
-
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
   const soundRef = useRef(null);
@@ -70,7 +58,7 @@ export default function DiceRoller({
     if (rolling) return;
     if (soundRef.current && !muted) {
       soundRef.current.currentTime = 0;
-      playWithFallback(soundRef.current);
+      soundRef.current.play().catch(() => {});
     }
     startValuesRef.current = values;
     setRolling(true);

@@ -1464,20 +1464,6 @@ export default function SnakeAndLadder() {
     });
   }, []);
 
-
-  useEffect(() => {
-    if (!slideAnimation || muted || !moveSoundRef.current) return undefined;
-    const tickMs = 650;
-    const playTick = () => {
-      if (!moveSoundRef.current || muted) return;
-      moveSoundRef.current.currentTime = 0;
-      moveSoundRef.current.play().catch(() => {});
-    };
-    playTick();
-    const id = setInterval(playTick, tickMs);
-    return () => clearInterval(id);
-  }, [slideAnimation, muted]);
-
   const startDiceBoardAnimation = useCallback((phase) => {
     setDiceBoardEvent(phase);
   }, []);
