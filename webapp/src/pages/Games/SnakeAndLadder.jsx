@@ -4004,6 +4004,7 @@ export default function SnakeAndLadder() {
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
+            fixedSoundVolume={1}
           />
         </div>
       )}
@@ -4014,6 +4015,7 @@ export default function SnakeAndLadder() {
               clickable
               showButton={false}
               muted={muted}
+              fixedSoundVolume={1}
               emitRollEvent
               divRef={diceRollerDivRef}
               onRollStart={() => {
