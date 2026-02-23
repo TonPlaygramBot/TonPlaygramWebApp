@@ -19,9 +19,9 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     id,
     label,
     price,
-    source: id === 'murlan-default' ? 'polyhaven' : source,
-    assetId: id === 'murlan-default' ? 'WoodenTable_01' : assetId,
-    preserveMaterials: id === 'murlan-default' ? true : preserveMaterials,
+    source,
+    assetId,
+    preserveMaterials,
     description: description || `${label} table from Murlan Royale`
   })),
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
