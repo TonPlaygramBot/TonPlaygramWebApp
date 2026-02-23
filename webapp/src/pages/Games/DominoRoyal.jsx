@@ -5,7 +5,7 @@ export default function DominoRoyal() {
   useTelegramBackButton();
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-app-live">
       <DominoRoyalArena />
     </div>
   );

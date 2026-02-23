@@ -6,7 +6,23 @@
   --cell-width: 135px;
   /* Slightly taller default height for snake board cells */
   --cell-height: 80px;
+  --app-viewport-height: 100dvh;
+  --app-viewport-stable-height: 100dvh;
+  --app-viewport-extra-height: 0px;
 }
+
+.h-app-stable {
+  height: var(--app-viewport-stable-height, 100dvh);
+}
+
+.h-app-live {
+  height: var(--app-viewport-height, 100dvh);
+}
+
+.min-h-app-stable {
+  min-height: var(--app-viewport-stable-height, 100dvh);
+}
+
 
 html,
 body {
