@@ -14,7 +14,14 @@ export function moveSeq(seq, type, ctx, done = () => {}, dir = 'forward') {
     ctx.updatePosition(next);
     if (ctx.moveSoundRef?.current) {
       ctx.moveSoundRef.current.currentTime = 0;
-      if (!ctx.muted) ctx.moveSoundRef.current.play().catch(() => {});
+      if (!ctx.muted) {
+        ctx.moveSoundRef.current.play().catch(() => {
+          if (ctx.oldSnakeSoundRef?.current) {
+            ctx.oldSnakeSoundRef.current.currentTime = 0;
+            ctx.oldSnakeSoundRef.current.play().catch(() => {});
+          }
+        });
+      }
     }
     const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
     ctx.setHighlight({ cell: next, type: hType });
