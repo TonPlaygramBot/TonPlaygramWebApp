@@ -103,52 +103,32 @@ const resolveLayoutSlot = (pattern, index, level) => {
 }
 
 const buildTrainingLayout = (level) => {
-  const pattern = PATTERN_LIBRARY[(level - 1) % PATTERN_LIBRARY.length] || PATTERN_LIBRARY[0]
   const targetCount = getTrainingTargetCount(level)
-  const rotated = rotate(pattern, (level * 2) % pattern.length)
-  const microShift = ((level % 4) - 1.5) * 0.008
-  const balls = Array.from({ length: targetCount }, (_, idx) => {
-    const rawPos = resolveLayoutSlot(rotated, idx, level)
-    const pos = stabilizeTrainingSlot(rawPos)
-    let x = clampLayoutCoord(pos.x + (idx % 2 === 0 ? microShift : -microShift), -0.44, 0.44)
-    let z = clampLayoutCoord(pos.z + (idx % 3 === 0 ? microShift : 0), -0.31, 0.31)
+  const triangleSpacingX = 0.09
+  const triangleSpacingZ = 0.085
+  const apexZ = 0.16
+  const maxX = 0.44
+  const maxZ = 0.31
 
-    if (Math.abs(x) > 0.4 && Math.abs(z) > 0.24) {
-      x = Math.sign(x || 1) * 0.39
-      z = Math.sign(z || 1) * 0.22
+  const balls = []
+  let row = 0
+  while (balls.length < targetCount) {
+    const rowBallCount = row + 1
+    const z = clampLayoutCoord(apexZ + row * triangleSpacingZ, -maxZ, maxZ)
+    const rowStartX = -((rowBallCount - 1) * triangleSpacingX) / 2
+    for (let column = 0; column < rowBallCount && balls.length < targetCount; column += 1) {
+      const x = clampLayoutCoord(rowStartX + column * triangleSpacingX, -maxX, maxX)
+      balls.push({
+        rackIndex: balls.length,
+        x,
+        z
+      })
     }
-
-    // Keep each task's pattern intact, only swap table side (left ↔ right).
-    return {
-      rackIndex: idx,
-      x: -x,
-      z
-    }
-  })
-
-  for (let i = 0; i < balls.length; i++) {
-    const anchor = balls[i]
-    for (let j = 0; j < i; j++) {
-      const other = balls[j]
-      const dx = anchor.x - other.x
-      const dz = anchor.z - other.z
-      const distSq = (dx * dx) + (dz * dz)
-      if (distSq >= MIN_LAYOUT_GAP * MIN_LAYOUT_GAP) continue
-      const dist = Math.max(1e-6, Math.sqrt(distSq))
-      const push = (MIN_LAYOUT_GAP - dist) + 0.004
-      const nx = dx / dist
-      const nz = dz / dist
-      anchor.x = clampLayoutCoord(anchor.x + (nx * push), -0.44, 0.44)
-      anchor.z = clampLayoutCoord(anchor.z + (nz * push), -0.31, 0.31)
-      if (Math.abs(anchor.x) > 0.4 && Math.abs(anchor.z) > 0.24) {
-        anchor.x = Math.sign(anchor.x || 1) * 0.39
-        anchor.z = Math.sign(anchor.z || 1) * 0.22
-      }
-    }
+    row += 1
   }
 
   return {
-    cue: { x: 0.7 - (level % 5) * 0.045, z: 0.5 - (level % 6) * 0.065 },
+    cue: { x: 0, z: -0.68 },
     balls
   }
 }
