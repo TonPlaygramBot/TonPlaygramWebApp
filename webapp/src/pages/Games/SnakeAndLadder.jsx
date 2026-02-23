@@ -3499,7 +3499,7 @@ export default function SnakeAndLadder() {
       <div
         className="absolute z-30 pointer-events-auto"
         style={{
-          top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+          top: 'calc(5.25rem + env(safe-area-inset-top, 0px))',
           left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
         }}
       >
