@@ -1645,6 +1645,9 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.35;
+const TOKEN_STEP_MIN_DURATION = 0.19;
+const TOKEN_HOP_HEIGHT = 0.035;
+const HAHA_MAX_PLAY_MS = 5000;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
 const TRACK_INDEX_BY_KEY = new Map(
@@ -2497,6 +2500,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const sixRollSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
   const giftBombSoundRef = useRef(null);
+  const hahaStopTimeoutRef = useRef(null);
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
   const humanRollTimeoutRef = useRef(null);
@@ -3977,6 +3981,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   useEffect(() => {
     return () => {
+      if (hahaStopTimeoutRef.current) {
+        clearTimeout(hahaStopTimeoutRef.current);
+        hahaStopTimeoutRef.current = null;
+      }
       if (diceClearTimeoutRef.current) {
         clearTimeout(diceClearTimeoutRef.current);
         diceClearTimeoutRef.current = null;
@@ -4628,9 +4636,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           anim.elapsed += delta;
           const duration = Math.max(seg.duration, 1e-4);
           const t = Math.min(1, anim.elapsed / duration);
-          animTemp.copy(seg.from).lerp(seg.to, t);
-          const lift = Math.sin(t * Math.PI) * 0.01;
-          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, t) + lift;
+          const eased = THREE.MathUtils.smootherstep(t, 0, 1);
+          animTemp.copy(seg.from).lerp(seg.to, eased);
+          const lift = Math.sin(eased * Math.PI) * TOKEN_HOP_HEIGHT;
+          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, eased) + lift;
           anim.token.position.copy(animTemp);
           animDir.copy(seg.to).sub(seg.from);
           animDir.y = 0;
@@ -4795,16 +4804,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
   }, []);
 
+  const playHahaSoundLimited = () => {
+    if (!settingsRef.current.soundEnabled || !hahaSoundRef.current) return;
+    if (hahaStopTimeoutRef.current) {
+      clearTimeout(hahaStopTimeoutRef.current);
+      hahaStopTimeoutRef.current = null;
+    }
+    hahaSoundRef.current.currentTime = 0;
+    hahaSoundRef.current.play().catch(() => {});
+    hahaStopTimeoutRef.current = window.setTimeout(() => {
+      if (!hahaSoundRef.current) return;
+      hahaSoundRef.current.pause();
+      hahaSoundRef.current.currentTime = 0;
+      hahaStopTimeoutRef.current = null;
+    }, HAHA_MAX_PLAY_MS);
+  };
+
   const playCapture = () => {
     if (!settingsRef.current.soundEnabled) return;
     if (captureSoundRef.current) {
       captureSoundRef.current.currentTime = 0;
       captureSoundRef.current.play().catch(() => {});
     }
-    if (hahaSoundRef.current) {
-      hahaSoundRef.current.currentTime = 0;
-      hahaSoundRef.current.play().catch(() => {});
-    }
+    playHahaSoundLimited();
   };
 
   const playTokenStepSound = () => {
@@ -5086,7 +5108,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const from = path[i].position;
       const to = path[i + 1].position;
       const distance = from.distanceTo(to);
-      const duration = Math.max(0.12, distance / TOKEN_MOVE_SPEED);
+      const duration = Math.max(TOKEN_STEP_MIN_DURATION, distance / TOKEN_MOVE_SPEED);
       segments.push({ from, to, distance, duration, progress: path[i + 1].progress });
       const tile = findTileForProgress(player, path[i + 1].progress);
       highlightTiles.push(tile ?? null);
@@ -6011,11 +6033,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (gift.id === 'laugh_bomb' && soundEnabled) {
                 giftBombSoundRef.current.currentTime = 0;
                 giftBombSoundRef.current.play().catch(() => {});
-                hahaSoundRef.current.currentTime = 0;
-                hahaSoundRef.current.play().catch(() => {});
-                setTimeout(() => {
-                  hahaSoundRef.current.pause();
-                }, 5000);
+                playHahaSoundLimited();
               } else if (gift.id === 'coffee_boost' && soundEnabled) {
                 const audio = new Audio(giftSound);
                 audio.volume = getGameVolume();
