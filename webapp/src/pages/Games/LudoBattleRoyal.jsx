@@ -1645,6 +1645,9 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.35;
+const TOKEN_STEP_DURATION_SECONDS = 0.7;
+const TOKEN_STEP_JUMP_HEIGHT = 0.03;
+const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
 const TRACK_INDEX_BY_KEY = new Map(
@@ -2489,13 +2492,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const stateRef = useRef(null);
   const uiRef = useRef(null);
   const moveSoundRef = useRef(null);
-  const moveStepSoundAtRef = useRef(0);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const diceSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
   const sixRollSoundRef = useRef(null);
   const hahaSoundRef = useRef(null);
+  const hahaStopTimeoutRef = useRef(null);
   const giftBombSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
@@ -3989,6 +3992,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         clearTimeout(turnAdvanceTimeoutRef.current);
         turnAdvanceTimeoutRef.current = null;
       }
+      if (hahaStopTimeoutRef.current) {
+        clearTimeout(hahaStopTimeoutRef.current);
+        hahaStopTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -4628,9 +4635,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           anim.elapsed += delta;
           const duration = Math.max(seg.duration, 1e-4);
           const t = Math.min(1, anim.elapsed / duration);
-          animTemp.copy(seg.from).lerp(seg.to, t);
-          const lift = Math.sin(t * Math.PI) * 0.01;
-          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, t) + lift;
+          const jumpT =
+            t <= TOKEN_STEP_JUMP_PHASE
+              ? 0
+              : (t - TOKEN_STEP_JUMP_PHASE) / Math.max(1e-4, 1 - TOKEN_STEP_JUMP_PHASE);
+          animTemp.copy(seg.from).lerp(seg.to, jumpT);
+          const jumpLift = Math.sin(jumpT * Math.PI) * TOKEN_STEP_JUMP_HEIGHT;
+          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, jumpT) + jumpLift;
           anim.token.position.copy(animTemp);
           animDir.copy(seg.to).sub(seg.from);
           animDir.y = 0;
@@ -4795,24 +4806,34 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
   }, []);
 
+  const playHahaSound = () => {
+    if (!settingsRef.current.soundEnabled || !hahaSoundRef.current) return;
+    if (hahaStopTimeoutRef.current) {
+      clearTimeout(hahaStopTimeoutRef.current);
+      hahaStopTimeoutRef.current = null;
+    }
+    hahaSoundRef.current.currentTime = 0;
+    hahaSoundRef.current.play().catch(() => {});
+    hahaStopTimeoutRef.current = window.setTimeout(() => {
+      if (!hahaSoundRef.current) return;
+      hahaSoundRef.current.pause();
+      hahaSoundRef.current.currentTime = 0;
+      hahaStopTimeoutRef.current = null;
+    }, 5000);
+  };
+
   const playCapture = () => {
     if (!settingsRef.current.soundEnabled) return;
     if (captureSoundRef.current) {
       captureSoundRef.current.currentTime = 0;
       captureSoundRef.current.play().catch(() => {});
     }
-    if (hahaSoundRef.current) {
-      hahaSoundRef.current.currentTime = 0;
-      hahaSoundRef.current.play().catch(() => {});
-    }
+    playHahaSound();
   };
 
   const playTokenStepSound = () => {
     if (!settingsRef.current.soundEnabled) return;
     if (!moveSoundRef.current) return;
-    const now = performance.now();
-    if (now - moveStepSoundAtRef.current < 110) return;
-    moveStepSoundAtRef.current = now;
     moveSoundRef.current.currentTime = 0;
     moveSoundRef.current.play().catch(() => {});
   };
@@ -5086,7 +5107,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const from = path[i].position;
       const to = path[i + 1].position;
       const distance = from.distanceTo(to);
-      const duration = Math.max(0.12, distance / TOKEN_MOVE_SPEED);
+      const duration = Math.max(TOKEN_STEP_DURATION_SECONDS, distance / TOKEN_MOVE_SPEED);
       segments.push({ from, to, distance, duration, progress: path[i + 1].progress });
       const tile = findTileForProgress(player, path[i + 1].progress);
       highlightTiles.push(tile ?? null);
@@ -6011,11 +6032,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (gift.id === 'laugh_bomb' && soundEnabled) {
                 giftBombSoundRef.current.currentTime = 0;
                 giftBombSoundRef.current.play().catch(() => {});
-                hahaSoundRef.current.currentTime = 0;
-                hahaSoundRef.current.play().catch(() => {});
-                setTimeout(() => {
-                  hahaSoundRef.current.pause();
-                }, 5000);
+                playHahaSound();
               } else if (gift.id === 'coffee_boost' && soundEnabled) {
                 const audio = new Audio(giftSound);
                 audio.volume = getGameVolume();
