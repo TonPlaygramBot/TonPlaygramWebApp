@@ -1644,8 +1644,8 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.052
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
-const TOKEN_MOVE_SPEED = 1.35;
-const TOKEN_STEP_DURATION_SECONDS = 0.7;
+const TOKEN_MOVE_SPEED = 2.45;
+const TOKEN_STEP_DURATION_SECONDS = 0.32;
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -3448,22 +3448,33 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return null;
   }, []);
 
+  const clearAnimationHighlights = useCallback(
+    (anim) => {
+      if (!anim || !Array.isArray(anim.activeHighlightTiles)) return;
+      anim.activeHighlightTiles.forEach((tile) => {
+        setTileHighlight(tile, false);
+      });
+      anim.activeHighlightTiles.length = 0;
+      anim.highlightIndex = -1;
+    },
+    [setTileHighlight]
+  );
+
   const updateAnimationHighlight = useCallback(
     (anim, nextIndex) => {
       if (!anim || !Array.isArray(anim.highlightTiles)) return;
-      if (anim.highlightIndex != null && anim.highlightIndex >= 0) {
-        const previous = anim.highlightTiles[anim.highlightIndex];
-        setTileHighlight(previous, false);
-      }
       if (nextIndex != null && nextIndex >= 0 && nextIndex < anim.highlightTiles.length) {
         const nextTile = anim.highlightTiles[nextIndex];
-        setTileHighlight(nextTile, true);
+        if (nextTile && Array.isArray(anim.activeHighlightTiles) && !anim.activeHighlightTiles.includes(nextTile)) {
+          setTileHighlight(nextTile, true);
+          anim.activeHighlightTiles.push(nextTile);
+        }
         anim.highlightIndex = nextIndex;
-      } else {
-        anim.highlightIndex = -1;
+        return;
       }
+      clearAnimationHighlights(anim);
     },
-    [setTileHighlight]
+    [clearAnimationHighlights, setTileHighlight]
   );
 
   const updateTokenStacks = useCallback(() => {
@@ -4629,7 +4640,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               force: true
             });
           }
-          updateAnimationHighlight(anim, -1);
+          clearAnimationHighlights(anim);
           state.animation = null;
           if (typeof done === 'function') done();
           updateTokenStacks();
@@ -4667,7 +4678,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   force: true
                 });
               }
-              updateAnimationHighlight(anim, -1);
+              clearAnimationHighlights(anim);
               state.animation = null;
               if (typeof done === 'function') done();
               updateTokenStacks();
@@ -5147,6 +5158,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       player,
       tokenIndex,
       highlightTiles,
+      activeHighlightTiles: [],
       highlightIndex: -1
     };
     playTokenStepSound();
