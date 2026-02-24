@@ -5495,7 +5495,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
+      <div className="absolute left-2 top-[5.35rem] z-20 flex flex-col items-start gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -5758,13 +5758,9 @@ function TexasHoldemArena({ search }) {
       <div className="pointer-events-auto">
         <BottomLeftIcons
           onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-          onCamera2d={() => {}}
           showInfo={false}
+          showGift={false}
           showMute={false}
-          showCamera2d={false}
-          camera2dActive={overheadView}
-          order={['chat', 'gift']}
           className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
@@ -5772,10 +5768,23 @@ function TexasHoldemArena({ search }) {
         />
 
         <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
+          onGift={() => setShowGift(true)}
+          showInfo={false}
+          showChat={false}
+          showMute={false}
+          order={['gift']}
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
+          buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
+          iconClassName="text-lg leading-none"
+          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+        />
+
+        <BottomLeftIcons
+          showInfo={false}
           showChat={false}
           showGift={false}
-          className="fixed right-[0.75rem] top-[calc(env(safe-area-inset-top,0px)+0.75rem)] flex flex-row gap-2.5 z-20"
+          order={['mute']}
+          className="fixed right-[0.75rem] top-[calc(env(safe-area-inset-top,0px)+5.2rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
