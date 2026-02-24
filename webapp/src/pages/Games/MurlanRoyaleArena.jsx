@@ -4640,36 +4640,28 @@ export default function MurlanRoyaleArena({ search }) {
             );
           })}
         </div>
-        <div className="pointer-events-none flex items-start justify-start px-4 pt-7">
-          <div className="pointer-events-none flex flex-col items-start gap-2">
+        <div
+          className="absolute z-30 pointer-events-auto"
+          style={{
+            top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+            left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
+          }}
+        >
+          <div className="relative">
             <button
               type="button"
               onClick={() => setConfigOpen((prev) => !prev)}
+              aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
               aria-expanded={configOpen}
-              className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+              className={`flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                configOpen ? 'border-white/30 text-white' : ''
               }`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-6 w-6"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-                />
-              </svg>
-              <span className="sr-only">Open table customization</span>
+              <span className="text-base leading-none">☰</span>
+              <span className="leading-none">Menu</span>
             </button>
             {configOpen && (
-              <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
+              <div className="absolute left-0 pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
@@ -4831,10 +4823,29 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="pointer-events-auto">
           <BottomLeftIcons
-            className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
+            className="fixed right-4 top-[4.9rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['mute', 'chat', 'gift']}
+            order={['mute']}
+            showChat={false}
+            showGift={false}
+            showInfo={false}
+          />
+          <BottomLeftIcons
+            className="fixed left-4 bottom-[10.2rem] z-20"
+            buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
+            order={['chat']}
+            showGift={false}
+            showInfo={false}
+            showMute={false}
             onChat={() => setShowChat(true)}
+          />
+          <BottomLeftIcons
+            className="fixed right-4 bottom-[10.2rem] z-20"
+            buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
+            order={['gift']}
+            showChat={false}
+            showInfo={false}
+            showMute={false}
             onGift={() => setShowGift(true)}
           />
         </div>
