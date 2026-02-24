@@ -9350,7 +9350,7 @@ function Chess3D({
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-16 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+        <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
             type="button"
             onClick={() => setConfigOpen((open) => !open)}
@@ -9375,15 +9375,20 @@ function Chess3D({
             </div>
           )}
         </div>
-        <div className="absolute top-16 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
+        <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
-            <button
-              type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-            >
-              {viewMode === '3d' ? '2D' : '3D'}
-            </button>
+            <BottomLeftIcons
+              showInfo={false}
+              showChat={false}
+              showGift={false}
+              className="flex flex-col"
+              buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+              iconClassName="text-[1.5rem] leading-none"
+              labelClassName="sr-only"
+              muteIconOn="🔇"
+              muteIconOff="🔊"
+              order={['mute']}
+            />
             <button
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
@@ -9409,18 +9414,13 @@ function Chess3D({
               </svg>
               <span className="sr-only">Replay last move</span>
             </button>
-            <BottomLeftIcons
-              showInfo={false}
-              showChat={false}
-              showGift={false}
-              className="flex flex-col"
-              buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-              iconClassName="text-[1.5rem] leading-none"
-              labelClassName="sr-only"
-              muteIconOn="🔇"
-              muteIconOff="🔊"
-              order={['mute']}
-            />
+            <button
+              type="button"
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            >
+              {viewMode === '3d' ? '2D' : '3D'}
+            </button>
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
