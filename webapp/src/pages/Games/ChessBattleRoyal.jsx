@@ -9312,30 +9312,16 @@ function Chess3D({
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-6 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+        <div className="absolute top-8 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
             type="button"
             onClick={() => setConfigOpen((open) => !open)}
             aria-expanded={configOpen}
-            className="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-              />
-            </svg>
-            <span className="sr-only">Open chess settings</span>
+            <span className="text-base leading-none" aria-hidden="true">☰</span>
+            <span className="leading-none">Menu</span>
           </button>
           {onlineStatus !== 'offline' && (
             <div className="pointer-events-none rounded border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100/90 shadow-lg backdrop-blur">
@@ -9353,6 +9339,13 @@ function Chess3D({
         </div>
         <div className="absolute top-6 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            >
+              {viewMode === '3d' ? '2D' : '3D'}
+            </button>
             <button
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
@@ -9378,13 +9371,18 @@ function Chess3D({
               </svg>
               <span className="sr-only">Replay last move</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-            >
-              {viewMode === '3d' ? '2D' : '3D'}
-            </button>
+            <BottomLeftIcons
+              showInfo={false}
+              showChat={false}
+              showGift={false}
+              className="flex flex-col"
+              buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+              iconClassName="text-[1.5rem] leading-none"
+              labelClassName="sr-only"
+              muteIconOn="🔇"
+              muteIconOff="🔊"
+              order={['mute']}
+            />
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
@@ -9751,28 +9749,28 @@ function Chess3D({
         </div>
         <div className="pointer-events-auto">
           <BottomLeftIcons
-            onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             showInfo={false}
+            showChat={false}
             showMute={false}
-            className="fixed left-3 bottom-6 z-50 flex flex-col gap-4"
+            className="fixed right-3 bottom-24 z-50 flex flex-col gap-4"
+            buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            iconClassName="text-[1.5rem] leading-none"
+            labelClassName="sr-only"
+            giftIcon="🎁"
+            order={['gift']}
+          />
+          <BottomLeftIcons
+            onChat={() => setShowChat(true)}
+            showInfo={false}
+            showGift={false}
+            showMute={false}
+            className="fixed left-3 bottom-24 z-50 flex flex-col"
             buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.5rem] leading-none"
             labelClassName="sr-only"
             chatIcon="💬"
-            giftIcon="🎁"
-          />
-          <BottomLeftIcons
-            showInfo={false}
-            showChat={false}
-            showGift={false}
-            className="fixed right-3 bottom-6 z-50 flex flex-col"
-            buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-            iconClassName="text-[1.5rem] leading-none"
-            labelClassName="sr-only"
-            muteIconOn="🔇"
-            muteIconOff="🔊"
-            order={['mute']}
+            order={['chat']}
           />
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
