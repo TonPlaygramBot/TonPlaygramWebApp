@@ -9337,7 +9337,7 @@ function Chess3D({
             </div>
           )}
         </div>
-        <div className="absolute top-8 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
+        <div className="absolute top-16 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
             <button
               type="button"
