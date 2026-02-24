@@ -67,16 +67,37 @@ export default function DominoRoyalArena() {
           align-items: center;
           gap: 0.5rem;
         }
+        #muteButton {
+          top: calc(4.1rem + env(safe-area-inset-top, 0px)) !important;
+          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
+          left: auto !important;
+          bottom: auto !important;
+        }
         #configButton span:first-child { font-size: 1.05rem; line-height: 1; }
         #configButton span:last-child { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
         #railControls {
           bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
         }
         #quickActions {
-          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
+          inset: 0 !important;
           left: auto !important;
+          right: auto !important;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
+          display: block !important;
+          pointer-events: none;
+        }
+        #quickActions .quick-action {
+          pointer-events: auto;
+        }
+        #quickActions .quick-action[data-action='gift'] {
           right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
-          gap: 0.5rem;
+          left: auto !important;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
+        }
+        #quickActions .quick-action[data-action='chat'] {
+          left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
+          right: auto !important;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
         }
       `}</style>
       <div id="topRightActions" aria-label="Top actions">
@@ -91,13 +112,13 @@ export default function DominoRoyalArena() {
         <button id="pass" type="button">Pass</button>
       </div>
       <div id="quickActions" aria-label="Quick actions">
-        <button className="quick-action" type="button" data-action="chat">
-          <span className="icon" aria-hidden="true">💬</span>
-          <span>Chat</span>
-        </button>
         <button className="quick-action" type="button" data-action="gift">
           <span className="icon" aria-hidden="true">🎁</span>
           <span>Gift</span>
+        </button>
+        <button className="quick-action" type="button" data-action="chat">
+          <span className="icon" aria-hidden="true">💬</span>
+          <span>Chat</span>
         </button>
       </div>
       <div id="rules">
