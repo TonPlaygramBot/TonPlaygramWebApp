@@ -4249,11 +4249,16 @@ export default function MurlanRoyaleArena({ search }) {
       controls.enableDamping = true;
       controls.enablePan = false;
       controls.enableZoom = false;
-      controls.enableRotate = false;
+      controls.enableRotate = true;
       controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-      controls.minAzimuthAngle = -Infinity;
-      controls.maxAzimuthAngle = Infinity;
+      const cameraOffset = camera.position.clone().sub(target);
+      const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
+      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
+      controls.minPolarAngle = cameraSpherical.phi;
+      controls.maxPolarAngle = cameraSpherical.phi;
+      controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
+      controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
       controls.minDistance = desiredRadius;
       controls.maxDistance = desiredRadius;
       controls.rotateSpeed = 0.6;
@@ -4609,10 +4614,10 @@ export default function MurlanRoyaleArena({ search }) {
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y}%`,
+                  top: `${anchor.y + (idx === humanPlayerIndex ? -2.2 : 0)}%`,
                   transform: 'translate(-50%, -50%)'
                 }
-              : { position: 'absolute', left: fallback.left, top: fallback.top, transform: 'translate(-50%, -50%)' };
+              : { position: 'absolute', left: fallback.left, top: idx === humanPlayerIndex ? '76.8%' : fallback.top, transform: 'translate(-50%, -50%)' };
             const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
@@ -4831,7 +4836,7 @@ export default function MurlanRoyaleArena({ search }) {
             showInfo={false}
           />
           <BottomLeftIcons
-            className="fixed left-4 bottom-[10.8rem] z-20"
+            className="fixed left-4 bottom-[8.8rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
             iconClassName="text-2xl"
             order={['chat']}
@@ -4841,7 +4846,7 @@ export default function MurlanRoyaleArena({ search }) {
             onChat={() => setShowChat(true)}
           />
           <BottomLeftIcons
-            className="fixed right-4 bottom-[10.8rem] z-20"
+            className="fixed right-4 bottom-[8.8rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
             iconClassName="text-2xl"
             order={['gift']}
@@ -4851,16 +4856,18 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        <div className="pointer-events-none absolute left-1/2 top-[66%] z-20 w-[min(92vw,34rem)] -translate-x-1/2 text-center">
-          <p className="text-sm font-semibold tracking-wide text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
-          {uiState.tableSummary && (
-            <p className="mt-1 text-xs italic tracking-wide text-sky-100/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
-          )}
-          {actionError && <p className="mt-1 text-xs font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+        <div className="pointer-events-none absolute left-1/2 top-[63.8%] z-20 w-[min(94vw,36rem)] -translate-x-1/2 text-center">
+          <div className="rounded-2xl border border-sky-200/50 bg-[linear-gradient(160deg,rgba(8,47,73,0.8),rgba(15,23,42,0.78))] px-4 py-3 shadow-[0_10px_36px_rgba(2,132,199,0.3),inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-[2px]">
+            <p className="text-base font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+            {uiState.tableSummary && (
+              <p className="mt-1 text-sm italic tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+            )}
+            {actionError && <p className="mt-2 text-sm font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+          </div>
         </div>
-        <div className="mt-auto px-3 pb-5 pointer-events-none">
+        <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="mb-3 flex min-h-[6.25rem] items-end justify-center overflow-x-auto px-2 py-1">
+            <div className="mb-2 flex min-h-[6.5rem] items-end justify-center overflow-x-auto px-2 py-1">
               <div className="flex min-w-max items-end justify-center">
                 {humanHand.map((card, index) => {
                   const selected = selectedIds.includes(card.id);
@@ -4870,24 +4877,24 @@ export default function MurlanRoyaleArena({ search }) {
                       type="button"
                       key={card.id}
                       onClick={() => toggleSelection(card.id)}
-                      className={`relative h-24 w-16 shrink-0 rounded-xl border-2 bg-white text-left shadow-[0_8px_22px_rgba(0,0,0,0.45)] transition-transform ${
+                      className={`relative h-28 w-20 shrink-0 rounded-xl border-2 bg-white text-left shadow-[0_8px_22px_rgba(0,0,0,0.45)] transition-transform ${
                         selected
                           ? '-translate-y-3 border-sky-300 ring-2 ring-sky-300/70'
                           : 'border-slate-300 hover:-translate-y-1'
                       }`}
-                      style={{ marginLeft: index === 0 ? 0 : -40, zIndex: 10 + index }}
+                      style={{ marginLeft: index === 0 ? 0 : -48, zIndex: 10 + index }}
                       disabled={!uiState.humanTurn}
                     >
-                      <span className={`absolute left-1.5 top-1.5 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <span className={`absolute left-1.5 top-1.5 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.rank}
                       </span>
-                      <span className={`absolute left-2 top-5 text-sm leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <span className={`absolute left-2 top-6 text-base leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.suit}
                       </span>
-                      <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-2xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-3xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.suit}
                       </span>
-                      <span className={`absolute bottom-1.5 right-1.5 rotate-180 text-sm font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <span className={`absolute bottom-1.5 right-1.5 rotate-180 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
                         {card.rank}
                       </span>
                     </button>
@@ -4895,7 +4902,7 @@ export default function MurlanRoyaleArena({ search }) {
                 })}
               </div>
             </div>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="fixed bottom-[8.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
