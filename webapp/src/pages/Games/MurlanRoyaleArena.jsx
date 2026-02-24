@@ -4648,7 +4648,7 @@ export default function MurlanRoyaleArena({ search }) {
         <div
           className="absolute z-30 pointer-events-auto"
           style={{
-            top: 'calc(4.8rem + env(safe-area-inset-top, 0px))',
+            top: 'calc(6.2rem + env(safe-area-inset-top, 0px))',
             left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
           }}
         >
@@ -4836,7 +4836,7 @@ export default function MurlanRoyaleArena({ search }) {
             showInfo={false}
           />
           <BottomLeftIcons
-            className="fixed left-4 bottom-[8.8rem] z-20"
+            className="fixed left-4 bottom-[10.2rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
             iconClassName="text-2xl"
             order={['chat']}
@@ -4846,7 +4846,7 @@ export default function MurlanRoyaleArena({ search }) {
             onChat={() => setShowChat(true)}
           />
           <BottomLeftIcons
-            className="fixed right-4 bottom-[8.8rem] z-20"
+            className="fixed right-4 bottom-[10.2rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
             iconClassName="text-2xl"
             order={['gift']}
@@ -4856,11 +4856,11 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        <div className="pointer-events-none absolute left-1/2 top-[63.8%] z-20 w-[min(94vw,36rem)] -translate-x-1/2 text-center">
-          <div className="rounded-2xl border border-sky-200/50 bg-[linear-gradient(160deg,rgba(8,47,73,0.8),rgba(15,23,42,0.78))] px-4 py-3 shadow-[0_10px_36px_rgba(2,132,199,0.3),inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-[2px]">
-            <p className="text-base font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+        <div className="pointer-events-none absolute left-1/2 top-[61.8%] z-20 w-[min(96vw,39rem)] -translate-x-1/2 text-center">
+          <div className="rounded-3xl border border-sky-200/60 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.26),rgba(12,23,42,0.92)_60%)] px-5 py-4 shadow-[0_14px_44px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-[3px]">
+            <p className="text-lg font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
             {uiState.tableSummary && (
-              <p className="mt-1 text-sm italic tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+              <p className="mt-1 text-base font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
             )}
             {actionError && <p className="mt-2 text-sm font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
           </div>
@@ -4882,7 +4882,7 @@ export default function MurlanRoyaleArena({ search }) {
                           ? '-translate-y-3 border-sky-300 ring-2 ring-sky-300/70'
                           : 'border-slate-300 hover:-translate-y-1'
                       }`}
-                      style={{ marginLeft: index === 0 ? 0 : -48, zIndex: 10 + index }}
+                      style={{ marginLeft: index === 0 ? 0 : -56, zIndex: 10 + index }}
                       disabled={!uiState.humanTurn}
                     >
                       <span className={`absolute left-1.5 top-1.5 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
@@ -4902,7 +4902,7 @@ export default function MurlanRoyaleArena({ search }) {
                 })}
               </div>
             </div>
-            <div className="fixed bottom-[8.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
+            <div className="fixed bottom-[10.2rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
@@ -5297,48 +5297,51 @@ function computeUiState(state) {
   }
 
   if (state.tableCards.length) {
-    const description = describeCombo(state.tableCombo, state.tableCards);
+    const description = describeSimpleCombo(state.tableCombo, state.tableCards);
     if (description) {
       const owner = state.lastWinner != null ? state.players[state.lastWinner]?.name : null;
-      tableSummary = owner ? `${owner} played ${description}` : description;
+      tableSummary = owner ? `${owner}: ${description}` : description;
     }
   }
 
   return { scoreboard, message, tableSummary, humanTurn, status: state.status };
 }
 
-function describeCombo(combo, cards) {
+function describeSimpleCombo(combo, cards) {
   if (!cards?.length) return '';
+  const shownCards = cards.slice(0, 5).map((card) => cardLabel(card)).join(' ');
   if (!combo) {
-    return cards.map((card) => cardLabel(card)).join(' ');
+    return shownCards;
   }
+
+  const extra = cards.length > 5 ? ` +${cards.length - 5}` : '';
   switch (combo.type) {
     case ComboType.SINGLE:
-      return `a ${cardLabel(cards[0])}`;
+      return `Card ${cardLabel(cards[0])}`;
     case ComboType.PAIR:
-      return `pair ${combo.keyRank}`;
+      return `Pair ${shownCards}${extra}`;
     case ComboType.TRIPS:
-      return `trips ${combo.keyRank}`;
+      return `Trips ${shownCards}${extra}`;
     case ComboType.BOMB_4K:
-      return `bomb ${combo.keyRank}`;
+      return `Bomb ${shownCards}${extra}`;
     case ComboType.STRAIGHT:
-      return `straight ${cardLabel(cards[0])} - ${cardLabel(cards[cards.length - 1])}`;
+      return `Straight ${shownCards}${extra}`;
     case ComboType.FLUSH:
-      return `flush with ${cards.length} cards`;
+      return `Flush ${shownCards}${extra}`;
     case ComboType.FULL_HOUSE:
-      return 'full house';
+      return `Full house ${shownCards}${extra}`;
     case ComboType.STRAIGHT_FLUSH:
-      return 'straight flush';
+      return `Straight flush ${shownCards}${extra}`;
     default:
-      return cards.map((card) => cardLabel(card)).join(' ');
+      return `${shownCards}${extra}`;
   }
 }
 
 function cardLabel(card) {
   if (!card) return '';
-  if (card.rank === 'JR') return 'Red Joker';
-  if (card.rank === 'JB') return 'Black Joker';
-  return `${card.rank}`;
+  if (card.rank === 'JR') return '🃏R';
+  if (card.rank === 'JB') return '🃏B';
+  return `${card.rank}${card.suit || ''}`;
 }
 
 function buildPlayers(search) {
