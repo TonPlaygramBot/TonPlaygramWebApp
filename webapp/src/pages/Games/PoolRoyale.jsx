@@ -31117,7 +31117,7 @@ const powerRef = useRef(hud.power);
   );
 
   return (
-    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div className="w-full h-app-live bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
