@@ -69,14 +69,27 @@ export default function DominoRoyalArena() {
         }
         #configButton span:first-child { font-size: 1.05rem; line-height: 1; }
         #configButton span:last-child { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
+        #muteButton {
+          top: calc(4.1rem + env(safe-area-inset-top, 0px)) !important;
+          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
+          left: auto !important;
+          bottom: auto !important;
+        }
         #railControls {
           bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
         }
         #quickActions {
+          position: static !important;
+        }
+        #quickActions .quick-action {
+          position: fixed !important;
           bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
-          left: auto !important;
+        }
+        #quickActions .quick-action[data-action="gift"] {
           right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
-          gap: 0.5rem;
+        }
+        #quickActions .quick-action[data-action="chat"] {
+          left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
         }
       `}</style>
       <div id="topRightActions" aria-label="Top actions">
@@ -91,13 +104,13 @@ export default function DominoRoyalArena() {
         <button id="pass" type="button">Pass</button>
       </div>
       <div id="quickActions" aria-label="Quick actions">
-        <button className="quick-action" type="button" data-action="chat">
-          <span className="icon" aria-hidden="true">💬</span>
-          <span>Chat</span>
-        </button>
         <button className="quick-action" type="button" data-action="gift">
           <span className="icon" aria-hidden="true">🎁</span>
           <span>Gift</span>
+        </button>
+        <button className="quick-action" type="button" data-action="chat">
+          <span className="icon" aria-hidden="true">💬</span>
+          <span>Chat</span>
         </button>
       </div>
       <div id="rules">
