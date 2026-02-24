@@ -2644,6 +2644,20 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
   }, {})
 );
 
+const POLYHAVEN_ASSET_ALIASES = Object.freeze({
+  rosewood_veneer_01: 'rosewood_veneer1'
+});
+
+const polyHavenTextureSet = (assetId) => {
+  const resolvedId = POLYHAVEN_ASSET_ALIASES[assetId] ?? assetId;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${resolvedId}/${resolvedId}`;
+  return {
+    mapUrl: `${base}_diff_2k.jpg`,
+    roughnessMapUrl: `${base}_rough_2k.jpg`,
+    normalMapUrl: `${base}_nor_gl_2k.jpg`
+  };
+};
+
 const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'estateBands',
@@ -2671,6 +2685,86 @@ const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: 0.24, y: 0.38 },
       rotation: Math.PI / 2,
       textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'wood_peeling_paint_weathered',
+    label: 'Wood Peeling Paint Weathered',
+    rail: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('wood_peeling_paint_weathered')
+    },
+    frame: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('wood_peeling_paint_weathered')
+    }
+  }),
+  Object.freeze({
+    id: 'oak_veneer_01',
+    label: 'Oak Veneer 01',
+    rail: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('oak_veneer_01')
+    },
+    frame: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('oak_veneer_01')
+    }
+  }),
+  Object.freeze({
+    id: 'wood_table_001',
+    label: 'Wood Table 001',
+    rail: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('wood_table_001')
+    },
+    frame: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('wood_table_001')
+    }
+  }),
+  Object.freeze({
+    id: 'dark_wood',
+    label: 'Dark Wood',
+    rail: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('dark_wood')
+    },
+    frame: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('dark_wood')
+    }
+  }),
+  Object.freeze({
+    id: 'rosewood_veneer_01',
+    label: 'Rosewood Veneer 01',
+    rail: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('rosewood_veneer_01')
+    },
+    frame: {
+      repeat: { x: 1, y: 1 },
+      rotation: 0,
+      textureSize: 2048,
+      ...polyHavenTextureSet('rosewood_veneer_01')
     }
   })
 ]);
@@ -2787,10 +2881,18 @@ function disposeWoodTextures(material) {
   if (!material) return;
   const textures = material.userData?.__woodTextures;
   if (textures) {
-    const { map, roughnessMap } = textures;
+    const { map, roughnessMap, normalMap } = textures;
     if (map?.dispose) map.dispose();
     if (roughnessMap && roughnessMap !== map && roughnessMap.dispose) {
       roughnessMap.dispose();
+    }
+    if (
+      normalMap &&
+      normalMap !== map &&
+      normalMap !== roughnessMap &&
+      normalMap.dispose
+    ) {
+      normalMap.dispose();
     }
     delete material.userData.__woodTextures;
   }
@@ -2804,8 +2906,17 @@ function disposeWoodTextures(material) {
   ) {
     material.roughnessMap.dispose();
   }
+  if (
+    material.normalMap &&
+    material.normalMap !== material.map &&
+    material.normalMap !== material.roughnessMap &&
+    material.normalMap.dispose
+  ) {
+    material.normalMap.dispose();
+  }
   material.map = null;
   material.roughnessMap = null;
+  material.normalMap = null;
 }
 
 function cloneWoodTexture(texture, repeatVec, rotation) {
@@ -2890,7 +3001,10 @@ function applyWoodTextures(
     roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
     roughnessBase = 0.18,
     roughnessVariance = 0.25,
-    sharedKey = null
+    sharedKey = null,
+    mapUrl,
+    roughnessMapUrl,
+    normalMapUrl
   } = {}
 ) {
   if (!material) return null;
@@ -2927,12 +3041,35 @@ function applyWoodTextures(
             roughnessVariance
           )
         };
-    map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
-    roughnessMap = cloneWoodTexture(
-      baseTextures.roughnessMap,
-      repeatVec,
-      rotation
-    );
+    if (mapUrl) {
+      const decorate = (texture, isColor = false) => {
+        if (!texture) return null;
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.copy(repeatVec);
+        texture.center.set(0.5, 0.5);
+        texture.rotation = typeof rotation === 'number' ? rotation : 0;
+        texture.anisotropy = Math.max(texture.anisotropy ?? 1, 8);
+        if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+        return texture;
+      };
+      map = decorate(textureLoader.load(mapUrl), true);
+      roughnessMap = roughnessMapUrl
+        ? decorate(textureLoader.load(roughnessMapUrl), false)
+        : null;
+      const normalMap = normalMapUrl
+        ? decorate(textureLoader.load(normalMapUrl), false)
+        : null;
+      material.normalMap = normalMap;
+    } else {
+      map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
+      roughnessMap = cloneWoodTexture(
+        baseTextures.roughnessMap,
+        repeatVec,
+        rotation
+      );
+      material.normalMap = null;
+    }
     if (map) {
       map.colorSpace = THREE.SRGBColorSpace;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
@@ -2950,7 +3087,8 @@ function applyWoodTextures(
   material.userData = material.userData || {};
   material.userData.__woodTextures = {
     map: material.map,
-    roughnessMap: material.roughnessMap
+    roughnessMap: material.roughnessMap,
+    normalMap: material.normalMap
   };
   material.userData.__woodOptions = {
     hue,
