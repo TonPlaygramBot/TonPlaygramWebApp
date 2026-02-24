@@ -8827,15 +8827,21 @@ function openGiftModal() {
 updateQuickActionMute();
 
 /* ---------- Rules panel handlers ---------- */
-btnRules.addEventListener('click', () => {
-  panelRules.style.display = 'flex';
-});
-closeRules.addEventListener('click', () => {
-  panelRules.style.display = 'none';
-});
-panelRules.addEventListener('click', (e) => {
-  if (e.target === panelRules) panelRules.style.display = 'none';
-});
+if (btnRules && panelRules) {
+  btnRules.addEventListener('click', () => {
+    panelRules.style.display = 'flex';
+  });
+}
+if (closeRules && panelRules) {
+  closeRules.addEventListener('click', () => {
+    panelRules.style.display = 'none';
+  });
+}
+if (panelRules) {
+  panelRules.addEventListener('click', (e) => {
+    if (e.target === panelRules) panelRules.style.display = 'none';
+  });
+}
 if (quickActions) {
   quickActions.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
