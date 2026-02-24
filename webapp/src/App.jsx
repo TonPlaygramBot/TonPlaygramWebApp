@@ -54,6 +54,7 @@ import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useTelegramFullscreen from './hooks/useTelegramFullscreen.js';
+import useMobileFullscreen from './hooks/useMobileFullscreen.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
 import useNativePushNotifications from './hooks/useNativePushNotifications.js';
 import { BOT_USERNAME } from './utils/constants.js';
@@ -82,6 +83,7 @@ export default function App() {
 
   useTelegramAuth();
   useTelegramFullscreen();
+  useMobileFullscreen();
   useReferralClaim();
   useNativePushNotifications();
 
