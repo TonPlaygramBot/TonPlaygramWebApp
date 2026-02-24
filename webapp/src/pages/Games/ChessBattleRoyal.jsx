@@ -283,7 +283,7 @@ const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '88%' },
+  { left: '50%', top: '85%' },
   { left: '50%', top: '12%' }
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -9312,7 +9312,7 @@ function Chess3D({
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-8 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+        <div className="absolute top-16 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
             type="button"
             onClick={() => setConfigOpen((open) => !open)}
@@ -9337,7 +9337,7 @@ function Chess3D({
             </div>
           )}
         </div>
-        <div className="absolute top-6 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
+        <div className="absolute top-16 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
             <button
               type="button"
@@ -9753,9 +9753,9 @@ function Chess3D({
             showInfo={false}
             showChat={false}
             showMute={false}
-            className="fixed right-3 bottom-24 z-50 flex flex-col gap-4"
-            buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-            iconClassName="text-[1.5rem] leading-none"
+            className="fixed right-3 bottom-28 z-50 flex flex-col gap-4"
+            buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            iconClassName="text-[1.65rem] leading-none"
             labelClassName="sr-only"
             giftIcon="🎁"
             order={['gift']}
@@ -9765,9 +9765,9 @@ function Chess3D({
             showInfo={false}
             showGift={false}
             showMute={false}
-            className="fixed left-3 bottom-24 z-50 flex flex-col"
-            buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-            iconClassName="text-[1.5rem] leading-none"
+            className="fixed left-3 bottom-28 z-50 flex flex-col"
+            buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            iconClassName="text-[1.65rem] leading-none"
             labelClassName="sr-only"
             chatIcon="💬"
             order={['chat']}
@@ -9818,14 +9818,14 @@ function Chess3D({
             );
           })}
         </div>
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
       </div>
       {chatBubbles.map((bubble) => (
-        <div key={bubble.id} className="chat-bubble">
+        <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
           <span>{bubble.text}</span>
           <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>

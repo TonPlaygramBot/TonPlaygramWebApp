@@ -1686,6 +1686,10 @@ input:focus {
   transform: none;
 }
 
+.chess-battle-chat-bubble {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5.6rem);
+}
+
 
 /* Rolling dice animation */
 .dice-screen-animation {
