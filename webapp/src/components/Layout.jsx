@@ -152,7 +152,10 @@ export default function Layout({ children }) {
   const showPwaBanner = showNavbar && (canInstall || canShowTelegramInstall);
 
   return (
-    <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
+    <div
+      className="flex flex-col text-text relative overflow-hidden"
+      style={{ minHeight: "var(--tg-viewport-stable-height, var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh)))" }}
+    >
       {showHeader && (
         <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-0.5">
           <img
@@ -166,8 +169,8 @@ export default function Layout({ children }) {
         className={`flex-grow ${
           showNavbar
             ? isLobby
-              ? 'w-full p-4 pb-24'
-              : 'container mx-auto p-4 pb-24'
+              ? 'w-full p-4 pb-28'
+              : 'container mx-auto p-4 pb-28'
             : 'w-full p-0'
         }`}
       >
