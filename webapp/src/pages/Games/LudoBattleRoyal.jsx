@@ -5663,26 +5663,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               type="button"
               onClick={() => setConfigOpen((prev) => !prev)}
               aria-expanded={configOpen}
-              aria-label="Open menu"
-              className="flex h-10 w-10 items-center justify-center bg-transparent text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
+              className="flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-6 w-6"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-                />
-              </svg>
-              <span className="sr-only">Open menu</span>
+              <span className="text-base leading-none">☰</span>
+              <span className="leading-none">Menu</span>
             </button>
           </div>
           {configOpen && (
@@ -5920,24 +5905,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         />
         <BottomLeftIcons
           onChat={() => setShowChat(true)}
-          className="absolute bottom-8 left-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute bottom-14 left-3 z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
           showGift={false}
           showMute={false}
-          buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          iconClassName="text-2xl"
-          labelClassName="sr-only"
+          buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="text-[1.35rem] leading-none"
+          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em] leading-none"
+          chatIcon="💬"
         />
         <BottomLeftIcons
           onGift={() => setShowGift(true)}
-          className="absolute bottom-6 right-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute bottom-14 right-3 z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
           showChat={false}
           showMute={false}
           order={['gift']}
-          buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          iconClassName="text-2xl"
-          labelClassName="sr-only"
+          buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="text-[1.35rem] leading-none"
+          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em] leading-none"
+          giftIcon="🎁"
         />
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
