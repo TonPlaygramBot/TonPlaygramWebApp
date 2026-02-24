@@ -4643,7 +4643,7 @@ export default function MurlanRoyaleArena({ search }) {
         <div
           className="absolute z-30 pointer-events-auto"
           style={{
-            top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+            top: 'calc(4.8rem + env(safe-area-inset-top, 0px))',
             left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
           }}
         >
@@ -4831,8 +4831,9 @@ export default function MurlanRoyaleArena({ search }) {
             showInfo={false}
           />
           <BottomLeftIcons
-            className="fixed left-4 bottom-[10.2rem] z-20"
+            className="fixed left-4 bottom-[10.8rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
+            iconClassName="text-2xl"
             order={['chat']}
             showGift={false}
             showInfo={false}
@@ -4840,8 +4841,9 @@ export default function MurlanRoyaleArena({ search }) {
             onChat={() => setShowChat(true)}
           />
           <BottomLeftIcons
-            className="fixed right-4 bottom-[10.2rem] z-20"
+            className="fixed right-4 bottom-[10.8rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
+            iconClassName="text-2xl"
             order={['gift']}
             showChat={false}
             showInfo={false}
