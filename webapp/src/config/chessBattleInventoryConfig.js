@@ -65,8 +65,8 @@ const mapStoolThemeToChair = (theme) => ({
 });
 
 export const CHESS_CHAIR_OPTIONS = Object.freeze([
-  ...BASE_CHAIR_OPTIONS,
-  ...MURLAN_STOOL_THEMES.map(mapStoolThemeToChair)
+  ...MURLAN_STOOL_THEMES.map(mapStoolThemeToChair),
+  ...BASE_CHAIR_OPTIONS
 ]);
 
 export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
