@@ -3420,16 +3420,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (active) {
       if (tile.material.emissive) {
         if (tokenColor) {
-          tile.material.emissive.copy(tokenColor);
+          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.12);
         } else if (data.highlightEmissive) {
           tile.material.emissive.copy(data.highlightEmissive);
         }
       }
-      tile.material.emissiveIntensity = tokenColor ? Math.max(data.baseIntensity + 0.88, 0.9) : data.highlightIntensity;
+      if (tile.material.color && tokenColor) {
+        tile.material.color.copy(data.baseColor).lerp(tokenColor, 0.55);
+      } else if (tile.material.color && data.highlightColor) {
+        tile.material.color.copy(data.highlightColor);
+      }
+      tile.material.emissiveIntensity = tokenColor ? Math.max(data.baseIntensity + 1.08, 1.05) : data.highlightIntensity;
       data.isHighlighted = true;
     } else {
       if (tile.material.emissive && data.baseEmissive) {
         tile.material.emissive.copy(data.baseEmissive);
+      }
+      if (tile.material.color && data.baseColor) {
+        tile.material.color.copy(data.baseColor);
       }
       tile.material.emissiveIntensity = data.baseIntensity;
       data.isHighlighted = false;
@@ -5657,7 +5665,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           </div>
         ) : null}
-        <div className="absolute top-[4.5rem] left-4 z-20 flex flex-col items-start gap-3">
+        <div className="absolute top-[5rem] left-3 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
               type="button"
@@ -5866,7 +5874,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           )}
         </div>
         <BottomLeftIcons
-          className="absolute right-4 top-[4.5rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute right-4 top-[5.2rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
           showChat={false}
           showGift={false}
@@ -5890,7 +5898,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           )}
         />
         <BottomLeftIcons
-          className="absolute right-4 top-[8rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute right-4 top-[8.7rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
           showChat={false}
           showGift={false}
@@ -6140,14 +6148,17 @@ async function buildLudoBoard(
     const baseEmissive = mat?.emissive?.clone?.() ?? new THREE.Color(0x000000);
     const baseIntensity = mat?.emissiveIntensity ?? 0;
     const baseColor = mat?.color?.clone?.() ?? new THREE.Color(0xffffff);
+    const highlightColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.16).offsetHSL(0.01, 0.22, 0.06);
     const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
     mesh.userData = {
       ...mesh.userData,
       boardTile: {
+        baseColor,
+        highlightColor,
         baseEmissive,
         baseIntensity,
         highlightEmissive,
-        highlightIntensity: Math.max(baseIntensity + 0.7, 0.75)
+        highlightIntensity: Math.max(baseIntensity + 0.85, 0.9)
       }
     };
   };

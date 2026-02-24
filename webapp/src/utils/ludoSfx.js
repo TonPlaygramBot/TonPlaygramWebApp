@@ -31,15 +31,73 @@ function scheduleTone(ctx, { startAt, duration, fromHz, toHz, volume = 0.4, type
   osc.stop(startAt + duration + 0.02);
 }
 
+function scheduleNoiseBurst(ctx, { startAt, duration, volume = 0.2, bandHz = 1800 }) {
+  const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
+  const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const t = i / sampleCount;
+    const contour = 0.45 + 0.55 * Math.sin(Math.PI * t);
+    data[i] = (Math.random() * 2 - 1) * contour;
+  }
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(Math.max(300, bandHz), startAt);
+  filter.Q.setValueAtTime(1.2, startAt);
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), startAt + Math.min(0.03, duration * 0.4));
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  source.start(startAt);
+  source.stop(startAt + duration + 0.01);
+}
+
 export function playLudoDiceRollSfx({ volume = 1, muted = false } = {}) {
   if (muted || volume <= 0) return;
   const ctx = getAudioContext();
   if (!ctx) return;
-  const now = ctx.currentTime + 0.005;
-  const v = Math.min(0.4, Math.max(0.08, volume * 0.3));
-  scheduleTone(ctx, { startAt: now, duration: 0.08, fromHz: 420, toHz: 260, volume: v, type: 'square' });
-  scheduleTone(ctx, { startAt: now + 0.06, duration: 0.09, fromHz: 390, toHz: 210, volume: v * 0.9, type: 'square' });
-  scheduleTone(ctx, { startAt: now + 0.12, duration: 0.12, fromHz: 300, toHz: 140, volume: v * 0.85, type: 'triangle' });
+  const now = ctx.currentTime + 0.004;
+  const baseVolume = Math.min(0.42, Math.max(0.12, volume * 0.32));
+
+  scheduleNoiseBurst(ctx, {
+    startAt: now,
+    duration: 0.22,
+    volume: baseVolume * 0.72,
+    bandHz: 1450
+  });
+
+  const impacts = [0.026, 0.072, 0.116, 0.162, 0.204];
+  impacts.forEach((offset, index) => {
+    const decay = 1 - index * 0.12;
+    const impactVolume = baseVolume * (0.7 + Math.random() * 0.25) * decay;
+    const impactStart = now + offset + (Math.random() - 0.5) * 0.01;
+    scheduleTone(ctx, {
+      startAt: impactStart,
+      duration: 0.045 + Math.random() * 0.02,
+      fromHz: 430 - index * 34 + Math.random() * 18,
+      toHz: 170 + Math.random() * 45,
+      volume: impactVolume,
+      type: index % 2 === 0 ? 'triangle' : 'sine'
+    });
+  });
+
+  scheduleTone(ctx, {
+    startAt: now + 0.19,
+    duration: 0.12,
+    fromHz: 220,
+    toHz: 96,
+    volume: baseVolume * 0.42,
+    type: 'triangle'
+  });
 }
 
 export function playLudoTokenStepSfx({ volume = 1, muted = false } = {}) {
