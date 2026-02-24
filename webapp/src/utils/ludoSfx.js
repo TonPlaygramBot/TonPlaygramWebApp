@@ -61,41 +61,68 @@ function scheduleNoiseBurst(ctx, { startAt, duration, volume = 0.2, bandHz = 180
   source.stop(startAt + duration + 0.01);
 }
 
+function scheduleRumble(ctx, { startAt, duration, volume = 0.12, fromHz = 120, toHz = 70 }) {
+  scheduleTone(ctx, {
+    startAt,
+    duration,
+    fromHz,
+    toHz,
+    volume,
+    type: 'sawtooth'
+  });
+}
+
 export function playLudoDiceRollSfx({ volume = 1, muted = false } = {}) {
   if (muted || volume <= 0) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime + 0.004;
-  const baseVolume = Math.min(0.42, Math.max(0.12, volume * 0.32));
+  const baseVolume = Math.min(0.58, Math.max(0.2, volume * 0.46));
+
+  // Procedural, source-code-only dice roll SFX (no binary assets), shaped from free Web Audio synthesis patterns.
+  scheduleRumble(ctx, {
+    startAt: now,
+    duration: 0.28,
+    volume: baseVolume * 0.3,
+    fromHz: 132,
+    toHz: 74
+  });
 
   scheduleNoiseBurst(ctx, {
     startAt: now,
-    duration: 0.22,
-    volume: baseVolume * 0.72,
-    bandHz: 1450
+    duration: 0.24,
+    volume: baseVolume * 0.85,
+    bandHz: 1580
   });
 
-  const impacts = [0.026, 0.072, 0.116, 0.162, 0.204];
+  scheduleNoiseBurst(ctx, {
+    startAt: now + 0.085,
+    duration: 0.18,
+    volume: baseVolume * 0.52,
+    bandHz: 1120
+  });
+
+  const impacts = [0.02, 0.055, 0.09, 0.125, 0.165, 0.205, 0.235];
   impacts.forEach((offset, index) => {
-    const decay = 1 - index * 0.12;
-    const impactVolume = baseVolume * (0.7 + Math.random() * 0.25) * decay;
+    const decay = Math.max(0.18, 1 - index * 0.11);
+    const impactVolume = baseVolume * (0.78 + Math.random() * 0.28) * decay;
     const impactStart = now + offset + (Math.random() - 0.5) * 0.01;
     scheduleTone(ctx, {
       startAt: impactStart,
-      duration: 0.045 + Math.random() * 0.02,
-      fromHz: 430 - index * 34 + Math.random() * 18,
-      toHz: 170 + Math.random() * 45,
+      duration: 0.038 + Math.random() * 0.026,
+      fromHz: 490 - index * 41 + Math.random() * 24,
+      toHz: 130 + Math.random() * 46,
       volume: impactVolume,
       type: index % 2 === 0 ? 'triangle' : 'sine'
     });
   });
 
   scheduleTone(ctx, {
-    startAt: now + 0.19,
-    duration: 0.12,
-    fromHz: 220,
-    toHz: 96,
-    volume: baseVolume * 0.42,
+    startAt: now + 0.22,
+    duration: 0.14,
+    fromHz: 180,
+    toHz: 86,
+    volume: baseVolume * 0.52,
     type: 'triangle'
   });
 }

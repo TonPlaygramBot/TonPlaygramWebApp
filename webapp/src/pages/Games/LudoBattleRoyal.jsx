@@ -3420,17 +3420,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (active) {
       if (tile.material.emissive) {
         if (tokenColor) {
-          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.12);
+          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.06);
         } else if (data.highlightEmissive) {
           tile.material.emissive.copy(data.highlightEmissive);
         }
       }
       if (tile.material.color && tokenColor) {
-        tile.material.color.copy(data.baseColor).lerp(tokenColor, 0.55);
+        tile.material.color.copy(tokenColor);
       } else if (tile.material.color && data.highlightColor) {
         tile.material.color.copy(data.highlightColor);
       }
-      tile.material.emissiveIntensity = tokenColor ? Math.max(data.baseIntensity + 1.08, 1.05) : data.highlightIntensity;
+      tile.material.emissiveIntensity = tokenColor ? Math.max(data.baseIntensity + 0.95, 0.92) : data.highlightIntensity;
       data.isHighlighted = true;
     } else {
       if (tile.material.emissive && data.baseEmissive) {
@@ -5665,7 +5665,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           </div>
         ) : null}
-        <div className="absolute top-[5rem] left-3 z-20 flex flex-col items-start gap-3">
+        <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
               type="button"
