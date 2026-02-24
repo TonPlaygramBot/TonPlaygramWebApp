@@ -30,7 +30,6 @@ import {
 import coinConfetti from '../../utils/coinConfetti';
 import {
   chatBeep,
-  dropSound,
   bombSound,
   cheerSound
 } from '../../assets/soundData.js';
@@ -53,7 +52,7 @@ import {
   ludoBattleAccountId
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
-import { createDiceRollAudio } from '../../utils/diceAudio.js';
+import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import {
   LUDO_BATTLE_SPEAKERS,
   buildCommentaryLine,
@@ -520,8 +519,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
+    renderScale: 0.82,
+    pixelRatioCap: 1.15,
     resolution: 'HD render • DPR 1.4 cap',
     description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
@@ -529,8 +528,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
+    renderScale: 0.92,
+    pixelRatioCap: 1.25,
     resolution: 'Full HD render • DPR 1.5 cap',
     description: '1080p-focused profile that mirrors the Snooker frame pacing.'
   },
@@ -538,8 +537,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'qhd90',
     label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
+    renderScale: 1,
+    pixelRatioCap: 1.4,
     resolution: 'QHD render • DPR 1.7 cap',
     description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
@@ -547,13 +546,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
+    renderScale: 1.08,
+    pixelRatioCap: 1.5,
     resolution: 'Ultra HD render • DPR 2.0 cap',
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'uhd120';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -2653,8 +2652,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         : 60;
     const renderScale =
       typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
-        ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
-        : 1;
+        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1.3)
+        : 0.92;
     const pixelRatioCap =
       typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
         ? Math.max(1, option.pixelRatioCap)
@@ -3073,8 +3072,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
     const renderScale =
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
-        ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
-        : 1;
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1.3)
+        : 0.92;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
     renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
@@ -3414,15 +3413,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }, HUMAN_ROLL_DELAY_MS);
   }, []);
 
-  const setTileHighlight = useCallback((tile, active) => {
+  const setTileHighlight = useCallback((tile, active, tokenColor = null) => {
     if (!tile || !tile.material) return;
     const data = tile.userData?.boardTile;
     if (!data) return;
     if (active) {
-      if (tile.material.emissive && data.highlightEmissive) {
-        tile.material.emissive.copy(data.highlightEmissive);
+      if (tile.material.emissive) {
+        if (tokenColor) {
+          tile.material.emissive.copy(tokenColor);
+        } else if (data.highlightEmissive) {
+          tile.material.emissive.copy(data.highlightEmissive);
+        }
       }
-      tile.material.emissiveIntensity = data.highlightIntensity;
+      tile.material.emissiveIntensity = tokenColor ? Math.max(data.baseIntensity + 0.88, 0.9) : data.highlightIntensity;
       data.isHighlighted = true;
     } else {
       if (tile.material.emissive && data.baseEmissive) {
@@ -3465,8 +3468,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!anim || !Array.isArray(anim.highlightTiles)) return;
       if (nextIndex != null && nextIndex >= 0 && nextIndex < anim.highlightTiles.length) {
         const nextTile = anim.highlightTiles[nextIndex];
-        if (nextTile && Array.isArray(anim.activeHighlightTiles) && !anim.activeHighlightTiles.includes(nextTile)) {
-          setTileHighlight(nextTile, true);
+      if (nextTile && Array.isArray(anim.activeHighlightTiles) && !anim.activeHighlightTiles.includes(nextTile)) {
+          const activeColors = playerColorsRef.current || DEFAULT_PLAYER_COLORS;
+          const color = new THREE.Color(activeColors[anim.player] ?? DEFAULT_PLAYER_COLORS[anim.player] ?? 0xffffff);
+          setTileHighlight(nextTile, true, color);
           anim.activeHighlightTiles.push(nextTile);
         }
         anim.highlightIndex = nextIndex;
@@ -3971,11 +3976,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       });
     };
     const vol = getGameVolume();
-    moveSoundRef.current = new Audio(dropSound);
+    moveSoundRef.current = null;
     captureSoundRef.current = new Audio(bombSound);
     cheerSoundRef.current = new Audio(cheerSound);
-    // Match Snake & Ladder dice roll SFX by using the shared dice audio helper.
-    diceSoundRef.current = createDiceRollAudio({ muted: !settingsRef.current.soundEnabled });
+    // Procedural dice SFX is generated with Web Audio (no binary asset).
+    diceSoundRef.current = null;
     diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
     sixRollSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
     hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
@@ -4846,9 +4851,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const playTokenStepSound = () => {
     if (!settingsRef.current.soundEnabled) return;
-    if (!moveSoundRef.current) return;
-    moveSoundRef.current.currentTime = 0;
-    moveSoundRef.current.play().catch(() => {});
+    playLudoTokenStepSfx({
+      volume: getGameVolume(),
+      muted: !settingsRef.current.soundEnabled
+    });
   };
 
   const playCheer = () => {
@@ -4861,10 +4867,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const playDiceSound = () => {
     if (!settingsRef.current.soundEnabled) return;
-    if (diceSoundRef.current) {
-      diceSoundRef.current.currentTime = 0;
-      diceSoundRef.current.play().catch(() => {});
-    }
+    playLudoDiceRollSfx({
+      volume: getGameVolume(),
+      muted: !settingsRef.current.soundEnabled
+    });
   };
 
   const playSixRollSound = () => {
@@ -5899,8 +5905,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           )}
         />
         <BottomLeftIcons
+          className="absolute right-4 top-[8rem] z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          showInfo={false}
+          showChat={false}
+          showGift={false}
+          showMute={false}
+          showCamera2d
+          camera2dActive={isCamera2d}
+          onCamera2d={handleToggleCamera2d}
+          order={['camera2d']}
+          buttonClassName="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="h-5 w-5"
+          labelClassName="sr-only"
+        />
+        <BottomLeftIcons
           onChat={() => setShowChat(true)}
-          className="absolute bottom-6 left-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute bottom-8 left-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showInfo={false}
           showGift={false}
           showMute={false}
@@ -5914,10 +5934,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           showInfo={false}
           showChat={false}
           showMute={false}
-          showCamera2d
-          camera2dActive={isCamera2d}
-          onCamera2d={handleToggleCamera2d}
-          order={['gift', 'camera2d']}
+          order={['gift']}
           buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           iconClassName="text-2xl"
           labelClassName="sr-only"
