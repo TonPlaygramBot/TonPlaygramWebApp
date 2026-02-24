@@ -3723,6 +3723,7 @@ export default function SnakeAndLadder() {
         <div className="pointer-events-auto w-full">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
+            showMute
             onCamera2d={() => setCameraViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
             style={{
               right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
@@ -3731,11 +3732,10 @@ export default function SnakeAndLadder() {
             className="fixed z-30 flex flex-col items-center gap-3"
             showChat={false}
             showGift={false}
-            showMute={false}
             showCamera2d
             camera2dActive={cameraViewMode === '2d'}
             cameraLabel="2D"
-            order={['info', 'camera2d']}
+            order={['info', 'mute', 'camera2d']}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
@@ -3745,7 +3745,6 @@ export default function SnakeAndLadder() {
         <div className="pointer-events-auto w-full">
           <BottomLeftIcons
             onChat={() => setShowChat(true)}
-            onGift={() => setShowGift(true)}
             style={{
               left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
               bottom: 'calc(env(safe-area-inset-bottom, 0px) + 3rem)'
@@ -3753,8 +3752,9 @@ export default function SnakeAndLadder() {
             className="fixed z-20 flex flex-col items-center gap-3"
             showInfo={false}
             showMute={false}
+            showGift={false}
             showCamera2d={false}
-            order={['chat', 'gift']}
+            order={['chat']}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
@@ -3762,17 +3762,18 @@ export default function SnakeAndLadder() {
         </div>
         <div className="pointer-events-auto w-full">
           <BottomLeftIcons
+            onGift={() => setShowGift(true)}
             style={{
               right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
               bottom: 'calc(env(safe-area-inset-bottom, 0px) + 3rem)'
             }}
             className="fixed z-20 flex flex-col items-center gap-2"
             showInfo={false}
-            showMute
             showChat={false}
-            showGift={false}
+            showMute={false}
+            showGift
             showCamera2d={false}
-            order={['mute']}
+            order={['gift']}
             buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
