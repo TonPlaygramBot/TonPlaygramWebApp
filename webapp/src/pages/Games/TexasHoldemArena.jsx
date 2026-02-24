@@ -5495,7 +5495,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute left-2 top-[5.35rem] z-20 flex flex-col items-start gap-2">
+      <div className="absolute left-2 top-[5.7rem] z-20 flex flex-col items-start gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -5761,7 +5761,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+4rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -5773,7 +5773,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showMute={false}
           order={['gift']}
-          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+4rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
