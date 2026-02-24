@@ -1360,16 +1360,18 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
   blackAccent: '#50b8d8'
 });
 
-const PIECE_STYLE_OPTIONS = Object.freeze(
-  [
-    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
-    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
-    { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
-    { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
-    { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
-    { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
-    { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
-  ].map((preset) => ({
+const BEAUTIFUL_GAME_PIECE_PRESETS = [
+  { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
+  { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
+  { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
+  { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
+  { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
+  { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
+  { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
+];
+
+const PIECE_STYLE_OPTIONS = Object.freeze([
+  ...BEAUTIFUL_GAME_PIECE_PRESETS.map((preset) => ({
     ...preset,
     style: {
       ...BASE_PIECE_STYLE,
@@ -1383,8 +1385,44 @@ const PIECE_STYLE_OPTIONS = Object.freeze(
       blackAccent: BASE_PIECE_STYLE.blackAccent
     },
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-  }))
-);
+  })),
+  {
+    id: STAUNTON_CLASSIC_STYLE.id,
+    label: STAUNTON_CLASSIC_STYLE.label,
+    style: STAUNTON_CLASSIC_STYLE,
+    loader: (targetBoardSize) => loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+      targetBoardSize,
+      styleId: STAUNTON_CLASSIC_STYLE.id,
+      pieceStyle: STAUNTON_CLASSIC_STYLE,
+      assetScale: STAUNTON_ASSET_SCALE,
+      fallbackBuilder: buildStauntonFallbackAssets
+    })
+  },
+  {
+    id: HERITAGE_WALNUT_STYLE.id,
+    label: HERITAGE_WALNUT_STYLE.label,
+    style: HERITAGE_WALNUT_STYLE,
+    loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
+  },
+  {
+    id: MARBLE_ONYX_STYLE.id,
+    label: MARBLE_ONYX_STYLE.label,
+    style: MARBLE_ONYX_STYLE,
+    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
+  },
+  {
+    id: KENNEY_WOOD_STYLE.id,
+    label: KENNEY_WOOD_STYLE.label,
+    style: KENNEY_WOOD_STYLE,
+    loader: (targetBoardSize) => loadKenneyAssets(targetBoardSize)
+  },
+  {
+    id: POLYGONAL_GRAPHITE_STYLE.id,
+    label: POLYGONAL_GRAPHITE_STYLE.label,
+    style: POLYGONAL_GRAPHITE_STYLE,
+    loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
+  }
+]);
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
   0,
