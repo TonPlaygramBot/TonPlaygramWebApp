@@ -31,7 +31,7 @@ function scheduleTone(ctx, { startAt, duration, fromHz, toHz, volume = 0.4, type
   osc.stop(startAt + duration + 0.02);
 }
 
-function scheduleNoiseBurst(ctx, { startAt, duration, volume = 0.2, bandHz = 1800 }) {
+function scheduleNoiseBurst(ctx, { startAt, duration, volume = 0.2, bandHz = 1800, q = 1.2 }) {
   const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
   const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -47,7 +47,7 @@ function scheduleNoiseBurst(ctx, { startAt, duration, volume = 0.2, bandHz = 180
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
   filter.frequency.setValueAtTime(Math.max(300, bandHz), startAt);
-  filter.Q.setValueAtTime(1.2, startAt);
+  filter.Q.setValueAtTime(Math.max(0.4, q), startAt);
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.0001, startAt);
@@ -66,25 +66,35 @@ export function playLudoDiceRollSfx({ volume = 1, muted = false } = {}) {
   const ctx = getAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime + 0.004;
-  const baseVolume = Math.min(0.42, Math.max(0.12, volume * 0.32));
+  const baseVolume = Math.min(0.62, Math.max(0.2, volume * 0.45));
 
   scheduleNoiseBurst(ctx, {
     startAt: now,
-    duration: 0.22,
-    volume: baseVolume * 0.72,
-    bandHz: 1450
+    duration: 0.24,
+    volume: baseVolume * 0.78,
+    bandHz: 1350,
+    q: 0.9
   });
 
-  const impacts = [0.026, 0.072, 0.116, 0.162, 0.204];
+  // Secondary high band to make the shake/roll audible on phone speakers.
+  scheduleNoiseBurst(ctx, {
+    startAt: now + 0.012,
+    duration: 0.18,
+    volume: baseVolume * 0.42,
+    bandHz: 2600,
+    q: 1.8
+  });
+
+  const impacts = [0.026, 0.068, 0.108, 0.148, 0.19, 0.226];
   impacts.forEach((offset, index) => {
     const decay = 1 - index * 0.12;
-    const impactVolume = baseVolume * (0.7 + Math.random() * 0.25) * decay;
+    const impactVolume = baseVolume * (0.85 + Math.random() * 0.22) * decay;
     const impactStart = now + offset + (Math.random() - 0.5) * 0.01;
     scheduleTone(ctx, {
       startAt: impactStart,
-      duration: 0.045 + Math.random() * 0.02,
-      fromHz: 430 - index * 34 + Math.random() * 18,
-      toHz: 170 + Math.random() * 45,
+      duration: 0.055 + Math.random() * 0.024,
+      fromHz: 480 - index * 42 + Math.random() * 26,
+      toHz: 155 + Math.random() * 55,
       volume: impactVolume,
       type: index % 2 === 0 ? 'triangle' : 'sine'
     });
