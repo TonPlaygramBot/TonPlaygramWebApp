@@ -31484,7 +31484,11 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute left-0 top-2 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        style={{
+          top: 'calc(5.8rem + env(safe-area-inset-top, 0px))',
+          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
+        }}
       >
         <button
           ref={configButtonRef}
@@ -31496,31 +31500,12 @@ const powerRef = useRef(hud.power);
             transform: `scale(${uiScale * 1.08})`,
             transformOrigin: 'top left'
           }}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-6 w-6"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-            />
-          </svg>
-          <span className="sr-only">Toggle table setup</span>
+          <span className="text-base leading-none" aria-hidden="true">☰</span>
+          <span className="leading-none">Menu</span>
         </button>
         {configOpen && (
           <div
@@ -32479,11 +32464,12 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute right-0 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none fixed z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx - viewButtonsOffsetPx}px`,
+          right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
+          top: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
           transform: `scale(${uiScale * 1.08})`,
-          transformOrigin: 'bottom right'
+          transformOrigin: 'top right'
         }}
       >
         <button
@@ -32521,7 +32507,11 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-0 bottom-2 z-50 flex flex-col gap-2.5 -translate-x-1"
+            style={{
+              left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
+              top: 'calc(4.5rem + env(safe-area-inset-top, 0px))'
+            }}
+            className="fixed z-50 flex flex-col gap-2.5"
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -32541,7 +32531,7 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${10 + chromeUiLiftPx}px`,
+            bottom: `${26 + chromeUiLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
@@ -32911,7 +32901,7 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${6 + chromeUiLiftPx}px`,
+            bottom: `${24 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
