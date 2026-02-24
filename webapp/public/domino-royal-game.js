@@ -77,7 +77,7 @@ const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
   chairClothTextureSize: 2048,
-  dominoTextureSize: 2048
+  dominoTextureSize: 4096
 });
 
 function detectCoarsePointer() {
@@ -2251,11 +2251,11 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Murlan Default Table',
-      source: 'procedural',
+      source: 'polyhaven',
+      assetId: 'CoffeeTable_01',
       price: 0,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
-      description:
-        'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+      description: 'Default GLTF table theme with preserved authentic materials.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
@@ -2309,11 +2309,10 @@ function createPolyhavenGltfLoader({ assetId, resolution }) {
   manager.setURLModifier((url) => {
     if (!url || !assetId || !resolution) return url;
     const normalized = String(url).replace(/^\.\//, '');
-    if (normalized.startsWith('textures/')) {
-      const filename = normalized.slice('textures/'.length);
-      return `https://dl.polyhaven.org/file/ph-assets/Models/jpg/${resolution}/${assetId}/${filename}`;
+    if (/^(https?:)?\/\//i.test(normalized) || normalized.startsWith('data:')) {
+      return url;
     }
-    return url;
+    return `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${normalized}`;
   });
   const loader = new GLTFLoader(manager);
   const draco = new DRACOLoader();
@@ -5114,14 +5113,9 @@ async function applyTableTheme(
     child?.removeFromParent?.();
   }
   const token = ++tableThemeToken;
-  if (!theme) {
-    setProceduralTableVisible(true);
+  if (!theme || theme.source !== 'polyhaven' || !theme.assetId) {
+    setProceduralTableVisible(false);
     activeTableThemeId = null;
-    return;
-  }
-  if (theme.source !== 'polyhaven' || !theme.assetId) {
-    setProceduralTableVisible(true);
-    activeTableThemeId = theme.id;
     return;
   }
   setProceduralTableVisible(false);
@@ -5138,7 +5132,7 @@ async function applyTableTheme(
     setProceduralTableVisible(false);
   } catch (error) {
     console.warn('Failed to load table theme', error);
-    setProceduralTableVisible(true);
+    setProceduralTableVisible(false);
   }
 }
 
@@ -6556,36 +6550,14 @@ function placeChairsWithOption(option, chairData, token) {
   }
 
   const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
-  const seatBottomOffset = chairData
-    ? -chairTemplateBounds.min.y
-    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
-  const labelHeight = chairData
-    ? seatBottomOffset + chairTemplateBounds.max.y + 0.12
-    : CHAIR_DIMENSIONS.baseThickness +
-      CHAIR_DIMENSIONS.columnHeight +
-      CHAIR_DIMENSIONS.seatThickness +
-      0.72;
-  const labelDepth = chairData
-    ? -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35
-    : -CHAIR_DIMENSIONS.seatDepth * 0.35;
+  if (!chairData || !chairTemplateBounds) {
+    refreshSeatBadges(buildSeatAvatarSources(N), buildSeatNames(N));
+    return;
+  }
 
-  const sharedMaterials = chairData
-    ? null
-    : {
-        fabric: createChairFabricMaterial(option, renderer),
-        leg: new THREE.MeshStandardMaterial({
-          color: new THREE.Color(option.legColor ?? '#1f1f1f'),
-          metalness: 0.6,
-          roughness: 0.35
-        }),
-        accent: new THREE.MeshStandardMaterial({
-          color: new THREE.Color(
-            adjustHexColor(option.legColor ?? '#1f1f1f', 0.15)
-          ),
-          metalness: 0.75,
-          roughness: 0.32
-        })
-      };
+  const seatBottomOffset = -chairTemplateBounds.min.y;
+  const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
+  const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
@@ -6596,9 +6568,7 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
     wrapper.lookAt(lookTarget);
 
-    const chair = chairData
-      ? cloneChairWithTheme(chairData, option)
-      : createDominoChair(option, renderer, sharedMaterials);
+    const chair = cloneChairWithTheme(chairData, option);
     chair.position.y = -seatBottomOffset;
     wrapper.add(chair);
 
@@ -6627,7 +6597,7 @@ async function buildChairs(
   const token = ++chairBuildToken;
   const chairDataPromise = ensureChairTemplateForTheme(option).catch(
     (error) => {
-      console.warn('Falling back to procedural chair for Domino', error);
+      console.warn('Failed to load GLTF chair for Domino', error);
       return null;
     }
   );
@@ -6639,14 +6609,15 @@ async function buildChairs(
     )
   ]);
 
-  placeChairsWithOption(option, chairData, token);
-
-  if (!chairData) {
-    chairDataPromise.then((resolved) => {
-      if (!resolved || token !== chairBuildToken) return;
-      placeChairsWithOption(option, resolved, token);
-    });
+  if (chairData) {
+    placeChairsWithOption(option, chairData, token);
+    return;
   }
+
+  chairDataPromise.then((resolved) => {
+    if (!resolved || token !== chairBuildToken) return;
+    placeChairsWithOption(option, resolved, token);
+  });
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
@@ -8827,15 +8798,21 @@ function openGiftModal() {
 updateQuickActionMute();
 
 /* ---------- Rules panel handlers ---------- */
-btnRules.addEventListener('click', () => {
-  panelRules.style.display = 'flex';
-});
-closeRules.addEventListener('click', () => {
-  panelRules.style.display = 'none';
-});
-panelRules.addEventListener('click', (e) => {
-  if (e.target === panelRules) panelRules.style.display = 'none';
-});
+if (btnRules && panelRules) {
+  btnRules.addEventListener('click', () => {
+    panelRules.style.display = 'flex';
+  });
+}
+if (closeRules && panelRules) {
+  closeRules.addEventListener('click', () => {
+    panelRules.style.display = 'none';
+  });
+}
+if (panelRules) {
+  panelRules.addEventListener('click', (e) => {
+    if (e.target === panelRules) panelRules.style.display = 'none';
+  });
+}
 if (quickActions) {
   quickActions.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');

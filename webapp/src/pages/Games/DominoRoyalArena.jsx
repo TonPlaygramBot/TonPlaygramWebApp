@@ -35,15 +35,9 @@ export default function DominoRoyalArena() {
     <div className="relative h-full w-full bg-black">
       <div id="app" />
       <div id="status" role="status">Ready</div>
-      <button id="configButton" type="button" aria-label="Table setup">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-          />
-        </svg>
+      <button id="configButton" type="button" aria-label="Open game settings menu">
+        <span aria-hidden="true">☰</span>
+        <span>Menu</span>
       </button>
       <div id="configPanel" role="dialog" aria-modal="true" aria-labelledby="configTitle" tabIndex="-1" aria-hidden="true">
         <div className="config-close">
@@ -56,10 +50,38 @@ export default function DominoRoyalArena() {
         <h3 id="configTitle">Table Setup</h3>
         <div id="configSections" />
       </div>
+      <style>{`
+        #viewToggle {
+          left: auto !important;
+          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
+          top: calc(0.75rem + env(safe-area-inset-top, 0px)) !important;
+        }
+        #topRightActions {
+          top: calc(4.1rem + env(safe-area-inset-top, 0px)) !important;
+          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
+        }
+        #configButton {
+          top: calc(4.1rem + env(safe-area-inset-top, 0px)) !important;
+          left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
+          width: auto !important;
+          padding: 0 0.95rem !important;
+          display: flex !important;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        #configButton span:first-child { font-size: 1.05rem; line-height: 1; }
+        #configButton span:last-child { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
+        #railControls {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
+        }
+        #quickActions {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
+          flex-direction: row !important;
+          align-items: center;
+          gap: 0.5rem;
+        }
+      `}</style>
       <div id="topRightActions" aria-label="Top actions">
-        <button id="btnRules" className="top-action" type="button" aria-label="Rules" title="Rules">
-          <span aria-hidden="true">ℹ️</span>
-        </button>
         <button id="muteButton" className="top-action" type="button" aria-label="Mute" title="Mute">
           <span className="icon" id="muteIcon" aria-hidden="true">🔊</span>
           <span id="muteLabel" className="visually-hidden">Mute</span>
