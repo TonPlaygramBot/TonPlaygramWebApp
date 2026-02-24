@@ -9312,7 +9312,7 @@ function Chess3D({
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+        <div className="absolute top-6 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
             type="button"
             onClick={() => setConfigOpen((open) => !open)}
@@ -9351,7 +9351,7 @@ function Chess3D({
             </div>
           )}
         </div>
-        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
+        <div className="absolute top-6 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
             <button
               type="button"
@@ -9755,7 +9755,7 @@ function Chess3D({
             onGift={() => setShowGift(true)}
             showInfo={false}
             showMute={false}
-            className="fixed left-3 bottom-4 z-50 flex flex-col gap-4"
+            className="fixed left-3 bottom-6 z-50 flex flex-col gap-4"
             buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.5rem] leading-none"
             labelClassName="sr-only"
@@ -9766,7 +9766,7 @@ function Chess3D({
             showInfo={false}
             showChat={false}
             showGift={false}
-            className="fixed right-3 bottom-4 z-50 flex flex-col"
+            className="fixed right-3 bottom-6 z-50 flex flex-col"
             buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.5rem] leading-none"
             labelClassName="sr-only"
@@ -9820,7 +9820,7 @@ function Chess3D({
             );
           })}
         </div>
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
