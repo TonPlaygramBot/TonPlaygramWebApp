@@ -1696,8 +1696,8 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.enableZoom = false;
 controls.zoomSpeed = 0;
-controls.enablePan = true;
-controls.panSpeed = 0.9;
+controls.enablePan = false;
+controls.panSpeed = 0;
 controls.screenSpacePanning = true;
 controls.enableRotate = true;
 controls.minDistance = CAMERA_MIN_RADIUS;
@@ -1705,12 +1705,14 @@ controls.maxDistance = CAMERA_MAX_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
 controls.touches.ONE = THREE.TOUCH.ROTATE;
-controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-controls.touches.THREE = THREE.TOUCH.PAN;
+controls.touches.TWO = THREE.TOUCH.ROTATE;
+controls.touches.THREE = THREE.TOUCH.ROTATE;
 controls.target.copy(CAMERA_TARGET);
 const turnFocusTarget = controls.target.clone();
 const turnSeatTarget = new THREE.Vector3();
 const turnDominoTarget = new THREE.Vector3();
+const cameraTurnDirection = new THREE.Vector3();
+const cameraLockedPosition = new THREE.Vector3(NaN, NaN, NaN);
 let turnDominoFocusUntil = 0;
 
 let cameraHasUserControl = false;
@@ -1724,6 +1726,29 @@ renderer.domElement.addEventListener(
   },
   { passive: true }
 );
+
+controls.addEventListener('change', () => {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return;
+  }
+  if (!Number.isFinite(cameraLockedPosition.x)) {
+    cameraLockedPosition.copy(camera.position);
+  }
+  const movedByOrbit = camera.position.distanceToSquared(cameraLockedPosition) > 1e-8;
+  if (!movedByOrbit) {
+    return;
+  }
+
+  const focusDistance = Math.max(
+    CAMERA_MIN_RADIUS,
+    controls.target.distanceTo(camera.position)
+  );
+  camera.getWorldDirection(cameraTurnDirection);
+  camera.position.copy(cameraLockedPosition);
+  controls.target
+    .copy(cameraLockedPosition)
+    .addScaledVector(cameraTurnDirection, focusDistance);
+});
 
 function getViewportMetrics() {
   const dom = renderer.domElement;
@@ -1858,6 +1883,7 @@ function positionCameraForViewport({ force = false } = {}) {
   }
 
   controls.target.copy(target);
+  cameraLockedPosition.copy(camera.position);
   turnFocusTarget.copy(target);
   controls.update();
 }
