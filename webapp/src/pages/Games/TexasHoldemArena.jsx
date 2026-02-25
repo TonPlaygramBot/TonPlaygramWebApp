@@ -1786,9 +1786,9 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       railAnchorDistance - railSpan * 0.05
     );
     const chipRailDistance = clampValue(
-      Math.max(chipRailBase, cardRailDistance + railSpan * 0.08),
-      innerDistance + railSpan * 0.22,
-      outerDistance - railSpan * 0.02
+      chipRailBase,
+      innerDistance + railSpan * 0.4,
+      outerDistance - railSpan * 0.05
     );
     const seatRadius = outerDistance + (isHuman ? HUMAN_SEAT_RADIUS_OFFSET : AI_SEAT_RADIUS_OFFSET);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
@@ -4188,11 +4188,7 @@ function TexasHoldemArena({ search }) {
             forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
             right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
           };
-          seatGroup.railLayout = {
-            ...seatGroup.railLayout,
-            forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
-            right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
-          };
+          seatGroup.railLayout = seatGroup.tableLayout;
           if (player.isHuman) {
             cameraTarget.copy(seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0)));
           }
@@ -4210,11 +4206,7 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone().negate(),
           right: seat.right.clone().negate()
         };
-        seat.railLayout = {
-          ...seat.railLayout,
-          forward: seat.forward.clone().negate(),
-          right: seat.right.clone().negate()
-        };
+        seat.railLayout = seat.tableLayout;
       });
 
       const nameplates = seatGroups.map((seat) => seat.nameplate);
