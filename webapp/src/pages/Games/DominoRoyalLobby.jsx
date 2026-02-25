@@ -17,6 +17,7 @@ import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { socket } from '../../utils/socket.js';
+import { getOnlineReadiness } from '../../config/onlineContract.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -44,6 +45,8 @@ export default function DominoRoyalLobby() {
   const [chessPlayerFlag, setChessPlayerFlag] = useState(null);
   const [chessAiFlag, setChessAiFlag] = useState(null);
   const startBet = stake.amount / 100;
+  const readiness = getOnlineReadiness('domino-royal');
+  const onlineEnabled = readiness.ready;
 
   const maxPlayers = PLAYER_OPTIONS[PLAYER_OPTIONS.length - 1];
   const totalPlayers = Math.max(2, Math.min(maxPlayers, playerCount));
@@ -85,6 +88,12 @@ export default function DominoRoyalLobby() {
       if (aiIdx >= 0) setChessAiFlag(aiIdx);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!onlineEnabled && mode === 'online') {
+      setMode('local');
+    }
+  }, [mode, onlineEnabled]);
 
   useEffect(() => {
     if (mode !== 'local') return;
@@ -142,6 +151,10 @@ export default function DominoRoyalLobby() {
       accountId = await ensureAccountId();
       tgId = getTelegramId();
       if (mode !== 'local') {
+        if (!onlineEnabled) {
+          alert('Domino online is in beta and currently unavailable.');
+          return;
+        }
         const balRes = await getAccountBalance(accountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
@@ -386,18 +399,19 @@ export default function DominoRoyalLobby() {
                 disabled: false
               }
             ].map(({ id, label, desc, accent, icon, disabled }) => {
+              const isDisabled = disabled || (id === 'online' && !onlineEnabled);
               const active = mode === id;
               return (
                 <div key={id} className="relative">
                   <button
                     type="button"
-                    onClick={() => !disabled && setMode(id)}
+                    onClick={() => !isDisabled && setMode(id)}
                     className={`lobby-option-card ${
                       active
                         ? 'lobby-option-card-active'
                         : 'lobby-option-card-inactive'
-                    } ${disabled ? 'lobby-option-card-disabled' : ''}`}
-                    disabled={disabled}
+                    } ${isDisabled ? 'lobby-option-card-disabled opacity-60' : ''}`}
+                    disabled={isDisabled}
                   >
                     <div
                       className={`lobby-option-thumb bg-gradient-to-br ${accent}`}
@@ -414,7 +428,7 @@ export default function DominoRoyalLobby() {
                     <div className="text-center">
                       <p className="lobby-option-label">{label}</p>
                       <p className="lobby-option-subtitle">
-                        {disabled ? 'Under development' : desc}
+                        {isDisabled ? 'Contract checks pending' : desc}
                       </p>
                     </div>
                   </button>
@@ -423,14 +437,13 @@ export default function DominoRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            Local mode is instant vs AI. Online mode now seats players in hosted
-            tables before launch.
+            Online status: {readiness.label}. Enable only after lobby + runtime + backend checks are complete.
           </p>
         </div>
 
         <button
           onClick={startGame}
-          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          disabled={(mode === 'local' && flags.length !== flagPickerCount) || (mode === 'online' && !onlineEnabled)}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           START

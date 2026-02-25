@@ -15,7 +15,9 @@ import {
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
+import { socket } from '../../utils/socket.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { getOnlineReadiness } from '../../config/onlineContract.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -61,6 +63,8 @@ export default function LudoBattleRoyalLobby() {
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [online, setOnline] = useState(null);
+  const readiness = getOnlineReadiness('ludobattleroyal');
+  const onlineEnabled = readiness.ready;
 
   useEffect(() => {
     import('./LudoBattleRoyal.jsx').catch(() => {});
@@ -131,6 +135,13 @@ export default function LudoBattleRoyalLobby() {
     return chosen.slice(0, desired);
   };
 
+
+  useEffect(() => {
+    if (!onlineEnabled && mode === 'online') {
+      setMode('local');
+    }
+  }, [mode, onlineEnabled]);
+
   useEffect(() => {
     if (mode !== 'local') return;
     setFlags((prev) => {
@@ -146,6 +157,10 @@ export default function LudoBattleRoyalLobby() {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
       if (mode === 'online') {
+        if (!onlineEnabled) {
+          alert('Online mode is still in beta for Ludo. Please use Local for now.');
+          return;
+        }
         const balRes = await getAccountBalance(accountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
@@ -181,10 +196,37 @@ export default function LudoBattleRoyalLobby() {
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
     if (initData) params.set('init', encodeURIComponent(initData));
 
+    if (mode === 'online' && accountId) {
+      socket.emit('register', { playerId: accountId });
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          gameType: 'ludobattleroyal',
+          stake: Number(stake.amount) || 0,
+          maxPlayers: table.capacity || 2,
+          playerName: 'Player',
+          avatar,
+          mode: 'online',
+          token: stake.token
+        },
+        (res = {}) => {
+          if (!res.success || !res.tableId) {
+            alert('Unable to join Ludo online table. Please try again.');
+            return;
+          }
+          params.set('tableId', res.tableId);
+          socket.emit('confirmReady', { accountId, tableId: res.tableId });
+          navigate(`/games/ludobattleroyal?${params.toString()}`);
+        }
+      );
+      return;
+    }
+
     navigate(`/games/ludobattleroyal?${params.toString()}`);
   };
 
-  const disabled = mode === 'online' && (!stake || !stake.token || !stake.amount);
+  const disabled = (mode === 'online' && (!stake || !stake.token || !stake.amount)) || (mode === 'online' && !onlineEnabled);
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -268,15 +310,17 @@ export default function LudoBattleRoyalLobby() {
                 icon: '🌐'
               }
             ].map(({ id, label, desc, iconKey, icon }) => {
+              const disabled = id === 'online' && !onlineEnabled;
               const active = mode === id;
               return (
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setMode(id)}
+                  onClick={() => !disabled && setMode(id)}
                   className={`lobby-option-card ${
                     active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
-                  }`}
+                  } ${disabled ? 'lobby-option-card-disabled opacity-60' : ''}`}
+                  disabled={disabled}
                 >
                   <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
@@ -290,12 +334,15 @@ export default function LudoBattleRoyalLobby() {
                   </div>
                   <div className="text-center">
                     <p className="lobby-option-label">{label}</p>
-                    <p className="lobby-option-subtitle">{desc}</p>
+                    <p className="lobby-option-subtitle">{disabled ? 'Contract checks pending' : desc}</p>
                   </div>
                 </button>
               );
             })}
           </div>
+          <p className="text-xs text-center text-white/60">
+            Online status: {readiness.label}. Enable toggle only after lobby + runtime + backend checks pass.
+          </p>
         </div>
 
         <div className="space-y-3">
