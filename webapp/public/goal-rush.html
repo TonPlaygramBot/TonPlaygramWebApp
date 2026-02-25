@@ -507,7 +507,7 @@
     canvas.style.height = height + 'px';
     // expand field by reducing canvas margins ~5% on each side
     const baseW = W * 0.98;
-    const baseH = H * 0.992;
+    const baseH = H * 0.996;
     const maxFieldScaleX = W/baseW;
     const maxFieldScaleY = H/baseH;
     const fsx = Math.min(fieldScaleX, maxFieldScaleX);
@@ -516,7 +516,7 @@
     rink.w = Math.round(baseW * fsx);
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
-    const verticalShift = Math.round(H * 0.004);
+    const verticalShift = Math.round(H * 0.008);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
@@ -540,7 +540,7 @@
   let goalDepth = 24;
   let paddleRadius = 34;
 
-  const puck = { x:0, y:0, r:26, vx:0, vy:0, max: 32, angle: 0, spin: 0 };
+  const puck = { x:0, y:0, r:26, vx:0, vy:0, max: 34, angle: 0, spin: 0 };
   const p1 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const p2 = { x:0, y:0, r:34, vx:0, vy:0, max: 17, lastX:0, lastY:0 };
   const score = { p1:0, p2:0, target };
@@ -1742,8 +1742,8 @@
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
   const friction = 0.996;
-  const wallBounce = 1.16;
-  const minWallSpeed = 5.6;
+  const wallBounce = 1.19;
+  const minWallSpeed = 6.2;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -1854,18 +1854,19 @@
         const tangential = relVX*(-ny) + relVY*nx;
         puck.spin += tangential * 0.008;
         if (relAlongNormal <= 0){
-          const restitution = 1.18;
+          const restitution = 1.22;
           const impulse = -(1+restitution) * relAlongNormal;
           puck.vx += impulse * nx;
           puck.vy += impulse * ny;
-          puck.vx += p.vx*0.24; puck.vy += p.vy*0.24;
+          puck.vx += p.vx*0.28; puck.vy += p.vy*0.28;
 
           if (p === p1) {
             const shotPower = Math.hypot(p.vx, p.vy);
+            const maxPowerGate = p1.max * speedMul * 0.9;
             const upwardDrive = -p.vy;
             const contactLift = -ny;
-            if (shotPower > 7 && upwardDrive > 3.2 && contactLift > 0.2) {
-              const liftBoost = Math.min(1.9, (upwardDrive - 3.2) * 0.18 + shotPower * 0.035);
+            if (shotPower >= maxPowerGate && upwardDrive > 3.2 && contactLift > 0.2 && puck.y > goalTopY + puck.r * 2) {
+              const liftBoost = Math.min(1.25, (upwardDrive - 3.2) * 0.1 + (shotPower - maxPowerGate) * 0.08);
               puck.vy -= liftBoost;
             }
           }
@@ -1878,7 +1879,7 @@
             puck.vy += ny * boost;
           }
         }
-        const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.3;
+        const v = Math.hypot(puck.vx,puck.vy); const maxV = puck.max*speedMul*1.38;
         if (v>maxV){ const s=maxV/v; puck.vx*=s; puck.vy*=s; }
         lastTouch = (p === p1) ? 'p1' : 'p2';
         if (p === p2) {
