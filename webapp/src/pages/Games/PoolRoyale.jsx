@@ -13399,7 +13399,8 @@ function PoolRoyaleGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const sharedHudLiftPx = 14;
+  const sharedHudLiftPx = 22;
+  const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 56 * 0.18;
   const sideControlsBottomPx =
@@ -31489,7 +31490,7 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
-          top: 'calc(5.8rem + env(safe-area-inset-top, 0px))',
+          top: topControlsOffset,
           left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
         }}
       >
@@ -32095,7 +32096,13 @@ const powerRef = useRef(hud.power);
       </div>
 
       {isTraining && !replayActive && (
-        <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
+        <div
+          className="absolute z-50 flex flex-col items-end gap-2"
+          style={{
+            top: topControlsOffset,
+            right: 'calc(0.75rem + env(safe-area-inset-right, 0px))'
+          }}
+        >
           {usesCareerAttempts && showTrainingIntroCard && (
             <div className="pointer-events-none w-60 rounded-2xl border border-emerald-400/50 bg-black/80 p-3 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
               <p className="text-[11px] uppercase tracking-[0.28em] text-emerald-200">Practice start</p>
