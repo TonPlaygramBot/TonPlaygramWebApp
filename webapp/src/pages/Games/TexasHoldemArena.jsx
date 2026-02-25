@@ -393,15 +393,18 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.08;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.4;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.92;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.8;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
+const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.11;
+const CHIP_BUTTON_GRID_RIGHT_SHIFT = CARD_W * 0.28;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.34;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -1782,7 +1785,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     const chipRailBase = railAnchorDistance + forwardMargin * CHIP_RAIL_FORWARD_SHIFT_RATIO;
     const cardRailDistance = clampValue(
       cardRailBase,
-      innerDistance + railSpan * 0.15,
+      innerDistance + railSpan * 0.06,
       railAnchorDistance - railSpan * 0.05
     );
     const chipRailDistance = clampValue(
@@ -1856,7 +1859,7 @@ function getHumanCardAnchor(seatGroup) {
   const blended = cardBase
     .addScaledVector(seatGroup.forward, HUMAN_CARD_FORWARD_OFFSET)
     .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
-  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET;
+  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET;
   return blended;
 }
 
@@ -2119,20 +2122,17 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     ? seat.cardRailAnchor.clone()
     : fallbackAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
   cardRailAnchor.y = anchorY;
-  const chipCenter = seat.chipRailAnchor
-    ? seat.chipRailAnchor.clone()
-    : fallbackAnchor
-        .clone()
-        .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT)
-        .addScaledVector(axis, CHIP_RAIL_LATERAL_SHIFT);
-  chipCenter.addScaledVector(forward, CARD_D * 0.48);
+  const chipCenter = cardRailAnchor
+    .clone()
+    .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT - CARD_RAIL_FORWARD_SHIFT + CHIP_BUTTON_GRID_OUTWARD_SHIFT)
+    .addScaledVector(axis, CHIP_BUTTON_GRID_RIGHT_SHIFT);
   chipCenter.y = anchorY;
   const columns = 3;
   const rows = Math.ceil(CHIP_VALUES.length / columns);
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
-    const chip = chipFactory.createStack(value, { mode: 'stack' });
+    const chip = chipFactory.createSingleChip?.(value) ?? chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
     chip.position.y = anchorY + CARD_D * 0.82;
@@ -4089,7 +4089,7 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone()
         };
 
-        const chipStack = chipFactory.createStack(0, { mode: 'rail', layout: railLayout });
+        const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: railLayout });
         chipStack.position.copy(seat.chipRailAnchor);
         arenaGroup.add(chipStack);
 
@@ -4185,7 +4185,7 @@ function TexasHoldemArena({ search }) {
             }
           });
           const initialChips = Math.max(0, Math.round(player.chips ?? 0));
-          chipFactory.setAmount(chipStack, initialChips, { mode: 'rail', layout: railLayout });
+          chipFactory.setAmount(chipStack, initialChips, { mode: 'scatter', layout: railLayout });
           chipStack.visible = true;
           seatGroup.tableLayout = {
             ...tableLayout,
@@ -4791,7 +4791,7 @@ function TexasHoldemArena({ search }) {
         const position = baseAnchor
           .clone()
           .addScaledVector(forward, seat.isHuman ? HUMAN_CARD_FORWARD_OFFSET : CARD_FORWARD_OFFSET)
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * (seat.isHuman ? HOLE_SPACING : HUMAN_CARD_SPREAD)));
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           position.copy(
             winnerDisplayCenter
@@ -4801,7 +4801,8 @@ function TexasHoldemArena({ search }) {
           );
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
-          position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
+          const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.52;
+          position.y = clothY;
         }
         mesh.position.copy(position);
         const isSideSeat = !seat.isHuman && Math.abs(seat.forward.x) > Math.abs(seat.forward.z);
@@ -4824,7 +4825,7 @@ function TexasHoldemArena({ search }) {
                   .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
                   .addScaledVector(forward, 0));
         const face = overheadView || seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: seat.isHuman || isSideSeat });
+        orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
         setCardFace(mesh, face);
         if (seat.isHuman) {
           mesh.rotation.x = 0;
@@ -4842,7 +4843,7 @@ function TexasHoldemArena({ search }) {
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
       seat.chipStack.visible = true;
-      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'rail', layout: seat.railLayout });
+      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
       const prevBet = seat.lastBet ?? 0;
@@ -5163,7 +5164,7 @@ function TexasHoldemArena({ search }) {
               );
               if (showdownAnimationRef.current.seatPending[seatIndex] <= 0) {
                 chipFactory.setAmount(seat.chipStack, targetChips, {
-                  mode: 'rail',
+                  mode: 'scatter',
                   layout: seat.railLayout
                 });
               }
