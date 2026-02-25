@@ -52,14 +52,14 @@ export default function DominoRoyalArena() {
       </div>
       <style>{`
         #viewToggle {
-          position: static !important;
+          position: fixed !important;
+          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
           left: auto !important;
-          right: auto !important;
-          top: auto !important;
+          top: calc(8.15rem + env(safe-area-inset-top, 0px)) !important;
           margin: 0 !important;
         }
         #configButton {
-          top: calc(4.1rem + env(safe-area-inset-top, 0px)) !important;
+          top: calc(4.55rem + env(safe-area-inset-top, 0px)) !important;
           left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
           width: auto !important;
           padding: 0 0.95rem !important;
@@ -70,7 +70,7 @@ export default function DominoRoyalArena() {
         #configButton span:first-child { font-size: 1.05rem; line-height: 1; }
         #configButton span:last-child { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
         #muteButton {
-          top: calc(4.1rem + env(safe-area-inset-top, 0px)) !important;
+          top: calc(4.55rem + env(safe-area-inset-top, 0px)) !important;
           right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
           left: auto !important;
           bottom: auto !important;
@@ -83,7 +83,7 @@ export default function DominoRoyalArena() {
         }
         #quickActions .quick-action {
           position: fixed !important;
-          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) + clamp(2.8rem, 8vh, 3.4rem)) !important;
         }
         #quickActions .quick-action[data-action="gift"] {
           right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
