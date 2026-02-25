@@ -7,6 +7,11 @@ const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
+    const statusNode = document.getElementById('status');
+    if (statusNode) {
+      statusNode.textContent = 'Loading Domino Royal…';
+    }
+
     const existingStyle = document.getElementById(INLINE_STYLE_ID);
     const styleTag = existingStyle ?? document.createElement('style');
     if (!existingStyle) {
@@ -17,13 +22,28 @@ export default function DominoRoyalArena() {
 
     const existingScript = document.querySelector(GAME_SCRIPT_SELECTOR);
     if (existingScript) {
+      if (statusNode) {
+        statusNode.textContent = 'Ready';
+      }
       return undefined;
     }
 
+    const basePath = import.meta.env.BASE_URL || '/';
+    const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
     const script = document.createElement('script');
     script.type = 'module';
-    script.src = '/domino-royal-game.js';
+    script.src = `${normalizedBasePath}domino-royal-game.js`;
     script.dataset.dominoRoyalScript = 'true';
+    script.onload = () => {
+      if (statusNode) {
+        statusNode.textContent = 'Ready';
+      }
+    };
+    script.onerror = () => {
+      if (statusNode) {
+        statusNode.textContent = 'Game failed to load. Please refresh and try again.';
+      }
+    };
     document.body.appendChild(script);
 
     return () => {
