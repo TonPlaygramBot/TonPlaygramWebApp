@@ -41,10 +41,6 @@
       align-items:center;
       justify-content:center;
     }
-    body.mobile-browser-framed .canvasWrap{
-      top:48px;
-      bottom:0;
-    }
     canvas{
       display:block;
       touch-action:none;
@@ -67,19 +63,9 @@
     #quickActionGift{right:calc(env(safe-area-inset-right,0px) + 0.3rem);top:50%;transform:translateY(-50%);}
     #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
     #quickActionAudio{left:calc(env(safe-area-inset-left,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
-    #quickActionInfo{display:none;}
     .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:transparent;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:none;padding:0;}
     .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
     .quick-action .icon{font-size:1.1rem;line-height:1;}
-
-    body.mobile-browser-framed #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.75rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.9rem);top:auto;transform:none;}
-    body.mobile-browser-framed #quickActionGift{right:calc(env(safe-area-inset-right,0px) + 0.75rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.9rem);top:auto;transform:none;}
-    body.mobile-browser-framed #quickActionInfo{display:block;right:calc(env(safe-area-inset-right,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
-    body.mobile-browser-framed #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 3.3rem);}
-    body.mobile-browser-framed .quick-action{width:3.15rem;height:3.15rem;}
-    body.mobile-browser-framed #quickActionInfo .quick-action{width:2.6rem;height:2.6rem;}
-    body.mobile-browser-framed #quickActionInfo .quick-action span{font-size:.52rem;}
-    body.mobile-browser-framed #quickActionInfo .quick-action .icon{font-size:.95rem;}
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:7;}
     .modal-overlay.active{display:flex;}
     .modal-card{width:min(340px, 88vw);background:#0b1220;border:1px solid #233050;border-radius:16px;padding:1rem;color:#e5e7eb;box-shadow:0 18px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:.75rem;}
@@ -160,12 +146,6 @@
         <button class="quick-action" type="button" data-action="gift">
           <span class="icon" aria-hidden="true">🎁</span>
           <span>Gift</span>
-        </button>
-      </div>
-      <div id="quickActionInfo" class="quick-action-slot" aria-label="Info">
-        <button class="quick-action" type="button" data-action="info">
-          <span class="icon" aria-hidden="true">ℹ️</span>
-          <span>Info</span>
         </button>
       </div>
       <div id="quickActionMute" class="quick-action-slot" aria-label="Mute">
@@ -280,70 +260,9 @@
   const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
-  const panelRules = document.getElementById('rules');
-  const closeRules = document.getElementById('closeRules');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 0; // gap below rink
   const GOAL_PAUSE = 1500; // pause after a goal
-
-  function isMobileBrowserRuntime() {
-    return /Android|iPhone|iPad|iPod|IEMobile|BlackBerry|Opera Mini/i.test(navigator.userAgent || '');
-  }
-
-  function isTelegramRuntime() {
-    return Boolean(window.Telegram?.WebApp) || /Telegram/i.test(navigator.userAgent || '');
-  }
-
-  function isFullscreenLikeMode() {
-    const inFullscreen = Boolean(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-    const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
-    const fullscreenDisplay = window.matchMedia?.('(display-mode: fullscreen)').matches;
-    const iosStandalone = Boolean(window.navigator.standalone);
-    return inFullscreen || standalone || fullscreenDisplay || iosStandalone;
-  }
-
-  function shouldUseFramedMobileLayout() {
-    if (!isMobileBrowserRuntime() || isTelegramRuntime()) return false;
-    if (isFullscreenLikeMode()) return false;
-    const vv = window.visualViewport;
-    const viewportHeight = vv?.height || window.innerHeight || 0;
-    const screenHeight = window.screen?.height || viewportHeight;
-    const viewportRatio = screenHeight ? viewportHeight / screenHeight : 1;
-    return viewportRatio < 0.9;
-  }
-
-  function syncMobileBrowserLayout() {
-    document.body.classList.toggle('mobile-browser-framed', shouldUseFramedMobileLayout());
-  }
-
-  async function requestMobileFullscreen() {
-    if (!isMobileBrowserRuntime() || isTelegramRuntime() || isFullscreenLikeMode()) return;
-    const target = document.documentElement;
-    const request = target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen;
-    if (typeof request === 'function') {
-      try {
-        await request.call(target);
-      } catch {}
-    }
-  }
-
-  let fullscreenAttempted = false;
-  function attemptMobileFullscreen() {
-    if (fullscreenAttempted) return;
-    fullscreenAttempted = true;
-    requestMobileFullscreen();
-  }
-
-  ['pointerdown', 'touchstart', 'click'].forEach((eventName) => {
-    window.addEventListener(eventName, attemptMobileFullscreen, { once: true, passive: true });
-  });
-  setTimeout(requestMobileFullscreen, 0);
-  syncMobileBrowserLayout();
-  window.addEventListener('resize', syncMobileBrowserLayout);
-  window.addEventListener('orientationchange', syncMobileBrowserLayout);
-  window.addEventListener('fullscreenchange', syncMobileBrowserLayout);
-  window.addEventListener('webkitfullscreenchange', syncMobileBrowserLayout);
-  window.visualViewport?.addEventListener('resize', syncMobileBrowserLayout);
   let fieldScaleActual = 1;
 
   const puckImg = new Image();
@@ -1449,13 +1368,6 @@
   updateCommentaryMuteState();
   updateCommentarySupport();
 
-  if (panelRules && closeRules) {
-    closeRules.addEventListener('click', () => { panelRules.style.display = 'none'; });
-    panelRules.addEventListener('click', (event) => {
-      if (event.target === panelRules) panelRules.style.display = 'none';
-    });
-  }
-
   if (quickActions) {
     quickActions.addEventListener('click', (event) => {
       const button = event.target.closest('button[data-action]');
@@ -1465,8 +1377,6 @@
         openChatModal();
       } else if (action === 'gift') {
         openGiftModal();
-      } else if (action === 'info' && panelRules) {
-        panelRules.style.display = 'flex';
       } else if (action === 'commentary') {
         openCommentaryModal();
       } else if (action === 'mute') {
