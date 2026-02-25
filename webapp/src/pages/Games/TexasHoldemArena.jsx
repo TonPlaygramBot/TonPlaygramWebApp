@@ -2119,19 +2119,21 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     ? seat.cardRailAnchor.clone()
     : fallbackAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
   cardRailAnchor.y = anchorY;
-  const chipCenter = seat.chipRailAnchor
-    ? seat.chipRailAnchor.clone()
+  const chipCenter = (seat.cardRailAnchor ?? seat.chipRailAnchor)
+    ? (seat.cardRailAnchor ?? seat.chipRailAnchor).clone()
     : fallbackAnchor.clone().addScaledVector(axis, CARD_RAIL_LATERAL_SHIFT + CHIP_RAIL_LATERAL_SHIFT);
+  chipCenter.addScaledVector(axis, CARD_W * 0.82);
+  chipCenter.addScaledVector(forward, -CARD_D * 0.7);
   chipCenter.y = anchorY;
-  const columns = 3;
-  const rows = Math.max(1, Math.ceil(CHIP_VALUES.length / columns));
+  const columns = CHIP_VALUES.length;
+  const rows = 1;
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
-    chip.position.y = anchorY + CARD_D * 2.2;
+    chip.position.y = anchorY + CARD_D * 0.82;
     const row = Math.floor(index / columns);
     const col = index % columns;
     chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
