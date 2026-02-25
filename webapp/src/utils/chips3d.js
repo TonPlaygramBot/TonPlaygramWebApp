@@ -196,21 +196,6 @@ export function createChipFactory(renderer, { cardWidth }) {
     return group;
   }
 
-  function createSingleChip(value) {
-    const amount = Math.max(0, Math.floor(value));
-    const denom = DENOMINATIONS.find((entry) => entry.value === amount) || DENOMINATIONS[0];
-    const group = new THREE.Group();
-    group.userData = {
-      mode: 'stack',
-      chipValue: denom.value,
-      layout: null
-    };
-    const mesh = createChipMesh(denom);
-    mesh.position.y = height / 2;
-    group.add(mesh);
-    return group;
-  }
-
   function disposeStack(group) {
     if (!group) return;
     removeChildren(group);
@@ -337,7 +322,6 @@ export function createChipFactory(renderer, { cardWidth }) {
 
   return {
     createStack,
-    createSingleChip,
     setAmount: applyAmount,
     disposeStack,
     dispose,
