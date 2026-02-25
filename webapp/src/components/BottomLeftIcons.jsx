@@ -93,12 +93,12 @@ export default function BottomLeftIcons({
   };
 
   return (
-    <div className={className} style={style}>
+    <div className={`bottom-left-icons ${className}`.trim()} style={style}>
       {order
         .map((key) => ({ key, node: actions[key] }))
         .filter(({ node }) => node)
         .map(({ key, node }) => (
-          <div key={key}>{node}</div>
+          <div key={key} className="bottom-left-icons-button">{node}</div>
         ))}
     </div>
   );

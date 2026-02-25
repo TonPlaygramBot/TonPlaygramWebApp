@@ -27,7 +27,7 @@ export default function AvatarTimer({
   const sizeRem = 3.25 * size;
   return (
     <div
-      className="relative"
+      className="avatar-timer relative"
       style={{ width: `${sizeRem}rem`, height: `${sizeRem}rem` }}
       onClick={onClick}
       data-player-index={index}

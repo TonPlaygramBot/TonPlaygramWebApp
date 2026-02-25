@@ -54,6 +54,21 @@ body.mobile-standalone .app-bottom-nav {
   padding-bottom: max(env(safe-area-inset-bottom), 10px);
 }
 
+
+body.mobile-browser-framed .bottom-left-icons {
+  gap: 0.35rem;
+}
+
+body.mobile-browser-framed .bottom-left-icons-button {
+  transform: scale(0.88);
+  transform-origin: center;
+}
+
+body.mobile-browser-framed .avatar-timer {
+  transform: scale(0.9);
+  transform-origin: center;
+}
+
 /* Outline text with contrasting edges */
 [class*='text-blue-'],
 [class*='text-sky-'],
