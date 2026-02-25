@@ -81,13 +81,6 @@ export function createChipFactory(renderer, { cardWidth }) {
     }
   }
 
-
-  function getDenominationByValue(value) {
-    const target = Math.floor(Number(value));
-    if (!Number.isFinite(target) || target <= 0) return null;
-    return DENOMINATIONS.find((entry) => entry.value === target) ?? null;
-  }
-
   function expandChips(amount) {
     const chips = [];
     splitAmount(amount).forEach(({ denom, count }) => {
@@ -168,9 +161,7 @@ export function createChipFactory(renderer, { cardWidth }) {
     const currentMode = group?.userData?.mode ?? 'stack';
     const sameMode = currentMode === mode;
     const sameAmount = group?.userData?.chipValue === amount;
-    const denominationValue = options.denominationValue ?? group?.userData?.denominationValue ?? null;
-    const sameDenomination = (group?.userData?.denominationValue ?? null) === denominationValue;
-    if (sameAmount && sameMode && mode !== 'scatter' && (mode !== 'single' || sameDenomination)) {
+    if (sameAmount && sameMode && mode !== 'scatter') {
       return;
     }
     if (sameAmount && sameMode && mode === 'scatter' && !options.force) {
@@ -179,13 +170,6 @@ export function createChipFactory(renderer, { cardWidth }) {
     removeChildren(group);
     if (mode === 'scatter') {
       scatterChips(group, amount, options);
-    } else if (mode === 'single') {
-      const denom = getDenominationByValue(denominationValue ?? amount) ?? splitAmount(amount)[0]?.denom;
-      if (denom) {
-        const mesh = createChipMesh(denom);
-        mesh.position.y = height / 2;
-        group.add(mesh);
-      }
     } else {
       let offset = 0;
       splitAmount(amount).forEach(({ denom, count }) => {
@@ -199,7 +183,6 @@ export function createChipFactory(renderer, { cardWidth }) {
     }
     group.userData.mode = mode;
     group.userData.chipValue = amount;
-    group.userData.denominationValue = mode === 'single' ? (denominationValue ?? amount) : null;
   }
 
   function createStack(amount = 0, options = {}) {
@@ -207,8 +190,7 @@ export function createChipFactory(renderer, { cardWidth }) {
     group.userData = {
       mode: options.mode ?? 'stack',
       chipValue: 0,
-      layout: options.mode === 'scatter' ? buildLayout(null, options.layout) : group.userData?.layout,
-      denominationValue: options.mode === 'single' ? options.denominationValue ?? amount : null
+      layout: options.mode === 'scatter' ? buildLayout(null, options.layout) : group.userData?.layout
     };
     applyAmount(group, amount, options);
     return group;

@@ -364,7 +364,7 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
 const HOLE_SPACING = CARD_W * 1.08;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
-const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.46;
+const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.45;
 const CARD_FORWARD_OFFSET = HUMAN_CARD_FORWARD_OFFSET;
@@ -393,14 +393,10 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.22;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.08;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.94;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.94;
-const AI_CARD_INWARD_SHIFT = CARD_W * -1.08;
-const AI_CHIP_INWARD_SHIFT = CARD_W * -0.46;
-const AI_CARD_LATERAL_SHIFT = CARD_W * 0.82;
-const AI_CHIP_LATERAL_SHIFT = CARD_W * 0.8;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.8;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
@@ -517,7 +513,6 @@ const RAIL_CHIP_SPACING = CARD_W * 0.44;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.8;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.45;
-const RAISE_CHIP_GRID_LATERAL_SHIFT = CARD_W * 0.36;
 
 const CHIP_SCATTER_LAYOUT = Object.freeze({
   perRow: 5,
@@ -1802,29 +1797,25 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     cardRailCenter.y = railSurfaceY;
     const chipRailCenter = forward.clone().multiplyScalar(chipRailDistance);
     chipRailCenter.y = railSurfaceY;
-    const seatCardInwardShift = isHuman ? HUMAN_CARD_INWARD_SHIFT : AI_CARD_INWARD_SHIFT;
-    const seatChipInwardShift = isHuman ? HUMAN_CHIP_INWARD_SHIFT : AI_CHIP_INWARD_SHIFT;
-    const seatCardLateralShift = isHuman ? HUMAN_CARD_LATERAL_SHIFT : AI_CARD_LATERAL_SHIFT;
-    const seatChipLateralShift = isHuman ? HUMAN_CHIP_LATERAL_SHIFT : AI_CHIP_LATERAL_SHIFT;
     const cardAnchor = cardRailCenter
       .clone()
-      .addScaledVector(forward, seatCardInwardShift)
-      .addScaledVector(right, -seatCardLateralShift);
+      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
+      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
     cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
     const chipAnchor = chipRailCenter
       .clone()
-      .addScaledVector(forward, seatChipInwardShift)
-      .addScaledVector(right, seatChipLateralShift);
+      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
+      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
     chipAnchor.y = railSurfaceY;
     const cardRailAnchor = cardRailCenter
       .clone()
-      .addScaledVector(forward, seatCardInwardShift)
-      .addScaledVector(right, -seatCardLateralShift);
+      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
+      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
     cardRailAnchor.y = railSurfaceY;
     const chipRailAnchor = chipRailCenter
       .clone()
-      .addScaledVector(forward, seatChipInwardShift)
-      .addScaledVector(right, seatChipLateralShift);
+      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
+      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
     chipRailAnchor.y = railSurfaceY;
     const betAnchor = forward
       .clone()
@@ -2135,14 +2126,13 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
         .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT)
         .addScaledVector(axis, CHIP_RAIL_LATERAL_SHIFT);
   chipCenter.addScaledVector(forward, CARD_D * 0.48);
-  chipCenter.addScaledVector(axis, RAISE_CHIP_GRID_LATERAL_SHIFT);
   chipCenter.y = anchorY;
   const columns = 3;
   const rows = Math.ceil(CHIP_VALUES.length / columns);
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
-    const chip = chipFactory.createStack(value, { mode: 'single', denominationValue: value });
+    const chip = chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
     chip.position.y = anchorY + CARD_D * 0.82;
