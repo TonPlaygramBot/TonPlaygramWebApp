@@ -2878,8 +2878,24 @@ export default function MurlanRoyaleArena({ search }) {
     direction: new THREE.Vector3(0, 0, -1),
     targetDistance: 1
   });
+  const cameraLockedPositionRef = useRef(new THREE.Vector3());
+  const cameraForwardScratchRef = useRef(new THREE.Vector3());
   const cameraTurnAnimationRef = useRef(null);
   const cameraTurnHoldTimeoutRef = useRef(null);
+
+  const enforceRotationOnlyCamera = useCallback(() => {
+    const { camera, controls } = threeStateRef.current;
+    if (!camera || !controls) return;
+    const lockedPosition = cameraLockedPositionRef.current;
+    if (camera.position.distanceToSquared(lockedPosition) <= 1e-8) return;
+    const forward = cameraForwardScratchRef.current;
+    camera.getWorldDirection(forward);
+    if (forward.lengthSq() <= 1e-8) return;
+    const distance = Math.max(0.1, cameraLookBasisRef.current?.targetDistance ?? 1);
+    camera.position.copy(lockedPosition);
+    controls.target.copy(lockedPosition).addScaledVector(forward.normalize(), distance);
+    camera.lookAt(controls.target);
+  }, []);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -4264,6 +4280,7 @@ export default function MurlanRoyaleArena({ search }) {
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
       controls.update();
+      cameraLockedPositionRef.current.copy(camera.position);
       cameraDefaultTargetRef.current.copy(target);
       const lookVector = controls.target.clone().sub(camera.position);
       const targetDistance = Math.max(0.1, lookVector.length());
@@ -4320,6 +4337,7 @@ export default function MurlanRoyaleArena({ search }) {
           lastRenderTime = time - Math.max(0, delta - appliedDelta);
           stepAnimations(time);
           controls.update();
+          enforceRotationOnlyCamera();
           updateSeatAnchors();
           renderer.render(scene, camera);
         }
@@ -4515,7 +4533,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, rebuildTable, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [applyRendererQuality, applyStateToScene, enforceRotationOnlyCamera, ensureCardMeshes, players, rebuildTable, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
