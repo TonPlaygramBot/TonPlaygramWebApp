@@ -64,7 +64,6 @@ export default function LudoBattleRoyalLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [online, setOnline] = useState(null);
   const readiness = getOnlineReadiness('ludobattleroyal');
-  const onlineEnabled = readiness.ready;
 
   useEffect(() => {
     import('./LudoBattleRoyal.jsx').catch(() => {});
@@ -134,14 +133,6 @@ export default function LudoBattleRoyalLobby() {
     }
     return chosen.slice(0, desired);
   };
-
-
-  useEffect(() => {
-    if (!onlineEnabled && mode === 'online') {
-      setMode('local');
-    }
-  }, [mode, onlineEnabled]);
-
   useEffect(() => {
     if (mode !== 'local') return;
     setFlags((prev) => {
@@ -157,10 +148,6 @@ export default function LudoBattleRoyalLobby() {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
       if (mode === 'online') {
-        if (!onlineEnabled) {
-          alert('Online mode is still in beta for Ludo. Please use Local for now.');
-          return;
-        }
         const balRes = await getAccountBalance(accountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
@@ -226,7 +213,7 @@ export default function LudoBattleRoyalLobby() {
     navigate(`/games/ludobattleroyal?${params.toString()}`);
   };
 
-  const disabled = (mode === 'online' && (!stake || !stake.token || !stake.amount)) || (mode === 'online' && !onlineEnabled);
+  const disabled = mode === 'online' && (!stake || !stake.token || !stake.amount);
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -310,7 +297,7 @@ export default function LudoBattleRoyalLobby() {
                 icon: '🌐'
               }
             ].map(({ id, label, desc, iconKey, icon }) => {
-              const disabled = id === 'online' && !onlineEnabled;
+              const disabled = false;
               const active = mode === id;
               return (
                 <button
@@ -334,14 +321,14 @@ export default function LudoBattleRoyalLobby() {
                   </div>
                   <div className="text-center">
                     <p className="lobby-option-label">{label}</p>
-                    <p className="lobby-option-subtitle">{disabled ? 'Contract checks pending' : desc}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
                   </div>
                 </button>
               );
             })}
           </div>
           <p className="text-xs text-center text-white/60">
-            Online status: {readiness.label}. Enable toggle only after lobby + runtime + backend checks pass.
+            Online status: {readiness.label}. Matchmaking and stake flow are fully enabled.
           </p>
         </div>
 
