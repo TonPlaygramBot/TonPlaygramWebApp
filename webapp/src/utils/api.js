@@ -760,3 +760,7 @@ export function getExchangeCoinDetails(coinId) {
   const id = encodeURIComponent(String(coinId || '').trim());
   return get(`/api/exchange/coin/${id}`);
 }
+
+export function devAgentChat(message) {
+  return post('/api/dev-agent/chat', { message });
+}

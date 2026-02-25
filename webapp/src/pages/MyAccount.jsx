@@ -29,6 +29,7 @@ import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
+import DevAgentModal from '../components/DevAgentModal.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import TonConnectButton from '../components/TonConnectButton.jsx';
 import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
@@ -52,7 +53,8 @@ import {
   FiBell,
   FiList,
   FiDollarSign,
-  FiCheckSquare
+  FiCheckSquare,
+  FiCode
 } from 'react-icons/fi';
 
 export default function MyAccount() {
@@ -106,6 +108,7 @@ export default function MyAccount() {
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
+  const [showDevAgentModal, setShowDevAgentModal] = useState(false);
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
@@ -944,7 +947,7 @@ export default function MyAccount() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={() => setShowNotifyModal(true)}
                 className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
@@ -958,6 +961,13 @@ export default function MyAccount() {
               >
                 <FiList className="w-4 h-4" />
                 Open Task Manager
+              </button>
+              <button
+                onClick={() => setShowDevAgentModal(true)}
+                className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+              >
+                <FiCode className="w-4 h-4" />
+                Open Dev Agent
               </button>
             </div>
 
@@ -999,6 +1009,10 @@ export default function MyAccount() {
       <DevTasksModal
         open={showTasksModal}
         onClose={() => setShowTasksModal(false)}
+      />
+      <DevAgentModal
+        open={showDevAgentModal}
+        onClose={() => setShowDevAgentModal(false)}
       />
       <InfoPopup
         open={showSaved}
