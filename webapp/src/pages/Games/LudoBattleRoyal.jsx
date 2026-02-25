@@ -23,6 +23,7 @@ import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
+  ensureAccountId,
   getTelegramFirstName,
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -58,6 +59,7 @@ import {
   buildCommentaryLine,
   createMatchCommentaryScript
 } from '../../utils/ludoBattleRoyaleCommentary.js';
+import { socket } from '../../utils/socket.js';
 import {
   getSpeechSupport,
   getSpeechSynthesis,
@@ -6407,6 +6409,41 @@ export default function LudoBattleRoyal() {
     ? clampPlayerCount(1 + requestedAiCount)
     : parsedCapacity;
   const flagsParam = params.get('flags');
+  const mode = params.get('mode') || 'local';
+  const onlineTableId = params.get('tableId') || params.get('table') || '';
+  const accountIdParam = params.get('accountId') || '';
+
+  useEffect(() => {
+    if (mode !== 'online' || !onlineTableId) return undefined;
+
+    let cancelled = false;
+    let resolvedAccountId = accountIdParam.trim();
+
+    const syncRuntime = async () => {
+      if (!resolvedAccountId) {
+        resolvedAccountId = (await ensureAccountId().catch(() => '')) || '';
+      }
+      if (cancelled || !resolvedAccountId) return;
+      socket.emit('register', { playerId: resolvedAccountId });
+      socket.emit('joinRoom', {
+        roomId: onlineTableId,
+        accountId: resolvedAccountId,
+        name: username || getTelegramUsername() || 'Player',
+        avatar
+      });
+      socket.emit('confirmReady', { accountId: resolvedAccountId, tableId: onlineTableId });
+    };
+
+    syncRuntime().catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (resolvedAccountId) {
+        socket.emit('leaveLobby', { accountId: resolvedAccountId, tableId: onlineTableId });
+      }
+    };
+  }, [mode, onlineTableId, accountIdParam, username, avatar]);
+
   const aiFlagOverrides = useMemo(() => {
     if (!flagsParam) return null;
     const indices = flagsParam
