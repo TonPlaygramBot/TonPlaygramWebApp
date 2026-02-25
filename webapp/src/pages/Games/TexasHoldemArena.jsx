@@ -393,9 +393,9 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.4;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.92;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.48;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.22;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.55;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.8;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
@@ -404,7 +404,7 @@ const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.11;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = CARD_W * 0.28;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.34;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.42;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -1790,7 +1790,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     );
     const chipRailDistance = clampValue(
       chipRailBase,
-      innerDistance + railSpan * 0.4,
+      innerDistance + railSpan * 0.5,
       outerDistance - railSpan * 0.05
     );
     const seatRadius = outerDistance + (isHuman ? HUMAN_SEAT_RADIUS_OFFSET : AI_SEAT_RADIUS_OFFSET);
