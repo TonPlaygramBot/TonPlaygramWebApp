@@ -55,6 +55,13 @@ test('online routes reflect pinged users', { concurrency: false }, async () => {
     assert.equal(list.users.length, 1);
     assert.equal(list.users[0].id, 'player1');
     assert.equal(list.users[0].status, 'online');
+
+    const readinessRes = await fetch('http://localhost:3205/api/online/readiness');
+    assert.equal(readinessRes.status, 200);
+    const readiness = await readinessRes.json();
+    assert.ok(readiness.games.poolroyale);
+    assert.equal(readiness.games.poolroyale.label, 'Online Ready');
+    assert.equal(readiness.games.poolroyale.checks.security, true);
   } finally {
     server.kill();
   }

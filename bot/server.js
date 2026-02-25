@@ -59,6 +59,7 @@ import {
   countOnline,
   listOnline
 } from './services/connectionService.js';
+import { validateSeatTableRequest } from './config/onlineGamePolicy.js';
 
 validateEnv();
 
@@ -456,6 +457,7 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
+const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
 
 const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
 
@@ -1382,32 +1384,55 @@ io.on('connection', (socket) => {
       cb
     ) => {
       if (!ensureRegistered(socket, accountId)) return cb && cb({ success: false, error: 'register_required' });
+      if (isRateLimited(socket, 'seatTable', seatTableRateLimitMs)) {
+        return cb && cb({ success: false, error: 'rate_limited' });
+      }
+      const resolvedGameType = tableId ? String(tableId).split('-')[0] : gameType;
+      const resolvedMaxPlayers = tableId ? Number(String(tableId).split('-')[1]) || 0 : maxPlayers;
+      const validation = validateSeatTableRequest({
+        gameType: resolvedGameType,
+        stake,
+        maxPlayers: resolvedMaxPlayers,
+        matchMeta: { variant, mode, playType, tableSize, ballSet, token, preferredSide }
+      });
+      if (!validation.ok) {
+        return cb && cb({ success: false, error: validation.error });
+      }
+
+      const safeMeta = {
+        variant: validation.safeMatchMeta.variant,
+        mode: validation.safeMatchMeta.mode,
+        playType: validation.safeMatchMeta.playType,
+        tableSize: validation.safeMatchMeta.tableSize,
+        ballSet: validation.safeMatchMeta.ballSet,
+        token: validation.safeMatchMeta.token
+      };
+
       let table;
       if (tableId) {
-        const [gt, capStr] = tableId.split('-');
         table = await seatTableSocket(
           accountId,
-          gt,
-          stake,
-          Number(capStr) || 4,
+          resolvedGameType,
+          validation.normalizedStake,
+          validation.normalizedMaxPlayers,
           playerName,
           socket,
           avatar,
           preferredSide,
-          { variant, mode, playType, tableSize, ballSet, token },
+          safeMeta,
           tableId
         );
       } else {
         table = await seatTableSocket(
           accountId,
-          gameType,
-          stake,
-          maxPlayers,
+          resolvedGameType,
+          validation.normalizedStake,
+          validation.normalizedMaxPlayers,
           playerName,
           socket,
           avatar,
           preferredSide,
-          { variant, mode, playType, tableSize, ballSet, token }
+          safeMeta
         );
       }
       if (table && cb) {
@@ -1438,6 +1463,11 @@ io.on('connection', (socket) => {
       return;
     }
     if (!ensureRegistered(socket, accountId)) return;
+    const seated = table.players.some((player) => String(player.id) === String(accountId));
+    if (!seated) {
+      socket.emit('errorMessage', 'seat_required');
+      return;
+    }
     if (!table.ready) table.ready = new Set();
     table.ready.add(String(accountId));
     io.to(tableId).emit('lobbyUpdate', {
