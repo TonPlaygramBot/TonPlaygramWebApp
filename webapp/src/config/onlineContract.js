@@ -22,32 +22,32 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     label: 'Online Ready'
   },
   'domino-royal': {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   },
   ludobattleroyal: {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   },
   texasholdem: {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   },
   airhockey: {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   },
   goalrush: {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   },
   murlanroyale: {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   },
   tabletennisroyal: {
-    checks: { lobby: true, runtime: true, backend: false },
-    label: 'Beta'
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
   }
 });
 const FALLBACK_STATE = Object.freeze({
@@ -70,4 +70,3 @@ export function getOnlineReadiness(slug = '') {
     label: state.label || (ready ? 'Online Ready' : 'Coming Soon')
   };
 }
-
