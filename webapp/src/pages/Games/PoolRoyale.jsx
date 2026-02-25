@@ -3381,7 +3381,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
+const CLOTH_PATTERN_SCALE = 0.72; // slightly increase repeat so procedural weave reads a bit finer/smaller
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
@@ -3462,9 +3462,81 @@ const buildPolyHavenTextureUrls = (sourceId, resolution) => {
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${res}/${normalized}/${normalized}`;
   return {
     diffuse: `${base}_diff_${res}.jpg`,
-    normal: `${base}_nor_dx_${res}.jpg`,
+    normal: `${base}_nor_gl_${res}.jpg`,
     roughness: `${base}_rough_${res}.jpg`
   };
+};
+
+const tintPolyHavenClothDiffuseToPalette = (texture, preset) => {
+  if (!texture?.image || !preset?.palette || typeof document === 'undefined') return texture;
+  const image = texture.image;
+  const width = image.width || image.videoWidth;
+  const height = image.height || image.videoHeight;
+  if (!width || !height) return texture;
+
+  const toChannel = (value) => {
+    const color = new THREE.Color(value ?? 0xffffff);
+    return {
+      r: Math.round(color.r * 255),
+      g: Math.round(color.g * 255),
+      b: Math.round(color.b * 255)
+    };
+  };
+
+  const shadow = toChannel(preset.palette.shadow);
+  const base = toChannel(preset.palette.base);
+  const accent = toChannel(preset.palette.accent);
+  const highlight = toChannel(preset.palette.highlight);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return texture;
+
+  try {
+    ctx.drawImage(image, 0, 0, width, height);
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const clamp255 = (value) => Math.max(0, Math.min(255, Math.round(value)));
+
+    for (let idx = 0; idx < data.length; idx += 4) {
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      const baseMix = Math.pow(luminance, 1.02);
+      const accentMix = Math.pow(luminance, 1.24);
+      const highlightMix = Math.pow(luminance, 1.42);
+
+      data[idx] = clamp255(
+        shadow.r * (1 - baseMix) +
+          base.r * baseMix * (1 - accentMix) +
+          accent.r * accentMix * (1 - highlightMix) +
+          highlight.r * highlightMix
+      );
+      data[idx + 1] = clamp255(
+        shadow.g * (1 - baseMix) +
+          base.g * baseMix * (1 - accentMix) +
+          accent.g * accentMix * (1 - highlightMix) +
+          highlight.g * highlightMix
+      );
+      data[idx + 2] = clamp255(
+        shadow.b * (1 - baseMix) +
+          base.b * baseMix * (1 - accentMix) +
+          accent.b * accentMix * (1 - highlightMix) +
+          highlight.b * highlightMix
+      );
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    texture.image = canvas;
+    texture.needsUpdate = true;
+  } catch (error) {
+    return texture;
+  }
+
+  return texture;
 };
 
 const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
@@ -3895,10 +3967,13 @@ const createClothTextures = (() => {
         const normalCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.normal),
           fallback4k?.normal,
+          fallback4k?.normal?.replace('_nor_gl_', '_nor_dx_'),
           legacy4k?.normal,
           fallback2k?.normal,
+          fallback2k?.normal?.replace('_nor_gl_', '_nor_dx_'),
           legacy2k?.normal,
           fallback1k?.normal,
+          fallback1k?.normal?.replace('_nor_gl_', '_nor_dx_'),
           legacy1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
@@ -3919,6 +3994,8 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
+
+        map = tintPolyHavenClothDiffuseToPalette(map, preset);
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
