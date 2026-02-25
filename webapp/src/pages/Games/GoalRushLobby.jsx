@@ -15,6 +15,8 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
+import { socket } from '../../utils/socket.js';
 
 const AI_FLAG_STORAGE_KEY = 'goalRushAiFlag';
 const PLAYER_FLAG_STORAGE_KEY = 'goalRushPlayerFlag';
@@ -34,6 +36,9 @@ export default function GoalRushLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchError, setMatchError] = useState('');
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -67,6 +72,34 @@ export default function GoalRushLobby() {
 
   const startGame = async () => {
     const shouldStake = playType !== 'training' && mode === 'online';
+    if (shouldStake) {
+      await runSimpleOnlineFlow({
+        gameType: 'goalrush',
+        stake,
+        maxPlayers: 2,
+        avatar,
+        playerName: getTelegramFirstName() || 'Player',
+        state: { setMatching, setMatchStatus, setMatchError },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+        onMatched: ({ accountId, tableId }) => {
+          const params = new URLSearchParams(search);
+          params.set('mode', 'online');
+          params.set('tableId', tableId);
+          params.set('accountId', accountId);
+          params.set('target', goal);
+          params.set('type', playType);
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', String(stake.amount));
+          if (avatar) params.set('avatar', avatar);
+          if (selectedFlag) params.set('flag', selectedFlag);
+          if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+          const name = getTelegramFirstName();
+          if (name) params.set('name', name);
+          navigate(`/games/goalrush?${params.toString()}`);
+        },
+      });
+      return;
+    }
     let tgId;
     let accountId;
     try {
@@ -213,7 +246,7 @@ export default function GoalRushLobby() {
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'ai', label: 'Vs AI' },
-                  { id: 'online', label: '1v1 Online', disabled: true }
+                  { id: 'online', label: '1v1 Online', disabled: false }
                 ].map(({ id, label, disabled }) => (
                   <div key={id} className="relative">
                     <button
@@ -235,7 +268,7 @@ export default function GoalRushLobby() {
                       </div>
                       <div className="text-center">
                         <p className="lobby-option-label">{label}</p>
-                        {disabled && <p className="lobby-option-subtitle">Under development</p>}
+                        {disabled && <p className="lobby-option-subtitle">Live queue</p>}
                       </div>
                     </button>
                   </div>
@@ -331,6 +364,13 @@ export default function GoalRushLobby() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow text-center text-sm text-white/70">
               Local AI matches are free — no stake required.
             </div>
+          </div>
+        )}
+
+
+        {(matchStatus || matchError) && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center text-sm text-white/70">
+            <span className={matchError ? 'text-red-400' : ''}>{matchError || matchStatus}</span>
           </div>
         )}
 

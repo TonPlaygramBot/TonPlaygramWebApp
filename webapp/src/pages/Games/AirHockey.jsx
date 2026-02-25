@@ -3,11 +3,13 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import AirHockey3D from '../../components/AirHockey3D.jsx';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
+import useOnlineRoomSync from '../../hooks/useOnlineRoomSync.js';
 
 export default function AirHockey() {
   useTelegramBackButton();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
+  useOnlineRoomSync(search, 'Air Hockey Player');
   const target = Number(params.get('target')) || 11;
   const playType = params.get('type') || 'regular';
   const playerFlagParam = params.get('flag');

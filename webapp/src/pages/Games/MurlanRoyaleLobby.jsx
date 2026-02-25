@@ -10,6 +10,8 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
+import { socket } from '../../utils/socket.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -36,6 +38,9 @@ export default function MurlanRoyaleLobby() {
   const [targetPoints, setTargetPoints] = useState(11);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState(() => pickRandomFlags(4));
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchError, setMatchError] = useState('');
 
   const flagPickerCount = mode === 'local' ? 4 : 1;
 
@@ -62,6 +67,31 @@ export default function MurlanRoyaleLobby() {
   }, [flagPickerCount]);
 
   const startGame = async (flagOverride = flags) => {
+    if (mode === 'online') {
+      await runSimpleOnlineFlow({
+        gameType: 'murlanroyale',
+        stake,
+        maxPlayers: 2,
+        avatar,
+        playerName: getTelegramFirstName() || 'Player',
+        state: { setMatching, setMatchStatus, setMatchError },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+        onMatched: ({ accountId, tableId }) => {
+          const params = new URLSearchParams();
+          params.set('mode', 'online');
+          params.set('tableId', tableId);
+          params.set('accountId', accountId);
+          params.set('game', gameType);
+          if (gameType === 'points') params.set('points', String(targetPoints));
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', String(stake.amount));
+          if (avatar) params.set('avatar', avatar);
+          navigate(`/games/murlanroyale?${params.toString()}`);
+        },
+      });
+      return;
+    }
+
     let tgId;
     let accountId;
     try {
@@ -166,7 +196,7 @@ export default function MurlanRoyaleLobby() {
                 desc: 'Stake & match',
                 iconKey: 'mode-online',
                 icon: '⚔️',
-                disabled: true
+                disabled: false
               }
             ].map(({ id, label, desc, iconKey, icon, disabled }) => {
               const active = mode === id;
@@ -192,7 +222,7 @@ export default function MurlanRoyaleLobby() {
                     </div>
                     <div className="text-center">
                       <p className="lobby-option-label">{label}</p>
-                      <p className="lobby-option-subtitle">{disabled ? 'Under development' : desc}</p>
+                      <p className="lobby-option-subtitle">{disabled ? 'Live queue' : desc}</p>
                     </div>
                   </button>
                 </div>
@@ -316,9 +346,16 @@ export default function MurlanRoyaleLobby() {
           )}
         </div>
 
+
+        {(matchStatus || matchError) && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center text-sm text-white/70">
+            <span className={matchError ? 'text-red-400' : ''}>{matchError || matchStatus}</span>
+          </div>
+        )}
+
         <button
           onClick={startGame}
-          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          disabled={(mode === 'local' && flags.length !== flagPickerCount) || matching}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           Start Murlan Match

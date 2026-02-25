@@ -17,6 +17,10 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     checks: { lobby: true, runtime: true, backend: true },
     label: 'Online Ready'
   },
+  chessbattleroyal: {
+    checks: { lobby: true, runtime: true, backend: true },
+    label: 'Online Ready'
+  },
   'domino-royal': {
     checks: { lobby: true, runtime: true, backend: false },
     label: 'Beta'
@@ -24,9 +28,28 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
   ludobattleroyal: {
     checks: { lobby: true, runtime: true, backend: false },
     label: 'Beta'
+  },
+  texasholdem: {
+    checks: { lobby: true, runtime: true, backend: false },
+    label: 'Beta'
+  },
+  airhockey: {
+    checks: { lobby: true, runtime: true, backend: false },
+    label: 'Beta'
+  },
+  goalrush: {
+    checks: { lobby: true, runtime: true, backend: false },
+    label: 'Beta'
+  },
+  murlanroyale: {
+    checks: { lobby: true, runtime: true, backend: false },
+    label: 'Beta'
+  },
+  tabletennisroyal: {
+    checks: { lobby: true, runtime: true, backend: false },
+    label: 'Beta'
   }
 });
-
 const FALLBACK_STATE = Object.freeze({
   checks: { lobby: false, runtime: false, backend: false },
   label: 'Coming Soon'
