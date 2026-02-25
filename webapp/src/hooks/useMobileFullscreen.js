@@ -23,6 +23,16 @@ const setViewportHeightVar = () => {
 const setDisplayModeClass = () => {
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone;
   document.body.classList.toggle('mobile-standalone', Boolean(standalone));
+  return Boolean(standalone);
+};
+
+const isDocumentFullscreen = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+
+const syncMobileFullscreenClass = () => {
+  const standalone = setDisplayModeClass();
+  const fullscreenActive = standalone || isDocumentFullscreen();
+  document.body.classList.toggle('mobile-fullscreen', fullscreenActive);
+  document.body.classList.toggle('mobile-browser-framed', !fullscreenActive);
 };
 
 const requestBrowserFullscreen = () => {
@@ -52,22 +62,26 @@ export default function useMobileFullscreen() {
     if (isTelegramWebView()) return;
     if (!isMobileScreen()) return;
 
-    document.body.classList.add('mobile-fullscreen');
-    setDisplayModeClass();
+    syncMobileFullscreenClass();
     setViewportHeightVar();
     requestBrowserFullscreen();
 
     const onResize = () => setViewportHeightVar();
-    const onModeChange = () => setDisplayModeClass();
+    const onModeChange = () => syncMobileFullscreenClass();
     window.addEventListener('resize', onResize);
+    window.addEventListener('fullscreenchange', onModeChange);
+    window.addEventListener('webkitfullscreenchange', onModeChange);
     window.visualViewport?.addEventListener('resize', onResize);
     window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change', onModeChange);
 
     return () => {
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('fullscreenchange', onModeChange);
+      window.removeEventListener('webkitfullscreenchange', onModeChange);
       window.visualViewport?.removeEventListener('resize', onResize);
       window.matchMedia?.('(display-mode: standalone)').removeEventListener?.('change', onModeChange);
       document.body.classList.remove('mobile-fullscreen');
+      document.body.classList.remove('mobile-browser-framed');
       document.body.classList.remove('mobile-standalone');
     };
   }, []);
