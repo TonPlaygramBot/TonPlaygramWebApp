@@ -361,7 +361,7 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
     COMMUNITY_CARD_FORWARD_OFFSET
   )
 );
-const HOLE_SPACING = CARD_W * 0.65;
+const HOLE_SPACING = CARD_W * 1.08;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
@@ -394,9 +394,9 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.78;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.7;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.92;
 const HUMAN_CARD_CHIP_BLEND = 0.08;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
@@ -4804,6 +4804,7 @@ function TexasHoldemArena({ search }) {
           position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
         }
         mesh.position.copy(position);
+        const isSideSeat = !seat.isHuman && Math.abs(seat.forward.x) > Math.abs(seat.forward.z);
         const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
         const lookTarget = seat.isHuman
           ? baseAnchor
@@ -4811,13 +4812,19 @@ function TexasHoldemArena({ search }) {
               .addScaledVector(forward, 2.4 * MODEL_SCALE)
               .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
               .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
-          : lookOrigin
-              .clone()
-              .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
-              .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
-              .addScaledVector(forward, 0);
+          : (isSideSeat
+              ? baseAnchor
+                  .clone()
+                  .addScaledVector(forward, 2.2 * MODEL_SCALE)
+                  .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
+                  .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
+              : lookOrigin
+                  .clone()
+                  .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
+                  .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
+                  .addScaledVector(forward, 0));
         const face = overheadView || seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
+        orientCard(mesh, lookTarget, { face, flat: seat.isHuman || isSideSeat });
         setCardFace(mesh, face);
         if (seat.isHuman) {
           mesh.rotation.x = 0;
