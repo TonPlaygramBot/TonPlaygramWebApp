@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ping, listOnline, countOnline } from '../services/connectionService.js';
+import { buildReadinessSnapshot } from '../config/onlineGamePolicy.js';
 
 const router = Router();
 
@@ -19,6 +20,13 @@ router.get('/list', async (req, res) => {
 router.get('/count', async (req, res) => {
   const count = await countOnline();
   res.json({ count });
+});
+
+router.get('/readiness', (req, res) => {
+  res.json({
+    generatedAt: new Date().toISOString(),
+    games: buildReadinessSnapshot()
+  });
 });
 
 export default router;
