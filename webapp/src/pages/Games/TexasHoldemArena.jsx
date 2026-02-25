@@ -393,7 +393,7 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.32;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.08;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.8;
@@ -402,9 +402,6 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.085;
-const CHIP_BUTTON_GRID_RIGHT_SHIFT = CARD_W * 0.28;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.22;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -1859,7 +1856,7 @@ function getHumanCardAnchor(seatGroup) {
   const blended = cardBase
     .addScaledVector(seatGroup.forward, HUMAN_CARD_FORWARD_OFFSET)
     .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
-  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET;
+  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET;
   return blended;
 }
 
@@ -2122,17 +2119,20 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     ? seat.cardRailAnchor.clone()
     : fallbackAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
   cardRailAnchor.y = anchorY;
-  const chipCenter = cardRailAnchor
-    .clone()
-    .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT - CARD_RAIL_FORWARD_SHIFT + CHIP_BUTTON_GRID_OUTWARD_SHIFT)
-    .addScaledVector(axis, CHIP_BUTTON_GRID_RIGHT_SHIFT);
+  const chipCenter = seat.chipRailAnchor
+    ? seat.chipRailAnchor.clone()
+    : fallbackAnchor
+        .clone()
+        .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT)
+        .addScaledVector(axis, CHIP_RAIL_LATERAL_SHIFT);
+  chipCenter.addScaledVector(forward, CARD_D * 0.48);
   chipCenter.y = anchorY;
   const columns = 3;
   const rows = Math.ceil(CHIP_VALUES.length / columns);
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
-    const chip = chipFactory.createSingleChip?.(value) ?? chipFactory.createStack(value, { mode: 'stack' });
+    const chip = chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
     chip.position.y = anchorY + CARD_D * 0.82;
