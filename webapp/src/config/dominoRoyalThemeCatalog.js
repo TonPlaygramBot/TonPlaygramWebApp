@@ -1,0 +1,129 @@
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+
+const BASE_CHAIR_THEMES = [
+  {
+    id: 'ruby',
+    label: 'Ruby',
+    seatColor: '#8b0000',
+    legColor: '#1f1f1f',
+    price: 0,
+    description: 'Default ruby cushions with noir legs.',
+    thumbnail: swatchThumbnail(['#8b0000', '#1f1f1f', '#f8fafc'])
+  },
+  {
+    id: 'slate',
+    label: 'Slate',
+    seatColor: '#374151',
+    legColor: '#0f172a',
+    price: 210,
+    description: 'Slate seats with midnight legs.',
+    thumbnail: swatchThumbnail(['#374151', '#0f172a', '#e2e8f0'])
+  },
+  {
+    id: 'teal',
+    label: 'Teal',
+    seatColor: '#0f766e',
+    legColor: '#082f2a',
+    price: 230,
+    description: 'Teal cushions with deep green support.',
+    thumbnail: swatchThumbnail(['#0f766e', '#082f2a', '#5eead4'])
+  },
+  {
+    id: 'amber',
+    label: 'Amber',
+    seatColor: '#b45309',
+    legColor: '#2f2410',
+    price: 250,
+    description: 'Amber seats with rich brown legs.',
+    thumbnail: swatchThumbnail(['#b45309', '#2f2410', '#fde68a'])
+  },
+  {
+    id: 'violet',
+    label: 'Violet',
+    seatColor: '#7c3aed',
+    legColor: '#2b1059',
+    price: 270,
+    description: 'Violet cushions with twilight framing.',
+    thumbnail: swatchThumbnail(['#7c3aed', '#2b1059', '#ddd6fe'])
+  },
+  {
+    id: 'frost',
+    label: 'Ice',
+    seatColor: '#1f2937',
+    legColor: '#0f172a',
+    price: 290,
+    description: 'Frosted charcoal seats with dark legs.',
+    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#e2e8f0'])
+  },
+  {
+    id: 'leather',
+    label: 'Leather',
+    seatColor: '#6a4a32',
+    legColor: '#1a1410',
+    price: 320,
+    description: 'Leather-wrapped seats with dark studio legs.',
+    thumbnail: swatchThumbnail(['#6a4a32', '#1a1410', '#fcd34d'])
+  }
+];
+
+const POLYHAVEN_CHAIR_THEMES = [
+  { id: 'ArmChair_01', label: 'Arm Chair 01', source: 'polyhaven', assetId: 'ArmChair_01' },
+  { id: 'BarberShopChair_01', label: 'Barber Shop Chair 01', source: 'polyhaven', assetId: 'BarberShopChair_01' },
+  { id: 'GreenChair_01', label: 'Green Chair 01', source: 'polyhaven', assetId: 'GreenChair_01' },
+  { id: 'SchoolChair_01', label: 'School Chair 01', source: 'polyhaven', assetId: 'SchoolChair_01' },
+  { id: 'dining_chair_02', label: 'Dining Chair 02', source: 'polyhaven', assetId: 'dining_chair_02' },
+  { id: 'gallinera_chair', label: 'Gallinera Chair', source: 'polyhaven', assetId: 'gallinera_chair' },
+  { id: 'mid_century_lounge_chair', label: 'Mid-Century Lounge', source: 'polyhaven', assetId: 'mid_century_lounge_chair' },
+  { id: 'modern_arm_chair_01', label: 'Modern Arm Chair', source: 'polyhaven', assetId: 'modern_arm_chair_01' },
+  { id: 'painted_wooden_chair_01', label: 'Painted Wooden Chair 01', source: 'polyhaven', assetId: 'painted_wooden_chair_01' },
+  { id: 'painted_wooden_chair_02', label: 'Painted Wooden Chair 02', source: 'polyhaven', assetId: 'painted_wooden_chair_02' },
+  { id: 'plastic_monobloc_chair_01', label: 'Plastic Monobloc Chair', source: 'polyhaven', assetId: 'plastic_monobloc_chair_01' },
+  { id: 'wheelchair_01', label: 'Wheelchair 01', source: 'polyhaven', assetId: 'wheelchair_01' }
+].map((option, index) => ({
+  ...option,
+  thumbnail: polyHavenThumb(option.assetId),
+  price: 520 + index * 35,
+  description: `${option.label} with preserved original materials.`,
+  preserveMaterials: true
+}));
+
+const POLYHAVEN_TABLE_THEMES = [
+  { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
+  { id: 'WoodenTable_02', label: 'Wooden Table 02' },
+  { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
+  { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
+  { id: 'gallinera_table', label: 'Gallinera Table' },
+  { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
+  { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
+  { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
+  { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
+  { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
+  { id: 'side_table_01', label: 'Side Table 01' },
+  { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
+  { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' }
+].map((option, index) => ({
+  ...option,
+  assetId: option.id,
+  source: 'polyhaven',
+  thumbnail: polyHavenThumb(option.id),
+  price: 980 + index * 40,
+  preserveMaterials: true,
+  description: option.description || `${option.label} with preserved Poly Haven materials.`
+}));
+
+export const DOMINO_ROYAL_TABLE_THEMES = [
+  {
+    id: 'murlan-default',
+    label: 'Murlan Default Table',
+    source: 'procedural',
+    price: 0,
+    thumbnail: polyHavenThumb('CoffeeTable_01'),
+    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+  },
+  ...POLYHAVEN_TABLE_THEMES
+];
+
+export const DOMINO_ROYAL_CHAIR_THEMES = [
+  ...BASE_CHAIR_THEMES,
+  ...POLYHAVEN_CHAIR_THEMES
+];

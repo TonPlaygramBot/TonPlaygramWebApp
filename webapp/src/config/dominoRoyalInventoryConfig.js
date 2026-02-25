@@ -1,4 +1,7 @@
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import {
+  DOMINO_ROYAL_CHAIR_THEMES,
+  DOMINO_ROYAL_TABLE_THEMES
+} from './dominoRoyalThemeCatalog.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
@@ -20,7 +23,7 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     description,
     swatches
   })),
-  tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
+  tableTheme: DOMINO_ROYAL_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
     id,
     label,
     price,
@@ -44,7 +47,7 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'iceTracer', label: 'Ice Tracer' },
     { id: 'violetPulse', label: 'Violet Pulse' }
   ],
-  chairTheme: MURLAN_STOOL_THEMES.map(({ id, label, price = 0, description }) => ({
+  chairTheme: DOMINO_ROYAL_CHAIR_THEMES.map(({ id, label, price = 0, description }) => ({
     id,
     label,
     price,
@@ -128,7 +131,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     name: option.label,
     price: option.price || 900 + idx * 45,
     description: option.description || 'Apply the Murlan Royale table collection to Domino.',
-    thumbnail: MURLAN_TABLE_THEMES.find((theme) => theme.id === option.id)?.thumbnail
+    thumbnail: DOMINO_ROYAL_TABLE_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.environmentHdri.slice(1).map((option, idx) => ({
     id: `domino-hdri-${option.id}`,
@@ -164,7 +167,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     name: option.label,
     price: option.price || 300 + idx * 25,
     description: option.description || 'Murlan Royale seating set for Domino Royal.',
-    thumbnail: MURLAN_STOOL_THEMES.find((theme) => theme.id === option.id)?.thumbnail
+    thumbnail: DOMINO_ROYAL_CHAIR_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   }))
 ];
 

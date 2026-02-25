@@ -77,7 +77,7 @@ const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
   chairClothTextureSize: 2048,
-  dominoTextureSize: 4096
+  dominoTextureSize: 8192
 });
 
 function detectCoarsePointer() {
@@ -2248,6 +2248,15 @@ const MURLAN_STOOL_THEMES = Object.freeze([
 
 const MURLAN_TABLE_THEMES = Object.freeze(
   [
+    {
+      id: 'murlan-default',
+      label: 'Murlan Default Table',
+      source: 'procedural',
+      price: 0,
+      thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
+      description:
+        'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+    },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
     { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
@@ -2261,17 +2270,20 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     { id: 'side_table_01', label: 'Side Table 01' },
     { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
     { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' }
-  ].map((option, index) => ({
-    ...option,
-    assetId: option.assetId || option.id,
-    source: option.source || 'polyhaven',
-    thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
-    price: option.price ?? 980 + index * 40,
-    preserveMaterials: option.preserveMaterials ?? true,
-    description:
-      option.description ||
-      `${option.label} with preserved Poly Haven materials.`
-  }))
+  ].map((option, index) => {
+    const source = option.source || 'polyhaven';
+    return {
+      ...option,
+      assetId: source === 'polyhaven' ? option.assetId || option.id : null,
+      source,
+      thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
+      price: option.price ?? 980 + index * 40,
+      preserveMaterials: option.preserveMaterials ?? source === 'polyhaven',
+      description:
+        option.description ||
+        `${option.label} with preserved Poly Haven materials.`
+    };
+  })
 );
 
 const CHAIR_THEME_OPTIONS = Object.freeze(
