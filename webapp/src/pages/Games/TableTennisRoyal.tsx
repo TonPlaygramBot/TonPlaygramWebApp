@@ -7,6 +7,7 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP,
 } from "../../config/poolRoyaleInventoryConfig.js";
 import { getSpeechSupport, onSpeechSupportChange, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import useOnlineRoomSync from '../../hooks/useOnlineRoomSync.js';
 
 /**
  * File: src/TableTennis3D_VanillaThree.tsx
@@ -713,6 +714,8 @@ export default function TableTennisRoyal() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const { g, onDown, onMove, onUp } = useTouch(rootRef);
+  const onlineSearch = typeof window !== 'undefined' ? window.location.search : '';
+  useOnlineRoomSync(onlineSearch, 'Table Tennis Player');
 
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>("high");
   const [frameRateId, setFrameRateId] = useState<FrameRateId>("fhd90");

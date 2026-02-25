@@ -10,6 +10,8 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
+import { socket } from '../../utils/socket.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -34,6 +36,10 @@ export default function TexasHoldemLobby() {
   const [opponents, setOpponents] = useState(5);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchError, setMatchError] = useState('');
+  const [cleanupMatch, setCleanupMatch] = useState(() => () => {});
   const startBet = stake.amount / 100;
 
   const totalPlayers = Math.min(Math.max(2, opponents + 1), 6);
@@ -55,6 +61,10 @@ export default function TexasHoldemLobby() {
   }, []);
 
   useEffect(() => {
+    return () => cleanupMatch({ refund: true, keepError: true });
+  }, [cleanupMatch]);
+
+  useEffect(() => {
     if (mode !== 'local') return;
     setFlags((prev) => {
       const trimmed = prev.filter((idx) => FLAG_EMOJIS[idx] !== undefined).slice(0, flagPickerCount);
@@ -65,22 +75,42 @@ export default function TexasHoldemLobby() {
   }, [flagPickerCount, mode]);
 
   const startGame = async (flagOverride = flags) => {
+    if (mode === 'online') {
+      await runSimpleOnlineFlow({
+        gameType: 'texasholdem',
+        stake,
+        maxPlayers: totalPlayers,
+        avatar,
+        playerName: getTelegramUsername() || 'Player',
+        state: {
+          setMatching,
+          setMatchStatus,
+          setMatchError,
+          setCleanup: setCleanupMatch,
+        },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+        onMatched: ({ accountId, tableId }) => {
+          const params = new URLSearchParams();
+          params.set('mode', 'online');
+          params.set('tableId', tableId);
+          params.set('accountId', accountId);
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', stake.amount);
+          params.set('players', String(totalPlayers));
+          if (avatar) params.set('avatar', avatar);
+          const username = getTelegramUsername();
+          if (username) params.set('username', username);
+          navigate(`/games/texasholdem?${params.toString()}`);
+        },
+      });
+      return;
+    }
+
     let tgId;
     let accountId;
     try {
       accountId = await ensureAccountId();
       tgId = getTelegramId();
-      if (mode === 'online') {
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'texasholdem',
-          accountId,
-        });
-      }
     } catch {}
 
     const params = new URLSearchParams();
@@ -222,13 +252,13 @@ export default function TexasHoldemLobby() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">Mode</h3>
-              <p className="text-xs text-white/60">Local AI is ready, online tables are coming soon.</p>
+              <p className="text-xs text-white/60">Choose local AI or stake-based online matchmaking.</p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3">
             {[
               { id: 'local', label: 'Local (AI)', iconKey: 'mode-ai' },
-              { id: 'online', label: 'Online', iconKey: 'mode-online', disabled: true }
+              { id: 'online', label: 'Online', iconKey: 'mode-online' }
             ].map(({ id, label, iconKey, disabled }) => (
               <div key={id} className="relative">
                 <button
@@ -250,7 +280,7 @@ export default function TexasHoldemLobby() {
                   </div>
                   <div className="text-center">
                     <p className="lobby-option-label">{label}</p>
-                    {disabled && <p className="lobby-option-subtitle">Under development</p>}
+                    {mode === id && id === 'online' && <p className="lobby-option-subtitle">Live queue</p>}
                   </div>
                 </button>
               </div>
@@ -260,11 +290,19 @@ export default function TexasHoldemLobby() {
 
         <button
           onClick={startGame}
-          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          disabled={(mode === 'local' && flags.length !== flagPickerCount) || matching}
           className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-background shadow-[0_18px_30px_rgba(59,130,246,0.35)] transition hover:bg-primary-hover disabled:opacity-50"
         >
           START
         </button>
+
+
+
+        {(matchStatus || matchError) && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center text-sm text-white/70">
+            <span className={matchError ? 'text-red-400' : ''}>{matchError || matchStatus}</span>
+          </div>
+        )}
 
         <FlagPickerModal
           open={showFlagPicker}

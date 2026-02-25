@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { getTelegramFirstName, getTelegramPhotoUrl, ensureAccountId, getTelegramId } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
+import RoomSelector from '../../components/RoomSelector.jsx';
+import { getAccountBalance, addTransaction } from '../../utils/api.js';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
+import { socket } from '../../utils/socket.js';
 
 export default function TableTennisRoyalLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
   const [avatar, setAvatar] = useState('');
   const [mode, setMode] = useState('ai');
+  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchError, setMatchError] = useState('');
 
   useEffect(() => {
     try {
@@ -22,9 +30,32 @@ export default function TableTennisRoyalLobby() {
     }
   }, []);
 
-  const startGame = () => {
+  const startGame = async () => {
+    if (mode === 'online') {
+      await runSimpleOnlineFlow({
+        gameType: 'tabletennisroyal',
+        stake,
+        maxPlayers: 2,
+        avatar,
+        playerName: getTelegramFirstName() || 'Player',
+        state: { setMatching, setMatchStatus, setMatchError },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+        onMatched: ({ accountId, tableId }) => {
+          const params = new URLSearchParams();
+          params.set('mode', 'online');
+          params.set('tableId', tableId);
+          params.set('accountId', accountId);
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', String(stake.amount));
+          if (avatar) params.set('avatar', avatar);
+          navigate(`/games/tabletennisroyal?${params.toString()}`);
+        },
+      });
+      return;
+    }
     const params = new URLSearchParams();
     params.set('mode', mode);
+    if (avatar) params.set('avatar', avatar);
     navigate(`/games/tabletennisroyal?${params.toString()}`);
   };
 
@@ -55,7 +86,7 @@ export default function TableTennisRoyalLobby() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { id: 'ai', label: 'Vs AI', desc: 'Practice rallies', icon: '🤖' },
-              { id: 'online', label: '1v1 Online', desc: 'Live matchmaking', icon: '🌐', disabled: true }
+              { id: 'online', label: '1v1 Online', desc: 'Live matchmaking', icon: '🌐' }
             ].map((item) => (
               <button
                 key={item.id}
@@ -70,7 +101,7 @@ export default function TableTennisRoyalLobby() {
                 </div>
                 <div className="text-center">
                   <p className="lobby-option-label">{item.label}</p>
-                  <p className="lobby-option-subtitle">{item.disabled ? 'Coming soon' : item.desc}</p>
+                  <p className="lobby-option-subtitle">{item.desc}</p>
                 </div>
               </button>
             ))}
@@ -84,7 +115,8 @@ export default function TableTennisRoyalLobby() {
         <button
           type="button"
           onClick={startGame}
-          className="w-full rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-lg"
+          className="w-full rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-60"
+          disabled={matching}
         >
           Start Table Tennis Royal
         </button>

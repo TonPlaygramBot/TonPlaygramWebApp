@@ -15,6 +15,8 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
+import { socket } from '../../utils/socket.js';
 
 const AI_FLAG_STORAGE_KEY = 'airHockeyAiFlag';
 const PLAYER_FLAG_STORAGE_KEY = 'airHockeyPlayerFlag';
@@ -34,6 +36,9 @@ export default function AirHockeyLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchError, setMatchError] = useState('');
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -67,6 +72,34 @@ export default function AirHockeyLobby() {
 
   const startGame = async () => {
     const shouldStake = playType !== 'training' && mode === 'online';
+    if (shouldStake) {
+      await runSimpleOnlineFlow({
+        gameType: 'airhockey',
+        stake,
+        maxPlayers: 2,
+        avatar,
+        playerName: getTelegramFirstName() || 'Player',
+        state: { setMatching, setMatchStatus, setMatchError },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+        onMatched: ({ accountId, tableId }) => {
+          const params = new URLSearchParams(search);
+          params.set('mode', 'online');
+          params.set('tableId', tableId);
+          params.set('accountId', accountId);
+          params.set('target', goal);
+          params.set('type', playType);
+          if (stake.token) params.set('token', stake.token);
+          if (stake.amount) params.set('amount', String(stake.amount));
+          if (avatar) params.set('avatar', avatar);
+          if (selectedFlag) params.set('flag', selectedFlag);
+          if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+          const name = getTelegramFirstName();
+          if (name) params.set('name', name);
+          navigate(`/games/airhockey?${params.toString()}`);
+        },
+      });
+      return;
+    }
     let tgId;
     let accountId;
     try {
@@ -211,7 +244,7 @@ export default function AirHockeyLobby() {
             <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'ai', label: 'Vs AI', desc: 'Instant practice', icon: '🤖' },
-                  { id: 'online', label: '1v1 Online', desc: 'Coming soon', icon: '⚔️', disabled: true }
+                  { id: 'online', label: '1v1 Online', desc: 'Live matchmaking', icon: '⚔️', disabled: false }
                 ].map(({ id, label, desc, icon, disabled }) => {
                 const active = mode === id;
                 return (
@@ -236,7 +269,7 @@ export default function AirHockeyLobby() {
                       </div>
                       <div className="text-center">
                         <p className="lobby-option-label">{label}</p>
-                        <p className="lobby-option-subtitle">{disabled ? 'Under development' : desc}</p>
+                        <p className="lobby-option-subtitle">{disabled ? 'Live queue' : desc}</p>
                       </div>
                     </button>
                   </div>
@@ -353,6 +386,13 @@ export default function AirHockeyLobby() {
                 <p className="text-xs text-white/60">Local AI matches are free — no stake required.</p>
               </div>
             </div>
+          </div>
+        )}
+
+
+        {(matchStatus || matchError) && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center text-sm text-white/70">
+            <span className={matchError ? 'text-red-400' : ''}>{matchError || matchStatus}</span>
           </div>
         )}
 
