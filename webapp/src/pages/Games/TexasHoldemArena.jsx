@@ -393,11 +393,11 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.7;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.98;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.92;
-const HUMAN_CARD_CHIP_BLEND = 0.08;
+const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
@@ -512,7 +512,7 @@ const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.5;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.8;
-const RAIL_CHIP_ROW_SPACING = CARD_H * 0.36;
+const RAIL_CHIP_ROW_SPACING = CARD_H * 0.5;
 
 const CHIP_SCATTER_LAYOUT = Object.freeze({
   perRow: 5,
@@ -523,9 +523,9 @@ const CHIP_SCATTER_LAYOUT = Object.freeze({
 });
 
 const CHIP_RAIL_LAYOUT = Object.freeze({
-  perRow: 4,
-  spacing: CARD_W * 0.48,
-  rowSpacing: CARD_W * 0.34,
+  perRow: 3,
+  spacing: CARD_W * 0.46,
+  rowSpacing: CARD_W * 0.42,
   jitter: CARD_W * 0.06,
   lift: 0
 });
@@ -2127,8 +2127,8 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
         .addScaledVector(axis, CHIP_RAIL_LATERAL_SHIFT);
   chipCenter.addScaledVector(forward, CARD_D * 0.48);
   chipCenter.y = anchorY;
-  const columns = CHIP_VALUES.length;
-  const rows = 1;
+  const columns = 3;
+  const rows = Math.ceil(CHIP_VALUES.length / columns);
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
@@ -4227,7 +4227,7 @@ function TexasHoldemArena({ search }) {
           const controls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
           if (controls) {
             threeRef.current = { ...threeRef.current, raiseControls: controls };
-            controls.group.visible = false;
+            controls.group.visible = true;
           }
         }
 
