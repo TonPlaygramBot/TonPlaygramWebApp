@@ -2306,6 +2306,28 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const polyhavenModelCache = new Map();
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+
+function applySRGBColorSpace(texture) {
+  if (!texture) return;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+}
+
+function prepareLoadedModel(model) {
+  if (!model) return;
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat.map) applySRGBColorSpace(mat.map);
+      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+    });
+  });
+}
 
 function createPolyhavenGltfLoader({ assetId, resolution }) {
   const manager = new THREE.LoadingManager();
@@ -2319,7 +2341,7 @@ function createPolyhavenGltfLoader({ assetId, resolution }) {
   });
   const loader = new GLTFLoader(manager);
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
   return loader;
@@ -2348,7 +2370,17 @@ async function loadPolyhavenModel(assetId) {
         assetId,
         resolution: candidate.resolution
       });
-      gltf = await loader.loadAsync(candidate.url);
+      const resolvedUrl = new URL(
+        candidate.url,
+        typeof window !== 'undefined' ? window.location?.href : candidate.url
+      ).href;
+      const resourcePath = resolvedUrl.substring(
+        0,
+        resolvedUrl.lastIndexOf('/') + 1
+      );
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
+      gltf = await loader.loadAsync(resolvedUrl);
       break;
     } catch (error) {
       lastError = error;
@@ -2361,16 +2393,7 @@ async function loadPolyhavenModel(assetId) {
   }
   const root = gltf.scene || gltf.scenes?.[0];
   if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
-  root.traverse((obj) => {
-    if (!obj.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    mats.forEach((mat) => {
-      if (mat?.map) mat.map.colorSpace = THREE.SRGBColorSpace;
-      if (mat?.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-    });
-  });
+  prepareLoadedModel(root);
   polyhavenModelCache.set(assetId, root);
   return root.clone(true);
 }
@@ -2457,7 +2480,7 @@ async function ensureMurlanChairTemplate(theme = null) {
     }
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
-    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    draco.setDecoderPath(DRACO_DECODER_PATH);
     loader.setCrossOrigin('anonymous');
     loader.setDRACOLoader(draco);
 
@@ -3714,9 +3737,32 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   chairTheme: CHAIR_THEME_OPTIONS
 });
 
+
+const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
+const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'ruby';
+
+function resolveDefaultOptionId(key, options = []) {
+  if (!Array.isArray(options) || options.length === 0) return null;
+  if (key === 'tableTheme') {
+    return (
+      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID)?.id ||
+      options[0]?.id ||
+      null
+    );
+  }
+  if (key === 'chairTheme') {
+    return (
+      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_CHAIR_THEME_ID)?.id ||
+      options[0]?.id ||
+      null
+    );
+  }
+  return options[0]?.id || null;
+}
 const DOMINO_DEFAULT_UNLOCKS = Object.freeze(
   Object.entries(DOMINO_OPTIONS_BY_KEY).reduce((acc, [key, options]) => {
-    acc[key] = options.length && options[0]?.id ? [options[0].id] : [];
+    const defaultId = resolveDefaultOptionId(key, options);
+    acc[key] = defaultId ? [defaultId] : [];
     return acc;
   }, {})
 );
