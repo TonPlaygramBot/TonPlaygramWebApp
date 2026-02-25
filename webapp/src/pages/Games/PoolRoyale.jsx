@@ -3381,7 +3381,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.72; // slightly tighter weave so the procedural pattern appears a bit smaller on-screen
+const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
@@ -3462,7 +3462,7 @@ const buildPolyHavenTextureUrls = (sourceId, resolution) => {
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${res}/${normalized}/${normalized}`;
   return {
     diffuse: `${base}_diff_${res}.jpg`,
-    normal: `${base}_nor_gl_${res}.jpg`,
+    normal: `${base}_nor_dx_${res}.jpg`,
     roughness: `${base}_rough_${res}.jpg`
   };
 };
@@ -3919,10 +3919,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
-
-        if (map) {
-          map = neutralizePolyHavenColorMap(map);
-        }
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
