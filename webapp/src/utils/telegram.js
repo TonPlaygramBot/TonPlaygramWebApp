@@ -2,8 +2,18 @@ import { fetchTelegramInfo } from "./api.js";
 
 export function isTelegramWebView() {
   if (typeof window === 'undefined') return false;
+
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  return Boolean(window.Telegram?.WebApp || ua.includes('Telegram'));
+  if (ua.includes('Telegram')) return true;
+
+  const tg = window.Telegram?.WebApp;
+  if (!tg) return false;
+
+  return Boolean(
+    (typeof tg.initData === 'string' && tg.initData.length > 0) ||
+      tg.initDataUnsafe?.user?.id ||
+      (typeof tg.platform === 'string' && tg.platform !== '' && tg.platform !== 'unknown')
+  );
 }
 
 function parseTelegramId(value) {
