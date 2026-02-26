@@ -366,7 +366,7 @@ const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
-const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.45;
+const HUMAN_CARD_LOOK_SPLAY = 0;
 const CARD_FORWARD_OFFSET = HUMAN_CARD_FORWARD_OFFSET;
 const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
@@ -395,14 +395,14 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.28;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.18;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.55;
-const HUMAN_CHIP_LATERAL_SHIFT = 0;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.68;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * -0.12;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.14;
+const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
 const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.15;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
@@ -4213,16 +4213,6 @@ function TexasHoldemArena({ search }) {
         const seat = aiSeats[index];
         if (!seat) return;
         seat.player = opponent;
-        seat.tableLayout = {
-          ...seat.tableLayout,
-          forward: seat.forward.clone().negate(),
-          right: seat.right.clone().negate()
-        };
-        seat.railLayout = {
-          ...seat.railLayout,
-          forward: seat.forward.clone().negate(),
-          right: seat.right.clone().negate()
-        };
       });
 
       const nameplates = seatGroups.map((seat) => seat.nameplate);
@@ -4822,8 +4812,8 @@ function TexasHoldemArena({ search }) {
           .addScaledVector(forward, 2.4 * MODEL_SCALE)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
           .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0));
-        const face = overheadView || seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: true });
+        const face = 'front';
+        orientCard(mesh, lookTarget, { face, flat: false });
         setCardFace(mesh, face);
         mesh.rotation.x = 0;
         const key = cardKey(card);
@@ -5761,7 +5751,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.1rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -5773,7 +5763,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showMute={false}
           order={['gift']}
-          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.1rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
