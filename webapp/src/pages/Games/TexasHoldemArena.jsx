@@ -393,10 +393,10 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.72;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.06;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.28;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.18;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.55;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.8;
+const HUMAN_CHIP_LATERAL_SHIFT = 0;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
@@ -404,7 +404,7 @@ const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.11;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.56;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.7;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -527,6 +527,8 @@ const CHIP_SCATTER_LAYOUT = Object.freeze({
 
 const CHIP_RAIL_LAYOUT = Object.freeze({
   perRow: 3,
+  minCount: 9,
+  maxCount: 9,
   spacing: CARD_W * 0.46,
   rowSpacing: CARD_W * 0.42,
   jitter: CARD_W * 0.06,
@@ -4192,7 +4194,11 @@ function TexasHoldemArena({ search }) {
             forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
             right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
           };
-          seatGroup.railLayout = seatGroup.tableLayout;
+          seatGroup.railLayout = {
+            ...railLayout,
+            forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
+            right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
+          };
           if (player.isHuman) {
             cameraTarget.copy(seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0)));
           }
@@ -4210,7 +4216,11 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone().negate(),
           right: seat.right.clone().negate()
         };
-        seat.railLayout = seat.tableLayout;
+        seat.railLayout = {
+          ...seat.railLayout,
+          forward: seat.forward.clone().negate(),
+          right: seat.right.clone().negate()
+        };
       });
 
       const nameplates = seatGroups.map((seat) => seat.nameplate);

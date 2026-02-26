@@ -109,6 +109,8 @@ export function createChipFactory(renderer, { cardWidth }) {
     }
     return {
       perRow: Math.max(1, Math.floor(overrides.perRow ?? baseLayout.perRow ?? 5)),
+      minCount: Math.max(0, Math.floor(overrides.minCount ?? baseLayout.minCount ?? 0)),
+      maxCount: Math.max(0, Math.floor(overrides.maxCount ?? baseLayout.maxCount ?? 0)),
       spacing: overrides.spacing ?? baseLayout.spacing ?? radius * 1.65,
       rowSpacing: overrides.rowSpacing ?? baseLayout.rowSpacing ?? radius * 1.25,
       jitter: overrides.jitter ?? baseLayout.jitter ?? radius * 0.28,
@@ -139,8 +141,17 @@ export function createChipFactory(renderer, { cardWidth }) {
   }
 
   function scatterChips(group, amount, options = {}) {
-    const chips = expandChips(amount);
     const layout = buildLayout(group, options.layout);
+    let chips = expandChips(amount);
+    if (layout.maxCount > 0 && chips.length > layout.maxCount) {
+      chips = chips.slice(0, layout.maxCount);
+    }
+    if (layout.minCount > 0 && chips.length < layout.minCount) {
+      const fillerDenom = chips[chips.length - 1]?.denom ?? DENOMINATIONS[0];
+      while (chips.length < layout.minCount) {
+        chips.push({ denom: fillerDenom });
+      }
+    }
     const offsets = layoutOffsets(chips.length, layout);
     chips.forEach((chip, index) => {
       const mesh = createChipMesh(chip.denom);
