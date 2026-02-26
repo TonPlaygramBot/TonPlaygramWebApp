@@ -404,7 +404,7 @@ const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.11;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.7;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.9;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -4199,7 +4199,9 @@ function TexasHoldemArena({ search }) {
             forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
             right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
           };
+          seatGroup.showRailChips = !player.isHuman;
           if (player.isHuman) {
+            chipStack.visible = false;
             cameraTarget.copy(seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0)));
           }
         }
@@ -4852,7 +4854,7 @@ function TexasHoldemArena({ search }) {
       const shouldHoldChips =
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
-      seat.chipStack.visible = true;
+      seat.chipStack.visible = seat.showRailChips !== false;
       chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
