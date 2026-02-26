@@ -33,8 +33,8 @@
 
     .canvasWrap{
       position:absolute;
-      top:40px;
-      bottom:-24px;
+      top:58px;
+      bottom:-6px;
       left:0;
       right:0;
       display:flex;
@@ -516,7 +516,9 @@
     rink.w = Math.round(baseW * fsx);
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
-    const verticalShift = Math.round(H * 0.008);
+    // Keep the overall game area visually a little lower on screen,
+    // while lifting the field itself slightly upward within the canvas.
+    const verticalShift = Math.round(H * -0.006);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
