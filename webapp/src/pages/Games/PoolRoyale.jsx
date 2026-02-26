@@ -5465,7 +5465,7 @@ const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = STOP_EPS;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
 const BREAK_DIE_CORNER_RADIUS = BREAK_DIE_SIZE * 0.17;
@@ -13476,10 +13476,10 @@ function PoolRoyaleGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const sharedHudLiftPx = 22;
+  const sharedHudLiftPx = 30;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const viewButtonsOffsetPx = 32;
-  const viewToggleButtonDropPx = 56 * 0.18;
+  const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
     SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx - viewButtonsOffsetPx;
   const [isPortrait, setIsPortrait] = useState(
@@ -32615,7 +32615,7 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${10 + chromeUiLiftPx + sharedHudLiftPx}px`,
+            bottom: `${18 + chromeUiLiftPx + sharedHudLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
@@ -32985,7 +32985,7 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${6 + chromeUiLiftPx + sharedHudLiftPx}px`,
+            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
