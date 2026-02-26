@@ -394,10 +394,10 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.56;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.34;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
-const AI_CARD_INWARD_SHIFT = CARD_W * -2.54;
+const AI_CARD_INWARD_SHIFT = CARD_W * -2.16;
 const AI_CHIP_INWARD_SHIFT = CARD_W * -0.1;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
 const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
@@ -4956,7 +4956,7 @@ function TexasHoldemArena({ search }) {
           ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
           : position.clone().add(seat.forward.clone());
         const face = seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: false });
+        orientCard(mesh, lookTarget, { face, flat: !seat.isHuman });
         if (seat.isHuman) {
           mesh.rotateX(HUMAN_CARD_FACE_TILT);
         }
