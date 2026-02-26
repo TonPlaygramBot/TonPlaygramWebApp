@@ -13477,15 +13477,16 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 14;
+  const spinControllerLiftPx = 20;
   const hudExtraClearancePx = 8;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = 8;
   const menuButtonLeftNudgePx = -4;
   const sideActionButtonsLiftPx = 10;
-  const rightHudShiftPx = 8;
+  const sideActionButtonsDropPx = 6;
+  const rightHudShiftPx = 12;
   const bottomHudDownPx = 7;
-  const bottomHudLeftPx = -8;
+  const bottomHudLeftPx = -14;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -31595,7 +31596,7 @@ const powerRef = useRef(hud.power);
           }`}
           aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
         >
-          <span className="text-base leading-none" aria-hidden="true">☰</span>
+          <span className="text-lg leading-none" aria-hidden="true">☰</span>
           <span className="leading-none">Menu</span>
         </button>
         {configOpen && (
@@ -32605,7 +32606,7 @@ const powerRef = useRef(hud.power);
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-1"
-            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px` }}
+            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px` }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
