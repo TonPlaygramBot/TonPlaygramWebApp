@@ -171,3 +171,53 @@ public class CushionGeometryTests
         Assert.That(Math.Abs(preview.ContactPoint.Y - expected), Is.LessThan(0.001));
     }
 }
+
+public class SpinActivationTests
+{
+    [Test]
+    public void SideSpinDoesNotDeflectBeforeFirstObjectBallImpact()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        var start = new Vec2(0.3, 0.5);
+        var target = new List<BilliardsSolver.Ball> { new BilliardsSolver.Ball { Position = new Vec2(1.2, 0.5) } };
+        var noSpin = solver.SimulateFirstImpact(new BilliardsSolver.ShotParams
+        {
+            Direction = new Vec2(1, 0),
+            Speed = 2.0,
+            Spin = BilliardsSolver.ShotSpin.None,
+            CueElevationDeg = 0
+        }, start, target);
+
+        var sideSpin = solver.SimulateFirstImpact(new BilliardsSolver.ShotParams
+        {
+            Direction = new Vec2(1, 0),
+            Speed = 2.0,
+            Spin = new BilliardsSolver.ShotSpin { Side = 0.8, Top = 0.3, Back = 0 },
+            CueElevationDeg = 0
+        }, start, target);
+
+        Assert.That((sideSpin.Point - noSpin.Point).Length, Is.LessThan(1e-6));
+    }
+
+    [Test]
+    public void SpinEffectsActivateAfterFirstCushionContact()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+
+        var ball = new BilliardsSolver.Ball
+        {
+            Position = new Vec2(0.12, 0.5),
+            Velocity = new Vec2(-2.0, 0),
+            SideSpin = 0.8,
+            ForwardSpin = 0.2,
+            DelaySpinEffectsUntilImpact = true,
+            SpinEffectsEnabled = false
+        };
+
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.2);
+
+        Assert.That(ball.SpinEffectsEnabled, Is.True);
+    }
+}
