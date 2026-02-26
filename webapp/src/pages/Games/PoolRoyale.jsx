@@ -13478,7 +13478,7 @@ function PoolRoyaleGame({
   }, []);
   const sharedHudLiftPx = 30;
   const spinControllerLiftPx = 14;
-  const hudExtraClearancePx = 20;
+  const hudExtraClearancePx = 8;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
@@ -30506,7 +30506,7 @@ const powerRef = useRef(hud.power);
       : uiScale * 24;
       const rightInset =
       (spinBox?.width ?? fallbackSpinWidth) +
-      uiScale * 32 +
+      uiScale * 44 +
       12;
       setHudInsets({
       left: `${leftInset}px`,
@@ -32598,8 +32598,8 @@ const powerRef = useRef(hud.power);
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-1"
-            style={{ bottom: `${sideControlsBottomPx}px` }}
-            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx}px` }}
+            buttonClassName="pointer-events-auto flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
             chatIcon="💬"
