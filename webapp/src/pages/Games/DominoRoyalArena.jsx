@@ -8,8 +8,13 @@ const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
 export default function DominoRoyalArena() {
   useEffect(() => {
     const statusNode = document.getElementById('status');
+    const appRoot = document.getElementById('app');
     if (statusNode) {
       statusNode.textContent = 'Loading Domino Royal…';
+    }
+
+    if (appRoot) {
+      appRoot.replaceChildren();
     }
 
     const existingStyle = document.getElementById(INLINE_STYLE_ID);
@@ -22,10 +27,7 @@ export default function DominoRoyalArena() {
 
     const existingScript = document.querySelector(GAME_SCRIPT_SELECTOR);
     if (existingScript) {
-      if (statusNode) {
-        statusNode.textContent = 'Ready';
-      }
-      return undefined;
+      existingScript.remove();
     }
 
     const basePath = import.meta.env.BASE_URL || '/';
@@ -48,6 +50,9 @@ export default function DominoRoyalArena() {
 
     return () => {
       script.remove();
+      if (appRoot) {
+        appRoot.replaceChildren();
+      }
     };
   }, []);
 
