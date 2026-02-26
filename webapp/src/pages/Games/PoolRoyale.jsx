@@ -13478,20 +13478,19 @@ function PoolRoyaleGame({
   }, []);
   const sharedHudLiftPx = 30;
   const spinControllerLiftPx = 20;
-  const hudExtraClearancePx = 8;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = 8;
   const menuButtonLeftNudgePx = -4;
   const sideActionButtonsLiftPx = 10;
-  const sideActionButtonsDropPx = 6;
-  const rightHudShiftPx = 12;
-  const bottomHudDownPx = 7;
-  const bottomHudLeftPx = -14;
+  const sideActionButtonsDropPx = 12;
+  const rightHudShiftPx = 4;
+  const bottomHudLeftPx = -22;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
     SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx;
-  const rightControlsLiftPx = 10;
+  const rightControlsLiftPx = 2;
+  const sharedBottomControlsDropPx = 8;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -32605,7 +32604,7 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-1"
+            className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-2"
             style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px` }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
@@ -32626,7 +32625,7 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${18 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx + hudExtraClearancePx - bottomHudDownPx}px`,
+            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
@@ -32997,7 +32996,7 @@ const powerRef = useRef(hud.power);
           className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             right: `${rightHudShiftPx}px`,
-            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx}px`,
+            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
