@@ -12,11 +12,16 @@ html,
 body {
   overscroll-behavior: none;
   height: 100%;
+  width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   font-family: 'Luckiest Guy', 'Comic Sans MS', cursive;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   @apply text-text overflow-x-hidden font-thin;
   background: radial-gradient(
       1200px 800px at 70% -10%,
@@ -134,7 +139,19 @@ h6 {
 }
 
 button {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  line-height: 1;
+  border: none;
   @apply px-2 py-1 bg-primary hover:bg-primary-hover text-white text-outline-black text-sm rounded;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .icon-only-button {
