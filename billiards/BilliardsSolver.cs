@@ -13,6 +13,8 @@ public class BilliardsSolver
         public bool Pocketed;
         public double SideSpin;
         public double ForwardSpin;
+        public bool DelaySpinEffectsUntilImpact;
+        public bool SpinEffectsEnabled = true;
         public double Height;
         public double VerticalVelocity;
         public double MasseFactor = 1.0;
@@ -459,6 +461,8 @@ public class BilliardsSolver
                             b.Pocketed = true;
                             break;
                         }
+                        if (b.DelaySpinEffectsUntilImpact)
+                            b.SpinEffectsEnabled = true;
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
@@ -584,6 +588,8 @@ public class BilliardsSolver
             VerticalVelocity = verticalSpeed,
             SideSpin = clamped.Side,
             ForwardSpin = forwardSpin,
+            DelaySpinEffectsUntilImpact = true,
+            SpinEffectsEnabled = false,
             MasseFactor = masseFactor
         };
     }
@@ -606,6 +612,9 @@ public class BilliardsSolver
 
     private static void ApplySpinForces(Ball b, double dt, bool airborne)
     {
+        if (b.DelaySpinEffectsUntilImpact && !b.SpinEffectsEnabled)
+            return;
+
         var speed = b.Velocity.Length;
         if (speed < PhysicsConstants.Epsilon)
             return;
