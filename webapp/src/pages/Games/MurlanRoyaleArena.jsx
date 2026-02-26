@@ -4872,6 +4872,15 @@ export default function MurlanRoyaleArena({ search }) {
             showInfo={false}
             showMute={false}
             onGift={() => setShowGift(true)}
+            className="fixed right-3 top-4 z-50 flex flex-col items-center gap-2.5"
+            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            iconClassName="text-[1.1rem] leading-none"
+            labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+            chatIcon="💬"
+            giftIcon="🎁"
+            infoIcon="ℹ️"
+            muteIconOn="🔇"
+            muteIconOff="🔊"
           />
         </div>
         <div className="pointer-events-none absolute left-1/2 top-[61.8%] z-20 w-[min(96vw,39rem)] -translate-x-1/2 text-center">
