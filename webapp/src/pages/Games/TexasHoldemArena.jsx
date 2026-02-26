@@ -394,9 +394,9 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.56;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.74;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.6;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.3;
 const AI_CARD_INWARD_SHIFT = CARD_W * -2.54;
 const AI_CHIP_INWARD_SHIFT = CARD_W * -0.1;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
@@ -407,6 +407,8 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
+const AI_CARD_IDLE_LIFT = CARD_D * 0.8;
+const AI_CARD_TURN_LIFT = CARD_H * 0.48;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 900;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
@@ -4949,14 +4951,18 @@ function TexasHoldemArena({ search }) {
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
           const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
-          position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
+          const isActiveSeat = idx === state.actionIndex && !player.folded && !player.allIn;
+          position.y = seat.isHuman ? clothY : clothY + (isActiveSeat ? AI_CARD_TURN_LIFT : AI_CARD_IDLE_LIFT);
         }
         mesh.position.copy(position);
+        const aiActiveTurn = !seat.isHuman && idx === state.actionIndex && !player.folded && !player.allIn;
         const lookTarget = seat.isHuman
           ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
-          : position.clone().add(seat.forward.clone());
+          : aiActiveTurn
+            ? position.clone().add(seat.forward.clone())
+            : position.clone().add(new THREE.Vector3(0, COMMUNITY_CARD_LOOK_LIFT, 0));
         const face = seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: false });
+        orientCard(mesh, lookTarget, { face, flat: !seat.isHuman && !aiActiveTurn });
         if (seat.isHuman) {
           mesh.rotateX(HUMAN_CARD_FACE_TILT);
         }
