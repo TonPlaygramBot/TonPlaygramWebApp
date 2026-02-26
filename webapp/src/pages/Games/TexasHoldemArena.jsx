@@ -394,9 +394,13 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.18;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.68;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * -0.12;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.04;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
+const AI_CARD_INWARD_SHIFT = CARD_W * -2.02;
+const AI_CHIP_INWARD_SHIFT = CARD_W * -0.1;
+const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
+const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
@@ -1802,25 +1806,29 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     cardRailCenter.y = railSurfaceY;
     const chipRailCenter = forward.clone().multiplyScalar(chipRailDistance);
     chipRailCenter.y = railSurfaceY;
+    const cardInwardShift = isHuman ? HUMAN_CARD_INWARD_SHIFT : AI_CARD_INWARD_SHIFT;
+    const chipInwardShift = isHuman ? HUMAN_CHIP_INWARD_SHIFT : AI_CHIP_INWARD_SHIFT;
+    const cardLateralShift = isHuman ? HUMAN_CARD_LATERAL_SHIFT : AI_CARD_LATERAL_SHIFT;
+    const chipLateralShift = isHuman ? HUMAN_CHIP_LATERAL_SHIFT : AI_CHIP_LATERAL_SHIFT;
     const cardAnchor = cardRailCenter
       .clone()
-      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
-      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
+      .addScaledVector(forward, cardInwardShift)
+      .addScaledVector(right, cardLateralShift);
     cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
     const chipAnchor = chipRailCenter
       .clone()
-      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
-      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
+      .addScaledVector(forward, chipInwardShift)
+      .addScaledVector(right, chipLateralShift);
     chipAnchor.y = railSurfaceY;
     const cardRailAnchor = cardRailCenter
       .clone()
-      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
-      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
+      .addScaledVector(forward, cardInwardShift)
+      .addScaledVector(right, cardLateralShift);
     cardRailAnchor.y = railSurfaceY;
     const chipRailAnchor = chipRailCenter
       .clone()
-      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
-      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
+      .addScaledVector(forward, chipInwardShift)
+      .addScaledVector(right, chipLateralShift);
     chipRailAnchor.y = railSurfaceY;
     const betAnchor = forward
       .clone()
@@ -4306,7 +4314,7 @@ function TexasHoldemArena({ search }) {
               .clone()
               .addScaledVector(humanSeatGroup.forward, 2.4 * MODEL_SCALE)
               .add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
-            lookTarget.y = position.y + HUMAN_CARD_LOOK_LIFT;
+            lookTarget.y = position.y;
             orientCard(mesh, lookTarget, { face: 'front', flat: false });
             setCardFace(mesh, 'front');
           });
@@ -4811,7 +4819,7 @@ function TexasHoldemArena({ search }) {
           .clone()
           .addScaledVector(forward, 2.4 * MODEL_SCALE)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
-          .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0));
+          .add(new THREE.Vector3(0, 0, 0));
         const face = 'front';
         orientCard(mesh, lookTarget, { face, flat: false });
         setCardFace(mesh, face);
