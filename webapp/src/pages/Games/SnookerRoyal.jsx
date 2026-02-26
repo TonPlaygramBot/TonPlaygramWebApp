@@ -11914,8 +11914,19 @@ function SnookerRoyalGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const viewButtonsOffsetPx = 38;
-  const viewToggleButtonDropPx = 56 * 0.18;
+  const sharedHudLiftPx = 30;
+  const spinControllerLiftPx = 20;
+  const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
+  const menuButtonTopNudgePx = 8;
+  const menuButtonLeftNudgePx = -4;
+  const sideActionButtonsLiftPx = 10;
+  const sideActionButtonsDropPx = 12;
+  const rightHudShiftPx = 4;
+  const viewButtonsOffsetPx = 32;
+  const viewToggleButtonDropPx = 0;
+  const sideControlsBottomPx =
+    SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx;
+  const rightControlsLiftPx = 2;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -26628,10 +26639,10 @@ const powerRef = useRef(hud.power);
       : null;
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
-  const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
-  const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
-  const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
-  const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
+  const avatarSizeClass = isPortrait ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
+  const nameTextClass = isPortrait ? 'text-[0.95rem]' : 'text-[1.05rem]';
+  const hudGapClass = isPortrait ? 'gap-5' : 'gap-7';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
     'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
@@ -26921,7 +26932,11 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 right-1 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        style={{
+          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          left: `calc(0.75rem + env(safe-area-inset-left, 0px) + ${menuButtonLeftNudgePx}px)`
+        }}
       >
         <button
           ref={configButtonRef}
@@ -26931,33 +26946,15 @@ const powerRef = useRef(hud.power);
           aria-controls="snooker-config-panel"
           style={{
             transform: `scale(${uiScale * 1.08})`,
-            transformOrigin: 'top right'
+            transformOrigin: 'top left'
           }}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
+          aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-6 w-6"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-            />
-          </svg>
-          <span className="sr-only">Toggle table setup</span>
+          <span className="text-lg leading-none" aria-hidden="true">☰</span>
+          <span className="leading-none">Menu</span>
         </button>
         {configOpen && (
           <div
@@ -27657,9 +27654,10 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx - viewButtonsOffsetPx}px`,
+          right: `${rightHudShiftPx}px`,
+          bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
           transformOrigin: 'bottom right'
         }}
@@ -27699,8 +27697,9 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-0 bottom-2 z-50 flex flex-col gap-2.5 -translate-x-1"
-            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-2"
+            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px` }}
+            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
             chatIcon="💬"
