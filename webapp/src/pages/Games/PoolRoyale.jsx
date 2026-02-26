@@ -13480,6 +13480,12 @@ function PoolRoyaleGame({
   const spinControllerLiftPx = 14;
   const hudExtraClearancePx = 8;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
+  const menuButtonTopNudgePx = 8;
+  const menuButtonLeftNudgePx = -4;
+  const sideActionButtonsLiftPx = 10;
+  const rightHudShiftPx = 8;
+  const bottomHudDownPx = 7;
+  const bottomHudLeftPx = -8;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -31570,8 +31576,8 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
-          top: topControlsOffset,
-          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
+          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          left: `calc(0.75rem + env(safe-area-inset-left, 0px) + ${menuButtonLeftNudgePx}px)`
         }}
       >
         <button
@@ -32555,9 +32561,10 @@ const powerRef = useRef(hud.power);
 
         <div
           ref={leftControlsRef}
-          className={`pointer-events-none absolute right-0 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+          className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${sideControlsBottomPx + rightControlsLiftPx}px`,
+          right: `${rightHudShiftPx}px`,
+          bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
           transformOrigin: 'bottom right'
         }}
@@ -32598,8 +32605,8 @@ const powerRef = useRef(hud.power);
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-1"
-            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx}px` }}
-            buttonClassName="pointer-events-auto flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px` }}
+            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
             chatIcon="💬"
@@ -32618,10 +32625,10 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${18 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx + hudExtraClearancePx}px`,
+            bottom: `${18 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx + hudExtraClearancePx - bottomHudDownPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
-            transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
+            transform: isPortrait ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
           }}
         >
             <div
@@ -32986,8 +32993,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
+            right: `${rightHudShiftPx}px`,
             bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
