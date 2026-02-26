@@ -99,7 +99,7 @@ const requestBrowserFullscreen = () => {
 export default function useMobileFullscreen() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (isTelegramWebView() && window.Telegram?.WebApp) return;
+    if (isTelegramWebView()) return;
     if (!isMobileScreen()) return;
 
     syncMobileFullscreenClass();

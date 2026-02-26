@@ -68,9 +68,9 @@ const requestBrowserFullscreen = () => {
 
 export default function useTelegramFullscreen() {
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    if (!isTelegramWebView() || !tg) return;
+    if (!isTelegramWebView()) return;
 
+    const tg = window.Telegram?.WebApp;
     document.body.classList.add('telegram-fullscreen');
 
     tg?.ready?.();
