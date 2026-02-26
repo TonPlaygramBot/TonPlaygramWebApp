@@ -5285,33 +5285,33 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.05; // lift the top view slightly higher
+const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.03; // lower the 2D camera just a touch so the table appears slightly bigger
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.05; // lift the 2D top view slightly higher to keep the framing airy
+const TOP_VIEW_RADIUS_SCALE = 1.03; // lower the 2D top view a bit so the table reads larger
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
-  z: PLAY_H * -0.078 // keep the existing vertical alignment
+  z: PLAY_H * -0.036 // nudge the table a little further down on portrait screens
 });
-const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match Snooker Royal rail overhead coordinates
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = 1.06; // match Snooker Royal rail overhead coordinates
+const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
 const REPLAY_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
 const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
-const BROADCAST_TOP_VIEW_MARGIN = 1.14;
-const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = 1.06;
+const BROADCAST_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
+const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_PHI = 0;
-const BROADCAST_TOP_VIEW_RADIUS_SCALE = 1.06;
+const BROADCAST_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
 const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
-const BROADCAST_SNOOKER_TOP_VIEW_MARGIN = 1.14;
-const BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = 1.06;
+const BROADCAST_SNOOKER_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
+const BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const BROADCAST_SNOOKER_TOP_VIEW_PHI = 0;
-const BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE = 1.06;
+const BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_SNOOKER_TOP_VIEW_RESOLVED_PHI = BROADCAST_SNOOKER_TOP_VIEW_PHI;
 const BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
 const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
@@ -5349,7 +5349,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // keep overhead rail/broadcast framing identical to 2D view
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
