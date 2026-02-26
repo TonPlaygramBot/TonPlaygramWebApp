@@ -775,7 +775,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
-const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the rounded chrome corner cut equal to the middle pockets
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rounded cut a touch so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
@@ -1458,7 +1458,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.985,
+  restitution: 0.99,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -12751,7 +12751,7 @@ function PoolRoyaleGame({
     tableFinishId
   ]);
   const isTraining = playType === 'training';
-  const usesCareerAttempts = careerMode;
+  const usesCareerAttempts = isTraining && careerMode;
   const isFreePractice = isTraining && !usesCareerAttempts;
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
@@ -13482,7 +13482,7 @@ function PoolRoyaleGame({
   const menuButtonTopNudgePx = 8;
   const menuButtonLeftNudgePx = -4;
   const sideActionButtonsLiftPx = 10;
-  const sideActionButtonsDropPx = 12;
+  const sideActionButtonsDropPx = 18;
   const rightHudShiftPx = 4;
   const bottomHudLeftPx = -22;
   const viewButtonsOffsetPx = 32;
@@ -14554,6 +14554,23 @@ const powerRef = useRef(hud.power);
       setHud((prev) => ({ ...prev, over: false }));
       return;
     }
+    if (isFreePractice) {
+      applyTrainingLayoutForLevel(PRACTICE_FREEPLAY_LEVEL);
+      setPendingTrainingLevel(null);
+      setLastCompletedLevel(null);
+      setTrainingTaskTransition(null);
+      setTrainingRoadmapOpen(false);
+      setCareerTaskResultModal(null);
+      setFrameState((prev) => ({
+        ...prev,
+        frameOver: false,
+        winner: undefined,
+        foul: undefined,
+        activePlayer: 'A'
+      }));
+      setHud((prev) => ({ ...prev, over: false, turn: 0 }));
+      return;
+    }
     trainingCompletionHandledRef.current = true;
     const completedLevel = trainingLevelRef.current || 1;
     const completedLevelInfo = describeTrainingLevel(completedLevel);
@@ -14668,6 +14685,7 @@ const powerRef = useRef(hud.power);
     awardTrainingTaskPayout,
     careerStageId,
     frameState.frameOver,
+    isFreePractice,
     isTraining,
     usesCareerAttempts,
     persistRewardNft,
