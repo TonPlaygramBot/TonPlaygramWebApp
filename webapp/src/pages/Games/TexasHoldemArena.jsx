@@ -394,7 +394,7 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.04;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.2;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
 const AI_CARD_INWARD_SHIFT = CARD_W * -2.02;
@@ -4188,6 +4188,7 @@ function TexasHoldemArena({ search }) {
                 face: seat.isHuman ? 'front' : 'back',
                 flat: false
               });
+              mesh.rotateX(HUMAN_CARD_FACE_TILT);
               setCardFace(mesh, seat.isHuman ? 'front' : 'back');
               mesh.visible = true;
             } else {
@@ -4316,6 +4317,7 @@ function TexasHoldemArena({ search }) {
               .add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
             lookTarget.y = position.y;
             orientCard(mesh, lookTarget, { face: 'front', flat: false });
+            mesh.rotateX(HUMAN_CARD_FACE_TILT);
             setCardFace(mesh, 'front');
           });
         };
@@ -4822,8 +4824,8 @@ function TexasHoldemArena({ search }) {
           .add(new THREE.Vector3(0, 0, 0));
         const face = 'front';
         orientCard(mesh, lookTarget, { face, flat: false });
+        mesh.rotateX(HUMAN_CARD_FACE_TILT);
         setCardFace(mesh, face);
-        mesh.rotation.x = 0;
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
