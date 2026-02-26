@@ -13477,11 +13477,14 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
+  const spinControllerLiftPx = 14;
+  const hudExtraClearancePx = 20;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
-    SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx - viewButtonsOffsetPx;
+    SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx;
+  const rightControlsLiftPx = 10;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -30967,7 +30970,7 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 24 : 26;
+  const pottedTokenSize = isPortrait ? 26 : 28;
   const pottedNumberBadgeSize = Math.max(10, Math.round(pottedTokenSize * 0.48));
   const pottedGap = isPortrait ? 8 : 10;
   const renderPottedRow = useCallback(
@@ -31128,10 +31131,10 @@ const powerRef = useRef(hud.power);
       : null;
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
-  const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
-  const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
-  const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
-  const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
+  const avatarSizeClass = isPortrait ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
+  const nameTextClass = isPortrait ? 'text-[0.95rem]' : 'text-[1.05rem]';
+  const hudGapClass = isPortrait ? 'gap-5' : 'gap-7';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
     'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
@@ -32550,11 +32553,11 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div
-        ref={leftControlsRef}
-        className={`pointer-events-none absolute right-0 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        <div
+          ref={leftControlsRef}
+          className={`pointer-events-none absolute right-0 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${sideControlsBottomPx}px`,
+          bottom: `${sideControlsBottomPx + rightControlsLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
           transformOrigin: 'bottom right'
         }}
@@ -32576,12 +32579,12 @@ const powerRef = useRef(hud.power);
           type="button"
           aria-pressed={isTopDownView}
           onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
+              className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+                isTopDownView
+                  ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                  : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+              }`}
+              style={{ marginTop: `${viewToggleButtonDropPx}px` }}
           aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
           <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
@@ -32615,14 +32618,14 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${18 + chromeUiLiftPx + sharedHudLiftPx}px`,
+            bottom: `${18 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx + hudExtraClearancePx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
             <div
-              className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
               style={{
                 transform: `scale(${bottomHudScale})`,
                 transformOrigin: 'bottom center',
@@ -32640,20 +32643,20 @@ const powerRef = useRef(hud.power);
                     <img
                       src={player.avatar || '/assets/icons/profile.svg'}
                       alt="player avatar"
-                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                      className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
-                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                          ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : ''
                       }`}
                     />
                   ) : (
                     <img
                       src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
                       alt="player avatar"
-                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                      className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
-                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                          ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : ''
                       }`}
                     />
                   )}
@@ -32688,10 +32691,10 @@ const powerRef = useRef(hud.power);
                         <img
                           src={opponentDisplayAvatar}
                           alt="opponent avatar"
-                          className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                          className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
-                              ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                              ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : ''
                           }`}
                         />
                         <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
@@ -32708,10 +32711,10 @@ const powerRef = useRef(hud.power);
                         <img
                           src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
                           alt="opponent avatar"
-                          className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                          className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
-                              ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                              ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : ''
                           }`}
                         />
                         <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
@@ -32985,7 +32988,7 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx}px`,
+            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
