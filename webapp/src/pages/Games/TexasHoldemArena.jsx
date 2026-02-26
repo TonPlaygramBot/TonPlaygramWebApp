@@ -402,9 +402,9 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.11;
+const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.14;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 0.9;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.15;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -4761,12 +4761,12 @@ function TexasHoldemArena({ search }) {
       if (!seat) return;
       const prevPlayer = previous?.players?.[idx];
       const humanAnchor = getHumanCardAnchor(seat);
-      const baseAnchor = seat.isHuman
-        ? humanAnchor
-          ?? seat.cardRailAnchor?.clone()
-          ?? seat.chipRailAnchor?.clone()
-          ?? seat.chipAnchor.clone()
-        : seat.cardAnchor.clone();
+      const baseAnchor =
+        humanAnchor
+        ?? seat.cardRailAnchor?.clone()
+        ?? seat.chipRailAnchor?.clone()
+        ?? seat.cardAnchor?.clone()
+        ?? seat.chipAnchor.clone();
       const right = seat.right.clone();
       const forward = seat.forward.clone();
 
@@ -4802,7 +4802,7 @@ function TexasHoldemArena({ search }) {
         const winnerOrderIndex = winnerDisplayIndex.get(idx);
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, seat.isHuman ? HUMAN_CARD_FORWARD_OFFSET : CARD_FORWARD_OFFSET)
+          .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           position.copy(
@@ -4813,35 +4813,19 @@ function TexasHoldemArena({ search }) {
           );
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
-          const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.52;
+          const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
           position.y = clothY;
         }
         mesh.position.copy(position);
-        const isSideSeat = !seat.isHuman && Math.abs(seat.forward.x) > Math.abs(seat.forward.z);
-        const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
-        const lookTarget = seat.isHuman
-          ? baseAnchor
-              .clone()
-              .addScaledVector(forward, 2.4 * MODEL_SCALE)
-              .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
-              .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
-          : (isSideSeat
-              ? baseAnchor
-                  .clone()
-                  .addScaledVector(forward, 2.2 * MODEL_SCALE)
-                  .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
-                  .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
-              : lookOrigin
-                  .clone()
-                  .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
-                  .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
-                  .addScaledVector(forward, 0));
+        const lookTarget = baseAnchor
+          .clone()
+          .addScaledVector(forward, 2.4 * MODEL_SCALE)
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
+          .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0));
         const face = overheadView || seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
+        orientCard(mesh, lookTarget, { face, flat: true });
         setCardFace(mesh, face);
-        if (seat.isHuman) {
-          mesh.rotation.x = 0;
-        }
+        mesh.rotation.x = 0;
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
@@ -5519,33 +5503,25 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute left-2 top-[5.7rem] z-20 flex flex-col items-start gap-2">
+      <div
+        className="absolute z-20 flex flex-col items-start gap-2"
+        style={{
+          top: 'calc(6.2rem + env(safe-area-inset-top, 0px))',
+          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
+        }}
+      >
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setConfigOpen((prev) => !prev)}
             aria-expanded={configOpen}
-            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+            aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+              configOpen ? 'border-white/35 text-white' : 'hover:border-white/30 hover:text-white'
             }`}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-              />
-            </svg>
-            <span className="sr-only">Open table customization</span>
+            <span className="text-base leading-none">☰</span>
+            <span className="leading-none">Menu</span>
           </button>
         </div>
       {configOpen && (
@@ -5785,7 +5761,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+4rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -5797,7 +5773,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showMute={false}
           order={['gift']}
-          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+4rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
