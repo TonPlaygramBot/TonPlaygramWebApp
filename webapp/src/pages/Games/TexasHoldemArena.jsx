@@ -2154,26 +2154,45 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
+    const panelInsetX = 90 * resolutionScale;
+    const panelInsetY = 70 * resolutionScale;
+    const panelW = canvas.width - panelInsetX * 2;
+    const panelH = canvas.height - panelInsetY * 2;
+    const panelRadius = 82 * resolutionScale;
+    const panelGradient = ctx.createLinearGradient(panelInsetX, panelInsetY, panelInsetX + panelW, panelInsetY + panelH);
+    panelGradient.addColorStop(0, 'rgba(2,6,23,0.84)');
+    panelGradient.addColorStop(1, 'rgba(15,23,42,0.78)');
+    ctx.fillStyle = panelGradient;
+    ctx.strokeStyle = 'rgba(125,211,252,0.5)';
+    ctx.lineWidth = 10 * resolutionScale;
+    roundRect(ctx, panelInsetX, panelInsetY, panelW, panelH, panelRadius);
+    ctx.fill();
+    ctx.stroke();
+
     const iconSize = 130 * resolutionScale;
     const iconX = canvas.width / 2 - iconSize / 2;
-    const iconY = 58 * resolutionScale;
+    const iconY = panelInsetY + 30 * resolutionScale;
     if (iconReady) {
       ctx.save();
-      ctx.shadowColor = 'rgba(56,189,248,0.45)';
-      ctx.shadowBlur = 18 * resolutionScale;
+      ctx.shadowColor = 'rgba(56,189,248,0.55)';
+      ctx.shadowBlur = 26 * resolutionScale;
       ctx.drawImage(tpcIcon, iconX, iconY, iconSize, iconSize);
       ctx.restore();
     }
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `900 ${76 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    ctx.font = `800 ${40 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(186,230,253,0.95)';
+    ctx.fillText('POT', canvas.width / 2, iconY + iconSize + 48 * resolutionScale);
+
+    ctx.font = `900 ${78 * resolutionScale}px "Inter", system-ui, sans-serif`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.9)';
-    ctx.lineWidth = 16 * resolutionScale;
-    const amountY = iconY + iconSize + 66 * resolutionScale;
+    ctx.lineWidth = 18 * resolutionScale;
+    const amountY = iconY + iconSize + 126 * resolutionScale;
     ctx.strokeText(amountLabel, canvas.width / 2, amountY);
-    const textGradient = ctx.createLinearGradient(0, amountY - 40 * resolutionScale, canvas.width, amountY + 40 * resolutionScale);
+    const textGradient = ctx.createLinearGradient(panelInsetX, amountY - 40 * resolutionScale, panelInsetX + panelW, amountY + 40 * resolutionScale);
     textGradient.addColorStop(0, '#f8fafc');
     textGradient.addColorStop(1, '#67e8f9');
     ctx.fillStyle = textGradient;
