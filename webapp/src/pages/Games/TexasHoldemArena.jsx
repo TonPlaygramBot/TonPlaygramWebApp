@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -13,19 +7,9 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
-import {
-  applyRendererSRGB,
-  applySRGBColorSpace
-} from '../../utils/colorSpace.js';
-import {
-  ARENA_CAMERA_DEFAULTS,
-  buildArenaCameraConfig
-} from '../../utils/arenaCameraConfig.js';
-import {
-  createMurlanStyleTable,
-  applyTableMaterials,
-  TABLE_SHAPE_OPTIONS
-} from '../../utils/murlanTable.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import { createMurlanStyleTable, applyTableMaterials, TABLE_SHAPE_OPTIONS } from '../../utils/murlanTable.js';
 import {
   createCardGeometry,
   createCardMesh,
@@ -33,15 +17,8 @@ import {
   setCardFace,
   CARD_THEMES
 } from '../../utils/cards3d.js';
-import {
-  TEXAS_CHAIR_THEME_OPTIONS,
-  TEXAS_TABLE_THEME_OPTIONS
-} from '../../config/texasHoldemOptions.js';
-import {
-  getTexasHoldemInventory,
-  isTexasOptionUnlocked,
-  texasHoldemAccountId
-} from '../../utils/texasHoldemInventory.js';
+import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from '../../config/texasHoldemOptions.js';
+import { getTexasHoldemInventory, isTexasOptionUnlocked, texasHoldemAccountId } from '../../utils/texasHoldemInventory.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { AVATARS } from '../../components/AvatarPickerModal.jsx';
@@ -56,10 +33,7 @@ import {
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
-import {
-  hslToHexNumber,
-  WOOD_FINISH_PRESETS
-} from '../../utils/woodMaterials.js';
+import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import {
   buildTexasHoldemCommentaryLine,
@@ -72,10 +46,7 @@ import {
   primeSpeechSynthesis,
   speakCommentaryLines
 } from '../../utils/textToSpeech.js';
-import {
-  TEXAS_HDRI_OPTIONS,
-  TEXAS_TABLE_FINISH_OPTIONS
-} from '../../config/texasHoldemInventoryConfig.js';
+import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
 import { chatBeep } from '../../assets/soundData.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -123,17 +94,10 @@ function detectCoarsePointer() {
 }
 
 function detectLowRefreshDisplay() {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
-  const queries = [
-    '(max-refresh-rate: 59hz)',
-    '(max-refresh-rate: 50hz)',
-    '(prefers-reduced-motion: reduce)'
-  ];
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -147,10 +111,7 @@ function detectLowRefreshDisplay() {
 }
 
 function detectHighRefreshDisplay() {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
   const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
@@ -176,9 +137,7 @@ function readGraphicsRendererString() {
     if (!gl) return 'unknown';
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
     const renderer =
-      (debugInfo && gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)) ||
-      gl.getParameter(gl.RENDERER) ||
-      'unknown';
+      (debugInfo && gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || 'unknown';
     return String(renderer).toLowerCase();
   } catch (err) {
     return 'unknown';
@@ -201,11 +160,7 @@ function classifyRendererTier(signature = '') {
   if (sig.includes('intel') || sig.includes('iris') || sig.includes('uhd')) {
     return 'desktopMid';
   }
-  if (
-    sig.includes('mali') ||
-    sig.includes('adreno') ||
-    sig.includes('powervr')
-  ) {
+  if (sig.includes('mali') || sig.includes('adreno') || sig.includes('powervr')) {
     return 'mobile';
   }
   return 'unknown';
@@ -224,12 +179,10 @@ function detectPreferredFrameRateId() {
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
-  const isMobileUA =
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
-  const deviceMemory =
-    typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
@@ -240,17 +193,10 @@ function detectPreferredFrameRateId() {
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
-    if (
-      (deviceMemory !== null && deviceMemory <= 4) ||
-      hardwareConcurrency <= 4
-    ) {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'hd50';
     }
-    if (
-      highRefresh &&
-      hardwareConcurrency >= 8 &&
-      (deviceMemory == null || deviceMemory >= 6)
-    ) {
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
     }
     if (
@@ -300,11 +246,9 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3162499970197679,
-  1.9173749900311232,
-  1.7001562547683715
-).multiplyScalar(CHAIR_SIZE_SCALE);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
+  CHAIR_SIZE_SCALE
+);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
@@ -337,24 +281,8 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
     description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: [
-        'en-US',
-        'English',
-        'male',
-        'David',
-        'Guy',
-        'Daniel',
-        'Alex'
-      ],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: [
-        'en-GB',
-        'English',
-        'female',
-        'Sonia',
-        'Hazel',
-        'Kate',
-        'Emma'
-      ]
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
@@ -367,24 +295,8 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
     description: 'Hindi commentary with lively pacing',
     language: 'hi',
     voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'male',
-        'Raj',
-        'Amit',
-        'Arjun'
-      ],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'female',
-        'Asha',
-        'Priya',
-        'Neha'
-      ]
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
     },
     speakerSettings: {
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
@@ -397,26 +309,8 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
     description: 'Russian commentary with steady cadence',
     language: 'ru',
     voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'male',
-        'Dmitri',
-        'Ivan',
-        'Sergey',
-        'Alexey'
-      ],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'female',
-        'Anna',
-        'Svetlana',
-        'Irina',
-        'Olga'
-      ]
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
     },
     speakerSettings: {
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
@@ -429,24 +323,8 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
     description: 'Spanish play-by-play with lively color',
     language: 'es',
     voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'male',
-        'Jorge',
-        'Carlos',
-        'Miguel'
-      ],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'female',
-        'Isabella',
-        'Lucia',
-        'Camila'
-      ]
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
     },
     speakerSettings: {
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
@@ -459,22 +337,8 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
     description: 'French broadcast pairing',
     language: 'fr',
     voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: [
-        'fr-FR',
-        'French',
-        'male',
-        'Henri',
-        'Louis',
-        'Paul'
-      ],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: [
-        'fr-FR',
-        'French',
-        'female',
-        'Amelie',
-        'Marie',
-        'Charlotte'
-      ]
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
     },
     speakerSettings: {
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
@@ -482,8 +346,7 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
     }
   }
 ]);
-const DEFAULT_COMMENTARY_PRESET_ID =
-  TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
+const DEFAULT_COMMENTARY_PRESET_ID = TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
 const COMMUNITY_SPACING = CARD_W * 1.08;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
@@ -491,13 +354,12 @@ const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
 const COMMUNITY_ROW_ROTATION = 0;
-const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map(
-  (index) =>
-    new THREE.Vector3(
-      index * COMMUNITY_SPACING,
-      TABLE_HEIGHT + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
-      COMMUNITY_CARD_FORWARD_OFFSET
-    )
+const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
+  new THREE.Vector3(
+    index * COMMUNITY_SPACING,
+    TABLE_HEIGHT + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
+    COMMUNITY_CARD_FORWARD_OFFSET
+  )
 );
 const HOLE_SPACING = CARD_W * 1.08;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
@@ -512,11 +374,7 @@ const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const POT_BELOW_COMMUNITY_OFFSET = -CARD_H;
-const DECK_POSITION = new THREE.Vector3(
-  -TABLE_RADIUS * 0.55,
-  TABLE_HEIGHT + CARD_SURFACE_OFFSET,
-  TABLE_RADIUS * 0.55
-);
+const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
@@ -525,18 +383,9 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({
-  portrait: -0.08,
-  landscape: 0.5
-});
-const CAMERA_RETREAT_OFFSETS = Object.freeze({
-  portrait: 1.68,
-  landscape: 1.04
-});
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.06,
-  landscape: 0.84
-});
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.68, landscape: 1.04 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.16, landscape: 0.9 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -587,18 +436,14 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 
-const DRACO_DECODER_PATH =
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.6/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/';
 const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/1.0.0/';
 const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const DEFAULT_TABLE_THEME_ID =
-  TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
+const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   0,
   TEXAS_HDRI_OPTIONS.findIndex(
-    (variant) =>
-      variant.id === POOL_ROYALE_DEFAULT_HDRI_ID ||
-      PREFERRED_HDRI_RESOLUTIONS.includes(variant?.fallbackResolution ?? '4k')
+    (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID || PREFERRED_HDRI_RESOLUTIONS.includes(variant?.fallbackResolution ?? '4k')
   )
 );
 let sharedKtx2Loader = null;
@@ -640,12 +485,8 @@ function extractAllHttpUrls(apiJson) {
 
 function pickBestModelUrl(urls) {
   const modelUrls = urls.filter(isModelUrl);
-  const glbs = modelUrls.filter((u) =>
-    stripQueryHash(u).toLowerCase().endsWith('.glb')
-  );
-  const gltfs = modelUrls.filter((u) =>
-    stripQueryHash(u).toLowerCase().endsWith('.gltf')
-  );
+  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
+  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
 
   const score = (u) => {
     const lu = u.toLowerCase();
@@ -665,10 +506,7 @@ function pickBestModelUrl(urls) {
 }
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const LABEL_SIZE = Object.freeze({
-  width: 1.42 * MODEL_SCALE,
-  height: 0.66 * MODEL_SCALE
-});
+const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.32 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
@@ -681,10 +519,8 @@ const CARD_RAIL_LATERAL_SHIFT = CARD_W * 0.88;
 const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 0.66;
 
 const RAIL_FORWARD_MARGIN_RATIO = RAIL_FORWARD_MARGIN / TABLE_RADIUS;
-const CARD_RAIL_FORWARD_SHIFT_RATIO =
-  CARD_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
-const CHIP_RAIL_FORWARD_SHIFT_RATIO =
-  CHIP_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
+const CARD_RAIL_FORWARD_SHIFT_RATIO = CARD_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
+const CHIP_RAIL_FORWARD_SHIFT_RATIO = CHIP_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
 const HUMAN_SEAT_RADIUS_OFFSET = CHAIR_RADIUS - TABLE_RADIUS;
 const AI_SEAT_RADIUS_OFFSET = AI_CHAIR_RADIUS - TABLE_RADIUS;
 const BET_DISTANCE_RATIO = 0.6;
@@ -747,8 +583,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.25,
     pixelRatioCap: 1.7,
     resolution: 'QHD render • DPR 1.7 cap',
-    description:
-      'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
@@ -797,10 +632,7 @@ const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
-const DEFAULT_PITCH_LIMITS = Object.freeze({
-  min: -CAMERA_HEAD_PITCH_UP,
-  max: CAMERA_HEAD_PITCH_DOWN
-});
+const DEFAULT_PITCH_LIMITS = Object.freeze({ min: -CAMERA_HEAD_PITCH_UP, max: CAMERA_HEAD_PITCH_DOWN });
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -867,32 +699,18 @@ const DEFAULT_APPEARANCE = {
 };
 
 const CUSTOMIZATION_SECTIONS = [
-  {
-    key: 'tableTheme',
-    label: 'Table Model',
-    options: TEXAS_TABLE_THEME_OPTIONS
-  },
-  {
-    key: 'tableFinish',
-    label: 'Table Finish',
-    options: TEXAS_TABLE_FINISH_OPTIONS
-  },
+  { key: 'tableTheme', label: 'Table Model', options: TEXAS_TABLE_THEME_OPTIONS },
+  { key: 'tableFinish', label: 'Table Finish', options: TEXAS_TABLE_FINISH_OPTIONS },
   { key: 'chairTheme', label: 'Chairs', options: TEXAS_CHAIR_THEME_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
-  {
-    key: 'environmentHdri',
-    label: 'HDR Environment',
-    options: TEXAS_HDRI_OPTIONS
-  }
+  { key: 'environmentHdri', label: 'HDR Environment', options: TEXAS_HDRI_OPTIONS }
 ];
 
 const NON_DIAMOND_SHAPE_INDEX = (() => {
-  const index = TABLE_SHAPE_OPTIONS.findIndex(
-    (option) => option.id !== DIAMOND_SHAPE_ID
-  );
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
   return index >= 0 ? index : 0;
 })();
 
@@ -906,21 +724,16 @@ function enforceShapeForPlayers(appearance, playerCount) {
 }
 
 function getEffectiveShapeConfig(shapeIndex, playerCount) {
-  const fallback =
-    TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
+  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
   const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
   if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
     return { option: fallback, rotationY: 0, forced: true };
   }
-  const rotationY =
-    requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
+  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
   return { option: requested ?? fallback, rotationY, forced: false };
 }
 
-const REGION_NAMES =
-  typeof Intl !== 'undefined'
-    ? new Intl.DisplayNames(['en'], { type: 'region' })
-    : null;
+const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
 
 const resolveDefaultTableFinish = (index) =>
   TEXAS_TABLE_FINISH_OPTIONS[index] ?? TEXAS_TABLE_FINISH_OPTIONS[0] ?? null;
@@ -946,10 +759,7 @@ function clampPlayerCount(value) {
   if (!Number.isFinite(value)) {
     return DEFAULT_PLAYER_COUNT;
   }
-  return Math.min(
-    Math.max(MIN_PLAYER_COUNT, Math.round(value)),
-    MAX_PLAYER_COUNT
-  );
+  return Math.min(Math.max(MIN_PLAYER_COUNT, Math.round(value)), MAX_PLAYER_COUNT);
 }
 
 function parseSearch(search) {
@@ -959,10 +769,7 @@ function parseSearch(search) {
   const amount = Number.parseInt(params.get('amount') || '1000', 10);
   const token = params.get('token') || 'TPC';
   const stake = Number.isFinite(amount) && amount > 0 ? amount : 1000;
-  const rawPlayers = Number.parseInt(
-    params.get('players') || params.get('playerCount') || '',
-    10
-  );
+  const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
   const playerCount = clampPlayerCount(rawPlayers);
   const flags = (params.get('flags') || '')
     .split(',')
@@ -975,30 +782,18 @@ function parseSearch(search) {
 
 function buildPlayers(searchOrOptions) {
   const options =
-    typeof searchOrOptions === 'string'
-      ? parseSearch(searchOrOptions)
-      : { ...searchOrOptions };
+    typeof searchOrOptions === 'string' ? parseSearch(searchOrOptions) : { ...searchOrOptions };
   const { username, stake } = options;
   const playerCount = clampPlayerCount(options?.playerCount);
   const baseChips = Math.max(400, Math.round(stake));
-  const preferredFlags = Array.isArray(options.flags)
-    ? options.flags.filter(Boolean)
-    : [];
+  const preferredFlags = Array.isArray(options.flags) ? options.flags.filter(Boolean) : [];
   const shuffledFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-  const fallbackFlags = preferredFlags.length
-    ? [...shuffledFlags]
-    : [...shuffledFlags];
-  const flags = preferredFlags.length
-    ? [...preferredFlags]
-    : [...shuffledFlags];
-  const nextFlag = () =>
-    flags.shift() ||
-    fallbackFlags.shift() ||
-    FLAG_EMOJIS[(flags.length + 5) % FLAG_EMOJIS.length];
+  const fallbackFlags = preferredFlags.length ? [...shuffledFlags] : [...shuffledFlags];
+  const flags = preferredFlags.length ? [...preferredFlags] : [...shuffledFlags];
+  const nextFlag = () => flags.shift() || fallbackFlags.shift() || FLAG_EMOJIS[(flags.length + 5) % FLAG_EMOJIS.length];
   const shuffledAvatars = [...AVATARS].sort(() => 0.5 - Math.random());
   const fallbackAvatar = '/assets/icons/profile.svg';
-  const nextAvatar = () =>
-    getAvatarUrl(shuffledAvatars.shift()) || fallbackAvatar;
+  const nextAvatar = () => getAvatarUrl(shuffledAvatars.shift()) || fallbackAvatar;
   const humanAvatar = getAvatarUrl(options.avatar) || nextAvatar();
   const humanFlag = nextFlag() || '🇦🇱';
   const players = [
@@ -1065,9 +860,7 @@ function buildClassicOctagonAngles(count) {
     const slotIndex = preferredSlots[i];
     if (slotIndex == null) {
       const fallbackAngle =
-        Math.PI / 2 -
-        HUMAN_SEAT_ROTATION_OFFSET -
-        (i / safeCount) * Math.PI * 2;
+        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
       angles.push(fallbackAngle);
     } else {
       angles.push(slotAngles[slotIndex]);
@@ -1133,7 +926,7 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
     try {
       sharedKtx2Loader.detectSupport(renderer);
     } catch (error) {
-      console.warn("Texas Hold'em KTX2 support detection failed", error);
+      console.warn('Texas Hold\'em KTX2 support detection failed', error);
     }
   }
 
@@ -1192,8 +985,7 @@ function fitModelToHeight(model, targetHeight) {
 }
 
 function fitTableModelToArena(model) {
-  if (!model)
-    return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
@@ -1245,9 +1037,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
 
       for (const candidateId of assetCandidates) {
         try {
-          const filesJson = await fetch(
-            `https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`
-          ).then((r) => r.json());
+          const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
           const allUrls = extractAllHttpUrls(filesJson);
           const apiModelUrl = pickBestModelUrl(allUrls);
           if (apiModelUrl) modelCandidates.add(apiModelUrl);
@@ -1259,15 +1049,10 @@ async function loadPolyhavenModel(assetId, renderer = null) {
             }, new Map());
           }
         } catch (error) {
-          console.warn(
-            'Poly Haven file lookup failed, falling back to direct URLs',
-            error
-          );
+          console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
         }
 
-        buildPolyhavenModelUrls(candidateId).forEach((u) =>
-          modelCandidates.add(u)
-        );
+        buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
       }
 
       const modelUrlList = Array.from(modelCandidates);
@@ -1299,14 +1084,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
       let lastError = null;
       for (const modelUrl of modelUrlList) {
         try {
-          const resolvedUrl = new URL(
-            modelUrl,
-            typeof window !== 'undefined' ? window.location?.href : modelUrl
-          ).href;
-          const resourcePath = resolvedUrl.substring(
-            0,
-            resolvedUrl.lastIndexOf('/') + 1
-          );
+          const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
           loader.setResourcePath?.(resourcePath);
           loader.setPath?.('');
           gltf = await loader.loadAsync(resolvedUrl);
@@ -1317,15 +1096,11 @@ async function loadPolyhavenModel(assetId, renderer = null) {
       }
 
       if (!gltf) {
-        throw (
-          lastError ||
-          new Error(`Failed to load Poly Haven model for ${assetId}`)
-        );
+        throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
       }
 
       const model = gltf.scene || gltf.scenes?.[0] || gltf;
-      if (!model)
-        throw new Error(`Poly Haven model missing scene for ${assetId}`);
+      if (!model) throw new Error(`Poly Haven model missing scene for ${assetId}`);
       prepareLoadedModel(model);
       return model;
     })();
@@ -1338,8 +1113,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   return baseModel.clone(true);
 }
 
-const shouldPreserveChairMaterials = (theme) =>
-  Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
+const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 
 async function buildTableForTheme({
   arena,
@@ -1408,10 +1182,7 @@ async function buildTableForTheme({
   return tableInfo;
 }
 
-function pickPolyHavenHdriUrl(
-  fileMap,
-  preferredResolutions = PREFERRED_HDRI_RESOLUTIONS
-) {
+function pickPolyHavenHdriUrl(fileMap, preferredResolutions = PREFERRED_HDRI_RESOLUTIONS) {
   if (!fileMap || typeof fileMap !== 'object') return null;
   const exr = fileMap?.exr || {};
   const hdr = fileMap?.hdr || {};
@@ -1424,20 +1195,13 @@ function pickPolyHavenHdriUrl(
   return exrValues[0] || hdrValues[0] || null;
 }
 
-async function resolvePolyHavenHdriUrl(
-  config = {},
-  preferred = PREFERRED_HDRI_RESOLUTIONS
-) {
+async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_RESOLUTIONS) {
   const preferredResolutions =
-    Array.isArray(config?.preferredResolutions) &&
-    config.preferredResolutions.length
+    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : preferred;
   const fallbackResolution =
-    config?.fallbackResolution ||
-    preferredResolutions?.[0] ||
-    PREFERRED_HDRI_RESOLUTIONS[0] ||
-    '2k';
+    config?.fallbackResolution || preferredResolutions?.[0] || PREFERRED_HDRI_RESOLUTIONS[0] || '2k';
   const assetId = config?.assetId || 'neon_photostudio';
   const fallbackUrl =
     config?.fallbackUrl ||
@@ -1446,18 +1210,13 @@ async function resolvePolyHavenHdriUrl(
     for (const res of preferredResolutions) {
       if (config.assetUrls[res]) return config.assetUrls[res];
     }
-    const manual = Object.values(config.assetUrls).find(
-      (value) => typeof value === 'string' && value.length
-    );
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
     if (manual) return manual;
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length)
-    return config.assetUrl;
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
-    const response = await fetch(
-      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
-    );
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
     const picked = pickPolyHavenHdriUrl(json, preferredResolutions);
@@ -1475,11 +1234,7 @@ async function createFallbackHdriEnvironment(renderer) {
   const hemi = new THREE.HemisphereLight(0x94a3b8, 0x0f172a, 1.05);
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(6, 24),
-    new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      roughness: 0.78,
-      metalness: 0.05
-    })
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.05 })
   );
   floor.rotation.x = -Math.PI / 2;
   const tempScene = new THREE.Scene();
@@ -1539,8 +1294,7 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
-  const target =
-    amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
+  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
 }
@@ -1571,11 +1325,7 @@ function createChairClothTexture(chairOption, renderer) {
   ctx.strokeStyle = seam;
   ctx.lineWidth = lineWidth;
   ctx.globalAlpha = 0.9;
-  for (
-    let offset = -canvas.height;
-    offset <= canvas.width + canvas.height;
-    offset += spacing
-  ) {
+  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
     ctx.beginPath();
     ctx.moveTo(offset, 0);
     ctx.lineTo(offset - canvas.height, canvas.height);
@@ -1591,11 +1341,7 @@ function createChairClothTexture(chairOption, renderer) {
   ctx.strokeStyle = adjustHexColor(highlight, 0.18);
   ctx.lineWidth = lineWidth * 0.55;
   ctx.globalAlpha = 0.55;
-  for (
-    let offset = -canvas.height;
-    offset <= canvas.width + canvas.height;
-    offset += spacing
-  ) {
+  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
     ctx.beginPath();
     ctx.moveTo(offset + halfSpacing, 0);
     ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
@@ -1613,15 +1359,7 @@ function createChairClothTexture(chairOption, renderer) {
   for (let y = -spacing; y <= canvas.height + spacing; y += spacing) {
     for (let x = -spacing; x <= canvas.width + spacing; x += spacing) {
       ctx.beginPath();
-      ctx.ellipse(
-        x + halfSpacing,
-        y + halfSpacing,
-        tuftRadius,
-        tuftRadius * 0.85,
-        0,
-        0,
-        Math.PI * 2
-      );
+      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.85, 0, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1707,10 +1445,7 @@ function createStraightArmrest(side, material) {
   const topLength = ARM_DEPTH * 1.1;
   const topThickness = ARM_THICKNESS * 0.65;
 
-  const top = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength),
-    material
-  );
+  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
   top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
   top.castShadow = true;
   top.receiveShadow = true;
@@ -1718,18 +1453,10 @@ function createStraightArmrest(side, material) {
 
   const createSupport = (zOffset) => {
     const support = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        ARM_THICKNESS * 0.6,
-        supportHeight,
-        ARM_THICKNESS * 0.7
-      ),
+      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
       material
     );
-    support.position.set(
-      0,
-      baseHeight + supportHeight / 2,
-      top.position.z + zOffset
-    );
+    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
     support.castShadow = true;
     support.receiveShadow = true;
     return support;
@@ -1740,55 +1467,32 @@ function createStraightArmrest(side, material) {
   group.add(frontSupport, rearSupport);
 
   const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      ARM_THICKNESS * 0.45,
-      supportHeight * 0.92,
-      ARM_DEPTH * 0.85
-    ),
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
     material
   );
-  sidePanel.position.set(
-    0,
-    baseHeight + supportHeight * 0.46,
-    top.position.z - ARM_DEPTH * 0.02
-  );
+  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
   sidePanel.castShadow = true;
   sidePanel.receiveShadow = true;
   group.add(sidePanel);
 
   const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      ARM_THICKNESS * 0.7,
-      topThickness * 0.7,
-      topLength * 0.8
-    ),
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
     material
   );
-  handRest.position.set(
-    0,
-    top.position.y + topThickness * 0.45,
-    top.position.z
-  );
+  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
   handRest.castShadow = true;
   handRest.receiveShadow = true;
   group.add(handRest);
 
   group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
 
-  return {
-    group,
-    meshes: [top, frontSupport, rearSupport, sidePanel, handRest]
-  };
+  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
 }
 
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(
-    TARGET_CHAIR_SIZE.x,
-    TARGET_CHAIR_SIZE.y,
-    TARGET_CHAIR_SIZE.z
-  );
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -1882,24 +1586,14 @@ function createProceduralChair(theme, renderer) {
 
   const chair = new THREE.Group();
 
-  const seatMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
-    chairMaterial
-  );
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
   seatMesh.position.y = SEAT_THICKNESS / 2;
   seatMesh.castShadow = true;
   seatMesh.receiveShadow = true;
   chair.add(seatMesh);
 
-  const backMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(SEAT_WIDTH * 0.98, BACK_HEIGHT, BACK_THICKNESS),
-    chairMaterial
-  );
-  backMesh.position.set(
-    0,
-    SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
-    -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
-  );
+  const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH * 0.98, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
   backMesh.castShadow = true;
   backMesh.receiveShadow = true;
   chair.add(backMesh);
@@ -1910,12 +1604,7 @@ function createProceduralChair(theme, renderer) {
   chair.add(armRight.group);
 
   const legBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.16 * MODEL_SCALE * STOOL_SCALE,
-      0.2 * MODEL_SCALE * STOOL_SCALE,
-      BASE_COLUMN_HEIGHT,
-      18
-    ),
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
     legMaterial
   );
   legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -1924,16 +1613,10 @@ function createProceduralChair(theme, renderer) {
   chair.add(legBase);
 
   const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.32 * MODEL_SCALE * STOOL_SCALE,
-      0.32 * MODEL_SCALE * STOOL_SCALE,
-      0.08 * MODEL_SCALE,
-      24
-    ),
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
     legMaterial
   );
-  foot.position.y =
-    legBase.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.position.y = legBase.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
   foot.castShadow = true;
   foot.receiveShadow = true;
   chair.add(foot);
@@ -1961,28 +1644,16 @@ async function buildChairTemplate(theme, renderer) {
       }
       const materials = extractChairMaterials(model);
       if (!preserveMaterials) {
-        applyChairThemeMaterials(
-          { chairMaterials: materials },
-          theme,
-          renderer
-        );
+        applyChairThemeMaterials({ chairMaterials: materials }, theme, renderer);
       }
-      return {
-        chairTemplate: model,
-        materials,
-        preserveOriginal: preserveMaterials
-      };
+      return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
     const gltfChair = await loadGltfChair(renderer);
     if (rotationY && gltfChair?.chairTemplate) {
       gltfChair.chairTemplate.rotation.y += rotationY;
     }
     if (!preserveMaterials) {
-      applyChairThemeMaterials(
-        { chairMaterials: gltfChair.materials },
-        theme,
-        renderer
-      );
+      applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme, renderer);
     }
     return { ...gltfChair, preserveOriginal: preserveMaterials };
   } catch (error) {
@@ -2009,18 +1680,12 @@ function applyChairThemeMaterials(target, theme, renderer) {
       mats.seat.color.set(seatColor);
       mats.seat.needsUpdate = true;
     }
-    mats.seat.userData = {
-      ...(mats.seat.userData || {}),
-      chairId: theme?.id ?? 'default'
-    };
+    mats.seat.userData = { ...(mats.seat.userData || {}), chairId: theme?.id ?? 'default' };
   }
   if (mats.leg?.color) {
     mats.leg.color.set(legColor);
     mats.leg.needsUpdate = true;
-    mats.leg.userData = {
-      ...(mats.leg.userData || {}),
-      chairId: theme?.id ?? 'default'
-    };
+    mats.leg.userData = { ...(mats.leg.userData || {}), chairId: theme?.id ?? 'default' };
   }
   (mats.upholstery ?? []).forEach((mat) => {
     if (mat?.color) {
@@ -2038,12 +1703,7 @@ function applyChairThemeMaterials(target, theme, renderer) {
 
 function disposeChairMaterials(materials) {
   if (!materials) return;
-  const disposeList = [
-    materials.seat,
-    materials.leg,
-    ...(materials.upholstery ?? []),
-    ...(materials.metal ?? [])
-  ];
+  const disposeList = [materials.seat, materials.leg, ...(materials.upholstery ?? []), ...(materials.metal ?? [])];
   disposeList.forEach((mat) => {
     if (!mat) return;
     try {
@@ -2063,23 +1723,11 @@ function computeCameraPitchLimits(position, baseForward, options = {}) {
   const horizontalForward = Math.hypot(baseForward.x, baseForward.z);
   const baseDownAngle = Math.atan2(-baseForward.y, horizontalForward);
   const radialDistance = Math.hypot(position.x, position.z);
-  const horizontalGap = Math.max(
-    0.35,
-    ARENA_WALL_INNER_RADIUS - radialDistance
-  );
+  const horizontalGap = Math.max(0.35, ARENA_WALL_INNER_RADIUS - radialDistance);
   const verticalReach = Math.max(0.01, ARENA_WALL_TOP_Y - position.y);
-  const wallLimitedUp = Math.max(
-    0,
-    Math.atan2(verticalReach, horizontalGap) - CAMERA_WALL_MARGIN
-  );
-  const maxUpAngle = Math.max(
-    0,
-    Math.min(wallLimitedUp, THREE.MathUtils.degToRad(65))
-  );
-  const computedUp = Math.max(
-    0,
-    Math.min(baseDownAngle + maxUpAngle, THREE.MathUtils.degToRad(65))
-  );
+  const wallLimitedUp = Math.max(0, Math.atan2(verticalReach, horizontalGap) - CAMERA_WALL_MARGIN);
+  const maxUpAngle = Math.max(0, Math.min(wallLimitedUp, THREE.MathUtils.degToRad(65)));
+  const computedUp = Math.max(0, Math.min(baseDownAngle + maxUpAngle, THREE.MathUtils.degToRad(65)));
   let safeUp = computedUp > 0 ? computedUp : CAMERA_HEAD_PITCH_UP;
   if (seatTopPoint) {
     const limitVector = seatTopPoint.clone().sub(position);
@@ -2125,16 +1773,11 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const cardinalForDiamond =
     tableInfo?.shapeId === DIAMOND_SHAPE_ID && safeCount > 0 && safeCount <= 4;
   const useCardinal = Boolean(options?.useCardinal) || cardinalForDiamond;
-  const cardinalAngles = useCardinal
-    ? buildCardinalSeatAngles(safeCount)
-    : null;
+  const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
   const classicAngles =
-    tableInfo?.shapeId === 'classicOctagon'
-      ? buildClassicOctagonAngles(safeCount)
-      : null;
+    tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
-    const baseAngle =
-      Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
+    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
@@ -2143,29 +1786,19 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const outerDistance = tableInfo?.getOuterRadius?.(forward) ?? baseRadius;
     let innerDistance = tableInfo?.getInnerRadius?.(forward);
-    if (
-      !Number.isFinite(innerDistance) ||
-      innerDistance <= 0 ||
-      innerDistance >= outerDistance
-    ) {
+    if (!Number.isFinite(innerDistance) || innerDistance <= 0 || innerDistance >= outerDistance) {
       innerDistance = outerDistance * 0.85;
     }
     const railSpan = Math.max(outerDistance - innerDistance, baseRadius * 0.04);
     let forwardMargin = outerDistance * RAIL_FORWARD_MARGIN_RATIO;
     const maxForwardMargin = Math.max(railSpan * 0.75, baseRadius * 0.015);
-    forwardMargin = clampValue(
-      forwardMargin,
-      baseRadius * 0.01,
-      maxForwardMargin
-    );
+    forwardMargin = clampValue(forwardMargin, baseRadius * 0.01, maxForwardMargin);
     const railAnchorDistance = outerDistance - forwardMargin;
     const railAnchor = forward.clone().multiplyScalar(railAnchorDistance);
     railAnchor.y = tableSurfaceY + RAIL_HEIGHT_OFFSET;
     const railSurfaceY = railAnchor.y + RAIL_SURFACE_LIFT;
-    const cardRailBase =
-      railAnchorDistance + forwardMargin * CARD_RAIL_FORWARD_SHIFT_RATIO;
-    const chipRailBase =
-      railAnchorDistance + forwardMargin * CHIP_RAIL_FORWARD_SHIFT_RATIO;
+    const cardRailBase = railAnchorDistance + forwardMargin * CARD_RAIL_FORWARD_SHIFT_RATIO;
+    const chipRailBase = railAnchorDistance + forwardMargin * CHIP_RAIL_FORWARD_SHIFT_RATIO;
     const cardRailDistance = clampValue(
       cardRailBase,
       innerDistance + railSpan * 0.06,
@@ -2176,27 +1809,17 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       innerDistance + railSpan * 0.5,
       outerDistance - railSpan * 0.05
     );
-    const seatRadius =
-      outerDistance +
-      (isHuman ? HUMAN_SEAT_RADIUS_OFFSET : AI_SEAT_RADIUS_OFFSET);
+    const seatRadius = outerDistance + (isHuman ? HUMAN_SEAT_RADIUS_OFFSET : AI_SEAT_RADIUS_OFFSET);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const cardRailCenter = forward.clone().multiplyScalar(cardRailDistance);
     cardRailCenter.y = railSurfaceY;
     const chipRailCenter = forward.clone().multiplyScalar(chipRailDistance);
     chipRailCenter.y = railSurfaceY;
-    const cardInwardShift = isHuman
-      ? HUMAN_CARD_INWARD_SHIFT
-      : AI_CARD_INWARD_SHIFT;
-    const chipInwardShift = isHuman
-      ? HUMAN_CHIP_INWARD_SHIFT
-      : AI_CHIP_INWARD_SHIFT;
-    const cardLateralShift = isHuman
-      ? HUMAN_CARD_LATERAL_SHIFT
-      : AI_CARD_LATERAL_SHIFT;
-    const chipLateralShift = isHuman
-      ? HUMAN_CHIP_LATERAL_SHIFT
-      : AI_CHIP_LATERAL_SHIFT;
+    const cardInwardShift = isHuman ? HUMAN_CARD_INWARD_SHIFT : AI_CARD_INWARD_SHIFT;
+    const chipInwardShift = isHuman ? HUMAN_CHIP_INWARD_SHIFT : AI_CHIP_INWARD_SHIFT;
+    const cardLateralShift = isHuman ? HUMAN_CARD_LATERAL_SHIFT : AI_CARD_LATERAL_SHIFT;
+    const chipLateralShift = isHuman ? HUMAN_CHIP_LATERAL_SHIFT : AI_CHIP_LATERAL_SHIFT;
     const cardAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, cardInwardShift)
@@ -2256,20 +1879,15 @@ function getHumanCardAnchor(seatGroup) {
   const blended = cardBase
     .addScaledVector(seatGroup.forward, HUMAN_CARD_FORWARD_OFFSET)
     .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
-  blended.y =
-    TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET;
+  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET;
   return blended;
 }
 
 function computeCommunitySlotPosition(index, options = {}) {
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
-  const right = (options.right ?? new THREE.Vector3(1, 0, 0))
-    .clone()
-    .normalize();
-  const forward = (options.forward ?? new THREE.Vector3(0, 0, 1))
-    .clone()
-    .normalize();
+  const right = (options.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
+  const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
   if (rotationY) {
     right.applyAxisAngle(WORLD_UP, rotationY);
     forward.applyAxisAngle(WORLD_UP, rotationY);
@@ -2287,18 +1905,11 @@ function computeCommunitySlotPosition(index, options = {}) {
 function computePotAnchor(options = {}) {
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
-  const forward = (options.forward ?? new THREE.Vector3(0, 0, 1))
-    .clone()
-    .normalize();
+  const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
   if (rotationY) {
     forward.applyAxisAngle(WORLD_UP, rotationY);
   }
-  const center = computeCommunitySlotPosition(2, {
-    rotationY,
-    surfaceY,
-    right: options.right,
-    forward
-  });
+  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right: options.right, forward });
   return center
     .clone()
     .setY(surfaceY + CARD_SURFACE_OFFSET)
@@ -2307,8 +1918,8 @@ function computePotAnchor(options = {}) {
 
 function makeNameplate(name, chips, renderer, avatar) {
   const canvas = document.createElement('canvas');
-  canvas.width = 768;
-  canvas.height = 320;
+  canvas.width = 512;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   const fallbackAvatar = '/assets/icons/profile.svg';
   let avatarSrc = getAvatarUrl(avatar) || fallbackAvatar;
@@ -2321,15 +1932,7 @@ function makeNameplate(name, chips, renderer, avatar) {
   let lastStatus = '';
   let lastTimer = null;
   let lastTimerProgress = null;
-  const draw = (
-    playerName,
-    stack,
-    highlight,
-    status,
-    nextAvatar,
-    timerSeconds,
-    timerProgress
-  ) => {
+  const draw = (playerName, stack, highlight, status, nextAvatar, timerSeconds, timerProgress) => {
     const normalizedAvatar = getAvatarUrl(nextAvatar) || fallbackAvatar;
     if (nextAvatar && normalizedAvatar !== avatarSrc) {
       avatarSrc = normalizedAvatar;
@@ -2343,57 +1946,30 @@ function makeNameplate(name, chips, renderer, avatar) {
     lastTimer = timerSeconds;
     lastTimerProgress = timerProgress;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const panelRadius = 52;
-    const panelX = 14;
-    const panelY = 20;
+    const panelRadius = 44;
+    const panelX = 12;
+    const panelY = 18;
     const panelW = canvas.width - panelX * 2;
     const panelH = canvas.height - panelY * 2;
-    const panelGradient = ctx.createLinearGradient(
-      panelX,
-      panelY,
-      panelX,
-      panelY + panelH
-    );
-    panelGradient.addColorStop(0, 'rgba(9,13,22,0.95)');
-    panelGradient.addColorStop(0.65, 'rgba(7,10,18,0.9)');
-    panelGradient.addColorStop(1, 'rgba(2,6,23,0.8)');
+    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
+    panelGradient.addColorStop(0, 'rgba(10,14,24,0.9)');
+    panelGradient.addColorStop(1, 'rgba(7,10,18,0.75)');
     ctx.fillStyle = panelGradient;
-    ctx.strokeStyle = highlight
-      ? 'rgba(96,165,250,0.75)'
-      : 'rgba(255,215,0,0.38)';
-    ctx.lineWidth = 9;
+    ctx.strokeStyle = highlight ? 'rgba(96,165,250,0.75)' : 'rgba(255,215,0,0.38)';
+    ctx.lineWidth = 10;
     roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
     ctx.stroke();
 
-    const dividerX = panelX + panelW * 0.49;
-    ctx.strokeStyle = 'rgba(148,163,184,0.26)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(dividerX, panelY + 32);
-    ctx.lineTo(dividerX, panelY + panelH - 32);
-    ctx.stroke();
-
-    const avatarSize = 164;
-    const avatarX = panelX + 26;
+    const avatarSize = 148;
+    const avatarX = panelX + 20;
     const avatarY = panelY + (panelH - avatarSize) / 2;
-    const ringGradient = ctx.createLinearGradient(
-      avatarX,
-      avatarY,
-      avatarX + avatarSize,
-      avatarY + avatarSize
-    );
+    const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
     ringGradient.addColorStop(0, 'rgba(255,215,0,0.65)');
     ringGradient.addColorStop(1, 'rgba(255,255,255,0.5)');
     ctx.save();
     ctx.beginPath();
-    ctx.arc(
-      avatarX + avatarSize / 2,
-      avatarY + avatarSize / 2,
-      avatarSize / 2,
-      0,
-      Math.PI * 2
-    );
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
     ctx.closePath();
     ctx.fillStyle = 'rgba(255,255,255,0.09)';
     ctx.fill();
@@ -2408,37 +1984,22 @@ function makeNameplate(name, chips, renderer, avatar) {
     }
     ctx.restore();
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 54px "Inter", system-ui, sans-serif';
+    ctx.font = '700 68px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
-    const textX = dividerX + 24;
-    const textY = panelY + 38;
-    ctx.fillStyle = 'rgba(148,163,184,0.9)';
-    ctx.font = '700 26px "Inter", system-ui, sans-serif';
-    ctx.fillText('PLAYER', textX, textY - 24);
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 54px "Inter", system-ui, sans-serif';
+    const textX = avatarX + avatarSize + 32;
+    const textY = panelY + 32;
     ctx.fillText(playerName, textX, textY);
-
-    ctx.fillStyle = 'rgba(148,163,184,0.92)';
-    ctx.font = '700 26px "Inter", system-ui, sans-serif';
-    ctx.fillText('TOTAL TPC', textX, textY + 70);
-
-    ctx.font = '700 50px "Inter", system-ui, sans-serif';
+    ctx.font = '600 54px "Inter", system-ui, sans-serif';
     ctx.fillStyle = '#f7e7a4';
-    ctx.fillText(`${stack.toLocaleString()} TPC`, textX, textY + 102);
+    ctx.fillText(`${stack} chips`, textX, textY + 86);
     if (status) {
-      ctx.font = '700 34px "Inter", system-ui, sans-serif';
+      ctx.font = '600 44px "Inter", system-ui, sans-serif';
       ctx.fillStyle = '#c7d2fe';
-      ctx.fillText(status, textX, textY + 168);
+      ctx.fillText(status, textX, textY + 150);
     }
 
-    const timerValue = Number.isFinite(timerSeconds)
-      ? Math.max(0, timerSeconds)
-      : null;
-    const timerPercent = Number.isFinite(timerProgress)
-      ? Math.max(0, Math.min(1, timerProgress))
-      : null;
+    const timerValue = Number.isFinite(timerSeconds) ? Math.max(0, timerSeconds) : null;
+    const timerPercent = Number.isFinite(timerProgress) ? Math.max(0, Math.min(1, timerProgress)) : null;
     if (timerValue !== null && timerPercent !== null) {
       const ringRadius = avatarSize / 2 + 22;
       const startAngle = -Math.PI / 2;
@@ -2446,13 +2007,7 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.lineWidth = 14;
       ctx.strokeStyle = 'rgba(15,23,42,0.75)';
       ctx.beginPath();
-      ctx.arc(
-        avatarX + avatarSize / 2,
-        avatarY + avatarSize / 2,
-        ringRadius,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, ringRadius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.strokeStyle = '#fbbf24';
       ctx.beginPath();
@@ -2471,26 +2026,14 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.fillStyle = '#f8fafc';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(
-        `${timerValue}s`,
-        avatarX + avatarSize / 2,
-        avatarY + avatarSize + 18
-      );
+      ctx.fillText(`${timerValue}s`, avatarX + avatarSize / 2, avatarY + avatarSize + 18);
       ctx.restore();
     }
   };
   draw(name, chips, false, '', avatar, lastTimer, lastTimerProgress);
   avatarImg.onload = () => {
     avatarReady = true;
-    draw(
-      lastName,
-      lastStack,
-      lastHighlight,
-      lastStatus,
-      avatarSrc,
-      lastTimer,
-      lastTimerProgress
-    );
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
   avatarImg.onerror = () => {
@@ -2501,15 +2044,7 @@ function makeNameplate(name, chips, renderer, avatar) {
       return;
     }
     avatarReady = true;
-    draw(
-      lastName,
-      lastStack,
-      lastHighlight,
-      lastStatus,
-      avatarSrc,
-      lastTimer,
-      lastTimerProgress
-    );
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
   avatarImg.src = avatarSrc;
@@ -2597,25 +2132,12 @@ function createRailTextSprite(initialLines = [], options = {}) {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.85)';
     ctx.lineWidth = 18 * resolutionScale;
-    ctx.strokeText(
-      amountLabel,
-      iconX + iconSize + 28 * resolutionScale,
-      canvas.height / 2 + 4 * resolutionScale
-    );
-    const textGradient = ctx.createLinearGradient(
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
+    ctx.strokeText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
+    const textGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     textGradient.addColorStop(0, '#f8fafc');
     textGradient.addColorStop(1, '#67e8f9');
     ctx.fillStyle = textGradient;
-    ctx.fillText(
-      amountLabel,
-      iconX + iconSize + 28 * resolutionScale,
-      canvas.height / 2 + 4 * resolutionScale
-    );
+    ctx.fillText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
   };
 
   tpcIcon.onload = () => {
@@ -2660,6 +2182,7 @@ function createRailTextSprite(initialLines = [], options = {}) {
   return sprite;
 }
 
+
 function createFoldBadgeSprite() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -2680,21 +2203,14 @@ function createFoldBadgeSprite() {
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    toneMapped: false
-  });
-  const geometry = new THREE.PlaneGeometry(CARD_W * 1.22, CARD_H * 1.16);
-  const sprite = new THREE.Mesh(geometry, material);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(CARD_W * 1.08, CARD_H * 1.08, 1);
   sprite.visible = false;
   sprite.renderOrder = 24;
   sprite.userData.dispose = () => {
     texture.dispose();
     material.dispose();
-    geometry.dispose();
   };
   return sprite;
 }
@@ -2706,29 +2222,16 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   arena.add(group);
   const forward = seat.forward.clone().normalize();
   const axis = seat.right.clone().normalize();
-  const anchorY =
-    seat.cardRailAnchor?.y ??
-    seat.chipRailAnchor?.y ??
-    tableInfo.surfaceY + RAIL_HEIGHT_OFFSET + RAIL_SURFACE_LIFT;
-  const fallbackAnchor = forward
-    .clone()
-    .multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
+  const anchorY = seat.cardRailAnchor?.y ?? seat.chipRailAnchor?.y ?? tableInfo.surfaceY + RAIL_HEIGHT_OFFSET + RAIL_SURFACE_LIFT;
+  const fallbackAnchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
   fallbackAnchor.y = anchorY;
   const cardRailAnchor = seat.cardRailAnchor
     ? seat.cardRailAnchor.clone()
-    : fallbackAnchor
-        .clone()
-        .addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT)
-        .addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
+    : fallbackAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
   cardRailAnchor.y = anchorY;
   const chipCenter = cardRailAnchor
     .clone()
-    .addScaledVector(
-      forward,
-      CHIP_RAIL_FORWARD_SHIFT -
-        CARD_RAIL_FORWARD_SHIFT +
-        CHIP_BUTTON_GRID_OUTWARD_SHIFT
-    )
+    .addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT - CARD_RAIL_FORWARD_SHIFT + CHIP_BUTTON_GRID_OUTWARD_SHIFT)
     .addScaledVector(axis, CHIP_BUTTON_GRID_RIGHT_SHIFT);
   chipCenter.y = anchorY;
   const columns = 3;
@@ -2736,19 +2239,14 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
-    const chip =
-      chipFactory.createSingleChip?.(value) ??
-      chipFactory.createStack(value, { mode: 'stack' });
+    const chip = chipFactory.createSingleChip?.(value) ?? chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
     chip.position.y = anchorY + CARD_D * 0.82;
     const row = Math.floor(index / columns);
     const col = index % columns;
     chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
-    chip.position.addScaledVector(
-      forward,
-      -(row - rowOffset) * RAIL_CHIP_ROW_SPACING
-    );
+    chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
     chip.scale.setScalar(baseScale);
     chip.userData = { type: 'chip-button', value, baseScale };
     group.add(chip);
@@ -2785,10 +2283,7 @@ function applyCardToMesh(mesh, card, geometry, cache, theme) {
   const previousTheme = mesh.userData?.cardThemeId;
   const nextTheme = theme || CARD_THEMES[0];
   const sameCard =
-    previousCard &&
-    previousCard.rank === target.rank &&
-    previousCard.suit === target.suit &&
-    previousTheme === nextTheme.id;
+    previousCard && previousCard.rank === target.rank && previousCard.suit === target.suit && previousTheme === nextTheme.id;
   if (sameCard) {
     mesh.userData.card = target;
     mesh.userData.cardThemeId = nextTheme.id;
@@ -2803,13 +2298,7 @@ function applyCardToMesh(mesh, card, geometry, cache, theme) {
   }
   mesh.material = fresh.material;
   const currentFace = mesh.userData?.cardFace || 'front';
-  mesh.userData = {
-    ...mesh.userData,
-    ...fresh.userData,
-    card: target,
-    cardThemeId: nextTheme.id,
-    cardFace: currentFace
-  };
+  mesh.userData = { ...mesh.userData, ...fresh.userData, card: target, cardThemeId: nextTheme.id, cardFace: currentFace };
   setCardFace(mesh, currentFace);
 }
 
@@ -3004,11 +2493,7 @@ function goToShowdown(state) {
   pots.forEach((pot) => {
     const eligible = pot.players.filter((idx) => !state.players[idx].folded);
     if (!eligible.length) return;
-    const winnerIndices = determineWinnersFromHands(
-      state.players,
-      state.community,
-      eligible
-    );
+    const winnerIndices = determineWinnersFromHands(state.players, state.community, eligible);
     if (!winnerIndices.length) return;
     const baseShare = Math.floor(pot.amount / winnerIndices.length);
     let remainder = pot.amount - baseShare * winnerIndices.length;
@@ -3149,13 +2634,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
         player.allIn = true;
       }
       advanced = true;
-      recordLastAction(
-        state,
-        player,
-        player.chips === 0 ? 'allIn' : 'call',
-        paid,
-        toCall
-      );
+      recordLastAction(state, player, player.chips === 0 ? 'allIn' : 'call', paid, toCall);
     }
   } else if (action === 'bet' || action === 'raise') {
     let amount = Math.max(state.minRaise, raiseSize);
@@ -3164,10 +2643,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
     }
     let spend = Math.min(player.chips, amount);
     if (action === 'raise') {
-      spend = Math.min(
-        player.chips,
-        toCall + Math.max(state.minRaise, raiseSize)
-      );
+      spend = Math.min(player.chips, toCall + Math.max(state.minRaise, raiseSize));
     }
     if (spend <= 0) {
       return;
@@ -3177,8 +2653,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
     player.totalBet += paid;
     state.currentBet = Math.max(state.currentBet, player.bet);
     state.minRaise = Math.max(state.minRaise, paid - toCall);
-    player.status =
-      player.chips === 0 ? 'All-in' : action === 'bet' ? 'Bet' : 'Raise';
+    player.status = player.chips === 0 ? 'All-in' : action === 'bet' ? 'Bet' : 'Raise';
     player.actedInRound = true;
     state.players.forEach((p, idx) => {
       if (idx !== player.seatIndex && !p.folded && !p.allIn) {
@@ -3186,13 +2661,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
       }
     });
     advanced = true;
-    recordLastAction(
-      state,
-      player,
-      player.chips === 0 ? 'allIn' : action,
-      paid,
-      toCall
-    );
+    recordLastAction(state, player, player.chips === 0 ? 'allIn' : action, paid, toCall);
   }
   if (!advanced) return;
   state.awaitingInput = false;
@@ -3204,19 +2673,11 @@ function performAiAction(state) {
   if (!player || player.isHuman || player.folded || player.allIn) return;
   const toCall = Math.max(0, state.currentBet - player.bet);
   const community = state.community;
-  const opponents = state.players.filter(
-    (p) => p !== player && !p.folded
-  ).length;
-  const winRate = estimateWinProbability(
-    player.hand,
-    community,
-    Math.max(1, opponents - 1),
-    80
-  );
+  const opponents = state.players.filter((p) => p !== player && !p.folded).length;
+  const winRate = estimateWinProbability(player.hand, community, Math.max(1, opponents - 1), 80);
   const potContribution = Math.max(
     1,
-    state.pot +
-      state.players.reduce((sum, p) => sum + Math.max(0, p.bet ?? 0), 0)
+    state.pot + state.players.reduce((sum, p) => sum + Math.max(0, p.bet ?? 0), 0)
   );
   const potOdds = toCall > 0 ? toCall / (potContribution + toCall) : 0;
   const aggressionScore = winRate - potOdds;
@@ -3231,25 +2692,16 @@ function performAiAction(state) {
     } else {
       action = 'raise';
       const pressure = Math.max(0.35, Math.min(1, aggressionScore + 0.25));
-      raiseSize = Math.min(
-        player.chips,
-        Math.round(state.minRaise * (0.75 + pressure))
-      );
+      raiseSize = Math.min(player.chips, Math.round(state.minRaise * (0.75 + pressure)));
     }
   } else if (canRaise) {
     if (winRate > 0.62) {
       action = 'bet';
       const pressure = Math.max(0.5, aggressionScore + 0.4);
-      raiseSize = Math.min(
-        player.chips,
-        Math.round(state.minRaise * (0.85 + pressure))
-      );
+      raiseSize = Math.min(player.chips, Math.round(state.minRaise * (0.85 + pressure)));
     } else if (winRate > 0.48) {
       action = 'bet';
-      raiseSize = Math.min(
-        player.chips,
-        Math.round(Math.max(state.minRaise, state.minRaise * 0.75))
-      );
+      raiseSize = Math.min(player.chips, Math.round(Math.max(state.minRaise, state.minRaise * 0.75)));
     } else {
       action = 'check';
     }
@@ -3275,10 +2727,7 @@ function TexasHoldemArena({ search }) {
   const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
   const humanSeatRef = useRef(null);
   const seatTopPointRef = useRef(null);
-  const viewControlsRef = useRef({
-    applySeatedCamera: null,
-    applyOverheadCamera: null
-  });
+  const viewControlsRef = useRef({ applySeatedCamera: null, applyOverheadCamera: null });
   const lastViewRef = useRef(false);
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
@@ -3324,11 +2773,7 @@ function TexasHoldemArena({ search }) {
   );
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(searchOptions);
-    const baseState = buildInitialState(
-      players,
-      searchOptions.token,
-      searchOptions.stake
-    );
+    const baseState = buildInitialState(players, searchOptions.token, searchOptions.stake);
     return resetForNextHand(baseState);
   });
   const gameStateRef = useRef(null);
@@ -3348,10 +2793,7 @@ function TexasHoldemArena({ search }) {
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (
-        stored &&
-        TEXAS_HOLDEM_COMMENTARY_PRESETS.some((preset) => preset.id === stored)
-      ) {
+      if (stored && TEXAS_HOLDEM_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
         return stored;
       }
     }
@@ -3373,12 +2815,7 @@ function TexasHoldemArena({ search }) {
   const pendingCommentaryLinesRef = useRef(null);
   const commentaryIntroPlayedRef = useRef(false);
   const commentarySpeakerIndexRef = useRef(0);
-  const commentaryEventRef = useRef({
-    handId: null,
-    lastActionId: null,
-    stage: null,
-    showdown: false
-  });
+  const commentaryEventRef = useRef({ handId: null, lastActionId: null, stage: null, showdown: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const [overheadView, setOverheadView] = useState(false);
@@ -3391,17 +2828,13 @@ function TexasHoldemArena({ search }) {
       const parsed = JSON.parse(stored);
       return normalizeAppearance(parsed);
     } catch (error) {
-      console.warn("Failed to load Texas Hold'em appearance", error);
+      console.warn('Failed to load Texas Hold\'em appearance', error);
       return { ...DEFAULT_APPEARANCE };
     }
   });
   const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const appearanceRef = useRef(appearance);
-  const hdriVariantRef = useRef(
-    TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
-      TEXAS_HDRI_OPTIONS[0] ??
-      null
-  );
+  const hdriVariantRef = useRef(TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ?? TEXAS_HDRI_OPTIONS[0] ?? null);
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
   const ensureAppearanceUnlocked = useCallback(
@@ -3424,9 +2857,7 @@ function TexasHoldemArena({ search }) {
         const idx = Number.isFinite(next[key]) ? next[key] : 0;
         const option = options[idx];
         if (!option || !isTexasOptionUnlocked(key, option.id, texasInventory)) {
-          const fallbackIdx = options.findIndex((opt) =>
-            isTexasOptionUnlocked(key, opt.id, texasInventory)
-          );
+          const fallbackIdx = options.findIndex((opt) => isTexasOptionUnlocked(key, opt.id, texasInventory));
           const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
           if (safeIdx !== idx) {
             next[key] = safeIdx;
@@ -3441,10 +2872,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     if (effectivePlayerCount > 4) {
       const currentShape = TABLE_SHAPE_OPTIONS[appearance.tableShape];
-      if (
-        currentShape?.id === DIAMOND_SHAPE_ID &&
-        NON_DIAMOND_SHAPE_INDEX !== appearance.tableShape
-      ) {
+      if (currentShape?.id === DIAMOND_SHAPE_ID && NON_DIAMOND_SHAPE_INDEX !== appearance.tableShape) {
         setAppearance((prev) => {
           const prevShape = TABLE_SHAPE_OPTIONS[prev.tableShape];
           if (prevShape?.id !== DIAMOND_SHAPE_ID) {
@@ -3464,16 +2892,12 @@ function TexasHoldemArena({ search }) {
         ...section,
         options: section.options
           .map((option, idx) => ({ ...option, idx }))
-          .filter(({ id }) =>
-            isTexasOptionUnlocked(section.key, id, texasInventory)
-          )
+          .filter(({ id }) => isTexasOptionUnlocked(section.key, id, texasInventory))
       }))
         .filter((section) => section.options.length > 0)
         .filter((section) => {
           if (section.key !== 'tableFinish') return true;
-          const tableTheme =
-            TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ??
-            TEXAS_TABLE_THEME_OPTIONS[0];
+          const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
           return tableTheme?.id === DEFAULT_TABLE_THEME_ID;
         }),
     [appearance.tableTheme, texasInventory]
@@ -3492,9 +2916,7 @@ function TexasHoldemArena({ search }) {
     return DEFAULT_FRAME_RATE_ID;
   });
   const activeFrameRateOption = useMemo(
-    () =>
-      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
-      FRAME_RATE_OPTIONS[0],
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
   const frameQualityProfile = useMemo(() => {
@@ -3507,13 +2929,11 @@ function TexasHoldemArena({ search }) {
           ? fallback.fps
           : 60;
     const renderScale =
-      typeof option?.renderScale === 'number' &&
-      Number.isFinite(option.renderScale)
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
         ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
         : 1;
     const pixelRatioCap =
-      typeof option?.pixelRatioCap === 'number' &&
-      Number.isFinite(option.pixelRatioCap)
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
         ? Math.max(1, option.pixelRatioCap)
         : resolveDefaultPixelRatioCap();
     return {
@@ -3529,8 +2949,7 @@ function TexasHoldemArena({ search }) {
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) &&
-      FRAME_RATE_OPTIONS[0].fps > 0
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
         ? FRAME_RATE_OPTIONS[0].fps
         : 60;
     const fps =
@@ -3539,10 +2958,7 @@ function TexasHoldemArena({ search }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id:
-        frameQualityProfile?.id ??
-        FRAME_RATE_OPTIONS[0]?.id ??
-        DEFAULT_FRAME_RATE_ID,
+      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
@@ -3579,16 +2995,12 @@ function TexasHoldemArena({ search }) {
 
   useEffect(() => {
     const handler = (event) => {
-      if (
-        !event?.detail?.accountId ||
-        event.detail.accountId === resolvedAccountId
-      ) {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
         setInventoryVersion((value) => value + 1);
       }
     };
     window.addEventListener('texasHoldemInventoryUpdate', handler);
-    return () =>
-      window.removeEventListener('texasHoldemInventoryUpdate', handler);
+    return () => window.removeEventListener('texasHoldemInventoryUpdate', handler);
   }, [resolvedAccountId]);
 
   useEffect(() => {
@@ -3599,14 +3011,11 @@ function TexasHoldemArena({ search }) {
 
   const activeCommentaryPreset = useMemo(
     () =>
-      TEXAS_HOLDEM_COMMENTARY_PRESETS.find(
-        (preset) => preset.id === commentaryPresetId
-      ) ?? TEXAS_HOLDEM_COMMENTARY_PRESETS[0],
+      TEXAS_HOLDEM_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      TEXAS_HOLDEM_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const [commentarySupported, setCommentarySupported] = useState(() =>
-    getSpeechSupport()
-  );
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentarySpeakers = useMemo(
     () => [TEXAS_HOLDEM_SPEAKERS.lead, TEXAS_HOLDEM_SPEAKERS.analyst],
     []
@@ -3614,18 +3023,13 @@ function TexasHoldemArena({ search }) {
   const pickCommentarySpeaker = useCallback(() => {
     const index = commentarySpeakerIndexRef.current;
     commentarySpeakerIndexRef.current = index + 1;
-    return (
-      commentarySpeakers[index % commentarySpeakers.length] ||
-      TEXAS_HOLDEM_SPEAKERS.analyst
-    );
+    return commentarySpeakers[index % commentarySpeakers.length] || TEXAS_HOLDEM_SPEAKERS.analyst;
   }, [commentarySpeakers]);
 
   useEffect(() => {
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) =>
-      setCommentarySupported(Boolean(supported))
-    );
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
     return () => {
       unsubscribe();
     };
@@ -3644,19 +3048,13 @@ function TexasHoldemArena({ search }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        COMMENTARY_PRESET_STORAGE_KEY,
-        commentaryPresetId
-      );
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
     }
   }, [commentaryPresetId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        COMMENTARY_MUTE_STORAGE_KEY,
-        commentaryMuted ? '1' : '0'
-      );
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
     }
   }, [commentaryMuted]);
 
@@ -3689,16 +3087,8 @@ function TexasHoldemArena({ search }) {
         return;
       }
       const now = performance.now();
-      if (
-        !priority &&
-        now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS
-      )
-        return;
-      if (
-        !priority &&
-        commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT
-      )
-        return;
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
       if (priority) {
         commentaryQueueRef.current.unshift({ lines, preset });
       } else {
@@ -3756,8 +3146,7 @@ function TexasHoldemArena({ search }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof Audio === 'undefined')
-      return undefined;
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
     const baseVolume = getGameVolume();
     const muted = isGameMuted();
     const createAudio = (src) => {
@@ -3848,9 +3237,7 @@ function TexasHoldemArena({ search }) {
     };
 
     const resolveOpponentName = (index) => {
-      const opponent =
-        players.find((p, idx) => idx !== index && !p.folded) ||
-        players.find((p, idx) => idx !== index);
+      const opponent = players.find((p, idx) => idx !== index && !p.folded) || players.find((p, idx) => idx !== index);
       if (!opponent) return 'the table';
       return opponent.name || `Player ${opponent.seatIndex + 1}`;
     };
@@ -3904,10 +3291,9 @@ function TexasHoldemArena({ search }) {
       if (action) {
         const playerName = resolvePlayerName(action.playerIndex);
         const opponentName = resolveOpponentName(action.playerIndex);
-        const amountLabel =
-          action.amount > 0
-            ? `${action.amount} ${gameState.token}`
-            : `${Math.max(0, action.toCall)} ${gameState.token}`;
+        const amountLabel = action.amount > 0
+          ? `${action.amount} ${gameState.token}`
+          : `${Math.max(0, action.toCall)} ${gameState.token}`;
         const potLabel = `${Math.max(0, Math.round(gameState.pot ?? 0))} ${gameState.token}`;
         const context = {
           player: playerName,
@@ -3922,9 +3308,7 @@ function TexasHoldemArena({ search }) {
 
     if (gameState.showdown && !previousShowdown) {
       enqueueTexasCommentaryEvent('showdown', {}, { priority: true });
-      const potEntry = Array.isArray(gameState.winners)
-        ? gameState.winners[0]
-        : null;
+      const potEntry = Array.isArray(gameState.winners) ? gameState.winners[0] : null;
       const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
       if (winners.length) {
         const names = winners
@@ -3932,14 +3316,10 @@ function TexasHoldemArena({ search }) {
           .filter(Boolean);
         const potLabel = `${Math.max(0, Math.round(potEntry.amount ?? 0))} ${gameState.token}`;
         const winnerName = names.length > 1 ? names.join(' and ') : names[0];
-        enqueueTexasCommentaryEvent(
-          names.length > 1 ? 'potSplit' : 'potWin',
-          {
-            player: winnerName,
-            pot: potLabel
-          },
-          { priority: true }
-        );
+        enqueueTexasCommentaryEvent(names.length > 1 ? 'potSplit' : 'potWin', {
+          player: winnerName,
+          pot: potLabel
+        }, { priority: true });
       }
     }
 
@@ -3998,17 +3378,13 @@ function TexasHoldemArena({ search }) {
       }
 
       const seatGroups = three.seatGroups ?? [];
-      const humanSeat =
-        seatGroups.find((entry) => entry?.isHuman) ?? seatGroups[0] ?? null;
+      const humanSeat = seatGroups.find((entry) => entry?.isHuman) ?? seatGroups[0] ?? null;
       let topSeatIndex = -1;
       if (humanSeat?.forward) {
         let bestDot = -Infinity;
         seatGroups.forEach((entry, idx) => {
           if (!entry?.forward || idx === seatIndex || entry.isHuman) return;
-          const candidateDot = entry.forward
-            .clone()
-            .normalize()
-            .dot(humanSeat.forward.clone().normalize().negate());
+          const candidateDot = entry.forward.clone().normalize().dot(humanSeat.forward.clone().normalize().negate());
           if (candidateDot > bestDot) {
             bestDot = candidateDot;
             topSeatIndex = idx;
@@ -4043,21 +3419,10 @@ function TexasHoldemArena({ search }) {
         forwardFlat.clone().cross(fromCamera).dot(WORLD_UP),
         forwardFlat.dot(fromCamera)
       );
-      const targetYaw = THREE.MathUtils.clamp(
-        targetOffsetYaw,
-        -CAMERA_HEAD_TURN_LIMIT,
-        CAMERA_HEAD_TURN_LIMIT
-      );
-      const yawDelta =
-        THREE.MathUtils.euclideanModulo(
-          targetYaw - currentYaw + Math.PI,
-          Math.PI * 2
-        ) - Math.PI;
+      const targetYaw = THREE.MathUtils.clamp(targetOffsetYaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
+      const yawDelta = THREE.MathUtils.euclideanModulo(targetYaw - currentYaw + Math.PI, Math.PI * 2) - Math.PI;
 
-      if (
-        Math.abs(yawDelta) <= CAMERA_TURN_SNAP_EPSILON ||
-        options.animate === false
-      ) {
+      if (Math.abs(yawDelta) <= CAMERA_TURN_SNAP_EPSILON || options.animate === false) {
         stopCameraTurnAnimation();
         headAnglesRef.current.yaw = targetYaw;
         headAnglesRef.current.pitch = 0;
@@ -4087,6 +3452,7 @@ function TexasHoldemArena({ search }) {
     [applyHeadOrientation, stopCameraTurnAnimation]
   );
 
+
   const resetCameraToStartView = useCallback(() => {
     stopCameraTurnAnimation();
     if (Math.abs(headAnglesRef.current.yaw) > CAMERA_TURN_SNAP_EPSILON) {
@@ -4097,12 +3463,7 @@ function TexasHoldemArena({ search }) {
   }, [applyHeadOrientation, stopCameraTurnAnimation]);
 
   const animateCardsPeek = useCallback((seat, seatIndex) => {
-    if (
-      !seat?.cardMeshes?.length ||
-      typeof seatIndex !== 'number' ||
-      seat.isHuman
-    )
-      return;
+    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number' || seat.isHuman) return;
     const key = `seat-${seatIndex}`;
     const previous = peekCardAnimationRef.current.get(key);
     if (previous) {
@@ -4132,29 +3493,16 @@ function TexasHoldemArena({ search }) {
         const outwardSign = cardIdx === 0 ? -1 : 1;
         const standAngle = CARD_PEEK_TOP_LIFT_ANGLE * phase;
         const pivotAxis = seat.right.clone().normalize();
-        const pivotFromCenter = seat.forward
-          .clone()
-          .multiplyScalar(-CARD_H * CARD_PEEK_EDGE_PIVOT_FACTOR);
-        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(
-          pivotAxis,
-          standAngle
-        );
-        const rotatedPivot = pivotFromCenter
-          .clone()
-          .applyQuaternion(liftQuaternion);
+        const pivotFromCenter = seat.forward.clone().multiplyScalar(-CARD_H * CARD_PEEK_EDGE_PIVOT_FACTOR);
+        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, standAngle);
+        const rotatedPivot = pivotFromCenter.clone().applyQuaternion(liftQuaternion);
         const hingeCompensation = pivotFromCenter.sub(rotatedPivot);
         const offset = hingeCompensation
-          .add(
-            seat.right
-              .clone()
-              .multiplyScalar(outwardSign * CARD_PEEK_OUTER_SWAY * phase)
-          )
+          .add(seat.right.clone().multiplyScalar(outwardSign * CARD_PEEK_OUTER_SWAY * phase))
           .add(new THREE.Vector3(0, CARD_PEEK_LIFT * phase, 0));
 
         mesh.position.copy(starts[cardIdx].position.clone().add(offset));
-        mesh.quaternion
-          .copy(starts[cardIdx].quaternion)
-          .premultiply(liftQuaternion);
+        mesh.quaternion.copy(starts[cardIdx].quaternion).premultiply(liftQuaternion);
       });
       if (t < 1) {
         const frame = requestAnimationFrame(tick);
@@ -4172,30 +3520,27 @@ function TexasHoldemArena({ search }) {
     peekCardAnimationRef.current.set(key, { frame });
   }, []);
 
-  const animateFoldCardToPile = useCallback(
-    (mesh, targetPosition, lookTarget) => {
-      if (!mesh?.position || !targetPosition?.isVector3) return;
-      const existingFrame = mesh.userData?.foldAnimFrame;
-      if (existingFrame) {
-        cancelAnimationFrame(existingFrame);
+  const animateFoldCardToPile = useCallback((mesh, targetPosition, lookTarget) => {
+    if (!mesh?.position || !targetPosition?.isVector3) return;
+    const existingFrame = mesh.userData?.foldAnimFrame;
+    if (existingFrame) {
+      cancelAnimationFrame(existingFrame);
+    }
+    const startPosition = mesh.position.clone();
+    const startTime = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - startTime) / FOLD_TO_PILE_ANIMATION_MS);
+      const eased = t * (2 - t);
+      mesh.position.lerpVectors(startPosition, targetPosition, eased);
+      orientCard(mesh, lookTarget, { face: 'back', flat: true });
+      if (t < 1) {
+        mesh.userData.foldAnimFrame = requestAnimationFrame(tick);
+      } else {
+        mesh.userData.foldAnimFrame = null;
       }
-      const startPosition = mesh.position.clone();
-      const startTime = performance.now();
-      const tick = (now) => {
-        const t = Math.min(1, (now - startTime) / FOLD_TO_PILE_ANIMATION_MS);
-        const eased = t * (2 - t);
-        mesh.position.lerpVectors(startPosition, targetPosition, eased);
-        orientCard(mesh, lookTarget, { face: 'back', flat: true });
-        if (t < 1) {
-          mesh.userData.foldAnimFrame = requestAnimationFrame(tick);
-        } else {
-          mesh.userData.foldAnimFrame = null;
-        }
-      };
-      mesh.userData.foldAnimFrame = requestAnimationFrame(tick);
-    },
-    []
-  );
+    };
+    mesh.userData.foldAnimFrame = requestAnimationFrame(tick);
+  }, []);
 
   const findSeatWithAvatar = useCallback((startIndex = 0, options = {}) => {
     const state = gameStateRef.current;
@@ -4219,33 +3564,24 @@ function TexasHoldemArena({ search }) {
     appearanceRef.current = appearance;
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage?.setItem(
-          APPEARANCE_STORAGE_KEY,
-          JSON.stringify(appearance)
-        );
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
       } catch (error) {
-        console.warn("Failed to persist Texas Hold'em appearance", error);
+        console.warn('Failed to persist Texas Hold\'em appearance', error);
       }
     }
     const three = threeRef.current;
     if (!three) return;
     const normalized = normalizeAppearance(appearance);
     const safe = enforceShapeForPlayers(normalized, effectivePlayerCount);
-    const tableTheme =
-      TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ??
-      TEXAS_TABLE_THEME_OPTIONS[0];
+    const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const woodOption = resolveEffectiveWoodOption({
       tableTheme,
       tableFinish: safe.tableFinish,
       tableWood: safe.tableWood
     });
-    const clothOption =
-      TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption =
-      TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption =
-      TEXAS_CHAIR_THEME_OPTIONS[safe.chairTheme] ??
-      TEXAS_CHAIR_THEME_OPTIONS[0];
+    const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    const chairOption = TEXAS_CHAIR_THEME_OPTIONS[safe.chairTheme] ?? TEXAS_CHAIR_THEME_OPTIONS[0];
     const environmentOption =
       TEXAS_HDRI_OPTIONS[safe.environmentHdri] ??
       TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
@@ -4259,10 +3595,7 @@ function TexasHoldemArena({ search }) {
     const rotationChanged = Number.isFinite(rotationY)
       ? Math.abs((three.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3
       : false;
-    if (
-      three.arenaGroup &&
-      (shapeChanged || rotationChanged || three.tableThemeId !== tableTheme.id)
-    ) {
+    if (three.arenaGroup && (shapeChanged || rotationChanged || three.tableThemeId !== tableTheme.id)) {
       three.pendingTableToken = (three.pendingTableToken || 0) + 1;
       const token = three.pendingTableToken;
       void (async () => {
@@ -4287,11 +3620,7 @@ function TexasHoldemArena({ search }) {
         three.tableThemeId = tableTheme.id;
         three.tableRadius = nextTable.radius;
         if (nextTable.materials) {
-          applyTableMaterials(
-            nextTable.materials,
-            { woodOption, clothOption, baseOption },
-            three.renderer
-          );
+          applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, three.renderer);
         }
         if (three.deckAnchor) {
           const updatedDeckAnchor = DECK_POSITION.clone();
@@ -4312,8 +3641,7 @@ function TexasHoldemArena({ search }) {
             }
           });
         }
-        const humanSeat =
-          three.seatGroups?.find((seat) => seat.isHuman) ?? null;
+        const humanSeat = three.seatGroups?.find((seat) => seat.isHuman) ?? null;
         const previousControls = three.raiseControls || null;
         const previousVisible = Boolean(previousControls?.group?.visible);
         previousControls?.dispose?.();
@@ -4345,20 +3673,13 @@ function TexasHoldemArena({ search }) {
         }
       })();
     } else if (three.tableInfo?.materials) {
-      applyTableMaterials(
-        three.tableInfo.materials,
-        { woodOption, clothOption, baseOption },
-        three.renderer
-      );
+      applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
     }
     if (chairOption && three.chairThemeId !== chairOption.id) {
       three.pendingChairToken = (three.pendingChairToken || 0) + 1;
       const token = three.pendingChairToken;
       void (async () => {
-        const chairBuild = await buildChairTemplate(
-          chairOption,
-          three.renderer
-        );
+        const chairBuild = await buildChairTemplate(chairOption, three.renderer);
         if (!chairBuild || token !== three.pendingChairToken) {
           chairBuild?.materials && disposeChairMaterials(chairBuild.materials);
           return;
@@ -4368,9 +3689,7 @@ function TexasHoldemArena({ search }) {
         }
         three.chairTemplate = chairBuild.chairTemplate;
         three.chairMaterials = chairBuild.materials;
-        three.chairThemePreserve =
-          chairBuild.preserveOriginal ||
-          shouldPreserveChairMaterials(chairOption);
+        three.chairThemePreserve = chairBuild.preserveOriginal || shouldPreserveChairMaterials(chairOption);
         three.chairThemeId = chairOption.id;
         three.seatGroups?.forEach((seat) => {
           const group = seat.group;
@@ -4413,13 +3732,7 @@ function TexasHoldemArena({ search }) {
     const applyThemeToMesh = (mesh, cardData) => {
       if (!mesh) return;
       const priorFace = mesh.userData?.cardFace || 'front';
-      applyCardToMesh(
-        mesh,
-        cardData,
-        three.cardGeometry,
-        three.faceCache,
-        cardTheme
-      );
+      applyCardToMesh(mesh, cardData, three.cardGeometry, three.faceCache, cardTheme);
       setCardFace(mesh, priorFace);
     };
     three.seatGroups?.forEach((seat) => {
@@ -4448,16 +3761,10 @@ function TexasHoldemArena({ search }) {
   const renderPreview = useCallback((type, option) => {
     switch (type) {
       case 'tableWood': {
-        const preset = option?.presetId
-          ? WOOD_PRESETS_BY_ID[option.presetId]
-          : undefined;
-        const grain = option?.grainId
-          ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]
-          : undefined;
+        const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
+        const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
         const presetRef = preset || WOOD_FINISH_PRESETS?.[0];
-        const baseHex = presetRef
-          ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light).toString(16).padStart(6, '0')}`
-          : '#8b5a2b';
+        const baseHex = presetRef ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light).toString(16).padStart(6, '0')}` : '#8b5a2b';
         const accentHex = presetRef
           ? `#${hslToHexNumber(
               presetRef.hue,
@@ -4507,9 +3814,7 @@ function TexasHoldemArena({ search }) {
               <div className="absolute inset-0 flex items-center justify-center">
                 <div
                   className="h-12 w-20 rounded-[999px] border border-white/10"
-                  style={{
-                    background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})`
-                  }}
+                  style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
                 />
               </div>
             )}
@@ -4521,12 +3826,7 @@ function TexasHoldemArena({ search }) {
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
             {thumb ? (
-              <img
-                src={thumb}
-                alt={option?.label || 'Table model'}
-                className="h-full w-full object-cover opacity-80"
-                loading="lazy"
-              />
+              <img src={thumb} alt={option?.label || 'Table model'} className="h-full w-full object-cover opacity-80" loading="lazy" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-100/80">
                 {option?.label || 'Table'}
@@ -4571,12 +3871,7 @@ function TexasHoldemArena({ search }) {
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
             {thumb ? (
-              <img
-                src={thumb}
-                alt={option?.label || 'Chair'}
-                className="h-full w-full object-cover opacity-80"
-                loading="lazy"
-              />
+              <img src={thumb} alt={option?.label || 'Chair'} className="h-full w-full object-cover opacity-80" loading="lazy" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div
@@ -4631,11 +3926,9 @@ function TexasHoldemArena({ search }) {
       case 'cards':
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, ${option.backGradient?.[0] ?? option.backColor}, ${option.backGradient?.[1] ?? option.backColor})`
-              }}
+            <div className="absolute inset-0" style={{
+              background: `linear-gradient(135deg, ${option.backGradient?.[0] ?? option.backColor}, ${option.backGradient?.[1] ?? option.backColor})`
+            }}
             />
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="rounded-full bg-black/50 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/80">
@@ -4655,23 +3948,16 @@ function TexasHoldemArena({ search }) {
     if (!renderer || !host) return;
     const quality = frameQualityRef.current;
     const dpr =
-      typeof window !== 'undefined' &&
-      typeof window.devicePixelRatio === 'number'
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
         ? window.devicePixelRatio
         : 1;
-    const pixelRatioCap =
-      quality?.pixelRatioCap ?? resolveDefaultPixelRatioCap();
+    const pixelRatioCap = quality?.pixelRatioCap ?? resolveDefaultPixelRatioCap();
     const renderScale =
-      typeof quality?.renderScale === 'number' &&
-      Number.isFinite(quality.renderScale)
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
         ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
         : 1;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
-    renderer.setSize(
-      host.clientWidth * renderScale,
-      host.clientHeight * renderScale,
-      false
-    );
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -4681,35 +3967,24 @@ function TexasHoldemArena({ search }) {
   }, [applyRendererQuality, frameQualityProfile]);
 
   const applyHdriEnvironment = useCallback(
-    async (
-      variantConfig = hdriVariantRef.current ||
-        TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ||
-        TEXAS_HDRI_OPTIONS[0]
-    ) => {
+    async (variantConfig = hdriVariantRef.current || TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] || TEXAS_HDRI_OPTIONS[0]) => {
       const three = threeRef.current;
       if (!three?.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current;
       if (!activeVariant) return;
-      const envResult = await loadPolyHavenHdriEnvironment(
-        three.renderer,
-        activeVariant
-      );
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap) return;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.envMap;
-      if (
-        'backgroundIntensity' in three.scene &&
-        typeof activeVariant?.backgroundIntensity === 'number'
-      ) {
+      if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
         three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         three.scene.environmentIntensity = activeVariant.environmentIntensity;
       }
-      three.renderer.toneMappingExposure =
-        activeVariant?.exposure ?? three.renderer.toneMappingExposure;
+      three.renderer.toneMappingExposure = activeVariant?.exposure ?? three.renderer.toneMappingExposure;
       envTextureRef.current = envResult.envMap;
       disposeEnvironmentRef.current = () => {
         if (three.scene) {
@@ -4733,11 +4008,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: 'high-performance'
-    });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     applyRendererSRGB(renderer);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
@@ -4759,14 +4030,7 @@ function TexasHoldemArena({ search }) {
 
     const ambient = new THREE.AmbientLight(0xffffff, 1.08);
     scene.add(ambient);
-    const spot = new THREE.SpotLight(
-      0xffffff,
-      4.8384,
-      TABLE_RADIUS * 10,
-      Math.PI / 3,
-      0.35,
-      1
-    );
+    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
     spot.position.set(3, 7, 3);
     spot.castShadow = true;
     scene.add(spot);
@@ -4776,38 +4040,23 @@ function TexasHoldemArena({ search }) {
 
     const arenaGroup = new THREE.Group();
     scene.add(arenaGroup);
-    void applyHdriEnvironment(
-      hdriVariantRef.current ||
-        TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ||
-        TEXAS_HDRI_OPTIONS[0]
-    );
+    void applyHdriEnvironment(hdriVariantRef.current || TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] || TEXAS_HDRI_OPTIONS[0]);
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
-    const initialAppearance = enforceShapeForPlayers(
-      initialAppearanceRaw,
-      effectivePlayerCount
-    );
-    const initialTheme =
-      TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ??
-      TEXAS_TABLE_THEME_OPTIONS[0];
+    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
+    const initialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const initialWood = resolveEffectiveWoodOption({
       tableTheme: initialTheme,
       tableFinish: initialAppearance.tableFinish,
       tableWood: initialAppearance.tableWood
     });
-    const initialCloth =
-      TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ??
-      TABLE_CLOTH_OPTIONS[0];
-    const initialBase =
-      TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const initialChair =
-      TEXAS_CHAIR_THEME_OPTIONS[initialAppearance.chairTheme] ??
-      TEXAS_CHAIR_THEME_OPTIONS[0];
-    const { option: initialShape, rotationY: initialRotation } =
-      getEffectiveShapeConfig(
-        initialAppearance.tableShape,
-        effectivePlayerCount
-      );
+    const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    const initialChair = TEXAS_CHAIR_THEME_OPTIONS[initialAppearance.chairTheme] ?? TEXAS_CHAIR_THEME_OPTIONS[0];
+    const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
+      initialAppearance.tableShape,
+      effectivePlayerCount
+    );
     const tableInfo = createMurlanStyleTable({
       arena: arenaGroup,
       renderer,
@@ -4820,18 +4069,9 @@ function TexasHoldemArena({ search }) {
       rotationY: initialRotation,
       includeBase: false
     });
-    applyTableMaterials(
-      tableInfo.materials,
-      {
-        woodOption: initialWood,
-        clothOption: initialCloth,
-        baseOption: initialBase
-      },
-      renderer
-    );
+    applyTableMaterials(tableInfo.materials, { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase }, renderer);
     const initialTableTheme = initialTheme;
-    const initialTableThemeId =
-      initialTableTheme?.source === 'polyhaven' ? null : initialTableTheme?.id;
+    const initialTableThemeId = initialTableTheme?.source === 'polyhaven' ? null : initialTableTheme?.id;
 
     const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
     const faceCache = new Map();
@@ -4840,11 +4080,8 @@ function TexasHoldemArena({ search }) {
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
     const initialPlayers = gameState?.players ?? [];
     const initialPlayerCount = initialPlayers.length || effectivePlayerCount;
-    const useCardinalLayout =
-      initialShape?.id === DIAMOND_SHAPE_ID && initialPlayerCount <= 4;
-    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, {
-      useCardinal: useCardinalLayout
-    });
+    const useCardinalLayout = initialShape?.id === DIAMOND_SHAPE_ID && initialPlayerCount <= 4;
+    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, { useCardinal: useCardinalLayout });
     seatLayout.forEach((seat, idx) => {
       seat.player = initialPlayers[idx] || null;
     });
@@ -4854,9 +4091,7 @@ function TexasHoldemArena({ search }) {
         if (!best) return seat;
         return seat.seatPos.z < best.seatPos.z ? seat : best;
       }, null);
-    const seatTopPoint = topSeat
-      ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight)
-      : null;
+    const seatTopPoint = topSeat ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight) : null;
     const seatGroups = [];
     const deckAnchor = DECK_POSITION.clone();
     if (tableInfo.rotationY) {
@@ -4871,24 +4106,10 @@ function TexasHoldemArena({ search }) {
       right: humanSeat?.right?.clone?.() ?? new THREE.Vector3(1, 0, 0),
       forward: humanSeat?.forward?.clone?.() ?? new THREE.Vector3(0, 0, 1)
     };
-    const raiseControls = createRaiseControls({
-      arena: arenaGroup,
-      seat: humanSeat,
-      chipFactory,
-      tableInfo
-    });
-    const cameraTarget = new THREE.Vector3(
-      0,
-      TABLE_HEIGHT + CAMERA_TARGET_LIFT,
-      0
-    );
+    const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
+    const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 
-    const smoothCameraTransition = (
-      targetPosition,
-      targetQuaternion,
-      onComplete = null,
-      duration = 260
-    ) => {
+    const smoothCameraTransition = (targetPosition, targetQuaternion, onComplete = null, duration = 260) => {
       const startPosition = camera.position.clone();
       const startQuaternion = camera.quaternion.clone();
       const startTime = performance.now();
@@ -4897,12 +4118,7 @@ function TexasHoldemArena({ search }) {
         const t = Math.min(1, (now - startTime) / duration);
         const eased = t * (2 - t);
         camera.position.lerpVectors(startPosition, targetPosition, eased);
-        THREE.Quaternion.slerp(
-          startQuaternion,
-          targetQuaternion,
-          camera.quaternion,
-          eased
-        );
+        THREE.Quaternion.slerp(startQuaternion, targetQuaternion, camera.quaternion, eased);
         camera.updateMatrixWorld();
         if (t < 1) {
           requestAnimationFrame(step);
@@ -4917,24 +4133,16 @@ function TexasHoldemArena({ search }) {
       if (!humanSeat) return;
       const animate = Boolean(options.animate);
       const portrait = height > width;
-      const lateralOffset = portrait
-        ? CAMERA_LATERAL_OFFSETS.portrait
-        : CAMERA_LATERAL_OFFSETS.landscape;
-      const retreatOffset = portrait
-        ? CAMERA_RETREAT_OFFSETS.portrait
-        : CAMERA_RETREAT_OFFSETS.landscape;
-      const elevation = portrait
-        ? CAMERA_ELEVATION_OFFSETS.portrait
-        : CAMERA_ELEVATION_OFFSETS.landscape;
+      const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
+      const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
+      const elevation = portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape;
       const position = humanSeat.stoolAnchor
         .clone()
         .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
       const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
       position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
-      const focusBase = cameraTarget
-        .clone()
-        .add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
+      const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
       const seatTopPoint = seatTopPointRef.current;
       const focusForwardPull = portrait
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL
@@ -4942,11 +4150,8 @@ function TexasHoldemArena({ search }) {
       const focusHeight = portrait
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT
         : CAMERA_PLAYER_FOCUS_HEIGHT;
-      const focusBlend = portrait
-        ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND
-        : CAMERA_PLAYER_FOCUS_BLEND;
-      const rowRotation =
-        threeRef.current?.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
+      const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
+      const rowRotation = threeRef.current?.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
       const communityAxes = threeRef.current?.communityAxes;
       const potFocus = computePotAnchor({
         surfaceY: tableInfo?.surfaceY,
@@ -4959,38 +4164,21 @@ function TexasHoldemArena({ search }) {
       chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
       const activeState = gameStateRef.current;
       const humanActing = Boolean(
-        activeState?.stage !== 'showdown' &&
-        activeState?.players?.[activeState.actionIndex]?.isHuman
+        activeState?.stage !== 'showdown' && activeState?.players?.[activeState.actionIndex]?.isHuman
       );
-      const focus = humanActing
-        ? potFocus
-        : focusBase.clone().lerp(chipFocus, focusBlend);
+      const focus = humanActing ? potFocus : focusBase.clone().lerp(chipFocus, focusBlend);
       if (humanActing) {
-        const railFocus = (
-          humanSeat.chipRailAnchor ??
-          humanSeat.chipAnchor ??
-          chipFocus
-        ).clone();
+        const railFocus = (humanSeat.chipRailAnchor ?? humanSeat.chipAnchor ?? chipFocus).clone();
         railFocus.y -= HUMAN_TURN_RAIL_FOCUS_DROP;
-        focus.copy(
-          potFocus.clone().lerp(railFocus, HUMAN_TURN_RAIL_FOCUS_BLEND)
-        );
+        focus.copy(potFocus.clone().lerp(railFocus, HUMAN_TURN_RAIL_FOCUS_BLEND));
       }
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
-      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(
-        lookMatrix
-      );
-      const targetUp = WORLD_UP.clone()
-        .applyQuaternion(targetQuaternion)
-        .normalize();
+      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
+      const targetUp = WORLD_UP.clone().applyQuaternion(targetQuaternion).normalize();
       const targetForward = focus.clone().sub(position).normalize();
-      const targetRight = new THREE.Vector3()
-        .crossVectors(targetForward, targetUp)
-        .normalize();
-      const pitchLimits = computeCameraPitchLimits(position, targetForward, {
-        seatTopPoint
-      });
+      const targetRight = new THREE.Vector3().crossVectors(targetForward, targetUp).normalize();
+      const pitchLimits = computeCameraPitchLimits(position, targetForward, { seatTopPoint });
       cameraBasisRef.current = {
         position: position.clone(),
         baseForward: targetForward,
@@ -5020,48 +4208,24 @@ function TexasHoldemArena({ search }) {
 
     const applyOverheadCamera = (options = {}) => {
       const animate = Boolean(options.animate);
-      const zoom = THREE.MathUtils.clamp(
-        options.zoom ?? OVERHEAD_ZOOM_DEFAULT,
-        OVERHEAD_ZOOM_MIN,
-        OVERHEAD_ZOOM_MAX
-      );
+      const zoom = THREE.MathUtils.clamp(options.zoom ?? OVERHEAD_ZOOM_DEFAULT, OVERHEAD_ZOOM_MIN, OVERHEAD_ZOOM_MAX);
       const height = TABLE_HEIGHT + BOARD_SIZE * 0.88 * zoom;
-      const lateralPull =
-        humanSeat?.forward
-          .clone()
-          .setY(0)
-          .normalize()
-          .multiplyScalar(TABLE_RADIUS * 0.12) ?? new THREE.Vector3();
-      const targetPosition = new THREE.Vector3(
-        lateralPull.x,
-        height,
-        lateralPull.z + 0.001
-      );
+      const lateralPull = humanSeat?.forward.clone().setY(0).normalize().multiplyScalar(TABLE_RADIUS * 0.12) ??
+        new THREE.Vector3();
+      const targetPosition = new THREE.Vector3(lateralPull.x, height, lateralPull.z + 0.001);
       const focus = new THREE.Vector3(0, TABLE_HEIGHT, 0);
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(targetPosition, focus, new THREE.Vector3(0, 0, 1));
-      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(
-        lookMatrix
-      );
+      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
       const alignedQuaternion = targetQuaternion.clone();
-      const rollAdjust = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, -1, 0),
-        0
-      );
+      const rollAdjust = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, -1, 0), 0);
       alignedQuaternion.multiply(rollAdjust);
       const rotatedQuaternion = alignedQuaternion.multiply(
-        new THREE.Quaternion().setFromAxisAngle(
-          new THREE.Vector3(0, 0, 1),
-          Math.PI
-        )
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI)
       );
       const baseForward = focus.clone().sub(targetPosition).normalize();
-      const baseUp = new THREE.Vector3(0, 0, 1)
-        .applyQuaternion(rotatedQuaternion)
-        .normalize();
-      const baseRight = new THREE.Vector3()
-        .crossVectors(baseForward, baseUp)
-        .normalize();
+      const baseUp = new THREE.Vector3(0, 0, 1).applyQuaternion(rotatedQuaternion).normalize();
+      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
       cameraBasisRef.current = {
         position: targetPosition.clone(),
         baseForward,
@@ -5079,12 +4243,7 @@ function TexasHoldemArena({ search }) {
         applyHeadOrientation();
       };
       if (animate) {
-        smoothCameraTransition(
-          targetPosition,
-          rotatedQuaternion,
-          finalize,
-          220
-        );
+        smoothCameraTransition(targetPosition, rotatedQuaternion, finalize, 220);
       } else {
         finalize();
       }
@@ -5103,9 +4262,7 @@ function TexasHoldemArena({ search }) {
       const chairTemplate = chairBuild.chairTemplate;
       const chairMaterials = chairBuild.materials;
       applyChairThemeMaterials({ chairMaterials }, initialChair, renderer);
-      const initialChairPreserve =
-        chairBuild.preserveOriginal ||
-        shouldPreserveChairMaterials(initialChair);
+      const initialChairPreserve = chairBuild.preserveOriginal || shouldPreserveChairMaterials(initialChair);
       const initialChairThemeId = initialChair?.id;
 
       seatLayout.forEach((seat, seatIndex) => {
@@ -5126,12 +4283,7 @@ function TexasHoldemArena({ search }) {
         arenaGroup.add(group);
 
         const cardMeshes = [0, 1].map(() => {
-          const mesh = createCardMesh(
-            { rank: 'A', suit: 'S' },
-            cardGeometry,
-            faceCache,
-            cardTheme
-          );
+          const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
           mesh.position.copy(deckAnchor);
           mesh.castShadow = true;
           arenaGroup.add(mesh);
@@ -5160,54 +4312,29 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone()
         };
 
-        const chipStack = chipFactory.createStack(0, {
-          mode: 'rail',
-          layout: railLayout
-        });
+        const chipStack = chipFactory.createStack(0, { mode: 'rail', layout: railLayout });
         chipStack.position.copy(seat.chipRailAnchor);
         arenaGroup.add(chipStack);
 
-        const betStack = chipFactory.createStack(0, {
-          mode: 'scatter',
-          layout: tableLayout
-        });
+        const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
         betStack.position.copy(seat.betAnchor);
         betStack.visible = false;
         arenaGroup.add(betStack);
 
-        const previewStack = chipFactory.createStack(0, {
-          mode: 'scatter',
-          layout: tableLayout
-        });
+        const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
         previewStack.position.copy(seat.previewAnchor);
         previewStack.visible = false;
         previewStack.scale.setScalar(HUMAN_CHIP_SCALE);
         arenaGroup.add(previewStack);
 
-        const hoverChip = chipFactory.createStack(0, {
-          mode: 'rail',
-          layout: railLayout
-        });
+        const hoverChip = chipFactory.createStack(0, { mode: 'rail', layout: railLayout });
         hoverChip.position.copy(seat.cardRailAnchor);
         hoverChip.visible = false;
         arenaGroup.add(hoverChip);
 
-        const nameplate = makeNameplate(
-          `Player ${seatIndex + 1}`,
-          1000,
-          renderer,
-          seat.player?.avatar
-        );
-        nameplate.position.copy(
-          seat.chipRailAnchor
-            .clone()
-            .add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0))
-        );
-        const nameplateFacing = seat.forward
-          .clone()
-          .negate()
-          .setY(0)
-          .normalize();
+        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seat.player?.avatar);
+        nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
+        const nameplateFacing = seat.forward.clone().negate().setY(0).normalize();
         nameplate.lookAt(nameplate.position.clone().add(nameplateFacing));
         nameplate.rotateX(NAMEPLATE_BACK_TILT);
         arenaGroup.add(nameplate);
@@ -5251,16 +4378,9 @@ function TexasHoldemArena({ search }) {
 
         const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
         const labelForward = seat.labelOffset?.forward ?? 0;
-        const labelOffset = seat.forward
-          .clone()
-          .setLength(labelForward)
-          .add(new THREE.Vector3(0, labelLift, 0));
+        const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
         nameplate.position.copy(seat.seatPos.clone().add(labelOffset));
-        const seatNameplateFacing = seat.forward
-          .clone()
-          .negate()
-          .setY(0)
-          .normalize();
+        const seatNameplateFacing = seat.forward.clone().negate().setY(0).normalize();
         nameplate.lookAt(nameplate.position.clone().add(seatNameplateFacing));
         nameplate.rotateX(NAMEPLATE_BACK_TILT);
 
@@ -5282,16 +4402,10 @@ function TexasHoldemArena({ search }) {
             if (hasCards) {
               const card = player.hand[idx];
               applyCardToMesh(mesh, card, cardGeometry, faceCache, cardTheme);
-              orientCard(
-                mesh,
-                seat.seatPos
-                  .clone()
-                  .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0)),
-                {
-                  face: seat.isHuman ? 'front' : 'back',
-                  flat: false
-                }
-              );
+              orientCard(mesh, seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0)), {
+                face: seat.isHuman ? 'front' : 'back',
+                flat: false
+              });
               mesh.rotateX(HUMAN_CARD_FACE_TILT);
               setCardFace(mesh, seat.isHuman ? 'front' : 'back');
               mesh.visible = true;
@@ -5300,33 +4414,22 @@ function TexasHoldemArena({ search }) {
             }
           });
           const initialChips = Math.max(0, Math.round(player.chips ?? 0));
-          chipFactory.setAmount(chipStack, initialChips, {
-            mode: 'rail',
-            layout: railLayout
-          });
+          chipFactory.setAmount(chipStack, initialChips, { mode: 'rail', layout: railLayout });
           chipStack.visible = true;
           seatGroup.tableLayout = {
             ...tableLayout,
-            forward: seat.forward
-              .clone()
-              .multiplyScalar(player.isHuman ? 1 : -1),
+            forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
             right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
           };
           seatGroup.railLayout = {
             ...railLayout,
-            forward: seat.forward
-              .clone()
-              .multiplyScalar(player.isHuman ? 1 : -1),
+            forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
             right: seat.right.clone().multiplyScalar(player.isHuman ? 1 : -1)
           };
           seatGroup.showRailChips = !player.isHuman;
           if (player.isHuman) {
             chipStack.visible = false;
-            cameraTarget.copy(
-              (seat.chipRailAnchor ?? seat.chipAnchor ?? seat.seatPos)
-                .clone()
-                .add(new THREE.Vector3(0, CARD_LOOK_LIFT * 0.3, 0))
-            );
+            cameraTarget.copy((seat.chipRailAnchor ?? seat.chipAnchor ?? seat.seatPos).clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT * 0.3, 0)));
           }
         }
       });
@@ -5340,37 +4443,25 @@ function TexasHoldemArena({ search }) {
       });
 
       const nameplates = seatGroups.map((seat) => seat.nameplate);
-      const humanSeat = seatGroups.find((seat) => seat.isHuman);
-      if (humanSeat) {
-        nameplates.forEach((plate) => {
-          plate.renderOrder = 10;
-        });
-        humanSeat.group.renderOrder = 5;
-        humanSeat.cardMeshes.forEach((mesh) => {
-          mesh.renderOrder = 20;
-        });
-        humanSeat.cardMeshes[1].position.add(
-          new THREE.Vector3(0, HUMAN_CARD_VERTICAL_OFFSET * 1.2, 0)
-        );
-        const controls = createRaiseControls({
-          arena: arenaGroup,
-          seat: humanSeat,
-          chipFactory,
-          tableInfo
-        });
-        if (controls) {
-          threeRef.current = { ...threeRef.current, raiseControls: controls };
-          controls.group.visible = true;
+        const humanSeat = seatGroups.find((seat) => seat.isHuman);
+        if (humanSeat) {
+          nameplates.forEach((plate) => {
+            plate.renderOrder = 10;
+          });
+          humanSeat.group.renderOrder = 5;
+          humanSeat.cardMeshes.forEach((mesh) => {
+            mesh.renderOrder = 20;
+          });
+          humanSeat.cardMeshes[1].position.add(new THREE.Vector3(0, HUMAN_CARD_VERTICAL_OFFSET * 1.2, 0));
+          const controls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
+          if (controls) {
+            threeRef.current = { ...threeRef.current, raiseControls: controls };
+            controls.group.visible = true;
+          }
         }
-      }
 
       const communityMeshes = COMMUNITY_CARD_POSITIONS.map((pos, idx) => {
-        const mesh = createCardMesh(
-          { rank: 'A', suit: 'S' },
-          cardGeometry,
-          faceCache,
-          cardTheme
-        );
+        const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
         mesh.position.copy(
           computeCommunitySlotPosition(idx, {
             rotationY: resolvedCommunityRowRotation,
@@ -5389,134 +4480,99 @@ function TexasHoldemArena({ search }) {
         rotationY: resolvedCommunityRowRotation,
         ...communityAxes
       });
-      const potStack = chipFactory.createStack(0, {
-        mode: 'scatter',
-        layout: POT_SCATTER_LAYOUT
-      });
+      const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: POT_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
       potStack.scale.setScalar(1.06);
       arenaGroup.add(potStack);
-      const potRight = (communityAxes.right ?? new THREE.Vector3(1, 0, 0))
-        .clone()
-        .normalize();
-      const potForward = (communityAxes.forward ?? new THREE.Vector3(0, 0, 1))
-        .clone()
-        .normalize();
+      const potRight = (communityAxes.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
+      const potForward = (communityAxes.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
       if (resolvedCommunityRowRotation) {
         potRight.applyAxisAngle(WORLD_UP, resolvedCommunityRowRotation);
         potForward.applyAxisAngle(WORLD_UP, resolvedCommunityRowRotation);
       }
-      const potLayout = {
-        ...POT_SCATTER_LAYOUT,
-        right: potRight,
-        forward: potForward
-      };
-      chipFactory.setAmount(potStack, 0, {
-        mode: 'scatter',
-        layout: potLayout
-      });
-      const foldPileAnchor = potAnchor
-        .clone()
-        .add(
-          new THREE.Vector3(
-            0,
-            CARD_SURFACE_OFFSET * 0.2,
-            FOLD_PILE_FORWARD_OFFSET
-          )
-        );
-      const potLabel = createRailTextSprite(
-        { amount: 0, token: 'TPC' },
-        {
-          width: (2.6 * MODEL_SCALE) / 3,
-          height: (0.98 * MODEL_SCALE) / 3
+      const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
+      chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+      const foldPileAnchor = potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, FOLD_PILE_FORWARD_OFFSET));
+        const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
+          width: (2.4 * MODEL_SCALE) / 3,
+          height: (0.9 * MODEL_SCALE) / 3
+        });
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.8, 0)));
+        const potLabelLook = potLabel.position.clone().add(potForward);
+        orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
+        potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
+        potLabel.renderOrder = 12;
+        if (potLabel.material) {
+          potLabel.material.depthWrite = false;
         }
-      );
-      potLabel.position.copy(
-        potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.94, 0))
-      );
-      const potLabelLook = potLabel.position.clone().add(potForward);
-      orientCard(potLabel, potLabelLook, { face: 'front', flat: false });
-      potLabel.rotateX(NAMEPLATE_BACK_TILT * 0.85);
-      potLabel.renderOrder = 12;
-      if (potLabel.material) {
-        potLabel.material.depthWrite = false;
-      }
-      arenaGroup.add(potLabel);
+        arenaGroup.add(potLabel);
 
-      const turnIndicatorMaterial = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(TURN_INDICATOR_COLOR),
-        emissive: new THREE.Color(TURN_INDICATOR_COLOR).multiplyScalar(0.4),
-        emissiveIntensity: 1.25,
-        roughness: 0.4,
-        metalness: 0.25,
-        side: THREE.DoubleSide
-      });
-      const turnIndicator = new THREE.Mesh(
-        new THREE.RingGeometry(
-          TURN_INDICATOR_INNER_RADIUS,
-          TURN_INDICATOR_OUTER_RADIUS,
-          48
-        ),
-        turnIndicatorMaterial
-      );
-      turnIndicator.rotation.x = -Math.PI / 2;
-      turnIndicator.position.y = TURN_INDICATOR_HEIGHT;
-      turnIndicator.visible = false;
-      arenaGroup.add(turnIndicator);
+        const turnIndicatorMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(TURN_INDICATOR_COLOR),
+          emissive: new THREE.Color(TURN_INDICATOR_COLOR).multiplyScalar(0.4),
+          emissiveIntensity: 1.25,
+          roughness: 0.4,
+          metalness: 0.25,
+          side: THREE.DoubleSide
+        });
+        const turnIndicator = new THREE.Mesh(
+          new THREE.RingGeometry(TURN_INDICATOR_INNER_RADIUS, TURN_INDICATOR_OUTER_RADIUS, 48),
+          turnIndicatorMaterial
+        );
+        turnIndicator.rotation.x = -Math.PI / 2;
+        turnIndicator.position.y = TURN_INDICATOR_HEIGHT;
+        turnIndicator.visible = false;
+        arenaGroup.add(turnIndicator);
 
       const orientHumanCards = () => {
         const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
         if (!humanSeatGroup) return;
 
-        const baseAnchor =
-          getHumanCardAnchor(humanSeatGroup) ??
-          humanSeatGroup.cardRailAnchor?.clone() ??
-          humanSeatGroup.chipRailAnchor?.clone() ??
-          humanSeatGroup.chipAnchor.clone();
-        const right = humanSeatGroup.right.clone();
+          const baseAnchor =
+            getHumanCardAnchor(humanSeatGroup) ??
+            humanSeatGroup.cardRailAnchor?.clone() ??
+            humanSeatGroup.chipRailAnchor?.clone() ??
+            humanSeatGroup.chipAnchor.clone();
+          const right = humanSeatGroup.right.clone();
 
-        humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-          const position = baseAnchor
-            .clone()
-            .add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
-          mesh.position.copy(position);
+          humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
+            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
+            mesh.position.copy(position);
 
-          const lookTarget = baseAnchor
-            .clone()
-            .addScaledVector(humanSeatGroup.forward, 2.4 * MODEL_SCALE)
-            .add(
-              right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY)
-            );
-          lookTarget.y = position.y;
-          orientCard(mesh, lookTarget, { face: 'front', flat: false });
-          mesh.rotateX(HUMAN_CARD_FACE_TILT);
-          setCardFace(mesh, 'front');
-        });
-      };
+            const lookTarget = baseAnchor
+              .clone()
+              .addScaledVector(humanSeatGroup.forward, 2.4 * MODEL_SCALE)
+              .add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
+            lookTarget.y = position.y;
+            orientCard(mesh, lookTarget, { face: 'front', flat: false });
+            mesh.rotateX(HUMAN_CARD_FACE_TILT);
+            setCardFace(mesh, 'front');
+          });
+        };
 
-      threeRef.current = {
-        renderer,
-        scene,
-        camera,
-        chipFactory,
-        cardGeometry,
-        faceCache,
-        seatGroups,
-        communityMeshes,
-        potStack,
-        potLabel,
-        potLayout,
-        foldPileAnchor,
-        deckAnchor,
-        raiseControls,
-        raycaster,
-        orientHumanCards,
-        frameId: null,
-        chairTemplate,
-        chairMaterials,
-        chairThemeId: initialChairThemeId,
-        chairThemePreserve: initialChairPreserve,
-        arenaGroup,
+        threeRef.current = {
+          renderer,
+          scene,
+          camera,
+          chipFactory,
+          cardGeometry,
+          faceCache,
+          seatGroups,
+          communityMeshes,
+          potStack,
+          potLabel,
+          potLayout,
+          foldPileAnchor,
+          deckAnchor,
+          raiseControls,
+          raycaster,
+          orientHumanCards,
+          frameId: null,
+          chairTemplate,
+          chairMaterials,
+          chairThemeId: initialChairThemeId,
+          chairThemePreserve: initialChairPreserve,
+          arenaGroup,
         turnIndicator,
         tableInfo,
         tableShapeId: initialShape.id,
@@ -5530,15 +4586,10 @@ function TexasHoldemArena({ search }) {
 
       potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
       potTargetRef.current = potDisplayRef.current;
-      chipFactory.setAmount(potStack, potDisplayRef.current, {
-        mode: 'scatter',
-        layout: potLayout
-      });
+      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
 
       orientHumanCards();
-    })().catch((error) =>
-      console.error("Failed to set up Texas Hold'em arena", error)
-    );
+    })().catch((error) => console.error('Failed to set up Texas Hold\'em arena', error));
 
     const element = renderer.domElement;
     const getControls = () => threeRef.current?.raiseControls || null;
@@ -5550,9 +4601,7 @@ function TexasHoldemArena({ search }) {
           prev.scale.setScalar(prev.userData.baseScale);
         } else if (prev.userData?.type === 'button') {
           const controls = getControls();
-          const buttons = controls?.buttons
-            ? Object.values(controls.buttons)
-            : [];
+          const buttons = controls?.buttons ? Object.values(controls.buttons) : [];
           const button = buttons.find((btn) => btn.group === prev) || null;
           button?.setHover(false);
         }
@@ -5563,9 +4612,7 @@ function TexasHoldemArena({ search }) {
         target.scale.setScalar(target.userData.baseScale * 1.12);
       } else if (target.userData?.type === 'button') {
         const controls = getControls();
-        const buttons = controls?.buttons
-          ? Object.values(controls.buttons)
-          : [];
+        const buttons = controls?.buttons ? Object.values(controls.buttons) : [];
         const button = buttons.find((btn) => btn.group === target) || null;
         button?.setHover(true);
       }
@@ -5575,15 +4622,10 @@ function TexasHoldemArena({ search }) {
       const controls = getControls();
       if (!controls?.group?.visible) return null;
       const rect = element.getBoundingClientRect();
-      pointerVectorRef.current.x =
-        ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointerVectorRef.current.y =
-        -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointerVectorRef.current, camera);
-      const intersects = raycaster.intersectObjects(
-        controls.interactables,
-        true
-      );
+      const intersects = raycaster.intersectObjects(controls.interactables, true);
       if (!intersects.length) return null;
       let target = intersects[0].object;
       while (target && !target.userData?.type && target.parent) {
@@ -5646,13 +4688,9 @@ function TexasHoldemArena({ search }) {
       const first = activePointersRef.current.get(firstId);
       const second = activePointersRef.current.get(secondId);
       if (!first || !second) return;
-      const currentDistance = Math.hypot(
-        second.x - first.x,
-        second.y - first.y
-      );
+      const currentDistance = Math.hypot(second.x - first.x, second.y - first.y);
       if (currentDistance <= 0) return;
-      const zoomDelta =
-        (currentDistance - pinch.startDistance) * OVERHEAD_PINCH_SENSITIVITY;
+      const zoomDelta = (currentDistance - pinch.startDistance) * OVERHEAD_PINCH_SENSITIVITY;
       const nextZoom = THREE.MathUtils.clamp(
         +(pinch.startZoom - zoomDelta).toFixed(3),
         OVERHEAD_ZOOM_MIN,
@@ -5730,10 +4768,7 @@ function TexasHoldemArena({ search }) {
       const state = pointerStateRef.current;
       if (!state.active || state.pointerId !== event.pointerId) {
         const hit = pickInteractive(event);
-        if (
-          hit?.target?.userData?.type === 'button' &&
-          hit.target.userData.enabled === false
-        ) {
+        if (hit?.target?.userData?.type === 'button' && hit.target.userData.enabled === false) {
           applyHoverTarget(null);
           element.style.cursor = 'grab';
           return;
@@ -5757,10 +4792,7 @@ function TexasHoldemArena({ search }) {
         return;
       }
       if (state.mode === 'button' || state.mode === 'chip-button') {
-        const distance = Math.hypot(
-          event.clientX - state.startX,
-          event.clientY - state.startY
-        );
+        const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
         state.dragged = distance > 10;
       }
     };
@@ -5818,8 +4850,7 @@ function TexasHoldemArena({ search }) {
       }
       const frameTiming = frameTimingRef.current;
       const targetFrameTime = frameTiming?.targetMs ?? 1000 / 60;
-      const maxFrameTime =
-        frameTiming?.maxMs ?? targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+      const maxFrameTime = frameTiming?.maxMs ?? targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
       const deltaMs = time - lastFrameRef.current;
       if (deltaMs >= targetFrameTime - 0.5) {
         const appliedMs = Math.min(deltaMs, maxFrameTime);
@@ -5929,44 +4960,20 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const {
-      seatGroups,
-      communityMeshes,
-      chipFactory,
-      potStack,
-      potLabel,
-      potLayout,
-      foldPileAnchor,
-      deckAnchor,
-      arenaGroup
-    } = three;
+    const { seatGroups, communityMeshes, chipFactory, potStack, potLabel, potLayout, foldPileAnchor, deckAnchor, arenaGroup } = three;
     const rowRotation = three.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
-    const cardTheme =
-      CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ??
-      CARD_THEMES[0];
+    const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
 
     const previous = prevStateRef.current;
     potTargetRef.current = Math.max(0, Math.round(state.pot ?? 0));
     if (potLabel?.userData?.update) {
-      potLabel.userData.update({
-        amount: Math.round(state.pot ?? 0),
-        token: state.token
-      });
+      potLabel.userData.update({ amount: Math.round(state.pot ?? 0), token: state.token });
       potLabel.userData.texture.needsUpdate = true;
-      const lookForward = (
-        potLayout?.forward ??
-        three.communityAxes?.forward ??
-        new THREE.Vector3(0, 0, 1)
-      )
-        .clone()
-        .normalize();
-      orientCard(potLabel, potLabel.position.clone().add(lookForward), {
-        face: 'front',
-        flat: false
-      });
-      potLabel.rotateX(NAMEPLATE_BACK_TILT * 0.85);
+      const lookForward = (potLayout?.forward ?? three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+      orientCard(potLabel, potLabel.position.clone().add(lookForward), { face: 'front', flat: true });
+      potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
     }
 
     const showdownState = showdownAnimationRef.current;
@@ -5974,9 +4981,7 @@ function TexasHoldemArena({ search }) {
     const winnerSeatOrder = [];
     if (state.showdown && Array.isArray(state.winners)) {
       state.winners.forEach((potEntry) => {
-        const potWinners = Array.isArray(potEntry?.winners)
-          ? potEntry.winners
-          : [];
+        const potWinners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
         potWinners.forEach((winnerInfo) => {
           const seatIndex = winnerInfo?.index;
           if (typeof seatIndex !== 'number' || seatIndex < 0) return;
@@ -5986,14 +4991,8 @@ function TexasHoldemArena({ search }) {
         });
       });
     }
-    const winnerDisplayIndex = new Map(
-      winnerSeatOrder.map((seatIndex, orderIndex) => [seatIndex, orderIndex])
-    );
-    const winnerOffsetDirection = (
-      three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)
-    )
-      .clone()
-      .normalize();
+    const winnerDisplayIndex = new Map(winnerSeatOrder.map((seatIndex, orderIndex) => [seatIndex, orderIndex]));
+    const winnerOffsetDirection = (three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
     if (rowRotation) {
       winnerOffsetDirection.applyAxisAngle(WORLD_UP, rowRotation);
     }
@@ -6001,10 +5000,7 @@ function TexasHoldemArena({ search }) {
       surfaceY: three.tableInfo?.surfaceY,
       rotationY: rowRotation,
       ...three.communityAxes
-    }).addScaledVector(
-      winnerOffsetDirection,
-      POT_BELOW_COMMUNITY_OFFSET * 0.92
-    );
+    }).addScaledVector(winnerOffsetDirection, POT_BELOW_COMMUNITY_OFFSET * 0.92);
     const winnerSpreadOffset = (winnerSeatOrder.length - 1) * 0.5;
     const foldedSeatOrder = new Map();
     state.players.forEach((entry, seatIdx) => {
@@ -6017,11 +5013,11 @@ function TexasHoldemArena({ search }) {
       const prevPlayer = previous?.players?.[idx];
       const humanAnchor = getHumanCardAnchor(seat);
       const baseAnchor =
-        humanAnchor ??
-        seat.cardRailAnchor?.clone() ??
-        seat.chipRailAnchor?.clone() ??
-        seat.cardAnchor?.clone() ??
-        seat.chipAnchor.clone();
+        humanAnchor
+        ?? seat.cardRailAnchor?.clone()
+        ?? seat.chipRailAnchor?.clone()
+        ?? seat.cardAnchor?.clone()
+        ?? seat.chipAnchor.clone();
       const right = seat.right.clone();
       const forward = seat.forward.clone();
 
@@ -6042,32 +5038,14 @@ function TexasHoldemArena({ search }) {
           return;
         }
         mesh.visible = true;
-        applyCardToMesh(
-          mesh,
-          card,
-          three.cardGeometry,
-          three.faceCache,
-          cardTheme
-        );
+        applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
         if (player.folded && !state.showdown) {
           const foldedOrder = foldedSeatOrder.get(idx) ?? 0;
-          const pilePosition = (
-            foldPileAnchor ??
-            potStack?.position ??
-            new THREE.Vector3()
-          )
+          const pilePosition = (foldPileAnchor ?? potStack?.position ?? new THREE.Vector3())
             .clone()
-            .add(
-              new THREE.Vector3(
-                (cardIdx - 0.5) * FOLD_PILE_LATERAL_STEP,
-                foldedOrder * FOLD_PILE_CARD_GAP,
-                0
-              )
-            );
-          const pileLookTarget = pilePosition
-            .clone()
-            .add(new THREE.Vector3(0, 0, 1));
-          if (player.folded && !prevPlayer?.folded) {
+            .add(new THREE.Vector3((cardIdx - 0.5) * FOLD_PILE_LATERAL_STEP, foldedOrder * FOLD_PILE_CARD_GAP, 0));
+          const pileLookTarget = pilePosition.clone().add(new THREE.Vector3(0, 0, 1));
+          if (player.folded && !(prevPlayer?.folded)) {
             animateFoldCardToPile(mesh, pilePosition, pileLookTarget);
           } else if (!mesh.userData?.foldAnimFrame) {
             mesh.position.copy(pilePosition);
@@ -6086,20 +5064,12 @@ function TexasHoldemArena({ search }) {
           position.copy(
             winnerDisplayCenter
               .clone()
-              .addScaledVector(
-                humanSeatRef.current?.right ?? right,
-                (winnerOrderIndex - winnerSpreadOffset) *
-                  SHOWDOWN_WINNER_SPACING
-              )
-              .addScaledVector(
-                humanSeatRef.current?.right ?? right,
-                (cardIdx - 0.5) * HOLE_SPACING
-              )
+              .addScaledVector(humanSeatRef.current?.right ?? right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING)
+              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * HOLE_SPACING)
           );
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
-          const clothY =
-            (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
+          const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
           position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
         }
         mesh.position.copy(position);
@@ -6118,23 +5088,9 @@ function TexasHoldemArena({ search }) {
 
       if (seat.foldBadge) {
         if (player.folded && !state.showdown) {
-          const clothY =
-            (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.42;
-          const foldCenter = baseAnchor
-            .clone()
-            .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
-            .setY(seat.isHuman ? clothY : clothY + CARD_H * 0.48);
-          const foldLookTarget = seat.isHuman
-            ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
-            : foldCenter.clone().add(forward.clone());
-          seat.foldBadge.position.copy(foldCenter);
-          orientCard(seat.foldBadge, foldLookTarget, {
-            face: 'front',
-            flat: !seat.isHuman
-          });
-          if (seat.isHuman) {
-            seat.foldBadge.rotateX(HUMAN_CARD_FACE_TILT);
-          }
+          const foldBadgePos = seat.cardRailAnchor.clone();
+          foldBadgePos.y += CARD_D * 0.6;
+          seat.foldBadge.position.copy(foldBadgePos);
           seat.foldBadge.visible = true;
         } else {
           seat.foldBadge.visible = false;
@@ -6142,43 +5098,23 @@ function TexasHoldemArena({ search }) {
       }
 
       const chipsAmount = Math.max(0, Math.round(player.chips));
-      const seatPendingValue = Math.max(
-        0,
-        showdownState?.seatPending?.[idx] ?? 0
-      );
+      const seatPendingValue = Math.max(0, showdownState?.seatPending?.[idx] ?? 0);
       const storedStarting = showdownState?.startingChips?.[idx];
-      const baseStarting = Math.max(
-        0,
-        Math.round((player.chips ?? 0) - (player.winnings ?? 0))
-      );
-      const effectiveStarting = Number.isFinite(storedStarting)
-        ? storedStarting
-        : baseStarting;
+      const baseStarting = Math.max(0, Math.round((player.chips ?? 0) - (player.winnings ?? 0)));
+      const effectiveStarting = Number.isFinite(storedStarting) ? storedStarting : baseStarting;
       const shouldHoldChips =
-        state.stage === 'showdown' &&
-        (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
-      const displayChips = shouldHoldChips
-        ? Math.max(0, effectiveStarting)
-        : chipsAmount;
+        state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
+      const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
       seat.chipStack.visible = seat.showRailChips !== false;
-      chipFactory.setAmount(seat.chipStack, displayChips, {
-        mode: 'rail',
-        layout: seat.railLayout
-      });
+      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'rail', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
       const prevBet = seat.lastBet ?? 0;
       const betDelta = Math.max(0, bet - prevBet);
       if (betDelta > 0 && arenaGroup) {
         const applyPotGain = (value) => {
-          potDisplayRef.current = Math.min(
-            potTargetRef.current,
-            potDisplayRef.current + value
-          );
-          chipFactory.setAmount(potStack, potDisplayRef.current, {
-            mode: 'scatter',
-            layout: potLayout
-          });
+          potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
+          chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
         };
         if (seat.isHuman) {
           applyPotGain(betDelta);
@@ -6210,30 +5146,17 @@ function TexasHoldemArena({ search }) {
       seat.lastChips = chipsAmount;
 
       if (seat.betStack) {
-        chipFactory.setAmount(seat.betStack, 0, {
-          mode: 'scatter',
-          layout: seat.tableLayout
-        });
+        chipFactory.setAmount(seat.betStack, 0, { mode: 'scatter', layout: seat.tableLayout });
         seat.betStack.visible = false;
       }
 
-      const highlight =
-        state.stage !== 'showdown' &&
-        idx === state.actionIndex &&
-        !player.folded &&
-        !player.allIn;
+      const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
       const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
         const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
         seat.lastAvatar = labelAvatar;
-        label.userData.update(
-          player.name,
-          chipsAmount,
-          highlight,
-          status,
-          labelAvatar
-        );
+        label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
         label.userData.texture.needsUpdate = true;
       }
       const winnerOrderIndex = winnerDisplayIndex.get(idx);
@@ -6241,38 +5164,23 @@ function TexasHoldemArena({ search }) {
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           const winnerAnchor = winnerDisplayCenter
             .clone()
-            .addScaledVector(
-              humanSeatRef.current?.right ?? seat.right,
-              (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING
-            );
-          label.position.copy(
-            winnerAnchor
-              .clone()
-              .setY(winnerAnchor.y + SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET)
-          );
-          const lookForward =
-            humanSeatRef.current?.forward?.clone() ?? seat.forward.clone();
+            .addScaledVector(humanSeatRef.current?.right ?? seat.right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING);
+          label.position.copy(winnerAnchor.clone().setY(winnerAnchor.y + SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET));
+          const lookForward = humanSeatRef.current?.forward?.clone() ?? seat.forward.clone();
           label.lookAt(label.position.clone().add(lookForward));
           label.rotateX(NAMEPLATE_BACK_TILT);
         } else {
           const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
           const labelForward = seat.labelOffset?.forward ?? 0;
-          const labelOffset = seat.forward
-            .clone()
-            .setLength(labelForward)
-            .add(new THREE.Vector3(0, labelLift, 0));
+          const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
           label.position.copy(seat.seatPos.clone().add(labelOffset));
-          const seatNameplateFacing = seat.forward
-            .clone()
-            .negate()
-            .setY(0)
-            .normalize();
+          const seatNameplateFacing = seat.forward.clone().negate().setY(0).normalize();
           label.lookAt(label.position.clone().add(seatNameplateFacing));
           label.rotateX(NAMEPLATE_BACK_TILT);
         }
       }
 
-      if (player.folded && !prevPlayer?.folded) {
+      if (player.folded && !(prevPlayer?.folded)) {
         playSound('fold');
         turnCameraTowardsSeat(idx, { animate: true, durationMs: 220 });
       }
@@ -6307,13 +5215,7 @@ function TexasHoldemArena({ search }) {
         return;
       }
       mesh.visible = true;
-      applyCardToMesh(
-        mesh,
-        card,
-        three.cardGeometry,
-        three.faceCache,
-        cardTheme
-      );
+      applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
       const surfaceY = three.tableInfo?.surfaceY ?? TABLE_HEIGHT;
       const slotPosition = computeCommunitySlotPosition(idx, {
         rotationY: rowRotation,
@@ -6321,11 +5223,7 @@ function TexasHoldemArena({ search }) {
         ...three.communityAxes
       });
       mesh.position.copy(slotPosition);
-      const forward = (
-        three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)
-      )
-        .clone()
-        .normalize();
+      const forward = (three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
       if (rowRotation) {
         forward.applyAxisAngle(WORLD_UP, rowRotation);
       }
@@ -6339,10 +5237,7 @@ function TexasHoldemArena({ search }) {
       }
       setCardFace(mesh, 'front');
       const communityKey = cardKey(card);
-      setCardHighlight(
-        mesh,
-        state.showdown && winningCommunity.has(communityKey)
-      );
+      setCardHighlight(mesh, state.showdown && winningCommunity.has(communityKey));
       if (!previous?.community?.[sourceIdx]) {
         newlyRevealedCommunity.push(idx);
         playSound('flip');
@@ -6357,16 +5252,11 @@ function TexasHoldemArena({ search }) {
         clearTimeout(communityFocusTimeoutRef.current);
         communityFocusTimeoutRef.current = null;
       }
-      const actionTargetIndex = findSeatWithAvatar(state.actionIndex, {
-        skipFolded: true
-      });
+      const actionTargetIndex = findSeatWithAvatar(state.actionIndex, { skipFolded: true });
       if (typeof actionTargetIndex === 'number') {
         communityFocusTimeoutRef.current = setTimeout(() => {
           if (Date.now() >= communityRevealHoldUntilRef.current) {
-            turnCameraTowardsSeat(actionTargetIndex, {
-              animate: true,
-              durationMs: 320
-            });
+            turnCameraTowardsSeat(actionTargetIndex, { animate: true, durationMs: 320 });
           }
           communityFocusTimeoutRef.current = null;
         }, COMMUNITY_REVEAL_CAMERA_HOLD_MS);
@@ -6383,15 +5273,9 @@ function TexasHoldemArena({ search }) {
     });
 
     if (!showdownState?.active) {
-      if (
-        potDisplayRef.current > potTargetRef.current ||
-        potTargetRef.current === 0
-      ) {
+      if (potDisplayRef.current > potTargetRef.current || potTargetRef.current === 0) {
         potDisplayRef.current = potTargetRef.current;
-        chipFactory.setAmount(potStack, potDisplayRef.current, {
-          mode: 'scatter',
-          layout: potLayout
-        });
+        chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
       }
     }
 
@@ -6408,15 +5292,7 @@ function TexasHoldemArena({ search }) {
       stage: state.stage,
       actionIndex: state.actionIndex
     };
-  }, [
-    animateFoldCardToPile,
-    findSeatWithAvatar,
-    gameState,
-    overheadView,
-    playSound,
-    resetCameraToStartView,
-    turnCameraTowardsSeat
-  ]);
+  }, [animateFoldCardToPile, findSeatWithAvatar, gameState, overheadView, playSound, resetCameraToStartView, turnCameraTowardsSeat]);
 
   const currentActionIndex = gameState?.actionIndex;
   const currentStage = gameState?.stage;
@@ -6428,40 +5304,30 @@ function TexasHoldemArena({ search }) {
         indicator.visible = false;
       }
       if (typeof winnerFocusIndex === 'number') {
-        turnCameraTowardsSeat(winnerFocusIndex, {
-          animate: true,
-          durationMs: 420
-        });
+        turnCameraTowardsSeat(winnerFocusIndex, { animate: true, durationMs: 420 });
       }
       return;
     }
     if (typeof currentActionIndex !== 'number') return;
     const three = threeRef.current;
     if (!three) return;
-    const focusIndex = findSeatWithAvatar(currentActionIndex, {
-      skipFolded: true
-    });
-    const seatForIndicator =
-      typeof focusIndex === 'number' ? three.seatGroups?.[focusIndex] : null;
+    const focusIndex = findSeatWithAvatar(currentActionIndex, { skipFolded: true });
+    const seatForIndicator = typeof focusIndex === 'number' ? three.seatGroups?.[focusIndex] : null;
     const turnIndicator = three.turnIndicator;
     if (turnIndicator) {
       if (!seatForIndicator) {
         turnIndicator.visible = false;
       } else {
         const indicatorPosition = seatForIndicator.stoolAnchor.clone();
-        indicatorPosition.y =
-          seatForIndicator.stoolHeight + TURN_INDICATOR_HEIGHT;
+        indicatorPosition.y = seatForIndicator.stoolHeight + TURN_INDICATOR_HEIGHT;
         turnIndicator.position.copy(indicatorPosition);
-        const indicatorColor =
-          seatForIndicator.player?.color || TURN_INDICATOR_COLOR;
+        const indicatorColor = seatForIndicator.player?.color || TURN_INDICATOR_COLOR;
         turnIndicator.visible = true;
         if (turnIndicator.material?.color) {
           turnIndicator.material.color.set(indicatorColor);
         }
         if (turnIndicator.material?.emissive) {
-          turnIndicator.material.emissive
-            .set(indicatorColor)
-            .multiplyScalar(0.4);
+          turnIndicator.material.emissive.set(indicatorColor).multiplyScalar(0.4);
         }
       }
     }
@@ -6507,17 +5373,11 @@ function TexasHoldemArena({ search }) {
     if (!three) return;
     const { seatGroups, chipFactory, potStack, potLayout, arenaGroup } = three;
     const results = Array.isArray(gameState.winners) ? gameState.winners : [];
-    const totalPot = results.reduce(
-      (sum, entry) => sum + Math.max(0, Math.round(entry?.amount ?? 0)),
-      0
-    );
+    const totalPot = results.reduce((sum, entry) => sum + Math.max(0, Math.round(entry?.amount ?? 0)), 0);
 
     const startingChips = {};
     gameState.players.forEach((player, idx) => {
-      startingChips[idx] = Math.max(
-        0,
-        Math.round((player.chips ?? 0) - (player.winnings ?? 0))
-      );
+      startingChips[idx] = Math.max(0, Math.round((player.chips ?? 0) - (player.winnings ?? 0)));
     });
 
     const seatPending = {};
@@ -6530,10 +5390,7 @@ function TexasHoldemArena({ search }) {
         const shareAmount = Math.max(0, Math.round(winnerInfo?.share ?? 0));
         if (shareAmount <= 0) return;
         seatPending[seatIndex] = (seatPending[seatIndex] ?? 0) + shareAmount;
-        seatTargets[seatIndex] = Math.max(
-          0,
-          Math.round(gameState.players?.[seatIndex]?.chips ?? 0)
-        );
+        seatTargets[seatIndex] = Math.max(0, Math.round(gameState.players?.[seatIndex]?.chips ?? 0));
       });
     });
 
@@ -6544,18 +5401,12 @@ function TexasHoldemArena({ search }) {
 
     if (totalPot <= 0) {
       potDisplayRef.current = 0;
-      chipFactory.setAmount(potStack, 0, {
-        mode: 'scatter',
-        layout: potLayout
-      });
+      chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
       return;
     }
 
     potDisplayRef.current = Math.max(potDisplayRef.current, totalPot);
-    chipFactory.setAmount(potStack, Math.round(potDisplayRef.current), {
-      mode: 'scatter',
-      layout: potLayout
-    });
+    chipFactory.setAmount(potStack, Math.round(potDisplayRef.current), { mode: 'scatter', layout: potLayout });
 
     results.forEach((potEntry) => {
       const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
@@ -6570,9 +5421,7 @@ function TexasHoldemArena({ search }) {
         const end = seat.chipAnchor.clone();
         const mid = start.clone().lerp(end, 0.5);
         mid.y += CARD_SURFACE_OFFSET * 6;
-        const targetChips =
-          seatTargets[seatIndex] ??
-          Math.max(0, Math.round(gameState.players?.[seatIndex]?.chips ?? 0));
+        const targetChips = seatTargets[seatIndex] ?? Math.max(0, Math.round(gameState.players?.[seatIndex]?.chips ?? 0));
         chipFactory.animateTransfer(shareAmount, {
           scene: arenaGroup,
           start,
@@ -6590,19 +5439,14 @@ function TexasHoldemArena({ search }) {
               showdownAnimationRef.current.pendingValue - value
             );
             potDisplayRef.current = Math.max(0, potDisplayRef.current - value);
-            chipFactory.setAmount(
-              potStack,
-              Math.max(0, Math.round(potDisplayRef.current)),
-              {
-                mode: 'scatter',
-                layout: potLayout
-              }
-            );
+            chipFactory.setAmount(potStack, Math.max(0, Math.round(potDisplayRef.current)), {
+              mode: 'scatter',
+              layout: potLayout
+            });
             if (showdownAnimationRef.current.seatPending) {
               showdownAnimationRef.current.seatPending[seatIndex] = Math.max(
                 0,
-                (showdownAnimationRef.current.seatPending[seatIndex] ?? 0) -
-                  value
+                (showdownAnimationRef.current.seatPending[seatIndex] ?? 0) - value
               );
               if (showdownAnimationRef.current.seatPending[seatIndex] <= 0) {
                 chipFactory.setAmount(seat.chipStack, targetChips, {
@@ -6614,10 +5458,7 @@ function TexasHoldemArena({ search }) {
             if (showdownAnimationRef.current.pendingValue <= 0) {
               showdownAnimationRef.current.active = false;
               potDisplayRef.current = 0;
-              chipFactory.setAmount(potStack, 0, {
-                mode: 'scatter',
-                layout: potLayout
-              });
+              chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
             }
           }
         });
@@ -6663,16 +5504,10 @@ function TexasHoldemArena({ search }) {
     }
     const actor = gameState.players[gameState.actionIndex];
     const human = gameState.players.find((p) => p.isHuman);
-    const humanToCall = human
-      ? Math.max(0, gameState.currentBet - human.bet)
-      : 0;
+    const humanToCall = human ? Math.max(0, gameState.currentBet - human.bet) : 0;
     const humanMaxRaise = human ? Math.max(0, human.chips - humanToCall) : 0;
-    const humanMinRaise = human
-      ? Math.min(humanMaxRaise, gameState.minRaise)
-      : 0;
-    const humanCanRaise = Boolean(
-      human && humanMaxRaise > 0 && !human.folded && !human.allIn
-    );
+    const humanMinRaise = human ? Math.min(humanMaxRaise, gameState.minRaise) : 0;
+    const humanCanRaise = Boolean(human && humanMaxRaise > 0 && !human.folded && !human.allIn);
     if (actor?.isHuman) {
       const canCheck = humanToCall === 0;
       const actions = [];
@@ -6680,30 +5515,13 @@ function TexasHoldemArena({ search }) {
       if (canCheck) {
         actions.push({ id: 'check', label: 'Check' });
       } else {
-        actions.push({
-          id: 'call',
-          label: `Call ${Math.round(humanToCall)} ${gameState.token}`
-        });
+        actions.push({ id: 'call', label: `Call ${Math.round(humanToCall)} ${gameState.token}` });
       }
-      setUiState({
-        availableActions: actions,
-        toCall: humanToCall,
-        canRaise: humanCanRaise,
-        maxRaise: humanMaxRaise,
-        minRaise: humanMinRaise
-      });
+      setUiState({ availableActions: actions, toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
     } else {
-      setUiState({
-        availableActions: [],
-        toCall: humanToCall,
-        canRaise: humanCanRaise,
-        maxRaise: humanMaxRaise,
-        minRaise: humanMinRaise
-      });
+      setUiState({ availableActions: [], toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
       if (!actor?.isHuman) {
-        const thinkDelay =
-          AI_ACTION_DELAY_MS +
-          Math.round(Math.random() * AI_ACTION_DELAY_JITTER_MS);
+        const thinkDelay = AI_ACTION_DELAY_MS + Math.round(Math.random() * AI_ACTION_DELAY_JITTER_MS);
         timerRef.current = setTimeout(() => {
           setGameState((prev) => {
             const next = cloneState(prev);
@@ -6725,12 +5543,7 @@ function TexasHoldemArena({ search }) {
     setGameState((prev) => {
       const next = cloneState(prev);
       const actingPlayer = next.players[next.actionIndex];
-      if (
-        next.stage === 'showdown' ||
-        !actingPlayer?.isHuman ||
-        actingPlayer.folded
-      )
-        return next;
+      if (next.stage === 'showdown' || !actingPlayer?.isHuman || actingPlayer.folded) return next;
       const amount = raiseAmount ?? next.minRaise;
       performPlayerAction(next, id, amount);
       return next;
@@ -6738,64 +5551,34 @@ function TexasHoldemArena({ search }) {
   }, []);
 
   const actor = gameState.players[gameState.actionIndex];
-  const humanPlayer = useMemo(
-    () => gameState.players.find((p) => p.isHuman),
-    [gameState.players]
-  );
+  const humanPlayer = useMemo(() => gameState.players.find((p) => p.isHuman), [gameState.players]);
   const humanPlayerIndex = useMemo(
     () => gameState.players.findIndex((p) => p.isHuman),
     [gameState.players]
   );
   const isHumanTurn = actor?.id === humanPlayer?.id;
-  const countdownProgress = Math.min(
-    1,
-    Math.max(0, turnCountdown / TURN_DURATION)
-  );
-  const toCall = humanPlayer
-    ? Math.max(0, gameState.currentBet - humanPlayer.bet)
-    : 0;
+  const countdownProgress = Math.min(1, Math.max(0, turnCountdown / TURN_DURATION));
+  const toCall = humanPlayer ? Math.max(0, gameState.currentBet - humanPlayer.bet) : 0;
   const sliderMax = humanPlayer ? Math.max(0, humanPlayer.chips - toCall) : 0;
-  const minRaiseAmount = humanPlayer
-    ? Math.min(sliderMax, gameState.minRaise)
-    : 0;
-  const defaultRaise =
-    sliderMax <= 0
-      ? 0
-      : minRaiseAmount > 0
-        ? Math.min(sliderMax, minRaiseAmount)
-        : sliderMax;
+  const minRaiseAmount = humanPlayer ? Math.min(sliderMax, gameState.minRaise) : 0;
+  const defaultRaise = sliderMax <= 0 ? 0 : minRaiseAmount > 0 ? Math.min(sliderMax, minRaiseAmount) : sliderMax;
   const chipTotal = useMemo(
     () => chipSelection.reduce((sum, chip) => sum + chip, 0),
     [chipSelection]
   );
   const effectiveRaise = chipTotal > 0 ? chipTotal : sliderValue;
   const sliderVisible = Boolean(humanPlayer) && gameState.stage !== 'showdown';
-  const sliderInteractive =
-    sliderVisible &&
-    sliderMax > 0 &&
-    !humanPlayer?.folded &&
-    !humanPlayer?.allIn;
-  const sliderEnabled = Boolean(
-    isHumanTurn && sliderInteractive && uiState.canRaise
-  );
+  const sliderInteractive = sliderVisible && sliderMax > 0 && !humanPlayer?.folded && !humanPlayer?.allIn;
+  const sliderEnabled = Boolean(isHumanTurn && sliderInteractive && uiState.canRaise);
   const raisePreview = sliderVisible ? Math.min(sliderMax, effectiveRaise) : 0;
-  const finalRaise =
-    sliderMax > 0
-      ? Math.min(sliderMax, Math.max(raisePreview, defaultRaise))
-      : 0;
+  const finalRaise = sliderMax > 0 ? Math.min(sliderMax, Math.max(raisePreview, defaultRaise)) : 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const undoDisabled = !sliderInteractive || chipSelection.length === 0;
   const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
-  const sliderDisplayValue = sliderVisible
-    ? Math.round(Math.min(sliderMax, sliderValue))
-    : 0;
-  const overlayConfirmDisabled =
-    !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
+  const sliderDisplayValue = sliderVisible ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
+  const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
   const chatAvatar = humanPlayer?.avatar || '/assets/icons/profile.svg';
-  const seatAnchors = useMemo(
-    () => buildSeatAnchors(gameState.players.length),
-    [gameState.players.length]
-  );
+  const seatAnchors = useMemo(() => buildSeatAnchors(gameState.players.length), [gameState.players.length]);
 
   useEffect(() => {
     const three = threeRef.current;
@@ -6808,11 +5591,7 @@ function TexasHoldemArena({ search }) {
       const player = gameState.players?.[idx];
       if (!label?.userData?.update || !player) return;
       const highlight =
-        gameState.stage !== 'showdown' &&
-        idx === actionIdx &&
-        !player.folded &&
-        !player.allIn &&
-        Number.isFinite(actionIdx);
+        gameState.stage !== 'showdown' && idx === actionIdx && !player.folded && !player.allIn && Number.isFinite(actionIdx);
       const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
       seat.lastAvatar = labelAvatar;
       label.userData.update(
@@ -6889,13 +5668,7 @@ function TexasHoldemArena({ search }) {
         turnIntervalRef.current = null;
       }
     };
-  }, [
-    gameState.stage,
-    gameState.actionIndex,
-    gameState.players,
-    handleAction,
-    toCall
-  ]);
+  }, [gameState.stage, gameState.actionIndex, gameState.players, handleAction, toCall]);
 
   useEffect(() => {
     if (!sliderVisible) {
@@ -6910,14 +5683,7 @@ function TexasHoldemArena({ search }) {
     }
     setChipSelection([]);
     setSliderValue(defaultRaise);
-  }, [
-    humanPlayer?.id,
-    sliderMax,
-    minRaiseAmount,
-    gameState.stage,
-    defaultRaise,
-    sliderVisible
-  ]);
+  }, [humanPlayer?.id, sliderMax, minRaiseAmount, gameState.stage, defaultRaise, sliderVisible]);
 
   useEffect(() => {
     if (sliderMax <= 0 || !sliderVisible) return;
@@ -6930,12 +5696,10 @@ function TexasHoldemArena({ search }) {
     const seat = three.seatGroups?.find((s) => s.isHuman);
     if (!seat?.previewStack) return;
     const amount = sliderVisible ? Math.round(raisePreview) : 0;
-    three.chipFactory.setAmount(seat.previewStack, amount, {
-      mode: 'scatter',
-      layout: seat.tableLayout
-    });
+    three.chipFactory.setAmount(seat.previewStack, amount, { mode: 'scatter', layout: seat.tableLayout });
     seat.previewStack.visible = amount > 0;
   }, [raisePreview, sliderVisible]);
+
 
   useEffect(() => {
     const three = threeRef.current;
@@ -6951,9 +5715,7 @@ function TexasHoldemArena({ search }) {
     });
     if (!visible && hoverTargetRef.current) {
       if (hoverTargetRef.current.userData?.type === 'chip-button') {
-        hoverTargetRef.current.scale.setScalar(
-          hoverTargetRef.current.userData.baseScale
-        );
+        hoverTargetRef.current.scale.setScalar(hoverTargetRef.current.userData.baseScale);
       }
       hoverTargetRef.current = null;
     }
@@ -7027,6 +5789,7 @@ function TexasHoldemArena({ search }) {
     }
   }, [overheadView, overheadZoom]);
 
+
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
@@ -7042,221 +5805,176 @@ function TexasHoldemArena({ search }) {
             type="button"
             onClick={() => setConfigOpen((prev) => !prev)}
             aria-expanded={configOpen}
-            aria-label={
-              configOpen
-                ? 'Close game settings menu'
-                : 'Open game settings menu'
-            }
+            aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
             className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
-              configOpen
-                ? 'border-white/35 text-white'
-                : 'hover:border-white/30 hover:text-white'
+              configOpen ? 'border-white/35 text-white' : 'hover:border-white/30 hover:text-white'
             }`}
           >
             <span className="text-base leading-none">☰</span>
             <span className="leading-none">Menu</span>
           </button>
         </div>
-        {configOpen && (
-          <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
-            <div className="flex items-center justify-between gap-3">
+      {configOpen && (
+        <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
+              <p className="mt-1 text-[0.7rem] text-white/70">
+                Tune the felt, rails, and chair finishes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfigOpen(false)}
+              className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              aria-label="Mbyll personalizimin"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
-                  Table Setup
-                </p>
-                <p className="mt-1 text-[0.7rem] text-white/70">
-                  Tune the felt, rails, and chair finishes.
-                </p>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">Table finishes, cloth, and chair styling.</p>
+              </div>
+              <div className="mt-3 space-y-4">
+                {customizationSections.map(({ key, label, options }) => (
+                  <div key={key} className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {options.map((option) => {
+                        const selected = appearance[key] === option.idx;
+                        const disabled =
+                          key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              if (disabled) return;
+                              setAppearance((prev) => ({ ...prev, [key]: option.idx }));
+                            }}
+                            aria-pressed={selected}
+                            disabled={disabled}
+                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              selected ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]' : 'border-white/10 bg-white/5 hover:border-white/20'
+                            } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
+                          >
+                            {renderPreview(key, option)}
+                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+              <div className="grid gap-2">
+                {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
+                  const active = preset.id === commentaryPresetId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setCommentaryPresetId(preset.id)}
+                      aria-pressed={active}
+                      disabled={!commentarySupported}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                        {active && (
+                          <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                            Active
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                        {preset.description}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               <button
                 type="button"
-                onClick={() => setConfigOpen(false)}
-                className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                aria-label="Mbyll personalizimin"
+                onClick={() => setCommentaryMuted((prev) => !prev)}
+                aria-pressed={commentaryMuted}
+                disabled={!commentarySupported}
+                className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                  commentaryMuted
+                    ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="h-4 w-4"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m6 6 12 12M18 6 6 18"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                    Personalize Arena
-                  </p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">
-                    Table finishes, cloth, and chair styling.
-                  </p>
-                </div>
-                <div className="mt-3 space-y-4">
-                  {customizationSections.map(({ key, label, options }) => (
-                    <div key={key} className="space-y-2">
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">
-                        {label}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {options.map((option) => {
-                          const selected = appearance[key] === option.idx;
-                          const disabled =
-                            key === 'tableShape' &&
-                            option.id === DIAMOND_SHAPE_ID &&
-                            effectivePlayerCount > 4;
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => {
-                                if (disabled) return;
-                                setAppearance((prev) => ({
-                                  ...prev,
-                                  [key]: option.idx
-                                }));
-                              }}
-                              aria-pressed={selected}
-                              disabled={disabled}
-                              className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                selected
-                                  ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                  : 'border-white/10 bg-white/5 hover:border-white/20'
-                              } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
-                            >
-                              {renderPreview(key, option)}
-                              <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                                {option.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                  Commentary
-                </p>
-                <div className="grid gap-2">
-                  {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          active
-                            ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
-                            {preset.label}
-                          </span>
-                          {active && (
-                            <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                              Active
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCommentaryMuted((prev) => !prev)}
-                  aria-pressed={commentaryMuted}
-                  disabled={!commentarySupported}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                <span>Mute commentary</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
                     commentaryMuted
-                      ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      ? 'border-black/30 text-black/70'
+                      : 'border-white/30 text-white/70'
+                  }`}
                 >
-                  <span>Mute commentary</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      commentaryMuted
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {commentaryMuted ? 'On' : 'Off'}
-                  </span>
-                </button>
-                {!commentarySupported && (
-                  <p className="text-[0.65rem] text-white/50">
-                    Voice commentary needs Web Speech support.
-                  </p>
-                )}
+                  {commentaryMuted ? 'On' : 'Off'}
+                </span>
+              </button>
+              {!commentarySupported && (
+                <p className="text-[0.65rem] text-white/50">
+                  Voice commentary needs Web Speech support.
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">
+                  Match the Murlan Royale presets for identical FPS and clarity options.
+                </p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                    Graphics
-                  </p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">
-                    Match the Murlan Royale presets for identical FPS and
-                    clarity options.
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  {FRAME_RATE_OPTIONS.map((option) => {
-                    const active = option.id === frameRateId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setFrameRateId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          active
-                            ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
-                            {option.label}
-                          </span>
-                          <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                            {option.resolution
-                              ? `${option.resolution} • ${option.fps} FPS`
-                              : `${option.fps} FPS`}
-                          </span>
+              <div className="grid gap-2">
+                {FRAME_RATE_OPTIONS.map((option) => {
+                  const active = option.id === frameRateId;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setFrameRateId(option.id)}
+                      aria-pressed={active}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
+                        <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                          {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
                         </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                      </span>
+                      {option.description ? (
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          {option.description}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
       </div>
       <div className="absolute inset-0 pointer-events-none">
         {seatAnchors.map((anchor, index) => (
@@ -7274,16 +5992,10 @@ function TexasHoldemArena({ search }) {
             (isHumanTurn ? (
               renderAvatarTimer(humanPlayer.avatar, 44)
             ) : (
-              <img
-                src={humanPlayer.avatar}
-                alt="player avatar"
-                className="h-10 w-10 rounded-full object-cover"
-              />
+              <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
             ))}
           <div className="flex flex-col leading-tight text-white text-center">
-            <span className="text-sm font-semibold drop-shadow-md">
-              {humanPlayer?.name || 'You'}
-            </span>
+            <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
             <span className="text-[0.74rem] text-white/80">
               {Math.round(humanPlayer?.chips ?? 0)} {gameState.token}
             </span>
@@ -7300,52 +6012,36 @@ function TexasHoldemArena({ search }) {
               step={1}
               value={sliderDisplayValue}
               onChange={(event) => {
-                const next = Math.max(
-                  0,
-                  Math.min(sliderMax, Number(event.target.value))
-                );
+                const next = Math.max(0, Math.min(sliderMax, Number(event.target.value)));
                 setChipSelection([]);
                 setSliderValue(next);
               }}
               className="h-52 w-10 cursor-pointer appearance-none bg-transparent"
-              style={{
-                writingMode: 'bt-lr',
-                WebkitAppearance: 'slider-vertical'
-              }}
+              style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
             />
             <button
               type="button"
               onClick={handleRaiseConfirm}
               disabled={overlayConfirmDisabled}
               className={`w-full rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
-                overlayConfirmDisabled
-                  ? 'bg-blue-900/50 text-white/40 shadow-none'
-                  : 'bg-blue-600/90 hover:bg-blue-500'
+                overlayConfirmDisabled ? 'bg-blue-900/50 text-white/40 shadow-none' : 'bg-blue-600/90 hover:bg-blue-500'
               }`}
             >
               {sliderLabel}
             </button>
           </div>
           <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-[0.6rem] uppercase tracking-[0.4em] text-white/60">
-              {sliderLabel}
-            </span>
+            <span className="text-[0.6rem] uppercase tracking-[0.4em] text-white/60">{sliderLabel}</span>
             <span className="text-xl font-semibold drop-shadow-md">
               {Math.round(finalRaise)} {gameState.token}
             </span>
             {toCall > 0 && (
-              <span className="text-[0.65rem] text-white/60">
-                To call {Math.round(toCall)} {gameState.token}
-              </span>
+              <span className="text-[0.65rem] text-white/60">To call {Math.round(toCall)} {gameState.token}</span>
             )}
             {minRaiseAmount > 0 && (
-              <span className="text-[0.65rem] text-white/60">
-                Min raise {Math.round(minRaiseAmount)} {gameState.token}
-              </span>
+              <span className="text-[0.65rem] text-white/60">Min raise {Math.round(minRaiseAmount)} {gameState.token}</span>
             )}
-            <span className="text-[0.65rem] text-white/70">
-              Stack {Math.round(sliderMax)} {gameState.token}
-            </span>
+            <span className="text-[0.65rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
           </div>
         </div>
       )}
@@ -7424,11 +6120,7 @@ function TexasHoldemArena({ search }) {
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble texas-holdem-chat-bubble">
           <span>{bubble.text}</span>
-          <img
-            src={bubble.photoUrl}
-            alt="avatar"
-            className="w-5 h-5 rounded-full"
-          />
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
       ))}
       <div className="pointer-events-auto">
@@ -7445,20 +6137,14 @@ function TexasHoldemArena({ search }) {
           onClose={() => setShowChat(false)}
           onSend={(text) => {
             const id = Date.now();
-            setChatBubbles((bubbles) => [
-              ...bubbles,
-              { id, text, photoUrl: chatAvatar }
-            ]);
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: chatAvatar }]);
             if (!muted) {
               const audio = new Audio(chatBeep);
               audio.volume = getGameVolume();
               audio.play().catch(() => {});
             }
             setTimeout(
-              () =>
-                setChatBubbles((bubbles) =>
-                  bubbles.filter((bubble) => bubble.id !== id)
-                ),
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
               3000
             );
           }}
@@ -7476,9 +6162,7 @@ function TexasHoldemArena({ search }) {
           }))}
           senderIndex={humanPlayerIndex >= 0 ? humanPlayerIndex : 0}
           onGiftSent={({ from, to, gift }) => {
-            const start = document.querySelector(
-              `[data-player-index="${from}"]`
-            );
+            const start = document.querySelector(`[data-player-index="${from}"]`);
             const end = document.querySelector(`[data-player-index="${to}"]`);
             if (start && end) {
               const s = start.getBoundingClientRect();
@@ -7486,10 +6170,7 @@ function TexasHoldemArena({ search }) {
               const cx = window.innerWidth / 2;
               const cy = window.innerHeight / 2;
               let icon;
-              if (
-                typeof gift.icon === 'string' &&
-                gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
-              ) {
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
                 icon = document.createElement('img');
                 icon.src = gift.icon;
                 icon.className = 'w-5 h-5';
@@ -7507,16 +6188,9 @@ function TexasHoldemArena({ search }) {
               document.body.appendChild(icon);
               const animation = icon.animate(
                 [
-                  {
-                    transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
-                  },
-                  {
-                    transform: `translate(${cx}px, ${cy}px) scale(3)`,
-                    offset: 0.5
-                  },
-                  {
-                    transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
-                  }
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` }
                 ],
                 { duration: 3500, easing: 'linear' }
               );
