@@ -34,7 +34,7 @@ export default function HomeGamesCard() {
           </h3>
         </Link>
         <Link
-          to="/games/domino-royal/lobby"
+          to="/games/domino-royal?mode=local&players=4"
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
