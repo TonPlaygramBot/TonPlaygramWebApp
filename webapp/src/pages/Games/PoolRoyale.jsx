@@ -1841,6 +1841,8 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slig
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.7; // strengthen minimum forward push so cue-stroke follow-through is always visible
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.8; // extend forward travel so high-power shots show a clear cue push animation
+const CUE_IMPACT_PUSH_MIN = BALL_R * 0.65; // always drive the cue tip forward at impact so the push phase is visible
+const CUE_IMPACT_PUSH_MAX = BALL_R * 1.6; // cap impact overshoot to keep the cue from clipping through the cue ball
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -1854,6 +1856,8 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
+const CUE_FORWARD_SPEED_RATIO = 0.94; // keep forward stroke almost same speed as pullback, just slightly faster
+const CUE_CAMERA_STROKE_HOLD_EXTRA_MS = 90; // keep the camera on cue long enough to see pull, push, and return to start
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
@@ -15064,6 +15068,7 @@ const powerRef = useRef(hud.power);
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
+  const cueCameraLockUntilRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -21178,10 +21183,11 @@ const powerRef = useRef(hud.power);
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = CUE_PULL_BASE * 0.18;
-            const pullbackTime = 160;
-            const forwardTime = 210;
-            const settleTime = 120;
+            const fallbackImpactPush = Math.max(CUE_IMPACT_PUSH_MIN, CUE_PULL_BASE * 0.16);
+            const fallbackForward = Math.max(fallbackImpactPush + BALL_R * 0.25, CUE_PULL_BASE * 0.26);
+            const pullbackTime = 170;
+            const forwardTime = 260;
+            const settleTime = 170;
             const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
             const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
             const holdWindow = Math.max(replayHoldWindow, totalStroke);
@@ -21200,11 +21206,11 @@ const powerRef = useRef(hud.power);
                 cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP + fallbackPullback)
               );
               const impactPos = TMP_VEC3_C.set(
-                cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
+                cuePos.x - TMP_VEC3_CUE_DIR.x * (CUE_TIP_GAP - fallbackImpactPush),
                 cuePos.y,
-                cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
+                cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP - fallbackImpactPush)
               );
-              const followDistance = Math.max(BALL_R * 0.16, CUE_TIP_GAP - fallbackForward);
+              const followDistance = Math.max(BALL_R * 0.22, CUE_TIP_GAP - fallbackForward);
               const followPos = tmpReplayCueA.set(
                 cuePos.x - TMP_VEC3_CUE_DIR.x * followDistance,
                 cuePos.y,
@@ -24945,21 +24951,35 @@ const powerRef = useRef(hud.power);
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const baseForwardDuration = THREE.MathUtils.lerp(
+          const basePullbackDuration = THREE.MathUtils.lerp(
             PLAYER_CUE_FORWARD_MAX_MS,
             PLAYER_CUE_FORWARD_MIN_MS,
             forwardBlend
           );
-          const forwardDuration = Math.max(220, baseForwardDuration * PLAYER_FORWARD_SLOWDOWN);
-          const pullbackDuration = Math.max(120, forwardDuration * 0.65);
+          const pullbackDuration = Math.max(
+            220,
+            basePullbackDuration * PLAYER_FORWARD_SLOWDOWN
+          );
+          const forwardDuration = Math.max(
+            200,
+            pullbackDuration * CUE_FORWARD_SPEED_RATIO
+          );
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
             CUE_FOLLOW_THROUGH_MAX,
             powerStrength
           );
-          const impactPos = idlePos.clone();
-          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const impactDistance = THREE.MathUtils.lerp(
+            CUE_IMPACT_PUSH_MIN,
+            CUE_IMPACT_PUSH_MAX,
+            powerStrength
+          );
+          const impactPos = buildCuePosition(-impactDistance);
+          const followDistance = Math.max(
+            impactDistance + BALL_R * 0.2,
+            Math.min(followThrough, CUE_TIP_GAP * 0.92)
+          );
           const followPos = buildCuePosition(-followDistance);
           const followSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
@@ -24973,6 +24993,21 @@ const powerRef = useRef(hud.power);
           );
           const followDurationResolved = followDuration;
           const recoverDuration = Math.max(120, followDurationResolved * 0.6);
+          const strokeVisibleUntil =
+            startTime +
+            pullbackDuration +
+            forwardDuration +
+            followDurationResolved +
+            recoverDuration +
+            CUE_CAMERA_STROKE_HOLD_EXTRA_MS;
+          cueCameraLockUntilRef.current = Math.max(
+            cueCameraLockUntilRef.current || 0,
+            strokeVisibleUntil
+          );
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            cueCameraLockUntilRef.current
+          );
           const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
             impactTime +
@@ -24987,7 +25022,10 @@ const powerRef = useRef(hud.power);
           let holdUntil = powerImpactHoldRef.current || 0;
           const now = performance.now();
           if (earlyPocketView?.forcedEarly) {
-            const earlyHold = now + POCKET_VIEW_EARLY_HOLD_MS;
+            const earlyHold = Math.max(
+              now + POCKET_VIEW_EARLY_HOLD_MS,
+              cueCameraLockUntilRef.current || 0
+            );
             if (!holdUntil || holdUntil > earlyHold) {
               holdUntil = earlyHold;
               powerImpactHoldRef.current = earlyHold;
@@ -24995,7 +25033,7 @@ const powerRef = useRef(hud.power);
           }
           const holdActive = holdUntil > now;
           let pocketViewActivated = false;
-          if (earlyPocketView) {
+          if (earlyPocketView && now >= (cueCameraLockUntilRef.current || 0)) {
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
               const cam = cameraRef.current;
@@ -25015,6 +25053,7 @@ const powerRef = useRef(hud.power);
             earlyPocketView.pendingActivation = false;
             earlyPocketView.activationDelay = null;
             powerImpactHoldRef.current = 0;
+            cueCameraLockUntilRef.current = 0;
             updatePocketCameraState(true);
             activeShotView = earlyPocketView;
             pocketViewActivated = true;
@@ -25091,6 +25130,7 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
+            cueCameraLockUntilRef.current = 0;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -27910,6 +27950,7 @@ const powerRef = useRef(hud.power);
           spinAppliedRef.current = { x: 0, y: 0, magnitude: 0, mode: 'standard' };
           resetSpinRef.current?.();
           powerImpactHoldRef.current = 0;
+          cueCameraLockUntilRef.current = 0;
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
@@ -29420,11 +29461,16 @@ const powerRef = useRef(hud.power);
               !suspendedActionView.activationDelay ||
               now >= suspendedActionView.activationDelay;
             const cueSpeed = cueBall.vel.length() * frameScale;
-            if (cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED) {
+            if (
+              cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED &&
+              now >= (cueCameraLockUntilRef.current || 0)
+            ) {
               powerImpactHoldRef.current = 0;
             }
+            const cueStrokeCameraReady = now >= (cueCameraLockUntilRef.current || 0);
             const holdReady =
-              !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
+              (!powerImpactHoldRef.current || now >= powerImpactHoldRef.current) &&
+              cueStrokeCameraReady;
             if (travelReady && delayReady && holdReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
