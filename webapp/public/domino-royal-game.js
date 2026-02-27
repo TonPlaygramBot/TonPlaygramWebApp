@@ -2300,7 +2300,11 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
   }))
 );
 
-const CHAIR_MODEL_URLS = Object.freeze([]);
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
 const polyhavenModelCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 
@@ -2413,66 +2417,6 @@ let chairTemplateBounds = null;
 let chairBuildToken = 0;
 const chairTemplateCache = new Map();
 
-function buildProceduralChairTemplate() {
-  const chair = new THREE.Group();
-  const seatMaterial = new THREE.MeshStandardMaterial({
-    color: DEFAULT_CHAIR_THEME.seatColor,
-    roughness: 0.7,
-    metalness: 0.08
-  });
-  const legMaterial = new THREE.MeshStandardMaterial({
-    color: DEFAULT_CHAIR_THEME.legColor,
-    roughness: 0.45,
-    metalness: 0.35
-  });
-
-  const seat = new THREE.Mesh(
-    new RoundedBoxGeometry(1.26, 0.22, 1.12, 8, 0.09),
-    seatMaterial
-  );
-  seat.position.set(0, 0.58, 0.06);
-  seat.castShadow = true;
-  seat.receiveShadow = true;
-  chair.add(seat);
-
-  const back = new THREE.Mesh(
-    new RoundedBoxGeometry(1.08, 1.18, 0.2, 8, 0.08),
-    seatMaterial
-  );
-  back.position.set(0, 1.18, -0.42);
-  back.castShadow = true;
-  back.receiveShadow = true;
-  chair.add(back);
-
-  const legGeometry = new THREE.CylinderGeometry(0.05, 0.055, 0.62, 12);
-  const legOffsets = [
-    [0.5, 0.25, 0.48],
-    [-0.5, 0.25, 0.48],
-    [0.5, 0.25, -0.35],
-    [-0.5, 0.25, -0.35]
-  ];
-  legOffsets.forEach(([x, y, z]) => {
-    const leg = new THREE.Mesh(legGeometry, legMaterial);
-    leg.position.set(x, y, z);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
-    chair.add(leg);
-  });
-
-  fitChairModelToFootprint(chair);
-  chairTemplateBounds = new THREE.Box3().setFromObject(chair);
-  return {
-    chairTemplate: chair,
-    materials: {
-      seat: seatMaterial,
-      leg: legMaterial,
-      upholstery: [seatMaterial],
-      metal: [legMaterial]
-    },
-    preserveMaterials: false
-  };
-}
-
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -2540,10 +2484,6 @@ async function ensureMurlanChairTemplate(theme = null) {
     loader.setCrossOrigin('anonymous');
     loader.setDRACOLoader(draco);
 
-    if (!CHAIR_MODEL_URLS.length) {
-      return buildProceduralChairTemplate();
-    }
-
     let gltf = null;
     let lastError = null;
     for (const url of CHAIR_MODEL_URLS) {
@@ -2555,14 +2495,12 @@ async function ensureMurlanChairTemplate(theme = null) {
       }
     }
     if (!gltf) {
-      console.warn('Failed to load remote chair model, using procedural chair', lastError);
-      return buildProceduralChairTemplate();
+      throw lastError || new Error('Failed to load chair model');
     }
 
     const model = gltf.scene || gltf.scenes?.[0];
     if (!model) {
-      console.warn('Chair model scene missing, using procedural chair');
-      return buildProceduralChairTemplate();
+      throw new Error('Chair model missing scene');
     }
 
     model.traverse((obj) => {
