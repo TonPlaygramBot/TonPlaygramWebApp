@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import DominoRoyalArena from './DominoRoyalArena.jsx';
+import DominoRoyalArena from './DominoRoyalArena.js';
 import { socket } from '../../utils/socket.js';
 import { ensureAccountId, getTelegramUsername } from '../../utils/telegram.js';
 
