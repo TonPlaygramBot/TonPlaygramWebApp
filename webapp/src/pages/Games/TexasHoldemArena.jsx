@@ -407,8 +407,8 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_BOTTOM_CARD_OUTWARD_PUSH = CARD_W * 0.1;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
+const BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH = CARD_W * 0.22;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
@@ -509,7 +509,7 @@ function pickBestModelUrl(urls) {
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
-const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.44 * MODEL_SCALE;
+const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.52 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
 const RAIL_ANCHOR_RATIO = 0.98;
@@ -1782,6 +1782,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
+    const isBottomSideOpponent = !isHuman && (i === 1 || i === safeCount - 1);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const baseRadius = tableInfo?.radius ?? TABLE_RADIUS;
@@ -1868,7 +1869,8 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       },
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
-      isHuman
+      isHuman,
+      isBottomSideOpponent
     });
   }
   return layout;
@@ -1970,14 +1972,19 @@ function makeNameplate(name, chips, renderer, avatar) {
     const panelW = canvas.width - panelX * 2;
     const panelH = canvas.height - panelY * 2;
     const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX + panelW, panelY + panelH);
-    panelGradient.addColorStop(0, 'rgba(15,23,42,0.96)');
-    panelGradient.addColorStop(0.5, 'rgba(30,41,59,0.9)');
-    panelGradient.addColorStop(1, 'rgba(2,6,23,0.84)');
+    panelGradient.addColorStop(0, 'rgba(15,23,42,0.98)');
+    panelGradient.addColorStop(0.42, 'rgba(30,41,59,0.93)');
+    panelGradient.addColorStop(1, 'rgba(2,6,23,0.88)');
     ctx.fillStyle = panelGradient;
     ctx.strokeStyle = highlight ? 'rgba(34,211,238,0.94)' : 'rgba(148,163,184,0.7)';
     ctx.lineWidth = 8;
     roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, panelX + 10, panelY + 10, panelW - 20, panelH - 20, panelRadius * 0.8);
     ctx.stroke();
 
     const innerGlow = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH * 0.55);
@@ -2031,9 +2038,9 @@ function makeNameplate(name, chips, renderer, avatar) {
     stackGradient.addColorStop(0, '#fde68a');
     stackGradient.addColorStop(1, '#22d3ee');
     ctx.fillStyle = stackGradient;
-    ctx.font = '700 48px "Inter", system-ui, sans-serif';
+    ctx.font = '700 50px "Inter", system-ui, sans-serif';
     if (tpcIconReady) {
-      const iconSize = 38;
+      const iconSize = 42;
       ctx.save();
       ctx.shadowColor = 'rgba(14,165,233,0.35)';
       ctx.shadowBlur = 10;
@@ -4443,7 +4450,8 @@ function TexasHoldemArena({ search }) {
           lastBet: 0,
           folded: false,
           lastStatus: '',
-          tableInfo
+          tableInfo,
+          isBottomSideOpponent: Boolean(seat.isBottomSideOpponent)
         };
         seatGroups.push(seatGroup);
 
@@ -4607,8 +4615,7 @@ function TexasHoldemArena({ search }) {
           const right = humanSeatGroup.right.clone();
 
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-            const humanSpacing = HUMAN_CARD_SPREAD + HUMAN_BOTTOM_CARD_OUTWARD_PUSH;
-            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * humanSpacing));
+            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
             mesh.position.copy(position);
 
             const lookTarget = baseAnchor
@@ -5128,16 +5135,17 @@ function TexasHoldemArena({ search }) {
           return;
         }
         const winnerOrderIndex = winnerDisplayIndex.get(idx);
+        const edgeOutwardPush = !seat.isHuman && seat.isBottomSideOpponent ? BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH : 0;
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * (seat.isHuman ? HUMAN_CARD_SPREAD + HUMAN_BOTTOM_CARD_OUTWARD_PUSH : HOLE_SPACING)));
+          .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET + edgeOutwardPush)
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           position.copy(
             winnerDisplayCenter
               .clone()
               .addScaledVector(humanSeatRef.current?.right ?? right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING)
-              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * (HUMAN_CARD_SPREAD + HUMAN_BOTTOM_CARD_OUTWARD_PUSH))
+              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * HOLE_SPACING)
           );
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
