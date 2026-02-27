@@ -1839,8 +1839,6 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
-const CUE_IMPACT_PUSH_MIN = BALL_R * 0.95; // make the forward strike phase visibly pass the idle/contact point even on low power
-const CUE_IMPACT_PUSH_MAX = BALL_R * 2.1; // keep high-power strike extension readable before follow-through begins
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.7; // strengthen minimum forward push so cue-stroke follow-through is always visible
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.8; // extend forward travel so high-power shots show a clear cue push animation
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -21134,7 +21132,7 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return true;
           };
-          if (!stroke && hasCueSnapshots) {
+          if (hasCueSnapshots) {
             applyCueSnapshot();
             return;
           }
@@ -24960,13 +24958,8 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_THROUGH_MAX,
             powerStrength
           );
-          const impactAdvance = THREE.MathUtils.lerp(
-            CUE_IMPACT_PUSH_MIN,
-            CUE_IMPACT_PUSH_MAX,
-            powerStrength
-          );
-          const impactPos = buildCuePosition(-impactAdvance);
-          const followDistance = impactAdvance + followThrough;
+          const impactPos = idlePos.clone();
+          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
           const followPos = buildCuePosition(-followDistance);
           const followSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
