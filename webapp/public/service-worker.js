@@ -51,7 +51,6 @@ const PREFETCH_RUNTIME_ASSETS = [
   '/goal-rush-bracket.html',
   '/goal-rush-calibration.json',
   '/init.js',
-  '/texas-holdem.html',
   '/texas-holdem.js',
   '/lib/texasHoldem.js',
   '/lib/texasHoldemGame.js',
