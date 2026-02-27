@@ -21178,7 +21178,7 @@ const powerRef = useRef(hud.power);
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = Math.max(BALL_R * 0.58, CUE_PULL_BASE * 0.42);
+            const fallbackForward = CUE_PULL_BASE * 0.18;
             const pullbackTime = 160;
             const forwardTime = 210;
             const settleTime = 120;
@@ -21199,17 +21199,16 @@ const powerRef = useRef(hud.power);
                 cuePos.y,
                 cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP + fallbackPullback)
               );
-              const impactDistance = Math.max(BALL_R * 0.08, CUE_TIP_GAP - fallbackForward);
               const impactPos = TMP_VEC3_C.set(
-                cuePos.x - TMP_VEC3_CUE_DIR.x * impactDistance,
+                cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
                 cuePos.y,
-                cuePos.z - TMP_VEC3_CUE_DIR.z * impactDistance
+                cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
               );
-              const settleDistance = THREE.MathUtils.lerp(impactDistance, CUE_TIP_GAP, 0.52);
+              const followDistance = Math.max(BALL_R * 0.16, CUE_TIP_GAP - fallbackForward);
               const followPos = tmpReplayCueA.set(
-                cuePos.x - TMP_VEC3_CUE_DIR.x * settleDistance,
+                cuePos.x - TMP_VEC3_CUE_DIR.x * followDistance,
                 cuePos.y,
-                cuePos.z - TMP_VEC3_CUE_DIR.z * settleDistance
+                cuePos.z - TMP_VEC3_CUE_DIR.z * followDistance
               );
               if (targetTime <= pullbackTime && pullbackTime > 0) {
                 const t = THREE.MathUtils.clamp(targetTime / pullbackTime, 0, 1);
@@ -24959,15 +24958,9 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_THROUGH_MAX,
             powerStrength
           );
-          const maxForwardTravel = CUE_TIP_GAP + BALL_R * 0.92;
-          const impactForwardTravel = THREE.MathUtils.clamp(
-            followThrough,
-            BALL_R * 0.36,
-            maxForwardTravel
-          );
-          const impactPos = buildCuePosition(-impactForwardTravel);
-          const settleForwardTravel = impactForwardTravel * 0.48;
-          const followPos = buildCuePosition(-settleForwardTravel);
+          const impactPos = idlePos.clone();
+          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const followPos = buildCuePosition(-followDistance);
           const followSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
             CUE_FOLLOW_SPEED_MAX,
