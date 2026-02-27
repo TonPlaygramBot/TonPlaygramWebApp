@@ -77,7 +77,7 @@ const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
   chairClothTextureSize: 2048,
-  dominoTextureSize: 8192
+  dominoTextureSize: 12288
 });
 
 function detectCoarsePointer() {
@@ -2310,8 +2310,45 @@ function applySRGBColorSpace(texture) {
   texture.needsUpdate = true;
 }
 
+function normalizePbrTexture(texture, { isColor = false, maxAnisotropy = 1 } = {}) {
+  if (!texture) return;
+  if (isColor) {
+    applySRGBColorSpace(texture);
+  }
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+}
+
+function normalizeMaterialTextures(material, maxAnisotropy = 1) {
+  if (!material) return;
+  normalizePbrTexture(material.map, {
+    isColor: true,
+    maxAnisotropy
+  });
+  normalizePbrTexture(material.emissiveMap, {
+    isColor: true,
+    maxAnisotropy
+  });
+  normalizePbrTexture(material.normalMap, { maxAnisotropy });
+  normalizePbrTexture(material.roughnessMap, { maxAnisotropy });
+  normalizePbrTexture(material.metalnessMap, { maxAnisotropy });
+  normalizePbrTexture(material.aoMap, { maxAnisotropy });
+}
+
+function getRendererAnisotropyCap() {
+  return renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+}
+
+function getRendererTextureSizeCap() {
+  return renderer?.capabilities?.maxTextureSize ?? 8192;
+}
+
 function prepareLoadedModel(model) {
   if (!model) return;
+  const maxAnisotropy = getRendererAnisotropyCap();
   model.traverse((obj) => {
     if (!obj.isMesh) return;
     obj.castShadow = true;
@@ -2319,8 +2356,7 @@ function prepareLoadedModel(model) {
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.map) applySRGBColorSpace(mat.map);
-      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      normalizeMaterialTextures(mat, maxAnisotropy);
     });
   });
 }
@@ -2350,9 +2386,9 @@ async function loadPolyhavenModel(assetId) {
     return cached.clone(true);
   }
   const resolutionOrder = isLowProfileDevice
-    ? ['2k', '1k']
+    ? ['4k', '2k', '1k']
     : prefersUhd
-      ? ['4k', '2k', '1k']
+      ? ['8k', '4k', '2k', '1k']
       : ['4k', '2k', '1k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
@@ -2500,13 +2536,13 @@ function fitChairModelToFootprint(model) {
 function extractChairMaterials(model) {
   const upholstery = new Set();
   const metal = new Set();
+  const maxAnisotropy = getRendererAnisotropyCap();
   model.traverse((obj) => {
     if (!obj.isMesh) return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
-      if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      normalizeMaterialTextures(mat, maxAnisotropy);
       const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
       bucket.add(mat);
     });
@@ -5957,7 +5993,8 @@ const getDominoSurfaceTextures = (() => {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
       return cache;
     }
-    const size = MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize;
+    const sizeCap = getRendererTextureSizeCap();
+    const size = Math.max(4096, Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize));
     const porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
     const pctx = porcelainCanvas.getContext('2d');
@@ -5996,7 +6033,7 @@ const getDominoSurfaceTextures = (() => {
     pipCtx.fillStyle = pipGrad;
     pipCtx.fillRect(0, 0, size, size);
 
-    const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+    const maxAnisotropy = getRendererAnisotropyCap();
     const porcelainMap = new THREE.CanvasTexture(porcelainCanvas);
     porcelainMap.colorSpace = THREE.SRGBColorSpace;
     porcelainMap.anisotropy = Math.min(maxAnisotropy, 16);
