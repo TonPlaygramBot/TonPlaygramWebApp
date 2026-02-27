@@ -373,8 +373,8 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = CARD_H * 0.78;
-const POT_RIGHT_ALIGNMENT_SHIFT = 0;
+const POT_BELOW_COMMUNITY_OFFSET = 0;
+const POT_RIGHT_ALIGNMENT_SHIFT = CARD_W * 0.42;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -414,7 +414,7 @@ const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.52;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.72;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -2192,7 +2192,6 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
-    const totalPotLabel = 'TOTAL POT';
     const iconSize = 140 * resolutionScale;
     const iconX = 120 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
@@ -2206,9 +2205,6 @@ function createRailTextSprite(initialLines = [], options = {}) {
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = `800 ${42 * resolutionScale}px "Inter", system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(186,230,253,0.95)';
-    ctx.fillText(totalPotLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 - 86 * resolutionScale);
     ctx.font = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.85)';
