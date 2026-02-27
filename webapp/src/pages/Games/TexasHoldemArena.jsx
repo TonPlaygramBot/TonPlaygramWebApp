@@ -373,7 +373,8 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = -CARD_H;
+const POT_BELOW_COMMUNITY_OFFSET = 0;
+const POT_RIGHT_SCREEN_SHIFT = CARD_W * 0.58;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -505,6 +506,7 @@ function pickBestModelUrl(urls) {
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.42 * MODEL_SCALE, height: 0.72 * MODEL_SCALE });
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.32 * MODEL_SCALE;
+const NAMEPLATE_EXTRA_LIFT = 0.04 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
 const RAIL_ANCHOR_RATIO = 0.98;
@@ -604,10 +606,12 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const POT_SCATTER_LAYOUT = Object.freeze({
-  perRow: 12,
-  spacing: CARD_W * 0.5,
-  rowSpacing: CARD_W * 0.2,
-  jitter: CARD_W * 0.05,
+  perRow: 20,
+  minCount: 8,
+  maxCount: 20,
+  spacing: CARD_W * 0.48,
+  rowSpacing: CARD_W * 0.02,
+  jitter: CARD_W * 0.015,
   lift: 0
 });
 
@@ -1858,7 +1862,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       betAnchor,
       previewAnchor,
       labelOffset: {
-        height: LABEL_BASE_HEIGHT,
+        height: LABEL_BASE_HEIGHT + NAMEPLATE_EXTRA_LIFT,
         forward: isHuman ? HUMAN_LABEL_FORWARD : AI_LABEL_FORWARD
       },
       stoolAnchor,
@@ -1902,15 +1906,18 @@ function computeCommunitySlotPosition(index, options = {}) {
 function computePotAnchor(options = {}) {
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
+  const right = (options.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
   const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
   if (rotationY) {
+    right.applyAxisAngle(WORLD_UP, rotationY);
     forward.applyAxisAngle(WORLD_UP, rotationY);
   }
-  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right: options.right, forward });
+  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right, forward });
   return center
     .clone()
     .setY(surfaceY + CARD_SURFACE_OFFSET)
-    .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET);
+    .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
+    .addScaledVector(right, POT_RIGHT_SCREEN_SHIFT);
 }
 
 function makeNameplate(name, chips, renderer, avatar) {
@@ -1943,34 +1950,51 @@ function makeNameplate(name, chips, renderer, avatar) {
     lastTimer = timerSeconds;
     lastTimerProgress = timerProgress;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const panelRadius = 48;
+    const panelRadius = 50;
     const panelX = 14;
     const panelY = 16;
     const panelW = canvas.width - panelX * 2;
     const panelH = canvas.height - panelY * 2;
-    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
-    panelGradient.addColorStop(0, 'rgba(6,14,30,0.93)');
-    panelGradient.addColorStop(1, 'rgba(6,10,20,0.88)');
+    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX + panelW, panelY + panelH);
+    panelGradient.addColorStop(0, 'rgba(3,12,28,0.97)');
+    panelGradient.addColorStop(0.55, 'rgba(12,25,47,0.95)');
+    panelGradient.addColorStop(1, 'rgba(6,10,22,0.95)');
     ctx.fillStyle = panelGradient;
-    ctx.strokeStyle = highlight ? 'rgba(125,211,252,0.88)' : 'rgba(250,204,21,0.48)';
-    ctx.lineWidth = 9;
+    ctx.strokeStyle = highlight ? 'rgba(125,211,252,0.92)' : 'rgba(250,204,21,0.55)';
+    ctx.lineWidth = 10;
     roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
     ctx.stroke();
 
-    const avatarSize = 170;
-    const avatarX = panelX + 24;
+    const innerBorderInset = 10;
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 2.5;
+    roundRect(ctx, panelX + innerBorderInset, panelY + innerBorderInset, panelW - innerBorderInset * 2, panelH - innerBorderInset * 2, panelRadius - 10);
+    ctx.stroke();
+
+    const avatarSize = 168;
+    const avatarX = panelX + 28;
     const avatarY = panelY + (panelH - avatarSize) / 2;
     const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
-    ringGradient.addColorStop(0, 'rgba(255,215,0,0.65)');
-    ringGradient.addColorStop(1, 'rgba(255,255,255,0.5)');
+    ringGradient.addColorStop(0, 'rgba(251,191,36,0.95)');
+    ringGradient.addColorStop(1, 'rgba(125,211,252,0.95)');
     ctx.save();
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255,255,255,0.09)';
+    const avatarBacking = ctx.createRadialGradient(
+      avatarX + avatarSize / 2,
+      avatarY + avatarSize / 2,
+      avatarSize * 0.12,
+      avatarX + avatarSize / 2,
+      avatarY + avatarSize / 2,
+      avatarSize * 0.7
+    );
+    avatarBacking.addColorStop(0, 'rgba(56,189,248,0.34)');
+    avatarBacking.addColorStop(1, 'rgba(15,23,42,0.7)');
+    ctx.fillStyle = avatarBacking;
     ctx.fill();
-    ctx.lineWidth = highlight ? 10 : 8;
+    ctx.lineWidth = highlight ? 11 : 9;
     ctx.strokeStyle = ringGradient;
     ctx.stroke();
     if (avatarReady) {
@@ -1980,22 +2004,37 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.restore();
     }
     ctx.restore();
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 68px "Inter", system-ui, sans-serif';
+
+    const textX = avatarX + avatarSize + 34;
+    const textY = panelY + 48;
     ctx.textBaseline = 'top';
-    const textX = avatarX + avatarSize + 36;
-    const textY = panelY + 42;
-    ctx.font = '700 30px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(186,230,253,0.95)';
-    ctx.fillText('PLAYER', textX, textY - 30);
+    ctx.font = '700 24px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(125,211,252,0.95)';
+    ctx.fillText('TABLE PLAYER', textX, textY - 24);
+
+    const nameGradient = ctx.createLinearGradient(textX, textY, panelX + panelW - 28, textY + 64);
+    nameGradient.addColorStop(0, '#f8fafc');
+    nameGradient.addColorStop(1, '#bae6fd');
+    ctx.font = '800 56px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = nameGradient;
     ctx.fillText(playerName, textX, textY);
-    ctx.font = '600 58px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#f7e7a4';
-    ctx.fillText(`${stack} TPC`, textX, textY + 94);
+
+    const chipLabelY = textY + 92;
+    ctx.font = '700 26px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(148,163,184,0.9)';
+    ctx.fillText('STACK', textX, chipLabelY);
+
+    const chipGradient = ctx.createLinearGradient(textX, chipLabelY + 26, textX + 260, chipLabelY + 88);
+    chipGradient.addColorStop(0, '#fef08a');
+    chipGradient.addColorStop(1, '#facc15');
+    ctx.font = '800 54px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = chipGradient;
+    ctx.fillText(`${stack} TPC`, textX, chipLabelY + 26);
+
     if (status) {
-      ctx.font = '600 42px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = '#c7d2fe';
-      ctx.fillText(status, textX, textY + 170);
+      ctx.font = '700 34px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#c4b5fd';
+      ctx.fillText(status, textX, chipLabelY + 96);
     }
 
     const timerValue = Number.isFinite(timerSeconds) ? Math.max(0, timerSeconds) : null;
@@ -2115,30 +2154,32 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
-    const iconSize = 140 * resolutionScale;
-    const iconX = 120 * resolutionScale;
-    const iconY = canvas.height / 2 - iconSize / 2;
+    const iconSize = 130 * resolutionScale;
+    const iconX = canvas.width / 2 - iconSize / 2;
+    const iconY = 58 * resolutionScale;
     if (iconReady) {
       ctx.save();
-      ctx.shadowColor = 'rgba(8,145,178,0.45)';
-      ctx.shadowBlur = 24 * resolutionScale;
+      ctx.shadowColor = 'rgba(56,189,248,0.45)';
+      ctx.shadowBlur = 18 * resolutionScale;
       ctx.drawImage(tpcIcon, iconX, iconY, iconSize, iconSize);
       ctx.restore();
     }
 
-    ctx.textAlign = 'left';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    ctx.font = `900 ${76 * resolutionScale}px "Inter", system-ui, sans-serif`;
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(2,6,23,0.85)';
-    ctx.lineWidth = 18 * resolutionScale;
-    ctx.strokeText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
-    const textGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(2,6,23,0.9)';
+    ctx.lineWidth = 16 * resolutionScale;
+    const amountY = iconY + iconSize + 66 * resolutionScale;
+    ctx.strokeText(amountLabel, canvas.width / 2, amountY);
+    const textGradient = ctx.createLinearGradient(0, amountY - 40 * resolutionScale, canvas.width, amountY + 40 * resolutionScale);
     textGradient.addColorStop(0, '#f8fafc');
     textGradient.addColorStop(1, '#67e8f9');
     ctx.fillStyle = textGradient;
-    ctx.fillText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
+    ctx.fillText(amountLabel, canvas.width / 2, amountY);
   };
+
 
   tpcIcon.onload = () => {
     iconReady = true;
@@ -4280,6 +4321,8 @@ function TexasHoldemArena({ search }) {
         };
         const railLayout = {
           perRow: CHIP_RAIL_LAYOUT.perRow,
+          minCount: CHIP_RAIL_LAYOUT.minCount,
+          maxCount: CHIP_RAIL_LAYOUT.maxCount,
           spacing: CHIP_RAIL_LAYOUT.spacing,
           rowSpacing: CHIP_RAIL_LAYOUT.rowSpacing,
           jitter: CHIP_RAIL_LAYOUT.jitter,
@@ -4473,7 +4516,7 @@ function TexasHoldemArena({ search }) {
         width: (2.6 * MODEL_SCALE) / 3,
         height: (1.08 * MODEL_SCALE) / 3
       });
-      potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.86, 0)));
+      potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.68, 0)));
       potLabel.renderOrder = 12;
       if (potLabel.material) {
         potLabel.material.depthWrite = false;
