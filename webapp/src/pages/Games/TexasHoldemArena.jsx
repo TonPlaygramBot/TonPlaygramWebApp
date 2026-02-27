@@ -385,7 +385,7 @@ const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.68, landscape: 1.04 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.08, landscape: 0.9 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.16, landscape: 0.9 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -411,7 +411,6 @@ const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
-const FOLD_BADGE_VERTICAL_OFFSET = CARD_D * 0.8;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
 const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.72;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
@@ -507,7 +506,7 @@ function pickBestModelUrl(urls) {
 }
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const LABEL_SIZE = Object.freeze({ width: 1.5 * MODEL_SCALE, height: 0.7 * MODEL_SCALE });
+const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.32 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
@@ -1919,8 +1918,8 @@ function computePotAnchor(options = {}) {
 
 function makeNameplate(name, chips, renderer, avatar) {
   const canvas = document.createElement('canvas');
-  canvas.width = 640;
-  canvas.height = 300;
+  canvas.width = 512;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
   const fallbackAvatar = '/assets/icons/profile.svg';
   let avatarSrc = getAvatarUrl(avatar) || fallbackAvatar;
@@ -1947,27 +1946,27 @@ function makeNameplate(name, chips, renderer, avatar) {
     lastTimer = timerSeconds;
     lastTimerProgress = timerProgress;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const panelRadius = 38;
-    const panelX = 10;
-    const panelY = 14;
+    const panelRadius = 44;
+    const panelX = 12;
+    const panelY = 18;
     const panelW = canvas.width - panelX * 2;
     const panelH = canvas.height - panelY * 2;
     const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
-    panelGradient.addColorStop(0, 'rgba(17,24,39,0.94)');
-    panelGradient.addColorStop(1, 'rgba(15,23,42,0.85)');
+    panelGradient.addColorStop(0, 'rgba(10,14,24,0.9)');
+    panelGradient.addColorStop(1, 'rgba(7,10,18,0.75)');
     ctx.fillStyle = panelGradient;
-    ctx.strokeStyle = highlight ? 'rgba(56,189,248,0.92)' : 'rgba(248,250,252,0.3)';
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = highlight ? 'rgba(96,165,250,0.75)' : 'rgba(255,215,0,0.38)';
+    ctx.lineWidth = 10;
     roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
     ctx.stroke();
 
-    const avatarSize = 162;
-    const avatarX = panelX + 18;
+    const avatarSize = 148;
+    const avatarX = panelX + 20;
     const avatarY = panelY + (panelH - avatarSize) / 2;
     const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
-    ringGradient.addColorStop(0, 'rgba(129,140,248,0.95)');
-    ringGradient.addColorStop(1, 'rgba(56,189,248,0.95)');
+    ringGradient.addColorStop(0, 'rgba(255,215,0,0.65)');
+    ringGradient.addColorStop(1, 'rgba(255,255,255,0.5)');
     ctx.save();
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
@@ -1985,18 +1984,18 @@ function makeNameplate(name, chips, renderer, avatar) {
     }
     ctx.restore();
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 58px "Inter", system-ui, sans-serif';
+    ctx.font = '700 68px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
-    const textX = avatarX + avatarSize + 34;
-    const textY = panelY + 34;
+    const textX = avatarX + avatarSize + 32;
+    const textY = panelY + 32;
     ctx.fillText(playerName, textX, textY);
-    ctx.font = '600 42px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#a5f3fc';
-    ctx.fillText(`Total: ${Math.max(0, Math.round(stack)).toLocaleString()} TPC`, textX, textY + 78);
+    ctx.font = '600 54px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = '#f7e7a4';
+    ctx.fillText(`${stack} chips`, textX, textY + 86);
     if (status) {
-      ctx.font = '700 36px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = '#fde68a';
-      ctx.fillText(status, textX, textY + 132);
+      ctx.font = '600 44px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#c7d2fe';
+      ctx.fillText(status, textX, textY + 150);
     }
 
     const timerValue = Number.isFinite(timerSeconds) ? Math.max(0, timerSeconds) : null;
@@ -2085,7 +2084,7 @@ function roundRect(ctx, x, y, width, height, radius) {
 }
 
 function createRailTextSprite(initialLines = [], options = {}) {
-  const { width = 1.9 * MODEL_SCALE, height = 0.68 * MODEL_SCALE, billboard = false } = options;
+  const { width = 1.9 * MODEL_SCALE, height = 0.68 * MODEL_SCALE } = options;
   const resolutionScale = 2;
   const canvas = document.createElement('canvas');
   canvas.width = 1024 * resolutionScale;
@@ -2160,20 +2159,15 @@ function createRailTextSprite(initialLines = [], options = {}) {
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
   texture.anisotropy = 16;
-  const material = billboard
-    ? new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false })
-    : new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        depthWrite: false,
-        toneMapped: false,
-        side: THREE.DoubleSide
-      });
-  const geometry = billboard ? null : new THREE.PlaneGeometry(width, height);
-  const sprite = billboard ? new THREE.Sprite(material) : new THREE.Mesh(geometry, material);
-  if (billboard) {
-    sprite.scale.set(width, height, 1);
-  }
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+    side: THREE.DoubleSide
+  });
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const sprite = new THREE.Mesh(geometry, material);
   sprite.userData.update = (payload) => {
     draw(payload);
     texture.needsUpdate = true;
@@ -2181,7 +2175,7 @@ function createRailTextSprite(initialLines = [], options = {}) {
   sprite.userData.dispose = () => {
     texture.dispose();
     material.dispose();
-    geometry?.dispose();
+    geometry.dispose();
   };
   sprite.userData.canvas = canvas;
   sprite.userData.texture = texture;
@@ -4499,17 +4493,19 @@ function TexasHoldemArena({ search }) {
       const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
       const foldPileAnchor = potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, FOLD_PILE_FORWARD_OFFSET));
-      const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
-        width: (2.4 * MODEL_SCALE) / 3,
-        height: (0.9 * MODEL_SCALE) / 3,
-        billboard: true
-      });
-      potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.86, 0)));
-      potLabel.renderOrder = 12;
-      if (potLabel.material) {
-        potLabel.material.depthWrite = false;
-      }
-      arenaGroup.add(potLabel);
+        const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
+          width: (2.4 * MODEL_SCALE) / 3,
+          height: (0.9 * MODEL_SCALE) / 3
+        });
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.8, 0)));
+        const potLabelLook = potLabel.position.clone().add(potForward);
+        orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
+        potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
+        potLabel.renderOrder = 12;
+        if (potLabel.material) {
+          potLabel.material.depthWrite = false;
+        }
+        arenaGroup.add(potLabel);
 
         const turnIndicatorMaterial = new THREE.MeshStandardMaterial({
           color: new THREE.Color(TURN_INDICATOR_COLOR),
@@ -4975,11 +4971,9 @@ function TexasHoldemArena({ search }) {
     if (potLabel?.userData?.update) {
       potLabel.userData.update({ amount: Math.round(state.pot ?? 0), token: state.token });
       potLabel.userData.texture.needsUpdate = true;
-      if (!potLabel.isSprite) {
-        const lookForward = (potLayout?.forward ?? three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
-        orientCard(potLabel, potLabel.position.clone().add(lookForward), { face: 'front', flat: true });
-        potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
-      }
+      const lookForward = (potLayout?.forward ?? three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+      orientCard(potLabel, potLabel.position.clone().add(lookForward), { face: 'front', flat: true });
+      potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
     }
 
     const showdownState = showdownAnimationRef.current;
@@ -5094,10 +5088,8 @@ function TexasHoldemArena({ search }) {
 
       if (seat.foldBadge) {
         if (player.folded && !state.showdown) {
-          const foldedOrder = foldedSeatOrder.get(idx) ?? 0;
-          const foldBadgePos = (foldPileAnchor ?? potStack?.position ?? new THREE.Vector3())
-            .clone()
-            .add(new THREE.Vector3(0, foldedOrder * FOLD_PILE_CARD_GAP + FOLD_BADGE_VERTICAL_OFFSET, 0));
+          const foldBadgePos = seat.cardRailAnchor.clone();
+          foldBadgePos.y += CARD_D * 0.6;
           seat.foldBadge.position.copy(foldBadgePos);
           seat.foldBadge.visible = true;
         } else {
