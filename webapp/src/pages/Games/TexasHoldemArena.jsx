@@ -607,10 +607,10 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const POT_SCATTER_LAYOUT = Object.freeze({
-  perRow: 6,
-  spacing: CARD_W * 0.58,
-  rowSpacing: CARD_W * 0.46,
-  jitter: CARD_W * 0.14,
+  perRow: 12,
+  spacing: CARD_W * 0.5,
+  rowSpacing: CARD_W * 0.2,
+  jitter: CARD_W * 0.05,
   lift: 0
 });
 
@@ -2089,39 +2089,88 @@ function createRailTextSprite(initialLines = [], options = {}) {
   canvas.width = 1024;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  const draw = (lines) => {
-    const content = Array.isArray(lines) ? lines : [String(lines ?? '')];
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(15,23,42,0.82)';
-    ctx.strokeStyle = 'rgba(148,163,184,0.4)';
-    ctx.lineWidth = 14;
-    roundRect(ctx, 32, 32, canvas.width - 64, canvas.height - 64, 56);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#e2e8f0';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const baseY = canvas.height / 2;
-    const lineHeight = 96;
-    const startY = baseY - ((content.length - 1) * lineHeight) / 2;
-    content.forEach((line, idx) => {
-      ctx.font = idx === 0 ? '700 92px "Inter", system-ui, sans-serif' : '600 76px "Inter", system-ui, sans-serif';
-      ctx.fillText(line, canvas.width / 2, startY + idx * lineHeight);
-    });
+  const tpcIcon = new Image();
+  tpcIcon.crossOrigin = 'anonymous';
+  let iconReady = false;
+  const parsePayload = (payload) => {
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      return {
+        amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
+        token: String(payload.token || 'TPC').toUpperCase()
+      };
+    }
+    const content = Array.isArray(payload) ? payload : [String(payload ?? '')];
+    const tail = String(content[content.length - 1] ?? '0');
+    const parsedAmount = Number.parseInt(tail.replace(/[^\d-]/g, ''), 10);
+    const parsedToken = (tail.match(/[A-Za-z]+$/)?.[0] || 'TPC').toUpperCase();
+    return {
+      amount: Number.isFinite(parsedAmount) ? Math.max(0, parsedAmount) : 0,
+      token: parsedToken
+    };
   };
+  let lastPayload = parsePayload(initialLines);
+
+  const draw = (payload) => {
+    lastPayload = parsePayload(payload);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
+    const iconSize = 140;
+    const iconX = 120;
+    const iconY = canvas.height / 2 - iconSize / 2;
+    if (iconReady) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(8,145,178,0.45)';
+      ctx.shadowBlur = 24;
+      ctx.drawImage(tpcIcon, iconX, iconY, iconSize, iconSize);
+      ctx.restore();
+    }
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = '900 110px "Inter", system-ui, sans-serif';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(2,6,23,0.85)';
+    ctx.lineWidth = 18;
+    ctx.strokeText(amountLabel, iconX + iconSize + 28, canvas.height / 2 + 4);
+    const textGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    textGradient.addColorStop(0, '#f8fafc');
+    textGradient.addColorStop(1, '#67e8f9');
+    ctx.fillStyle = textGradient;
+    ctx.fillText(amountLabel, iconX + iconSize + 28, canvas.height / 2 + 4);
+  };
+
+  tpcIcon.onload = () => {
+    iconReady = true;
+    draw(lastPayload);
+    texture.needsUpdate = true;
+  };
+  tpcIcon.onerror = () => {
+    iconReady = false;
+    draw(lastPayload);
+    texture.needsUpdate = true;
+  };
+  tpcIcon.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+
   draw(initialLines);
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set(width, height, 1);
-  sprite.center.set(0.5, 0);
-  sprite.userData.update = (lines) => {
-    draw(lines);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+    side: THREE.DoubleSide
+  });
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const sprite = new THREE.Mesh(geometry, material);
+  sprite.userData.update = (payload) => {
+    draw(payload);
     texture.needsUpdate = true;
   };
   sprite.userData.dispose = () => {
     texture.dispose();
+    material.dispose();
+    geometry.dispose();
   };
   sprite.userData.canvas = canvas;
   sprite.userData.texture = texture;
@@ -4426,18 +4475,27 @@ function TexasHoldemArena({ search }) {
         rotationY: resolvedCommunityRowRotation,
         ...communityAxes
       });
-      const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
+      const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: POT_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
       potStack.scale.setScalar(1.06);
       arenaGroup.add(potStack);
-      const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
+      const potRight = (communityAxes.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
+      const potForward = (communityAxes.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+      if (resolvedCommunityRowRotation) {
+        potRight.applyAxisAngle(WORLD_UP, resolvedCommunityRowRotation);
+        potForward.applyAxisAngle(WORLD_UP, resolvedCommunityRowRotation);
+      }
+      const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
       const foldPileAnchor = potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, FOLD_PILE_FORWARD_OFFSET));
-        const potLabel = createRailTextSprite(['Total pot', '0'], {
+        const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
           width: (2.4 * MODEL_SCALE) / 3,
           height: (0.9 * MODEL_SCALE) / 3
         });
         potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
+        const potLabelLook = potLabel.position.clone().add(potForward);
+        orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
+        potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
         potLabel.renderOrder = 12;
         if (potLabel.material) {
           potLabel.material.depthWrite = false;
@@ -4906,8 +4964,11 @@ function TexasHoldemArena({ search }) {
     const previous = prevStateRef.current;
     potTargetRef.current = Math.max(0, Math.round(state.pot ?? 0));
     if (potLabel?.userData?.update) {
-      potLabel.userData.update(['Total pot', `${Math.round(state.pot ?? 0)} ${state.token}`]);
+      potLabel.userData.update({ amount: Math.round(state.pot ?? 0), token: state.token });
       potLabel.userData.texture.needsUpdate = true;
+      const lookForward = (potLayout?.forward ?? three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+      orientCard(potLabel, potLabel.position.clone().add(lookForward), { face: 'front', flat: true });
+      potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
     }
 
     const showdownState = showdownAnimationRef.current;
