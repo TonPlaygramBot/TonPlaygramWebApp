@@ -373,7 +373,8 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = -CARD_H;
+const POT_BELOW_COMMUNITY_OFFSET = 0;
+const POT_RIGHT_ALIGNMENT_SHIFT = CARD_W * 0.42;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -395,8 +396,8 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.44;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.62;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.64;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.34;
 const AI_CARD_INWARD_SHIFT = CARD_W * -2.28;
 const AI_CHIP_INWARD_SHIFT = CARD_W * -0.1;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
@@ -407,6 +408,7 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
+const BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH = CARD_W * 0.22;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
@@ -506,8 +508,8 @@ function pickBestModelUrl(urls) {
 }
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
-const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.32 * MODEL_SCALE;
+const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
+const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.52 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
 const RAIL_ANCHOR_RATIO = 0.98;
@@ -607,10 +609,10 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const POT_SCATTER_LAYOUT = Object.freeze({
-  perRow: 12,
-  spacing: CARD_W * 0.5,
-  rowSpacing: CARD_W * 0.2,
-  jitter: CARD_W * 0.05,
+  perRow: 24,
+  spacing: CARD_W * 0.52,
+  rowSpacing: 0,
+  jitter: 0,
   lift: 0
 });
 
@@ -814,7 +816,7 @@ function buildPlayers(searchOrOptions) {
       flag,
       isHuman: false,
       chips: baseChips,
-      avatar: nextAvatar()
+      avatar: flag
     });
   }
   return players.slice(0, playerCount);
@@ -1780,6 +1782,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
+    const isBottomSideOpponent = !isHuman && (i === 1 || i === safeCount - 1);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const baseRadius = tableInfo?.radius ?? TABLE_RADIUS;
@@ -1866,7 +1869,8 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       },
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
-      isHuman
+      isHuman,
+      isBottomSideOpponent
     });
   }
   return layout;
@@ -1906,14 +1910,17 @@ function computePotAnchor(options = {}) {
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
   const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
+  const right = (options.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
   if (rotationY) {
     forward.applyAxisAngle(WORLD_UP, rotationY);
+    right.applyAxisAngle(WORLD_UP, rotationY);
   }
-  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right: options.right, forward });
+  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right, forward });
   return center
     .clone()
     .setY(surfaceY + CARD_SURFACE_OFFSET)
-    .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET);
+    .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
+    .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
 }
 
 function makeNameplate(name, chips, renderer, avatar) {
@@ -1922,7 +1929,17 @@ function makeNameplate(name, chips, renderer, avatar) {
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
   const fallbackAvatar = '/assets/icons/profile.svg';
-  let avatarSrc = getAvatarUrl(avatar) || fallbackAvatar;
+  const tpcIcon = new Image();
+  tpcIcon.crossOrigin = 'anonymous';
+  let tpcIconReady = false;
+  const resolveAvatarSource = (candidate) => {
+    if (!candidate) return { image: fallbackAvatar, flag: '' };
+    const raw = String(candidate).trim();
+    const isFlag = /[\u{1F1E6}-\u{1F1FF}]{2}/u.test(raw);
+    if (isFlag) return { image: '', flag: raw };
+    return { image: getAvatarUrl(raw) || fallbackAvatar, flag: '' };
+  };
+  let avatarState = resolveAvatarSource(avatar);
   const avatarImg = new Image();
   avatarImg.crossOrigin = 'anonymous';
   let avatarReady = false;
@@ -1933,11 +1950,13 @@ function makeNameplate(name, chips, renderer, avatar) {
   let lastTimer = null;
   let lastTimerProgress = null;
   const draw = (playerName, stack, highlight, status, nextAvatar, timerSeconds, timerProgress) => {
-    const normalizedAvatar = getAvatarUrl(nextAvatar) || fallbackAvatar;
-    if (nextAvatar && normalizedAvatar !== avatarSrc) {
-      avatarSrc = normalizedAvatar;
+    const nextState = resolveAvatarSource(nextAvatar);
+    if (nextAvatar && (nextState.image !== avatarState.image || nextState.flag !== avatarState.flag)) {
+      avatarState = nextState;
       avatarReady = false;
-      avatarImg.src = avatarSrc;
+      if (avatarState.image) {
+        avatarImg.src = avatarState.image;
+      }
     }
     lastName = playerName;
     lastStack = stack;
@@ -1946,56 +1965,96 @@ function makeNameplate(name, chips, renderer, avatar) {
     lastTimer = timerSeconds;
     lastTimerProgress = timerProgress;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const panelRadius = 44;
-    const panelX = 12;
-    const panelY = 18;
+
+    const panelRadius = 54;
+    const panelX = 10;
+    const panelY = 14;
     const panelW = canvas.width - panelX * 2;
     const panelH = canvas.height - panelY * 2;
-    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
-    panelGradient.addColorStop(0, 'rgba(10,14,24,0.9)');
-    panelGradient.addColorStop(1, 'rgba(7,10,18,0.75)');
+    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX + panelW, panelY + panelH);
+    panelGradient.addColorStop(0, 'rgba(15,23,42,0.98)');
+    panelGradient.addColorStop(0.42, 'rgba(30,41,59,0.93)');
+    panelGradient.addColorStop(1, 'rgba(2,6,23,0.88)');
     ctx.fillStyle = panelGradient;
-    ctx.strokeStyle = highlight ? 'rgba(96,165,250,0.75)' : 'rgba(255,215,0,0.38)';
-    ctx.lineWidth = 10;
+    ctx.strokeStyle = highlight ? 'rgba(34,211,238,0.94)' : 'rgba(148,163,184,0.7)';
+    ctx.lineWidth = 8;
     roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
     ctx.stroke();
 
-    const avatarSize = 148;
-    const avatarX = panelX + 20;
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, panelX + 10, panelY + 10, panelW - 20, panelH - 20, panelRadius * 0.8);
+    ctx.stroke();
+
+    const innerGlow = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH * 0.55);
+    innerGlow.addColorStop(0, 'rgba(255,255,255,0.2)');
+    innerGlow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = innerGlow;
+    roundRect(ctx, panelX + 12, panelY + 10, panelW - 24, panelH * 0.44, panelRadius * 0.7);
+    ctx.fill();
+
+    const avatarSize = 146;
+    const avatarX = panelX + 22;
     const avatarY = panelY + (panelH - avatarSize) / 2;
     const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
-    ringGradient.addColorStop(0, 'rgba(255,215,0,0.65)');
-    ringGradient.addColorStop(1, 'rgba(255,255,255,0.5)');
+    ringGradient.addColorStop(0, 'rgba(56,189,248,0.98)');
+    ringGradient.addColorStop(1, 'rgba(14,165,233,0.5)');
     ctx.save();
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255,255,255,0.09)';
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fill();
     ctx.lineWidth = highlight ? 10 : 8;
     ctx.strokeStyle = ringGradient;
     ctx.stroke();
-    if (avatarReady) {
+    if (avatarState.flag) {
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '700 86px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(avatarState.flag, avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 4);
+      ctx.restore();
+    } else if (avatarReady) {
       ctx.save();
       ctx.clip();
       ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
       ctx.restore();
     }
     ctx.restore();
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 68px "Inter", system-ui, sans-serif';
+
+    const textX = avatarX + avatarSize + 30;
+    const textY = panelY + 30;
     ctx.textBaseline = 'top';
-    const textX = avatarX + avatarSize + 32;
-    const textY = panelY + 32;
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 62px "Inter", system-ui, sans-serif';
     ctx.fillText(playerName, textX, textY);
-    ctx.font = '600 54px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#f7e7a4';
-    ctx.fillText(`${stack} chips`, textX, textY + 86);
+
+    const balanceY = textY + 84;
+    const stackGradient = ctx.createLinearGradient(textX, balanceY, textX + 360, balanceY + 40);
+    stackGradient.addColorStop(0, '#fde68a');
+    stackGradient.addColorStop(1, '#22d3ee');
+    ctx.fillStyle = stackGradient;
+    ctx.font = '700 50px "Inter", system-ui, sans-serif';
+    if (tpcIconReady) {
+      const iconSize = 42;
+      ctx.save();
+      ctx.shadowColor = 'rgba(14,165,233,0.35)';
+      ctx.shadowBlur = 10;
+      ctx.drawImage(tpcIcon, textX, balanceY + 6, iconSize, iconSize);
+      ctx.restore();
+      ctx.fillText(`${stack} TPC`, textX + iconSize + 16, balanceY);
+    } else {
+      ctx.fillText(`${stack} TPC`, textX, balanceY);
+    }
+
     if (status) {
-      ctx.font = '600 44px "Inter", system-ui, sans-serif';
+      ctx.font = '600 38px "Inter", system-ui, sans-serif';
       ctx.fillStyle = '#c7d2fe';
-      ctx.fillText(status, textX, textY + 150);
+      ctx.fillText(status, textX, textY + 140);
     }
 
     const timerValue = Number.isFinite(timerSeconds) ? Math.max(0, timerSeconds) : null;
@@ -2030,24 +2089,42 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.restore();
     }
   };
+
   draw(name, chips, false, '', avatar, lastTimer, lastTimerProgress);
   avatarImg.onload = () => {
     avatarReady = true;
-    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc, lastTimer, lastTimerProgress);
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarState.flag || avatarState.image, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
   avatarImg.onerror = () => {
-    if (avatarSrc !== fallbackAvatar) {
-      avatarSrc = fallbackAvatar;
+    if (avatarState.image && avatarState.image !== fallbackAvatar) {
+      avatarState = { image: fallbackAvatar, flag: '' };
       avatarReady = false;
       avatarImg.src = fallbackAvatar;
       return;
     }
-    avatarReady = true;
-    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc, lastTimer, lastTimerProgress);
+    avatarReady = Boolean(avatarState.flag || avatarState.image);
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarState.flag || avatarState.image, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
-  avatarImg.src = avatarSrc;
+  if (avatarState.image) {
+    avatarImg.src = avatarState.image;
+  } else {
+    avatarReady = true;
+  }
+
+  tpcIcon.onload = () => {
+    tpcIconReady = true;
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarState.flag || avatarState.image, lastTimer, lastTimerProgress);
+    texture.needsUpdate = true;
+  };
+  tpcIcon.onerror = () => {
+    tpcIconReady = false;
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarState.flag || avatarState.image, lastTimer, lastTimerProgress);
+    texture.needsUpdate = true;
+  };
+  tpcIcon.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
@@ -4312,7 +4389,7 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone()
         };
 
-        const chipStack = chipFactory.createStack(0, { mode: 'rail', layout: railLayout });
+        const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: railLayout });
         chipStack.position.copy(seat.chipRailAnchor);
         arenaGroup.add(chipStack);
 
@@ -4332,7 +4409,8 @@ function TexasHoldemArena({ search }) {
         hoverChip.visible = false;
         arenaGroup.add(hoverChip);
 
-        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seat.player?.avatar);
+        const seatAvatar = seat.player?.isHuman ? seat.player?.avatar : seat.player?.flag || seat.player?.avatar;
+        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seatAvatar);
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
         const nameplateFacing = seat.forward.clone().negate().setY(0).normalize();
         nameplate.lookAt(nameplate.position.clone().add(nameplateFacing));
@@ -4372,7 +4450,8 @@ function TexasHoldemArena({ search }) {
           lastBet: 0,
           folded: false,
           lastStatus: '',
-          tableInfo
+          tableInfo,
+          isBottomSideOpponent: Boolean(seat.isBottomSideOpponent)
         };
         seatGroups.push(seatGroup);
 
@@ -4392,7 +4471,7 @@ function TexasHoldemArena({ search }) {
             Math.round(player.chips) || 0,
             false,
             '',
-            player.avatar,
+            player.isHuman ? player.avatar : player.flag || player.avatar,
             null,
             null
           );
@@ -4414,7 +4493,7 @@ function TexasHoldemArena({ search }) {
             }
           });
           const initialChips = Math.max(0, Math.round(player.chips ?? 0));
-          chipFactory.setAmount(chipStack, initialChips, { mode: 'rail', layout: railLayout });
+          chipFactory.setAmount(chipStack, initialChips, { mode: 'scatter', layout: railLayout });
           chipStack.visible = true;
           seatGroup.tableLayout = {
             ...tableLayout,
@@ -4497,7 +4576,7 @@ function TexasHoldemArena({ search }) {
           width: (2.4 * MODEL_SCALE) / 3,
           height: (0.9 * MODEL_SCALE) / 3
         });
-        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.8, 0)));
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 1.02, 0)));
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
         potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
@@ -5056,9 +5135,10 @@ function TexasHoldemArena({ search }) {
           return;
         }
         const winnerOrderIndex = winnerDisplayIndex.get(idx);
+        const edgeOutwardPush = !seat.isHuman && seat.isBottomSideOpponent ? BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH : 0;
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
+          .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET + edgeOutwardPush)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           position.copy(
@@ -5106,7 +5186,7 @@ function TexasHoldemArena({ search }) {
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
       seat.chipStack.visible = seat.showRailChips !== false;
-      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'rail', layout: seat.railLayout });
+      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
       const prevBet = seat.lastBet ?? 0;
@@ -5154,7 +5234,7 @@ function TexasHoldemArena({ search }) {
       const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
-        const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
+        const labelAvatar = player.isHuman ? player.avatar || seat.lastAvatar : player.flag || player.avatar || seat.lastAvatar;
         seat.lastAvatar = labelAvatar;
         label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
         label.userData.texture.needsUpdate = true;
@@ -5592,7 +5672,7 @@ function TexasHoldemArena({ search }) {
       if (!label?.userData?.update || !player) return;
       const highlight =
         gameState.stage !== 'showdown' && idx === actionIdx && !player.folded && !player.allIn && Number.isFinite(actionIdx);
-      const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
+      const labelAvatar = player.isHuman ? player.avatar || seat.lastAvatar : player.flag || player.avatar || seat.lastAvatar;
       seat.lastAvatar = labelAvatar;
       label.userData.update(
         player.name ?? `Player ${idx + 1}`,
