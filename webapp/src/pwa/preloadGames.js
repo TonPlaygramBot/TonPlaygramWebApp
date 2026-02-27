@@ -10,7 +10,6 @@ const GAME_ENTRYPOINTS = [
   '/goal-rush-bracket.html',
   '/goal-rush-calibration.json',
   '/init.js',
-  '/texas-holdem.html',
   '/texas-holdem.js',
   '/lib/texasHoldem.js',
   '/lib/texasHoldemGame.js',
