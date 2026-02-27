@@ -5464,6 +5464,7 @@ const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
+const CUE_STROKE_POST_IMPACT_CAMERA_HOLD_MS = 260; // keep cue view briefly after impact so the forward stroke remains visible
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = STOP_EPS;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -14222,7 +14223,8 @@ function PoolRoyaleGame({
     placedFromHand: false,
     contactMade: false,
     cushionAfterContact: false,
-    attemptsPenaltyApplied: false
+    attemptsPenaltyApplied: false,
+    cameraSwitchUnlockAt: 0
   });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
@@ -24562,6 +24564,7 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false,
           attemptsPenaltyApplied: false,
+          cameraSwitchUnlockAt: shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS,
           spin: {
             x: appliedSpinSnapshot.x ?? 0,
             y: appliedSpinSnapshot.y ?? 0
@@ -24974,6 +24977,10 @@ const powerRef = useRef(hud.power);
           const followDurationResolved = followDuration;
           const recoverDuration = Math.max(120, followDurationResolved * 0.6);
           const impactTime = startTime + pullbackDuration + forwardDuration;
+          shotContextRef.current = {
+            ...shotContextRef.current,
+            cameraSwitchUnlockAt: impactTime + CUE_STROKE_POST_IMPACT_CAMERA_HOLD_MS
+          };
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -27758,6 +27765,7 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false,
           attemptsPenaltyApplied: false,
+          cameraSwitchUnlockAt: 0,
           spin: { x: 0, y: 0 }
         };
         let nextInHand = cueBallPotted;
@@ -29420,7 +29428,12 @@ const powerRef = useRef(hud.power);
               !suspendedActionView.activationDelay ||
               now >= suspendedActionView.activationDelay;
             const cueSpeed = cueBall.vel.length() * frameScale;
-            if (cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED) {
+            const cameraSwitchUnlockAt =
+              shotContextRef.current?.cameraSwitchUnlockAt ?? 0;
+            if (
+              cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED &&
+              now >= cameraSwitchUnlockAt
+            ) {
               powerImpactHoldRef.current = 0;
             }
             const holdReady =
