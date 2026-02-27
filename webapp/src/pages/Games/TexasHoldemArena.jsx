@@ -373,8 +373,8 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = 0;
-const POT_RIGHT_ALIGNMENT_SHIFT = CARD_W * 0.42;
+const POT_BELOW_COMMUNITY_OFFSET = CARD_H * 0.78;
+const POT_RIGHT_ALIGNMENT_SHIFT = 0;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -414,7 +414,7 @@ const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.72;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.52;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -615,6 +615,7 @@ const POT_SCATTER_LAYOUT = Object.freeze({
   jitter: 0,
   lift: 0
 });
+const POT_CHIP_MODE = 'stack';
 
 const CAMERA_PLAYER_FOCUS_BLEND = 0.68;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.26;
@@ -2192,29 +2193,43 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
+    const totalPotLabel = 'TOTAL POT';
     const iconSize = 140 * resolutionScale;
-    const iconX = 120 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
+    const amountFont = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    const totalPotFont = `800 ${42 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    const iconGap = 28 * resolutionScale;
+    const amountBaseY = canvas.height / 2 + 4 * resolutionScale;
+    const totalPotY = canvas.height / 2 - 86 * resolutionScale;
+    ctx.font = amountFont;
+    const amountWidth = ctx.measureText(amountLabel).width;
+    const blockWidth = iconSize + iconGap + amountWidth;
+    const blockStartX = canvas.width / 2 - blockWidth / 2;
+    const amountX = blockStartX + iconSize + iconGap;
+    const centeredIconX = blockStartX;
     if (iconReady) {
       ctx.save();
       ctx.shadowColor = 'rgba(8,145,178,0.45)';
       ctx.shadowBlur = 24 * resolutionScale;
-      ctx.drawImage(tpcIcon, iconX, iconY, iconSize, iconSize);
+      ctx.drawImage(tpcIcon, centeredIconX, iconY, iconSize, iconSize);
       ctx.restore();
     }
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    ctx.font = totalPotFont;
+    ctx.fillStyle = 'rgba(186,230,253,0.95)';
+    ctx.fillText(totalPotLabel, amountX, totalPotY);
+    ctx.font = amountFont;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.85)';
     ctx.lineWidth = 18 * resolutionScale;
-    ctx.strokeText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
+    ctx.strokeText(amountLabel, amountX, amountBaseY);
     const textGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     textGradient.addColorStop(0, '#f8fafc');
     textGradient.addColorStop(1, '#67e8f9');
     ctx.fillStyle = textGradient;
-    ctx.fillText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
+    ctx.fillText(amountLabel, amountX, amountBaseY);
   };
 
   tpcIcon.onload = () => {
@@ -4559,7 +4574,7 @@ function TexasHoldemArena({ search }) {
         rotationY: resolvedCommunityRowRotation,
         ...communityAxes
       });
-      const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: POT_SCATTER_LAYOUT });
+      const potStack = chipFactory.createStack(0, { mode: POT_CHIP_MODE, layout: POT_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
       potStack.scale.setScalar(1.06);
       arenaGroup.add(potStack);
@@ -4570,13 +4585,13 @@ function TexasHoldemArena({ search }) {
         potForward.applyAxisAngle(WORLD_UP, resolvedCommunityRowRotation);
       }
       const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
-      chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+      chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
       const foldPileAnchor = potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, FOLD_PILE_FORWARD_OFFSET));
         const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
           width: (2.4 * MODEL_SCALE) / 3,
           height: (0.9 * MODEL_SCALE) / 3
         });
-        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 1.02, 0)));
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.84, 0)));
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
         potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
@@ -4665,7 +4680,7 @@ function TexasHoldemArena({ search }) {
 
       potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
       potTargetRef.current = potDisplayRef.current;
-      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: POT_CHIP_MODE, layout: potLayout });
 
       orientHumanCards();
     })().catch((error) => console.error('Failed to set up Texas Hold\'em arena', error));
@@ -5194,7 +5209,7 @@ function TexasHoldemArena({ search }) {
       if (betDelta > 0 && arenaGroup) {
         const applyPotGain = (value) => {
           potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
-          chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+          chipFactory.setAmount(potStack, potDisplayRef.current, { mode: POT_CHIP_MODE, layout: potLayout });
         };
         if (seat.isHuman) {
           applyPotGain(betDelta);
@@ -5355,7 +5370,7 @@ function TexasHoldemArena({ search }) {
     if (!showdownState?.active) {
       if (potDisplayRef.current > potTargetRef.current || potTargetRef.current === 0) {
         potDisplayRef.current = potTargetRef.current;
-        chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+        chipFactory.setAmount(potStack, potDisplayRef.current, { mode: POT_CHIP_MODE, layout: potLayout });
       }
     }
 
@@ -5481,12 +5496,12 @@ function TexasHoldemArena({ search }) {
 
     if (totalPot <= 0) {
       potDisplayRef.current = 0;
-      chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+      chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
       return;
     }
 
     potDisplayRef.current = Math.max(potDisplayRef.current, totalPot);
-    chipFactory.setAmount(potStack, Math.round(potDisplayRef.current), { mode: 'scatter', layout: potLayout });
+    chipFactory.setAmount(potStack, Math.round(potDisplayRef.current), { mode: POT_CHIP_MODE, layout: potLayout });
 
     results.forEach((potEntry) => {
       const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
@@ -5520,7 +5535,7 @@ function TexasHoldemArena({ search }) {
             );
             potDisplayRef.current = Math.max(0, potDisplayRef.current - value);
             chipFactory.setAmount(potStack, Math.max(0, Math.round(potDisplayRef.current)), {
-              mode: 'scatter',
+              mode: POT_CHIP_MODE,
               layout: potLayout
             });
             if (showdownAnimationRef.current.seatPending) {
@@ -5538,7 +5553,7 @@ function TexasHoldemArena({ search }) {
             if (showdownAnimationRef.current.pendingValue <= 0) {
               showdownAnimationRef.current.active = false;
               potDisplayRef.current = 0;
-              chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+              chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
             }
           }
         });
