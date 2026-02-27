@@ -363,7 +363,7 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
 );
 const HOLE_SPACING = CARD_W * 1.08;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * -0.06;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.2;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = 0;
@@ -412,7 +412,7 @@ const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.42;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.72;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -2085,9 +2085,10 @@ function roundRect(ctx, x, y, width, height, radius) {
 
 function createRailTextSprite(initialLines = [], options = {}) {
   const { width = 1.9 * MODEL_SCALE, height = 0.68 * MODEL_SCALE } = options;
+  const resolutionScale = 2;
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
+  canvas.width = 1024 * resolutionScale;
+  canvas.height = 512 * resolutionScale;
   const ctx = canvas.getContext('2d');
   const tpcIcon = new Image();
   tpcIcon.crossOrigin = 'anonymous';
@@ -2114,29 +2115,29 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
-    const iconSize = 140;
-    const iconX = 120;
+    const iconSize = 140 * resolutionScale;
+    const iconX = 120 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
     if (iconReady) {
       ctx.save();
       ctx.shadowColor = 'rgba(8,145,178,0.45)';
-      ctx.shadowBlur = 24;
+      ctx.shadowBlur = 24 * resolutionScale;
       ctx.drawImage(tpcIcon, iconX, iconY, iconSize, iconSize);
       ctx.restore();
     }
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = '900 110px "Inter", system-ui, sans-serif';
+    ctx.font = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.85)';
-    ctx.lineWidth = 18;
-    ctx.strokeText(amountLabel, iconX + iconSize + 28, canvas.height / 2 + 4);
+    ctx.lineWidth = 18 * resolutionScale;
+    ctx.strokeText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
     const textGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     textGradient.addColorStop(0, '#f8fafc');
     textGradient.addColorStop(1, '#67e8f9');
     ctx.fillStyle = textGradient;
-    ctx.fillText(amountLabel, iconX + iconSize + 28, canvas.height / 2 + 4);
+    ctx.fillText(amountLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 + 4 * resolutionScale);
   };
 
   tpcIcon.onload = () => {
@@ -2154,6 +2155,10 @@ function createRailTextSprite(initialLines = [], options = {}) {
   draw(initialLines);
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 16;
   const material = new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
@@ -4492,7 +4497,7 @@ function TexasHoldemArena({ search }) {
           width: (2.4 * MODEL_SCALE) / 3,
           height: (0.9 * MODEL_SCALE) / 3
         });
-        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.8, 0)));
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
         potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
