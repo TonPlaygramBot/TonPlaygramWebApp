@@ -407,6 +407,7 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
+const HUMAN_BOTTOM_CARD_OUTWARD_PUSH = CARD_W * 0.1;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
@@ -507,7 +508,7 @@ function pickBestModelUrl(urls) {
 }
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
+const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.44 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
@@ -4606,7 +4607,8 @@ function TexasHoldemArena({ search }) {
           const right = humanSeatGroup.right.clone();
 
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
+            const humanSpacing = HUMAN_CARD_SPREAD + HUMAN_BOTTOM_CARD_OUTWARD_PUSH;
+            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * humanSpacing));
             mesh.position.copy(position);
 
             const lookTarget = baseAnchor
@@ -5129,13 +5131,13 @@ function TexasHoldemArena({ search }) {
         const position = baseAnchor
           .clone()
           .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * (seat.isHuman ? HUMAN_CARD_SPREAD + HUMAN_BOTTOM_CARD_OUTWARD_PUSH : HOLE_SPACING)));
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           position.copy(
             winnerDisplayCenter
               .clone()
               .addScaledVector(humanSeatRef.current?.right ?? right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING)
-              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * HOLE_SPACING)
+              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * (HUMAN_CARD_SPREAD + HUMAN_BOTTOM_CARD_OUTWARD_PUSH))
           );
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
