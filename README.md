@@ -5,6 +5,10 @@
 
 - [Texas Hold'em game flow](docs/texas-holdem-game.md) – drejtimi clockwise i butonit/dealer-it dhe hapat bazë të një dueli duke përdorur logjikën në `lib/texasHoldem.js`.
 
+### Cleanup notes
+
+- Removed the legacy `examples/pool-royale/` HTML/2D prototype files so the repository focuses on the active 3D Pool Royale implementation and variants.
+
 ## Installation
 
 1. Install **Node.js 18** or later.
