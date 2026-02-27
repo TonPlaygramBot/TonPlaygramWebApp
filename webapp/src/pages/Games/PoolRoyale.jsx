@@ -1841,6 +1841,8 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slig
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.7; // strengthen minimum forward push so cue-stroke follow-through is always visible
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.8; // extend forward travel so high-power shots show a clear cue push animation
+const CUE_IMPACT_PUSH_MIN = BALL_R * 0.65; // always drive the cue tip forward at impact so the push phase is visible
+const CUE_IMPACT_PUSH_MAX = BALL_R * 1.6; // cap impact overshoot to keep the cue from clipping through the cue ball
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -21178,10 +21180,11 @@ const powerRef = useRef(hud.power);
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = CUE_PULL_BASE * 0.18;
-            const pullbackTime = 160;
-            const forwardTime = 210;
-            const settleTime = 120;
+            const fallbackImpactPush = Math.max(CUE_IMPACT_PUSH_MIN, CUE_PULL_BASE * 0.16);
+            const fallbackForward = Math.max(fallbackImpactPush + BALL_R * 0.25, CUE_PULL_BASE * 0.26);
+            const pullbackTime = 170;
+            const forwardTime = 260;
+            const settleTime = 170;
             const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
             const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
             const holdWindow = Math.max(replayHoldWindow, totalStroke);
@@ -21200,11 +21203,11 @@ const powerRef = useRef(hud.power);
                 cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP + fallbackPullback)
               );
               const impactPos = TMP_VEC3_C.set(
-                cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
+                cuePos.x - TMP_VEC3_CUE_DIR.x * (CUE_TIP_GAP - fallbackImpactPush),
                 cuePos.y,
-                cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
+                cuePos.z - TMP_VEC3_CUE_DIR.z * (CUE_TIP_GAP - fallbackImpactPush)
               );
-              const followDistance = Math.max(BALL_R * 0.16, CUE_TIP_GAP - fallbackForward);
+              const followDistance = Math.max(BALL_R * 0.22, CUE_TIP_GAP - fallbackForward);
               const followPos = tmpReplayCueA.set(
                 cuePos.x - TMP_VEC3_CUE_DIR.x * followDistance,
                 cuePos.y,
@@ -24958,8 +24961,16 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_THROUGH_MAX,
             powerStrength
           );
-          const impactPos = idlePos.clone();
-          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const impactDistance = THREE.MathUtils.lerp(
+            CUE_IMPACT_PUSH_MIN,
+            CUE_IMPACT_PUSH_MAX,
+            powerStrength
+          );
+          const impactPos = buildCuePosition(-impactDistance);
+          const followDistance = Math.max(
+            impactDistance + BALL_R * 0.2,
+            Math.min(followThrough, CUE_TIP_GAP * 0.92)
+          );
           const followPos = buildCuePosition(-followDistance);
           const followSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
