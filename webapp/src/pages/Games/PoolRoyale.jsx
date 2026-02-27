@@ -1841,8 +1841,6 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slig
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.7; // strengthen minimum forward push so cue-stroke follow-through is always visible
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.8; // extend forward travel so high-power shots show a clear cue push animation
-const CUE_IMPACT_FORWARD_MIN = BALL_R * 0.7; // force the contact frame to move forward past idle so the cue visibly pushes into the ball
-const CUE_IMPACT_FORWARD_MAX = BALL_R * 1.35; // cap the pre-impact push so the tip never visually tunnels through the cue ball
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -21134,11 +21132,11 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return true;
           };
+          if (hasCueSnapshots) {
+            applyCueSnapshot();
+            return;
+          }
           if (!stroke) {
-            if (hasCueSnapshots) {
-              applyCueSnapshot();
-              return;
-            }
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
             const firstFrame = frames[0] ?? null;
@@ -21334,7 +21332,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeInOutCubic(t);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -21454,7 +21452,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeInOutCubic(t);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             syncCueShadow();
             return true;
@@ -24960,13 +24958,7 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_THROUGH_MAX,
             powerStrength
           );
-          const impactAdvance = THREE.MathUtils.lerp(
-            CUE_IMPACT_FORWARD_MIN,
-            CUE_IMPACT_FORWARD_MAX,
-            powerStrength
-          );
-          const impactDistance = Math.min(impactAdvance, CUE_TIP_GAP * 0.42);
-          const impactPos = buildCuePosition(-impactDistance);
+          const impactPos = idlePos.clone();
           const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
           const followPos = buildCuePosition(-followDistance);
           const followSpeed = THREE.MathUtils.lerp(
