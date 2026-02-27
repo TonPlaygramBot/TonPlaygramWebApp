@@ -426,7 +426,8 @@ const CAMERA_TURN_DURATION_MS = 240;
 const CARD_PEEK_ANIMATION_MS = 2000;
 const CARD_PEEK_LIFT = 0;
 const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
-const CARD_PEEK_HALF_STAND_ANGLE = THREE.MathUtils.degToRad(34);
+const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
+const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
 
 const CHAIR_MODEL_URLS = [
@@ -3436,17 +3437,17 @@ function TexasHoldemArena({ search }) {
       }
       cards.forEach((mesh, cardIdx) => {
         const outwardSign = cardIdx === 0 ? -1 : 1;
-        const standAngle = CARD_PEEK_HALF_STAND_ANGLE * phase;
-        const edgePivotOffset = CARD_W * 0.5;
-        const upLift = Math.sin(standAngle) * edgePivotOffset;
-        const inwardCompensation = (1 - Math.cos(standAngle)) * edgePivotOffset;
-        const offset = seat.right
-          .clone()
-          .multiplyScalar(outwardSign * (inwardCompensation + CARD_PEEK_OUTER_SWAY * phase))
-          .add(new THREE.Vector3(0, CARD_PEEK_LIFT * phase + upLift, 0));
+        const standAngle = CARD_PEEK_TOP_LIFT_ANGLE * phase;
+        const pivotAxis = seat.right.clone().normalize();
+        const pivotFromCenter = seat.forward.clone().multiplyScalar(-CARD_H * CARD_PEEK_EDGE_PIVOT_FACTOR);
+        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, standAngle);
+        const rotatedPivot = pivotFromCenter.clone().applyQuaternion(liftQuaternion);
+        const hingeCompensation = pivotFromCenter.sub(rotatedPivot);
+        const offset = hingeCompensation
+          .add(seat.right.clone().multiplyScalar(outwardSign * CARD_PEEK_OUTER_SWAY * phase))
+          .add(new THREE.Vector3(0, CARD_PEEK_LIFT * phase, 0));
+
         mesh.position.copy(starts[cardIdx].position.clone().add(offset));
-        const pivotAxis = seat.forward.clone().normalize();
-        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, -outwardSign * standAngle);
         mesh.quaternion.copy(starts[cardIdx].quaternion).premultiply(liftQuaternion);
       });
       if (t < 1) {
