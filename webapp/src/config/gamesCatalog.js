@@ -8,7 +8,7 @@ const gamesCatalog = [
   },
   {
     name: 'Domino Royal 3D',
-    route: '/games/domino-royal?mode=local&players=4',
+    route: '/games/domino-royal/lobby',
     slug: 'domino-royal',
     image: '/assets/icons/Domino%20battle%20Royal%20logo.png',
     description: 'Classic domino strategy with modern 3D flair.'
