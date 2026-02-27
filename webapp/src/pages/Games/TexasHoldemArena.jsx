@@ -425,8 +425,9 @@ const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(0.25);
 const CAMERA_TURN_DURATION_MS = 240;
 const CARD_PEEK_ANIMATION_MS = 2000;
 const CARD_PEEK_LIFT = 0;
-const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
+const CARD_PEEK_OUTER_SWAY = 0;
 const CARD_PEEK_HALF_STAND_ANGLE = THREE.MathUtils.degToRad(34);
+const CARD_PEEK_HUMAN_HALF_STAND_ANGLE = THREE.MathUtils.degToRad(26);
 const FOLD_TO_PILE_ANIMATION_MS = 420;
 
 const CHAIR_MODEL_URLS = [
@@ -3408,7 +3409,7 @@ function TexasHoldemArena({ search }) {
   }, [applyHeadOrientation, stopCameraTurnAnimation]);
 
   const animateCardsPeek = useCallback((seat, seatIndex) => {
-    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number' || seat.isHuman) return;
+    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number') return;
     const key = `seat-${seatIndex}`;
     const previous = peekCardAnimationRef.current.get(key);
     if (previous) {
@@ -3435,18 +3436,26 @@ function TexasHoldemArena({ search }) {
         phase = Math.max(0, 1 - (t - 0.7) / 0.3);
       }
       cards.forEach((mesh, cardIdx) => {
-        const outwardSign = cardIdx === 0 ? -1 : 1;
-        const standAngle = CARD_PEEK_HALF_STAND_ANGLE * phase;
-        const edgePivotOffset = CARD_W * 0.5;
-        const upLift = Math.sin(standAngle) * edgePivotOffset;
-        const inwardCompensation = (1 - Math.cos(standAngle)) * edgePivotOffset;
-        const offset = seat.right
+        const maxStandAngle = seat.isHuman ? CARD_PEEK_HUMAN_HALF_STAND_ANGLE : CARD_PEEK_HALF_STAND_ANGLE;
+        let standAngle = maxStandAngle * phase;
+        const edgePivotOffset = CARD_H * 0.5;
+        const pivotAxis = seat.right.clone().normalize();
+        const baseCenterVector = seat.forward.clone().multiplyScalar(-edgePivotOffset);
+        const candidateQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, standAngle);
+        const candidateCenter = baseCenterVector.clone().applyQuaternion(candidateQuaternion);
+        if (candidateCenter.y < 0) {
+          standAngle = -standAngle;
+        }
+        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, standAngle);
+        const liftedCenter = baseCenterVector.clone().applyQuaternion(liftQuaternion);
+        const verticalLift = liftedCenter.y;
+        const forwardDir = seat.forward.clone().normalize();
+        const inwardCompensation = liftedCenter.clone().sub(baseCenterVector).dot(forwardDir);
+        const offset = forwardDir
           .clone()
-          .multiplyScalar(outwardSign * (inwardCompensation + CARD_PEEK_OUTER_SWAY * phase))
-          .add(new THREE.Vector3(0, CARD_PEEK_LIFT * phase + upLift, 0));
+          .multiplyScalar(inwardCompensation + CARD_PEEK_OUTER_SWAY * phase)
+          .add(new THREE.Vector3(0, CARD_PEEK_LIFT * phase + verticalLift, 0));
         mesh.position.copy(starts[cardIdx].position.clone().add(offset));
-        const pivotAxis = seat.forward.clone().normalize();
-        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, -outwardSign * standAngle);
         mesh.quaternion.copy(starts[cardIdx].quaternion).premultiply(liftQuaternion);
       });
       if (t < 1) {
