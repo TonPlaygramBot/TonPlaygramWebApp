@@ -393,7 +393,7 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.12;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.44;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.62;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
@@ -412,9 +412,7 @@ const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.72;
-const POT_LABEL_LIFT = CARD_H * 0.82;
-const POT_LABEL_PITCH = HUMAN_CARD_FACE_TILT * 0.52;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.42;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -2088,8 +2086,8 @@ function roundRect(ctx, x, y, width, height, radius) {
 function createRailTextSprite(initialLines = [], options = {}) {
   const { width = 1.9 * MODEL_SCALE, height = 0.68 * MODEL_SCALE } = options;
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 1024;
+  canvas.width = 1024;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   const tpcIcon = new Image();
   tpcIcon.crossOrigin = 'anonymous';
@@ -2116,8 +2114,8 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
-    const iconSize = 256;
-    const iconX = 172;
+    const iconSize = 140;
+    const iconX = 120;
     const iconY = canvas.height / 2 - iconSize / 2;
     if (iconReady) {
       ctx.save();
@@ -2129,16 +2127,16 @@ function createRailTextSprite(initialLines = [], options = {}) {
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = '900 196px "Inter", system-ui, sans-serif';
+    ctx.font = '900 110px "Inter", system-ui, sans-serif';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.85)';
-    ctx.lineWidth = 28;
-    ctx.strokeText(amountLabel, iconX + iconSize + 42, canvas.height / 2 + 8);
+    ctx.lineWidth = 18;
+    ctx.strokeText(amountLabel, iconX + iconSize + 28, canvas.height / 2 + 4);
     const textGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     textGradient.addColorStop(0, '#f8fafc');
     textGradient.addColorStop(1, '#67e8f9');
     ctx.fillStyle = textGradient;
-    ctx.fillText(amountLabel, iconX + iconSize + 42, canvas.height / 2 + 8);
+    ctx.fillText(amountLabel, iconX + iconSize + 28, canvas.height / 2 + 4);
   };
 
   tpcIcon.onload = () => {
@@ -2156,10 +2154,6 @@ function createRailTextSprite(initialLines = [], options = {}) {
   draw(initialLines);
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.anisotropy = 8;
   const material = new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
@@ -4498,10 +4492,10 @@ function TexasHoldemArena({ search }) {
           width: (2.4 * MODEL_SCALE) / 3,
           height: (0.9 * MODEL_SCALE) / 3
         });
-        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, POT_LABEL_LIFT, 0)));
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
-        potLabel.rotateX(POT_LABEL_PITCH);
+        potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
         potLabel.renderOrder = 12;
         if (potLabel.material) {
           potLabel.material.depthWrite = false;
