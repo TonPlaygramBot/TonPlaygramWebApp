@@ -384,8 +384,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.68, landscape: 1.04 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.16, landscape: 0.9 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.82, landscape: 1.16 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 0.98 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -394,10 +394,10 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.44;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.44;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.34;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.52;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.22;
-const AI_CARD_INWARD_SHIFT = CARD_W * -2.28;
+const AI_CARD_INWARD_SHIFT = CARD_W * -2.16;
 const AI_CHIP_INWARD_SHIFT = CARD_W * -0.1;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
 const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
@@ -407,6 +407,7 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
+const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 900;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
@@ -423,9 +424,8 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const CAMERA_TURN_SNAP_EPSILON = THREE.MathUtils.degToRad(0.25);
 const CAMERA_TURN_DURATION_MS = 240;
 const CARD_PEEK_ANIMATION_MS = 2000;
-const CARD_PEEK_LIFT = CARD_H * 0.045;
-const CARD_PEEK_OUTER_SWAY = CARD_W * 0.05;
-const CARD_PEEK_HALF_STAND_ANGLE = THREE.MathUtils.degToRad(30);
+const CARD_PEEK_LIFT = CARD_H * 0.11;
+const CARD_PEEK_OUTER_SWAY = CARD_W * 0.12;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
 
 const CHAIR_MODEL_URLS = [
@@ -3406,7 +3406,7 @@ function TexasHoldemArena({ search }) {
   }, [applyHeadOrientation, stopCameraTurnAnimation]);
 
   const animateCardsPeek = useCallback((seat, seatIndex) => {
-    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number' || seat.isHuman) return;
+    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number') return;
     const key = `seat-${seatIndex}`;
     const previous = peekCardAnimationRef.current.get(key);
     if (previous) {
@@ -3415,10 +3415,7 @@ function TexasHoldemArena({ search }) {
     }
     const cards = seat.cardMeshes.filter((mesh) => mesh?.visible);
     if (!cards.length) return;
-    const starts = cards.map((mesh) => ({
-      position: mesh.position.clone(),
-      quaternion: mesh.quaternion.clone()
-    }));
+    const starts = cards.map((mesh) => mesh.position.clone());
     const startTime = performance.now();
 
     const tick = (now) => {
@@ -3434,27 +3431,15 @@ function TexasHoldemArena({ search }) {
       }
       cards.forEach((mesh, cardIdx) => {
         const outwardSign = cardIdx === 0 ? -1 : 1;
-        const standAngle = CARD_PEEK_HALF_STAND_ANGLE * phase;
-        const edgePivotOffset = CARD_W * 0.5;
-        const upLift = Math.sin(standAngle) * edgePivotOffset;
-        const inwardCompensation = (1 - Math.cos(standAngle)) * edgePivotOffset;
-        const offset = seat.right
-          .clone()
-          .multiplyScalar(outwardSign * (inwardCompensation + CARD_PEEK_OUTER_SWAY * phase))
-          .add(new THREE.Vector3(0, CARD_PEEK_LIFT * phase + upLift, 0));
-        mesh.position.copy(starts[cardIdx].position.clone().add(offset));
-        const pivotAxis = seat.forward.clone().normalize();
-        const liftQuaternion = new THREE.Quaternion().setFromAxisAngle(pivotAxis, outwardSign * standAngle);
-        mesh.quaternion.copy(starts[cardIdx].quaternion).premultiply(liftQuaternion);
+        const offset = seat.right.clone().multiplyScalar(outwardSign * CARD_PEEK_OUTER_SWAY * phase);
+        offset.y = CARD_PEEK_LIFT * phase;
+        mesh.position.copy(starts[cardIdx].clone().add(offset));
       });
       if (t < 1) {
         const frame = requestAnimationFrame(tick);
         peekCardAnimationRef.current.set(key, { frame });
       } else {
-        cards.forEach((mesh, cardIdx) => {
-          mesh.position.copy(starts[cardIdx].position);
-          mesh.quaternion.copy(starts[cardIdx].quaternion);
-        });
+        cards.forEach((mesh, cardIdx) => mesh.position.copy(starts[cardIdx]));
         peekCardAnimationRef.current.delete(key);
       }
     };
@@ -5179,6 +5164,12 @@ function TexasHoldemArena({ search }) {
       if (communityFocusTimeoutRef.current) {
         clearTimeout(communityFocusTimeoutRef.current);
       }
+      const actionTargetIndex = findSeatWithAvatar(state.actionIndex, { skipFolded: true });
+      communityFocusTimeoutRef.current = setTimeout(() => {
+        if (typeof actionTargetIndex === 'number') {
+          turnCameraTowardsSeat(actionTargetIndex, { animate: true, durationMs: 320 });
+        }
+      }, COMMUNITY_REVEAL_CAMERA_HOLD_MS);
     }
 
     state.players.forEach((player, idx) => {
@@ -5253,6 +5244,7 @@ function TexasHoldemArena({ search }) {
     const seat = three.seatGroups?.[focusIndex];
     if (seat?.isHuman) {
       resetCameraToStartView();
+      animateCardsPeek(seat, focusIndex);
       playSound('knock');
       return;
     }
