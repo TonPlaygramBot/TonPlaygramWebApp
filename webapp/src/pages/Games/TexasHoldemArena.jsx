@@ -374,8 +374,7 @@ const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const POT_BELOW_COMMUNITY_OFFSET = 0;
-const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_TOP_AVATAR_BLEND = 0.46;
+const POT_RIGHT_ALIGNMENT_SHIFT = CARD_W * 0.42;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -415,7 +414,7 @@ const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
 const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
 const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
-const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.9;
+const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.72;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -1917,12 +1916,9 @@ function computePotAnchor(options = {}) {
     right.applyAxisAngle(WORLD_UP, rotationY);
   }
   const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right, forward });
-  const topSeatAnchor = options.topSeatAnchor instanceof THREE.Vector3 ? options.topSeatAnchor.clone() : null;
-  const betweenTopAvatarAndCenter = topSeatAnchor
-    ? center.clone().lerp(topSeatAnchor, POT_TOP_AVATAR_BLEND).setY(surfaceY + CARD_SURFACE_OFFSET)
-    : center.clone().setY(surfaceY + CARD_SURFACE_OFFSET);
-  return betweenTopAvatarAndCenter
+  return center
     .clone()
+    .setY(surfaceY + CARD_SURFACE_OFFSET)
     .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
     .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
 }
@@ -2153,29 +2149,6 @@ function makeNameplate(name, chips, renderer, avatar) {
   return mesh;
 }
 
-function findTopAvatarAnchor(seatGroups = [], forward = new THREE.Vector3(0, 0, 1)) {
-  if (!Array.isArray(seatGroups) || seatGroups.length === 0) return null;
-  const axis = forward.clone().setY(0);
-  if (axis.lengthSq() < 1e-6) {
-    axis.set(0, 0, 1);
-  } else {
-    axis.normalize();
-  }
-  let bestAnchor = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  seatGroups.forEach((seat) => {
-    if (!seat || seat.isHuman) return;
-    const anchor = seat.chipRailAnchor ?? seat.chipAnchor ?? seat.seatPos;
-    if (!(anchor instanceof THREE.Vector3)) return;
-    const score = anchor.dot(axis);
-    if (score > bestScore) {
-      bestScore = score;
-      bestAnchor = anchor;
-    }
-  });
-  return bestAnchor?.clone() ?? null;
-}
-
 function roundRect(ctx, x, y, width, height, radius) {
   const r = Math.min(radius, width / 2, height / 2);
   ctx.beginPath();
@@ -2219,7 +2192,6 @@ function createRailTextSprite(initialLines = [], options = {}) {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
-    const totalLabel = 'TOTAL POT';
     const iconSize = 140 * resolutionScale;
     const iconX = 120 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
@@ -2233,9 +2205,6 @@ function createRailTextSprite(initialLines = [], options = {}) {
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = `700 ${44 * resolutionScale}px "Inter", system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(226,232,240,0.95)';
-    ctx.fillText(totalLabel, iconX + iconSize + 28 * resolutionScale, canvas.height / 2 - 80 * resolutionScale);
     ctx.font = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2,6,23,0.85)';
@@ -4588,7 +4557,6 @@ function TexasHoldemArena({ search }) {
       const potAnchor = computePotAnchor({
         surfaceY: tableInfo?.surfaceY,
         rotationY: resolvedCommunityRowRotation,
-        topSeatAnchor: findTopAvatarAnchor(seatGroups, communityAxes.forward ?? new THREE.Vector3(0, 0, 1)),
         ...communityAxes
       });
       const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: POT_SCATTER_LAYOUT });
