@@ -21,19 +21,19 @@
     html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-    .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
+    .scoreboard{position:absolute;top:16px;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:5px 8px;display:flex;align-items:center;gap:6px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff;font-size:14px;}
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
-    .score-avatar{width:32px;height:32px;border-radius:999px;background:#111;border:1px solid #233050;display:grid;place-items:center;font-size:18px;overflow:hidden;color:#fff;flex-shrink:0;}
+    .score-avatar{width:28px;height:28px;border-radius:999px;background:#111;border:1px solid #233050;display:grid;place-items:center;font-size:16px;overflow:hidden;color:#fff;flex-shrink:0;}
     .score-avatar.img{background-size:cover;background-position:center;text-indent:-9999px;}
-    .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;white-space:nowrap;}
+    .badge{padding:2px 6px;border-radius:999px;font-weight:800;color:#fff;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;white-space:nowrap;font-size:12px;}
     .p1{background:var(--p1)}
     .p2{background:var(--p2)}
 
     .canvasWrap{
       position:absolute;
-      top:66px;
+      top:82px;
       bottom:-14px;
       left:0;
       right:0;
@@ -260,8 +260,8 @@
   const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
-  const TOP_BAR = 40; // height of scoreboard bar
-  const BOTTOM_GAP = 0; // gap below rink
+  const TOP_BAR = 56; // reserve room for top UI while keeping field lower on portrait screens
+  const BOTTOM_GAP = -30; // add a bit more vertical room so goal nets remain visible
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -517,19 +517,20 @@
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
     // Keep the overall game area visually a little lower on screen.
-    const verticalShift = Math.round(H * -0.002);
+    const verticalShift = Math.round(H * 0.004);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
-    goalTopY = rink.y + rink.h * goalOffsetYPct;
-    goalBottomY = goalTopY + rink.h;
+    const goalInset = Math.round(Math.min(W, H) * 0.012);
+    goalTopY = rink.y + rink.h * goalOffsetYPct + goalInset;
+    goalBottomY = goalTopY + rink.h - goalInset * 2;
     try{
       localStorage.setItem('goalTopY', goalTopY);
       localStorage.setItem('goalBottomY', goalBottomY);
     }catch{}
     goalWidth = Math.round(W*goalWidthPct*fsx);
     const base = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
-    paddleRadius = base*3.4*paddleScale;
+    paddleRadius = base*3.4*paddleScale*0.92;
     puck.r = Math.max(24, Math.round(base*1.3*puckScale));
     p1.r = paddleRadius; p2.r = paddleRadius;
   }
