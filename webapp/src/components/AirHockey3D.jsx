@@ -5,10 +5,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/soundData.js';
 import GiftPopup from './GiftPopup.jsx';
-import InfoPopup from './InfoPopup.jsx';
 import QuickMessagePopup from './QuickMessagePopup.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
-import { AiOutlineInfoCircle, AiOutlineMessage } from 'react-icons/ai';
+import { AiOutlineMessage } from 'react-icons/ai';
 import { getGameVolume, isGameMuted, toggleGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { buildAirHockeyCommentaryLine, AIR_HOCKEY_SPEAKERS } from '../utils/airHockeyCommentary.js';
@@ -106,6 +105,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
+const DEFAULT_CAMERA_LIFT = 1;
 const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
@@ -523,8 +523,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isTopDownView, setIsTopDownView] = useState(false);
-  const [cameraLift, setCameraLift] = useState(1);
-  const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
@@ -625,13 +623,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const rendererRef = useRef(null);
   const cameraRef = useRef(null);
   const cameraViewRef = useRef({ applyCurrent: () => {} });
-  const cameraLiftRef = useRef(1);
-  const cameraDragRef = useRef({
-    active: false,
-    pointerId: null,
-    startY: 0,
-    startLift: 1
-  });
+  const cameraLiftRef = useRef(DEFAULT_CAMERA_LIFT);
   const isTopDownViewRef = useRef(false);
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
@@ -683,13 +675,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     renderer.setSize(targetWidth, targetHeight, false);
     renderer.domElement.style.width = `${host.clientWidth}px`;
     renderer.domElement.style.height = `${host.clientHeight}px`;
-  }, []);
-  const updateCameraLift = useCallback((nextLift) => {
-    const clamped = clamp(nextLift, 0, 1);
-    if (clamped === cameraLiftRef.current) return;
-    cameraLiftRef.current = clamped;
-    setCameraLift(clamped);
-    cameraViewRef.current.applyCurrent?.(isTopDownViewRef.current, clamped);
   }, []);
   const tableGroupRef = useRef(null);
   const tableMarkingsRef = useRef({ line: null, circle: null });
@@ -795,9 +780,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
   useEffect(() => {
     isTopDownViewRef.current = isTopDownView;
-    cameraLiftRef.current = cameraLift;
-    cameraViewRef.current.applyCurrent?.(isTopDownView, cameraLift);
-  }, [cameraLift, isTopDownView]);
+    cameraLiftRef.current = DEFAULT_CAMERA_LIFT;
+    cameraViewRef.current.applyCurrent?.(isTopDownView, DEFAULT_CAMERA_LIFT);
+  }, [isTopDownView]);
 
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;
@@ -1629,13 +1614,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       elevatedTableSurfaceY + TABLE.h * 0.31,
       tableCenterZ + playerRailZ + TABLE.w * 0.12
     );
-    const cueCameraAnchor = new THREE.Vector3(
-      0,
-      elevatedTableSurfaceY + TABLE.thickness * 0.7,
-      tableCenterZ + playerRailZ + TABLE.w * 0.06
-    );
-    const resolveCameraAnchor = (blend = cameraLiftRef.current) =>
-      new THREE.Vector3().lerpVectors(cueCameraAnchor, standingCameraAnchor, blend);
+    const resolveCameraAnchor = () => standingCameraAnchor.clone();
     const getCameraDirection = (anchor) =>
       new THREE.Vector3().subVectors(anchor, cameraFocus).normalize();
     const TOP_VIEW_MARGIN = 1.12;
@@ -1665,12 +1644,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2 + tableCenterZ)
     ];
 
-    const fitCameraToTable = (cameraBlend = cameraLiftRef.current) => {
+    const fitCameraToTable = () => {
       if (isTopDownViewRef.current) {
         updateTopViewCamera();
         return;
       }
-      const anchor = resolveCameraAnchor(cameraBlend);
+      const anchor = resolveCameraAnchor();
       const direction = getCameraDirection(anchor);
       camera.aspect = host.clientWidth / host.clientHeight;
       camera.up.copy(defaultCameraUp);
@@ -1692,11 +1671,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     cameraViewRef.current = {
-      applyCurrent: (useTopView, cameraBlend = cameraLiftRef.current) => {
+      applyCurrent: (useTopView) => {
         if (useTopView) {
           updateTopViewCamera();
         } else {
-          fitCameraToTable(cameraBlend);
+          fitCameraToTable();
         }
       }
     };
@@ -1717,33 +1696,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const isLowerHalfTouch = (clientY) => {
       const r = renderer.domElement.getBoundingClientRect();
       return clientY >= r.top + r.height * 0.5;
-    };
-
-    const beginCameraDrag = (clientY, identifier = null) => {
-      if (isTopDownViewRef.current) return;
-      if (isLowerHalfTouch(clientY)) return;
-      cameraDragRef.current = {
-        active: true,
-        pointerId: identifier,
-        startY: clientY,
-        startLift: cameraLiftRef.current
-      };
-    };
-
-    const updateCameraDrag = (clientY) => {
-      if (!cameraDragRef.current.active) return;
-      const rect = renderer.domElement.getBoundingClientRect();
-      const delta = (cameraDragRef.current.startY - clientY) / (rect.height || 1);
-      updateCameraLift(cameraDragRef.current.startLift + delta * 1.6);
-    };
-
-    const endCameraDrag = () => {
-      cameraDragRef.current = {
-        active: false,
-        pointerId: null,
-        startY: 0,
-        startLift: cameraLiftRef.current
-      };
     };
 
     const touchToXZ = (clientX, clientY) => {
@@ -1768,45 +1720,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       you.position.set(x, 0, z);
     };
 
-    const findTouchById = (touches, identifier) => {
-      if (identifier == null) return touches?.[0] ?? null;
-      return Array.from(touches).find((touch) => touch.identifier === identifier) || null;
-    };
-
-    const onCameraTouchStart = (event) => {
-      const touch = event.touches?.[0];
-      if (!touch) return;
-      beginCameraDrag(touch.clientY, touch.identifier);
-    };
-
-    const onCameraTouchMove = (event) => {
-      const touch = findTouchById(event.touches, cameraDragRef.current.pointerId);
-      if (!touch) return;
-      updateCameraDrag(touch.clientY);
-    };
-
-    const onCameraTouchEnd = (event) => {
-      if (!cameraDragRef.current.active) return;
-      const touch = findTouchById(event.touches, cameraDragRef.current.pointerId);
-      if (!touch) {
-        endCameraDrag();
-      }
-    };
-
     renderer.domElement.addEventListener('touchstart', onMove, {
       passive: true
     });
     renderer.domElement.addEventListener('touchmove', onMove, {
       passive: true
     });
-    renderer.domElement.addEventListener('touchstart', onCameraTouchStart, {
-      passive: true
-    });
-    renderer.domElement.addEventListener('touchmove', onCameraTouchMove, {
-      passive: true
-    });
-    renderer.domElement.addEventListener('touchend', onCameraTouchEnd);
-    renderer.domElement.addEventListener('touchcancel', onCameraTouchEnd);
     renderer.domElement.addEventListener('mousemove', onMove);
 
     const SPEED_BOOST = 1.25;
@@ -1981,7 +1900,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tick();
 
     const onResize = () => {
-      fitCameraToTable(cameraLiftRef.current);
+      fitCameraToTable();
     };
     window.addEventListener('resize', onResize);
 
@@ -1990,10 +1909,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('touchstart', onMove);
       renderer.domElement.removeEventListener('touchmove', onMove);
-      renderer.domElement.removeEventListener('touchstart', onCameraTouchStart);
-      renderer.domElement.removeEventListener('touchmove', onCameraTouchMove);
-      renderer.domElement.removeEventListener('touchend', onCameraTouchEnd);
-      renderer.domElement.removeEventListener('touchcancel', onCameraTouchEnd);
       renderer.domElement.removeEventListener('mousemove', onMove);
       rendererRef.current = null;
       lastFrameTimeRef.current = 0;
@@ -2509,14 +2424,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           <>
             <button
               type="button"
-              onClick={() => setShowInfo(true)}
-              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-            >
-              <AiOutlineInfoCircle className="text-xl" />
-              <span>Info</span>
-            </button>
-            <button
-              type="button"
               onClick={() => {
                 toggleGameMuted();
                 setMuted(isGameMuted());
@@ -2556,14 +2463,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
               >
                 <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
                 <span>{muted ? 'Unmute' : 'Mute'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowInfo(true)}
-                className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-              >
-                <AiOutlineInfoCircle className="text-xl" />
-                <span>Info</span>
               </button>
             </div>
           </>
@@ -2730,14 +2629,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
       ))}
-      <div className="pointer-events-auto">
-        <InfoPopup
-          open={showInfo}
-          onClose={() => setShowInfo(false)}
-          title="Air Hockey"
-          info="Defend your goal and score on your opponent. First to the target score wins. Drag on the lower half of the table to move your mallet. Pull up or down on the top half to adjust the camera height."
-        />
-      </div>
       <div className="pointer-events-auto">
         <QuickMessagePopup
           open={showChat}
