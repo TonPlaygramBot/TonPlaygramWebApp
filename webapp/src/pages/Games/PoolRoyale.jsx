@@ -1875,8 +1875,6 @@ const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
 const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.2, CUE_TIP_RADIUS * 1.75);
-const CUE_CLEARANCE_SOLVER_STEPS = 6;
-const CUE_CLEARANCE_MAX_LIFT = BALL_R * 1.3;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -23267,55 +23265,6 @@ const powerRef = useRef(hud.power);
         cueStick.position.copy(tipTarget).sub(TMP_VEC3_CUE_TIP_OFFSET);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
-      const resolveCueMinClearanceGap = (tipTarget, sampleCount) => {
-        if (!tipTarget) return Infinity;
-        TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
-        TMP_VEC3_CUE_SAMPLE_END
-          .copy(tipTarget)
-          .addScaledVector(TMP_VEC3_CUE_DIR.setFromMatrixColumn(cueStick.matrixWorld, 2).normalize(), -cueLen);
-        const cushionBoxes = table?.userData?.cueObstructionBoxes ?? [];
-        const count = clamp(
-          sampleCount ?? Math.ceil(cueLen / CUE_OBSTRUCTION_SAMPLE_STEP),
-          CUE_OBSTRUCTION_SAMPLE_MIN,
-          CUE_OBSTRUCTION_SAMPLE_MAX
-        );
-        let minGap = Infinity;
-        for (let i = 0; i < count; i += 1) {
-          const t = count === 1 ? 0 : i / (count - 1);
-          const point = CUE_OBSTRUCTION_SAMPLE_POINTS[i];
-          point.lerpVectors(TMP_VEC3_CUE_SAMPLE_START, TMP_VEC3_CUE_SAMPLE_END, t);
-          for (const b of balls) {
-            if (!b?.active || b === cue || !b?.pos) continue;
-            TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-            const gap =
-              point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
-              (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS);
-            if (gap < minGap) minGap = gap;
-          }
-          for (const box of cushionBoxes) {
-            if (!box || typeof box.distanceToPoint !== 'function') continue;
-            const gap = box.distanceToPoint(point);
-            if (gap < minGap) minGap = gap;
-          }
-        }
-        return minGap;
-      };
-      const solveCueClearance = (tipTarget, sampleCount) => {
-        if (!tipTarget) return;
-        const originalY = tipTarget.y;
-        const requiredGap = Math.max(CUE_TIP_CLEARANCE, BALL_R * 0.08);
-        let bestGap = resolveCueMinClearanceGap(tipTarget, sampleCount);
-        if (bestGap >= requiredGap) return;
-        const stepLift = CUE_CLEARANCE_MAX_LIFT / CUE_CLEARANCE_SOLVER_STEPS;
-        for (let i = 1; i <= CUE_CLEARANCE_SOLVER_STEPS; i += 1) {
-          tipTarget.y = originalY + stepLift * i;
-          applyCueStickTransform(tipTarget);
-          clampCueButtAboveCushion(tipTarget);
-          const gap = resolveCueMinClearanceGap(tipTarget, sampleCount);
-          if (gap > bestGap) bestGap = gap;
-          if (gap >= requiredGap) return;
-        }
-      };
       const clampCueButtAboveCushion = (tipTarget) => {
         if (!tipTarget) return;
         const cushionTop = table?.userData?.cushionTopLocal;
@@ -28250,9 +28199,9 @@ const powerRef = useRef(hud.power);
           isAiTurn && activeAiPlan?.aimDir && (previewingAiShot || aiCueViewActive);
         const shouldAutoAimPlayer =
           isPlayerTurn &&
+          autoAimRequestRef.current &&
           !inHandPlacementModeRef.current &&
-          !shooting &&
-          (!lookModeRef.current || autoAimRequestRef.current);
+          !shooting;
         const shouldAutoAimAi =
           isAiTurn &&
           !inHandPlacementModeRef.current &&
@@ -28731,7 +28680,6 @@ const powerRef = useRef(hud.power);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          solveCueClearance(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -29022,7 +28970,6 @@ const powerRef = useRef(hud.power);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          solveCueClearance(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
@@ -29133,7 +29080,6 @@ const powerRef = useRef(hud.power);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          solveCueClearance(tipTarget);
           cueStick.visible = true;
         } else {
           aimFocusRef.current = null;
@@ -29149,18 +29095,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const forceCueVisible =
-            replayActive ||
-            shooting ||
-            Boolean(cueStrokeStateRef.current) ||
-            aiTakingShot ||
-            previewingAiShot ||
-            aiCueViewActive;
-          if (forceCueVisible) {
-            cueStick.visible = true;
-          } else if (!cueAnimating) {
-            cueStick.visible = false;
-          }
+          if (!cueAnimating) cueStick.visible = false;
           updateChalkVisibility(null);
         }
 
