@@ -373,8 +373,14 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = CARD_H * 0.78;
+const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
+const POT_LABEL_UP_OFFSET = CARD_H * 0.7;
+const POT_LABEL_LEFT_SHIFT = 0;
+const POT_LABEL_FORWARD_SHIFT = CARD_H * 0.06;
+const POT_LABEL_SCALE = 1.18;
+const FOLD_PILE_RIGHT_OF_LABEL_SHIFT = CARD_W * 1.2;
+const FOLD_PILE_UNDER_LABEL_SHIFT = CARD_H * -0.22;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -411,8 +417,8 @@ const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
 const BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH = CARD_W * 0.22;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
-const FOLD_PILE_LATERAL_STEP = CARD_W * 0.1;
-const FOLD_PILE_FORWARD_OFFSET = CARD_H * -0.82;
+const FOLD_PILE_LATERAL_STEP = CARD_W * 0.66;
+const FOLD_PILE_FORWARD_OFFSET = CARD_H * 0;
 const CHIP_BUTTON_GRID_RIGHT_SHIFT = 0;
 const CHIP_BUTTON_GRID_OUTWARD_SHIFT = CARD_W * 1.52;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
@@ -1879,13 +1885,12 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
 
 function getHumanCardAnchor(seatGroup) {
   if (!seatGroup) return null;
-  const cardBase = (seatGroup.cardAnchor ?? seatGroup.chipAnchor).clone();
-  const chipBase = (seatGroup.chipAnchor ?? cardBase).clone();
-  const blended = cardBase
-    .addScaledVector(seatGroup.forward, HUMAN_CARD_FORWARD_OFFSET)
-    .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
-  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET;
-  return blended;
+  const chipRail = (seatGroup.chipRailAnchor ?? seatGroup.chipAnchor ?? seatGroup.cardRailAnchor ?? seatGroup.cardAnchor).clone();
+  const rightShift = seatGroup.right.clone().multiplyScalar(HOLE_SPACING * 2.05);
+  const forwardShift = seatGroup.forward.clone().multiplyScalar(CARD_H * 0.18);
+  const anchor = chipRail.add(rightShift).add(forwardShift);
+  anchor.y = (seatGroup.cardRailAnchor?.y ?? seatGroup.chipRailAnchor?.y ?? TABLE_HEIGHT + CARD_SURFACE_OFFSET) + CARD_D * 0.5;
+  return anchor;
 }
 
 function computeCommunitySlotPosition(index, options = {}) {
@@ -1916,10 +1921,8 @@ function computePotAnchor(options = {}) {
     forward.applyAxisAngle(WORLD_UP, rotationY);
     right.applyAxisAngle(WORLD_UP, rotationY);
   }
-  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right, forward });
+  const center = new THREE.Vector3(0, surfaceY + CARD_SURFACE_OFFSET, 0);
   return center
-    .clone()
-    .setY(surfaceY + CARD_SURFACE_OFFSET)
     .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
     .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
 }
@@ -3555,7 +3558,7 @@ function TexasHoldemArena({ search }) {
   }, [applyHeadOrientation, stopCameraTurnAnimation]);
 
   const animateCardsPeek = useCallback((seat, seatIndex) => {
-    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number' || seat.isHuman) return;
+    if (!seat?.cardMeshes?.length || typeof seatIndex !== 'number') return;
     const key = `seat-${seatIndex}`;
     const previous = peekCardAnimationRef.current.get(key);
     if (previous) {
@@ -4586,12 +4589,21 @@ function TexasHoldemArena({ search }) {
       }
       const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
       chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
-      const foldPileAnchor = potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, FOLD_PILE_FORWARD_OFFSET));
+      const potLabelAnchor = potAnchor
+        .clone()
+        .addScaledVector(potForward, POT_LABEL_FORWARD_SHIFT)
+        .addScaledVector(potRight, POT_LABEL_LEFT_SHIFT)
+        .add(new THREE.Vector3(0, POT_LABEL_UP_OFFSET, 0));
+      const foldPileAnchor = potLabelAnchor
+        .clone()
+        .addScaledVector(potRight, FOLD_PILE_RIGHT_OF_LABEL_SHIFT)
+        .addScaledVector(potForward, FOLD_PILE_FORWARD_OFFSET)
+        .add(new THREE.Vector3(0, FOLD_PILE_UNDER_LABEL_SHIFT, 0));
         const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
-          width: (2.4 * MODEL_SCALE) / 3,
-          height: (0.9 * MODEL_SCALE) / 3
+          width: (2.4 * MODEL_SCALE * POT_LABEL_SCALE) / 3,
+          height: (0.9 * MODEL_SCALE * POT_LABEL_SCALE) / 3
         });
-        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.84, 0)));
+        potLabel.position.copy(potLabelAnchor);
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
         potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
@@ -5138,7 +5150,7 @@ function TexasHoldemArena({ search }) {
           const pilePosition = (foldPileAnchor ?? potStack?.position ?? new THREE.Vector3())
             .clone()
             .add(new THREE.Vector3((cardIdx - 0.5) * FOLD_PILE_LATERAL_STEP, foldedOrder * FOLD_PILE_CARD_GAP, 0));
-          const pileLookTarget = pilePosition.clone().add(new THREE.Vector3(0, 0, 1));
+          const pileLookTarget = pilePosition.clone().add(seat.right.clone());
           if (player.folded && !(prevPlayer?.folded)) {
             animateFoldCardToPile(mesh, pilePosition, pileLookTarget);
           } else if (!mesh.userData?.foldAnimFrame) {
@@ -5165,7 +5177,9 @@ function TexasHoldemArena({ search }) {
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
           const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
-          position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
+          position.y = seat.isHuman
+            ? (seat.cardRailAnchor?.y ?? seat.chipRailAnchor?.y ?? clothY) + CARD_D * 0.55
+            : clothY + CARD_H * 0.48;
         }
         mesh.position.copy(position);
         const lookTarget = seat.isHuman
@@ -5433,6 +5447,7 @@ function TexasHoldemArena({ search }) {
     if (typeof focusIndex !== 'number') return;
     const seat = three.seatGroups?.[focusIndex];
     if (seat?.isHuman) {
+      animateCardsPeek(seat, focusIndex);
       resetCameraToStartView();
       playSound('knock');
       return;
