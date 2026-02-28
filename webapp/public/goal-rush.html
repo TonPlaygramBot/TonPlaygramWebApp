@@ -21,7 +21,7 @@
     html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .scoreboard{position:absolute;top:10px;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
@@ -33,8 +33,8 @@
 
     .canvasWrap{
       position:absolute;
-      top:66px;
-      bottom:0;
+      top:76px;
+      bottom:-10px;
       left:0;
       right:0;
       display:flex;
@@ -260,8 +260,8 @@
   const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
-  const TOP_BAR = 66; // keep game area aligned below scoreboard/quick actions
-  const BOTTOM_GAP = -10; // slightly extend vertical play area so both goals remain visible
+  const TOP_BAR = 58; // reserve room for top UI while keeping field lower on portrait screens
+  const BOTTOM_GAP = -22; // slightly increase vertical space so both goals stay visible
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -517,7 +517,7 @@
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
     // Keep the overall game area visually a little lower on screen.
-    const verticalShift = Math.round(H * 0.015);
+    const verticalShift = Math.round(H * 0.008);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
