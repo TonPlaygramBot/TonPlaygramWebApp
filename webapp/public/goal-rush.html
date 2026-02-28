@@ -21,7 +21,7 @@
     html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;top:22px;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .scoreboard{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 5.4rem);height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:5px 8px;display:flex;align-items:center;gap:6px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff;font-size:14px;}
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
@@ -59,10 +59,10 @@
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
     .quick-action-slot{position:fixed;z-index:6;pointer-events:auto;}
-    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.3rem);top:50%;transform:translateY(-50%);}
-    #quickActionGift{right:calc(env(safe-area-inset-right,0px) + 0.3rem);top:50%;transform:translateY(-50%);}
-    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
-    #quickActionAudio{left:calc(env(safe-area-inset-left,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
+    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}
+    #quickActionGift{left:calc(env(safe-area-inset-left,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}
+    #quickActionAudio{right:calc(env(safe-area-inset-right,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}
+    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}
     .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:transparent;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:none;padding:0;}
     .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
     .quick-action .icon{font-size:1.1rem;line-height:1;}
@@ -260,10 +260,9 @@
   const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
-  const TOP_BAR = 48; // reserve room for top UI while allowing slightly taller field toward the top
-  const BOTTOM_GAP = -30; // add a bit more vertical room so goal nets remain visible
-  const FIELD_DOWN_SHIFT_PCT = 0.02; // lower field on screen to better match portrait framing
-  const FIELD_EXTRA_BOTTOM_BALLS = 2; // extend playfield downward by roughly two puck diameters
+  const TOP_BAR = 0; // no top offset: HUD moved to bottom so the field can rise up a bit
+  const BOTTOM_GAP = -52; // extend canvas height so the field feels longer on portrait screens
+  const FIELD_DOWN_SHIFT_PCT = 0; // keep extension balanced upward/downward
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -509,7 +508,7 @@
     canvas.style.height = height + 'px';
     // expand field by reducing canvas margins ~5% on each side
     const baseW = W * 0.98;
-    const baseH = H;
+    const baseH = H * 0.94;
     const maxFieldScaleX = W/baseW;
     const maxFieldScaleY = H/baseH;
     const fsx = Math.min(fieldScaleX, maxFieldScaleX);
@@ -519,11 +518,8 @@
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
     const estimatedBase = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
-    const estimatedPuckDiameter = Math.max(24, Math.round(estimatedBase * 1.3)) * 2;
-    const extraBottomPixels = Math.round(estimatedPuckDiameter * FIELD_EXTRA_BOTTOM_BALLS);
     const verticalShift = Math.round(H * FIELD_DOWN_SHIFT_PCT);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
-    rink.h = Math.min(H - rink.y, rink.h + extraBottomPixels);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
     const goalInset = Math.round(Math.min(W, H) * 0.012);
