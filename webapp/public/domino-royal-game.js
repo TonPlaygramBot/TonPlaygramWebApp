@@ -10,44 +10,52 @@ import './flag-emojis.js';
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
+    renderScale: 0.82,
+    pixelRatioCap: 1.15,
+    resolution: 'HD adaptive render • DPR 1.15 cap',
+    description: 'Low-power 50 Hz preset tuned for stability on mobile GPUs.'
   },
   {
-    id: 'fhd90',
-    label: 'Full HD (90 Hz)',
-    fps: 90,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description:
-      '1080p-focused profile tuned to match the Murlan Royale 3D quality preset.'
+    id: 'fhd60',
+    label: 'Full HD Balanced (60 Hz)',
+    fps: 60,
+    renderScale: 0.92,
+    pixelRatioCap: 1.25,
+    resolution: 'Full HD balanced render • DPR 1.25 cap',
+    description: 'Baseline profile matched to Ludo Battle Royal rendering.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (105 Hz)',
-    fps: 105,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
+    label: 'QHD Smooth (90 Hz)',
+    fps: 90,
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: 'QHD smooth render • DPR 1.4 cap',
+    description: 'Sharper 90 Hz profile for capable devices.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz cap)',
+    label: 'UHD Turbo (120 Hz cap)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2.0,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
+    renderScale: 1.08,
+    pixelRatioCap: 1.5,
+    resolution: 'UHD turbo render • DPR 1.5 cap',
+    description: 'Highest quality profile for flagship and desktop GPUs.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra 144 (desktop)',
+    fps: 144,
+    renderScale: 1.1,
+    pixelRatioCap: 1.55,
+    resolution: 'Desktop ultra render • DPR 1.55 cap',
+    description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -77,7 +85,7 @@ const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
   chairClothTextureSize: 2048,
-  dominoTextureSize: 12288
+  dominoTextureSize: 2048
 });
 
 function detectCoarsePointer() {
@@ -304,7 +312,7 @@ function buildFrameQuality(optionId) {
   const renderScale =
     typeof option?.renderScale === 'number' &&
     Number.isFinite(option.renderScale)
-      ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
+      ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1.3)
       : 1;
   const pixelRatioCap =
     typeof option?.pixelRatioCap === 'number' &&
@@ -5994,10 +6002,24 @@ const getDominoSurfaceTextures = (() => {
       return cache;
     }
     const sizeCap = getRendererTextureSizeCap();
-    const size = Math.max(4096, Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize));
-    const porcelainCanvas = document.createElement('canvas');
+    const preferredSize = Math.max(1024, Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize));
+    const lowMemoryDevice =
+      isLowProfileDevice ||
+      (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
+    let size = lowMemoryDevice ? Math.min(preferredSize, 1024) : preferredSize;
+    let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
-    const pctx = porcelainCanvas.getContext('2d');
+    let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
+    while (!pctx && size > 512) {
+      size = Math.max(512, Math.floor(size / 2));
+      porcelainCanvas = document.createElement('canvas');
+      porcelainCanvas.width = porcelainCanvas.height = size;
+      pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    if (!pctx) {
+      cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
+      return cache;
+    }
     const grad = pctx.createLinearGradient(0, 0, size, size);
     grad.addColorStop(0, '#ffffff');
     grad.addColorStop(1, '#eceff4');
@@ -6020,13 +6042,21 @@ const getDominoSurfaceTextures = (() => {
 
     const roughCanvas = document.createElement('canvas');
     roughCanvas.width = roughCanvas.height = size;
-    const rctx = roughCanvas.getContext('2d');
+    const rctx = roughCanvas.getContext('2d', { willReadFrequently: true });
+    if (!rctx) {
+      cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
+      return cache;
+    }
     rctx.fillStyle = '#8b8b8b';
     rctx.fillRect(0, 0, size, size);
 
     const pipCanvas = document.createElement('canvas');
     pipCanvas.width = pipCanvas.height = size;
-    const pipCtx = pipCanvas.getContext('2d');
+    const pipCtx = pipCanvas.getContext('2d', { willReadFrequently: true });
+    if (!pipCtx) {
+      cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
+      return cache;
+    }
     const pipGrad = pipCtx.createLinearGradient(0, 0, size, size);
     pipGrad.addColorStop(0, '#151515');
     pipGrad.addColorStop(1, '#050505');
