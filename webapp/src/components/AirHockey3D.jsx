@@ -2382,7 +2382,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     >
       <div
         className="absolute left-2 right-2 z-30 grid grid-cols-2 items-center gap-2 text-white"
-        style={{ top: `${6.25 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
+        style={{ top: `${5.5 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
       >
         <div
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
@@ -2412,7 +2412,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         </div>
       </div>
       <div
-        className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur"
+        className="absolute left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur"
+        style={{ top: `${2.75 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
       >
         <span className="uppercase tracking-wide">{playType}</span>
         <span className="mx-2">•</span>
@@ -2471,8 +2472,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       </div>
       {!isTopDownView && (
         <div
-          className="absolute right-3 z-40 flex flex-col items-center gap-2"
-          style={{ top: `${4.25 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
+          className="absolute right-3 z-40 flex flex-col items-center gap-1"
+          style={{ top: `${3.9 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
         >
           <button
             type="button"
