@@ -1607,12 +1607,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const cameraFocus = new THREE.Vector3(
       0,
       elevatedTableSurfaceY + TABLE.thickness * 0.06,
-      tableCenterZ
+      tableCenterZ + PLAYFIELD.h * 0.025
     );
     const standingCameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.31,
-      tableCenterZ + playerRailZ + TABLE.w * 0.12
+      elevatedTableSurfaceY + TABLE.h * 0.285,
+      tableCenterZ + playerRailZ + TABLE.w * 0.105
     );
     const resolveCameraAnchor = () => standingCameraAnchor.clone();
     const getCameraDirection = (anchor) =>
@@ -2428,7 +2428,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         className={`absolute z-20 flex flex-col gap-3 pointer-events-auto ${
           isTopDownView
             ? 'left-3 top-[45%] -translate-y-1/2 items-center'
-            : 'bottom-2 left-2 items-start'
+            : 'bottom-0 left-2 items-start'
         }`}
       >
         <button
@@ -2493,7 +2493,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           </button>
         </div>
       )}
-      <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
+      <div className="absolute bottom-0 right-2 flex flex-col items-end space-y-2 z-20">
         {!isTopDownView && (
           <button
             type="button"
