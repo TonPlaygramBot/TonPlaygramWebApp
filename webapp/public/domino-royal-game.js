@@ -34,8 +34,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'qhd90',
     label: 'QHD Smooth (90 Hz)',
     fps: 90,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
+    renderScale: 0.98,
+    pixelRatioCap: 1.3,
     resolution: 'QHD smooth render • DPR 1.4 cap',
     description: 'Sharper 90 Hz profile for capable devices.'
   },
@@ -43,8 +43,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'uhd120',
     label: 'UHD Turbo (120 Hz cap)',
     fps: 120,
-    renderScale: 1.08,
-    pixelRatioCap: 1.5,
+    renderScale: 1.02,
+    pixelRatioCap: 1.4,
     resolution: 'UHD turbo render • DPR 1.5 cap',
     description: 'Highest quality profile for flagship and desktop GPUs.'
   },
@@ -52,8 +52,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'ultra144',
     label: 'Ultra 144 (desktop)',
     fps: 144,
-    renderScale: 1.1,
-    pixelRatioCap: 1.55,
+    renderScale: 1.04,
+    pixelRatioCap: 1.45,
     resolution: 'Desktop ultra render • DPR 1.55 cap',
     description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
   }
@@ -68,7 +68,7 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FRAME_MANUAL_OVERRIDE_GRACE_MS = 20000;
-const ALLOW_AUTO_QUALITY_DOWNGRADE = false;
+const ALLOW_AUTO_QUALITY_DOWNGRADE = true;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function isTelegramRuntime() {
@@ -83,9 +83,9 @@ function isTelegramRuntime() {
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
-  tableClothTextureSize: 2048,
-  chairClothTextureSize: 2048,
-  dominoTextureSize: 2048
+  tableClothTextureSize: 1536,
+  chairClothTextureSize: 1536,
+  dominoTextureSize: 1536
 });
 
 function detectCoarsePointer() {
@@ -268,14 +268,14 @@ function detectPreferredFrameRateId() {
       hardwareConcurrency >= 8 &&
       (deviceMemory == null || deviceMemory >= 6)
     ) {
-      return 'uhd120';
+      return 'qhd90';
     }
     if (
       highRefresh ||
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'fhd60';
     }
     return 'fhd60';
   }
@@ -2806,12 +2806,12 @@ const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.12, y: 0.68 },
       rotation: Math.PI / 2,
-      textureSize: 3072
+      textureSize: 2048
     },
     frame: {
       repeat: { x: 0.32, y: 0.4 },
       rotation: 0,
-      textureSize: 3072
+      textureSize: 2048
     }
   }),
   Object.freeze({
@@ -2820,12 +2820,12 @@ const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.1, y: 0.56 },
       rotation: Math.PI / 14,
-      textureSize: 3072
+      textureSize: 2048
     },
     frame: {
       repeat: { x: 0.24, y: 0.38 },
       rotation: Math.PI / 2,
-      textureSize: 3072
+      textureSize: 2048
     }
   }),
   Object.freeze({
@@ -4011,7 +4011,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   );
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k']);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
   navigator.userAgent || ''
@@ -4025,12 +4025,22 @@ const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['4k', '2k'];
+  if (prefersUhd) return ['2k', '1k'];
   if (isLowProfileDevice) return ['1k'];
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
-  return true;
+  return !isLowProfileDevice;
+}
+
+function isCachedHdriTexture(texture) {
+  if (!texture) return false;
+  for (const cachedTexture of hdriTextureCache.values()) {
+    if (cachedTexture === texture) {
+      return true;
+    }
+  }
+  return false;
 }
 function pruneHdriCache() {
   if (hdriTextureCache.size <= MAX_HDRI_CACHE_SIZE) return;
@@ -4091,13 +4101,18 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
       envMap?.dispose?.();
       return;
     }
-    if (scene.environment && scene.environment !== fallbackEnvTexture) {
+    if (
+      scene.environment &&
+      scene.environment !== fallbackEnvTexture &&
+      !isCachedHdriTexture(scene.environment)
+    ) {
       scene.environment.dispose?.();
     }
     if (
       hdriBackground &&
       hdriBackground !== envMap &&
-      hdriBackground !== fallbackEnvTexture
+      hdriBackground !== fallbackEnvTexture &&
+      !isCachedHdriTexture(hdriBackground)
     ) {
       hdriBackground.dispose?.();
     }
