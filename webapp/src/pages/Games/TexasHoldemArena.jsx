@@ -375,9 +375,9 @@ const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const HUMAN_BET_FORWARD_OFFSET = CARD_W * -0.02;
 const HUMAN_BET_CLUSTER_SCALE = 0.88;
-const POT_BELOW_COMMUNITY_OFFSET = CARD_H * -1.02;
+const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_LABEL_FORWARD_OFFSET = CARD_H * 0.16;
+const POT_LABEL_FORWARD_OFFSET = CARD_H * 0.06;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -1921,10 +1921,7 @@ function computePotAnchor(options = {}) {
     forward.applyAxisAngle(WORLD_UP, rotationY);
     right.applyAxisAngle(WORLD_UP, rotationY);
   }
-  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY, right, forward });
-  return center
-    .clone()
-    .setY(surfaceY + CARD_SURFACE_OFFSET)
+  return new THREE.Vector3(0, surfaceY + CARD_SURFACE_OFFSET, 0)
     .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
     .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
 }
