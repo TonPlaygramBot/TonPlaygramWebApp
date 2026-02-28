@@ -1715,16 +1715,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const onMove = (e) => {
       primeAudio();
       const t = e.touches ? e.touches[0] : e;
+      if (e.cancelable) {
+        e.preventDefault();
+      }
       if (!isLowerHalfTouch(t.clientY)) return;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
     };
 
     renderer.domElement.addEventListener('touchstart', onMove, {
-      passive: true
+      passive: false
     });
     renderer.domElement.addEventListener('touchmove', onMove, {
-      passive: true
+      passive: false
     });
     renderer.domElement.addEventListener('mousemove', onMove);
 
@@ -2373,37 +2376,50 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     <div
       ref={hostRef}
       className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
+      style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur">
+      <div className="absolute left-2 right-2 top-2 z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-white">
+        <div
+          className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
+          data-player-index="0"
+        >
+          <img
+            src={getAvatarUrl(player.avatar)}
+            alt=""
+            className="h-5 w-5 rounded-full object-cover"
+          />
+          <span className="truncate">
+            {player.name}: {ui.left}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCustomizer((v) => !v)}
+          className="inline-flex items-center justify-center rounded bg-white/10 px-2 py-1 text-base leading-none backdrop-blur"
+          aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
+        >
+          ☰
+        </button>
+        <div
+          className="flex items-center justify-end gap-2 rounded bg-white/10 px-2 py-1 text-xs"
+          data-player-index="1"
+        >
+          <span className="truncate text-right">
+            {ui.right}: {ai.name}
+          </span>
+          <img
+            src={getAvatarUrl(ai.avatar)}
+            alt=""
+            className="h-5 w-5 rounded-full object-cover"
+          />
+        </div>
+      </div>
+      <div
+        className="absolute top-12 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur"
+      >
         <span className="uppercase tracking-wide">{playType}</span>
         <span className="mx-2">•</span>
         <span>Target: {targetValue}</span>
-      </div>
-      <div
-        className="absolute top-1 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1"
-        data-player-index="0"
-      >
-        <img
-          src={getAvatarUrl(player.avatar)}
-          alt=""
-          className="w-5 h-5 rounded-full object-cover"
-        />
-        <span>
-          {player.name}: {ui.left}
-        </span>
-      </div>
-      <div
-        className="absolute top-1 right-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1"
-        data-player-index="1"
-      >
-        <span>
-          {ui.right}: {ai.name}
-        </span>
-        <img
-          src={getAvatarUrl(ai.avatar)}
-          alt=""
-          className="w-5 h-5 rounded-full object-cover"
-        />
       </div>
       <div
         className={`absolute z-20 flex flex-col gap-3 pointer-events-auto ${
@@ -2482,15 +2498,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           <span className="inline-flex items-center gap-1">
             <span aria-hidden>🧭</span>
             <span>{isTopDownView ? '3D' : '2D'}</span>
-          </span>
-        </button>
-        <button
-          onClick={() => setShowCustomizer((v) => !v)}
-          className="rounded px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 backdrop-blur"
-        >
-          <span className="inline-flex items-center gap-1">
-            <span aria-hidden>⚙️</span>
-            {showCustomizer ? 'Close customizer' : 'Customize table'}
           </span>
         </button>
         {showCustomizer && (
