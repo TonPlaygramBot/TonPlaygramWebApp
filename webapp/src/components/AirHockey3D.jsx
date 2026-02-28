@@ -106,6 +106,8 @@ const GRAPHICS_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
 const DEFAULT_CAMERA_LIFT = 1;
+const MOBILE_FIELD_BOTTOM_BIAS = 0.02;
+const MOBILE_FIELD_CLOSEUP_FACTOR = 0.96;
 const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
@@ -1608,12 +1610,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const cameraFocus = new THREE.Vector3(
       0,
       elevatedTableSurfaceY + TABLE.thickness * 0.06,
-      tableCenterZ
+      tableCenterZ + PLAYFIELD.h * MOBILE_FIELD_BOTTOM_BIAS
     );
     const standingCameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.31,
-      tableCenterZ + playerRailZ + TABLE.w * 0.12
+      elevatedTableSurfaceY + TABLE.h * 0.3,
+      tableCenterZ + (playerRailZ + TABLE.w * 0.12) * MOBILE_FIELD_CLOSEUP_FACTOR
     );
     const resolveCameraAnchor = () => standingCameraAnchor.clone();
     const getCameraDirection = (anchor) =>
@@ -2433,8 +2435,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         className={`absolute z-20 flex flex-col gap-3 pointer-events-auto ${
           isTopDownView
             ? 'left-3 top-[45%] -translate-y-1/2 items-center'
-            : 'bottom-2 left-2 items-start'
+            : 'left-2 items-start'
         }`}
+        style={
+          isTopDownView
+            ? undefined
+            : {
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.125rem)'
+              }
+        }
       >
         <button
           type="button"
@@ -2501,7 +2510,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           </button>
         </div>
       )}
-      <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
+      <div
+        className="absolute right-2 flex flex-col items-end space-y-2 z-20"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.125rem)' }}
+      >
         {!isTopDownView && (
           <button
             type="button"
