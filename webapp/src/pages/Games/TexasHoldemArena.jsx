@@ -377,7 +377,7 @@ const HUMAN_BET_FORWARD_OFFSET = CARD_W * -0.02;
 const HUMAN_BET_CLUSTER_SCALE = 0.88;
 const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_LABEL_FORWARD_OFFSET = CARD_H * 0.06;
+const POT_LABEL_FORWARD_OFFSET = CARD_H * -1.06;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -615,6 +615,13 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const POT_SCATTER_LAYOUT = Object.freeze({
   perRow: 24,
   spacing: CARD_W * 0.52,
+  rowSpacing: 0,
+  jitter: 0,
+  lift: 0
+});
+const POT_TRANSFER_LOCK_LAYOUT = Object.freeze({
+  perRow: 1,
+  spacing: 0,
   rowSpacing: 0,
   jitter: 0,
   lift: 0
@@ -5278,7 +5285,7 @@ function TexasHoldemArena({ search }) {
             end: endBase,
             startLayout: seat.railLayout,
             midLayout: seat.tableLayout,
-            endLayout: potLayout,
+            endLayout: { ...potLayout, ...POT_TRANSFER_LOCK_LAYOUT },
             pauseDuration: 0.45,
             toMidDuration: 0.35,
             toEndDuration: 0.6,
