@@ -34,7 +34,7 @@
     .canvasWrap{
       position:absolute;
       top:66px;
-      bottom:-14px;
+      bottom:0;
       left:0;
       right:0;
       display:flex;
@@ -260,8 +260,8 @@
   const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
-  const TOP_BAR = 40; // height of scoreboard bar
-  const BOTTOM_GAP = 0; // gap below rink
+  const TOP_BAR = 66; // keep game area aligned below scoreboard/quick actions
+  const BOTTOM_GAP = -10; // slightly extend vertical play area so both goals remain visible
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -517,7 +517,7 @@
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
     // Keep the overall game area visually a little lower on screen.
-    const verticalShift = Math.round(H * -0.002);
+    const verticalShift = Math.round(H * 0.015);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
