@@ -363,7 +363,7 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
 );
 const HOLE_SPACING = CARD_W * 1.08;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.2;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.34;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = 0;
@@ -373,8 +373,11 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = CARD_H * -0.94;
+const HUMAN_BET_FORWARD_OFFSET = CARD_W * -0.02;
+const HUMAN_BET_CLUSTER_SCALE = 0.88;
+const POT_BELOW_COMMUNITY_OFFSET = CARD_H * -1.02;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
+const POT_LABEL_FORWARD_OFFSET = CARD_H * 0.16;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -1845,10 +1848,11 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
     chipRailAnchor.y = railSurfaceY;
+    const humanBetForwardOffset = isHuman ? HUMAN_BET_FORWARD_OFFSET : BET_FORWARD_OFFSET;
     const betAnchor = forward
       .clone()
       .multiplyScalar(outerDistance * BET_DISTANCE_RATIO)
-      .addScaledVector(forward, -BET_FORWARD_OFFSET);
+      .addScaledVector(forward, -humanBetForwardOffset);
     betAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
     const previewAnchor = betAnchor.clone();
     previewAnchor.y = betAnchor.y;
@@ -4416,10 +4420,11 @@ function TexasHoldemArena({ search }) {
           mesh.scale.setScalar(HUMAN_CARD_SCALE);
         });
 
+        const tableChipClusterScale = seat.isHuman ? HUMAN_BET_CLUSTER_SCALE : 1;
         const tableLayout = {
           perRow: CHIP_SCATTER_LAYOUT.perRow,
-          spacing: CHIP_SCATTER_LAYOUT.spacing,
-          rowSpacing: CHIP_SCATTER_LAYOUT.rowSpacing,
+          spacing: CHIP_SCATTER_LAYOUT.spacing * tableChipClusterScale,
+          rowSpacing: CHIP_SCATTER_LAYOUT.rowSpacing * tableChipClusterScale,
           jitter: CHIP_SCATTER_LAYOUT.jitter,
           lift: CHIP_SCATTER_LAYOUT.lift,
           right: seat.right.clone(),
@@ -4626,7 +4631,12 @@ function TexasHoldemArena({ search }) {
           width: (2.4 * MODEL_SCALE) / 3,
           height: (0.9 * MODEL_SCALE) / 3
         });
-        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_H * 0.84, 0)));
+        potLabel.position.copy(
+          potAnchor
+            .clone()
+            .addScaledVector(potForward, POT_LABEL_FORWARD_OFFSET)
+            .add(new THREE.Vector3(0, CARD_H * 0.84, 0))
+        );
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
         potLabel.rotateX(HUMAN_CARD_FACE_TILT * 0.7);
