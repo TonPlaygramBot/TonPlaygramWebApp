@@ -2378,7 +2378,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
       style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
-      <div className="absolute left-2 right-2 top-2 z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-white">
+      <div className="absolute left-2 right-2 top-10 z-30 grid grid-cols-2 items-center gap-2 text-white">
         <div
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
           data-player-index="0"
@@ -2392,14 +2392,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             {player.name}: {ui.left}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCustomizer((v) => !v)}
-          className="inline-flex items-center justify-center rounded bg-white/10 px-2 py-1 text-base leading-none backdrop-blur"
-          aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
-        >
-          ☰
-        </button>
         <div
           className="flex items-center justify-end gap-2 rounded bg-white/10 px-2 py-1 text-xs"
           data-player-index="1"
@@ -2415,12 +2407,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         </div>
       </div>
       <div
-        className="absolute top-12 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur"
+        className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur"
       >
         <span className="uppercase tracking-wide">{playType}</span>
         <span className="mx-2">•</span>
         <span>Target: {targetValue}</span>
       </div>
+      <button
+        type="button"
+        onClick={() => setShowCustomizer((prev) => !prev)}
+        className={`absolute left-3 top-2 z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+          showCustomizer ? 'bg-black/60' : 'hover:bg-black/60'
+        }`}
+        aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
+      >
+        <span className="text-lg leading-none" aria-hidden="true">☰</span>
+        <span className="leading-none">Menu</span>
+      </button>
       <div
         className={`absolute z-20 flex flex-col gap-3 pointer-events-auto ${
           isTopDownView
@@ -2458,33 +2461,32 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
               <span>Gift</span>
             </button>
           </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setShowGift(true)}
-              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-            >
-              <span className="text-xl">🎁</span>
-              <span>Gift</span>
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  toggleGameMuted();
-                  setMuted(isGameMuted());
-                }}
-                className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-              >
-                <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
-                <span>{muted ? 'Unmute' : 'Mute'}</span>
-              </button>
-            </div>
-          </>
-        )}
+        ) : null}
       </div>
+      {!isTopDownView && (
+        <button
+          type="button"
+          onClick={() => {
+            toggleGameMuted();
+            setMuted(isGameMuted());
+          }}
+          className="absolute right-3 top-2 z-40 flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+        >
+          <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+          <span>{muted ? 'Unmute' : 'Mute'}</span>
+        </button>
+      )}
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
+        {!isTopDownView && (
+          <button
+            type="button"
+            onClick={() => setShowGift(true)}
+            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+          >
+            <span className="text-xl">🎁</span>
+            <span>Gift</span>
+          </button>
+        )}
         <button
           type="button"
           aria-pressed={isTopDownView}
