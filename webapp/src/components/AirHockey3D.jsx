@@ -2378,7 +2378,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
       style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
-      <div className="absolute left-2 right-2 top-10 z-30 grid grid-cols-2 items-center gap-2 text-white">
+      <div className="absolute left-2 right-2 top-[6.25rem] z-30 grid grid-cols-2 items-center gap-2 text-white">
         <div
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
           data-player-index="0"
@@ -2416,7 +2416,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       <button
         type="button"
         onClick={() => setShowCustomizer((prev) => !prev)}
-        className={`absolute left-3 top-2 z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+        className={`absolute left-3 top-[4.25rem] z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
           showCustomizer ? 'bg-black/60' : 'hover:bg-black/60'
         }`}
         aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
@@ -2464,17 +2464,34 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         ) : null}
       </div>
       {!isTopDownView && (
-        <button
-          type="button"
-          onClick={() => {
-            toggleGameMuted();
-            setMuted(isGameMuted());
-          }}
-          className="absolute right-3 top-2 z-40 flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-        >
-          <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
-          <span>{muted ? 'Unmute' : 'Mute'}</span>
-        </button>
+        <div className="absolute right-3 top-[4.25rem] z-40 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              toggleGameMuted();
+              setMuted(isGameMuted());
+            }}
+            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+          >
+            <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+            <span>{muted ? 'Unmute' : 'Mute'}</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView}
+            onClick={() => setIsTopDownView((prev) => !prev)}
+            className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
+              isTopDownView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden>🧭</span>
+              <span>{isTopDownView ? '3D' : '2D'}</span>
+            </span>
+          </button>
+        </div>
       )}
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         {!isTopDownView && (
@@ -2487,21 +2504,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             <span>Gift</span>
           </button>
         )}
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
-          }`}
-        >
-          <span className="inline-flex items-center gap-1">
-            <span aria-hidden>🧭</span>
-            <span>{isTopDownView ? '3D' : '2D'}</span>
-          </span>
-        </button>
+        {isTopDownView && (
+          <button
+            type="button"
+            aria-pressed={isTopDownView}
+            onClick={() => setIsTopDownView((prev) => !prev)}
+            className="rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition border-emerald-300 bg-emerald-300/20 text-emerald-100"
+          >
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden>🧭</span>
+              <span>3D</span>
+            </span>
+          </button>
+        )}
         {showCustomizer && (
           <div className="w-72 max-h-[70vh] overflow-y-auto bg-black/70 border border-white/15 rounded-lg p-3 space-y-3 backdrop-blur">
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
