@@ -180,6 +180,7 @@ const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'english';
 const HUD_VERTICAL_SHIFT_REM = 9;
+const HUD_TOP_ROW_LIFT_REM = 2.5;
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -2381,7 +2382,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     >
       <div
         className="absolute left-2 right-2 z-30 grid grid-cols-2 items-center gap-2 text-white"
-        style={{ top: `${6.25 + HUD_VERTICAL_SHIFT_REM}rem` }}
+        style={{ top: `${6.25 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
       >
         <div
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
@@ -2423,7 +2424,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         className={`absolute left-3 z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
           showCustomizer ? 'bg-black/60' : 'hover:bg-black/60'
         }`}
-        style={{ top: `${4.25 + HUD_VERTICAL_SHIFT_REM}rem` }}
+        style={{ top: `${4.25 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
         aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
       >
         <span className="text-lg leading-none" aria-hidden="true">☰</span>
@@ -2471,7 +2472,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       {!isTopDownView && (
         <div
           className="absolute right-3 z-40 flex flex-col items-center gap-2"
-          style={{ top: `${4.25 + HUD_VERTICAL_SHIFT_REM}rem` }}
+          style={{ top: `${4.25 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
         >
           <button
             type="button"
