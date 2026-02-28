@@ -21236,7 +21236,7 @@ const powerRef = useRef(hud.power);
                 );
                 cueStick.position.lerpVectors(followPos, idlePos, easeInOutCubic(t));
               } else {
-                cueStick.position.copy(pullPos);
+                cueStick.position.copy(idlePos);
               }
             }
             syncCueShadow();
@@ -21332,15 +21332,24 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
+            const eased = easeInOutCubic(t);
             tmpReplayCueA.copy(tmpReplayCueB);
-            tmpReplayCueB.set(followSnap.x, followSnap.y, followSnap.z);
+            tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
           }
           if (localTime <= followEnd && followTime > 0) {
-            cueStick.position.set(followSnap.x, followSnap.y, followSnap.z);
+            const t = THREE.MathUtils.clamp(
+              (localTime - impactEnd) / Math.max(followTime, 1e-6),
+              0,
+              1
+            );
+            const eased = easeOutCubic(t);
+            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueB.set(followSnap.x, followSnap.y, followSnap.z);
+            cueStick.visible = true;
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
           }
@@ -21386,6 +21395,20 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return false;
           }
+          if (stroke.holdUntilStop) {
+            cueStick.visible = true;
+            cueAnimating = true;
+            cueStick.position.copy(stroke.idlePos);
+            syncCueShadow();
+            if (allStopped(balls)) {
+              cueAnimating = false;
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
+              cueStrokeStateRef.current = null;
+              pendingImpactRef.current = null;
+            }
+            return true;
+          }
           const {
             startTime,
             idlePos,
@@ -21395,11 +21418,7 @@ const powerRef = useRef(hud.power);
             pullbackDuration,
             releaseDuration,
             followDuration,
-            recoverDuration,
-            impactProgress,
-            wobbleAmplitude,
-            verticalDip,
-            rotationYBase
+            recoverDuration
           } = stroke;
           const pullback = Math.max(0, pullbackDuration ?? 0);
           const release = Math.max(0, releaseDuration ?? 0);
@@ -21412,14 +21431,7 @@ const powerRef = useRef(hud.power);
           const recoverEnd = followEnd + recover;
           cueStick.visible = true;
           cueAnimating = true;
-          const hitAt =
-            pullEnd +
-            release * THREE.MathUtils.clamp(
-              Number.isFinite(impactProgress) ? impactProgress : 0.9,
-              0,
-              1
-            );
-          if (!stroke.shotApplied && elapsed >= hitAt) {
+          if (!stroke.shotApplied && elapsed >= releaseEnd) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
@@ -21440,23 +21452,23 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeOutCubic(t);
-            cueStick.position.lerpVectors(pullPos, followPos ?? impactPos, eased);
-            const dip = (Number.isFinite(verticalDip) ? verticalDip : 0.003) * eased;
-            cueStick.position.y -= dip;
-            const wobble =
-              Math.sin(t * Math.PI) *
-              (Number.isFinite(wobbleAmplitude) ? wobbleAmplitude : 0.0018);
-            cueStick.rotation.y =
-              (Number.isFinite(rotationYBase) ? rotationYBase : cueStick.rotation.y) + wobble;
+            const eased = easeInOutCubic(t);
+            cueStick.position.lerpVectors(pullPos, impactPos, eased);
             syncCueShadow();
             return true;
           }
           if (elapsed <= followEnd && follow > 0) {
-            cueStick.position.copy(followPos ?? impactPos);
-            cueStick.rotation.y = Number.isFinite(rotationYBase)
-              ? rotationYBase
-              : cueStick.rotation.y;
+            const t = THREE.MathUtils.clamp(
+              (elapsed - releaseEnd) / Math.max(follow, 1e-6),
+              0,
+              1
+            );
+            const eased = easeOutCubic(t);
+            cueStick.position.lerpVectors(
+              impactPos,
+              followPos ?? impactPos,
+              eased
+            );
             syncCueShadow();
             return true;
           }
@@ -21472,10 +21484,12 @@ const powerRef = useRef(hud.power);
             return true;
           }
           cueStick.position.copy(idlePos);
-          cueStick.rotation.y = Number.isFinite(rotationYBase)
-            ? rotationYBase
-            : cueStick.rotation.y;
           syncCueShadow();
+          if (!allStopped(balls)) {
+            stroke.holdUntilStop = true;
+            cueStrokeStateRef.current = stroke;
+            return true;
+          }
           cueStick.visible = true;
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
@@ -24922,7 +24936,7 @@ const powerRef = useRef(hud.power);
           };
           const idlePos = buildCuePosition(0);
           const pullPos = buildCuePosition(visualPull);
-          cueStick.position.copy(pullPos);
+          cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           cueStick.visible = true;
@@ -24930,25 +24944,36 @@ const powerRef = useRef(hud.power);
             recordReplayFrame(performance.now());
           }
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-          const topspinFactor = THREE.MathUtils.clamp(
-            Math.max(0, appliedSpin?.y ?? 0) * powerStrength,
-            0,
-            1
+          const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
+          const baseForwardDuration = THREE.MathUtils.lerp(
+            PLAYER_CUE_FORWARD_MAX_MS,
+            PLAYER_CUE_FORWARD_MIN_MS,
+            forwardBlend
           );
-          const forwardDuration = 120;
-          const holdDuration = 50;
-          const pullbackDuration = 0;
+          const forwardDuration = Math.max(220, baseForwardDuration * PLAYER_FORWARD_SLOWDOWN);
+          const pullbackDuration = Math.max(120, forwardDuration * 0.65);
           const startTime = performance.now();
-          const followThrough = THREE.MathUtils.clamp(
-            topspinFactor * 0.016,
-            0,
-            0.018
+          const followThrough = THREE.MathUtils.lerp(
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX,
+            powerStrength
           );
           const impactPos = idlePos.clone();
-          const followPos = buildCuePosition(-followThrough);
-          const followDurationResolved = holdDuration;
-          const recoverDuration = 0;
-          const impactTime = startTime + forwardDuration * 0.9;
+          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const followPos = buildCuePosition(-followDistance);
+          const followSpeed = THREE.MathUtils.lerp(
+            CUE_FOLLOW_SPEED_MIN,
+            CUE_FOLLOW_SPEED_MAX,
+            powerStrength
+          );
+          const followDuration = THREE.MathUtils.clamp(
+            (followThrough / Math.max(followSpeed, 1e-6)) * 1000,
+            CUE_FOLLOW_MIN_MS,
+            CUE_FOLLOW_MAX_MS
+          );
+          const followDurationResolved = followDuration;
+          const recoverDuration = Math.max(120, followDurationResolved * 0.6);
+          const impactTime = startTime + pullbackDuration + forwardDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -25058,11 +25083,7 @@ const powerRef = useRef(hud.power);
               pullbackDuration,
               releaseDuration: forwardDuration,
               followDuration: followDurationResolved,
-              recoverDuration,
-              impactProgress: 0.9,
-              wobbleAmplitude: 0.0018,
-              verticalDip: 0.003,
-              rotationYBase: cueStick.rotation.y
+              recoverDuration
             };
           } else {
             cueStick.visible = false;
