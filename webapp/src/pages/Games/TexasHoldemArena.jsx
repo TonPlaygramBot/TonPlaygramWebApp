@@ -363,7 +363,7 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
 );
 const HOLE_SPACING = CARD_W * 1.08;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.34;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.46;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = 0;
@@ -373,11 +373,12 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const HUMAN_BET_FORWARD_OFFSET = CARD_W * -0.02;
+const HUMAN_BET_FORWARD_OFFSET = CARD_W * 0.14;
 const HUMAN_BET_CLUSTER_SCALE = 0.88;
 const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_LABEL_FORWARD_OFFSET = CARD_H * -1.06;
+const POT_LABEL_FORWARD_OFFSET = CARD_H * -0.12;
+const POT_LABEL_RIGHT_OFFSET = CARD_W * 1.24;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -410,7 +411,8 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.18;
+const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.24;
+const POT_PLAYER_PILE_RADIUS = CARD_W * 0.86;
 const BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH = CARD_W * 0.22;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
@@ -1931,6 +1933,18 @@ function computePotAnchor(options = {}) {
   return new THREE.Vector3(0, surfaceY + CARD_SURFACE_OFFSET, 0)
     .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
     .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
+}
+
+function computeSeatPotPileAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT) {
+  const safePotAnchor = potAnchor?.clone?.() ?? new THREE.Vector3();
+  const direction = seat?.forward?.clone?.().setY(0).normalize();
+  if (!direction || direction.lengthSq() < 1e-6) {
+    return safePotAnchor.setY(tableSurfaceY + CARD_SURFACE_OFFSET);
+  }
+  return safePotAnchor
+    .clone()
+    .addScaledVector(direction, POT_PLAYER_PILE_RADIUS)
+    .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
 }
 
 function makeNameplate(name, chips, renderer, avatar) {
@@ -4617,6 +4631,7 @@ function TexasHoldemArena({ search }) {
       const potStack = chipFactory.createStack(0, { mode: POT_CHIP_MODE, layout: POT_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
       potStack.scale.setScalar(1.06);
+      potStack.visible = false;
       arenaGroup.add(potStack);
       const potRight = (communityAxes.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
       const potForward = (communityAxes.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
@@ -4626,6 +4641,13 @@ function TexasHoldemArena({ search }) {
       }
       const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
       chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
+      const potSeatStacks = seatGroups.map((seat) => {
+        const pile = chipFactory.createStack(0, { mode: 'stack' });
+        pile.position.copy(computeSeatPotPileAnchor(potAnchor, seat, tableInfo?.surfaceY ?? TABLE_HEIGHT));
+        pile.scale.setScalar(0.96);
+        arenaGroup.add(pile);
+        return pile;
+      });
       const foldPileAnchor = potAnchor
         .clone()
         .addScaledVector(potForward, FOLD_PILE_FORWARD_OFFSET)
@@ -4639,6 +4661,7 @@ function TexasHoldemArena({ search }) {
           potAnchor
             .clone()
             .addScaledVector(potForward, POT_LABEL_FORWARD_OFFSET)
+            .addScaledVector(potRight, POT_LABEL_RIGHT_OFFSET)
             .add(new THREE.Vector3(0, CARD_H * 0.84, 0))
         );
         const potLabelLook = potLabel.position.clone().add(potForward);
@@ -4703,6 +4726,7 @@ function TexasHoldemArena({ search }) {
           seatGroups,
           communityMeshes,
           potStack,
+          potSeatStacks,
           potLabel,
           potLayout,
           foldPileAnchor,
@@ -4729,7 +4753,10 @@ function TexasHoldemArena({ search }) {
 
       potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
       potTargetRef.current = potDisplayRef.current;
-      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: POT_CHIP_MODE, layout: potLayout });
+      chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
+      potSeatStacks.forEach((pile) => {
+        chipFactory.setAmount(pile, 0, { mode: 'stack' });
+      });
 
       orientHumanCards();
     })().catch((error) => console.error('Failed to set up Texas Hold\'em arena', error));
@@ -5083,6 +5110,7 @@ function TexasHoldemArena({ search }) {
           threeRef.current.potLabel.userData?.dispose?.();
           threeRef.current.potLabel.parent?.remove(threeRef.current.potLabel);
         }
+        (threeRef.current.potSeatStacks || []).forEach((pile) => factory.disposeStack(pile));
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
         arena?.parent?.remove(arena);
@@ -5103,7 +5131,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { seatGroups, communityMeshes, chipFactory, potStack, potLabel, potLayout, foldPileAnchor, deckAnchor, arenaGroup } = three;
+    const { seatGroups, communityMeshes, chipFactory, potStack, potSeatStacks, potLabel, potLayout, foldPileAnchor, deckAnchor, arenaGroup } = three;
     const rowRotation = three.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
     const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
@@ -5111,6 +5139,16 @@ function TexasHoldemArena({ search }) {
 
     const previous = prevStateRef.current;
     potTargetRef.current = Math.max(0, Math.round(state.pot ?? 0));
+
+    if ((state.pot ?? 0) <= 0) {
+      seatGroups.forEach((seat, seatIndex) => {
+        seat.potContribution = 0;
+        const pile = potSeatStacks?.[seatIndex];
+        if (pile) {
+          chipFactory.setAmount(pile, 0, { mode: 'stack' });
+        }
+      });
+    }
     if (potLabel?.userData?.update) {
       potLabel.userData.update({ amount: Math.round(state.pot ?? 0), token: state.token });
       potLabel.userData.texture.needsUpdate = true;
@@ -5266,7 +5304,12 @@ function TexasHoldemArena({ search }) {
       if (betDelta > 0 && arenaGroup) {
         const applyPotGain = (value) => {
           potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
-          chipFactory.setAmount(potStack, potDisplayRef.current, { mode: POT_CHIP_MODE, layout: potLayout });
+          const targetPile = potSeatStacks?.[idx];
+          if (targetPile) {
+            const nextContribution = Math.max(0, Math.round((seat.potContribution ?? 0) + value));
+            seat.potContribution = nextContribution;
+            chipFactory.setAmount(targetPile, nextContribution, { mode: 'stack' });
+          }
         };
         if (seat.isHuman) {
           applyPotGain(betDelta);
@@ -5274,7 +5317,7 @@ function TexasHoldemArena({ search }) {
           const chipHeight = chipFactory.chipHeight;
           const startBase = seat.chipRailAnchor.clone();
           startBase.y -= chipHeight / 2;
-          const endBase = potStack.position.clone();
+          const endBase = (potSeatStacks?.[idx]?.position ?? potStack.position).clone();
           endBase.y -= chipHeight / 2;
           const midBase = startBase.clone().lerp(endBase, 0.65);
           midBase.y -= chipHeight * 0.1;
@@ -5427,7 +5470,7 @@ function TexasHoldemArena({ search }) {
     if (!showdownState?.active) {
       if (potDisplayRef.current > potTargetRef.current || potTargetRef.current === 0) {
         potDisplayRef.current = potTargetRef.current;
-        chipFactory.setAmount(potStack, potDisplayRef.current, { mode: POT_CHIP_MODE, layout: potLayout });
+        chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
       }
     }
 
