@@ -21,7 +21,7 @@
     html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;top:16px;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .scoreboard{position:absolute;top:22px;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:5px 8px;display:flex;align-items:center;gap:6px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff;font-size:14px;}
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
@@ -33,12 +33,12 @@
 
     .canvasWrap{
       position:absolute;
-      top:82px;
-      bottom:-14px;
+      top:78px;
+      bottom:-24px;
       left:0;
       right:0;
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       justify-content:center;
     }
     canvas{
@@ -260,7 +260,7 @@
   const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
-  const TOP_BAR = 56; // reserve room for top UI while keeping field lower on portrait screens
+  const TOP_BAR = 48; // reserve room for top UI while allowing slightly taller field toward the top
   const BOTTOM_GAP = -30; // add a bit more vertical room so goal nets remain visible
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
@@ -516,8 +516,8 @@
     rink.w = Math.round(baseW * fsx);
     rink.h = Math.round(baseH * fsy);
     rink.x = Math.round((W - rink.w) / 2);
-    // Keep the overall game area visually a little lower on screen.
-    const verticalShift = Math.round(H * 0.004);
+    // Keep the game area visually balanced while nudging it slightly upward.
+    const verticalShift = Math.round(H * -0.01);
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
