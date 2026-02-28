@@ -373,12 +373,12 @@ const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const HUMAN_BET_FORWARD_OFFSET = CARD_W * 0.14;
+const HUMAN_BET_FORWARD_OFFSET = CARD_W * 0.88;
 const HUMAN_BET_CLUSTER_SCALE = 0.88;
 const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_LABEL_FORWARD_OFFSET = CARD_H * -0.12;
-const POT_LABEL_RIGHT_OFFSET = CARD_W * 1.24;
+const POT_LABEL_FORWARD_OFFSET = CARD_H * -0.62;
+const POT_LABEL_RIGHT_OFFSET = 0;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -411,8 +411,10 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.24;
-const POT_PLAYER_PILE_RADIUS = CARD_W * 0.86;
+const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.31;
+const POT_PLAYER_PILE_RADIUS = CARD_W * 0.52;
+const POT_TWO_PILE_SIDE_OFFSET = CARD_W * 0.56;
+const POT_TWO_PILE_FORWARD_STEP = CARD_D * 1.2;
 const BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH = CARD_W * 0.22;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
@@ -1935,14 +1937,23 @@ function computePotAnchor(options = {}) {
     .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
 }
 
-function computeSeatPotPileAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT) {
+function computeSeatPotPileAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT, options = {}) {
   const safePotAnchor = potAnchor?.clone?.() ?? new THREE.Vector3();
+  const seatIndex = Number.isFinite(options?.seatIndex) ? Math.max(0, Math.floor(options.seatIndex)) : 0;
+  const right = (options?.right ?? new THREE.Vector3(1, 0, 0)).clone().setY(0).normalize();
+  const forwardAxis = (options?.forward ?? new THREE.Vector3(0, 0, 1)).clone().setY(0).normalize();
+  const lane = seatIndex % 2 === 0 ? -1 : 1;
+  const laneDepth = Math.floor(seatIndex / 2);
+  const twoPileAnchor = safePotAnchor
+    .clone()
+    .addScaledVector(right, lane * POT_TWO_PILE_SIDE_OFFSET)
+    .addScaledVector(forwardAxis, laneDepth * POT_TWO_PILE_FORWARD_STEP)
+    .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
   const direction = seat?.forward?.clone?.().setY(0).normalize();
   if (!direction || direction.lengthSq() < 1e-6) {
-    return safePotAnchor.setY(tableSurfaceY + CARD_SURFACE_OFFSET);
+    return twoPileAnchor;
   }
-  return safePotAnchor
-    .clone()
+  return twoPileAnchor
     .addScaledVector(direction, POT_PLAYER_PILE_RADIUS)
     .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
 }
@@ -4641,9 +4652,15 @@ function TexasHoldemArena({ search }) {
       }
       const potLayout = { ...POT_SCATTER_LAYOUT, right: potRight, forward: potForward };
       chipFactory.setAmount(potStack, 0, { mode: POT_CHIP_MODE, layout: potLayout });
-      const potSeatStacks = seatGroups.map((seat) => {
+      const potSeatStacks = seatGroups.map((seat, seatIndex) => {
         const pile = chipFactory.createStack(0, { mode: 'stack' });
-        pile.position.copy(computeSeatPotPileAnchor(potAnchor, seat, tableInfo?.surfaceY ?? TABLE_HEIGHT));
+        pile.position.copy(
+          computeSeatPotPileAnchor(potAnchor, seat, tableInfo?.surfaceY ?? TABLE_HEIGHT, {
+            seatIndex,
+            right: potRight,
+            forward: potForward
+          })
+        );
         pile.scale.setScalar(0.96);
         arenaGroup.add(pile);
         return pile;
