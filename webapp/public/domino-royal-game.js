@@ -68,7 +68,7 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FRAME_MANUAL_OVERRIDE_GRACE_MS = 20000;
-const ALLOW_AUTO_QUALITY_DOWNGRADE = false;
+const ALLOW_AUTO_QUALITY_DOWNGRADE = true;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function isTelegramRuntime() {
@@ -82,11 +82,58 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
-const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
-  tableClothTextureSize: 2048,
-  chairClothTextureSize: 2048,
-  dominoTextureSize: 2048
-});
+function getAdaptiveAssetResolution() {
+  if (typeof navigator === 'undefined') {
+    return {
+      tableClothTextureSize: 1024,
+      chairClothTextureSize: 1024,
+      dominoTextureSize: 1024
+    };
+  }
+
+  const memory =
+    typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const cores =
+    typeof navigator.hardwareConcurrency === 'number'
+      ? navigator.hardwareConcurrency
+      : null;
+  const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(
+    navigator.userAgent || ''
+  );
+  const lowProfile =
+    IS_TELEGRAM_RUNTIME ||
+    mobileUa ||
+    (memory !== null && memory <= 4) ||
+    (cores !== null && cores <= 4);
+  const highProfile =
+    !lowProfile &&
+    (memory === null || memory >= 8) &&
+    (cores === null || cores >= 8);
+
+  if (highProfile) {
+    return {
+      tableClothTextureSize: 2048,
+      chairClothTextureSize: 2048,
+      dominoTextureSize: 2048
+    };
+  }
+
+  if (lowProfile) {
+    return {
+      tableClothTextureSize: 1024,
+      chairClothTextureSize: 1024,
+      dominoTextureSize: 1024
+    };
+  }
+
+  return {
+    tableClothTextureSize: 1536,
+    chairClothTextureSize: 1536,
+    dominoTextureSize: 1536
+  };
+}
+
+const MURLAN_3D_ASSET_RESOLUTION = Object.freeze(getAdaptiveAssetResolution());
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -263,19 +310,15 @@ function detectPreferredFrameRateId() {
     ) {
       return 'hd50';
     }
-    if (
-      highRefresh &&
-      hardwareConcurrency >= 8 &&
-      (deviceMemory == null || deviceMemory >= 6)
-    ) {
-      return 'uhd120';
+    if (IS_TELEGRAM_RUNTIME) {
+      return 'fhd60';
     }
     if (
       highRefresh ||
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'fhd60';
     }
     return 'fhd60';
   }
@@ -1342,13 +1385,15 @@ try {
   throw error;
 }
 const prefersUhd = urlParams.get('uhd') === '1';
-renderer.shadowMap.enabled = !IS_TELEGRAM_RUNTIME;
+const useLightweightRenderPath =
+  IS_TELEGRAM_RUNTIME || MURLAN_3D_ASSET_RESOLUTION.tableClothTextureSize <= 1024;
+renderer.shadowMap.enabled = !useLightweightRenderPath;
 renderer.shadowMap.autoUpdate = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace; // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.85;
+renderer.toneMappingExposure = useLightweightRenderPath ? 1.7 : 1.85;
 function setRendererSize(quality = frameQuality) {
   const vv = window.visualViewport;
   const w = vv ? vv.width : window.innerWidth;
