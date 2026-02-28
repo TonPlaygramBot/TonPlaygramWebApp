@@ -49,6 +49,9 @@ export default function DominoRoyalArena() {
     document.body.appendChild(script);
 
     return () => {
+      if (typeof window.__dominoRoyalCleanup === 'function') {
+        window.__dominoRoyalCleanup('react-unmount');
+      }
       script.remove();
       if (appRoot) {
         appRoot.replaceChildren();

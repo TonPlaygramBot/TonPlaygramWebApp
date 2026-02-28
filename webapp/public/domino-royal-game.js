@@ -2385,11 +2385,11 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const resolutionOrder = isLowProfileDevice
-    ? ['4k', '2k', '1k']
-    : prefersUhd
-      ? ['8k', '4k', '2k', '1k']
-      : ['4k', '2k', '1k'];
+  const resolutionOrder = IS_TELEGRAM_RUNTIME
+    ? ['1k']
+    : isLowProfileDevice
+      ? ['1k']
+      : ['2k', '1k'];
   const candidates = resolutionOrder.map((resolution) => ({
     url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
     resolution
@@ -9316,9 +9316,63 @@ function monitorFrameHealth(elapsedMs, timing) {
 }
 
 /* ---------- Loop & Resize ---------- */
+let lastFrameTime = performance.now();
+let animationFrameId = null;
+let isGameShuttingDown = false;
+let runtimeListenersDetached = false;
+
+const runtimeMessageHandler = (event) => {
+  const message = event?.data;
+  if (typeof message === 'string' && /domino-royal:(close|exit|disconnect)/i.test(message)) {
+    shutdownDominoRoyal('message-close');
+  }
+  if (message?.type && /domino-royal:(close|exit|disconnect)/i.test(String(message.type))) {
+    shutdownDominoRoyal('message-close-type');
+  }
+};
+
+function detachRuntimeListeners() {
+  if (runtimeListenersDetached) return;
+  runtimeListenersDetached = true;
+  window.removeEventListener('resize', onResize);
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', onResize);
+  }
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  window.removeEventListener('pagehide', onLifecycleShutdown);
+  window.removeEventListener('beforeunload', onLifecycleShutdown);
+  window.removeEventListener('unload', onLifecycleShutdown);
+  window.removeEventListener('message', runtimeMessageHandler);
+}
+
+function shutdownDominoRoyal(reason = 'unknown') {
+  if (isGameShuttingDown) return;
+  isGameShuttingDown = true;
+  try {
+    if (typeof animationFrameId === 'number') {
+      cancelAnimationFrame(animationFrameId);
+    }
+    detachRuntimeListeners();
+    controls.enabled = false;
+    scene.visible = false;
+    if (seatOverlay?.parentNode) {
+      seatOverlay.parentNode.removeChild(seatOverlay);
+    }
+    if (reason === 'react-unmount') {
+      controls?.dispose?.();
+      renderer?.dispose?.();
+    }
+  } catch (error) {
+    console.warn('Domino Royal shutdown failed', reason, error);
+  }
+}
+
+window.__dominoRoyalCleanup = shutdownDominoRoyal;
+
 function tick(now) {
+  if (isGameShuttingDown) return;
   const current = Number.isFinite(now) ? now : performance.now();
-  requestAnimationFrame(tick);
+  animationFrameId = requestAnimationFrame(tick);
   if (contextLost || renderer.getContext?.()?.isContextLost?.()) {
     lastFrameTime = current;
     return;
@@ -9352,9 +9406,9 @@ function tick(now) {
     scheduleContextLossRecovery('render loop error');
   }
 }
-let lastFrameTime = performance.now();
-requestAnimationFrame(tick);
+
 function onResize() {
+  if (isGameShuttingDown) return;
   applyRendererQuality(frameQuality);
   if (entrySequenceActive) {
     fitCamera();
@@ -9386,13 +9440,25 @@ function onResize() {
   }
   updateSeatBadgePositions();
 }
-addEventListener('resize', onResize);
-if (window.visualViewport) {
-  visualViewport.addEventListener('resize', onResize);
-}
-document.addEventListener('visibilitychange', () => {
+
+function onVisibilityChange() {
   slowFrameAccumulatorMs = 0;
-});
+}
+
+function onLifecycleShutdown() {
+  shutdownDominoRoyal('page-lifecycle');
+}
+
+window.addEventListener('resize', onResize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onResize);
+}
+document.addEventListener('visibilitychange', onVisibilityChange);
+window.addEventListener('pagehide', onLifecycleShutdown);
+window.addEventListener('beforeunload', onLifecycleShutdown);
+window.addEventListener('unload', onLifecycleShutdown);
+window.addEventListener('message', runtimeMessageHandler);
+animationFrameId = requestAnimationFrame(tick);
 
 if (shouldRunHallwayEntry) {
   startHallwayEntry();
