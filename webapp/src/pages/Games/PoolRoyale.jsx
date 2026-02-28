@@ -28208,7 +28208,7 @@ const powerRef = useRef(hud.power);
           !shooting &&
           !shouldLockAiAim;
         const autoAimDir = shouldAutoAimPlayer
-          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: true })
+          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: false })
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
@@ -28404,7 +28404,7 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
           TMP_VEC3_CUE_SAMPLE_END
             .copy(tipTarget)
-            .addScaledVector(dirVec3, -cueLen);
+            .addScaledVector(dirVec3, -(cueLen + Math.max(pullDistance, 0)));
           const cushionBoxes = table?.userData?.cueObstructionBoxes ?? [];
           let minDistance = Infinity;
           for (let i = 0; i < sampleCount; i += 1) {
@@ -28427,7 +28427,7 @@ const powerRef = useRef(hud.power);
             }
             for (const box of cushionBoxes) {
               if (!box || typeof box.distanceToPoint !== 'function') continue;
-              const gap = box.distanceToPoint(point);
+              const gap = box.distanceToPoint(point) - CUE_OBSTRUCTION_POINT_RADIUS;
               if (gap < minDistance) minDistance = gap;
             }
           }
@@ -29095,7 +29095,13 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          if (!cueAnimating) cueStick.visible = false;
+          if (
+            !cueAnimating &&
+            !replayActive &&
+            !(ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
+          ) {
+            cueStick.visible = false;
+          }
           updateChalkVisibility(null);
         }
 
