@@ -5,8 +5,6 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2305,8 +2303,6 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/versioned/2021-04-15-ba1c3e4/';
-let sharedKtx2Loader = null;
 
 function applySRGBColorSpace(texture) {
   if (!texture) return;
@@ -2380,13 +2376,6 @@ function createPolyhavenGltfLoader({ assetId, resolution }) {
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  if (!sharedKtx2Loader) {
-    sharedKtx2Loader = new KTX2Loader();
-    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    sharedKtx2Loader.detectSupport(renderer);
-  }
-  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -9328,11 +9317,8 @@ function monitorFrameHealth(elapsedMs, timing) {
 
 /* ---------- Loop & Resize ---------- */
 function tick(now) {
-  if (isGameShuttingDown) {
-    return;
-  }
   const current = Number.isFinite(now) ? now : performance.now();
-  animationFrameId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
   if (contextLost || renderer.getContext?.()?.isContextLost?.()) {
     lastFrameTime = current;
     return;
@@ -9367,57 +9353,7 @@ function tick(now) {
   }
 }
 let lastFrameTime = performance.now();
-let animationFrameId = requestAnimationFrame(tick);
-let isGameShuttingDown = false;
-
-function disposeSceneTree(root) {
-  if (!root?.traverse) return;
-  root.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.geometry?.dispose?.();
-    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-    materials.forEach((material) => {
-      if (!material) return;
-      Object.values(material).forEach((value) => {
-        if (value?.isTexture) {
-          value.dispose?.();
-        }
-      });
-      material.dispose?.();
-    });
-  });
-}
-
-function shutdownDominoRoyal(reason = 'unknown') {
-  if (isGameShuttingDown) return;
-  isGameShuttingDown = true;
-  try {
-    if (typeof animationFrameId === 'number') {
-      cancelAnimationFrame(animationFrameId);
-    }
-    controls?.dispose?.();
-    disposeSceneTree(scene);
-    disposeSeatLabel({ persistPreference: false });
-    disposeSeatAvatars();
-    disposeSeatNameTags();
-    disposeSeatBadges();
-    while (chairs.length) {
-      const chair = chairs.pop();
-      chair?.parent?.remove(chair);
-      disposeChairResources(chair);
-    }
-    if (seatOverlay?.parentNode) {
-      seatOverlay.parentNode.removeChild(seatOverlay);
-    }
-    renderer?.dispose?.();
-    renderer?.forceContextLoss?.();
-  } catch (error) {
-    console.warn('Domino Royal shutdown failed', reason, error);
-  }
-}
-
-window.__dominoRoyalCleanup = shutdownDominoRoyal;
-
+requestAnimationFrame(tick);
 function onResize() {
   applyRendererQuality(frameQuality);
   if (entrySequenceActive) {
@@ -9454,27 +9390,8 @@ addEventListener('resize', onResize);
 if (window.visualViewport) {
   visualViewport.addEventListener('resize', onResize);
 }
-
-function onVisibilityChange() {
+document.addEventListener('visibilitychange', () => {
   slowFrameAccumulatorMs = 0;
-}
-
-function onLifecycleShutdown() {
-  shutdownDominoRoyal('page lifecycle');
-}
-
-document.addEventListener('visibilitychange', onVisibilityChange);
-window.addEventListener('pagehide', onLifecycleShutdown);
-window.addEventListener('beforeunload', onLifecycleShutdown);
-window.addEventListener('unload', onLifecycleShutdown);
-window.addEventListener('message', (event) => {
-  const message = event?.data;
-  if (typeof message === 'string' && /domino-royal:(close|exit|disconnect)/i.test(message)) {
-    shutdownDominoRoyal('postMessage');
-  }
-  if (message?.type && /domino-royal:(close|exit|disconnect)/i.test(String(message.type))) {
-    shutdownDominoRoyal('postMessage type');
-  }
 });
 
 if (shouldRunHallwayEntry) {
