@@ -28240,6 +28240,9 @@ const powerRef = useRef(hud.power);
             }
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
+              if (shouldAutoAimPlayer && cue?.active) {
+                alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
+              }
             }
           } else {
             const shouldAssistLegalAim =
@@ -28255,6 +28258,14 @@ const powerRef = useRef(hud.power);
             aimDir.lerp(desiredAim, aimLerpFactor);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
+              if (
+                shouldAssistLegalAim &&
+                isPlayerTurn &&
+                cue?.active &&
+                !shooting
+              ) {
+                alignStandingCameraToAim(cue, aimDir);
+              }
             }
           }
         }
