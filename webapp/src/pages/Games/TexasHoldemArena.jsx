@@ -5972,9 +5972,25 @@ function TexasHoldemArena({ search }) {
       setSliderValue(0);
       return;
     }
-    setChipSelection([]);
-    setSliderValue(defaultRaise);
-  }, [humanPlayer?.id, sliderMax, minRaiseAmount, gameState.stage, defaultRaise, sliderVisible]);
+    // Keep manual chip picks available from hand start until the player changes them,
+    // matching the slider behavior across turn changes.
+    setChipSelection((prev) => {
+      const next = [];
+      let total = 0;
+      for (const chip of prev) {
+        if (total + chip > sliderMax) break;
+        next.push(chip);
+        total += chip;
+      }
+      return next;
+    });
+    setSliderValue((prev) => {
+      if (gameState.stage === 'preflop' && gameState.handId >= 0 && prev <= 0) {
+        return defaultRaise;
+      }
+      return Math.max(0, Math.min(prev, sliderMax));
+    });
+  }, [humanPlayer?.id, gameState.handId, gameState.stage, sliderMax, defaultRaise, sliderVisible]);
 
   useEffect(() => {
     if (sliderMax <= 0 || !sliderVisible) return;
