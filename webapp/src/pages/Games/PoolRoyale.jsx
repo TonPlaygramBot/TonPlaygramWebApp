@@ -5464,6 +5464,8 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
+const PLAYER_CUE_MIN_PULLBACK_DISTANCE = BALL_R * 0.42;
+const PLAYER_CUE_MIN_FORWARD_DISTANCE = BALL_R * 0.22;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -6011,7 +6013,7 @@ function applyAxisClearance(
   }
 }
 
-function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
+function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, viewInput = null) {
   if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
   const spinAxes = axesInput || prepareSpinAxes(aimDir);
   const forward = spinAxes.axis;
@@ -6052,6 +6054,25 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
     }
     if (nearest !== Infinity) {
       applyAxisClearance(limits, axis.key, axis.positive, nearest);
+    }
+  }
+
+  if (viewInput) {
+    const view = new THREE.Vector2(viewInput.x ?? 0, viewInput.y ?? 0);
+    if (view.lengthSq() > 1e-8) {
+      view.normalize();
+      if (view.dot(lateral) < SPIN_VIEW_BLOCK_THRESHOLD) {
+        limits.maxX = Math.min(limits.maxX, 0);
+      }
+      if (view.dot(lateral.clone().multiplyScalar(-1)) < SPIN_VIEW_BLOCK_THRESHOLD) {
+        limits.minX = Math.max(limits.minX, 0);
+      }
+      if (view.dot(forward) < SPIN_VIEW_BLOCK_THRESHOLD) {
+        limits.maxY = Math.min(limits.maxY, 0);
+      }
+      if (view.dot(forward.clone().multiplyScalar(-1)) < SPIN_VIEW_BLOCK_THRESHOLD) {
+        limits.minY = Math.max(limits.minY, 0);
+      }
     }
   }
 
@@ -14747,6 +14768,7 @@ const powerRef = useRef(hud.power);
   const aiCuePullReadyAtRef = useRef(0);
   const aiRetryTimeoutRef = useRef(null);
   const aiSpinAdjustRef = useRef(null);
+  const aiAimAdjustRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
   const cameraBlendTweenRef = useRef(null);
@@ -14760,6 +14782,12 @@ const powerRef = useRef(hud.power);
     if (aiSpinAdjustRef.current) {
       cancelAnimationFrame(aiSpinAdjustRef.current);
       aiSpinAdjustRef.current = null;
+    }
+  }, []);
+  const cancelAiAimAdjust = useCallback(() => {
+    if (aiAimAdjustRef.current) {
+      cancelAnimationFrame(aiAimAdjustRef.current);
+      aiAimAdjustRef.current = null;
     }
   }, []);
 
@@ -14808,11 +14836,12 @@ const powerRef = useRef(hud.power);
       aiShotCueDropTimeoutRef.current = null;
     }
     cancelAiSpinAdjust();
+    cancelAiAimAdjust();
     cancelCameraBlendTween();
     aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
     setAiShotPreviewActive(false);
     setAiShotCueViewActive(false);
-  }, [setAiShotPreviewActive, setAiShotCueViewActive, cancelCameraBlendTween, cancelAiSpinAdjust]);
+  }, [setAiShotPreviewActive, setAiShotCueViewActive, cancelCameraBlendTween, cancelAiSpinAdjust, cancelAiAimAdjust]);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
@@ -21230,7 +21259,7 @@ const powerRef = useRef(hud.power);
                 );
                 cueStick.position.lerpVectors(followPos, idlePos, easeInOutCubic(t));
               } else {
-                cueStick.position.copy(pullPos);
+                cueStick.position.copy(idlePos);
               }
             }
             syncCueShadow();
@@ -21867,7 +21896,7 @@ const powerRef = useRef(hud.power);
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
-            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes, viewVec);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
               y: 0
@@ -24865,7 +24894,7 @@ const powerRef = useRef(hud.power);
             instant: true,
             preserveLarger: true
           });
-          const startPull = Math.max(cuePullCurrentRef.current ?? 0, pull);
+          const startPull = Math.max(cuePullCurrentRef.current ?? 0, pull, PLAYER_CUE_MIN_PULLBACK_DISTANCE);
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
@@ -24930,7 +24959,10 @@ const powerRef = useRef(hud.power);
             0,
             BALL_R * 0.33
           );
-          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const followDistance = Math.min(
+            Math.max(followThrough, PLAYER_CUE_MIN_FORWARD_DISTANCE),
+            CUE_TIP_GAP * 0.9
+          );
           const impactPos = buildCuePosition(-followDistance);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
@@ -27185,6 +27217,54 @@ const powerRef = useRef(hud.power);
           aiSpinAdjustRef.current = requestAnimationFrame(animate);
         };
 
+        const animateAiAimAdjustment = (basePlan, durationMs) => {
+          cancelAiAimAdjust();
+          const startTime = performance.now();
+          const fallbackDir = basePlan?.aimDir?.clone?.() ?? aimDirRef.current?.clone?.();
+          const step = (now) => {
+            const hudState = hudRef.current;
+            if (hudState?.turn !== 1 || shootingRef.current || !cue?.active) {
+              aiAimAdjustRef.current = null;
+              return;
+            }
+            const t = durationMs > 0
+              ? THREE.MathUtils.clamp((now - startTime) / durationMs, 0, 1)
+              : 1;
+            const options = evaluateShotOptions();
+            const refinedPlan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
+            const targetDir = refinedPlan?.aimDir ?? fallbackDir;
+            if (targetDir?.lengthSq?.() > 1e-6) {
+              targetDir.normalize();
+              const aimDir = aimDirRef.current;
+              if (aimDir.lengthSq() < 1e-6) {
+                aimDir.copy(targetDir);
+              } else {
+                const blend = THREE.MathUtils.lerp(0.2, 0.35, t);
+                aimDir.lerp(targetDir, blend);
+              }
+              if (aimDir.lengthSq() > 1e-6) {
+                aimDir.normalize();
+                alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
+                applySpinConstraints(aimDir, true);
+                updateCamera();
+              }
+            }
+            if (refinedPlan) {
+              aiPlanRef.current = {
+                ...refinedPlan,
+                aimDir: aimDirRef.current.clone(),
+                spin: refinedPlan.spin ?? basePlan?.spin ?? { x: 0, y: 0 }
+              };
+            }
+            if (t < 1) {
+              aiAimAdjustRef.current = requestAnimationFrame(step);
+            } else {
+              aiAimAdjustRef.current = null;
+            }
+          };
+          aiAimAdjustRef.current = requestAnimationFrame(step);
+        };
+
         aiShoot.current = () => {
           if (!aiOpponentEnabled) return;
           if (aiRetryTimeoutRef.current) {
@@ -27362,6 +27442,7 @@ const powerRef = useRef(hud.power);
               aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
               animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
+              animateAiAimAdjustment(plan, Math.max(220, shotDelay - dropDelay - 70));
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
@@ -28231,6 +28312,9 @@ const powerRef = useRef(hud.power);
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
+              if (cue?.active) {
+                alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
+              }
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
             if (shouldAutoAimPlayer) {
@@ -28241,7 +28325,7 @@ const powerRef = useRef(hud.power);
             }
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
-              if (shouldAutoAimPlayer && cue?.active) {
+              if ((shouldAutoAimPlayer || shouldAutoAimAi) && cue?.active) {
                 alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
               }
             }
