@@ -2369,17 +2369,8 @@ function prepareLoadedModel(model) {
   });
 }
 
-function createPolyhavenGltfLoader({ assetId, resolution }) {
-  const manager = new THREE.LoadingManager();
-  manager.setURLModifier((url) => {
-    if (!url || !assetId || !resolution) return url;
-    const normalized = String(url).replace(/^\.\//, '');
-    if (/^(https?:)?\/\//i.test(normalized) || normalized.startsWith('data:')) {
-      return url;
-    }
-    return `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${normalized}`;
-  });
-  const loader = new GLTFLoader(manager);
+function createPolyhavenGltfLoader() {
+  const loader = new GLTFLoader();
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
@@ -2387,32 +2378,41 @@ function createPolyhavenGltfLoader({ assetId, resolution }) {
   return loader;
 }
 
+function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
+  const ids = Array.from(new Set([assetId, assetId?.toLowerCase?.()]));
+  const urls = [];
+  ids.forEach((id) => {
+    if (!id) return;
+    resolutionOrder.forEach((resolution) => {
+      urls.push(
+        `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${id}/${id}_${resolution}.gltf`
+      );
+    });
+  });
+  return urls;
+}
+
 async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
-  if (polyhavenModelCache.has(assetId)) {
-    const cached = polyhavenModelCache.get(assetId);
+  const cacheKey = assetId.toLowerCase();
+  if (polyhavenModelCache.has(cacheKey)) {
+    const cached = polyhavenModelCache.get(cacheKey);
     return cached.clone(true);
   }
-  const resolutionOrder = IS_TELEGRAM_RUNTIME
+  const preferredResolutions = IS_TELEGRAM_RUNTIME
     ? ['1k']
     : isLowProfileDevice
       ? ['1k']
       : ['2k', '1k'];
-  const candidates = resolutionOrder.map((resolution) => ({
-    url: `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`,
-    resolution
-  }));
+  const candidates = buildPolyhavenModelUrls(assetId, preferredResolutions);
+  const loader = createPolyhavenGltfLoader();
   let gltf = null;
   let lastError = null;
-  for (const candidate of candidates) {
+  for (const candidateUrl of candidates) {
     try {
-      const loader = createPolyhavenGltfLoader({
-        assetId,
-        resolution: candidate.resolution
-      });
       const resolvedUrl = new URL(
-        candidate.url,
-        typeof window !== 'undefined' ? window.location?.href : candidate.url
+        candidateUrl,
+        typeof window !== 'undefined' ? window.location?.href : candidateUrl
       ).href;
       const resourcePath = resolvedUrl.substring(
         0,
@@ -2434,7 +2434,7 @@ async function loadPolyhavenModel(assetId) {
   const root = gltf.scene || gltf.scenes?.[0];
   if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
   prepareLoadedModel(root);
-  polyhavenModelCache.set(assetId, root);
+  polyhavenModelCache.set(cacheKey, root);
   return root.clone(true);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
