@@ -5464,8 +5464,6 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 980;
 const PLAYER_CUE_IMPACT_HOLD_MS = 420;
-const PLAYER_CUE_IMPACT_ARMING_RATIO = 0.97;
-const PLAYER_POST_IMPACT_CAMERA_HOLD_MS = 220;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -21410,8 +21408,7 @@ const powerRef = useRef(hud.power);
             pullbackDuration,
             strikeDuration,
             holdDuration,
-            recoverDuration,
-            impactArmingRatio: stroke.impactArmingRatio
+            recoverDuration
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -21428,7 +21425,7 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'release') {
-            const eased = sample.t;
+            const eased = easeOutCubic(sample.t);
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
@@ -25003,10 +25000,7 @@ const powerRef = useRef(hud.power);
               actionView.pendingActivation = true;
               const baseDelay = actionView.activationDelay ?? null;
               const delayed = requiresCueBallMovementTrigger
-                ? Math.max(
-                    baseDelay ?? 0,
-                    impactTime + PLAYER_POST_IMPACT_CAMERA_HOLD_MS
-                  )
+                ? baseDelay ?? 0
                 : Math.max(baseDelay ?? 0, holdUntil ?? 0);
               actionView.activationDelay = delayed > 0 ? delayed : null;
               const baseTravel = actionView.activationTravel ?? 0;
@@ -25054,8 +25048,7 @@ const powerRef = useRef(hud.power);
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
-              wobbleAmount: 0.0018,
-              impactArmingRatio: PLAYER_CUE_IMPACT_ARMING_RATIO
+              wobbleAmount: 0.0018
             };
           } else {
             cueStick.visible = false;
