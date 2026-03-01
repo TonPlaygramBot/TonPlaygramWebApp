@@ -6868,7 +6868,10 @@ function disposeChairResources(root) {
       if (!material) return;
       CHAIR_TEXTURE_PROPS.forEach((prop) => {
         const texture = material[prop];
-        if (texture?.isTexture) {
+        // GLTF material clones share underlying texture instances.
+        // Disposing them here can blank textures on active chairs and cached templates.
+        // Only dispose textures explicitly marked as disposable by this game.
+        if (texture?.isTexture && texture.userData?.dominoCanDispose === true) {
           texture.dispose();
         }
       });
