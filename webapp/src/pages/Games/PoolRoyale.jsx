@@ -14301,6 +14301,10 @@ function PoolRoyaleGame({
     player: { index: 0, lastTargetId: null },
     ai: { index: 0, lastTargetId: null }
   });
+  const autoAimSelectionRef = useRef({
+    player: { targetId: null, score: 0 },
+    ai: { targetId: null, score: 0 }
+  });
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
@@ -14341,6 +14345,8 @@ useEffect(() => {
     aiTurnShotCountRef.current = 0;
     autoAimCycleRef.current.player = { index: 0, lastTargetId: null };
     autoAimCycleRef.current.ai = { index: 0, lastTargetId: null };
+    autoAimSelectionRef.current.player = { targetId: null, score: 0 };
+    autoAimSelectionRef.current.ai = { targetId: null, score: 0 };
     lastTurnRef.current = hud.turn;
   }
 }, [hud.turn]);
@@ -21383,64 +21389,16 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return false;
           }
-          const {
-            startTime,
-            idlePos,
-            pullPos,
-            impactPos,
-            pullbackDuration,
-            strikeDuration,
-            holdDuration,
-            baseRotationX,
-            baseRotationY,
-            strikeDip,
-            wobbleAmount
-          } = stroke;
-          const pullback = Math.max(0, pullbackDuration ?? 0);
-          const release = Math.max(0, strikeDuration ?? 120);
-          const hold = Math.max(0, holdDuration ?? 50);
-          const elapsed = Math.max(0, now - startTime);
-          const pullEnd = pullback;
-          const releaseEnd = pullEnd + release;
-          const holdEnd = releaseEnd + hold;
           cueStick.visible = true;
           cueAnimating = true;
-          const hitAt = pullEnd + release * 0.9;
-          if (!stroke.shotApplied && elapsed >= hitAt) {
-            stroke.shotApplied = true;
-            stroke.onImpact?.();
-          }
-          if (elapsed <= pullEnd && pullback > 0) {
-            const t = THREE.MathUtils.clamp(elapsed / Math.max(pullback, 1e-6), 0, 1);
-            const eased = easeInOutCubic(t);
-            cueStick.position.lerpVectors(idlePos, pullPos, eased);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+          const sample = sampleCueStrokeState(stroke, now);
+          cueStick.position.copy(sample.pos);
+          cueStick.rotation.x = sample.rotX ?? cueStick.rotation.x;
+          cueStick.rotation.y = sample.rotY ?? cueStick.rotation.y;
+          if (!sample.done) {
             syncCueShadow();
             return true;
           }
-          if (elapsed <= releaseEnd && release > 0) {
-            const releaseElapsed = elapsed - pullEnd;
-            const t = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1);
-            const eased = easeOutCubic(t);
-            const wobble = Math.sin(t * Math.PI) * (wobbleAmount ?? 0.0018);
-            cueStick.position.lerpVectors(pullPos, impactPos, eased);
-            cueStick.position.y -= (strikeDip ?? 0.003) * eased;
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
-            syncCueShadow();
-            return true;
-          }
-          if (elapsed <= holdEnd && hold > 0) {
-            cueStick.position.copy(impactPos);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-            syncCueShadow();
-            return true;
-          }
-          cueStick.position.copy(idlePos);
-          cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-          cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
           syncCueShadow();
           cueStick.visible = true;
           cueAnimating = false;
@@ -24378,6 +24336,95 @@ const powerRef = useRef(hud.power);
       const easeInOutCubic = (t) =>
         t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+      const buildCueStrokeState = ({
+        startTime,
+        idlePos,
+        pullPos,
+        impactPos,
+        followPos,
+        pullbackDuration,
+        strikeDuration,
+        holdDuration,
+        recoverDuration,
+        baseRotationX,
+        baseRotationY,
+        strikeDip = 0.003,
+        wobbleAmount = 0.0018,
+        onImpact = null
+      }) => ({
+        startTime,
+        idlePos: idlePos.clone(),
+        pullPos: pullPos.clone(),
+        impactPos: impactPos.clone(),
+        followPos: followPos.clone(),
+        pullbackDuration: Math.max(0, pullbackDuration ?? 0),
+        strikeDuration: Math.max(0, strikeDuration ?? 120),
+        holdDuration: Math.max(0, holdDuration ?? 45),
+        recoverDuration: Math.max(0, recoverDuration ?? 70),
+        baseRotationX,
+        baseRotationY,
+        strikeDip,
+        wobbleAmount,
+        onImpact,
+        shotApplied: false
+      });
+      const sampleCueStrokeState = (stroke, now) => {
+        const elapsed = Math.max(0, now - (stroke.startTime ?? now));
+        const pullEnd = stroke.pullbackDuration;
+        const releaseEnd = pullEnd + stroke.strikeDuration;
+        const holdEnd = releaseEnd + stroke.holdDuration;
+        const recoverEnd = holdEnd + stroke.recoverDuration;
+        const impactAt = pullEnd + stroke.strikeDuration * 0.82;
+        if (!stroke.shotApplied && elapsed >= impactAt) {
+          stroke.shotApplied = true;
+          stroke.onImpact?.();
+        }
+        if (elapsed <= pullEnd && stroke.pullbackDuration > 0) {
+          const t = THREE.MathUtils.clamp(elapsed / Math.max(stroke.pullbackDuration, 1e-6), 0, 1);
+          return {
+            pos: stroke.idlePos.clone().lerp(stroke.pullPos, easeInOutCubic(t)),
+            rotY: stroke.baseRotationY,
+            rotX: stroke.baseRotationX,
+            done: false
+          };
+        }
+        if (elapsed <= releaseEnd && stroke.strikeDuration > 0) {
+          const t = THREE.MathUtils.clamp((elapsed - pullEnd) / Math.max(stroke.strikeDuration, 1e-6), 0, 1);
+          const eased = easeOutCubic(t);
+          const pos = stroke.pullPos.clone().lerp(stroke.impactPos, eased);
+          pos.y -= (stroke.strikeDip ?? 0) * eased;
+          return {
+            pos,
+            rotY: (stroke.baseRotationY ?? 0) + Math.sin(t * Math.PI) * (stroke.wobbleAmount ?? 0),
+            rotX: stroke.baseRotationX,
+            done: false
+          };
+        }
+        if (elapsed <= holdEnd && stroke.holdDuration > 0) {
+          const t = THREE.MathUtils.clamp((elapsed - releaseEnd) / Math.max(stroke.holdDuration, 1e-6), 0, 1);
+          return {
+            pos: stroke.impactPos.clone().lerp(stroke.followPos, easeOutCubic(t)),
+            rotY: stroke.baseRotationY,
+            rotX: stroke.baseRotationX,
+            done: false
+          };
+        }
+        if (elapsed <= recoverEnd && stroke.recoverDuration > 0) {
+          const t = THREE.MathUtils.clamp((elapsed - holdEnd) / Math.max(stroke.recoverDuration, 1e-6), 0, 1);
+          return {
+            pos: stroke.followPos.clone().lerp(stroke.idlePos, easeInOutCubic(t)),
+            rotY: stroke.baseRotationY,
+            rotX: stroke.baseRotationX,
+            done: false
+          };
+        }
+        return {
+          pos: stroke.idlePos.clone(),
+          rotY: stroke.baseRotationY,
+          rotX: stroke.baseRotationX,
+          done: true
+        };
+      };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -25013,12 +25060,12 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
-            cueStrokeStateRef.current = {
+            cueStrokeStateRef.current = buildCueStrokeState({
               startTime,
-              idlePos: idlePos.clone(),
-              pullPos: pullPos.clone(),
-              impactPos: impactPos.clone(),
-              followPos: followPos.clone(),
+              idlePos,
+              pullPos,
+              impactPos,
+              followPos,
               pullbackDuration,
               strikeDuration,
               holdDuration: followDurationResolved,
@@ -25026,8 +25073,9 @@ const powerRef = useRef(hud.power);
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
-              wobbleAmount: 0.0018
-            };
+              wobbleAmount: 0.0018,
+              onImpact: fireShot
+            });
           } else {
             cueStick.visible = false;
             cueAnimating = false;
@@ -26674,7 +26722,7 @@ const powerRef = useRef(hud.power);
           if (!cuePos) return null;
 
           const turnOwner = options?.turnOwner === 'ai' ? 'ai' : 'player';
-          const cycleToNext = options?.cycleToNext ?? (turnOwner === 'player');
+          const cycleToNext = options?.cycleToNext ?? false;
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
@@ -26783,6 +26831,41 @@ const powerRef = useRef(hud.power);
                     : 0.25);
               return score > bestScore ? ball : best;
             }, null);
+          const computeCandidateScore = (ball) => {
+            if (!ball) return -Infinity;
+            const pathFactor = isDirectFirstContact(ball)
+              ? 1.35
+              : isDirectLaneOpen(ball)
+                ? 0.88
+                : 0.28;
+            return scoreBallForAim(ball, cuePos) * pathFactor;
+          };
+          const pickStableTarget = (nextBall) => {
+            if (!nextBall) {
+              autoAimSelectionRef.current[turnOwner] = { targetId: null, score: 0 };
+              return null;
+            }
+            const stableState = autoAimSelectionRef.current[turnOwner] ?? {
+              targetId: null,
+              score: 0
+            };
+            const incumbent = candidateBalls.find(
+              (ball) => String(ball.id) === String(stableState.targetId)
+            );
+            const nextScore = computeCandidateScore(nextBall);
+            const incumbentScore = computeCandidateScore(incumbent);
+            const keepIncumbent =
+              incumbent &&
+              incumbent.active &&
+              incumbentScore > 0 &&
+              incumbentScore >= nextScore * 0.9;
+            const selected = keepIncumbent ? incumbent : nextBall;
+            autoAimSelectionRef.current[turnOwner] = {
+              targetId: selected?.id ?? null,
+              score: computeCandidateScore(selected)
+            };
+            return selected;
+          };
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
               const matches = candidateBalls.filter(
@@ -26914,9 +26997,10 @@ const powerRef = useRef(hud.power);
               };
             }
           } else if (targetBall) {
+            targetBall = pickStableTarget(targetBall);
             autoAimCycleRef.current[turnOwner] = {
               index: 0,
-              lastTargetId: targetBall.id
+              lastTargetId: targetBall?.id ?? null
             };
           }
 
@@ -28191,7 +28275,7 @@ const powerRef = useRef(hud.power);
           !shooting &&
           !shouldLockAiAim;
         const autoAimDir = shouldAutoAimPlayer
-          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: true })
+          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: false })
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
