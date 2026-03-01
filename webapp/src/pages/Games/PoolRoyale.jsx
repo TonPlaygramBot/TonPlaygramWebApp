@@ -5452,13 +5452,13 @@ const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_SCALE = 0.72;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_STROKE_TIME_SCALE = 1;
-const PLAYER_FORWARD_SLOWDOWN = 1.22;
+const PLAYER_STROKE_TIME_SCALE = 1.55;
+const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
-const PLAYER_CUE_PULLBACK_DURATION_MS = 170;
-const PLAYER_CUE_RELEASE_DURATION_MS = 280;
-const PLAYER_CUE_IMPACT_HOLD_MS = 150;
+const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
+const PLAYER_CUE_RELEASE_DURATION_MS = 980;
+const PLAYER_CUE_IMPACT_HOLD_MS = 420;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -19112,26 +19112,11 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const focusTarget =
-            focusOverride?.clone?.() ??
-            TMP_VEC3_TOP_VIEW
-              .set(
-                playerOffsetRef.current + REPLAY_TOP_VIEW_SCREEN_OFFSET.x,
-                ORBIT_FOCUS_BASE_Y,
-                REPLAY_TOP_VIEW_SCREEN_OFFSET.z
-              )
-              .multiplyScalar(scale);
-          if (focusTarget && Number.isFinite(minTargetY)) {
-            focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
-          }
-          const topRadiusBase = fitRadius(camera, REPLAY_TOP_VIEW_MARGIN) * REPLAY_TOP_VIEW_RADIUS_SCALE;
-          const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * REPLAY_TOP_VIEW_MIN_RADIUS_SCALE)
-          );
-          const spherical = new THREE.Spherical(topRadius, REPLAY_TOP_VIEW_RESOLVED_PHI, Math.PI);
-          const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
-          return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
+          // Keep replay 2D framing locked to the active broadcast top-view profile.
+          return resolveBroadcastTopViewCamera({
+            focusOverride,
+            minTargetY
+          });
         };
 
         const resolveBroadcastTopViewCamera = ({
@@ -21581,20 +21566,17 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const overheadReplayCamera =
-            !LOCK_REPLAY_CAMERA || FIXED_RAIL_REPLAY_CAMERA
-              ? resolveRailOverheadReplayCamera({
-                focusOverride: storedTarget,
-                minTargetY
-                })
-              : null;
-          if (overheadReplayCamera?.position) {
-            storedPosition = overheadReplayCamera.position.clone();
-            if (overheadReplayCamera?.target) {
-              storedTarget.copy(overheadReplayCamera.target);
+          const broadcastReplayCamera = resolveBroadcastTopViewCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
+          if (broadcastReplayCamera?.position) {
+            storedPosition = broadcastReplayCamera.position.clone();
+            if (broadcastReplayCamera?.target) {
+              storedTarget.copy(broadcastReplayCamera.target);
             }
-            storedFov = Number.isFinite(overheadReplayCamera?.fov)
-              ? overheadReplayCamera.fov
+            storedFov = Number.isFinite(broadcastReplayCamera?.fov)
+              ? broadcastReplayCamera.fov
               : storedFov;
           }
           if (storedPosition && storedPosition.y < minTargetY) {
@@ -26692,7 +26674,7 @@ const powerRef = useRef(hud.power);
           if (!cuePos) return null;
 
           const turnOwner = options?.turnOwner === 'ai' ? 'ai' : 'player';
-          const cycleToNext = Boolean(options?.cycleToNext);
+          const cycleToNext = options?.cycleToNext ?? (turnOwner === 'player');
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
@@ -26717,6 +26699,16 @@ const powerRef = useRef(hud.power);
               }
             }
             return true;
+          };
+          const isDirectFirstContact = (target) => {
+            if (!target || !cue?.active) return false;
+            const dir = new THREE.Vector2(target.pos.x - cuePos.x, target.pos.y - cuePos.y);
+            if (dir.lengthSq() < 1e-6) return false;
+            const contact = calcTarget(cue, dir.normalize(), activeBalls);
+            return Boolean(
+              contact?.targetBall &&
+                String(contact.targetBall.id) === String(target.id)
+            );
           };
 
           const activeVariantId =
@@ -26777,16 +26769,26 @@ const powerRef = useRef(hud.power);
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
-                (isDirectLaneOpen(best) ? 1 : 0.35);
+                (isDirectFirstContact(best)
+                  ? 1.25
+                  : isDirectLaneOpen(best)
+                    ? 0.85
+                    : 0.25);
               const score =
                 scoreBallForAim(ball, cuePos) *
-                (isDirectLaneOpen(ball) ? 1 : 0.35);
+                (isDirectFirstContact(ball)
+                  ? 1.25
+                  : isDirectLaneOpen(ball)
+                    ? 0.85
+                    : 0.25);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
               const matches = candidateBalls.filter(
-                (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
+                (ball) =>
+                  matchesTargetId(ball, targetId) &&
+                  (isDirectFirstContact(ball) || isDirectLaneOpen(ball))
               );
               if (matches.length > 0) {
                 return matches.reduce((best, ball) => {
@@ -26859,7 +26861,7 @@ const powerRef = useRef(hud.power);
             targetBall = pickFallbackBall();
           }
 
-          if (targetBall && !isDirectLaneOpen(targetBall)) {
+          if (targetBall && !isDirectFirstContact(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
               pickPreferredBall(combinedTargets, candidateBalls, cuePos) ||
@@ -26875,9 +26877,19 @@ const powerRef = useRef(hud.power);
               )
               .sort((a, b) => {
                 const scoreA =
-                  scoreBallForAim(a, cuePos) * (isDirectLaneOpen(a) ? 1 : 0.35);
+                  scoreBallForAim(a, cuePos) *
+                  (isDirectFirstContact(a)
+                    ? 1.3
+                    : isDirectLaneOpen(a)
+                      ? 0.8
+                      : 0.2);
                 const scoreB =
-                  scoreBallForAim(b, cuePos) * (isDirectLaneOpen(b) ? 1 : 0.35);
+                  scoreBallForAim(b, cuePos) *
+                  (isDirectFirstContact(b)
+                    ? 1.3
+                    : isDirectLaneOpen(b)
+                      ? 0.8
+                      : 0.2);
                 return scoreB - scoreA;
               });
             const rotationPool = rankedLegalBalls.length > 0 ? rankedLegalBalls : candidateBalls;
@@ -26914,7 +26926,11 @@ const powerRef = useRef(hud.power);
             targetBall.pos.y - cuePos.y
           );
           if (dir.lengthSq() < 1e-6) return null;
-          return dir.normalize();
+          const normalized = dir.normalize();
+          const firstContact = calcTarget(cue, normalized, activeBalls);
+          if (!firstContact?.targetBall) return null;
+          if (String(firstContact.targetBall.id) !== String(targetBall.id)) return null;
+          return normalized;
         };
         const resolveLegalPlayerAimDirection = (baseDir = null) => {
           if (!cue?.active) return baseDir;
@@ -26959,17 +26975,21 @@ const powerRef = useRef(hud.power);
           if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
           const cuePos = cue?.pos ? new THREE.Vector2(cue.pos.x, cue.pos.y) : null;
           if (!cuePos) return normalizedBase;
-          const nearestBall = activeBalls.reduce((best, ball) => {
-            if (!isLegalTargetBall(ball) || !ball?.pos) return best;
-            if (!best) return ball;
-            return cuePos.distanceToSquared(ball.pos) < cuePos.distanceToSquared(best.pos)
-              ? ball
-              : best;
-          }, null);
-          if (!nearestBall) return normalizedBase;
+          const nearestLegalBall = activeBalls
+            .filter((ball) => isLegalTargetBall(ball) && ball?.pos)
+            .sort(
+              (a, b) => cuePos.distanceToSquared(a.pos) - cuePos.distanceToSquared(b.pos)
+            )
+            .find((ball) => {
+              const dir = new THREE.Vector2(ball.pos.x - cuePos.x, ball.pos.y - cuePos.y);
+              if (dir.lengthSq() <= 1e-6) return false;
+              const contact = calcTarget(cue, dir.clone().normalize(), activeBalls);
+              return contact?.targetBall && String(contact.targetBall.id) === String(ball.id);
+            });
+          if (!nearestLegalBall) return normalizedBase;
           const fallback = new THREE.Vector2(
-            nearestBall.pos.x - cuePos.x,
-            nearestBall.pos.y - cuePos.y
+            nearestLegalBall.pos.x - cuePos.x,
+            nearestLegalBall.pos.y - cuePos.y
           );
           return fallback.lengthSq() > 1e-6 ? fallback.normalize() : normalizedBase;
         };
@@ -27017,18 +27037,19 @@ const powerRef = useRef(hud.power);
             const autoDir = resolveAutoAimDirection();
             if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
             const cuePos = new THREE.Vector2(cue.pos.x, cue.pos.y);
-            const nearestBall = activeBalls.reduce((best, ball) => {
-              if (!ball?.pos) return best;
-              if (!isLegalTargetBall(ball)) return best;
-              if (!best) return ball;
-              const bestDist = cuePos.distanceToSquared(best.pos);
-              const dist = cuePos.distanceToSquared(ball.pos);
-              return dist < bestDist ? ball : best;
-            }, null);
-            if (!nearestBall) return normalized;
+            const nearestLegalBall = activeBalls
+              .filter((ball) => isLegalTargetBall(ball) && ball?.pos)
+              .sort((a, b) => cuePos.distanceToSquared(a.pos) - cuePos.distanceToSquared(b.pos))
+              .find((ball) => {
+                const dirToBall = new THREE.Vector2(ball.pos.x - cuePos.x, ball.pos.y - cuePos.y);
+                if (dirToBall.lengthSq() <= 1e-6) return false;
+                const contact = calcTarget(cue, dirToBall.clone().normalize(), activeBalls);
+                return contact?.targetBall && String(contact.targetBall.id) === String(ball.id);
+              });
+            if (!nearestLegalBall) return normalized;
             const fallbackDir = new THREE.Vector2(
-              nearestBall.pos.x - cuePos.x,
-              nearestBall.pos.y - cuePos.y
+              nearestLegalBall.pos.x - cuePos.x,
+              nearestLegalBall.pos.y - cuePos.y
             );
             return fallbackDir.lengthSq() > 1e-6 ? fallbackDir.normalize() : normalized;
           };
@@ -27051,18 +27072,19 @@ const powerRef = useRef(hud.power);
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
               : null;
             if (!cuePos || !Array.isArray(activeBalls)) return false;
-            const nearestBall = activeBalls.reduce((best, ball) => {
-              if (!ball?.pos) return best;
-              if (!isLegalTargetBall(ball)) return best;
-              if (!best) return ball;
-              const bestDist = cuePos.distanceToSquared(best.pos);
-              const dist = cuePos.distanceToSquared(ball.pos);
-              return dist < bestDist ? ball : best;
-            }, null);
-            if (!nearestBall) return false;
+            const nearestLegalBall = activeBalls
+              .filter((ball) => isLegalTargetBall(ball) && ball?.pos)
+              .sort((a, b) => cuePos.distanceToSquared(a.pos) - cuePos.distanceToSquared(b.pos))
+              .find((ball) => {
+                const dirToBall = new THREE.Vector2(ball.pos.x - cuePos.x, ball.pos.y - cuePos.y);
+                if (dirToBall.lengthSq() <= 1e-6) return false;
+                const contact = calcTarget(cue, dirToBall.clone().normalize(), activeBalls);
+                return contact?.targetBall && String(contact.targetBall.id) === String(ball.id);
+              });
+            if (!nearestLegalBall) return false;
             const dir = new THREE.Vector2(
-              nearestBall.pos.x - cuePos.x,
-              nearestBall.pos.y - cuePos.y
+              nearestLegalBall.pos.x - cuePos.x,
+              nearestLegalBall.pos.y - cuePos.y
             );
             return applyAimDirection(dir, null);
           };
@@ -28169,7 +28191,7 @@ const powerRef = useRef(hud.power);
           !shooting &&
           !shouldLockAiAim;
         const autoAimDir = shouldAutoAimPlayer
-          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: false })
+          ? resolveAutoAimDirection({ turnOwner: 'player', cycleToNext: true })
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
