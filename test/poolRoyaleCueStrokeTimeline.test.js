@@ -23,6 +23,13 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(postHit.hitArmed).toBe(true);
   });
 
+
+  it('arms impact before the very end of release so forward push is visible', () => {
+    const armed = sampleCueStrokeTimeline({ elapsed: 283, ...options });
+    expect(armed.phase).toBe('release');
+    expect(armed.hitArmed).toBe(true);
+  });
+
   it('enters recover then done', () => {
     const recovering = sampleCueStrokeTimeline({ elapsed: 430, ...options });
     const done = sampleCueStrokeTimeline({ elapsed: 510, ...options });
