@@ -390,7 +390,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.34 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.02 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.88, landscape: 0.14 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 0.92 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -6287,7 +6287,7 @@ function TexasHoldemArena({ search }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-14 landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+0.2rem)] left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
+      <div className="absolute bottom-14 landscape:bottom-2 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
@@ -6304,7 +6304,7 @@ function TexasHoldemArena({ search }) {
         </div>
       </div>
       {sliderVisible && (
-        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.15rem)] sm:right-6 sm:bottom-36 sm:landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.7rem)]">
+        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white landscape:bottom-4 sm:right-6 sm:bottom-36 sm:landscape:bottom-8">
           <div className="flex flex-col items-center gap-3">
             <input
               type="range"
