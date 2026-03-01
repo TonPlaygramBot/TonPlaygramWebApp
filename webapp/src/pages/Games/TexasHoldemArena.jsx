@@ -377,7 +377,7 @@ const HUMAN_BET_FORWARD_OFFSET = CARD_W * 0.88;
 const HUMAN_BET_CLUSTER_SCALE = 0.88;
 const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_LABEL_FORWARD_OFFSET = CARD_H * -0.48;
+const POT_LABEL_FORWARD_OFFSET = 0;
 const POT_LABEL_RIGHT_OFFSET = 0;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
@@ -559,7 +559,7 @@ const CHIP_RAIL_LAYOUT = Object.freeze({
   lift: 0
 });
 
-const SHOWDOWN_RESET_DELAY = 6500;
+const SHOWDOWN_RESET_DELAY = 9200;
 const PLAYER_ACTION_REVEAL_DELAY_MS = 1500;
 const AI_ACTION_DELAY_MS = 4200;
 const AI_ACTION_DELAY_JITTER_MS = 700;
@@ -639,6 +639,7 @@ const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
 const SHOWDOWN_WINNER_CARD_Y_OFFSET = CARD_H * 0.82;
 const SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET = CARD_H * 1.62;
 const SHOWDOWN_WINNER_SPACING = HOLE_SPACING * 2.5;
+const SHOWDOWN_CARD_STAND_TILT = THREE.MathUtils.degToRad(10);
 const HUMAN_TURN_RAIL_FOCUS_BLEND = 0.48;
 const HUMAN_TURN_RAIL_FOCUS_DROP = CARD_H * 0.28;
 const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
@@ -1958,6 +1959,20 @@ function computeSeatPotPileAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT,
     .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
 }
 
+function computeSeatPotDropAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT, options = {}) {
+  const baseAnchor = computeSeatPotPileAnchor(potAnchor, seat, tableSurfaceY, options);
+  const index = Number.isFinite(options?.pileIndex) ? Math.max(0, Math.floor(options.pileIndex)) : 0;
+  const right = (options?.right ?? new THREE.Vector3(1, 0, 0)).clone().setY(0).normalize();
+  const forwardAxis = (options?.forward ?? new THREE.Vector3(0, 0, 1)).clone().setY(0).normalize();
+  const laneDirection = index % 2 === 0 ? 1 : -1;
+  const depthStep = Math.floor(index / 2);
+  return baseAnchor
+    .clone()
+    .addScaledVector(right, laneDirection * CARD_W * 0.14)
+    .addScaledVector(forwardAxis, depthStep * CARD_D * 1.2)
+    .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
+}
+
 function makeNameplate(name, chips, renderer, avatar) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -2230,11 +2245,11 @@ function createRailTextSprite(initialLines = [], options = {}) {
     const totalPotLabel = 'TOTAL POT';
     const iconSize = 154 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
-    const amountFont = `900 ${122 * resolutionScale}px "Inter", system-ui, sans-serif`;
-    const totalPotFont = `900 ${122 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    const amountFont = `900 ${134 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    const totalPotFont = `900 ${136 * resolutionScale}px "Inter", system-ui, sans-serif`;
     const iconGap = 34 * resolutionScale;
     const amountBaseY = canvas.height / 2 + 4 * resolutionScale;
-    const totalPotY = canvas.height / 2 - 124 * resolutionScale;
+    const totalPotY = canvas.height / 2 - 134 * resolutionScale;
     ctx.font = amountFont;
     const amountWidth = ctx.measureText(amountLabel).width;
     const blockWidth = iconSize + iconGap + amountWidth;
@@ -4531,7 +4546,9 @@ function TexasHoldemArena({ search }) {
           folded: false,
           lastStatus: '',
           tableInfo,
-          isBottomSideOpponent: Boolean(seat.isBottomSideOpponent)
+          isBottomSideOpponent: Boolean(seat.isBottomSideOpponent),
+          potDropPiles: [],
+          potDropCount: 0
         };
         seatGroups.push(seatGroup);
 
@@ -4671,15 +4688,15 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(potRight, FOLD_PILE_RIGHT_OFFSET)
         .setY((tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_SURFACE_OFFSET * 0.2);
         const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
-          width: (2.4 * MODEL_SCALE) / 3,
-          height: (0.9 * MODEL_SCALE) / 3
+          width: (3.4 * MODEL_SCALE) / 3,
+          height: (1.3 * MODEL_SCALE) / 3
         });
         potLabel.position.copy(
           potAnchor
             .clone()
             .addScaledVector(potForward, POT_LABEL_FORWARD_OFFSET)
             .addScaledVector(potRight, POT_LABEL_RIGHT_OFFSET)
-            .add(new THREE.Vector3(0, CARD_H * 0.84, 0))
+            .add(new THREE.Vector3(0, CARD_H * 0.74, 0))
         );
         const potLabelLook = potLabel.position.clone().add(potForward);
         orientCard(potLabel, potLabelLook, { face: 'front', flat: true });
@@ -5100,6 +5117,12 @@ function TexasHoldemArena({ search }) {
           factory.disposeStack(seat.chipStack);
           factory.disposeStack(seat.betStack);
           factory.disposeStack(seat.previewStack);
+          if (Array.isArray(seat.potDropPiles)) {
+            seat.potDropPiles.forEach((entry) => {
+              factory.disposeStack(entry.stack);
+              entry.stack?.parent?.remove?.(entry.stack);
+            });
+          }
           seat.chairMeshes?.forEach((mesh) => {
             mesh.geometry?.dispose?.();
             mesh.parent?.remove(mesh);
@@ -5164,6 +5187,14 @@ function TexasHoldemArena({ search }) {
         if (pile) {
           chipFactory.setAmount(pile, 0, { mode: 'stack' });
         }
+        if (Array.isArray(seat.potDropPiles) && seat.potDropPiles.length) {
+          seat.potDropPiles.forEach((entry) => {
+            chipFactory.disposeStack(entry.stack);
+            entry.stack.parent?.remove(entry.stack);
+          });
+          seat.potDropPiles = [];
+        }
+        seat.potDropCount = 0;
       });
     }
     if (potLabel?.userData?.update) {
@@ -5280,15 +5311,23 @@ function TexasHoldemArena({ search }) {
         }
         mesh.position.copy(position);
         const humanActiveTurn = seat.isHuman && state.stage !== 'showdown' && idx === state.actionIndex;
-        const lookTarget = seat.isHuman
-          ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
-          : position.clone().add(seat.forward.clone());
-        const face = seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: true });
-        if (!seat.isHuman && face === 'front') {
+        const showdownFacing = humanSeatRef.current?.forward
+          ? humanSeatRef.current.forward.clone()
+          : new THREE.Vector3(0, 0, 1);
+        const isShowdownReveal = state.showdown;
+        const lookTarget = isShowdownReveal
+          ? position.clone().add(showdownFacing)
+          : seat.isHuman
+            ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
+            : position.clone().add(seat.forward.clone());
+        const face = seat.isHuman || isShowdownReveal ? 'front' : 'back';
+        orientCard(mesh, lookTarget, { face, flat: !isShowdownReveal });
+        if (!seat.isHuman && face === 'front' && !isShowdownReveal) {
           mesh.rotateY(Math.PI);
         }
-        if (seat.isHuman) {
+        if (isShowdownReveal) {
+          mesh.rotateX(SHOWDOWN_CARD_STAND_TILT);
+        } else if (seat.isHuman) {
           animateHumanCardPosture(mesh, humanActiveTurn ? HUMAN_CARD_FACE_TILT : 0);
         }
         setCardFace(mesh, face);
@@ -5330,6 +5369,36 @@ function TexasHoldemArena({ search }) {
             seat.potContribution = nextContribution;
             chipFactory.setAmount(targetPile, nextContribution, { mode: 'stack' });
           }
+          if (!Array.isArray(seat.potDropPiles)) {
+            seat.potDropPiles = [];
+          }
+          const pileIndex = seat.potDropCount ?? 0;
+          const dropStack = chipFactory.createStack(0, { mode: 'stack' });
+          dropStack.position.copy(
+            computeSeatPotDropAnchor(
+              potStack.position,
+              seat,
+              three.tableInfo?.surfaceY ?? TABLE_HEIGHT,
+              {
+                seatIndex: idx,
+                pileIndex,
+                right: potLayout?.right,
+                forward: potLayout?.forward
+              }
+            )
+          );
+          dropStack.scale.setScalar(0.76);
+          arenaGroup.add(dropStack);
+          chipFactory.setAmount(dropStack, Math.max(0, Math.round(value)), { mode: 'stack' });
+          seat.potDropPiles.push({ stack: dropStack, amount: Math.max(0, Math.round(value)) });
+          if (seat.potDropPiles.length > 8) {
+            const removed = seat.potDropPiles.shift();
+            if (removed?.stack) {
+              chipFactory.disposeStack(removed.stack);
+              removed.stack.parent?.remove(removed.stack);
+            }
+          }
+          seat.potDropCount = pileIndex + 1;
         };
         if (seat.isHuman) {
           applyPotGain(betDelta);
@@ -5793,7 +5862,7 @@ function TexasHoldemArena({ search }) {
   const effectiveRaise = chipTotal > 0 ? chipTotal : sliderValue;
   const sliderVisible = Boolean(humanPlayer) && gameState.stage !== 'showdown';
   const sliderInteractive = sliderVisible && sliderMax > 0 && !humanPlayer?.folded && !humanPlayer?.allIn;
-  const sliderEnabled = Boolean(isHumanTurn && sliderInteractive && uiState.canRaise);
+  const sliderEnabled = Boolean(isHumanTurn && sliderInteractive && (toCall > 0 || sliderMax > 0));
   const raisePreview = sliderVisible ? Math.min(sliderMax, effectiveRaise) : 0;
   const finalRaise = sliderMax > 0 ? Math.min(sliderMax, Math.max(raisePreview, defaultRaise)) : 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;

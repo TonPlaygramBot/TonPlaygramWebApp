@@ -77,12 +77,11 @@ export function orientCard(mesh, lookTarget, { face = 'front', flat = true } = {
 
 export function setCardFace(mesh, face) {
   if (!mesh?.material) return;
-  const { frontMaterial, backMaterial, hiddenMaterial } = mesh.userData ?? {};
+  const { frontMaterial, backMaterial } = mesh.userData ?? {};
   if (!frontMaterial || !backMaterial) return;
   if (face === 'back') {
-    const mat = hiddenMaterial ?? backMaterial;
-    mesh.material[4] = mat;
-    mesh.material[5] = mat;
+    mesh.material[4] = backMaterial;
+    mesh.material[5] = backMaterial;
     mesh.userData.cardFace = 'back';
   } else {
     mesh.material[4] = frontMaterial;
@@ -144,7 +143,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-function makeCardBackTexture(theme, w = 512, h = 720) {
+function makeCardBackTexture(theme, w = 2048, h = 2880) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -339,34 +338,23 @@ function drawBackPattern(ctx, w, h, theme) {
 }
 
 function drawLogoFrame(ctx, w, h, theme) {
-  const frameWidth = w * 0.68;
-  const frameHeight = h * 0.22;
-  const frameX = (w - frameWidth) / 2;
-  const frameY = (h - frameHeight) / 2;
+  const frameWidth = w * 0.86;
+  const frameHeight = h * 0.3;
+  const logoImage = getTonplaygramLogoImage();
 
   ctx.save();
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.32)';
-  roundRect(ctx, frameX - 4, frameY - 4, frameWidth + 8, frameHeight + 8, 24);
-  ctx.fill();
-
-  ctx.strokeStyle = theme.backAccent || 'rgba(255,255,255,0.45)';
-  ctx.lineWidth = 3;
-  roundRect(ctx, frameX, frameY, frameWidth, frameHeight, 20);
-  ctx.stroke();
-
-  const logoImage = getTonplaygramLogoImage();
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const drawWidth = Math.min(frameWidth * 0.82, frameHeight * ratio);
+    const drawWidth = Math.min(frameWidth, frameHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
     const logoY = h / 2 - drawHeight / 2;
     ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
   } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '700 34px "Inter", system-ui, sans-serif';
+    ctx.font = '700 48px "Inter", system-ui, sans-serif';
     ctx.fillText('TonPlaygram', w / 2, h / 2);
   }
 
