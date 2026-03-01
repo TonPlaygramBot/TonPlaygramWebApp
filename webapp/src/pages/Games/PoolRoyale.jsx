@@ -1464,7 +1464,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.99,
+  restitution: 1.02,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -1522,7 +1522,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_RESTITUTION_SCALE = 0.84; // keep jaw cuts lively so cushion-first routes rebound with a touch more energy
 const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -5466,12 +5466,14 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.35;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
-const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee visible pullback phase when captured stroke timings are too short
-const REPLAY_CUE_MIN_RELEASE_MS = 260; // guarantee visible forward push into impact in replay view
+const REPLAY_CUE_MIN_PULLBACK_MS = 300; // hold pullback longer so the replay wind-up reads clearly on mobile
+const REPLAY_CUE_MIN_RELEASE_MS = 420; // give replay strokes a slower, more readable push-through into impact
+const LIVE_CUE_FORWARD_DURATION_MS = 260;
+const LIVE_CUE_IMPACT_HOLD_MS = 180;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -24971,8 +24973,8 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
-          const strikeDuration = 120;
-          const strikeHoldDuration = 50;
+          const strikeDuration = LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = 0;
           const startTime = performance.now();
           const contactEps = 0.001;
