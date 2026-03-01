@@ -53,11 +53,23 @@ namespace Aiming
             if (lr == null)
             {
                 lr = gameObject.AddComponent<LineRenderer>();
-                lr.positionCount = 2;
-                lr.material = new Material(Shader.Find("Sprites/Default"));
-                lr.widthMultiplier = config ? config.lineWidth : 0.01f;
-                lr.startColor = lr.endColor = config ? config.lineColor : Color.cyan;
             }
+            ConfigureLineRenderer();
+        }
+
+        void ConfigureLineRenderer()
+        {
+            if (lr == null) return;
+
+            lr.positionCount = 2;
+            if (lr.material == null)
+            {
+                lr.material = new Material(Shader.Find("Sprites/Default"));
+            }
+
+            lr.widthMultiplier = config ? config.lineWidth : 0.01f;
+            lr.startColor = lr.endColor = config ? config.lineColor : Color.cyan;
+            lr.enabled = true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -66,7 +78,7 @@ namespace Aiming
             var info = classifier.Classify(ctx, config);
             if (!info.losCueToObj || !info.losObjToPocket)
             {
-                return new AimSolution
+                var blocked = new AimSolution
                 {
                     isValid = false,
                     strategyUsed = "None",
@@ -77,6 +89,10 @@ namespace Aiming
                     cueElevationDeg = 0f,
                     debugNote = !info.losCueToObj ? "Blocked: cue→object" : "Blocked: object→pocket"
                 };
+
+                DrawGuideLine(blocked.aimStart, blocked.aimEnd);
+                if (showDebug) overlay.UpdateOverlay(ctx, info, blocked);
+                return blocked;
             }
 
             IAimingStrategy strat;
@@ -111,16 +127,18 @@ namespace Aiming
             }
             sol.strategyUsed = strat.Name;
 
-            if (showDebug)
-            {
-                lr.enabled = true;
-                lr.SetPosition(0, sol.aimStart);
-                lr.SetPosition(1, sol.aimEnd);
-                overlay.UpdateOverlay(ctx, info, sol);
-            }
-            else lr.enabled = false;
+            DrawGuideLine(sol.aimStart, sol.aimEnd);
+            if (showDebug) overlay.UpdateOverlay(ctx, info, sol);
 
             return sol;
+        }
+
+        void DrawGuideLine(Vector3 start, Vector3 end)
+        {
+            if (lr == null) return;
+            lr.enabled = true;
+            lr.SetPosition(0, start);
+            lr.SetPosition(1, end);
         }
 
         float RecommendPower(ShotClassifier.DistBucket b, bool requiresPower)
