@@ -5462,8 +5462,8 @@ const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
-const PLAYER_CUE_RELEASE_DURATION_MS = 980;
-const PLAYER_CUE_IMPACT_HOLD_MS = 420;
+const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
+const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -5471,8 +5471,9 @@ const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 260; // guarantee visible forward push into impact in replay view
-const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = STOP_EPS;
+const CAMERA_SWITCH_MIN_HOLD_MS = 420;
+const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
+const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
@@ -21425,7 +21426,7 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'release') {
-            const eased = easeOutCubic(sample.t);
+            const eased = easeInOutCubic(sample.t);
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
@@ -25007,7 +25008,7 @@ const powerRef = useRef(hud.power);
               actionView.activationTravel = Math.max(
                 baseTravel,
                 requiresCueBallMovementTrigger
-                  ? BALL_R * 0.2
+                  ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
                   : isMaxPowerShot
                     ? BALL_R * 6
                     : 0
