@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.48, landscape: 1.04 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 0.9 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.36, landscape: 0.8 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 0.72 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -6100,13 +6100,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div
-        className="absolute z-20 flex flex-col items-start gap-2"
-        style={{
-          top: 'calc(6.2rem + env(safe-area-inset-top, 0px))',
-          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
-        }}
-      >
+      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(6.2rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -6293,7 +6287,7 @@ function TexasHoldemArena({ search }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
+      <div className="absolute bottom-14 landscape:bottom-6 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
@@ -6310,7 +6304,7 @@ function TexasHoldemArena({ search }) {
         </div>
       </div>
       {sliderVisible && (
-        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white sm:right-6 sm:bottom-36">
+        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white landscape:bottom-14 sm:right-6 sm:bottom-36 sm:landscape:bottom-18">
           <div className="flex flex-col items-center gap-3">
             <input
               type="range"
@@ -6358,7 +6352,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.2rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -6370,7 +6364,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showMute={false}
           order={['gift']}
-          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.2rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -6381,7 +6375,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showGift={false}
           order={['mute']}
-          className="fixed right-[0.75rem] top-[calc(env(safe-area-inset-top,0px)+5.2rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] top-[calc(env(safe-area-inset-top,0px)+5.2rem)] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
