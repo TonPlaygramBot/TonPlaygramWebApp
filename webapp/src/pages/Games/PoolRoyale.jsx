@@ -5757,7 +5757,7 @@ const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
-const SPIN_VIEW_BLOCK_THRESHOLD = 0;
+const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
 
 const resolveTopspinPowerScale = (power) => {
   if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
@@ -5924,7 +5924,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
-  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
+  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.2;
   const blockingRadiusSq = blockingRadius * blockingRadius;
   const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
@@ -21230,7 +21230,7 @@ const powerRef = useRef(hud.power);
                 );
                 cueStick.position.lerpVectors(followPos, idlePos, easeInOutCubic(t));
               } else {
-                cueStick.position.copy(pullPos);
+                cueStick.position.copy(idlePos);
               }
             }
             syncCueShadow();
@@ -27332,6 +27332,10 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             const isBreakPlan = plan?.type === 'break';
+            const previewAimDir =
+              plan?.suggestedAimDir && plan.suggestedAimDir.lengthSq() > 1e-6
+                ? plan.suggestedAimDir.clone().normalize()
+                : dir.clone();
             const aiPower = isBreakPlan
               ? 1
               : clampPower(plan.power, 0.6);
@@ -27368,6 +27372,14 @@ const powerRef = useRef(hud.power);
               const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
+                // Start from the same suggested line flow as user aim-assist,
+                // then finish on the AI-adjusted final pot line.
+                if (previewAimDir.lengthSq() > 1e-6) {
+                  aimDirRef.current.copy(previewAimDir);
+                  alignStandingCameraToAim(cue, previewAimDir, { preserveOrbit: false });
+                }
+                aimDirRef.current.copy(dir);
+                alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
                 updateCamera();
                 fire();

@@ -23,7 +23,14 @@ export const sampleCueStrokeTimeline = ({
   }
   if (safeElapsed <= releaseEnd && release > 0) {
     const releaseElapsed = safeElapsed - pullEnd;
-    return { phase: 'release', t: THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1), hitArmed: safeElapsed >= pullEnd + release * 0.98, done: false };
+    return {
+      phase: 'release',
+      t: THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1),
+      // Arm impact a little earlier so the forward cue-stick travel is visible
+      // before the simulated hit is applied in both live-play and replay.
+      hitArmed: safeElapsed >= pullEnd + release * 0.82,
+      done: false
+    };
   }
   if (safeElapsed <= holdEnd && hold > 0) {
     return { phase: 'hold', t: THREE.MathUtils.clamp((safeElapsed - releaseEnd) / Math.max(hold, 1e-6), 0, 1), hitArmed: true, done: false };
