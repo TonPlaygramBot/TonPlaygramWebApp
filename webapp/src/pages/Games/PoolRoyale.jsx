@@ -21395,6 +21395,7 @@ const powerRef = useRef(hud.power);
             idlePos,
             pullPos,
             impactPos,
+            followPos,
             pullbackDuration,
             strikeDuration,
             holdDuration,
@@ -21437,7 +21438,8 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'hold') {
-            cueStick.position.copy(impactPos);
+            const eased = easeOutCubic(sample.t);
+            cueStick.position.lerpVectors(impactPos, followPos ?? impactPos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -21445,7 +21447,7 @@ const powerRef = useRef(hud.power);
           }
           if (sample.phase === 'recover') {
             const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(impactPos, idlePos, eased);
+            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -24932,8 +24934,13 @@ const powerRef = useRef(hud.power);
             BALL_R * 0.33
           );
           const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
-          const impactPos = buildCuePosition(-followDistance);
-          const followPos = impactPos.clone();
+          const impactTravel = Math.max(BALL_R * 0.1, followDistance * 0.55);
+          const followTravel = Math.max(
+            BALL_R * 0.24 + powerStrength * BALL_R * 0.12,
+            followDistance + BALL_R * 0.18
+          );
+          const impactPos = buildCuePosition(-impactTravel);
+          const followPos = buildCuePosition(-followTravel);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
           const impactTime = startTime + pullbackDuration + strikeDuration * 0.9;
@@ -26700,12 +26707,33 @@ const powerRef = useRef(hud.power);
           if (!cuePos) return null;
 
           const turnOwner = options?.turnOwner === 'ai' ? 'ai' : 'player';
-          const cycleToNext = options?.cycleToNext ?? (turnOwner === 'player');
+          const cycleToNext = options?.cycleToNext ?? false;
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
           );
           if (activeBalls.length === 0) return null;
+
+          const highestProbabilityPlan = normalizeAiPlanAim(
+            evaluateAiShotOptions({ allowSafety: false })?.bestPot ?? null
+          );
+          if (highestProbabilityPlan?.aimDir?.lengthSq?.() > 1e-6) {
+            const preferredDir = highestProbabilityPlan.aimDir.clone().normalize();
+            const preferredContact = calcTarget(cue, preferredDir, activeBalls);
+            if (
+              preferredContact?.targetBall &&
+              highestProbabilityPlan.targetBall &&
+              String(preferredContact.targetBall.id) ===
+                String(highestProbabilityPlan.targetBall.id)
+            ) {
+              autoAimCycleRef.current[turnOwner] = {
+                index: 0,
+                lastTargetId: highestProbabilityPlan.targetBall.id
+              };
+              return preferredDir;
+            }
+          }
+
           const clearance = BALL_R * 1.5;
           const isDirectLaneOpen = (target) => {
             if (!target) return false;
