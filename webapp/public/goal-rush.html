@@ -21,7 +21,7 @@
     html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .scoreboard{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 0.25rem);height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:5px 8px;display:flex;align-items:center;gap:6px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff;font-size:14px;}
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
@@ -59,10 +59,10 @@
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
     .quick-action-slot{position:fixed;z-index:6;pointer-events:auto;}
-    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.75rem);}
-    #quickActionGift{left:calc(env(safe-area-inset-left,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.75rem);}
-    #quickActionAudio{right:calc(env(safe-area-inset-right,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.75rem);}
-    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.75rem);}
+    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.3rem);}
+    #quickActionGift{left:calc(env(safe-area-inset-left,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.3rem);}
+    #quickActionAudio{right:calc(env(safe-area-inset-right,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.3rem);}
+    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 2.3rem);}
     .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:transparent;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:none;padding:0;}
     .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
     .quick-action .icon{font-size:1.1rem;line-height:1;}
@@ -262,7 +262,7 @@
   const muteLabel = document.getElementById('muteLabel');
   const TOP_BAR = 0; // no top offset: HUD moved to bottom so the field can rise up a bit
   const BOTTOM_GAP = -24; // keep bottom goal visible while still giving field extra vertical room
-  const FIELD_DOWN_SHIFT_PCT = -0.018; // move the field a bit higher on portrait screens
+  const FIELD_DOWN_SHIFT_PCT = -0.032; // move the field a bit higher on portrait screens
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -508,7 +508,7 @@
     canvas.style.height = height + 'px';
     // expand play field slightly more vertically, keep it fully visible, and nudge it upward
     const baseW = W * 0.98;
-    const baseH = H * 1.09;
+    const baseH = H * 1.15;
     const maxFieldScaleX = W/baseW;
     const maxFieldScaleY = H/baseH;
     const fsx = Math.min(fieldScaleX, maxFieldScaleX);
