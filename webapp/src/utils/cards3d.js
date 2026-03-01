@@ -4,6 +4,18 @@ import { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
 export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
+const TONPLAYGRAM_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+let tonplaygramLogoImage = null;
+
+function getTonplaygramLogoImage() {
+  if (!tonplaygramLogoImage && typeof Image !== 'undefined') {
+    tonplaygramLogoImage = new Image();
+    tonplaygramLogoImage.crossOrigin = 'anonymous';
+    tonplaygramLogoImage.src = TONPLAYGRAM_LOGO_SRC;
+  }
+  return tonplaygramLogoImage;
+}
+
 export function createCardGeometry(width, height, depth) {
   return new THREE.BoxGeometry(width, height, depth, 1, 1, 1);
 }
@@ -143,6 +155,9 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   gradient.addColorStop(1, c2 || '#0b1220');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, w, h);
+
+  drawBackPattern(ctx, w, h, theme);
+
   ctx.strokeStyle = theme.backBorder || 'rgba(255,255,255,0.18)';
   ctx.lineWidth = 14;
   roundRect(ctx, 18, 18, w - 36, h - 36, 48);
@@ -156,10 +171,189 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
       ctx.stroke();
     }
   }
+
+  drawLogoFrame(ctx, w, h, theme);
+
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = 8;
   return texture;
+}
+
+function drawBackPattern(ctx, w, h, theme) {
+  const accent = theme.backAccent || 'rgba(255,255,255,0.2)';
+  ctx.save();
+  ctx.strokeStyle = accent;
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.32;
+
+  switch (theme.backPattern) {
+    case 'sunburst': {
+      ctx.lineWidth = 2;
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 20) {
+        const x = w / 2 + Math.cos(angle) * w * 0.5;
+        const y = h / 2 + Math.sin(angle) * h * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(w / 2, h / 2);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'stars': {
+      for (let i = 0; i < 60; i += 1) {
+        const x = (i * 97) % w;
+        const y = (i * 151) % h;
+        const size = (i % 4) + 1;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'diamonds': {
+      ctx.lineWidth = 2.5;
+      const step = 50;
+      for (let y = -step; y < h + step; y += step) {
+        for (let x = -step; x < w + step; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + step / 2);
+          ctx.lineTo(x + step / 2, y);
+          ctx.lineTo(x + step, y + step / 2);
+          ctx.lineTo(x + step / 2, y + step);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    case 'chevrons': {
+      ctx.lineWidth = 3;
+      for (let y = -20; y < h + 40; y += 34) {
+        ctx.beginPath();
+        for (let x = -40; x < w + 40; x += 34) {
+          ctx.lineTo(x + 17, y);
+          ctx.lineTo(x + 34, y + 14);
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'grid': {
+      ctx.lineWidth = 2;
+      for (let x = 0; x <= w; x += 34) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= h; y += 34) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'waves': {
+      ctx.lineWidth = 3;
+      for (let y = 20; y < h; y += 36) {
+        ctx.beginPath();
+        for (let x = -40; x <= w + 40; x += 20) {
+          const waveY = y + Math.sin(x * 0.05) * 8;
+          if (x === -40) ctx.moveTo(x, waveY);
+          else ctx.lineTo(x, waveY);
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'crosshatch': {
+      ctx.lineWidth = 2;
+      for (let x = -h; x < w + h; x += 24) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + h, h);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + h, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'lattice': {
+      ctx.lineWidth = 2.4;
+      const step = 42;
+      for (let y = 0; y < h + step; y += step) {
+        for (let x = 0; x < w + step; x += step) {
+          ctx.beginPath();
+          ctx.arc(x, y, 7, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    case 'circuit': {
+      ctx.lineWidth = 2.2;
+      for (let y = 18; y < h; y += 42) {
+        ctx.beginPath();
+        ctx.moveTo(18, y);
+        for (let x = 48; x < w - 18; x += 44) {
+          ctx.lineTo(x, y);
+          ctx.lineTo(x, y + (x % 88 === 0 ? 14 : -14));
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    default: {
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 10; i += 1) {
+        const inset = 24 + i * 18;
+        roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, 26);
+        ctx.stroke();
+      }
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawLogoFrame(ctx, w, h, theme) {
+  const frameWidth = w * 0.68;
+  const frameHeight = h * 0.22;
+  const frameX = (w - frameWidth) / 2;
+  const frameY = (h - frameHeight) / 2;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.32)';
+  roundRect(ctx, frameX - 4, frameY - 4, frameWidth + 8, frameHeight + 8, 24);
+  ctx.fill();
+
+  ctx.strokeStyle = theme.backAccent || 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 3;
+  roundRect(ctx, frameX, frameY, frameWidth, frameHeight, 20);
+  ctx.stroke();
+
+  const logoImage = getTonplaygramLogoImage();
+  if (logoImage?.complete && logoImage.naturalWidth > 0) {
+    const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
+    const drawWidth = Math.min(frameWidth * 0.82, frameHeight * ratio);
+    const drawHeight = drawWidth / ratio;
+    const logoX = w / 2 - drawWidth / 2;
+    const logoY = h / 2 - drawHeight / 2;
+    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 34px "Inter", system-ui, sans-serif';
+    ctx.fillText('TonPlaygram', w / 2, h / 2);
+  }
+
+  ctx.restore();
 }
 
 function convertSuit(suit) {
