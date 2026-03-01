@@ -21403,9 +21403,57 @@ const powerRef = useRef(hud.power);
             baseRotationX,
             baseRotationY,
             strikeDip,
-            wobbleAmount
+            wobbleAmount,
+            strikeImpactThreshold,
+            forwardOnly
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
+          if (forwardOnly) {
+            const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
+            const safeHoldDuration = Math.max(0, holdDuration ?? 50);
+            const impactThreshold = THREE.MathUtils.clamp(
+              strikeImpactThreshold ?? 0.9,
+              0,
+              1
+            );
+            const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
+            const easedPush = easeOutCubic(pushT);
+            cueStick.visible = true;
+            cueStick.position.lerpVectors(pullPos, impactPos, easedPush);
+            cueStick.position.y -= (strikeDip ?? 0.003) * easedPush;
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y =
+              (baseRotationY ?? cueStick.rotation.y) +
+              Math.sin(pushT * Math.PI) * (wobbleAmount ?? 0.0018);
+            if (!stroke.shotApplied && pushT >= impactThreshold) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
+            if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
+            cueStick.position.copy(idlePos);
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+            syncCueShadow();
+            cueStick.visible = true;
+            cueAnimating = false;
+            cuePullCurrentRef.current = 0;
+            cuePullTargetRef.current = 0;
+            cueStrokeStateRef.current = null;
+            pendingImpactRef.current = null;
+            if (cameraRef.current && sphRef.current) {
+              topViewRef.current = false;
+              topViewLockedRef.current = false;
+              setIsTopDownView(false);
+              const sph = sphRef.current;
+              sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+              updateCamera();
+            }
+            return false;
+          }
           const sample = sampleCueStrokeTimeline({
             elapsed,
             pullbackDuration,
@@ -24923,26 +24971,21 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
-          const strikeDuration = PLAYER_CUE_RELEASE_DURATION_MS;
-          const strikeHoldDuration = PLAYER_CUE_IMPACT_HOLD_MS;
-          const pullbackDuration = PLAYER_CUE_PULLBACK_DURATION_MS;
+          const strikeDuration = 120;
+          const strikeHoldDuration = 50;
+          const pullbackDuration = 0;
           const startTime = performance.now();
-          const followThrough = THREE.MathUtils.clamp(
-            CUE_FOLLOW_THROUGH_MIN +
-              (CUE_FOLLOW_THROUGH_MAX - CUE_FOLLOW_THROUGH_MIN) *
-                (powerStrength * 0.75 + topspinFactor * 0.25),
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX
+          const contactEps = 0.001;
+          const followExtra = THREE.MathUtils.clamp(topspinFactor * 0.016, 0, 0.018);
+          const endDistanceFromBallCenter = Math.max(
+            BALL_R * 0.55,
+            BALL_R + contactEps - followExtra
           );
-          const followDistance = Math.min(
-            followThrough,
-            CUE_TIP_GAP + maxPull + BALL_R * 0.5
-          );
-          const impactPos = buildCuePosition(-followDistance);
+          const impactPos = buildCuePosition(-(CUE_TIP_GAP - endDistanceFromBallCenter));
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
-          const impactTime = startTime + pullbackDuration + strikeDuration * 0.9;
+          const impactTime = startTime + strikeDuration * 0.9;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -25056,7 +25099,9 @@ const powerRef = useRef(hud.power);
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
-              wobbleAmount: 0.0018
+              wobbleAmount: 0.0018,
+              strikeImpactThreshold: 0.9,
+              forwardOnly: true
             };
           } else {
             cueStick.visible = false;
