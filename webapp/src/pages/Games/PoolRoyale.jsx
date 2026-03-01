@@ -24264,7 +24264,11 @@ const powerRef = useRef(hud.power);
       const pottedIds = new Set();
       let firstHit = null;
 
-      const alignStandingCameraToAim = (cueBall, aimDir) => {
+      const alignStandingCameraToAim = (
+        cueBall,
+        aimDir,
+        { preserveOrbit = true } = {}
+      ) => {
         if (!cueBall || !aimDir) return;
         const dir = aimDir.clone();
         if (dir.lengthSq() < 1e-6) return;
@@ -24272,10 +24276,17 @@ const powerRef = useRef(hud.power);
         const sph = sphRef.current;
         if (!sph) return;
         const standingBounds = cameraBoundsRef.current?.standing;
-        if (standingBounds) {
+        if (!preserveOrbit && standingBounds) {
           sph.radius = clampOrbitRadius(standingBounds.radius);
           sph.phi = THREE.MathUtils.clamp(
             standingBounds.phi,
+            CAMERA.minPhi,
+            CAMERA.maxPhi
+          );
+        } else {
+          sph.radius = clampOrbitRadius(sph.radius ?? BREAK_VIEW.radius);
+          sph.phi = THREE.MathUtils.clamp(
+            sph.phi ?? standingBounds?.phi ?? STANDING_VIEW.phi,
             CAMERA.minPhi,
             CAMERA.maxPhi
           );
@@ -26651,13 +26662,13 @@ const powerRef = useRef(hud.power);
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
-              alignStandingCameraToAim(cue, plan.aimDir);
+              alignStandingCameraToAim(cue, plan.aimDir, { preserveOrbit: false });
             } else {
               aiPlanRef.current = null;
               const fallbackDir = resolveAutoAimDirection();
               if (fallbackDir) {
                 aimDirRef.current.copy(fallbackDir);
-                alignStandingCameraToAim(cue, fallbackDir);
+                alignStandingCameraToAim(cue, fallbackDir, { preserveOrbit: false });
               }
             }
             updateAiPlanningState(plan, options, remaining / 1000);
@@ -27310,7 +27321,7 @@ const powerRef = useRef(hud.power);
             topViewRef.current = false;
             topViewLockedRef.current = false;
             setIsTopDownView(false);
-            alignStandingCameraToAim(cue, dir);
+            alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
             setAiShotCueViewActive(false);
             setAiShotPreviewActive(true);
             cancelCameraBlendTween();
