@@ -149,28 +149,9 @@ function makeCardBackTexture(theme, w = 2048, h = 2880) {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   const drawBack = () => {
-    const [c1, c2] = theme.backGradient || [theme.backColor, theme.backColor];
-    const gradient = ctx.createLinearGradient(0, 0, w, h);
-    gradient.addColorStop(0, c1 || '#0f172a');
-    gradient.addColorStop(1, c2 || '#0b1220');
-    ctx.fillStyle = gradient;
+    const cardBackPattern = ctx.createPattern(makeLuckyCardBackPatternCanvas(), 'repeat');
+    ctx.fillStyle = cardBackPattern || '#112233';
     ctx.fillRect(0, 0, w, h);
-
-    drawBackPattern(ctx, w, h, theme);
-
-    ctx.strokeStyle = theme.backBorder || 'rgba(255,255,255,0.18)';
-    ctx.lineWidth = 14;
-    roundRect(ctx, 18, 18, w - 36, h - 36, 48);
-    ctx.stroke();
-    if (theme.backAccent) {
-      ctx.strokeStyle = theme.backAccent;
-      ctx.lineWidth = 8;
-      for (let i = 0; i < 6; i += 1) {
-        const inset = 36 + i * 18;
-        roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, 42);
-        ctx.stroke();
-      }
-    }
 
     drawLogoFrame(ctx, w, h, theme);
   };
@@ -194,6 +175,24 @@ function makeCardBackTexture(theme, w = 2048, h = 2880) {
   }
 
   return texture;
+}
+
+function makeLuckyCardBackPatternCanvas(size = 96) {
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = size;
+  patternCanvas.height = size;
+  const patternCtx = patternCanvas.getContext('2d');
+  patternCtx.fillStyle = '#223333';
+  patternCtx.fillRect(0, 0, size, size);
+  patternCtx.fillStyle = '#112222';
+  patternCtx.beginPath();
+  patternCtx.moveTo(0, size * 0.5);
+  patternCtx.lineTo(size * 0.5, 0);
+  patternCtx.lineTo(size, size * 0.5);
+  patternCtx.lineTo(size * 0.5, size);
+  patternCtx.closePath();
+  patternCtx.fill();
+  return patternCanvas;
 }
 
 function drawBackPattern(ctx, w, h, theme) {
@@ -338,14 +337,29 @@ function drawBackPattern(ctx, w, h, theme) {
 }
 
 function drawLogoFrame(ctx, w, h, theme) {
-  const frameWidth = w * 0.86;
-  const frameHeight = h * 0.3;
+  const frameInset = Math.min(w, h) * 0.045;
+  const frameRadius = Math.min(w, h) * 0.04;
+  const frameWidth = w - frameInset * 2;
+  const frameHeight = h - frameInset * 2;
   const logoImage = getTonplaygramLogoImage();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.56)';
+  ctx.lineWidth = Math.max(12, Math.round(w * 0.007));
+  roundRect(ctx, frameInset, frameInset, frameWidth, frameHeight, frameRadius);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = Math.max(5, Math.round(w * 0.003));
+  roundRect(ctx, frameInset + 24, frameInset + 24, frameWidth - 48, frameHeight - 48, frameRadius * 0.85);
+  ctx.stroke();
+  ctx.restore();
 
   ctx.save();
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const drawWidth = Math.min(frameWidth, frameHeight * ratio);
+    const logoBoxWidth = w * 0.9;
+    const logoBoxHeight = h * 0.42;
+    const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
     const logoY = h / 2 - drawHeight / 2;
