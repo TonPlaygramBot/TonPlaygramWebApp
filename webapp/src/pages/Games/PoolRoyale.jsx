@@ -5757,7 +5757,7 @@ const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
-const SPIN_VIEW_BLOCK_THRESHOLD = 0;
+const SPIN_VIEW_BLOCK_THRESHOLD = 0.08;
 
 const resolveTopspinPowerScale = (power) => {
   if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
@@ -21326,7 +21326,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutCubic(t);
+            const eased = easeOutCubic(t);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -21409,7 +21409,8 @@ const powerRef = useRef(hud.power);
             pullbackDuration,
             strikeDuration,
             holdDuration,
-            recoverDuration
+            recoverDuration,
+            hitArmThreshold: 0.88
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -28231,6 +28232,9 @@ const powerRef = useRef(hud.power);
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
+              if (cue?.active) {
+                alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
+              }
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
             if (shouldAutoAimPlayer) {
@@ -28241,7 +28245,7 @@ const powerRef = useRef(hud.power);
             }
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
-              if (shouldAutoAimPlayer && cue?.active) {
+              if ((shouldAutoAimPlayer || shouldAutoAimAi) && cue?.active) {
                 alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
               }
             }
