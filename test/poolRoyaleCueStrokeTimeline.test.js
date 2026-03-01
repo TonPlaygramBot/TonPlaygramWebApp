@@ -1,58 +1,34 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { sampleCueStrokeTimeline } from '../webapp/src/pages/Games/poolRoyaleCueStrokeTimeline.js';
 
-test('cue stroke timeline keeps release phase active before hit is armed', () => {
-  const pullbackDuration = 600;
-  const strikeDuration = 1000;
-  const holdDuration = 300;
-  const recoverDuration = 200;
+describe('Pool Royale cue stroke timeline', () => {
+  const options = {
+    pullbackDuration: 200,
+    strikeDuration: 100,
+    holdDuration: 80,
+    recoverDuration: 120
+  };
 
-  const earlyRelease = sampleCueStrokeTimeline({
-    elapsed: pullbackDuration + strikeDuration * 0.45,
-    pullbackDuration,
-    strikeDuration,
-    holdDuration,
-    recoverDuration
+  it('starts in pullback phase', () => {
+    const sample = sampleCueStrokeTimeline({ elapsed: 40, ...options });
+    expect(sample.phase).toBe('pullback');
+    expect(sample.t).toBeCloseTo(0.2, 2);
   });
-  assert.equal(earlyRelease.phase, 'release');
-  assert.equal(earlyRelease.hitArmed, false);
-  assert.ok(earlyRelease.t > 0.4 && earlyRelease.t < 0.5);
 
-  const nearImpact = sampleCueStrokeTimeline({
-    elapsed: pullbackDuration + strikeDuration * 0.99,
-    pullbackDuration,
-    strikeDuration,
-    holdDuration,
-    recoverDuration
+  it('arms impact near end of release', () => {
+    const preHit = sampleCueStrokeTimeline({ elapsed: 280, ...options });
+    const postHit = sampleCueStrokeTimeline({ elapsed: 292, ...options });
+    expect(preHit.phase).toBe('release');
+    expect(preHit.hitArmed).toBe(false);
+    expect(postHit.phase).toBe('release');
+    expect(postHit.hitArmed).toBe(true);
   });
-  assert.equal(nearImpact.phase, 'release');
-  assert.equal(nearImpact.hitArmed, true);
-});
 
-test('cue stroke timeline reaches recover and done phases in order', () => {
-  const pullbackDuration = 400;
-  const strikeDuration = 500;
-  const holdDuration = 250;
-  const recoverDuration = 300;
-
-  const recover = sampleCueStrokeTimeline({
-    elapsed: pullbackDuration + strikeDuration + holdDuration + recoverDuration * 0.4,
-    pullbackDuration,
-    strikeDuration,
-    holdDuration,
-    recoverDuration
+  it('enters recover then done', () => {
+    const recovering = sampleCueStrokeTimeline({ elapsed: 430, ...options });
+    const done = sampleCueStrokeTimeline({ elapsed: 510, ...options });
+    expect(recovering.phase).toBe('recover');
+    expect(recovering.done).toBe(false);
+    expect(done.phase).toBe('done');
+    expect(done.done).toBe(true);
   });
-  assert.equal(recover.phase, 'recover');
-  assert.equal(recover.done, false);
-
-  const done = sampleCueStrokeTimeline({
-    elapsed: pullbackDuration + strikeDuration + holdDuration + recoverDuration + 1,
-    pullbackDuration,
-    strikeDuration,
-    holdDuration,
-    recoverDuration
-  });
-  assert.equal(done.phase, 'done');
-  assert.equal(done.done, true);
 });
