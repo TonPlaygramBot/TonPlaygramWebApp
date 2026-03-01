@@ -149,11 +149,9 @@ function makeCardBackTexture(theme, w = 2048, h = 2880) {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   const drawBack = () => {
-    const cardBackPattern = ctx.createPattern(makeLuckyCardBackPatternCanvas(), 'repeat');
-    ctx.fillStyle = cardBackPattern || '#112233';
-    ctx.fillRect(0, 0, w, h);
-
-    drawLogoFrame(ctx, w, h, theme);
+    drawLuckyCardBackBase(ctx, w, h);
+    drawLuckyCardBackLogo(ctx, w, h, theme);
+    drawLuckyCardBackBorder(ctx, w, h);
   };
 
   drawBack();
@@ -177,22 +175,42 @@ function makeCardBackTexture(theme, w = 2048, h = 2880) {
   return texture;
 }
 
-function makeLuckyCardBackPatternCanvas(size = 96) {
-  const patternCanvas = document.createElement('canvas');
-  patternCanvas.width = size;
-  patternCanvas.height = size;
-  const patternCtx = patternCanvas.getContext('2d');
-  patternCtx.fillStyle = '#223333';
-  patternCtx.fillRect(0, 0, size, size);
-  patternCtx.fillStyle = '#112222';
-  patternCtx.beginPath();
-  patternCtx.moveTo(0, size * 0.5);
-  patternCtx.lineTo(size * 0.5, 0);
-  patternCtx.lineTo(size, size * 0.5);
-  patternCtx.lineTo(size * 0.5, size);
-  patternCtx.closePath();
-  patternCtx.fill();
-  return patternCanvas;
+function drawLuckyCardBackBase(ctx, w, h) {
+  const stripeWidth = Math.max(12, Math.round((w / 2048) * 180));
+  const diagLength = Math.hypot(w, h);
+  ctx.save();
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(Math.PI / 4);
+  ctx.translate(-diagLength / 2, -diagLength / 2);
+  for (let x = -stripeWidth * 2; x <= diagLength + stripeWidth * 2; x += stripeWidth * 2) {
+    ctx.fillStyle = '#223333';
+    ctx.fillRect(x, 0, stripeWidth, diagLength * 2);
+    ctx.fillStyle = '#112222';
+    ctx.fillRect(x + stripeWidth, 0, stripeWidth, diagLength * 2);
+  }
+  ctx.restore();
+}
+
+function drawLuckyCardBackLogo(ctx, w, h, theme) {
+  const logoImage = getTonplaygramLogoImage();
+  ctx.save();
+  if (logoImage?.complete && logoImage.naturalWidth > 0) {
+    const logoBoxWidth = w * 0.9;
+    const logoBoxHeight = h * 0.9;
+    const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
+    const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
+    const drawHeight = drawWidth / ratio;
+    const logoX = (w - drawWidth) / 2;
+    const logoY = (h - drawHeight) / 2;
+    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
+  } else {
+    ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 120px "Inter", system-ui, sans-serif';
+    ctx.fillText('TonPlaygram', w / 2, h / 2);
+  }
+  ctx.restore();
 }
 
 function drawBackPattern(ctx, w, h, theme) {
@@ -336,42 +354,14 @@ function drawBackPattern(ctx, w, h, theme) {
   ctx.restore();
 }
 
-function drawLogoFrame(ctx, w, h, theme) {
-  const frameInset = Math.min(w, h) * 0.045;
-  const frameRadius = Math.min(w, h) * 0.04;
-  const frameWidth = w - frameInset * 2;
-  const frameHeight = h - frameInset * 2;
-  const logoImage = getTonplaygramLogoImage();
-
+function drawLuckyCardBackBorder(ctx, w, h) {
+  const borderWidth = Math.max(14, Math.round((w / 2048) * 26));
+  const inset = borderWidth / 2;
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.56)';
-  ctx.lineWidth = Math.max(12, Math.round(w * 0.007));
-  roundRect(ctx, frameInset, frameInset, frameWidth, frameHeight, frameRadius);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = borderWidth;
+  roundRect(ctx, inset, inset, w - borderWidth, h - borderWidth, Math.min(w, h) * 0.04);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-  ctx.lineWidth = Math.max(5, Math.round(w * 0.003));
-  roundRect(ctx, frameInset + 24, frameInset + 24, frameWidth - 48, frameHeight - 48, frameRadius * 0.85);
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.save();
-  if (logoImage?.complete && logoImage.naturalWidth > 0) {
-    const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.9;
-    const logoBoxHeight = h * 0.42;
-    const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
-    const drawHeight = drawWidth / ratio;
-    const logoX = w / 2 - drawWidth / 2;
-    const logoY = h / 2 - drawHeight / 2;
-    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
-  } else {
-    ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = '700 48px "Inter", system-ui, sans-serif';
-    ctx.fillText('TonPlaygram', w / 2, h / 2);
-  }
-
   ctx.restore();
 }
 

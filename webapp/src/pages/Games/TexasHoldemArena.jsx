@@ -535,7 +535,7 @@ const CARD_RAIL_FORWARD_SHIFT_RATIO = CARD_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MAR
 const CHIP_RAIL_FORWARD_SHIFT_RATIO = CHIP_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
 const HUMAN_SEAT_RADIUS_OFFSET = CHAIR_RADIUS - TABLE_RADIUS;
 const AI_SEAT_RADIUS_OFFSET = AI_CHAIR_RADIUS - TABLE_RADIUS;
-const BET_DISTANCE_RATIO = 0.6;
+const BET_DISTANCE_RATIO = 0.68;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.44;
@@ -545,9 +545,9 @@ const RAIL_CHIP_ROW_SPACING = CARD_H * 0.42;
 
 const CHIP_SCATTER_LAYOUT = Object.freeze({
   perRow: 5,
-  spacing: CARD_W * 0.56,
-  rowSpacing: CARD_W * 0.44,
-  jitter: CARD_W * 0.1,
+  spacing: CARD_W * 0.46,
+  rowSpacing: CARD_W * 0.36,
+  jitter: CARD_W * 0.06,
   lift: 0
 });
 
@@ -5962,19 +5962,29 @@ function TexasHoldemArena({ search }) {
   }, [gameState.stage, gameState.actionIndex, gameState.players, handleAction, toCall]);
 
   useEffect(() => {
-    if (!sliderVisible) {
+    if (!sliderVisible || sliderMax <= 0) {
       setChipSelection([]);
       setSliderValue(0);
       return;
     }
-    if (sliderMax <= 0) {
-      setChipSelection([]);
-      setSliderValue(0);
-      return;
-    }
-    setChipSelection([]);
-    setSliderValue(defaultRaise);
-  }, [humanPlayer?.id, sliderMax, minRaiseAmount, gameState.stage, defaultRaise, sliderVisible]);
+    setChipSelection((prev) => {
+      if (!prev.length) {
+        setSliderValue(defaultRaise);
+        return prev;
+      }
+      const clamped = [];
+      let running = 0;
+      prev.forEach((chip) => {
+        const next = running + chip;
+        if (next <= sliderMax) {
+          clamped.push(chip);
+          running = next;
+        }
+      });
+      setSliderValue(clamped.length ? running : defaultRaise);
+      return clamped;
+    });
+  }, [humanPlayer?.id, sliderMax, defaultRaise, sliderVisible]);
 
   useEffect(() => {
     if (sliderMax <= 0 || !sliderVisible) return;
