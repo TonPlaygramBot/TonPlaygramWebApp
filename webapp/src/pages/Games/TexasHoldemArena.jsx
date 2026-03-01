@@ -362,7 +362,7 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   )
 );
 const HOLE_SPACING = CARD_W * 1.08;
-const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
+const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.22;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.46;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
@@ -377,7 +377,7 @@ const HUMAN_BET_FORWARD_OFFSET = CARD_W * 0.88;
 const HUMAN_BET_CLUSTER_SCALE = 0.88;
 const POT_BELOW_COMMUNITY_OFFSET = 0;
 const POT_RIGHT_ALIGNMENT_SHIFT = 0;
-const POT_LABEL_FORWARD_OFFSET = CARD_H * -0.62;
+const POT_LABEL_FORWARD_OFFSET = CARD_H * -0.48;
 const POT_LABEL_RIGHT_OFFSET = 0;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
@@ -411,7 +411,7 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.31;
+const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
 const POT_PLAYER_PILE_RADIUS = CARD_W * 0.52;
 const POT_TWO_PILE_SIDE_OFFSET = CARD_W * 0.56;
 const POT_TWO_PILE_FORWARD_STEP = CARD_D * 1.2;
@@ -2196,7 +2196,7 @@ function roundRect(ctx, x, y, width, height, radius) {
 }
 
 function createRailTextSprite(initialLines = [], options = {}) {
-  const { width = 1.9 * MODEL_SCALE, height = 0.68 * MODEL_SCALE } = options;
+  const { width = 2.08 * MODEL_SCALE, height = 0.74 * MODEL_SCALE } = options;
   const resolutionScale = 2;
   const canvas = document.createElement('canvas');
   canvas.width = 1024 * resolutionScale;
@@ -2228,11 +2228,11 @@ function createRailTextSprite(initialLines = [], options = {}) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
     const totalPotLabel = 'TOTAL POT';
-    const iconSize = 140 * resolutionScale;
+    const iconSize = 154 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
-    const amountFont = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
-    const totalPotFont = `900 ${110 * resolutionScale}px "Inter", system-ui, sans-serif`;
-    const iconGap = 28 * resolutionScale;
+    const amountFont = `900 ${122 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    const totalPotFont = `900 ${122 * resolutionScale}px "Inter", system-ui, sans-serif`;
+    const iconGap = 34 * resolutionScale;
     const amountBaseY = canvas.height / 2 + 4 * resolutionScale;
     const totalPotY = canvas.height / 2 - 124 * resolutionScale;
     ctx.font = amountFont;
@@ -5285,6 +5285,9 @@ function TexasHoldemArena({ search }) {
           : position.clone().add(seat.forward.clone());
         const face = seat.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: true });
+        if (!seat.isHuman && face === 'front') {
+          mesh.rotateY(Math.PI);
+        }
         if (seat.isHuman) {
           animateHumanCardPosture(mesh, humanActiveTurn ? HUMAN_CARD_FACE_TILT : 0);
         }
