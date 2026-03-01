@@ -149,49 +149,34 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  const paint = () => {
-    ctx.clearRect(0, 0, w, h);
-    const [c1, c2] = theme.backGradient || [theme.backColor, theme.backColor];
-    const gradient = ctx.createLinearGradient(0, 0, w, h);
-    gradient.addColorStop(0, c1 || '#0f172a');
-    gradient.addColorStop(1, c2 || '#0b1220');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, w, h);
+  const [c1, c2] = theme.backGradient || [theme.backColor, theme.backColor];
+  const gradient = ctx.createLinearGradient(0, 0, w, h);
+  gradient.addColorStop(0, c1 || '#0f172a');
+  gradient.addColorStop(1, c2 || '#0b1220');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
 
-    drawBackPattern(ctx, w, h, theme);
+  drawBackPattern(ctx, w, h, theme);
 
-    ctx.strokeStyle = theme.backBorder || 'rgba(255,255,255,0.18)';
-    ctx.lineWidth = 14;
-    roundRect(ctx, 18, 18, w - 36, h - 36, 48);
-    ctx.stroke();
-    if (theme.backAccent) {
-      ctx.strokeStyle = theme.backAccent;
-      ctx.lineWidth = 8;
-      for (let i = 0; i < 6; i += 1) {
-        const inset = 36 + i * 18;
-        roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, 42);
-        ctx.stroke();
-      }
+  ctx.strokeStyle = theme.backBorder || 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 14;
+  roundRect(ctx, 18, 18, w - 36, h - 36, 48);
+  ctx.stroke();
+  if (theme.backAccent) {
+    ctx.strokeStyle = theme.backAccent;
+    ctx.lineWidth = 8;
+    for (let i = 0; i < 6; i += 1) {
+      const inset = 36 + i * 18;
+      roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, 42);
+      ctx.stroke();
     }
+  }
 
-    drawLogoFrame(ctx, w, h, theme);
-  };
-  paint();
+  drawLogoFrame(ctx, w, h, theme);
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = 8;
-  const logoImage = getTonplaygramLogoImage();
-  if (logoImage && !(logoImage.complete && logoImage.naturalWidth > 0)) {
-    logoImage.addEventListener(
-      'load',
-      () => {
-        paint();
-        texture.needsUpdate = true;
-      },
-      { once: true }
-    );
-  }
   return texture;
 }
 

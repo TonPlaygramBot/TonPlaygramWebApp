@@ -3885,39 +3885,28 @@ function TexasHoldemArena({ search }) {
       }
     }
     three.cardThemeId = cardTheme.id;
-    const currentStage = gameStateRef.current?.stage;
-    const communityRevealCount =
-      currentStage === 'flop'
-        ? 3
-        : currentStage === 'turn'
-          ? 4
-          : currentStage === 'river' || currentStage === 'showdown'
-            ? 5
-            : 0;
-    const applyThemeToMesh = (mesh, cardData, fallbackFace = null) => {
+    const applyThemeToMesh = (mesh, cardData) => {
       if (!mesh) return;
-      const priorFace = mesh.userData?.cardFace || fallbackFace || 'front';
+      const priorFace = mesh.userData?.cardFace || 'front';
       applyCardToMesh(mesh, cardData, three.cardGeometry, three.faceCache, cardTheme);
       setCardFace(mesh, priorFace);
     };
     three.seatGroups?.forEach((seat) => {
       seat.cardMeshes.forEach((mesh) => {
         const data = mesh.userData?.card;
-        const fallbackFace = seat.isHuman || currentStage === 'showdown' ? 'front' : 'back';
         if (data) {
-          applyThemeToMesh(mesh, data, fallbackFace);
+          applyThemeToMesh(mesh, data);
         } else {
-          applyThemeToMesh(mesh, { rank: 'A', suit: 'S' }, fallbackFace);
+          applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
         }
       });
     });
-    three.communityMeshes?.forEach((mesh, index) => {
+    three.communityMeshes?.forEach((mesh) => {
       const data = mesh.userData?.card;
-      const fallbackFace = index < communityRevealCount ? 'front' : 'back';
       if (data) {
-        applyThemeToMesh(mesh, data, fallbackFace);
+        applyThemeToMesh(mesh, data);
       } else {
-        applyThemeToMesh(mesh, { rank: 'A', suit: 'S' }, fallbackFace);
+        applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
       }
     });
     if (environmentOption) {
