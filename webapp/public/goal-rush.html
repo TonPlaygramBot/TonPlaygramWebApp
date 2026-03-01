@@ -59,10 +59,10 @@
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
     .quick-action-slot{position:fixed;z-index:6;pointer-events:auto;}
-    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 4.2rem);}
-    #quickActionGift{left:calc(env(safe-area-inset-left,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 4.2rem);}
-    #quickActionAudio{right:calc(env(safe-area-inset-right,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 4.2rem);}
-    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 4.2rem);}
+    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 3.2rem);}
+    #quickActionGift{left:calc(env(safe-area-inset-left,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 3.2rem);}
+    #quickActionAudio{right:calc(env(safe-area-inset-right,0px) + 4.15rem);bottom:calc(env(safe-area-inset-bottom,0px) + 3.2rem);}
+    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.5rem);bottom:calc(env(safe-area-inset-bottom,0px) + 3.2rem);}
     .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:transparent;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:none;padding:0;}
     .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
     .quick-action .icon{font-size:1.1rem;line-height:1;}
@@ -261,8 +261,8 @@
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
   const TOP_BAR = 0; // no top offset: HUD moved to bottom so the field can rise up a bit
-  const BOTTOM_GAP = -52; // extend canvas height so the field feels longer on portrait screens
-  const FIELD_DOWN_SHIFT_PCT = 0; // keep extension balanced upward/downward
+  const BOTTOM_GAP = -24; // keep bottom goal visible while still giving field extra vertical room
+  const FIELD_DOWN_SHIFT_PCT = -0.018; // move the field a bit higher on portrait screens
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -506,9 +506,9 @@
     H = canvas.height = Math.floor(height * devicePixelRatio);
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
-    // expand play field vertically by 5% toward the top and 5% toward the bottom
+    // expand play field slightly more vertically, keep it fully visible, and nudge it upward
     const baseW = W * 0.98;
-    const baseH = H * 1.10;
+    const baseH = H * 1.09;
     const maxFieldScaleX = W/baseW;
     const maxFieldScaleY = H/baseH;
     const fsx = Math.min(fieldScaleX, maxFieldScaleX);
@@ -519,7 +519,12 @@
     rink.x = Math.round((W - rink.w) / 2);
     const estimatedBase = Math.max(24, Math.round(Math.min(W,H)*0.035*fieldScaleActual));
     const verticalShift = Math.round(H * FIELD_DOWN_SHIFT_PCT);
+    const edgeGap = Math.round(Math.min(W, H) * 0.015);
+    const safeGap = Math.max(0, Math.min(edgeGap, Math.floor((H - rink.h) / 2)));
     rink.y = Math.round((H - rink.h) / 2 + verticalShift);
+    const minY = safeGap;
+    const maxY = H - rink.h - safeGap;
+    rink.y = Math.max(minY, Math.min(maxY, rink.y));
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
     const goalInset = Math.round(Math.min(W, H) * 0.012);
