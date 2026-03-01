@@ -389,8 +389,8 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.18, landscape: 0.36 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.34 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.03, landscape: 0.24 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 0.92 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -6304,7 +6304,7 @@ function TexasHoldemArena({ search }) {
         </div>
       </div>
       {sliderVisible && (
-        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white landscape:bottom-14 sm:right-6 sm:bottom-36 sm:landscape:bottom-18">
+        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white landscape:bottom-10 sm:right-6 sm:bottom-36 sm:landscape:bottom-14">
           <div className="flex flex-col items-center gap-3">
             <input
               type="range"
@@ -6352,7 +6352,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.2rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -6364,7 +6364,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showMute={false}
           order={['gift']}
-          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.2rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:left-[0.75rem] landscape:right-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+5.05rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -6375,7 +6375,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showGift={false}
           order={['mute']}
-          className="fixed right-[0.75rem] top-[calc(env(safe-area-inset-top,0px)+5.2rem)] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] top-[calc(env(safe-area-inset-top,0px)+5.2rem)] landscape:left-[0.75rem] landscape:right-auto landscape:top-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+8.85rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
