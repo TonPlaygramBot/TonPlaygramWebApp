@@ -5462,7 +5462,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
-const PLAYER_CUE_RELEASE_DURATION_MS = 980;
+const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 420;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
@@ -5472,7 +5472,8 @@ const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee visible pullback phase when captured stroke timings are too short
 const REPLAY_CUE_MIN_RELEASE_MS = 260; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = STOP_EPS;
+const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = SHOT_BASE_SPEED * 0.22;
+const CUEBALL_POST_IMPACT_CAMERA_HOLD_MS = 260;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
@@ -15012,6 +15013,7 @@ const powerRef = useRef(hud.power);
     moved: false
   });
   const pendingImpactRef = useRef(null);
+  const cueCameraSwitchUnlockAtRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -21425,7 +21427,7 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'release') {
-            const eased = easeOutCubic(sample.t);
+            const eased = easeInOutCubic(sample.t);
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
@@ -24935,6 +24937,7 @@ const powerRef = useRef(hud.power);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
           const impactTime = startTime + pullbackDuration + strikeDuration * 0.9;
+          cueCameraSwitchUnlockAtRef.current = impactTime + CUEBALL_POST_IMPACT_CAMERA_HOLD_MS;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -24976,6 +24979,7 @@ const powerRef = useRef(hud.power);
             earlyPocketView.pendingActivation = false;
             earlyPocketView.activationDelay = null;
             powerImpactHoldRef.current = 0;
+            cueCameraSwitchUnlockAtRef.current = 0;
             updatePocketCameraState(true);
             activeShotView = earlyPocketView;
             pocketViewActivated = true;
@@ -27923,6 +27927,7 @@ const powerRef = useRef(hud.power);
           spinAppliedRef.current = { x: 0, y: 0, magnitude: 0, mode: 'standard' };
           resetSpinRef.current?.();
           powerImpactHoldRef.current = 0;
+          cueCameraSwitchUnlockAtRef.current = 0;
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
@@ -29450,7 +29455,10 @@ const powerRef = useRef(hud.power);
               !suspendedActionView.activationDelay ||
               now >= suspendedActionView.activationDelay;
             const cueSpeed = cueBall.vel.length() * frameScale;
-            if (cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED) {
+            if (
+              cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED &&
+              now >= (cueCameraSwitchUnlockAtRef.current || 0)
+            ) {
               powerImpactHoldRef.current = 0;
             }
             const holdReady =
@@ -29540,7 +29548,11 @@ const powerRef = useRef(hud.power);
               cueBall?.vel && typeof cueBall.vel.length === 'function'
                 ? cueBall.vel.length() * frameScale
                 : 0;
-            if (earlyPocketIntent.allowEarly && cueSpeed > STOP_EPS) {
+            if (
+              earlyPocketIntent.allowEarly &&
+              cueSpeed > CUEBALL_EARLY_CAMERA_SWITCH_SPEED &&
+              now >= (cueCameraSwitchUnlockAtRef.current || 0)
+            ) {
               powerImpactHoldRef.current = 0;
             }
           }
