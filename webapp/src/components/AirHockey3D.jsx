@@ -182,6 +182,7 @@ const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'en
 const HUD_VERTICAL_SHIFT_REM = 9;
 const HUD_TOP_ROW_LIFT_REM = 2.5;
 const HUD_ICON_ROW_TOP_REM = 0.9;
+const HUD_MENU_LEFT_REM = 0.5;
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -2382,8 +2383,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
       <div
-        className="absolute left-2 right-2 z-30 grid grid-cols-2 items-center gap-2 text-white"
-        style={{ top: `${2.35 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
+        className={`absolute left-2 right-2 z-30 grid grid-cols-2 items-center gap-2 text-white ${
+          isTopDownView ? 'bottom-12' : ''
+        }`}
+        style={isTopDownView ? undefined : { top: `${2.35 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
       >
         <div
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
@@ -2413,8 +2416,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         </div>
       </div>
       <div
-        className="absolute left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur"
-        style={{ top: `${3.75 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
+        className={`absolute z-40 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur ${
+          isTopDownView ? 'left-1/2 -translate-x-1/2 bottom-4' : 'right-3'
+        }`}
+        style={
+          isTopDownView
+            ? undefined
+            : { top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }
+        }
       >
         <span className="uppercase tracking-wide">{playType}</span>
         <span className="mx-2">•</span>
@@ -2423,10 +2432,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       <button
         type="button"
         onClick={() => setShowCustomizer((prev) => !prev)}
-        className={`absolute left-3 z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+        className={`absolute z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
           showCustomizer ? 'bg-black/60' : 'hover:bg-black/60'
         }`}
-        style={{ top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
+        style={{
+          left: `${HUD_MENU_LEFT_REM}rem`,
+          top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35}rem`
+        }}
         aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
       >
         <span className="text-lg leading-none" aria-hidden="true">☰</span>
@@ -2473,18 +2485,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       </div>
       {!isTopDownView && (
         <>
-          <button
-            type="button"
-            onClick={() => {
-              toggleGameMuted();
-              setMuted(isGameMuted());
-            }}
-            className="absolute right-3 z-40 flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-            style={{ top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
-            aria-label={muted ? 'Unmute' : 'Mute'}
-          >
-            <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
-          </button>
           <div
             className="absolute right-3 z-40 flex flex-col items-center gap-1"
             style={{ top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
@@ -2503,6 +2503,17 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 <span aria-hidden>🧭</span>
                 <span>{isTopDownView ? '3D' : '2D'}</span>
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toggleGameMuted();
+                setMuted(isGameMuted());
+              }}
+              className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+              aria-label={muted ? 'Unmute' : 'Mute'}
+            >
+              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
             </button>
           </div>
         </>
