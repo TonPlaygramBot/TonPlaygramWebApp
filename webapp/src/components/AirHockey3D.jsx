@@ -183,6 +183,10 @@ const HUD_VERTICAL_SHIFT_REM = 9;
 const HUD_TOP_ROW_LIFT_REM = 2.5;
 const HUD_ICON_ROW_TOP_REM = 0.9;
 const HUD_MENU_LEFT_REM = 0.5;
+const AIR_HOCKEY_MENU_TOP_TWEAK_REM = -0.25;
+const AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM = -0.25;
+const AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM = 0.6;
+const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -1633,7 +1637,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       const horizontalTan = Math.max(verticalTan * camera.aspect, 1e-3);
       const halfWidth = (TABLE.w * TOP_VIEW_MARGIN) / 2;
       const halfLength = (TABLE.h * TOP_VIEW_MARGIN) / 2;
-      const distance = Math.max(halfLength / verticalTan, halfWidth / horizontalTan);
+      const distance =
+        Math.max(halfLength / verticalTan, halfWidth / horizontalTan) *
+        AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE;
       camera.up.copy(topViewUp);
       camera.position.set(0, topViewTarget.y + distance, tableCenterZ);
       camera.lookAt(topViewTarget);
@@ -2417,12 +2423,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       </div>
       <div
         className={`absolute z-40 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur ${
-          isTopDownView ? 'left-1/2 -translate-x-1/2 bottom-4' : 'right-3'
+          isTopDownView ? 'left-1/2 -translate-x-1/2 bottom-4' : 'left-1/2 -translate-x-1/2'
         }`}
         style={
           isTopDownView
             ? undefined
-            : { top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }
+            : {
+                top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM + AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM}rem`
+              }
         }
       >
         <span className="uppercase tracking-wide">{playType}</span>
@@ -2437,7 +2445,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         }`}
         style={{
           left: `${HUD_MENU_LEFT_REM}rem`,
-          top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35}rem`
+          top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`
         }}
         aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
       >
@@ -2487,8 +2495,21 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         <>
           <div
             className="absolute right-3 z-40 flex flex-col items-center gap-1"
-            style={{ top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
+            style={{
+              top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM + AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM}rem`
+            }}
           >
+            <button
+              type="button"
+              onClick={() => {
+                toggleGameMuted();
+                setMuted(isGameMuted());
+              }}
+              className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+              aria-label={muted ? 'Unmute' : 'Mute'}
+            >
+              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+            </button>
             <button
               type="button"
               aria-pressed={isTopDownView}
@@ -2503,17 +2524,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 <span aria-hidden>🧭</span>
                 <span>{isTopDownView ? '3D' : '2D'}</span>
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                toggleGameMuted();
-                setMuted(isGameMuted());
-              }}
-              className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-              aria-label={muted ? 'Unmute' : 'Mute'}
-            >
-              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
             </button>
           </div>
         </>
