@@ -1464,7 +1464,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.99,
+  restitution: 1.03,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -5466,12 +5466,12 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee visible pullback phase when captured stroke timings are too short
-const REPLAY_CUE_MIN_RELEASE_MS = 260; // guarantee visible forward push into impact in replay view
+const REPLAY_CUE_MIN_RELEASE_MS = 340; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -21175,8 +21175,8 @@ const powerRef = useRef(hud.power);
             const fallbackPullback = CUE_PULL_BASE * 0.35;
             const fallbackForward = CUE_PULL_BASE * 0.18;
             const pullbackTime = 160;
-            const forwardTime = 210;
-            const settleTime = 120;
+            const forwardTime = 320;
+            const settleTime = 160;
             const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
             const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
             const holdWindow = Math.max(replayHoldWindow, totalStroke);
@@ -24971,8 +24971,8 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
-          const strikeDuration = 120;
-          const strikeHoldDuration = 50;
+          const strikeDuration = 190;
+          const strikeHoldDuration = 90;
           const pullbackDuration = 0;
           const startTime = performance.now();
           const contactEps = 0.001;
@@ -24985,7 +24985,7 @@ const powerRef = useRef(hud.power);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
-          const impactTime = startTime + strikeDuration * 0.9;
+          const impactTime = startTime + strikeDuration * 0.76;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -25098,9 +25098,9 @@ const powerRef = useRef(hud.power);
               recoverDuration,
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
-              strikeDip: 0.003,
-              wobbleAmount: 0.0018,
-              strikeImpactThreshold: 0.9,
+              strikeDip: 0.0045,
+              wobbleAmount: 0.0024,
+              strikeImpactThreshold: 0.76,
               forwardOnly: true
             };
           } else {
