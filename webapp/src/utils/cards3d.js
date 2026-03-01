@@ -41,9 +41,12 @@ export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME
   });
   const backMaterial = new THREE.MeshStandardMaterial({
     map: backTexture,
-    color: new THREE.Color(theme.backColor || '#0f172a'),
+    // Keep the texture colors true-to-source (logo + pattern) instead of tinting.
+    color: new THREE.Color('#ffffff'),
     roughness: 0.6,
-    metalness: 0.15
+    metalness: 0.15,
+    emissive: new THREE.Color('#0f172a'),
+    emissiveIntensity: 0.08
   });
   const hiddenMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor || '#0f172a'),
@@ -143,7 +146,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-function makeCardBackTexture(theme, w = 2048, h = 2880) {
+function makeCardBackTexture(theme, w = 3072, h = 4320) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -160,7 +163,10 @@ function makeCardBackTexture(theme, w = 2048, h = 2880) {
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 16;
 
   const logoImage = getTonplaygramLogoImage();
   if (logoImage && !(logoImage.complete && logoImage.naturalWidth > 0)) {
@@ -357,8 +363,8 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.save();
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.9;
-    const logoBoxHeight = h * 0.42;
+    const logoBoxWidth = w * 0.94;
+    const logoBoxHeight = h * 0.56;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
