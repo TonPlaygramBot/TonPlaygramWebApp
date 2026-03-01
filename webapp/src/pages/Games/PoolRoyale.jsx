@@ -5411,7 +5411,7 @@ const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
-const SHOT_CAMERA_HOLD_MS = 2000;
+const SHOT_CAMERA_HOLD_MS = 2600;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -5456,13 +5456,16 @@ const PLAYER_STROKE_TIME_SCALE = 1;
 const PLAYER_FORWARD_SLOWDOWN = 1.22;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
+const PLAYER_CUE_PULLBACK_DURATION_MS = 170;
+const PLAYER_CUE_RELEASE_DURATION_MS = 280;
+const PLAYER_CUE_IMPACT_HOLD_MS = 150;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 260; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
-const REPLAY_CUE_MIN_PULLBACK_MS = 160; // guarantee visible pullback phase when captured stroke timings are too short
-const REPLAY_CUE_MIN_RELEASE_MS = 180; // guarantee visible forward push into impact in replay view
+const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee visible pullback phase when captured stroke timings are too short
+const REPLAY_CUE_MIN_RELEASE_MS = 260; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = STOP_EPS;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
@@ -21400,6 +21403,7 @@ const powerRef = useRef(hud.power);
             idlePos,
             pullPos,
             impactPos,
+            pullbackDuration,
             strikeDuration,
             holdDuration,
             baseRotationX,
@@ -21407,20 +21411,32 @@ const powerRef = useRef(hud.power);
             strikeDip,
             wobbleAmount
           } = stroke;
+          const pullback = Math.max(0, pullbackDuration ?? 0);
           const release = Math.max(0, strikeDuration ?? 120);
           const hold = Math.max(0, holdDuration ?? 50);
           const elapsed = Math.max(0, now - startTime);
-          const releaseEnd = release;
+          const pullEnd = pullback;
+          const releaseEnd = pullEnd + release;
           const holdEnd = releaseEnd + hold;
           cueStick.visible = true;
           cueAnimating = true;
-          const hitAt = release * 0.9;
+          const hitAt = pullEnd + release * 0.9;
           if (!stroke.shotApplied && elapsed >= hitAt) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
+          if (elapsed <= pullEnd && pullback > 0) {
+            const t = THREE.MathUtils.clamp(elapsed / Math.max(pullback, 1e-6), 0, 1);
+            const eased = easeInOutCubic(t);
+            cueStick.position.lerpVectors(idlePos, pullPos, eased);
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+            syncCueShadow();
+            return true;
+          }
           if (elapsed <= releaseEnd && release > 0) {
-            const t = THREE.MathUtils.clamp(elapsed / Math.max(release, 1e-6), 0, 1);
+            const releaseElapsed = elapsed - pullEnd;
+            const t = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1);
             const eased = easeOutCubic(t);
             const wobble = Math.sin(t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
@@ -24900,9 +24916,9 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
-          const strikeDuration = 120;
-          const strikeHoldDuration = 50;
-          const pullbackDuration = 0;
+          const strikeDuration = PLAYER_CUE_RELEASE_DURATION_MS;
+          const strikeHoldDuration = PLAYER_CUE_IMPACT_HOLD_MS;
+          const pullbackDuration = PLAYER_CUE_PULLBACK_DURATION_MS;
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.clamp(
             topspinFactor * BALL_R * 0.29,
@@ -24914,7 +24930,7 @@ const powerRef = useRef(hud.power);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
-          const impactTime = startTime + strikeDuration * 0.9;
+          const impactTime = startTime + pullbackDuration + strikeDuration * 0.9;
           const forwardPreviewHold =
             impactTime +
             Math.min(
