@@ -111,6 +111,7 @@ import {
   buildPoolSuggestionKey,
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
+import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
@@ -1844,6 +1845,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 2.7; // strengthen minimum forward push so cue-stroke follow-through is always visible
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 6.8; // extend forward travel so high-power shots show a clear cue push animation
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -5459,9 +5462,9 @@ const PLAYER_STROKE_TIME_SCALE = 1.55;
 const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
-const PLAYER_CUE_PULLBACK_DURATION_MS = 0;
-const PLAYER_CUE_RELEASE_DURATION_MS = 120;
-const PLAYER_CUE_IMPACT_HOLD_MS = 50;
+const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
+const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
+const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -21403,53 +21406,13 @@ const powerRef = useRef(hud.power);
             wobbleAmount
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
-          const pullEnd = Math.max(0, pullbackDuration ?? 0);
-          const releaseEnd = pullEnd + Math.max(0, strikeDuration ?? 0);
-          const holdEnd = releaseEnd + Math.max(0, holdDuration ?? 0);
-          const recoverEnd = holdEnd + Math.max(0, recoverDuration ?? 0);
-          let sample = { phase: 'done', t: 1, hitArmed: true, done: true };
-          if (elapsed <= pullEnd && pullEnd > 0) {
-            sample = {
-              phase: 'pullback',
-              t: THREE.MathUtils.clamp(elapsed / Math.max(pullEnd, 1e-6), 0, 1),
-              hitArmed: false,
-              done: false
-            };
-          } else if (elapsed <= releaseEnd && strikeDuration > 0) {
-            const pushT = THREE.MathUtils.clamp(
-              (elapsed - pullEnd) / Math.max(strikeDuration, 1e-6),
-              0,
-              1
-            );
-            sample = {
-              phase: 'release',
-              t: pushT,
-              hitArmed: pushT >= 0.9,
-              done: false
-            };
-          } else if (elapsed <= holdEnd && holdDuration > 0) {
-            sample = {
-              phase: 'hold',
-              t: THREE.MathUtils.clamp(
-                (elapsed - releaseEnd) / Math.max(holdDuration, 1e-6),
-                0,
-                1
-              ),
-              hitArmed: true,
-              done: false
-            };
-          } else if (elapsed <= recoverEnd && recoverDuration > 0) {
-            sample = {
-              phase: 'recover',
-              t: THREE.MathUtils.clamp(
-                (elapsed - holdEnd) / Math.max(recoverDuration, 1e-6),
-                0,
-                1
-              ),
-              hitArmed: true,
-              done: false
-            };
-          }
+          const sample = sampleCueStrokeTimeline({
+            elapsed,
+            pullbackDuration,
+            strikeDuration,
+            holdDuration,
+            recoverDuration
+          });
           cueStick.visible = true;
           cueAnimating = !sample.done;
           if (!stroke.shotApplied && sample.hitArmed) {
@@ -21465,7 +21428,7 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'release') {
-            const eased = easeOutCubic(sample.t);
+            const eased = easeInOutCubic(sample.t);
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
@@ -24964,10 +24927,19 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = PLAYER_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = PLAYER_CUE_PULLBACK_DURATION_MS;
           const startTime = performance.now();
-          const contactDistance = Math.max(0, CUE_TIP_GAP - CUE_TIP_CLEARANCE * 0.95);
-          const followExtra = THREE.MathUtils.clamp(topspinFactor * 0.016, 0, 0.018);
-          const impactPos = buildCuePosition(-contactDistance);
-          const followPos = buildCuePosition(-(contactDistance + followExtra));
+          const followThrough = THREE.MathUtils.clamp(
+            CUE_FOLLOW_THROUGH_MIN +
+              (CUE_FOLLOW_THROUGH_MAX - CUE_FOLLOW_THROUGH_MIN) *
+                (powerStrength * 0.75 + topspinFactor * 0.25),
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX
+          );
+          const followDistance = Math.min(
+            followThrough,
+            CUE_TIP_GAP + maxPull + BALL_R * 0.5
+          );
+          const impactPos = buildCuePosition(-followDistance);
+          const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
           const impactTime = startTime + pullbackDuration + strikeDuration * 0.9;
