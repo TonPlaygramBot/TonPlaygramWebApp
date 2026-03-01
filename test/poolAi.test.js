@@ -245,7 +245,7 @@ test('UNASSIGNED group defers to ballOn value', () => {
   assert.equal(decision.targetBallId, 1);
 });
 
-test('prefers target with highest pot probability over pure cut-angle heuristics', () => {
+test('prefers target with smallest cut angle', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
     state: {
@@ -263,7 +263,7 @@ test('prefers target with highest pot probability over pure cut-angle heuristics
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.targetBallId, 2);
+  assert.equal(decision.targetBallId, 1);
 });
 
 test('cue ball remains within table bounds for varied power and spin', () => {

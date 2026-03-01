@@ -5465,8 +5465,6 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
-const PLAYER_CUE_FORWARD_PUSH_MIN = BALL_R * 0.32;
-const PLAYER_CUE_FORWARD_PUSH_MAX = BALL_R * 0.52;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -21175,7 +21173,7 @@ const powerRef = useRef(hud.power);
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = Math.max(CUE_PULL_BASE * 0.24, PLAYER_CUE_FORWARD_PUSH_MIN);
+            const fallbackForward = CUE_PULL_BASE * 0.18;
             const pullbackTime = 160;
             const forwardTime = 210;
             const settleTime = 120;
@@ -24929,16 +24927,12 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = PLAYER_CUE_PULLBACK_DURATION_MS;
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.clamp(
-            topspinFactor * BALL_R * 0.34,
+            topspinFactor * BALL_R * 0.29,
             0,
-            PLAYER_CUE_FORWARD_PUSH_MAX
+            BALL_R * 0.33
           );
-          const forwardPushDistance = THREE.MathUtils.clamp(
-            Math.max(PLAYER_CUE_FORWARD_PUSH_MIN, followThrough),
-            PLAYER_CUE_FORWARD_PUSH_MIN,
-            PLAYER_CUE_FORWARD_PUSH_MAX
-          );
-          const impactPos = buildCuePosition(-forwardPushDistance);
+          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const impactPos = buildCuePosition(-followDistance);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
@@ -26391,7 +26385,6 @@ const powerRef = useRef(hud.power);
                 : 0,
             spin,
             quality,
-            potChance: Number.isFinite(decision.potChance) ? decision.potChance : quality,
             suggestedAimDir:
               suggestedAimDir && suggestedAimDir.lengthSq() > 1e-6
                 ? suggestedAimDir
@@ -26431,19 +26424,9 @@ const powerRef = useRef(hud.power);
             if (!openSourcePlan) return baseline;
             const result = { ...baseline };
             if (openSourcePlan.type === 'pot') {
-              const currentPotChance = Number.isFinite(result.bestPot?.potChance)
-                ? result.bestPot.potChance
-                : result.bestPot?.quality ?? -Infinity;
-              const nextPotChance = Number.isFinite(openSourcePlan.potChance)
-                ? openSourcePlan.potChance
-                : openSourcePlan.quality ?? 0;
               const currentQuality = result.bestPot?.quality ?? -Infinity;
-              const nextQuality = openSourcePlan.quality ?? -Infinity;
-              if (
-                !result.bestPot ||
-                nextPotChance > currentPotChance ||
-                (nextPotChance === currentPotChance && nextQuality >= currentQuality)
-              ) {
+              const nextQuality = openSourcePlan.quality ?? 0;
+              if (!result.bestPot || nextQuality >= currentQuality) {
                 result.bestPot = openSourcePlan;
               }
             } else {
