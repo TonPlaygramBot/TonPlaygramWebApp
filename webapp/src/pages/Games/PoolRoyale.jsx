@@ -5448,9 +5448,7 @@ const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before
 const AI_CAMERA_DROP_LEAD_MS =
   AI_CAMERA_DROP_DURATION_MS + AI_CAMERA_SETTLE_MS; // start lowering into cue view early enough to finish before the stroke begins
 const AI_CUE_VIEW_HOLD_MS = 180;
-const AI_AIM_ADJUST_DELAY_MS = 120;
-const AI_AIM_ADJUST_DURATION_MS = 650;
-const AI_SPIN_ADJUST_DELAY_MS = 1350;
+const AI_SPIN_ADJUST_DELAY_MS = 2000;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -5464,7 +5462,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
-const PLAYER_CUE_RELEASE_DURATION_MS = 980;
+const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
@@ -5472,7 +5470,7 @@ const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so 
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee visible pullback phase when captured stroke timings are too short
-const REPLAY_CUE_MIN_RELEASE_MS = 420; // guarantee visible forward push into impact in replay view
+const REPLAY_CUE_MIN_RELEASE_MS = 260; // guarantee visible forward push into impact in replay view
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -6013,7 +6011,7 @@ function applyAxisClearance(
   }
 }
 
-function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, viewInput = null) {
+function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
   const spinAxes = axesInput || prepareSpinAxes(aimDir);
   const forward = spinAxes.axis;
@@ -6054,25 +6052,6 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, viewIn
     }
     if (nearest !== Infinity) {
       applyAxisClearance(limits, axis.key, axis.positive, nearest);
-    }
-  }
-
-  if (viewInput) {
-    const view = new THREE.Vector2(viewInput.x ?? 0, viewInput.y ?? 0);
-    if (view.lengthSq() > 1e-8) {
-      view.normalize();
-      if (view.dot(lateral) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.maxX = Math.min(limits.maxX, 0);
-      }
-      if (view.dot(lateral.clone().multiplyScalar(-1)) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.minX = Math.max(limits.minX, 0);
-      }
-      if (view.dot(forward) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.maxY = Math.min(limits.maxY, 0);
-      }
-      if (view.dot(forward.clone().multiplyScalar(-1)) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.minY = Math.max(limits.minY, 0);
-      }
     }
   }
 
@@ -14767,7 +14746,6 @@ const powerRef = useRef(hud.power);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
   const aiCuePullReadyAtRef = useRef(0);
   const aiRetryTimeoutRef = useRef(null);
-  const aiAimAdjustRef = useRef(null);
   const aiSpinAdjustRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
@@ -14782,12 +14760,6 @@ const powerRef = useRef(hud.power);
     if (aiSpinAdjustRef.current) {
       cancelAnimationFrame(aiSpinAdjustRef.current);
       aiSpinAdjustRef.current = null;
-    }
-  }, []);
-  const cancelAiAimAdjust = useCallback(() => {
-    if (aiAimAdjustRef.current) {
-      cancelAnimationFrame(aiAimAdjustRef.current);
-      aiAimAdjustRef.current = null;
     }
   }, []);
 
@@ -14835,13 +14807,12 @@ const powerRef = useRef(hud.power);
       clearTimeout(aiShotCueDropTimeoutRef.current);
       aiShotCueDropTimeoutRef.current = null;
     }
-    cancelAiAimAdjust();
     cancelAiSpinAdjust();
     cancelCameraBlendTween();
     aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
     setAiShotPreviewActive(false);
     setAiShotCueViewActive(false);
-  }, [setAiShotPreviewActive, setAiShotCueViewActive, cancelCameraBlendTween, cancelAiAimAdjust, cancelAiSpinAdjust]);
+  }, [setAiShotPreviewActive, setAiShotCueViewActive, cancelCameraBlendTween, cancelAiSpinAdjust]);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
@@ -21201,7 +21172,7 @@ const powerRef = useRef(hud.power);
               ? playback.duration
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
-            const fallbackForward = CUE_PULL_BASE * 0.3;
+            const fallbackForward = CUE_PULL_BASE * 0.18;
             const pullbackTime = 160;
             const forwardTime = 210;
             const settleTime = 120;
@@ -21259,7 +21230,7 @@ const powerRef = useRef(hud.power);
                 );
                 cueStick.position.lerpVectors(followPos, idlePos, easeInOutCubic(t));
               } else {
-                cueStick.position.copy(idlePos);
+                cueStick.position.copy(pullPos);
               }
             }
             syncCueShadow();
@@ -21896,7 +21867,7 @@ const powerRef = useRef(hud.power);
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
-            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes, viewVec);
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
               y: 0
@@ -24955,11 +24926,11 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = PLAYER_CUE_PULLBACK_DURATION_MS;
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.clamp(
-            BALL_R * 0.22 + topspinFactor * BALL_R * 0.29,
-            BALL_R * 0.22,
-            BALL_R * 0.46
+            topspinFactor * BALL_R * 0.29,
+            0,
+            BALL_R * 0.33
           );
-          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.9);
+          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
           const impactPos = buildCuePosition(-followDistance);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
@@ -27214,54 +27185,6 @@ const powerRef = useRef(hud.power);
           aiSpinAdjustRef.current = requestAnimationFrame(animate);
         };
 
-        const animateAiAimAdjustment = (targetDir, durationMs, { delayMs = 0 } = {}) => {
-          cancelAiAimAdjust();
-          const initial = aimDirRef.current?.clone?.() ?? targetDir?.clone?.();
-          if (
-            !targetDir ||
-            typeof targetDir.lengthSq !== 'function' ||
-            targetDir.lengthSq() <= 1e-6 ||
-            !initial ||
-            typeof initial.lengthSq !== 'function' ||
-            initial.lengthSq() <= 1e-6 ||
-            !cue?.active
-          ) {
-            return;
-          }
-          const start = initial.clone().normalize();
-          const end = targetDir.clone().normalize();
-          const angle = start.angleTo(end);
-          if (!Number.isFinite(angle) || angle <= THREE.MathUtils.degToRad(0.4)) {
-            aimDirRef.current.copy(end);
-            alignStandingCameraToAim(cue, end, { preserveOrbit: false });
-            return;
-          }
-          const startAt = performance.now() + Math.max(0, delayMs);
-          const animate = (now) => {
-            const elapsed = now - startAt;
-            if (elapsed < 0) {
-              aiAimAdjustRef.current = requestAnimationFrame(animate);
-              return;
-            }
-            const t = durationMs > 0
-              ? THREE.MathUtils.clamp(elapsed / durationMs, 0, 1)
-              : 1;
-            const eased = easeInOutCubic(t);
-            TMP_VEC2_A.copy(start).lerp(end, eased);
-            if (TMP_VEC2_A.lengthSq() > 1e-8) TMP_VEC2_A.normalize();
-            aimDirRef.current.copy(TMP_VEC2_A);
-            alignStandingCameraToAim(cue, TMP_VEC2_A, { preserveOrbit: false });
-            if (t < 1 && aiShotCueViewRef.current && !shootingRef.current) {
-              aiAimAdjustRef.current = requestAnimationFrame(animate);
-            } else {
-              aiAimAdjustRef.current = null;
-              aimDirRef.current.copy(end);
-              alignStandingCameraToAim(cue, end, { preserveOrbit: false });
-            }
-          };
-          aiAimAdjustRef.current = requestAnimationFrame(animate);
-        };
-
         aiShoot.current = () => {
           if (!aiOpponentEnabled) return;
           if (aiRetryTimeoutRef.current) {
@@ -27438,9 +27361,6 @@ const powerRef = useRef(hud.power);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
               aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
-              animateAiAimAdjustment(dir, AI_AIM_ADJUST_DURATION_MS, {
-                delayMs: AI_AIM_ADJUST_DELAY_MS
-              });
               animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
@@ -28311,9 +28231,6 @@ const powerRef = useRef(hud.power);
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
-              if (cue?.active) {
-                alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
-              }
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
             if (shouldAutoAimPlayer) {
@@ -28324,7 +28241,7 @@ const powerRef = useRef(hud.power);
             }
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
-              if ((shouldAutoAimPlayer || shouldAutoAimAi) && cue?.active) {
+              if (shouldAutoAimPlayer && cue?.active) {
                 alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
               }
             }
