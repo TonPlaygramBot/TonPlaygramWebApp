@@ -21401,21 +21401,26 @@ const powerRef = useRef(hud.power);
             pullPos,
             impactPos,
             followPos,
-            strikeDuration,
-            holdDuration,
+            releaseDuration,
+            followDuration,
+            impactProgress,
             baseRotationX,
             baseRotationY,
-            strikeDip,
-            wobbleAmount
+            strikeDip
           } = stroke;
-          const release = Math.max(0, strikeDuration ?? 120);
-          const hold = Math.max(0, holdDuration ?? 50);
+          const release = Math.max(0, releaseDuration ?? 0);
+          const hold = Math.max(0, followDuration ?? 0);
           const elapsed = Math.max(0, now - startTime);
           const releaseEnd = release;
           const holdEnd = releaseEnd + hold;
           cueStick.visible = true;
           cueAnimating = true;
-          const hitAt = release * 0.9;
+          const hitAt =
+            release * THREE.MathUtils.clamp(
+              Number.isFinite(impactProgress) ? impactProgress : 0.9,
+              0,
+              1
+            );
           if (!stroke.shotApplied && elapsed >= hitAt) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
@@ -21423,7 +21428,7 @@ const powerRef = useRef(hud.power);
           if (elapsed <= releaseEnd && release > 0) {
             const t = THREE.MathUtils.clamp(elapsed / Math.max(release, 1e-6), 0, 1);
             const eased = easeOutCubic(t);
-            const wobble = Math.sin(t * Math.PI) * (wobbleAmount ?? BALL_R * 0.03);
+            const wobble = Math.sin(t * Math.PI) * BALL_R * 0.03;
             cueStick.position.lerpVectors(pullPos, followPos ?? impactPos, eased);
             cueStick.position.y -= (strikeDip ?? BALL_R * 0.06) * eased;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
@@ -25023,13 +25028,13 @@ const powerRef = useRef(hud.power);
               impactPos: impactPos.clone(),
               followPos: followPos.clone(),
               pullbackDuration,
-              strikeDuration,
-              holdDuration: followDurationResolved,
+              releaseDuration: strikeDuration,
+              followDuration: followDurationResolved,
               recoverDuration,
+              impactProgress: 0.9,
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
-              strikeDip: BALL_R * 0.06,
-              wobbleAmount: BALL_R * 0.03
+              strikeDip: BALL_R * 0.06
             };
           } else {
             cueStick.visible = false;
