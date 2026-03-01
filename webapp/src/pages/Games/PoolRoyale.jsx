@@ -24271,15 +24271,14 @@ const powerRef = useRef(hud.power);
         dir.normalize();
         const sph = sphRef.current;
         if (!sph) return;
-        const standingBounds = cameraBoundsRef.current?.standing;
-        if (standingBounds) {
-          sph.radius = clampOrbitRadius(standingBounds.radius);
-          sph.phi = THREE.MathUtils.clamp(
-            standingBounds.phi,
-            CAMERA.minPhi,
-            CAMERA.maxPhi
-          );
-        }
+        // Keep the active camera mode (cue / standing) exactly where the user left it
+        // and only yaw the orbit so the aiming line points at the suggested ball.
+        sph.radius = clampOrbitRadius(sph.radius);
+        sph.phi = THREE.MathUtils.clamp(
+          sph.phi,
+          CAMERA.minPhi,
+          CAMERA.maxPhi
+        );
         const aimTheta = Math.atan2(dir.x, dir.y) + Math.PI;
         sph.theta = aimTheta;
         syncBlendToSpherical();
