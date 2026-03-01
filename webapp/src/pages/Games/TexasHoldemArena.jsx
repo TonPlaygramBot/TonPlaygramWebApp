@@ -389,9 +389,9 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.34 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.72, landscape: 0.1 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 0.98, landscape: 0.68 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.3 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.72, landscape: 0.04 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 0.98, landscape: 0.66 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -413,10 +413,20 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
-const POT_PLAYER_PILE_RADIUS = CARD_W * 0.82;
+const POT_PLAYER_PILE_RADIUS = CARD_W * 1.02;
 const POT_TWO_PILE_SIDE_OFFSET = CARD_W * 0.4;
 const POT_TWO_PILE_FORWARD_STEP = CARD_D * 1.5;
 const POT_PILE_RING_SEAT_SPREAD = Math.PI / 7;
+const POT_DROP_GRID_LAYOUT = Object.freeze([
+  [0, 0],
+  [-1, 0],
+  [1, 0],
+  [-0.5, 1],
+  [0.5, 1],
+  [0, 2]
+]);
+const POT_DROP_GRID_SPACING_X = CARD_W * 0.46;
+const POT_DROP_GRID_SPACING_Z = CARD_D * 2.35;
 const BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH = CARD_W * 0.22;
 const COMMUNITY_REVEAL_CAMERA_HOLD_MS = 2000;
 const FOLD_PILE_CARD_GAP = CARD_D * 0.9;
@@ -533,7 +543,7 @@ const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 0.66;
 const RAIL_FORWARD_MARGIN_RATIO = RAIL_FORWARD_MARGIN / TABLE_RADIUS;
 const CARD_RAIL_FORWARD_SHIFT_RATIO = CARD_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
 const CHIP_RAIL_FORWARD_SHIFT_RATIO = CHIP_RAIL_FORWARD_SHIFT / RAIL_FORWARD_MARGIN;
-const HUMAN_SEAT_RADIUS_OFFSET = CHAIR_RADIUS - TABLE_RADIUS - CARD_W * 0.38;
+const HUMAN_SEAT_RADIUS_OFFSET = CHAIR_RADIUS - TABLE_RADIUS - CARD_W * 0.6;
 const AI_SEAT_RADIUS_OFFSET = AI_CHAIR_RADIUS - TABLE_RADIUS;
 const BET_DISTANCE_RATIO = 0.6;
 
@@ -1962,12 +1972,12 @@ function computeSeatPotDropAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT,
   const index = Number.isFinite(options?.pileIndex) ? Math.max(0, Math.floor(options.pileIndex)) : 0;
   const right = (options?.right ?? new THREE.Vector3(1, 0, 0)).clone().setY(0).normalize();
   const forwardAxis = (options?.forward ?? new THREE.Vector3(0, 0, 1)).clone().setY(0).normalize();
-  const laneDirection = index % 2 === 0 ? 1 : -1;
-  const depthStep = Math.floor(index / 2);
+  const slot = POT_DROP_GRID_LAYOUT[index % POT_DROP_GRID_LAYOUT.length] ?? [0, 0];
+  const ringOffset = Math.floor(index / POT_DROP_GRID_LAYOUT.length);
   return baseAnchor
     .clone()
-    .addScaledVector(right, laneDirection * CARD_W * 0.14)
-    .addScaledVector(forwardAxis, depthStep * CARD_D * 1.2)
+    .addScaledVector(right, slot[0] * POT_DROP_GRID_SPACING_X)
+    .addScaledVector(forwardAxis, (slot[1] + ringOffset * 2.5) * POT_DROP_GRID_SPACING_Z)
     .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
 }
 
@@ -2247,7 +2257,7 @@ function createRailTextSprite(initialLines = [], options = {}) {
     const totalPotFont = `900 ${136 * resolutionScale}px "Inter", system-ui, sans-serif`;
     const iconGap = 34 * resolutionScale;
     const amountBaseY = canvas.height / 2 + 4 * resolutionScale;
-    const totalPotY = canvas.height / 2 - 134 * resolutionScale;
+    const totalPotY = canvas.height / 2 - 98 * resolutionScale;
     ctx.font = amountFont;
     const amountWidth = ctx.measureText(amountLabel).width;
     const blockWidth = iconSize + iconGap + amountWidth;
@@ -6287,7 +6297,7 @@ function TexasHoldemArena({ search }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-14 landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+0.1rem)] left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
+      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.35rem)] landscape:translate-x-0">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
