@@ -26,9 +26,8 @@ export const sampleCueStrokeTimeline = ({
     return {
       phase: 'release',
       t: THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1),
-      // Arm impact a little earlier so the forward cue-stick travel is visible
-      // before the simulated hit is applied in both live-play and replay.
-      hitArmed: safeElapsed >= pullEnd + release * 0.82,
+      // Cue-ball movement starts only after the cue returns to the start contact point.
+      hitArmed: safeElapsed >= pullEnd + release,
       done: false
     };
   }
