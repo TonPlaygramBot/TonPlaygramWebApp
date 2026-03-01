@@ -6011,7 +6011,7 @@ function applyAxisClearance(
   }
 }
 
-function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, viewInput = null) {
+function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
   const spinAxes = axesInput || prepareSpinAxes(aimDir);
   const forward = spinAxes.axis;
@@ -6052,25 +6052,6 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, viewIn
     }
     if (nearest !== Infinity) {
       applyAxisClearance(limits, axis.key, axis.positive, nearest);
-    }
-  }
-
-  if (viewInput) {
-    const view = new THREE.Vector2(viewInput.x ?? 0, viewInput.y ?? 0);
-    if (view.lengthSq() > 1e-8) {
-      view.normalize();
-      if (view.dot(lateral) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.maxX = Math.min(limits.maxX, 0);
-      }
-      if (view.dot(lateral.clone().multiplyScalar(-1)) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.minX = Math.max(limits.minX, 0);
-      }
-      if (view.dot(forward) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.maxY = Math.min(limits.maxY, 0);
-      }
-      if (view.dot(forward.clone().multiplyScalar(-1)) < SPIN_VIEW_BLOCK_THRESHOLD) {
-        limits.minY = Math.max(limits.minY, 0);
-      }
     }
   }
 
@@ -21249,7 +21230,7 @@ const powerRef = useRef(hud.power);
                 );
                 cueStick.position.lerpVectors(followPos, idlePos, easeInOutCubic(t));
               } else {
-                cueStick.position.copy(idlePos);
+                cueStick.position.copy(pullPos);
               }
             }
             syncCueShadow();
@@ -21886,7 +21867,7 @@ const powerRef = useRef(hud.power);
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
-            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes, viewVec);
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
               y: 0
@@ -28250,9 +28231,6 @@ const powerRef = useRef(hud.power);
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
-              if (cue?.active) {
-                alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
-              }
             }
           } else if (autoAimDir && autoAimDir.lengthSq() > 1e-6) {
             if (shouldAutoAimPlayer) {
@@ -28263,7 +28241,7 @@ const powerRef = useRef(hud.power);
             }
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
-              if ((shouldAutoAimPlayer || shouldAutoAimAi) && cue?.active) {
+              if (shouldAutoAimPlayer && cue?.active) {
                 alignStandingCameraToAim(cue, aimDir, { preserveOrbit: false });
               }
             }
