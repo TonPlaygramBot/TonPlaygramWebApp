@@ -5,8 +5,7 @@ export const sampleCueStrokeTimeline = ({
   pullbackDuration = 0,
   strikeDuration = 120,
   holdDuration = 50,
-  recoverDuration = 130,
-  hitArmThreshold = 0.9
+  recoverDuration = 130
 } = {}) => {
   const pullback = Math.max(0, pullbackDuration ?? 0);
   const release = Math.max(0, strikeDuration ?? 120);
@@ -24,9 +23,7 @@ export const sampleCueStrokeTimeline = ({
   }
   if (safeElapsed <= releaseEnd && release > 0) {
     const releaseElapsed = safeElapsed - pullEnd;
-    const releaseT = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1);
-    const armThreshold = THREE.MathUtils.clamp(hitArmThreshold, 0.65, 0.99);
-    return { phase: 'release', t: releaseT, hitArmed: releaseT >= armThreshold, done: false };
+    return { phase: 'release', t: THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1), hitArmed: safeElapsed >= pullEnd + release * 0.98, done: false };
   }
   if (safeElapsed <= holdEnd && hold > 0) {
     return { phase: 'hold', t: THREE.MathUtils.clamp((safeElapsed - releaseEnd) / Math.max(hold, 1e-6), 0, 1), hitArmed: true, done: false };
