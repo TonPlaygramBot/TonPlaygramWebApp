@@ -112,6 +112,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -26550,16 +26551,18 @@ const powerRef = useRef(hud.power);
             plan.targetBall = pickLegalTargetBall();
           }
           if (plan.pocketCenter && plan.targetBall?.pos) {
-            const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
-            if (toPocket.lengthSq() > 1e-6) {
-              const toPocketDir = toPocket.normalize();
-              const ghost = plan.targetBall.pos
-                .clone()
-                .sub(toPocketDir.multiplyScalar(BALL_R * 2));
-              const cueVec = ghost.sub(cueBall.pos);
-              if (cueVec.lengthSq() > 1e-6) {
-                corrected = cueVec.normalize();
-                plan.cueToTarget = cueBall.pos.distanceTo(ghost);
+            const compensatedAim = resolveAiPotGhostAim({
+              cuePos: cueBall.pos,
+              targetPos: plan.targetBall.pos,
+              pocketPos: plan.pocketCenter,
+              ballRadius: BALL_R,
+              spin: plan.spin,
+              power: plan.power
+            });
+            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
+              corrected = compensatedAim.aimDir.clone();
+              if (compensatedAim.ghost) {
+                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
               }
             }
           }
