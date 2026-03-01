@@ -77,11 +77,12 @@ export function orientCard(mesh, lookTarget, { face = 'front', flat = true } = {
 
 export function setCardFace(mesh, face) {
   if (!mesh?.material) return;
-  const { frontMaterial, backMaterial } = mesh.userData ?? {};
+  const { frontMaterial, backMaterial, hiddenMaterial } = mesh.userData ?? {};
   if (!frontMaterial || !backMaterial) return;
   if (face === 'back') {
-    mesh.material[4] = backMaterial;
-    mesh.material[5] = backMaterial;
+    const mat = hiddenMaterial ?? backMaterial;
+    mesh.material[4] = mat;
+    mesh.material[5] = mat;
     mesh.userData.cardFace = 'back';
   } else {
     mesh.material[4] = frontMaterial;
@@ -143,7 +144,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-function makeCardBackTexture(theme, w = 1024, h = 1440) {
+function makeCardBackTexture(theme, w = 512, h = 720) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -338,8 +339,8 @@ function drawBackPattern(ctx, w, h, theme) {
 }
 
 function drawLogoFrame(ctx, w, h, theme) {
-  const frameWidth = w * 0.78;
-  const frameHeight = h * 0.26;
+  const frameWidth = w * 0.68;
+  const frameHeight = h * 0.22;
   const frameX = (w - frameWidth) / 2;
   const frameY = (h - frameHeight) / 2;
 
@@ -356,7 +357,7 @@ function drawLogoFrame(ctx, w, h, theme) {
   const logoImage = getTonplaygramLogoImage();
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const drawWidth = Math.min(frameWidth * 0.92, frameHeight * ratio);
+    const drawWidth = Math.min(frameWidth * 0.82, frameHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
     const logoY = h / 2 - drawHeight / 2;
