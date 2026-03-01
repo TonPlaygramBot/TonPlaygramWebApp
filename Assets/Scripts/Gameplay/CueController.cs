@@ -9,6 +9,11 @@ namespace Aiming
         public Transform cueBall, objectBall, pocket;
         public Bounds tableBounds;
         public float ballRadius = 0.028575f;
+        public float cueDistanceFromBall = 0.12f;
+        public float animationPullbackDistance = 0.045f;
+        public float animationSpeed = 4f;
+
+        Vector3 _lastAimDirection = Vector3.forward;
 
         void Update()
         {
@@ -25,16 +30,27 @@ namespace Aiming
                 collisionMask = aiming.config ? aiming.config.collisionMask : default
             };
             var sol = aiming.GetAimSolution(ctx);
-            if (sol.isValid && cueTip != null)
+            if (sol.isValid)
             {
                 Vector3 dir = (sol.aimEnd - sol.aimStart);
                 if (dir.sqrMagnitude > 1e-6f)
                 {
                     dir.Normalize();
-                    transform.position = sol.aimStart;
+                    _lastAimDirection = dir;
+
+                    float animationPhase = (Mathf.Sin(Time.time * animationSpeed) + 1f) * 0.5f;
+                    float pullback = animationPhase * animationPullbackDistance;
+                    transform.position = sol.aimStart - dir * (cueDistanceFromBall + pullback);
                     transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-                    cueTip.position = sol.aimStart + dir * 0.1f;
+                    if (cueTip != null)
+                    {
+                        cueTip.position = sol.aimStart;
+                    }
                 }
+            }
+            else
+            {
+                transform.rotation = Quaternion.LookRotation(_lastAimDirection, Vector3.up);
             }
         }
     }
