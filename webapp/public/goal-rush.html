@@ -262,8 +262,8 @@
   const muteLabel = document.getElementById('muteLabel');
   const TOP_BAR = 0; // no top offset: HUD moved to bottom so the field can rise up a bit
   const BOTTOM_GAP = -24; // keep bottom goal visible while still giving field extra vertical room
-  const FIELD_DOWN_SHIFT_PCT = -0.03; // move the field higher toward the top on portrait screens
-  const FIELD_BOTTOM_EXTENSION_PUCK_SIZE = 2; // extend field only downward by ~1 puck diameter
+  const FIELD_DOWN_SHIFT_PCT = 0; // keep vertical expansion balanced between top and bottom
+  const FIELD_VERTICAL_EXPANSION_PCT = 0.05; // expand the field by 5% on both top and bottom
   const GOAL_PAUSE = 1500; // pause after a goal
   let fieldScaleActual = 1;
 
@@ -526,11 +526,13 @@
     const minY = safeGap;
     const maxY = H - rink.h - safeGap;
     rink.y = Math.max(minY, Math.min(maxY, rink.y));
-    const previewPuckRadius = Math.max(24, Math.round(estimatedBase * 1.3 * puckScale));
-    const bottomFieldExtension = Math.round(previewPuckRadius * FIELD_BOTTOM_EXTENSION_PUCK_SIZE);
+    const sideExpansion = Math.round(rink.h * FIELD_VERTICAL_EXPANSION_PCT);
+    const minTopBound = safeGap;
     const maxBottomBound = H - safeGap;
-    const extendedHeight = Math.min(maxBottomBound - rink.y, rink.h + bottomFieldExtension);
-    rink.h = Math.max(rink.h, extendedHeight);
+    const expandedTop = Math.max(minTopBound, rink.y - sideExpansion);
+    const expandedBottom = Math.min(maxBottomBound, rink.y + rink.h + sideExpansion);
+    rink.y = expandedTop;
+    rink.h = Math.max(0, expandedBottom - expandedTop);
     centerX = W/2; centerY = H/2;
     goalCenterX = centerX + rink.w * goalOffsetXPct;
     const goalInset = Math.round(Math.min(W, H) * 0.012);
