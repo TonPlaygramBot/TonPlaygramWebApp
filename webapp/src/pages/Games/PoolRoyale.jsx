@@ -5456,9 +5456,9 @@ const PLAYER_STROKE_TIME_SCALE = 1;
 const PLAYER_FORWARD_SLOWDOWN = 1.22;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
-const PLAYER_CUE_PULLBACK_DURATION_MS = 320;
-const PLAYER_CUE_RELEASE_DURATION_MS = 560;
-const PLAYER_CUE_IMPACT_HOLD_MS = 260;
+const PLAYER_CUE_PULLBACK_DURATION_MS = 170;
+const PLAYER_CUE_RELEASE_DURATION_MS = 280;
+const PLAYER_CUE_IMPACT_HOLD_MS = 150;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
@@ -19112,11 +19112,26 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
-          // Keep replay 2D framing locked to the active broadcast top-view profile.
-          return resolveBroadcastTopViewCamera({
-            focusOverride,
-            minTargetY
-          });
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const focusTarget =
+            focusOverride?.clone?.() ??
+            TMP_VEC3_TOP_VIEW
+              .set(
+                playerOffsetRef.current + REPLAY_TOP_VIEW_SCREEN_OFFSET.x,
+                ORBIT_FOCUS_BASE_Y,
+                REPLAY_TOP_VIEW_SCREEN_OFFSET.z
+              )
+              .multiplyScalar(scale);
+          if (focusTarget && Number.isFinite(minTargetY)) {
+            focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
+          }
+          const topRadiusBase = fitRadius(camera, REPLAY_TOP_VIEW_MARGIN) * REPLAY_TOP_VIEW_RADIUS_SCALE;
+          const topRadius = clampOrbitRadius(
+            Math.max(topRadiusBase, CAMERA.minR * REPLAY_TOP_VIEW_MIN_RADIUS_SCALE)
+          );
+          const spherical = new THREE.Spherical(topRadius, REPLAY_TOP_VIEW_RESOLVED_PHI, Math.PI);
+          const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
+          return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
         const resolveBroadcastTopViewCamera = ({
@@ -26703,16 +26718,6 @@ const powerRef = useRef(hud.power);
             }
             return true;
           };
-          const isDirectFirstContact = (target) => {
-            if (!target || !cue?.active) return false;
-            const dir = new THREE.Vector2(target.pos.x - cuePos.x, target.pos.y - cuePos.y);
-            if (dir.lengthSq() < 1e-6) return false;
-            const contact = calcTarget(cue, dir.normalize(), activeBalls);
-            return Boolean(
-              contact?.targetBall &&
-                String(contact.targetBall.id) === String(target.id)
-            );
-          };
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
@@ -26772,26 +26777,16 @@ const powerRef = useRef(hud.power);
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
-                (isDirectFirstContact(best)
-                  ? 1.25
-                  : isDirectLaneOpen(best)
-                    ? 0.85
-                    : 0.25);
+                (isDirectLaneOpen(best) ? 1 : 0.35);
               const score =
                 scoreBallForAim(ball, cuePos) *
-                (isDirectFirstContact(ball)
-                  ? 1.25
-                  : isDirectLaneOpen(ball)
-                    ? 0.85
-                    : 0.25);
+                (isDirectLaneOpen(ball) ? 1 : 0.35);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
               const matches = candidateBalls.filter(
-                (ball) =>
-                  matchesTargetId(ball, targetId) &&
-                  (isDirectFirstContact(ball) || isDirectLaneOpen(ball))
+                (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
               );
               if (matches.length > 0) {
                 return matches.reduce((best, ball) => {
@@ -26864,7 +26859,7 @@ const powerRef = useRef(hud.power);
             targetBall = pickFallbackBall();
           }
 
-          if (targetBall && !isDirectFirstContact(targetBall)) {
+          if (targetBall && !isDirectLaneOpen(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
               pickPreferredBall(combinedTargets, candidateBalls, cuePos) ||
@@ -26880,19 +26875,9 @@ const powerRef = useRef(hud.power);
               )
               .sort((a, b) => {
                 const scoreA =
-                  scoreBallForAim(a, cuePos) *
-                  (isDirectFirstContact(a)
-                    ? 1.3
-                    : isDirectLaneOpen(a)
-                      ? 0.8
-                      : 0.2);
+                  scoreBallForAim(a, cuePos) * (isDirectLaneOpen(a) ? 1 : 0.35);
                 const scoreB =
-                  scoreBallForAim(b, cuePos) *
-                  (isDirectFirstContact(b)
-                    ? 1.3
-                    : isDirectLaneOpen(b)
-                      ? 0.8
-                      : 0.2);
+                  scoreBallForAim(b, cuePos) * (isDirectLaneOpen(b) ? 1 : 0.35);
                 return scoreB - scoreA;
               });
             const rotationPool = rankedLegalBalls.length > 0 ? rankedLegalBalls : candidateBalls;
@@ -26929,11 +26914,7 @@ const powerRef = useRef(hud.power);
             targetBall.pos.y - cuePos.y
           );
           if (dir.lengthSq() < 1e-6) return null;
-          const normalized = dir.normalize();
-          const firstContact = calcTarget(cue, normalized, activeBalls);
-          if (!firstContact?.targetBall) return null;
-          if (String(firstContact.targetBall.id) !== String(targetBall.id)) return null;
-          return normalized;
+          return dir.normalize();
         };
         const resolveLegalPlayerAimDirection = (baseDir = null) => {
           if (!cue?.active) return baseDir;
