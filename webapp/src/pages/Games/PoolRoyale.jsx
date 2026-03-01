@@ -21395,6 +21395,7 @@ const powerRef = useRef(hud.power);
             idlePos,
             pullPos,
             impactPos,
+            followPos,
             pullbackDuration,
             strikeDuration,
             holdDuration,
@@ -21437,7 +21438,7 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'hold') {
-            cueStick.position.copy(impactPos);
+            cueStick.position.copy(followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -21445,7 +21446,7 @@ const powerRef = useRef(hud.power);
           }
           if (sample.phase === 'recover') {
             const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(impactPos, idlePos, eased);
+            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -24927,11 +24928,16 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = PLAYER_CUE_PULLBACK_DURATION_MS;
           const startTime = performance.now();
           const followThrough = THREE.MathUtils.clamp(
-            topspinFactor * BALL_R * 0.29,
-            0,
-            BALL_R * 0.33
+            CUE_FOLLOW_THROUGH_MIN +
+              (CUE_FOLLOW_THROUGH_MAX - CUE_FOLLOW_THROUGH_MIN) *
+                (powerStrength * 0.75 + topspinFactor * 0.25),
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX
           );
-          const followDistance = Math.min(followThrough, CUE_TIP_GAP * 0.85);
+          const followDistance = Math.min(
+            followThrough,
+            CUE_TIP_GAP + maxPull + BALL_R * 0.5
+          );
           const impactPos = buildCuePosition(-followDistance);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
@@ -25966,16 +25972,10 @@ const powerRef = useRef(hud.power);
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
           );
-          const playableDirectPots = scoredPots.filter(
-            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: false })
-          );
           const playableCushionPots = scoredPots.filter(
             (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
           );
-          const bestDirectPot = playableDirectPots[0]?.plan ?? null;
-          const bestCushionPot =
-            playableCushionPots.find((entry) => entry.plan?.viaCushion)?.plan ?? null;
-          const bestPot = bestDirectPot ?? bestCushionPot ?? playableCushionPots[0]?.plan ?? null;
+          const bestPot = playableCushionPots[0]?.plan ?? null;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
