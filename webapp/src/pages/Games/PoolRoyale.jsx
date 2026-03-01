@@ -107,6 +107,11 @@ import {
   smoothDamp,
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
+import {
+  buildPoolSuggestionKey,
+  shouldApplyPoolSuggestion
+} from './poolRoyaleAimSuggestion.js';
+import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -21391,39 +21396,37 @@ const powerRef = useRef(hud.power);
             pullbackDuration,
             strikeDuration,
             holdDuration,
+            recoverDuration,
             baseRotationX,
             baseRotationY,
             strikeDip,
             wobbleAmount
           } = stroke;
-          const pullback = Math.max(0, pullbackDuration ?? 0);
-          const release = Math.max(0, strikeDuration ?? 120);
-          const hold = Math.max(0, holdDuration ?? 50);
           const elapsed = Math.max(0, now - startTime);
-          const pullEnd = pullback;
-          const releaseEnd = pullEnd + release;
-          const holdEnd = releaseEnd + hold;
+          const sample = sampleCueStrokeTimeline({
+            elapsed,
+            pullbackDuration,
+            strikeDuration,
+            holdDuration,
+            recoverDuration
+          });
           cueStick.visible = true;
-          cueAnimating = true;
-          const hitAt = pullEnd + release * 0.9;
-          if (!stroke.shotApplied && elapsed >= hitAt) {
+          cueAnimating = !sample.done;
+          if (!stroke.shotApplied && sample.hitArmed) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
-          if (elapsed <= pullEnd && pullback > 0) {
-            const t = THREE.MathUtils.clamp(elapsed / Math.max(pullback, 1e-6), 0, 1);
-            const eased = easeInOutCubic(t);
+          if (sample.phase === 'pullback') {
+            const eased = easeInOutCubic(sample.t);
             cueStick.position.lerpVectors(idlePos, pullPos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
             return true;
           }
-          if (elapsed <= releaseEnd && release > 0) {
-            const releaseElapsed = elapsed - pullEnd;
-            const t = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1);
-            const eased = easeOutCubic(t);
-            const wobble = Math.sin(t * Math.PI) * (wobbleAmount ?? 0.0018);
+          if (sample.phase === 'release') {
+            const eased = easeOutCubic(sample.t);
+            const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
@@ -21431,8 +21434,16 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return true;
           }
-          if (elapsed <= holdEnd && hold > 0) {
+          if (sample.phase === 'hold') {
             cueStick.position.copy(impactPos);
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+            syncCueShadow();
+            return true;
+          }
+          if (sample.phase === 'recover') {
+            const eased = easeInOutCubic(sample.t);
+            cueStick.position.lerpVectors(impactPos, idlePos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -26998,6 +27009,7 @@ const powerRef = useRef(hud.power);
           const options = evaluateShotOptions();
           const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
+          const suggestionKey = buildPoolSuggestionKey(plan);
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
           const frameSnapshot = frameRef.current ?? frameState;
@@ -27089,6 +27101,14 @@ const powerRef = useRef(hud.power);
             return applyAimDirection(dir, null);
           };
           const preferAutoAim = autoAimRequestRef.current;
+          const shouldSnapToSuggestion = shouldApplyPoolSuggestion({
+            preferAutoAim,
+            currentKey: suggestionAimKeyRef.current,
+            nextKey: suggestionKey
+          });
+          if (!shouldSnapToSuggestion && !preferAutoAim) {
+            return;
+          }
           if (preferAutoAim) {
             let autoDir = resolveAutoAimDirection();
             if (!autoDir && plan?.targetBall && cue?.pos) {
@@ -27100,8 +27120,7 @@ const powerRef = useRef(hud.power);
                 autoDir = manualDir.normalize();
               }
             }
-            suggestionAimKeyRef.current = null;
-            if (applyAimDirection(autoDir, null)) {
+            if (applyAimDirection(autoDir, suggestionKey)) {
               return;
             }
           }
@@ -27110,7 +27129,7 @@ const powerRef = useRef(hud.power);
               plan.targetBall.pos.x - cue.pos.x,
               plan.targetBall.pos.y - cue.pos.y
             );
-            if (applyAimDirection(directDir, null)) {
+            if (applyAimDirection(directDir, suggestionKey)) {
               return;
             }
           }
