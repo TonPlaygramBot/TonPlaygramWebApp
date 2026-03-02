@@ -30926,8 +30926,12 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-        fireRef.current?.();
+      onCommit: (v) => {
+        const normalizedPower = THREE.MathUtils.clamp((v ?? 0) / 100, 0, 1);
+        applyPower(normalizedPower);
+        if (normalizedPower > 0.02) {
+          fireRef.current?.();
+        }
       }
     });
     sliderInstanceRef.current = slider;
