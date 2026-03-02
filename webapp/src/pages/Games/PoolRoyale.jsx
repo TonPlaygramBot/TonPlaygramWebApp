@@ -1914,6 +1914,8 @@ const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point mo
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
+const CUE_STROKE_TIMING_SCALE = 1.12; // keep cue animation slightly slower for clearer shot feedback
+const MIN_SHOT_LAUNCH_POWER = 0.08; // ensure valid shots always impart enough force to move the cue ball
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24554,14 +24556,14 @@ const powerRef = useRef(hud.power);
             profile.strikeDurationRange?.[0] ?? 520,
             profile.strikeDurationRange?.[1] ?? 380,
             p
-          ),
-          holdDuration: Number.isFinite(profile.holdDuration) ? profile.holdDuration : 340,
+          ) * CUE_STROKE_TIMING_SCALE,
+          holdDuration: (Number.isFinite(profile.holdDuration) ? profile.holdDuration : 340) * CUE_STROKE_TIMING_SCALE,
           pullbackDuration: THREE.MathUtils.lerp(
             profile.pullbackDurationRange?.[0] ?? 760,
             profile.pullbackDurationRange?.[1] ?? 620,
             p
-          ),
-          recoverDuration: Number.isFinite(profile.recoverDuration) ? profile.recoverDuration : 180,
+          ) * CUE_STROKE_TIMING_SCALE,
+          recoverDuration: (Number.isFinite(profile.recoverDuration) ? profile.recoverDuration : 180) * CUE_STROKE_TIMING_SCALE,
           impactThreshold: Number.isFinite(profile.impactThreshold) ? profile.impactThreshold : 0.94,
           forwardOnly: false,
           cameraExtraHoldMs: Number.isFinite(profile.cameraExtraHoldMs)
@@ -24809,8 +24811,9 @@ const powerRef = useRef(hud.power);
           aimDir.normalize();
         }
         const clampedPower = clampPower(powerRef.current, 0);
+        const launchPower = Math.max(clampedPower, MIN_SHOT_LAUNCH_POWER);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-        const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
+        const strokeProfile = resolveCueStrokeProfile(strokeStyle, launchPower);
         const rawSpin = applySpinConstraints(aimDir, true);
         const spinScale = THREE.MathUtils.clamp(strokeProfile.spinScale ?? 0.4, 0.12, 1);
         const appliedSpin = {
@@ -24885,9 +24888,9 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
+          const curvedPower = Math.pow(launchPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
-          const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
+          const isMaxPowerShot = launchPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
@@ -24904,7 +24907,7 @@ const powerRef = useRef(hud.power);
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
           );
-          const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
+          const isPowerShot = launchPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = true;
@@ -25074,7 +25077,7 @@ const powerRef = useRef(hud.power);
             maxPowerLiftTriggered = false;
             cue.lift = 0;
             cue.liftVel = 0;
-            playCueHit(clampedPower * 0.6);
+            playCueHit(launchPower * 0.6);
           };
           const shotImpactPayload = {
             applied: false,
