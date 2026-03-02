@@ -2354,7 +2354,7 @@ function getRendererTextureSizeCap() {
   return renderer?.capabilities?.maxTextureSize ?? 8192;
 }
 
-function prepareLoadedModel(model) {
+function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) {
   if (!model) return;
   const maxAnisotropy = getRendererAnisotropyCap();
   model.traverse((obj) => {
@@ -2364,6 +2364,28 @@ function prepareLoadedModel(model) {
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
       if (!mat) return;
+      if (preserveGltfTextureMapping) {
+        if (mat.map) mat.map.anisotropy = Math.max(mat.map.anisotropy ?? 1, maxAnisotropy);
+        if (mat.normalMap)
+          mat.normalMap.anisotropy = Math.max(
+            mat.normalMap.anisotropy ?? 1,
+            maxAnisotropy
+          );
+        if (mat.roughnessMap)
+          mat.roughnessMap.anisotropy = Math.max(
+            mat.roughnessMap.anisotropy ?? 1,
+            maxAnisotropy
+          );
+        if (mat.metalnessMap)
+          mat.metalnessMap.anisotropy = Math.max(
+            mat.metalnessMap.anisotropy ?? 1,
+            maxAnisotropy
+          );
+        if (mat.aoMap)
+          mat.aoMap.anisotropy = Math.max(mat.aoMap.anisotropy ?? 1, maxAnisotropy);
+        mat.needsUpdate = true;
+        return;
+      }
       normalizeMaterialTextures(mat, maxAnisotropy);
     });
   });
@@ -2414,12 +2436,6 @@ async function loadPolyhavenModel(assetId) {
         candidateUrl,
         typeof window !== 'undefined' ? window.location?.href : candidateUrl
       ).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
-      );
-      loader.setResourcePath(resourcePath);
-      loader.setPath('');
       gltf = await loader.loadAsync(resolvedUrl);
       break;
     } catch (error) {
@@ -2433,7 +2449,7 @@ async function loadPolyhavenModel(assetId) {
   }
   const root = gltf.scene || gltf.scenes?.[0];
   if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
-  prepareLoadedModel(root);
+  prepareLoadedModel(root, { preserveGltfTextureMapping: true });
   polyhavenModelCache.set(cacheKey, root);
   return root.clone(true);
 }
