@@ -6,7 +6,7 @@ export const sampleCueStrokeTimeline = ({
   strikeDuration = 120,
   holdDuration = 50,
   recoverDuration = 130,
-  animationStyle = 'reference-a'
+  animationStyle = 'classic'
 } = {}) => {
   const pullback = Math.max(0, pullbackDuration ?? 0)
   const release = Math.max(0, strikeDuration ?? 120)
@@ -27,15 +27,17 @@ export const sampleCueStrokeTimeline = ({
     const baseT = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1)
     const styleT = (() => {
       switch (animationStyle) {
-        case 'reference-b':
-          return 1 - Math.pow(1 - baseT, 2.9)
-        case 'reference-c':
-          return 1 - Math.pow(1 - baseT, 3.05)
-        case 'reference-d':
-          return 1 - Math.pow(1 - baseT, 2.75)
-        case 'reference-e':
-          return 1 - Math.pow(1 - baseT, 3.2)
-        case 'reference-a':
+        case 'linear':
+          return baseT
+        case 'snap':
+          return THREE.MathUtils.smoothstep(baseT, 0, 1)
+        case 'spring': {
+          const spring = 1 - Math.exp(-6.6 * baseT) * Math.cos(8.6 * baseT)
+          return THREE.MathUtils.clamp(spring, 0, 1)
+        }
+        case 'whip':
+          return Math.pow(baseT, 0.72)
+        case 'classic':
         default:
           return 1 - Math.pow(1 - baseT, 3)
       }
