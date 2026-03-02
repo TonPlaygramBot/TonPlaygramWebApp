@@ -30434,8 +30434,15 @@ const powerRef = useRef(hud.power);
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
+            const strokePendingImpact = Boolean(
+              cueStrokeStateRef.current && !cueStrokeStateRef.current.shotApplied
+            );
+            const waitingForImpact =
+              strokePendingImpact || Boolean(pendingImpactRef.current);
             if (!any) {
-              resolve();
+              if (!waitingForImpact) {
+                resolve();
+              }
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
               balls.forEach((ball) => {
