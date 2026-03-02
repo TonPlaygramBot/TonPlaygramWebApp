@@ -1101,6 +1101,14 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
+const CUE_STROKE_ANIMATION_STORAGE_KEY = 'poolCueStrokeAnimationStyle';
+const CUE_STROKE_ANIMATION_OPTIONS = Object.freeze([
+  { id: 'classic', label: 'Classic Ease', hint: 'Cubic stroke with soft finish.' },
+  { id: 'linear', label: 'Linear Drive', hint: 'Uniform pull and push speed.' },
+  { id: 'spring', label: 'Spring Snap', hint: 'Damped spring punch-through.' },
+  { id: 'snap', label: 'Snap Step', hint: 'Stepped acceleration near impact.' },
+  { id: 'whip', label: 'Whip Boost', hint: 'Fast late acceleration at release.' }
+]);
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
@@ -5479,6 +5487,8 @@ const LIVE_CUE_IMPACT_HOLD_MS = 50;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
+const STROKE_CAMERA_MIN_HOLD_MS = 210;
+const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
@@ -12446,8 +12456,18 @@ function PoolRoyaleGame({
     }
     return false;
   });
+  const [cueStrokeAnimationStyle, setCueStrokeAnimationStyle] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(CUE_STROKE_ANIMATION_STORAGE_KEY);
+      if (stored && CUE_STROKE_ANIMATION_OPTIONS.some((option) => option.id === stored)) {
+        return stored;
+      }
+    }
+    return CUE_STROKE_ANIMATION_OPTIONS[0]?.id || 'classic';
+  });
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
+  const cueStrokeAnimationStyleRef = useRef(cueStrokeAnimationStyle);
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
@@ -12458,6 +12478,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
+  useEffect(() => {
+    cueStrokeAnimationStyleRef.current = cueStrokeAnimationStyle;
+  }, [cueStrokeAnimationStyle]);
   useEffect(() => {
     if (skipAllReplays) {
       skipReplayRef.current?.();
@@ -12483,6 +12506,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
     }
   }, [commentaryMuted]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CUE_STROKE_ANIMATION_STORAGE_KEY, cueStrokeAnimationStyle);
+    }
+  }, [cueStrokeAnimationStyle]);
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
@@ -21421,7 +21449,24 @@ const powerRef = useRef(hud.power);
               1
             );
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
-            const easedPush = easeOutCubic(pushT);
+            const animationStyle = stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? 'classic';
+            const easedPush = (() => {
+              switch (animationStyle) {
+                case 'linear':
+                  return pushT;
+                case 'spring': {
+                  const spring = 1 - Math.exp(-7.2 * pushT) * Math.cos(9.4 * pushT);
+                  return THREE.MathUtils.clamp(spring, 0, 1);
+                }
+                case 'snap':
+                  return THREE.MathUtils.smootherstep(pushT, 0, 1);
+                case 'whip':
+                  return Math.pow(pushT, 0.68);
+                case 'classic':
+                default:
+                  return easeOutCubic(pushT);
+              }
+            })();
             cueStick.visible = true;
             cueStick.position.lerpVectors(pullPos, impactPos, easedPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * easedPush;
@@ -21463,7 +21508,8 @@ const powerRef = useRef(hud.power);
             pullbackDuration,
             strikeDuration,
             holdDuration,
-            recoverDuration
+            recoverDuration,
+            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? 'classic'
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -24445,10 +24491,27 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+        const style = cueStrokeAnimationStyleRef.current ?? 'classic';
+        const styleRatio = (() => {
+          switch (style) {
+            case 'linear':
+              return ratio;
+            case 'spring':
+              return THREE.MathUtils.clamp(1 - Math.exp(-4.4 * ratio), 0, 1);
+            case 'snap':
+              return THREE.MathUtils.smoothstep(ratio, 0, 1);
+            case 'whip':
+              return Math.pow(ratio, 0.72);
+            case 'classic':
+            default:
+              return 1 - Math.pow(1 - ratio, 3);
+          }
+        })();
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+        const target =
+          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
@@ -25034,6 +25097,11 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
+            const cameraHoldUntil = Math.max(
+              holdUntil || 0,
+              now + CAMERA_SWITCH_MIN_HOLD_MS
+            );
+            const strokeReadyAt = Math.max(cameraHoldUntil, now + STROKE_CAMERA_MIN_HOLD_MS);
             const requiresCueBallMovementTrigger =
               forceImmediateRailOverheadView ||
               (!earlyPocketView && !suppressPocketCameras);
@@ -25046,6 +25114,7 @@ const powerRef = useRef(hud.power);
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
               actionView.activationTravel = 0;
+              actionView.strokeReadyAt = 0;
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
@@ -25056,6 +25125,7 @@ const powerRef = useRef(hud.power);
                 ? baseDelay ?? 0
                 : Math.max(baseDelay ?? 0, holdUntil ?? 0);
               actionView.activationDelay = delayed > 0 ? delayed : null;
+              actionView.strokeReadyAt = strokeReadyAt;
               const baseTravel = actionView.activationTravel ?? 0;
               actionView.activationTravel = Math.max(
                 baseTravel,
@@ -25103,7 +25173,8 @@ const powerRef = useRef(hud.power);
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
               strikeImpactThreshold: 0.9,
-              forwardOnly: true
+              forwardOnly: true,
+              animationStyle: cueStrokeAnimationStyleRef.current ?? 'classic'
             };
           } else {
             cueStick.visible = false;
@@ -29518,11 +29589,16 @@ const powerRef = useRef(hud.power);
             }
             const holdReady =
               !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
-            if (travelReady && delayReady && holdReady) {
+            const strokeReadyAt = suspendedActionView.strokeReadyAt ?? 0;
+            const strokeSettled = now >= strokeReadyAt;
+            const cueMoving = cueSpeed >= CUEBALL_CAMERA_SWITCH_MIN_SPEED;
+            const cueTravelReady = travel >= CUEBALL_CAMERA_SWITCH_MIN_TRAVEL;
+            if (travelReady && delayReady && holdReady && strokeSettled && cueMoving && cueTravelReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
               pending.activationDelay = null;
               pending.activationTravel = 0;
+              pending.strokeReadyAt = 0;
               pending.lastUpdate = now;
               if (cameraRef.current) {
                 pending.smoothedPos = cameraRef.current.position.clone();
@@ -31738,6 +31814,37 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Cue Stroke Animation
+                </h3>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {CUE_STROKE_ANIMATION_OPTIONS.map((option) => {
+                    const active = cueStrokeAnimationStyle === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setCueStrokeAnimationStyle(option.id)}
+                        aria-pressed={active}
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex flex-col">
+                          <span>{option.label}</span>
+                          <span className={`text-[9px] tracking-[0.12em] ${active ? 'text-black/70' : 'text-white/55'}`}>
+                            {option.hint}
+                          </span>
+                        </span>
+                        <span className="text-[9px] tracking-[0.2em] opacity-70">{option.id}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Replays
