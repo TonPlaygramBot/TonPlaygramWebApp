@@ -390,12 +390,13 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.3 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58, landscape: 0.48 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 1.24 });
-const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: -CARD_W * 0.24, landscape: -CARD_W * 0.62 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58, landscape: 0.66 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 1.44 });
+const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: -CARD_W * 0.24, landscape: -CARD_W * 0.4 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
+const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const SEATED_ZOOM_DEFAULT = 1;
 const SEATED_ZOOM_MIN = 0.86;
@@ -2910,7 +2911,6 @@ function TexasHoldemArena({ search }) {
     startDistance: 0,
     startZoom: OVERHEAD_ZOOM_DEFAULT
   });
-  const touchPinchRef = useRef({ active: false, startDistance: 0, startZoom: SEATED_ZOOM_DEFAULT });
   const pointerVectorRef = useRef(new THREE.Vector2());
   const interactionsRef = useRef({
     onChip: () => {},
@@ -4905,7 +4905,7 @@ function TexasHoldemArena({ search }) {
 
     const beginPinchZoom = () => {
       const pointers = activePointersRef.current;
-      if (pointers.size < 2) {
+      if (!overheadView || pointers.size < 2) {
         resetPinchState();
         return;
       }
@@ -4919,41 +4919,11 @@ function TexasHoldemArena({ search }) {
         active: true,
         pointerIds: [first.pointerId, second.pointerId],
         startDistance,
-        startZoom: overheadViewRef.current ? overheadZoomRef.current : seatedZoomRef.current
+        startZoom: overheadZoom
       };
-      const activePointerId = pointerStateRef.current.pointerId;
-      if (activePointerId != null && element.hasPointerCapture(activePointerId)) {
-        element.releasePointerCapture(activePointerId);
-      }
       resetPointerState();
       applyHoverTarget(null);
       element.style.cursor = 'grab';
-    };
-
-    const applyCameraZoom = (nextZoom) => {
-      if (!Number.isFinite(nextZoom)) return;
-      if (overheadViewRef.current) {
-        const clampedZoom = THREE.MathUtils.clamp(+nextZoom.toFixed(3), OVERHEAD_ZOOM_MIN, OVERHEAD_ZOOM_MAX);
-        setOverheadZoom(clampedZoom);
-        return;
-      }
-      const clampedZoom = THREE.MathUtils.clamp(+nextZoom.toFixed(3), SEATED_ZOOM_MIN, SEATED_ZOOM_MAX);
-      setSeatedZoom(clampedZoom);
-      const mountWidth = mount?.clientWidth ?? window.innerWidth;
-      const mountHeight = mount?.clientHeight ?? window.innerHeight;
-      viewControlsRef.current?.applySeatedCamera?.(mountWidth, mountHeight, { zoom: clampedZoom });
-    };
-
-    const computePinchZoom = (startZoom, startDistance, currentDistance) => {
-      if (!Number.isFinite(startZoom) || !Number.isFinite(startDistance) || !Number.isFinite(currentDistance)) {
-        return startZoom;
-      }
-      if (startDistance <= 0 || currentDistance <= 0) {
-        return startZoom;
-      }
-      const distanceScale = startDistance / currentDistance;
-      const dollyExponent = Math.max(1, CAMERA_WHEEL_FACTOR * 4);
-      return startZoom * Math.pow(distanceScale, dollyExponent);
     };
 
     const updatePinchZoom = () => {
@@ -4964,23 +4934,24 @@ function TexasHoldemArena({ search }) {
       const second = activePointersRef.current.get(secondId);
       if (!first || !second) return;
       const currentDistance = Math.hypot(second.x - first.x, second.y - first.y);
-      if (currentDistance <= 0 || pinch.startDistance <= 0) return;
-      const nextZoom = computePinchZoom(pinch.startZoom, pinch.startDistance, currentDistance);
-      applyCameraZoom(nextZoom);
+      if (currentDistance <= 0) return;
+      const zoomDelta = (currentDistance - pinch.startDistance) * OVERHEAD_PINCH_SENSITIVITY;
+      const nextZoom = THREE.MathUtils.clamp(
+        +(pinch.startZoom - zoomDelta).toFixed(3),
+        OVERHEAD_ZOOM_MIN,
+        OVERHEAD_ZOOM_MAX
+      );
+      setOverheadZoom(nextZoom);
     };
 
     const handlePointerDown = (event) => {
-      if (event.pointerType === 'touch') {
-        return;
-      }
       event.preventDefault();
-      const shouldCapturePointer = event.pointerType !== 'touch';
       activePointersRef.current.set(event.pointerId, {
         pointerId: event.pointerId,
         x: event.clientX,
         y: event.clientY
       });
-      if (activePointersRef.current.size >= 2) {
+      if (overheadView && activePointersRef.current.size >= 2) {
         beginPinchZoom();
         return;
       }
@@ -5004,9 +4975,7 @@ function TexasHoldemArena({ search }) {
           buttonAction: target.userData?.action ?? null,
           dragged: false
         };
-        if (shouldCapturePointer) {
-          element.setPointerCapture(event.pointerId);
-        }
+        element.setPointerCapture(event.pointerId);
         if (type === 'chip-button') {
           interactionsRef.current.onChip?.(target.userData.value);
         } else if (type === 'button') {
@@ -5025,16 +4994,11 @@ function TexasHoldemArena({ search }) {
         buttonAction: null,
         dragged: false
       };
-      if (shouldCapturePointer) {
-        element.setPointerCapture(event.pointerId);
-      }
+      element.setPointerCapture(event.pointerId);
       element.style.cursor = 'grabbing';
     };
 
     const handlePointerMove = (event) => {
-      if (event.pointerType === 'touch') {
-        return;
-      }
       if (activePointersRef.current.has(event.pointerId)) {
         activePointersRef.current.set(event.pointerId, {
           pointerId: event.pointerId,
@@ -5085,12 +5049,9 @@ function TexasHoldemArena({ search }) {
     };
 
     const handlePointerUp = (event) => {
-      if (event.pointerType === 'touch') {
-        return;
-      }
       activePointersRef.current.delete(event.pointerId);
       if (pinchZoomRef.current.active) {
-        if (activePointersRef.current.size >= 2) {
+        if (activePointersRef.current.size >= 2 && overheadView) {
           beginPinchZoom();
         } else {
           resetPinchState();
@@ -5117,59 +5078,27 @@ function TexasHoldemArena({ search }) {
     element.addEventListener('pointercancel', handlePointerUp);
     element.addEventListener('pointerleave', handlePointerUp);
 
-    const beginTouchPinch = (touchA, touchB) => {
-      touchPinchRef.current = {
-        active: true,
-        startDistance: Math.hypot(touchB.clientX - touchA.clientX, touchB.clientY - touchA.clientY),
-        startZoom: overheadViewRef.current ? overheadZoomRef.current : seatedZoomRef.current
-      };
-      resetPointerState();
-      applyHoverTarget(null);
-      element.style.cursor = 'grab';
-    };
-
-    const handleTouchStart = (event) => {
-      if (event.touches.length < 2) return;
-      event.preventDefault();
-      activePointersRef.current.clear();
-      resetPinchState();
-      beginTouchPinch(event.touches[0], event.touches[1]);
-    };
-
-    const handleTouchMove = (event) => {
-      if (!touchPinchRef.current.active || event.touches.length < 2) return;
-      event.preventDefault();
-      const currentDistance = Math.hypot(
-        event.touches[1].clientX - event.touches[0].clientX,
-        event.touches[1].clientY - event.touches[0].clientY
-      );
-      const nextZoom = computePinchZoom(
-        touchPinchRef.current.startZoom,
-        touchPinchRef.current.startDistance,
-        currentDistance
-      );
-      applyCameraZoom(nextZoom);
-    };
-
-    const handleTouchEnd = (event) => {
-      if (event.touches.length >= 2) {
-        beginTouchPinch(event.touches[0], event.touches[1]);
-        return;
-      }
-      touchPinchRef.current.active = false;
-      resetPointerState();
-    };
-
-    element.addEventListener('touchstart', handleTouchStart, { passive: false });
-    element.addEventListener('touchmove', handleTouchMove, { passive: false });
-    element.addEventListener('touchend', handleTouchEnd, { passive: true });
-    element.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-
     const handleWheel = (event) => {
       event.preventDefault();
       const wheelScale = Math.max(0.78, 1 + event.deltaY * CAMERA_WHEEL_FACTOR * 0.01);
-      const currentZoom = overheadViewRef.current ? overheadZoomRef.current : seatedZoomRef.current;
-      applyCameraZoom(currentZoom * wheelScale);
+      if (overheadViewRef.current) {
+        const nextZoom = THREE.MathUtils.clamp(
+          +(overheadZoomRef.current * wheelScale).toFixed(3),
+          OVERHEAD_ZOOM_MIN,
+          OVERHEAD_ZOOM_MAX
+        );
+        setOverheadZoom(nextZoom);
+        return;
+      }
+      const nextZoom = THREE.MathUtils.clamp(
+        +(seatedZoomRef.current * wheelScale).toFixed(3),
+        SEATED_ZOOM_MIN,
+        SEATED_ZOOM_MAX
+      );
+      setSeatedZoom(nextZoom);
+      const mountWidth = mount?.clientWidth ?? window.innerWidth;
+      const mountHeight = mount?.clientHeight ?? window.innerHeight;
+      viewControlsRef.current?.applySeatedCamera?.(mountWidth, mountHeight, { zoom: nextZoom });
     };
     element.addEventListener('wheel', handleWheel, { passive: false });
 
@@ -5236,10 +5165,6 @@ function TexasHoldemArena({ search }) {
       element.removeEventListener('pointerup', handlePointerUp);
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
-      element.removeEventListener('touchstart', handleTouchStart);
-      element.removeEventListener('touchmove', handleTouchMove);
-      element.removeEventListener('touchend', handleTouchEnd);
-      element.removeEventListener('touchcancel', handleTouchEnd);
       element.removeEventListener('wheel', handleWheel);
       activePointersRef.current.clear();
       resetPinchState();
