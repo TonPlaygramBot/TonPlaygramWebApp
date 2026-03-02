@@ -1,5 +1,6 @@
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
+using Aiming;
 
 /// <summary>
 /// Broadcast-oriented cue camera that stays locked to the short rails. The
@@ -153,6 +154,14 @@ public class CueCamera : MonoBehaviour
     public float broadcastLookDownOffset = 0.02f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
+    [Header("Shot camera transition")]
+    // Keeps the cue/standing camera alive briefly after a shot is triggered so
+    // the player sees the cue push through the cue ball before the cut.
+    public float cueCameraHoldAfterShot = 0.12f;
+    // Fallback timeout so we still transition even if physics starts late.
+    public float maxCueCameraHold = 0.5f;
+    // Optional cue controller used to wait until the forward stroke ends.
+    public CueController cueController;
     // How quickly the camera aligns to the stored shot angle.
     public float shotSnapSpeed = 6f;
     // Speed used when easing between cue and broadcast framing while balls roll.
@@ -231,6 +240,8 @@ public class CueCamera : MonoBehaviour
     private bool cachedStandingCamera;
     private bool pocketCameraAwaitingDrop;
     private bool pocketDropDetected;
+    private bool waitingForCueStrike;
+    private float shotStartTime;
     private float pocketCameraStartTime;
     private float pocketCameraReleaseTime;
     private Vector3 trackedCornerPocket;
@@ -291,6 +302,8 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
+        waitingForCueStrike = true;
+        shotStartTime = Time.time;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -354,8 +367,37 @@ public class CueCamera : MonoBehaviour
         }
         else
         {
-            UpdateBroadcastCamera();
+            if (waitingForCueStrike)
+            {
+                UpdateCueAimCamera();
+                if (ReadyToSwitchFromCueCamera())
+                {
+                    waitingForCueStrike = false;
+                }
+            }
+            else
+            {
+                UpdateBroadcastCamera();
+            }
         }
+    }
+
+    private bool ReadyToSwitchFromCueCamera()
+    {
+        float elapsed = Time.time - shotStartTime;
+        if (elapsed < Mathf.Max(0f, cueCameraHoldAfterShot))
+        {
+            return false;
+        }
+
+        bool cueStrokeCompleted = cueController == null || !cueController.IsStrokeActive;
+        bool cueBallStarted = IsMoving(CueBall);
+        if (cueStrokeCompleted && cueBallStarted)
+        {
+            return true;
+        }
+
+        return elapsed >= Mathf.Max(cueCameraHoldAfterShot, maxCueCameraHold);
     }
 
     private void UpdateCueAimCamera()
@@ -1190,6 +1232,7 @@ public class CueCamera : MonoBehaviour
     {
         shotInProgress = false;
         usingTargetCamera = false;
+        waitingForCueStrike = false;
         pocketCameraAwaitingDrop = false;
         pocketDropDetected = false;
         pocketCameraStartTime = 0f;
