@@ -5,8 +5,6 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2313,9 +2311,6 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const BASIS_TRANSCODER_PATH =
-  'https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/';
-let sharedKtx2Loader = null;
 
 function applySRGBColorSpace(texture) {
   if (!texture) return;
@@ -2402,21 +2397,6 @@ function createPolyhavenGltfLoader() {
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder(MeshoptDecoder);
-
-  if (!sharedKtx2Loader) {
-    sharedKtx2Loader = new KTX2Loader();
-    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    if (renderer) {
-      try {
-        sharedKtx2Loader.detectSupport(renderer);
-      } catch (error) {
-        console.warn('KTX2 detection failed', error);
-      }
-    }
-  }
-
-  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -2434,9 +2414,12 @@ function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
   return urls;
 }
 
-async function loadPolyhavenModel(assetId) {
+async function loadPolyhavenModel(
+  assetId,
+  { preserveGltfTextureMapping = true } = {}
+) {
   if (!assetId) return null;
-  const cacheKey = assetId.toLowerCase();
+  const cacheKey = `${assetId.toLowerCase()}::${preserveGltfTextureMapping ? 'preserve' : 'normalized'}`;
   if (polyhavenModelCache.has(cacheKey)) {
     const cached = polyhavenModelCache.get(cacheKey);
     return cached.clone(true);
@@ -2464,7 +2447,7 @@ async function loadPolyhavenModel(assetId) {
       const gltf = await loader.loadAsync(resolvedUrl);
       const root = gltf.scene || gltf.scenes?.[0] || gltf;
       if (root) {
-        prepareLoadedModel(root);
+        prepareLoadedModel(root, { preserveGltfTextureMapping });
         polyhavenModelCache.set(cacheKey, root);
         return root.clone(true);
       }
@@ -2607,7 +2590,9 @@ async function ensureMurlanChairTemplate(theme = null) {
   if (chairTemplatePromise) return chairTemplatePromise;
   chairTemplatePromise = (async () => {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const model = await loadPolyhavenModel(theme.assetId);
+      const model = await loadPolyhavenModel(theme.assetId, {
+        preserveGltfTextureMapping: theme.preserveMaterials ?? true
+      });
       fitChairModelToFootprint(model);
       chairTemplateBounds = new THREE.Box3().setFromObject(model);
       return {
@@ -2673,7 +2658,9 @@ async function ensureChairTemplateForTheme(theme) {
   const promise = (async () => {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       try {
-        const model = await loadPolyhavenModel(theme.assetId);
+        const model = await loadPolyhavenModel(theme.assetId, {
+          preserveGltfTextureMapping: theme.preserveMaterials ?? true
+        });
         fitChairModelToFootprint(model);
         chairTemplateBounds = new THREE.Box3().setFromObject(model);
         return {
@@ -5453,12 +5440,14 @@ async function applyTableTheme(
   const token = ++tableThemeToken;
   if (!theme?.assetId) {
     activeTableThemeId = null;
-    setProceduralTableVisible(false);
+    setProceduralTableVisible(true);
     return;
   }
-  setProceduralTableVisible(false);
+  setProceduralTableVisible(true);
   try {
-    const model = await loadPolyhavenModel(theme.assetId || theme.id);
+    const model = await loadPolyhavenModel(theme.assetId || theme.id, {
+      preserveGltfTextureMapping: theme.preserveMaterials ?? true
+    });
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model, { disposeTextures: false });
       return;
@@ -5466,12 +5455,16 @@ async function applyTableTheme(
     fitTableModelToFootprint(model);
     tableThemeG.add(model);
     tableThemeG.visible = true;
+    setProceduralTableVisible(false);
     activeTableThemeId = theme.id;
   } catch (error) {
     console.warn('Failed to load table theme', error);
     if (theme.id !== DEFAULT_TABLE_THEME_OPTION?.id && DEFAULT_TABLE_THEME_OPTION?.assetId) {
       try {
-        const fallbackModel = await loadPolyhavenModel(DEFAULT_TABLE_THEME_OPTION.assetId);
+        const fallbackModel = await loadPolyhavenModel(
+          DEFAULT_TABLE_THEME_OPTION.assetId,
+          { preserveGltfTextureMapping: true }
+        );
         if (token !== tableThemeToken || !fallbackModel) {
           disposeObjectResources(fallbackModel, { disposeTextures: false });
           return;
@@ -5479,10 +5472,14 @@ async function applyTableTheme(
         fitTableModelToFootprint(fallbackModel);
         tableThemeG.add(fallbackModel);
         tableThemeG.visible = true;
+        setProceduralTableVisible(false);
         activeTableThemeId = DEFAULT_TABLE_THEME_OPTION.id;
       } catch (fallbackError) {
         console.warn('Failed to load fallback Poly Haven table theme', fallbackError);
+        setProceduralTableVisible(true);
       }
+    } else {
+      setProceduralTableVisible(true);
     }
   }
 }
