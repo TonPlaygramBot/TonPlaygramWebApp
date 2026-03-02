@@ -87,6 +87,7 @@ export class PowerSlider {
     this._onPointerDown = this._pointerDown.bind(this);
     this._onPointerMove = this._pointerMove.bind(this);
     this._onPointerUp = this._pointerUp.bind(this);
+    this._onPointerCancel = this._pointerUp.bind(this);
     this._onWheel = this._wheel.bind(this);
     this._onKeyDown = this._keyDown.bind(this);
     this.el.addEventListener('pointerdown', this._onPointerDown);
@@ -210,10 +211,12 @@ export class PowerSlider {
     this.dragStartValue = this.value;
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
+    this._updateFromClientY(e.clientY);
     this.pointerStartY = e.clientY;
     if (typeof this.onStart === 'function') this.onStart(this.value);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
+    this.el.addEventListener('pointercancel', this._onPointerCancel);
   }
 
   _pointerMove(e) {
@@ -227,12 +230,17 @@ export class PowerSlider {
   _pointerUp(e) {
     if (!this.dragging) return;
     this.dragging = false;
-    this.el.releasePointerCapture(e.pointerId);
+    if (e?.clientY != null) this._updateFromClientY(e.clientY);
+    try {
+      this.el.releasePointerCapture(e.pointerId);
+    } catch {}
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
+    this.el.removeEventListener('pointercancel', this._onPointerCancel);
     this.el.classList.remove('ps-no-animate');
     const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
-    if (!moved) {
+    const hasPower = this.value > this.min + 0.01;
+    if (!moved && !hasPower) {
       this.set(this.dragStartValue, { animate: true });
       return;
     }
