@@ -1101,72 +1101,7 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
-const CUE_STROKE_STYLE_STORAGE_KEY = 'poolRoyaleCueStrokeStyle';
-const CUE_STROKE_ANIMATION_OPTIONS = Object.freeze([
-  { id: 'reference-attempt-1', label: 'Attempt 1' },
-  { id: 'reference-attempt-2', label: 'Attempt 2' },
-  { id: 'reference-attempt-3', label: 'Attempt 3' },
-  { id: 'reference-attempt-4', label: 'Attempt 4' },
-  { id: 'reference-attempt-5', label: 'Attempt 5' }
-]);
-const CUE_STROKE_PROFILE_BY_ID = Object.freeze({
-  'reference-attempt-1': Object.freeze({
-    motion: 'classic',
-    pullSmoothing: 0.14,
-    strikeDurationRange: [520, 380],
-    pullbackDurationRange: [760, 620],
-    holdDuration: 340,
-    recoverDuration: 180,
-    impactThreshold: 0.94,
-    cameraExtraHoldMs: 900,
-    spinScale: 0.22
-  }),
-  'reference-attempt-2': Object.freeze({
-    motion: 'linear',
-    pullSmoothing: 0.16,
-    strikeDurationRange: [500, 360],
-    pullbackDurationRange: [730, 590],
-    holdDuration: 300,
-    recoverDuration: 160,
-    impactThreshold: 0.93,
-    cameraExtraHoldMs: 860,
-    spinScale: 0.24
-  }),
-  'reference-attempt-3': Object.freeze({
-    motion: 'spring',
-    pullSmoothing: 0.13,
-    strikeDurationRange: [560, 410],
-    pullbackDurationRange: [800, 640],
-    holdDuration: 360,
-    recoverDuration: 190,
-    impactThreshold: 0.95,
-    cameraExtraHoldMs: 940,
-    spinScale: 0.2
-  }),
-  'reference-attempt-4': Object.freeze({
-    motion: 'snap',
-    pullSmoothing: 0.18,
-    strikeDurationRange: [470, 330],
-    pullbackDurationRange: [700, 560],
-    holdDuration: 280,
-    recoverDuration: 150,
-    impactThreshold: 0.92,
-    cameraExtraHoldMs: 820,
-    spinScale: 0.24
-  }),
-  'reference-attempt-5': Object.freeze({
-    motion: 'whip',
-    pullSmoothing: 0.15,
-    strikeDurationRange: [540, 390],
-    pullbackDurationRange: [780, 630],
-    holdDuration: 320,
-    recoverDuration: 170,
-    impactThreshold: 0.94,
-    cameraExtraHoldMs: 900,
-    spinScale: 0.21
-  })
-});
-const DEFAULT_CUE_STROKE_STYLE = CUE_STROKE_ANIMATION_OPTIONS[0].id;
+const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
@@ -12517,16 +12452,7 @@ function PoolRoyaleGame({
   });
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
-  const [cueStrokeAnimationStyle, setCueStrokeAnimationStyle] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(CUE_STROKE_STYLE_STORAGE_KEY);
-      if (stored && CUE_STROKE_PROFILE_BY_ID[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_CUE_STROKE_STYLE;
-  });
-  const cueStrokeAnimationStyleRef = useRef(cueStrokeAnimationStyle);
+  const cueStrokeAnimationStyleRef = useRef(DEFAULT_CUE_STROKE_STYLE);
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
@@ -12542,12 +12468,6 @@ function PoolRoyaleGame({
       skipReplayRef.current?.();
     }
   }, [skipAllReplays]);
-  useEffect(() => {
-    cueStrokeAnimationStyleRef.current = cueStrokeAnimationStyle;
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CUE_STROKE_STYLE_STORAGE_KEY, cueStrokeAnimationStyle);
-    }
-  }, [cueStrokeAnimationStyle]);
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;
     if (commentaryMuted) {
@@ -24535,31 +24455,20 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const resolveCueStrokeProfile = (styleId, powerRatio = 0) => {
+      const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const profile = CUE_STROKE_PROFILE_BY_ID[styleId] ?? CUE_STROKE_PROFILE_BY_ID[DEFAULT_CUE_STROKE_STYLE];
         return {
-          motion: profile.motion ?? 'classic',
+          motion: 'featherLine',
           pullRatio: 1 - Math.pow(1 - p, 2.4),
-          pullSmoothing: Number.isFinite(profile.pullSmoothing) ? profile.pullSmoothing : 0.14,
-          strikeDuration: THREE.MathUtils.lerp(
-            profile.strikeDurationRange?.[0] ?? 520,
-            profile.strikeDurationRange?.[1] ?? 380,
-            p
-          ),
-          holdDuration: Number.isFinite(profile.holdDuration) ? profile.holdDuration : 340,
-          pullbackDuration: THREE.MathUtils.lerp(
-            profile.pullbackDurationRange?.[0] ?? 760,
-            profile.pullbackDurationRange?.[1] ?? 620,
-            p
-          ),
-          recoverDuration: Number.isFinite(profile.recoverDuration) ? profile.recoverDuration : 180,
-          impactThreshold: Number.isFinite(profile.impactThreshold) ? profile.impactThreshold : 0.94,
+          pullSmoothing: 0.14,
+          strikeDuration: THREE.MathUtils.lerp(520, 380, p),
+          holdDuration: 340,
+          pullbackDuration: THREE.MathUtils.lerp(760, 620, p),
+          recoverDuration: 180,
+          impactThreshold: 0.94,
           forwardOnly: false,
-          cameraExtraHoldMs: Number.isFinite(profile.cameraExtraHoldMs)
-            ? profile.cameraExtraHoldMs
-            : 900,
-          spinScale: Number.isFinite(profile.spinScale) ? profile.spinScale : 0.22
+          cameraExtraHoldMs: 900,
+          spinScale: 0.22
         };
       };
 
@@ -31976,34 +31885,6 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Cue Animation
-                </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {CUE_STROKE_ANIMATION_OPTIONS.map((option) => {
-                    const active = cueStrokeAnimationStyle === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setCueStrokeAnimationStyle(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-full border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/55">
-                  Reference cue motion in 5 selectable attempts.
-                </p>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Replays
