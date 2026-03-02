@@ -5,8 +5,6 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2313,9 +2311,6 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const BASIS_TRANSCODER_PATH =
-  'https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/';
-let sharedKtx2Loader = null;
 
 function applySRGBColorSpace(texture) {
   if (!texture) return;
@@ -2402,21 +2397,6 @@ function createPolyhavenGltfLoader() {
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder(MeshoptDecoder);
-
-  if (!sharedKtx2Loader) {
-    sharedKtx2Loader = new KTX2Loader();
-    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    if (renderer) {
-      try {
-        sharedKtx2Loader.detectSupport(renderer);
-      } catch (error) {
-        console.warn('KTX2 detection failed', error);
-      }
-    }
-  }
-
-  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -3504,6 +3484,16 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     exposure: 1.08,
     environmentIntensity: 1.05,
     backgroundIntensity: 0.98
+  },
+  {
+    id: 'entranceHall',
+    name: 'Entrance Hall',
+    assetId: 'entrance_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1
   },
   {
     id: 'mirroredHall',
