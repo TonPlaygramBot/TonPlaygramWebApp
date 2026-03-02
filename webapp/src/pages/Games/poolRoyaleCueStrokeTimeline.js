@@ -51,10 +51,10 @@ export const sampleCueStrokeTimeline = ({
     }
   }
   if (safeElapsed <= holdEnd && hold > 0) {
-    return { phase: 'hold', t: THREE.MathUtils.clamp((safeElapsed - releaseEnd) / Math.max(hold, 1e-6), 0, 1), hitArmed: true, done: false }
+    return { phase: 'hold', t: THREE.MathUtils.clamp((safeElapsed - releaseEnd) / Math.max(hold, 1e-6), 0, 1), hitArmed: false, done: false }
   }
   if (safeElapsed <= recoverEnd && recover > 0) {
-    return { phase: 'recover', t: THREE.MathUtils.clamp((safeElapsed - holdEnd) / Math.max(recover, 1e-6), 0, 1), hitArmed: true, done: false }
+    return { phase: 'recover', t: THREE.MathUtils.clamp((safeElapsed - holdEnd) / Math.max(recover, 1e-6), 0, 1), hitArmed: false, done: false }
   }
   return { phase: 'done', t: 1, hitArmed: true, done: true }
 }
