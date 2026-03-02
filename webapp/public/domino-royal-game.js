@@ -2414,6 +2414,54 @@ function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
   return urls;
 }
 
+function extractAllHttpUrls(value) {
+  const urls = [];
+  const visit = (node) => {
+    if (!node) return;
+    if (typeof node === 'string') {
+      if (/^https?:\/\//i.test(node)) urls.push(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (typeof node === 'object') {
+      Object.values(node).forEach(visit);
+    }
+  };
+  visit(value);
+  return urls;
+}
+
+async function loadPolyhavenModelCandidatesFromApi(assetId) {
+  if (!assetId || typeof fetch !== 'function') return [];
+  try {
+    const response = await fetch(
+      `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+    );
+    if (!response.ok) {
+      return [];
+    }
+    const payload = await response.json();
+    const urls = extractAllHttpUrls(payload).filter(
+      (url) => /\.(gltf|glb)(\?|$)/i.test(url)
+    );
+    // Prefer embedded GLB first so we don't depend on potentially stale sidecar texture paths.
+    return urls.sort((a, b) => {
+      const score = (url) => {
+        if (/\.glb(\?|$)/i.test(url)) return 3;
+        if (/\/2k\//i.test(url)) return 2;
+        if (/\/1k\//i.test(url)) return 1;
+        return 0;
+      };
+      return score(b) - score(a);
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
 async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
   const cacheKey = assetId.toLowerCase();
@@ -2426,7 +2474,10 @@ async function loadPolyhavenModel(assetId) {
     : isLowProfileDevice
       ? ['1k']
       : ['2k', '1k'];
-  const candidates = buildPolyhavenModelUrls(assetId, preferredResolutions);
+  const candidates = [
+    ...(await loadPolyhavenModelCandidatesFromApi(assetId)),
+    ...buildPolyhavenModelUrls(assetId, preferredResolutions)
+  ];
   const loader = createPolyhavenGltfLoader();
   let gltf = null;
   let lastError = null;
@@ -4046,7 +4097,8 @@ function resolveHdriResolutionOrder() {
   return ['2k', '1k'];
 }
 function shouldLoadExternalHdri() {
-  return !isLowProfileDevice;
+  // Keep HDRI enabled on mobile/Telegram too (at 1k) so players still see purchased environments.
+  return true;
 }
 
 function isCachedHdriTexture(texture) {
