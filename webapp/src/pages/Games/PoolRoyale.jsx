@@ -1836,9 +1836,9 @@ const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip sligh
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_DISTANCE_SCALE = 0.6;
-const CUE_PULL_SMOOTHING = 1;
+const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
@@ -5472,8 +5472,8 @@ const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 300; // hold pullback longer so the replay wind-up reads clearly on mobile
 const REPLAY_CUE_MIN_RELEASE_MS = 560; // hold replay push-through longer so forward cue motion is easy to read on mobile
-const LIVE_CUE_FORWARD_DURATION_MS = 120;
-const LIVE_CUE_IMPACT_HOLD_MS = 50;
+const LIVE_CUE_FORWARD_DURATION_MS = 340;
+const LIVE_CUE_IMPACT_HOLD_MS = 180;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -24380,18 +24380,28 @@ const powerRef = useRef(hud.power);
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, cappedMax);
+        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
+        const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+        const isReturning =
+          !dragging &&
+          !instant &&
+          clampedTarget <= 0 &&
+          (cuePullCurrentRef.current ?? 0) > 0;
+        const returnSmoothing = isReturning
+          ? Math.max(smoothing, CUE_PULL_RETURN_PUSH)
+          : smoothing;
         const nextPull =
-          smoothing >= 1
+          returnSmoothing >= 1
             ? clampedTarget
             : THREE.MathUtils.lerp(
                 cuePullCurrentRef.current ?? 0,
                 clampedTarget,
-                smoothing
+                returnSmoothing
               );
         cuePullTargetRef.current = clampedTarget;
         cuePullCurrentRef.current = nextPull;
@@ -24434,8 +24444,10 @@ const powerRef = useRef(hud.power);
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const target = effectiveMax * easeOutCubic(ratio);
-        return THREE.MathUtils.clamp(target, 0, effectiveMax);
+        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
+        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+        return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
       const easeInOutCubic = (t) =>
