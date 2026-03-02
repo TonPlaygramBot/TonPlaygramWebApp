@@ -2310,7 +2310,70 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
+const polyhavenFilesManifestCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+
+async function getPolyhavenFilesManifest(assetId) {
+  if (!assetId) return null;
+  const key = String(assetId).toLowerCase();
+  if (polyhavenFilesManifestCache.has(key)) {
+    return polyhavenFilesManifestCache.get(key);
+  }
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${assetId}`, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      if (!response.ok) {
+        throw new Error(`Poly Haven files API ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn('Failed to load Poly Haven file manifest', assetId, error);
+      return null;
+    }
+  })();
+  polyhavenFilesManifestCache.set(key, promise);
+  return promise;
+}
+
+function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
+  const include = manifest?.gltf?.[resolution]?.gltf?.include;
+  if (!include || typeof include !== 'object') return null;
+  const map = new Map();
+  Object.entries(include).forEach(([relativePath, entry]) => {
+    if (!relativePath || typeof relativePath !== 'string') return;
+    const fileUrl = entry?.url;
+    if (!fileUrl || typeof fileUrl !== 'string') return;
+    map.set(relativePath, fileUrl);
+    map.set(relativePath.replace(/^\.\//, ''), fileUrl);
+    map.set(relativePath.split('/').pop() || relativePath, fileUrl);
+  });
+  return map;
+}
+
+function buildPolyhavenManifestCandidates(
+  manifest,
+  resolutionOrder = ['2k', '1k']
+) {
+  if (!manifest?.gltf || typeof manifest.gltf !== 'object') return [];
+  const availableResolutions = Object.keys(manifest.gltf);
+  const orderedResolutions = Array.from(
+    new Set([...resolutionOrder, ...availableResolutions])
+  );
+  return orderedResolutions
+    .map((resolution) => {
+      const url = manifest?.gltf?.[resolution]?.gltf?.url;
+      if (!url || typeof url !== 'string') return null;
+      return {
+        url,
+        resolution: String(resolution).toLowerCase(),
+        includeUrlMap: extractPolyhavenIncludeUrlMap(manifest, resolution)
+      };
+    })
+    .filter(Boolean);
+}
 
 function applySRGBColorSpace(texture) {
   if (!texture) return;
@@ -2391,8 +2454,22 @@ function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) 
   });
 }
 
-function createPolyhavenGltfLoader() {
-  const loader = new GLTFLoader();
+function createPolyhavenGltfLoader(includeUrlMap = null) {
+  const manager = new THREE.LoadingManager();
+  if (includeUrlMap?.size) {
+    manager.setURLModifier((requestUrl = '') => {
+      const cleanUrl = String(requestUrl || '').split('?')[0];
+      const normalized = cleanUrl.replace(/^\.\//, '');
+      const fileName = normalized.split('/').pop();
+      return (
+        includeUrlMap.get(cleanUrl) ||
+        includeUrlMap.get(normalized) ||
+        includeUrlMap.get(fileName) ||
+        requestUrl
+      );
+    });
+  }
+  const loader = new GLTFLoader(manager);
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
@@ -2430,12 +2507,32 @@ async function loadPolyhavenModel(
     : isLowProfileDevice
       ? ['1k']
       : ['2k', '1k'];
-  const candidates = buildPolyhavenModelUrls(assetId, preferredResolutions);
-  const loader = createPolyhavenGltfLoader();
+  const filesManifest = await getPolyhavenFilesManifest(assetId);
+  const manifestCandidates = buildPolyhavenManifestCandidates(
+    filesManifest,
+    preferredResolutions
+  );
+  const fallbackCandidates = buildPolyhavenModelUrls(assetId, preferredResolutions).map(
+    (url) => ({
+      url,
+      resolution: url.match(/\/(1k|2k)\//i)?.[1]?.toLowerCase?.() || '2k',
+      includeUrlMap: null
+    })
+  );
+  const candidates = [...manifestCandidates, ...fallbackCandidates];
   let lastError = null;
 
-  for (const candidateUrl of candidates) {
+  for (const candidate of candidates) {
     try {
+      const candidateUrl = candidate?.url;
+      if (!candidateUrl) continue;
+      const includeUrlMap =
+        candidate?.includeUrlMap ||
+        extractPolyhavenIncludeUrlMap(
+          filesManifest,
+          candidate?.resolution || preferredResolutions[0] || '2k'
+        );
+      const loader = createPolyhavenGltfLoader(includeUrlMap);
       const resolvedUrl = new URL(
         candidateUrl,
         typeof window !== 'undefined' ? window.location?.href : candidateUrl
@@ -2689,8 +2786,8 @@ function cloneChairWithTheme(chairData, option) {
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     const themed = mats.map((mat) => {
       if (!mat) return mat;
+      if (preserveMaterials) return mat;
       const next = mat.clone();
-      if (preserveMaterials) return next;
       if (upholsterySet.has(mat)) {
         if (next.color)
           next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
