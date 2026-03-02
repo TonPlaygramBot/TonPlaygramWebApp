@@ -397,6 +397,13 @@ const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
 const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
+const OVERHEAD_WHEEL_SENSITIVITY = 0.0008;
+const SEATED_FORWARD_DEFAULT = 0;
+const SEATED_FORWARD_MIN = 0;
+const SEATED_FORWARD_MAX = 0.52;
+const SEATED_PULL_SENSITIVITY = 0.0028;
+const SEATED_PINCH_SENSITIVITY = 0.0032;
+const SEATED_WHEEL_SENSITIVITY = 0.0012;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
@@ -2897,6 +2904,7 @@ function TexasHoldemArena({ search }) {
     startY: 0,
     startYaw: 0,
     startPitch: 0,
+    startForwardOffset: SEATED_FORWARD_DEFAULT,
     buttonAction: null,
     dragged: false
   });
@@ -2905,8 +2913,10 @@ function TexasHoldemArena({ search }) {
     active: false,
     pointerIds: [],
     startDistance: 0,
-    startZoom: OVERHEAD_ZOOM_DEFAULT
+    startZoom: OVERHEAD_ZOOM_DEFAULT,
+    startForwardOffset: SEATED_FORWARD_DEFAULT
   });
+  const seatedForwardOffsetRef = useRef(SEATED_FORWARD_DEFAULT);
   const pointerVectorRef = useRef(new THREE.Vector2());
   const interactionsRef = useRef({
     onChip: () => {},
@@ -2973,6 +2983,8 @@ function TexasHoldemArena({ search }) {
   const [sliderValue, setSliderValue] = useState(0);
   const [overheadView, setOverheadView] = useState(false);
   const [overheadZoom, setOverheadZoom] = useState(OVERHEAD_ZOOM_DEFAULT);
+  const overheadViewRef = useRef(overheadView);
+  const overheadZoomRef = useRef(overheadZoom);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -3504,10 +3516,16 @@ function TexasHoldemArena({ search }) {
     const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightAxis, pitch);
     const finalForward = rotatedForward.applyQuaternion(pitchQuat).normalize();
     const finalUp = rotatedUp.applyQuaternion(pitchQuat).normalize();
+    const forwardOffset = THREE.MathUtils.clamp(
+      seatedForwardOffsetRef.current,
+      SEATED_FORWARD_MIN,
+      SEATED_FORWARD_MAX
+    );
+    const cameraPosition = basis.position.clone().addScaledVector(rotatedForward, forwardOffset);
 
-    camera.position.copy(basis.position);
+    camera.position.copy(cameraPosition);
     camera.up.copy(finalUp);
-    camera.lookAt(basis.position.clone().add(finalForward));
+    camera.lookAt(cameraPosition.clone().add(finalForward));
     three.orientHumanCards?.();
   }, []);
 
@@ -4867,6 +4885,7 @@ function TexasHoldemArena({ search }) {
         startY: 0,
         startYaw: 0,
         startPitch: 0,
+        startForwardOffset: seatedForwardOffsetRef.current,
         buttonAction: null,
         dragged: false
       };
@@ -4877,13 +4896,14 @@ function TexasHoldemArena({ search }) {
         active: false,
         pointerIds: [],
         startDistance: 0,
-        startZoom: overheadZoom
+        startZoom: overheadZoom,
+        startForwardOffset: seatedForwardOffsetRef.current
       };
     };
 
     const beginPinchZoom = () => {
       const pointers = activePointersRef.current;
-      if (!overheadView || pointers.size < 2) {
+      if (pointers.size < 2) {
         resetPinchState();
         return;
       }
@@ -4897,7 +4917,8 @@ function TexasHoldemArena({ search }) {
         active: true,
         pointerIds: [first.pointerId, second.pointerId],
         startDistance,
-        startZoom: overheadZoom
+        startZoom: overheadZoom,
+        startForwardOffset: seatedForwardOffsetRef.current
       };
       resetPointerState();
       applyHoverTarget(null);
@@ -4913,13 +4934,23 @@ function TexasHoldemArena({ search }) {
       if (!first || !second) return;
       const currentDistance = Math.hypot(second.x - first.x, second.y - first.y);
       if (currentDistance <= 0) return;
-      const zoomDelta = (currentDistance - pinch.startDistance) * OVERHEAD_PINCH_SENSITIVITY;
-      const nextZoom = THREE.MathUtils.clamp(
-        +(pinch.startZoom - zoomDelta).toFixed(3),
-        OVERHEAD_ZOOM_MIN,
-        OVERHEAD_ZOOM_MAX
+      if (overheadViewRef.current) {
+        const zoomDelta = (currentDistance - pinch.startDistance) * OVERHEAD_PINCH_SENSITIVITY;
+        const nextZoom = THREE.MathUtils.clamp(
+          +(pinch.startZoom - zoomDelta).toFixed(3),
+          OVERHEAD_ZOOM_MIN,
+          OVERHEAD_ZOOM_MAX
+        );
+        setOverheadZoom(nextZoom);
+        return;
+      }
+      const nextForwardOffset = THREE.MathUtils.clamp(
+        +(pinch.startForwardOffset + (currentDistance - pinch.startDistance) * SEATED_PINCH_SENSITIVITY).toFixed(3),
+        SEATED_FORWARD_MIN,
+        SEATED_FORWARD_MAX
       );
-      setOverheadZoom(nextZoom);
+      seatedForwardOffsetRef.current = nextForwardOffset;
+      applyHeadOrientation();
     };
 
     const handlePointerDown = (event) => {
@@ -4929,7 +4960,7 @@ function TexasHoldemArena({ search }) {
         x: event.clientX,
         y: event.clientY
       });
-      if (overheadView && activePointersRef.current.size >= 2) {
+      if (activePointersRef.current.size >= 2) {
         beginPinchZoom();
         return;
       }
@@ -4950,6 +4981,7 @@ function TexasHoldemArena({ search }) {
           startY: event.clientY,
           startYaw: headAnglesRef.current.yaw,
           startPitch: headAnglesRef.current.pitch,
+          startForwardOffset: seatedForwardOffsetRef.current,
           buttonAction: target.userData?.action ?? null,
           dragged: false
         };
@@ -4969,6 +5001,7 @@ function TexasHoldemArena({ search }) {
         startY: event.clientY,
         startYaw: headAnglesRef.current.yaw,
         startPitch: headAnglesRef.current.pitch,
+        startForwardOffset: seatedForwardOffsetRef.current,
         buttonAction: null,
         dragged: false
       };
@@ -5002,13 +5035,19 @@ function TexasHoldemArena({ search }) {
       }
       if (state.mode === 'camera') {
         const dx = event.clientX - state.startX;
-        if (!state.dragged && Math.abs(dx) > 3) {
+        const dy = event.clientY - state.startY;
+        if (!state.dragged && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
           state.dragged = true;
         }
         headAnglesRef.current.yaw = THREE.MathUtils.clamp(
           state.startYaw - dx * HEAD_YAW_SENSITIVITY,
           -CAMERA_HEAD_TURN_LIMIT,
           CAMERA_HEAD_TURN_LIMIT
+        );
+        seatedForwardOffsetRef.current = THREE.MathUtils.clamp(
+          state.startForwardOffset + dy * SEATED_PULL_SENSITIVITY,
+          SEATED_FORWARD_MIN,
+          SEATED_FORWARD_MAX
         );
         headAnglesRef.current.pitch = 0;
         applyHeadOrientation();
@@ -5023,7 +5062,7 @@ function TexasHoldemArena({ search }) {
     const handlePointerUp = (event) => {
       activePointersRef.current.delete(event.pointerId);
       if (pinchZoomRef.current.active) {
-        if (activePointersRef.current.size >= 2 && overheadView) {
+        if (activePointersRef.current.size >= 2) {
           beginPinchZoom();
         } else {
           resetPinchState();
@@ -5049,6 +5088,26 @@ function TexasHoldemArena({ search }) {
     element.addEventListener('pointerup', handlePointerUp);
     element.addEventListener('pointercancel', handlePointerUp);
     element.addEventListener('pointerleave', handlePointerUp);
+
+    const handleWheel = (event) => {
+      event.preventDefault();
+      if (overheadViewRef.current) {
+        const nextZoom = THREE.MathUtils.clamp(
+          +(overheadZoomRef.current + event.deltaY * OVERHEAD_WHEEL_SENSITIVITY).toFixed(3),
+          OVERHEAD_ZOOM_MIN,
+          OVERHEAD_ZOOM_MAX
+        );
+        setOverheadZoom(nextZoom);
+        return;
+      }
+      seatedForwardOffsetRef.current = THREE.MathUtils.clamp(
+        +(seatedForwardOffsetRef.current - event.deltaY * SEATED_WHEEL_SENSITIVITY).toFixed(3),
+        SEATED_FORWARD_MIN,
+        SEATED_FORWARD_MAX
+      );
+      applyHeadOrientation();
+    };
+    element.addEventListener('wheel', handleWheel, { passive: false });
 
     const handleResize = () => {
       if (!mount || !threeRef.current) return;
@@ -5114,6 +5173,7 @@ function TexasHoldemArena({ search }) {
       element.removeEventListener('pointerup', handlePointerUp);
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
+      element.removeEventListener('wheel', handleWheel);
       activePointersRef.current.clear();
       resetPinchState();
       if (threeRef.current) {
@@ -6093,6 +6153,14 @@ function TexasHoldemArena({ search }) {
       onUndo: () => handleUndoChip()
     };
   }, [handleChipClick, handleUndoChip]);
+
+  useEffect(() => {
+    overheadViewRef.current = overheadView;
+  }, [overheadView]);
+
+  useEffect(() => {
+    overheadZoomRef.current = overheadZoom;
+  }, [overheadZoom]);
 
   useEffect(() => {
     const controls = viewControlsRef.current;
