@@ -390,8 +390,9 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.3 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58, landscape: 0.04 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscape: 0.66 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.66, landscape: 0.82 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.18, landscape: 1.28 });
+const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: -CARD_W * 0.14, landscape: -CARD_W * 0.24 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -1804,6 +1805,9 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const cardinalForDiamond =
     tableInfo?.shapeId === DIAMOND_SHAPE_ID && safeCount > 0 && safeCount <= 4;
   const useCardinal = Boolean(options?.useCardinal) || cardinalForDiamond;
+  const humanSeatInwardOffset = Number.isFinite(options?.humanSeatInwardOffset)
+    ? options.humanSeatInwardOffset
+    : 0;
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
   const classicAngles =
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
@@ -1841,7 +1845,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       innerDistance + railSpan * 0.5,
       outerDistance - railSpan * 0.05
     );
-    const seatRadius = outerDistance + (isHuman ? HUMAN_SEAT_RADIUS_OFFSET : AI_SEAT_RADIUS_OFFSET);
+    const seatRadius = outerDistance + (isHuman ? HUMAN_SEAT_RADIUS_OFFSET + humanSeatInwardOffset : AI_SEAT_RADIUS_OFFSET);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const cardRailCenter = forward.clone().multiplyScalar(cardRailDistance);
@@ -4260,7 +4264,14 @@ function TexasHoldemArena({ search }) {
     const initialPlayers = gameState?.players ?? [];
     const initialPlayerCount = initialPlayers.length || effectivePlayerCount;
     const useCardinalLayout = initialShape?.id === DIAMOND_SHAPE_ID && initialPlayerCount <= 4;
-    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, { useCardinal: useCardinalLayout });
+    const initialPortrait = mount.clientHeight > mount.clientWidth;
+    const humanSeatInwardOffset = initialPortrait
+      ? HUMAN_SEAT_INWARD_OFFSETS.portrait
+      : HUMAN_SEAT_INWARD_OFFSETS.landscape;
+    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, {
+      useCardinal: useCardinalLayout,
+      humanSeatInwardOffset
+    });
     seatLayout.forEach((seat, idx) => {
       seat.player = initialPlayers[idx] || null;
     });
@@ -5046,6 +5057,11 @@ function TexasHoldemArena({ search }) {
       const { clientWidth, clientHeight } = mount;
       cam.aspect = clientHeight > 0 ? clientWidth / clientHeight : 1;
       cam.updateProjectionMatrix();
+      if (overheadViewRef.current) {
+        viewControlsRef.current?.applyOverheadCamera?.({ zoom: overheadZoomRef.current });
+      } else {
+        viewControlsRef.current?.applySeatedCamera?.(clientWidth, clientHeight);
+      }
     };
 
     window.addEventListener('resize', handleResize);
