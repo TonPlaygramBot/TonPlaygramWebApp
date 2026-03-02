@@ -1914,7 +1914,6 @@ const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point mo
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
-const CUE_STROKE_DURATION_MULTIPLIER = 1.12; // slightly slow down the cue-stick strike animation for clearer shot timing
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24695,7 +24694,6 @@ const powerRef = useRef(hud.power);
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
-        pendingImpactRef.current = null;
         const { launchShot } = payload;
         launchShot?.();
       };
@@ -25176,13 +25174,7 @@ const powerRef = useRef(hud.power);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration =
-            (strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS) *
-            CUE_STROKE_DURATION_MULTIPLIER;
-          pendingImpactRef.current = {
-            time: performance.now() + Math.max(strikeDuration + 120, 240),
-            apply: () => applyShotAtImpact(shotImpactPayload)
-          };
+          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
@@ -25317,7 +25309,7 @@ const powerRef = useRef(hud.power);
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
-              strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.94,
+              strikeImpactThreshold: 1,
               forwardOnly: false,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
