@@ -1464,7 +1464,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.06,
+  restitution: 1.02,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -1522,7 +1522,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // keep jaw cuts lively so cushion-first routes rebound with a touch more energy
+const CUSHION_CUT_RESTITUTION_SCALE = 0.84; // keep jaw cuts lively so cushion-first routes rebound with a touch more energy
 const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -5466,14 +5466,14 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1120;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 2.9;
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.35;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 300; // hold pullback longer so the replay wind-up reads clearly on mobile
-const REPLAY_CUE_MIN_RELEASE_MS = 620; // give replay strokes a slower, more readable push-through into impact
-const LIVE_CUE_FORWARD_DURATION_MS = 360;
-const LIVE_CUE_IMPACT_HOLD_MS = 260;
+const REPLAY_CUE_MIN_RELEASE_MS = 420; // give replay strokes a slower, more readable push-through into impact
+const LIVE_CUE_FORWARD_DURATION_MS = 260;
+const LIVE_CUE_IMPACT_HOLD_MS = 180;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -21413,25 +21413,15 @@ const powerRef = useRef(hud.power);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
-            const liveFollowPos = followPos ?? impactPos;
-            const totalForwardDistance = Math.max(
-              pullPos.distanceTo(liveFollowPos),
-              1e-6
-            );
-            const impactProgress = THREE.MathUtils.clamp(
-              pullPos.distanceTo(impactPos) / totalForwardDistance,
-              0,
-              1
-            );
             const impactThreshold = THREE.MathUtils.clamp(
-              strikeImpactThreshold ?? impactProgress,
+              strikeImpactThreshold ?? 0.9,
               0,
               1
             );
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
             const easedPush = easeOutCubic(pushT);
             cueStick.visible = true;
-            cueStick.position.lerpVectors(pullPos, liveFollowPos, easedPush);
+            cueStick.position.lerpVectors(pullPos, impactPos, easedPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * easedPush;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
@@ -24994,13 +24984,7 @@ const powerRef = useRef(hud.power);
             BALL_R + contactEps - followExtra
           );
           const impactPos = buildCuePosition(-(CUE_TIP_GAP - endDistanceFromBallCenter));
-          const followThroughDistance = Math.max(
-            BALL_R * 0.38,
-            BALL_R * 0.24 + topspinFactor * BALL_R * 0.22
-          );
-          const followPos = buildCuePosition(
-            -(CUE_TIP_GAP - endDistanceFromBallCenter + followThroughDistance)
-          );
+          const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
           const impactTime = startTime + strikeDuration * 0.9;
@@ -25118,7 +25102,7 @@ const powerRef = useRef(hud.power);
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
-              strikeImpactThreshold: 0.82,
+              strikeImpactThreshold: 0.9,
               forwardOnly: true
             };
           } else {
