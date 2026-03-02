@@ -1101,7 +1101,15 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
-const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
+const CUE_STROKE_STYLE_STORAGE_KEY = 'poolRoyaleCueStrokeStyle';
+const CUE_STROKE_STYLE_OPTIONS = Object.freeze([
+  { id: 'reference-a', label: 'Reference 1' },
+  { id: 'reference-b', label: 'Reference 2' },
+  { id: 'reference-c', label: 'Reference 3' },
+  { id: 'reference-d', label: 'Reference 4' },
+  { id: 'reference-e', label: 'Reference 5' }
+]);
+const DEFAULT_CUE_STROKE_STYLE = CUE_STROKE_STYLE_OPTIONS[0].id;
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
@@ -12433,6 +12441,15 @@ function PoolRoyaleGame({
     }
     return false;
   });
+  const [cueStrokeStyleId, setCueStrokeStyleId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(CUE_STROKE_STYLE_STORAGE_KEY);
+      if (stored && CUE_STROKE_STYLE_OPTIONS.some((option) => option.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_CUE_STROKE_STYLE;
+  });
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
@@ -12463,6 +12480,12 @@ function PoolRoyaleGame({
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
+  useEffect(() => {
+    cueStrokeAnimationStyleRef.current = cueStrokeStyleId;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CUE_STROKE_STYLE_STORAGE_KEY, cueStrokeStyleId);
+    }
+  }, [cueStrokeStyleId]);
   useEffect(() => {
     if (skipAllReplays) {
       skipReplayRef.current?.();
@@ -21446,39 +21469,30 @@ const powerRef = useRef(hud.power);
             const motionTechnique = stroke.motionTechnique ?? animationStyle;
             const easedPush = (() => {
               switch (animationStyle) {
-                case 'linear':
-                  return pushT;
-                case 'spring': {
-                  const spring = 1 - Math.exp(-7.2 * pushT) * Math.cos(9.4 * pushT);
-                  return THREE.MathUtils.clamp(spring, 0, 1);
-                }
-                case 'snap':
-                  return THREE.MathUtils.smootherstep(pushT, 0, 1);
-                case 'whip':
-                  return Math.pow(pushT, 0.68);
-                case 'classic':
+                case 'reference-b':
+                  return 1 - Math.pow(1 - pushT, 2.9);
+                case 'reference-c':
+                  return 1 - Math.pow(1 - pushT, 3.05);
+                case 'reference-d':
+                  return 1 - Math.pow(1 - pushT, 2.75);
+                case 'reference-e':
+                  return 1 - Math.pow(1 - pushT, 3.2);
+                case 'reference-a':
                 default:
                   return easeOutCubic(pushT);
               }
             })();
             const motionPush = (() => {
               switch (motionTechnique) {
-                case 'spring':
-                  return THREE.MathUtils.clamp(
-                    easedPush + Math.sin(pushT * Math.PI) * (1 - pushT) * 0.1,
-                    0,
-                    1
-                  );
-                case 'snap': {
-                  const steps = 4;
-                  return Math.ceil(easedPush * steps) / steps;
-                }
-                case 'whip':
-                  return pushT < 0.35
-                    ? pushT * 0.45
-                    : THREE.MathUtils.clamp(0.1575 + (pushT - 0.35) * 1.3, 0, 1);
-                case 'linear':
-                case 'classic':
+                case 'reference-b':
+                  return THREE.MathUtils.clamp(easedPush + Math.sin(pushT * Math.PI) * 0.01, 0, 1);
+                case 'reference-c':
+                  return THREE.MathUtils.clamp(easedPush + Math.sin(pushT * Math.PI) * 0.014, 0, 1);
+                case 'reference-d':
+                  return THREE.MathUtils.clamp(easedPush + Math.sin(pushT * Math.PI) * 0.008, 0, 1);
+                case 'reference-e':
+                  return THREE.MathUtils.clamp(easedPush + Math.sin(pushT * Math.PI) * 0.018, 0, 1);
+                case 'reference-a':
                 default:
                   return easedPush;
               }
@@ -21545,19 +21559,15 @@ const powerRef = useRef(hud.power);
             const animationStyle = stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
             const eased = (() => {
               switch (animationStyle) {
-                case 'linear':
-                  return sample.t;
-                case 'snap':
-                  return Math.ceil(sample.t * 4) / 4;
-                case 'whip':
-                  return Math.pow(sample.t, 0.62);
-                case 'spring':
-                  return THREE.MathUtils.clamp(
-                    sample.t + Math.sin(sample.t * Math.PI) * (1 - sample.t) * 0.08,
-                    0,
-                    1
-                  );
-                case 'classic':
+                case 'reference-b':
+                  return 1 - Math.pow(1 - sample.t, 2.9);
+                case 'reference-c':
+                  return 1 - Math.pow(1 - sample.t, 3.05);
+                case 'reference-d':
+                  return 1 - Math.pow(1 - sample.t, 2.75);
+                case 'reference-e':
+                  return 1 - Math.pow(1 - sample.t, 3.2);
+                case 'reference-a':
                 default:
                   return easeInOutCubic(sample.t);
               }
@@ -24455,18 +24465,29 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
+      const resolveCueStrokeProfile = (styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
+        const style = CUE_STROKE_STYLE_OPTIONS.some((entry) => entry.id === styleId)
+          ? styleId
+          : DEFAULT_CUE_STROKE_STYLE;
+        const profileByStyle = {
+          'reference-a': { strikeMs: THREE.MathUtils.lerp(122, 108, p), holdMs: 50, impactThreshold: 0.9 },
+          'reference-b': { strikeMs: THREE.MathUtils.lerp(124, 110, p), holdMs: 52, impactThreshold: 0.9 },
+          'reference-c': { strikeMs: THREE.MathUtils.lerp(120, 106, p), holdMs: 48, impactThreshold: 0.9 },
+          'reference-d': { strikeMs: THREE.MathUtils.lerp(126, 112, p), holdMs: 54, impactThreshold: 0.9 },
+          'reference-e': { strikeMs: THREE.MathUtils.lerp(118, 104, p), holdMs: 50, impactThreshold: 0.89 }
+        };
+        const selected = profileByStyle[style] ?? profileByStyle[DEFAULT_CUE_STROKE_STYLE];
         return {
-          motion: 'featherLine',
+          motion: 'referenceForwardOnly',
           pullRatio: 1 - Math.pow(1 - p, 2.4),
           pullSmoothing: 0.14,
-          strikeDuration: THREE.MathUtils.lerp(520, 380, p),
-          holdDuration: 340,
+          strikeDuration: selected.strikeMs,
+          holdDuration: selected.holdMs,
           pullbackDuration: THREE.MathUtils.lerp(760, 620, p),
           recoverDuration: 180,
-          impactThreshold: 0.94,
-          forwardOnly: false,
+          impactThreshold: selected.impactThreshold,
+          forwardOnly: true,
           cameraExtraHoldMs: 900,
           spinScale: 0.22
         };
@@ -31885,6 +31906,34 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Cue Animation
+                </h3>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/60">
+                  Reference motion with 5 chances.
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {CUE_STROKE_STYLE_OPTIONS.map((option) => {
+                    const active = cueStrokeStyleId === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setCueStrokeStyleId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Replays
