@@ -392,7 +392,7 @@ const HEAD_PITCH_SENSITIVITY = 0.0034;
 const SEATED_ZOOM_DEFAULT = 1;
 const SEATED_ZOOM_MIN = 0.82;
 const SEATED_ZOOM_MAX = 1.18;
-const SEATED_WHEEL_ZOOM_STEP = 0.055;
+const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const SEATED_PINCH_SENSITIVITY = 0.0026;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.3 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58, landscape: 0.66 });
@@ -402,6 +402,16 @@ const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
 const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
+
+function computeWheelZoom(currentZoom, deltaY, minZoom, maxZoom) {
+  if (!Number.isFinite(deltaY) || deltaY === 0) {
+    return currentZoom;
+  }
+  const normalizedDelta = Math.min(100, Math.abs(deltaY)) * 0.01;
+  const zoomScale = Math.pow(0.95, CAMERA_WHEEL_FACTOR * normalizedDelta);
+  const nextZoom = deltaY < 0 ? currentZoom * zoomScale : currentZoom / zoomScale;
+  return THREE.MathUtils.clamp(+nextZoom.toFixed(3), minZoom, maxZoom);
+}
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
@@ -5095,23 +5105,23 @@ function TexasHoldemArena({ search }) {
     const handleWheel = (event) => {
       event.preventDefault();
       if (overheadViewRef.current) {
-        const direction = Math.sign(event.deltaY);
-        if (direction === 0) return;
-        const nextZoom = THREE.MathUtils.clamp(
-          +(overheadZoomRef.current + direction * 0.035).toFixed(3),
+        const nextZoom = computeWheelZoom(
+          overheadZoomRef.current,
+          event.deltaY,
           OVERHEAD_ZOOM_MIN,
           OVERHEAD_ZOOM_MAX
         );
+        if (nextZoom === overheadZoomRef.current) return;
         setOverheadZoom(nextZoom);
         return;
       }
-      const direction = Math.sign(event.deltaY);
-      if (direction === 0) return;
-      const nextZoom = THREE.MathUtils.clamp(
-        +(seatedZoomRef.current + direction * SEATED_WHEEL_ZOOM_STEP).toFixed(3),
+      const nextZoom = computeWheelZoom(
+        seatedZoomRef.current,
+        event.deltaY,
         SEATED_ZOOM_MIN,
         SEATED_ZOOM_MAX
       );
+      if (nextZoom === seatedZoomRef.current) return;
       setSeatedZoom(nextZoom);
     };
 
