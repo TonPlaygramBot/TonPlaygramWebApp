@@ -1395,6 +1395,7 @@ const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
 const pmrem = new THREE.PMREMGenerator(renderer);
 const hdriLoader = new RGBELoader();
+hdriLoader.setCrossOrigin?.('anonymous');
 const hdriTextureCache = new Map();
 let hdriBackground = null;
 let environmentApplyToken = 0;
@@ -2487,6 +2488,10 @@ async function loadPolyhavenModel(assetId) {
         candidateUrl,
         typeof window !== 'undefined' ? window.location?.href : candidateUrl
       ).href;
+      const resourcePath =
+        resolvedUrl.slice(0, resolvedUrl.lastIndexOf('/') + 1);
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
       gltf = await loader.loadAsync(resolvedUrl);
       break;
     } catch (error) {
@@ -4125,6 +4130,34 @@ let activeEnvironmentHdri = null;
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
   if (!shouldLoadExternalHdri()) return null;
+  const pickPolyHavenHdriUrl = (json, preferred = ['4k']) => {
+    if (!json || typeof json !== 'object') return null;
+    const resolutions =
+      Array.isArray(preferred) && preferred.length ? preferred : ['4k'];
+    for (const res of resolutions) {
+      const entry = json[res];
+      if (entry?.hdr) return entry.hdr;
+      if (entry?.exr) return entry.exr;
+    }
+    const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+    if (!fallback) return null;
+    return fallback.hdr || fallback.exr || null;
+  };
+
+  const resolvePolyHavenHdriUrl = async (assetId, preferredResolutions = ['4k']) => {
+    const fallbackRes = preferredResolutions[0] || '4k';
+    const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${assetId}_${fallbackRes}.hdr`;
+    if (typeof fetch !== 'function') return fallbackUrl;
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response?.ok) return fallbackUrl;
+      const json = await response.json();
+      return pickPolyHavenHdriUrl(json, preferredResolutions) || fallbackUrl;
+    } catch (error) {
+      return fallbackUrl;
+    }
+  };
+
   const allowedResolutions = resolveHdriResolutionOrder();
   const preferred = Array.isArray(variant.preferredResolutions)
     ? variant.preferredResolutions.filter((res) =>
@@ -4138,7 +4171,9 @@ async function loadHdriEnvironment(variant) {
     if (hdriTextureCache.has(cacheKey)) {
       return hdriTextureCache.get(cacheKey);
     }
+    const primaryUrl = await resolvePolyHavenHdriUrl(variant.assetId, [res]);
     const urls = [
+      primaryUrl,
       `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`,
       `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${variant.assetId}_${res}.exr`
     ];
