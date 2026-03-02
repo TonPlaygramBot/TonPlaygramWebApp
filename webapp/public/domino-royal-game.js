@@ -5,6 +5,8 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2311,6 +2313,9 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const BASIS_TRANSCODER_PATH =
+  'https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/';
+let sharedKtx2Loader = null;
 
 function applySRGBColorSpace(texture) {
   if (!texture) return;
@@ -2397,6 +2402,21 @@ function createPolyhavenGltfLoader() {
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+    if (renderer) {
+      try {
+        sharedKtx2Loader.detectSupport(renderer);
+      } catch (error) {
+        console.warn('KTX2 detection failed', error);
+      }
+    }
+  }
+
+  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -2414,54 +2434,6 @@ function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
   return urls;
 }
 
-function extractAllHttpUrls(value) {
-  const urls = [];
-  const visit = (node) => {
-    if (!node) return;
-    if (typeof node === 'string') {
-      if (/^https?:\/\//i.test(node)) urls.push(node);
-      return;
-    }
-    if (Array.isArray(node)) {
-      node.forEach(visit);
-      return;
-    }
-    if (typeof node === 'object') {
-      Object.values(node).forEach(visit);
-    }
-  };
-  visit(value);
-  return urls;
-}
-
-async function loadPolyhavenModelCandidatesFromApi(assetId) {
-  if (!assetId || typeof fetch !== 'function') return [];
-  try {
-    const response = await fetch(
-      `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
-    );
-    if (!response.ok) {
-      return [];
-    }
-    const payload = await response.json();
-    const urls = extractAllHttpUrls(payload).filter(
-      (url) => /\.(gltf|glb)(\?|$)/i.test(url)
-    );
-    // Prefer embedded GLB first so we don't depend on potentially stale sidecar texture paths.
-    return urls.sort((a, b) => {
-      const score = (url) => {
-        if (/\.glb(\?|$)/i.test(url)) return 3;
-        if (/\/2k\//i.test(url)) return 2;
-        if (/\/1k\//i.test(url)) return 1;
-        return 0;
-      };
-      return score(b) - score(a);
-    });
-  } catch (error) {
-    return [];
-  }
-}
-
 async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
   const cacheKey = assetId.toLowerCase();
@@ -2469,40 +2441,39 @@ async function loadPolyhavenModel(assetId) {
     const cached = polyhavenModelCache.get(cacheKey);
     return cached.clone(true);
   }
+
   const preferredResolutions = IS_TELEGRAM_RUNTIME
     ? ['1k']
     : isLowProfileDevice
       ? ['1k']
       : ['2k', '1k'];
-  const candidates = [
-    ...(await loadPolyhavenModelCandidatesFromApi(assetId)),
-    ...buildPolyhavenModelUrls(assetId, preferredResolutions)
-  ];
+  const candidates = buildPolyhavenModelUrls(assetId, preferredResolutions);
   const loader = createPolyhavenGltfLoader();
-  let gltf = null;
   let lastError = null;
+
   for (const candidateUrl of candidates) {
     try {
       const resolvedUrl = new URL(
         candidateUrl,
         typeof window !== 'undefined' ? window.location?.href : candidateUrl
       ).href;
-      gltf = await loader.loadAsync(resolvedUrl);
-      break;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
+      // eslint-disable-next-line no-await-in-loop
+      const gltf = await loader.loadAsync(resolvedUrl);
+      const root = gltf.scene || gltf.scenes?.[0] || gltf;
+      if (root) {
+        prepareLoadedModel(root);
+        polyhavenModelCache.set(cacheKey, root);
+        return root.clone(true);
+      }
     } catch (error) {
       lastError = error;
     }
   }
-  if (!gltf) {
-    throw (
-      lastError || new Error(`Failed to load Poly Haven model for ${assetId}`)
-    );
-  }
-  const root = gltf.scene || gltf.scenes?.[0];
-  if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
-  prepareLoadedModel(root, { preserveGltfTextureMapping: true });
-  polyhavenModelCache.set(cacheKey, root);
-  return root.clone(true);
+
+  throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679,
@@ -3484,16 +3455,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     exposure: 1.08,
     environmentIntensity: 1.05,
     backgroundIntensity: 0.98
-  },
-  {
-    id: 'entranceHall',
-    name: 'Entrance Hall',
-    assetId: 'entrance_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    exposure: 1.09,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1
   },
   {
     id: 'mirroredHall',
