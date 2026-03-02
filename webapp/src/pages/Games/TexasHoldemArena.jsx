@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.03, landscape: 0.3 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.56, landscape: 0.64 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 1.44 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.34, landscape: 0.42 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.18, landscape: 1.3 });
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: -CARD_W * 0.24, landscape: -CARD_W * 0.4 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -932,7 +932,7 @@ function buildSeatAnchors(count) {
   const radiusY = 32;
   const anchors = [];
   for (let i = 0; i < safeCount; i += 1) {
-    const angle = -Math.PI / 2 + (i / safeCount) * Math.PI * 2;
+    const angle = Math.PI / 2 + (i / safeCount) * Math.PI * 2;
     anchors.push({
       left: `${centerX + Math.cos(angle) * radiusX}%`,
       top: `${centerY + Math.sin(angle) * radiusY}%`
