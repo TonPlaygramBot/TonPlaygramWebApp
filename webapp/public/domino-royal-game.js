@@ -5,6 +5,8 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2312,6 +2314,32 @@ const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const polyhavenFilesManifestCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const BASIS_TRANSCODER_PATH =
+  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+let sharedKtx2Loader = null;
+
+function createConfiguredGltfLoader(manager = null) {
+  const loader = manager ? new GLTFLoader(manager) : new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setCrossOrigin('anonymous');
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
+  if (renderer) {
+    try {
+      sharedKtx2Loader.detectSupport(renderer);
+    } catch (error) {
+      console.warn('KTX2 support detection failed for Domino Royal', error);
+    }
+  }
+  loader.setKTX2Loader(sharedKtx2Loader);
+  return loader;
+}
 
 async function getPolyhavenFilesManifest(assetId) {
   if (!assetId) return null;
@@ -2469,12 +2497,7 @@ function createPolyhavenGltfLoader(includeUrlMap = null) {
       );
     });
   }
-  const loader = new GLTFLoader(manager);
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setCrossOrigin('anonymous');
-  loader.setDRACOLoader(draco);
-  return loader;
+  return createConfiguredGltfLoader(manager);
 }
 
 function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
@@ -2698,11 +2721,7 @@ async function ensureMurlanChairTemplate(theme = null) {
         preserveMaterials: theme.preserveMaterials ?? true
       };
     }
-    const loader = new GLTFLoader();
-    const draco = new DRACOLoader();
-    draco.setDecoderPath(DRACO_DECODER_PATH);
-    loader.setCrossOrigin('anonymous');
-    loader.setDRACOLoader(draco);
+    const loader = createConfiguredGltfLoader();
 
     if (!CHAIR_MODEL_URLS.length) {
       return buildProceduralChairTemplate();
