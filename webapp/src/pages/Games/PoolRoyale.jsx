@@ -21665,11 +21665,6 @@ const powerRef = useRef(hud.power);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
-            const releaseCompleteByPosition = cueStick.position.distanceToSquared(impactPos) <= 1e-8;
-            if (!stroke.shotApplied && (sample.hitArmed || releaseCompleteByPosition)) {
-              stroke.shotApplied = true;
-              stroke.onImpact?.();
-            }
             syncCueShadow();
             return true;
           }
