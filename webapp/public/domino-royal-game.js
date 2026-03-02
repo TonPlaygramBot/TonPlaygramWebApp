@@ -5,6 +5,8 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2310,7 +2312,11 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
+const polyhavenTextureSetCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const BASIS_TRANSCODER_PATH =
+  'https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/';
+let sharedKtx2Loader = null;
 
 function applySRGBColorSpace(texture) {
   if (!texture) return;
@@ -2397,6 +2403,21 @@ function createPolyhavenGltfLoader() {
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+    if (renderer) {
+      try {
+        sharedKtx2Loader.detectSupport(renderer);
+      } catch (error) {
+        console.warn('KTX2 detection failed', error);
+      }
+    }
+  }
+
+  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -2504,6 +2525,138 @@ async function loadPolyhavenModel(assetId) {
   polyhavenModelCache.set(cacheKey, root);
   return root.clone(true);
 }
+
+
+function pickBestTextureUrls(apiJson, preferredSizes = ['4k', '2k', '1k']) {
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { diffuse: null, normal: null, roughness: null };
+  }
+
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url;
+  };
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
+async function loadTextureAsync(url, isColor = false, maxAnisotropy = 1) {
+  return await new Promise((resolve, reject) => {
+    textureLoader.load(
+      url,
+      (texture) => {
+        if (isColor) applySRGBColorSpace(texture);
+        texture.flipY = false;
+        texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+        texture.needsUpdate = true;
+        resolve(texture);
+      },
+      undefined,
+      () => reject(new Error('texture load failed'))
+    );
+  });
+}
+
+async function loadPolyhavenTextureSet(assetId, maxAnisotropy = 1) {
+  if (!assetId || typeof fetch !== 'function') return null;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  if (polyhavenTextureSetCache.has(key)) {
+    return polyhavenTextureSetCache.get(key);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response.ok) return null;
+      const json = await response.json();
+      const urls = pickBestTextureUrls(json);
+      if (!urls.diffuse) return null;
+      const [diffuse, normal, roughness] = await Promise.all([
+        loadTextureAsync(urls.diffuse, true, maxAnisotropy),
+        urls.normal ? loadTextureAsync(urls.normal, false, maxAnisotropy) : null,
+        urls.roughness ? loadTextureAsync(urls.roughness, false, maxAnisotropy) : null
+      ]);
+      return { diffuse, normal, roughness };
+    } catch (_error) {
+      return null;
+    }
+  })();
+
+  polyhavenTextureSetCache.set(key, promise);
+  promise.catch(() => polyhavenTextureSetCache.delete(key));
+  return promise;
+}
+
+function applyTextureSetToModel(model, textureSet, maxAnisotropy = 1) {
+  if (!model || !textureSet) return;
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((material) => {
+      if (!material) return;
+      if (!material.map && textureSet.diffuse) {
+        material.map = textureSet.diffuse;
+      }
+      if (!material.normalMap && textureSet.normal) {
+        material.normalMap = textureSet.normal;
+      }
+      if (!material.roughnessMap && textureSet.roughness) {
+        material.roughnessMap = textureSet.roughness;
+      }
+      normalizeMaterialTextures(material, maxAnisotropy);
+      material.needsUpdate = true;
+    });
+  });
+}
+
+async function hydratePolyhavenModelTextures(model, assetId) {
+  if (!model || !assetId) return;
+  const maxAnisotropy = getRendererAnisotropyCap();
+  const textureSet = await loadPolyhavenTextureSet(assetId, maxAnisotropy);
+  if (!textureSet) return;
+  applyTextureSetToModel(model, textureSet, maxAnisotropy);
+}
+
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679,
   1.9173749900311232,
@@ -2637,6 +2790,7 @@ async function ensureMurlanChairTemplate(theme = null) {
   chairTemplatePromise = (async () => {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const model = await loadPolyhavenModel(theme.assetId);
+      await hydratePolyhavenModelTextures(model, theme.assetId);
       fitChairModelToFootprint(model);
       chairTemplateBounds = new THREE.Box3().setFromObject(model);
       return {
@@ -2703,6 +2857,7 @@ async function ensureChairTemplateForTheme(theme) {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       try {
         const model = await loadPolyhavenModel(theme.assetId);
+        await hydratePolyhavenModelTextures(model, theme.assetId);
         fitChairModelToFootprint(model);
         chairTemplateBounds = new THREE.Box3().setFromObject(model);
         return {
@@ -3484,16 +3639,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     exposure: 1.08,
     environmentIntensity: 1.05,
     backgroundIntensity: 0.98
-  },
-  {
-    id: 'entranceHall',
-    name: 'Entrance Hall',
-    assetId: 'entrance_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    exposure: 1.09,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1
   },
   {
     id: 'mirroredHall',
@@ -5498,6 +5643,7 @@ async function applyTableTheme(
   setProceduralTableVisible(false);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
+    await hydratePolyhavenModelTextures(model, theme.assetId || theme.id);
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model, { disposeTextures: false });
       return;
@@ -5511,6 +5657,7 @@ async function applyTableTheme(
     if (theme.id !== DEFAULT_TABLE_THEME_OPTION?.id && DEFAULT_TABLE_THEME_OPTION?.assetId) {
       try {
         const fallbackModel = await loadPolyhavenModel(DEFAULT_TABLE_THEME_OPTION.assetId);
+        await hydratePolyhavenModelTextures(fallbackModel, DEFAULT_TABLE_THEME_OPTION.assetId);
         if (token !== tableThemeToken || !fallbackModel) {
           disposeObjectResources(fallbackModel, { disposeTextures: false });
           return;
