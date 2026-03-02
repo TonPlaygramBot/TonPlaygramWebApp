@@ -25329,6 +25329,14 @@ const powerRef = useRef(hud.power);
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               onImpact: () => applyShotAtImpact(shotImpactPayload)
             };
+            const impactAt =
+              startTime +
+              Math.max(0, pullbackDuration) +
+              Math.max(1, strikeDuration);
+            pendingImpactRef.current = {
+              time: impactAt,
+              apply: () => applyShotAtImpact(shotImpactPayload)
+            };
           } else {
             applyShotAtImpact(shotImpactPayload);
             cueStick.visible = false;
@@ -25336,6 +25344,7 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
+            pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
