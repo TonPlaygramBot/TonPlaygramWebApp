@@ -5472,10 +5472,8 @@ const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 300; // hold pullback longer so the replay wind-up reads clearly on mobile
 const REPLAY_CUE_MIN_RELEASE_MS = 560; // hold replay push-through longer so forward cue motion is easy to read on mobile
-// Keep the live stroke timing aligned with the reference cue motion:
-// quick push forward and a short hold before snapping back to idle.
-const LIVE_CUE_FORWARD_DURATION_MS = 120;
-const LIVE_CUE_IMPACT_HOLD_MS = 50;
+const LIVE_CUE_FORWARD_DURATION_MS = 340;
+const LIVE_CUE_IMPACT_HOLD_MS = 180;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -24909,11 +24907,17 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Mirror the reference stroke pullback curve exactly:
-          // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.34;
-          const pullTarget = pullRange * easeOutCubic(THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1));
-          const startPull = THREE.MathUtils.clamp(pullTarget, 0, Math.max(maxPull, 0));
+          const pullVisibilityBoost = PLAYER_CUE_PULL_VISIBILITY_BOOST;
+          const pullScale = 1;
+          const pullTarget =
+            computePullTargetFromPower(clampedPower, maxPull) *
+            pullVisibilityBoost *
+            pullScale;
+          const pull = computeCuePull(pullTarget, maxPull, {
+            instant: true,
+            preserveLarger: true
+          });
+          const startPull = Math.max(cuePullCurrentRef.current ?? 0, pull);
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
@@ -24931,7 +24935,7 @@ const powerRef = useRef(hud.power);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(
             dir,
-            startPull,
+            pull,
             activeRenderCameraRef.current ?? cameraRef.current ?? camera
           );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
