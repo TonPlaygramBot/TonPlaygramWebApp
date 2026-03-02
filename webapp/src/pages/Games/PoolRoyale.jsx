@@ -1855,14 +1855,6 @@ const PLAYER_CUE_FORWARD_MIN_MS = 520;
 const PLAYER_CUE_FORWARD_MAX_MS = 920;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
-const CUE_STROKE_ANIMATION_OPTIONS = Object.freeze([
-  Object.freeze({ id: 'cinematic-cubic', label: 'Cinematic cubic', technique: 'cubic easing blend' }),
-  Object.freeze({ id: 'spring-snap', label: 'Spring snap', technique: 'damped spring release' }),
-  Object.freeze({ id: 'smoothstep-drive', label: 'Smoothstep drive', technique: 'smootherstep curve' }),
-  Object.freeze({ id: 'bezier-whip', label: 'Bezier whip', technique: 'custom cubic-bezier timing' }),
-  Object.freeze({ id: 'two-stage-punch', label: 'Two-stage punch', technique: 'piecewise keyframe acceleration' })
-]);
-const DEFAULT_CUE_STROKE_ANIMATION_ID = CUE_STROKE_ANIMATION_OPTIONS[0].id;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
@@ -14279,9 +14271,6 @@ function PoolRoyaleGame({
   );
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
-  const shotCameraHoldUntilRef = useRef(0);
-  const cueStrokeTechniqueRef = useRef(DEFAULT_CUE_STROKE_ANIMATION_ID);
-  const [cueStrokeAnimationId, setCueStrokeAnimationId] = useState(DEFAULT_CUE_STROKE_ANIMATION_ID);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -14414,10 +14403,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
-  useEffect(() => {
-    cueStrokeTechniqueRef.current = cueStrokeAnimationId;
-  }, [cueStrokeAnimationId]);
-
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -17157,21 +17142,13 @@ const powerRef = useRef(hud.power);
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          shotCameraHoldUntilRef.current = getNow() + SHOT_CAMERA_HOLD_MS;
-          const trySwitchToTopView = () => {
+          shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
             shotCameraHoldTimeoutRef.current = null;
             if (!shooting) return;
-            const cueBallMoving = Math.hypot(cue?.vel?.x ?? 0, cue?.vel?.y ?? 0) > 0.02;
-            const holdExpired = getNow() >= (shotCameraHoldUntilRef.current || 0);
-            if (!cueBallMoving || !holdExpired) {
-              shotCameraHoldTimeoutRef.current = window.setTimeout(trySwitchToTopView, 80);
-              return;
-            }
             topViewRef.current = true;
             topViewLockedRef.current = true;
             enterTopView(true, { variant: 'replay' });
-          };
-          shotCameraHoldTimeoutRef.current = window.setTimeout(trySwitchToTopView, SHOT_CAMERA_HOLD_MS);
+          }, SHOT_CAMERA_HOLD_MS);
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
@@ -21432,8 +21409,7 @@ const powerRef = useRef(hud.power);
             strikeDip,
             wobbleAmount,
             strikeImpactThreshold,
-            forwardOnly,
-            techniqueId
+            forwardOnly
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
@@ -21445,8 +21421,7 @@ const powerRef = useRef(hud.power);
               1
             );
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
-            const strokeTechnique = resolveStrokeTechnique(techniqueId);
-            const easedPush = strokeTechnique.release(pushT);
+            const easedPush = easeOutCubic(pushT);
             cueStick.visible = true;
             cueStick.position.lerpVectors(pullPos, impactPos, easedPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * easedPush;
@@ -21497,8 +21472,7 @@ const powerRef = useRef(hud.power);
             stroke.onImpact?.();
           }
           if (sample.phase === 'pullback') {
-            const strokeTechnique = resolveStrokeTechnique(techniqueId);
-            const eased = strokeTechnique.pullback(sample.t);
+            const eased = easeInOutCubic(sample.t);
             cueStick.position.lerpVectors(idlePos, pullPos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
@@ -21506,8 +21480,7 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'release') {
-            const strokeTechnique = resolveStrokeTechnique(techniqueId);
-            const eased = strokeTechnique.release(sample.t);
+            const eased = easeInOutCubic(sample.t);
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
             cueStick.position.y -= (strikeDip ?? 0.003) * eased;
@@ -24413,10 +24386,7 @@ const powerRef = useRef(hud.power);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const pullTechnique = resolveStrokeTechnique(cueStrokeTechniqueRef.current);
-        const normalizedDesired = effectiveMax > 1e-6 ? THREE.MathUtils.clamp(desiredTarget / effectiveMax, 0, 1) : 0;
-        const techniqueWeightedTarget = effectiveMax * pullTechnique.pullback(normalizedDesired);
-        const boostedTarget = techniqueWeightedTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
+        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
         const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const isReturning =
@@ -24485,54 +24455,6 @@ const powerRef = useRef(hud.power);
       const easeInOutCubic = (t) =>
         t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-      const cubicBezier = (t, p1, p2) => {
-        const oneMinusT = 1 - t;
-        return 3 * oneMinusT * oneMinusT * t * p1 + 3 * oneMinusT * t * t * p2 + t * t * t;
-      };
-      const smootherStep = (t) => t * t * t * (t * (t * 6 - 15) + 10);
-      const springSnap = (t) => {
-        const damping = Math.exp(-5.4 * t);
-        const oscillation = Math.cos(9.2 * t);
-        return THREE.MathUtils.clamp(1 - damping * oscillation, 0, 1);
-      };
-      const twoStagePunch = (t) => {
-        if (t <= 0.35) {
-          const segment = t / 0.35;
-          return 0.58 * (segment * segment);
-        }
-        const segment = (t - 0.35) / 0.65;
-        return THREE.MathUtils.clamp(0.58 + 0.42 * (1 - Math.pow(1 - segment, 4)), 0, 1);
-      };
-      const resolveStrokeTechnique = (techniqueId) => {
-        switch (techniqueId) {
-          case 'spring-snap':
-            return {
-              pullback: (t) => THREE.MathUtils.clamp(Math.pow(t, 0.9), 0, 1),
-              release: (t) => springSnap(t)
-            };
-          case 'smoothstep-drive':
-            return {
-              pullback: (t) => smootherStep(t),
-              release: (t) => smootherStep(t)
-            };
-          case 'bezier-whip':
-            return {
-              pullback: (t) => cubicBezier(t, 0.22, 0.78),
-              release: (t) => cubicBezier(t, 0.82, 0.14)
-            };
-          case 'two-stage-punch':
-            return {
-              pullback: (t) => THREE.MathUtils.clamp(0.75 * Math.pow(t, 1.3) + 0.25 * t, 0, 1),
-              release: (t) => twoStagePunch(t)
-            };
-          case 'cinematic-cubic':
-          default:
-            return {
-              pullback: (t) => easeInOutCubic(t),
-              release: (t) => easeOutCubic(t)
-            };
-        }
-      };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -25181,8 +25103,7 @@ const powerRef = useRef(hud.power);
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
               strikeImpactThreshold: 0.9,
-              forwardOnly: true,
-              techniqueId: cueStrokeTechniqueRef.current || DEFAULT_CUE_STROKE_ANIMATION_ID
+              forwardOnly: true
             };
           } else {
             cueStick.visible = false;
@@ -31817,42 +31738,6 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Cue animation
-                </h3>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/55">
-                  Pull + strike technique preset
-                </p>
-                <div className="mt-2 grid gap-2">
-                  {CUE_STROKE_ANIMATION_OPTIONS.map((option) => {
-                    const active = option.id === cueStrokeAnimationId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setCueStrokeAnimationId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                            : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">{option.label}</span>
-                          {active ? (
-                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">Active</span>
-                          ) : null}
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                          {option.technique}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Replays
