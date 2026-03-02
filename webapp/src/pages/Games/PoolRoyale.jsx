@@ -21484,8 +21484,22 @@ const powerRef = useRef(hud.power);
 
         const updateCueStroke = (now) => {
           const stroke = cueStrokeStateRef.current;
-          if (!stroke || !cueStick) {
+          if (!stroke) {
             return Boolean(cueAnimating);
+          }
+          if (!cueStick) {
+            // Safety fallback: if the cue mesh is temporarily unavailable (asset streaming,
+            // scene refresh), still apply the shot so the cue ball always launches.
+            if (!stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
+            cueAnimating = false;
+            cuePullCurrentRef.current = 0;
+            cuePullTargetRef.current = 0;
+            cueStrokeStateRef.current = null;
+            pendingImpactRef.current = null;
+            return false;
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = false;
@@ -25180,7 +25194,7 @@ const powerRef = useRef(hud.power);
           const startTime = performance.now();
           const impactPos = idlePos.clone();
           const followPos = impactPos.clone();
-          const followDurationResolved = 0;
+          const followDurationResolved = strikeHoldDuration;
           const recoverDuration = 0;
           animatePowerSliderReturn(strikeDuration);
           const forwardPreviewHold =
