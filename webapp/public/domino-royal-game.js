@@ -5,8 +5,8 @@ import { RoundedBoxGeometry } from '/vendor/three/examples/jsm/geometries/Rounde
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/meshopt_decoder.module.js';
+import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -2313,10 +2313,20 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const polyhavenFilesManifestCache = new Map();
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 let sharedKtx2Loader = null;
+let hasDetectedKtx2Support = false;
+
+function ensureKtx2SupportDetection() {
+  if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
+  try {
+    sharedKtx2Loader.detectSupport(renderer);
+    hasDetectedKtx2Support = true;
+  } catch (error) {
+    console.warn('KTX2 support detection failed for Domino Royal', error);
+  }
+}
 
 function createConfiguredGltfLoader(manager = null) {
   const loader = manager ? new GLTFLoader(manager) : new GLTFLoader();
@@ -2330,13 +2340,7 @@ function createConfiguredGltfLoader(manager = null) {
     sharedKtx2Loader = new KTX2Loader();
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
   }
-  if (renderer) {
-    try {
-      sharedKtx2Loader.detectSupport(renderer);
-    } catch (error) {
-      console.warn('KTX2 support detection failed for Domino Royal', error);
-    }
-  }
+  ensureKtx2SupportDetection();
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
@@ -3975,8 +3979,8 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
 });
 
 
-const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
-const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'ruby';
+const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'CoffeeTable_01';
+const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
 
 function resolveDefaultOptionId(key, options = []) {
   if (!Array.isArray(options) || options.length === 0) return null;
@@ -4119,6 +4123,23 @@ function normalizeAppearance(raw) {
       );
     }
   });
+
+  const selectedTableTheme = TABLE_THEME_OPTIONS[normalized.tableTheme];
+  if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
+    normalized.tableTheme = findDominoOptionIndex(
+      'tableTheme',
+      LUDO_MATCH_DEFAULT_TABLE_THEME_ID
+    );
+  }
+
+  const selectedChairTheme = CHAIR_THEME_OPTIONS[normalized.chairTheme];
+  if (selectedChairTheme?.source !== 'polyhaven') {
+    normalized.chairTheme = findDominoOptionIndex(
+      'chairTheme',
+      LUDO_MATCH_DEFAULT_CHAIR_THEME_ID
+    );
+  }
+
   return normalized;
 }
 
