@@ -38,6 +38,8 @@ public class CueCamera : MonoBehaviour
     public float cueMinimumDistance = 0.02f;
     // Height the cue view should reach when the player lifts the camera.
     public float cueRaisedHeight = 0.82f;
+    // Additional lift so the cue stick sits a bit higher in portrait framing.
+    public float cueStickExtraLift = 0.06f;
     // Extra padding applied when the player lifts the camera so the frame has
     // a little more breathing room above the shaft while keeping the cue in
     // view.
@@ -65,6 +67,8 @@ public class CueCamera : MonoBehaviour
     // Radius of the cue ball so the aiming view can remain above the cloth while
     // gliding toward the shot.
     public float cueBallRadius = 0.028575f;
+    // Height offset for updated rail-cushion/ball meshes.
+    public float tableAssetHeightOffset = 0.01f;
     // Slight vertical offset applied to the look target so the cue ball remains
     // comfortably framed in portrait view.
     public float cueBallLookOffset = 0.02f;
@@ -211,6 +215,20 @@ public class CueCamera : MonoBehaviour
     public float ballInHandFocusOffset = 0.45f;
     // Downward look offset to keep the ball-in-hand area framed.
     public float ballInHandLookDownOffset = 0.04f;
+    // Smoothness of cue-ball movement while being repositioned.
+    public float ballInHandMoveLerpSpeed = 18f;
+    // Inset from rails used when clamping cue ball placement.
+    public float ballInHandRailInset = 0.03f;
+    // Height of cue ball when restored after scratch.
+    public float cueBallResetHeightOffset = 0.028575f;
+
+    [Header("Cue stick pull / push")]
+    // Extra backward cue travel shown while pulling the shot.
+    public float cueStickMaxPull = 0.16f;
+    // Extra forward cue travel shown while pushing/following through.
+    public float cueStickMaxPush = 0.05f;
+    // Visual smoothing for cue stick pull/push.
+    public float cueStickStrokeSmooth = 14f;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -234,6 +252,12 @@ public class CueCamera : MonoBehaviour
     private float pocketCameraStartTime;
     private float pocketCameraReleaseTime;
     private Vector3 trackedCornerPocket;
+    private bool cueBallWasActive = true;
+    private float cueStickStrokeInput;
+    private float cueStickStrokeVisual;
+    private float smoothedCueDistance;
+    private bool hasSmoothedCueDistance;
+    private Vector3 ballInHandTargetPosition;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -256,6 +280,12 @@ public class CueCamera : MonoBehaviour
     public void SetCueAimLowering(float value)
     {
         cueAimLowering = ClampCueAimLowering(value);
+    }
+
+    /// <summary>Sets visual cue stroke (-1 push, +1 pull).</summary>
+    public void SetCueStickStroke(float value)
+    {
+        cueStickStrokeInput = Mathf.Clamp(value, -1f, 1f);
     }
 
     private float ClampCueAimLowering(float value)
@@ -320,6 +350,11 @@ public class CueCamera : MonoBehaviour
         currentBall = CueBall;
         cueAimLowering = ClampCueAimLowering(defaultCueAimLowering);
         cueAimForward = GetInitialCueForward();
+        cueBallWasActive = CueBall != null && CueBall.gameObject.activeInHierarchy;
+        if (CueBall != null)
+        {
+            ballInHandTargetPosition = CueBall.position;
+        }
         targetViewFocus = GetBroadcastFocus(CueBall != null ? CueBall.position : tableBounds.center);
         ballInHandActive = startWithBallInHand;
         if (cacheStandingCameraOnStart)
@@ -334,6 +369,8 @@ public class CueCamera : MonoBehaviour
         {
             return;
         }
+
+        TrackCueBallScratchAndRestore();
 
         if (!shotInProgress)
         {
@@ -432,11 +469,39 @@ public class CueCamera : MonoBehaviour
         float raisedScale = Mathf.Clamp(cueRaisedDistanceScale, 0.1f, 1f);
         float loweredScale = Mathf.Clamp(cueLoweredDistanceScale, 0.1f, raisedScale);
         float distanceScale = Mathf.Lerp(raisedScale, loweredScale, blend);
-        distance = Mathf.Max(distance * distanceScale, minimumDistanceLimit);
+        float desiredDistance = Mathf.Max(distance * distanceScale, minimumDistanceLimit);
 
         float forwardPush = Mathf.Lerp(0f, Mathf.Max(0f, cueLoweredForwardPush), blend);
-        distance = Mathf.Max(distance - forwardPush, minimumDistanceLimit);
+        desiredDistance = Mathf.Max(desiredDistance - forwardPush, minimumDistanceLimit);
 
+        float targetStroke = cueStickStrokeInput >= 0f
+            ? cueStickStrokeInput * Mathf.Max(0f, cueStickMaxPull)
+            : cueStickStrokeInput * Mathf.Max(0f, cueStickMaxPush);
+        float strokeSmooth = Mathf.Max(0f, cueStickStrokeSmooth);
+        if (immediate || strokeSmooth <= 0f)
+        {
+            cueStickStrokeVisual = targetStroke;
+        }
+        else
+        {
+            float strokeT = 1f - Mathf.Exp(-strokeSmooth * Mathf.Max(0f, deltaTime));
+            cueStickStrokeVisual = Mathf.Lerp(cueStickStrokeVisual, targetStroke, strokeT);
+        }
+
+        desiredDistance = Mathf.Max(desiredDistance + cueStickStrokeVisual, minimumDistanceLimit);
+
+        if (immediate || !hasSmoothedCueDistance)
+        {
+            smoothedCueDistance = desiredDistance;
+            hasSmoothedCueDistance = true;
+        }
+        else
+        {
+            float distanceT = 1f - Mathf.Exp(-Mathf.Max(0f, cueAxisSmoothSpeed) * Mathf.Max(0f, deltaTime));
+            smoothedCueDistance = Mathf.Lerp(smoothedCueDistance, desiredDistance, distanceT);
+        }
+
+        distance = Mathf.Max(smoothedCueDistance, minimumDistanceLimit);
         cueSamplePoint = ComputeCueSamplePoint(distance, cueAimForward, cueSamplePoint);
 
         if (CueBall != null)
@@ -456,16 +521,16 @@ public class CueCamera : MonoBehaviour
         float minimumCueHeight = cueSurfaceHeight + Mathf.Max(0f, cueHeightClearance);
         minimumCueHeight = Mathf.Max(minimumCueHeight, cueSamplePoint.y + Mathf.Max(0f, cueHeightClearance));
 
-        float raisedHeight = Mathf.Max(minimumCueHeight, cueRaisedHeight + Mathf.Max(0f, cueRaisedHeightPadding));
+        float raisedHeight = Mathf.Max(minimumCueHeight, cueRaisedHeight + Mathf.Max(0f, cueRaisedHeightPadding) + Mathf.Max(0f, cueStickExtraLift));
         float loweredHeight = Mathf.Max(minimumCueHeight, cueLoweredHeight);
         float height = Mathf.Lerp(raisedHeight, loweredHeight, blend);
         float clothAnchorHeight = minimumCueHeight;
         float heightScale = Mathf.Lerp(1f, Mathf.Clamp(cueHeightClothScale, 0.1f, 1f), blend);
         height = clothAnchorHeight + (height - clothAnchorHeight) * heightScale;
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
         height = Mathf.Max(height, minRailHeight);
 
-        float aimingLineHeight = CueBall.position.y + cueBallRadius;
+        float aimingLineHeight = CueBall.position.y + cueBallRadius + tableAssetHeightOffset;
         float minCueHeight = aimingLineHeight + Mathf.Max(0f, cueHeightClearance);
         height = Mathf.Max(height, minCueHeight);
 
@@ -790,8 +855,9 @@ public class CueCamera : MonoBehaviour
 
     private void UpdateBallInHandCamera()
     {
+        MoveCueBallTowardTarget(Time.deltaTime);
         Vector3 focus = GetBallInHandFocus();
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
 
         float heightOffset = Mathf.Max(ballInHandHeight, minimumHeightAboveFocus);
         float height = Mathf.Max(heightOffset, minRailHeight);
@@ -820,10 +886,26 @@ public class CueCamera : MonoBehaviour
     public void SetBallInHandActive(bool active)
     {
         ballInHandActive = active;
+        if (active && CueBall != null)
+        {
+            ballInHandTargetPosition = ClampCueBallToTable(CueBall.position);
+            Rigidbody rb = CueBall.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
         if (active && cacheStandingCameraOnStart && !cachedStandingCamera)
         {
             CacheStandingCameraPose();
         }
+    }
+
+    public void SetBallInHandPosition(Vector3 desiredPosition)
+    {
+        ballInHandTargetPosition = ClampCueBallToTable(desiredPosition);
     }
 
     private Vector3 GetBroadcastFocus(Vector3 desired)
@@ -848,7 +930,7 @@ public class CueCamera : MonoBehaviour
             }
         }
 
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
         float baseHeight = Mathf.Max(broadcastHeight, focus.y + minimumHeightAboveFocus);
         float heightOffset = baseHeight;
         if (useStandingCameraForBroadcast && cachedStandingCamera)
@@ -1151,7 +1233,7 @@ public class CueCamera : MonoBehaviour
         Vector3 desiredPosition = focusPosition - forward * distance + Vector3.up * height;
 
         float minimumHeight = focusPosition.y + Mathf.Max(minimumHeightAboveFocus, minimumHeightOffset);
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
         minimumHeight = Mathf.Max(minimumHeight, minRailHeight);
 
         // Prevent the camera from getting stuck behind walls or decorations by
@@ -1184,6 +1266,91 @@ public class CueCamera : MonoBehaviour
         desiredPosition.y = Mathf.Max(desiredPosition.y, minRailHeight);
         transform.position = desiredPosition;
         transform.LookAt(lookTarget);
+    }
+
+    private void TrackCueBallScratchAndRestore()
+    {
+        if (CueBall == null)
+        {
+            return;
+        }
+
+        bool isActive = CueBall.gameObject.activeInHierarchy;
+        bool becameInactive = cueBallWasActive && !isActive;
+        cueBallWasActive = isActive;
+
+        if (!becameInactive && isActive)
+        {
+            float scratchHeight = railHeight + tableAssetHeightOffset - Mathf.Max(0f, pocketDropDepth);
+            bool nearRail = Mathf.Abs(CueBall.position.x - tableBounds.center.x) >= tableBounds.extents.x - ballInHandRailInset
+                || Mathf.Abs(CueBall.position.z - tableBounds.center.z) >= tableBounds.extents.z - ballInHandRailInset;
+            if (CueBall.position.y <= scratchHeight && nearRail)
+            {
+                becameInactive = true;
+            }
+        }
+
+        if (becameInactive)
+        {
+            RestoreCueBallForBallInHand();
+        }
+    }
+
+    private void RestoreCueBallForBallInHand()
+    {
+        if (CueBall == null)
+        {
+            return;
+        }
+
+        CueBall.gameObject.SetActive(true);
+        ballInHandTargetPosition = ClampCueBallToTable(GetBallInHandFocus());
+        CueBall.position = ballInHandTargetPosition;
+
+        Rigidbody rb = CueBall.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.position = ballInHandTargetPosition;
+        }
+
+        SetBallInHandActive(true);
+        shotInProgress = false;
+        usingTargetCamera = false;
+        currentBall = CueBall;
+    }
+
+    private Vector3 ClampCueBallToTable(Vector3 desiredPosition)
+    {
+        float inset = Mathf.Max(0f, ballInHandRailInset) + cueBallRadius;
+        Vector3 min = tableBounds.min;
+        Vector3 max = tableBounds.max;
+        desiredPosition.x = Mathf.Clamp(desiredPosition.x, min.x + inset, max.x - inset);
+        desiredPosition.z = Mathf.Clamp(desiredPosition.z, min.z + inset, max.z - inset);
+        desiredPosition.y = tableBounds.center.y + cueBallResetHeightOffset + tableAssetHeightOffset;
+        return desiredPosition;
+    }
+
+    private void MoveCueBallTowardTarget(float deltaTime)
+    {
+        if (CueBall == null || !ballInHandActive)
+        {
+            return;
+        }
+
+        Vector3 clampedTarget = ClampCueBallToTable(ballInHandTargetPosition);
+        float speed = Mathf.Max(0f, ballInHandMoveLerpSpeed);
+        float t = (deltaTime <= 0f || speed <= 0f) ? 1f : 1f - Mathf.Exp(-speed * deltaTime);
+        CueBall.position = Vector3.Lerp(CueBall.position, clampedTarget, t);
+
+        Rigidbody rb = CueBall.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.MovePosition(CueBall.position);
+        }
     }
 
     private void EndShot()
@@ -1252,7 +1419,7 @@ public class CueCamera : MonoBehaviour
             return false;
         }
 
-        float dropThreshold = railHeight - Mathf.Max(0f, pocketDropDepth);
+        float dropThreshold = railHeight + tableAssetHeightOffset - Mathf.Max(0f, pocketDropDepth);
         return ballPosition.y <= dropThreshold;
     }
 
