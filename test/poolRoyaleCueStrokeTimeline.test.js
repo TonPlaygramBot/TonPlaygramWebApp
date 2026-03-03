@@ -23,6 +23,18 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(atHit.hitArmed).toBe(true);
   });
 
+  it('keeps spring release monotonic so cue does not snap backward mid-push', () => {
+    const early = sampleCueStrokeTimeline({ elapsed: 230, ...options, animationStyle: 'spring' });
+    const middle = sampleCueStrokeTimeline({ elapsed: 260, ...options, animationStyle: 'spring' });
+    const late = sampleCueStrokeTimeline({ elapsed: 295, ...options, animationStyle: 'spring' });
+    expect(early.phase).toBe('release');
+    expect(middle.phase).toBe('release');
+    expect(late.phase).toBe('release');
+    expect(early.t).toBeLessThanOrEqual(middle.t + 1e-9);
+    expect(middle.t).toBeLessThanOrEqual(late.t + 1e-9);
+  });
+
+
   it('enters recover then done', () => {
     const recovering = sampleCueStrokeTimeline({ elapsed: 430, ...options });
     const done = sampleCueStrokeTimeline({ elapsed: 510, ...options });
