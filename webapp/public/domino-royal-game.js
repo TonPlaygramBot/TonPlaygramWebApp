@@ -2265,9 +2265,8 @@ const MURLAN_TABLE_THEMES = Object.freeze(
       assetId: 'CoffeeTable_01',
       price: 0,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
-      preserveMaterials: true,
       description:
-        'Standard Murlan Royale table using the same GLTF model and textures.'
+        'Standard Murlan Royale table using the default GLTF texture set.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
@@ -3983,7 +3982,6 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
 
 const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
 const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
-const MURLAN_DEFAULT_TABLE_SCALE = 1.15;
 
 function resolveDefaultOptionId(key, options = []) {
   if (!Array.isArray(options) || options.length === 0) return null;
@@ -4134,6 +4132,13 @@ function normalizeAppearance(raw) {
       LUDO_MATCH_DEFAULT_TABLE_THEME_ID
     );
   }
+  if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
+    normalized.tableTheme = findDominoOptionIndex(
+      'tableTheme',
+      LUDO_MATCH_DEFAULT_TABLE_THEME_ID
+    );
+  }
+
   const selectedChairTheme = CHAIR_THEME_OPTIONS[normalized.chairTheme];
   if (selectedChairTheme?.source !== 'polyhaven') {
     normalized.chairTheme = findDominoOptionIndex(
@@ -5582,9 +5587,7 @@ async function applyTableTheme(
     setProceduralTableVisible(true);
     return;
   }
-  const keepProceduralHiddenWhileLoading =
-    theme.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID && theme.source === 'polyhaven';
-  setProceduralTableVisible(!keepProceduralHiddenWhileLoading);
+  setProceduralTableVisible(true);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id, {
       preserveGltfTextureMapping: theme.preserveMaterials ?? true
@@ -5594,9 +5597,6 @@ async function applyTableTheme(
       return;
     }
     fitTableModelToFootprint(model);
-    if (theme.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID) {
-      model.scale.multiplyScalar(MURLAN_DEFAULT_TABLE_SCALE);
-    }
     tableThemeG.add(model);
     tableThemeG.visible = true;
     setProceduralTableVisible(false);
@@ -5614,23 +5614,14 @@ async function applyTableTheme(
           return;
         }
         fitTableModelToFootprint(fallbackModel);
-        if (DEFAULT_TABLE_THEME_OPTION.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID) {
-          fallbackModel.scale.multiplyScalar(MURLAN_DEFAULT_TABLE_SCALE);
-        }
         tableThemeG.add(fallbackModel);
         tableThemeG.visible = true;
         setProceduralTableVisible(false);
         activeTableThemeId = DEFAULT_TABLE_THEME_OPTION.id;
       } catch (fallbackError) {
         console.warn('Failed to load fallback Poly Haven table theme', fallbackError);
-        if (keepProceduralHiddenWhileLoading) {
-          setProceduralTableVisible(false);
-        } else {
-          setProceduralTableVisible(true);
-        }
+        setProceduralTableVisible(true);
       }
-    } else if (keepProceduralHiddenWhileLoading) {
-      setProceduralTableVisible(false);
     } else {
       setProceduralTableVisible(true);
     }
