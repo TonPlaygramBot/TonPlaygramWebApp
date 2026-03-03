@@ -3980,7 +3980,7 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
 });
 
 
-const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'CoffeeTable_01';
+const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
 const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
 
 function resolveDefaultOptionId(key, options = []) {
@@ -4126,6 +4126,12 @@ function normalizeAppearance(raw) {
   });
 
   const selectedTableTheme = TABLE_THEME_OPTIONS[normalized.tableTheme];
+  if (selectedTableTheme?.id === 'CoffeeTable_01') {
+    normalized.tableTheme = findDominoOptionIndex(
+      'tableTheme',
+      LUDO_MATCH_DEFAULT_TABLE_THEME_ID
+    );
+  }
   if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
     normalized.tableTheme = findDominoOptionIndex(
       'tableTheme',
