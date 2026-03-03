@@ -8,7 +8,9 @@ export const resolveAiPotGhostAim = ({
   pocketPos,
   ballRadius,
   spin,
-  power
+  power,
+  suggestedAimDir,
+  suggestedWeight = 0.35
 } = {}) => {
   if (!cuePos || !targetPos || !pocketPos) return null;
   const radius = Math.max(0, ballRadius ?? 0);
@@ -32,8 +34,24 @@ export const resolveAiPotGhostAim = ({
   if (finalCueVector.lengthSq() <= MIN_VECTOR_EPS) return null;
   finalCueVector.rotateAround(new THREE.Vector2(0, 0), -compensationAngle);
 
+  const resolvedAim = finalCueVector.normalize();
+  const suggested =
+    suggestedAimDir && Number.isFinite(suggestedAimDir.x) && Number.isFinite(suggestedAimDir.y)
+      ? new THREE.Vector2(suggestedAimDir.x, suggestedAimDir.y)
+      : null;
+  if (suggested && suggested.lengthSq() > MIN_VECTOR_EPS) {
+    suggested.normalize();
+    const blend = THREE.MathUtils.clamp(suggestedWeight, 0, 1);
+    resolvedAim
+      .multiplyScalar(Math.max(0, 1 - blend))
+      .addScaledVector(suggested, blend);
+    if (resolvedAim.lengthSq() > MIN_VECTOR_EPS) {
+      resolvedAim.normalize();
+    }
+  }
+
   return {
-    aimDir: finalCueVector.normalize(),
+    aimDir: resolvedAim,
     ghost
   };
 };
