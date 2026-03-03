@@ -1242,7 +1242,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
+const RAIL_HEIGHT = TABLE.THICK * 2.04; // lift all six cushions/rails a bit more so the updated rail/cushion profile reads visibly higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1434,7 +1434,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = 0; // keep ball centers exactly one radius above the cloth surface
+const BALL_CENTER_LIFT = TABLE.THICK * 0.012; // raise ball centres slightly with the higher rail/cushion stack so contacts stay visually aligned
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1861,12 +1861,12 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.3; // lift the cue slightly so the shaft sits clearer above the raised rails and balls
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
+const CUE_BUTT_LIFT = BALL_R * 0.52; // raise the butt a bit more so pull/push motion remains visible over the rail tops
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.2; // keep a stronger safety gap so cue helpers stay above cushions and wooden rails
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.16; // lift helper trajectories a touch more to avoid rail/cushion contact
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.2; // give extra clearance versus the higher cushion profile
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -14730,6 +14730,26 @@ const powerRef = useRef(hud.power);
       cueBallPlacedFromHandRef.current = false;
       const cueBall = cueRef.current;
       pendingInHandResetRef.current = Boolean(cueBall && !cueBall.active);
+      if (cueBall && !cueBall.active) {
+        cueBall.active = true;
+        cueBall.vel?.set(0, 0);
+        cueBall.spin?.set(0, 0);
+        cueBall.pendingSpin?.set(0, 0);
+        cueBall.spinMode = 'standard';
+        cueBall.swerveStrength = 0;
+        cueBall.swervePowerStrength = 0;
+        cueBall.impacted = false;
+        const spawnZ = Number.isFinite(baulkZ) ? baulkZ : 0;
+        cueBall.pos.set(0, spawnZ);
+        if (cueBall.mesh) {
+          cueBall.mesh.visible = true;
+          cueBall.mesh.position.set(0, BALL_CENTER_Y, spawnZ);
+        }
+        if (cueBall.shadow) {
+          cueBall.shadow.visible = true;
+          cueBall.shadow.position.set(0, BALL_SHADOW_Y, spawnZ);
+        }
+      }
     }
     if (!hud.inHand || !playerTurn) {
       setInHandPlacementMode(false);
@@ -24062,6 +24082,33 @@ const powerRef = useRef(hud.power);
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
       };
+      const reactivateCueBallForInHand = ({ preferBaulk = true } = {}) => {
+        if (!cue) return false;
+        const centerFallback = preferBaulk
+          ? new THREE.Vector2(0, baulkZ)
+          : new THREE.Vector2(0, 0);
+        const fallback = clampInHandPosition(centerFallback, {
+          ignoreBaulk: !preferBaulk && allowFullTableInHand()
+        });
+        const respawn =
+          resolveInHandPlacement(fallback, {
+            clearanceMultiplier: 1.95,
+            maxRadius: BALL_R * 5
+          }) ||
+          resolveInHandPlacement(defaultInHandPosition({ forceBaulk: preferBaulk }), {
+            clearanceMultiplier: 1.8,
+            maxRadius: BALL_R * 6
+          });
+        if (!respawn) return false;
+        cue.active = true;
+        updateCuePlacement(respawn);
+        cue.mesh.visible = true;
+        if (cue.shadow) {
+          cue.shadow.visible = true;
+          cue.shadow.position.set(respawn.x, BALL_SHADOW_Y, respawn.y);
+        }
+        return true;
+      };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
@@ -25121,7 +25168,12 @@ const powerRef = useRef(hud.power);
           const idleDistanceFromBallCenter = BALL_R + idleGap;
           const forwardPush = Math.max(0, idleDistanceFromBallCenter - endDistanceFromBallCenter);
           const impactPos = idlePos.clone().addScaledVector(dir, forwardPush);
-          const followPos = impactPos.clone();
+          const followThroughDistance = THREE.MathUtils.clamp(
+            BALL_R * (0.14 + powerStrength * 0.2),
+            BALL_R * 0.12,
+            BALL_R * 0.34
+          );
+          const followPos = impactPos.clone().addScaledVector(dir, followThroughDistance);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -29952,9 +30004,6 @@ const powerRef = useRef(hud.power);
               const inHandActive = Boolean(hudRef.current?.inHand);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               if (isCueBall && inHandActive) {
-                if (b.mesh) {
-                  b.mesh.visible = false;
-                }
                 b.vel.set(0, 0);
                 b.spin?.set(0, 0);
                 b.pendingSpin?.set(0, 0);
@@ -29962,7 +30011,8 @@ const powerRef = useRef(hud.power);
                 b.swerveStrength = 0;
                 b.swervePowerStrength = 0;
                 b.impacted = false;
-                b.active = false;
+                b.active = true;
+                reactivateCueBallForInHand({ preferBaulk: true });
                 if (!hudRef.current?.inHand) {
                   hudRef.current = { ...hudRef.current, inHand: true };
                   setHud((prev) => ({ ...prev, inHand: true }));
@@ -30019,9 +30069,6 @@ const powerRef = useRef(hud.power);
                   hudRef.current = { ...hudRef.current, inHand: false };
                   setHud((prev) => ({ ...prev, inHand: false }));
                 } else {
-                  if (b.mesh) {
-                    b.mesh.visible = false;
-                  }
                   b.vel.set(0, 0);
                   b.spin?.set(0, 0);
                   b.pendingSpin?.set(0, 0);
@@ -30029,8 +30076,9 @@ const powerRef = useRef(hud.power);
                   b.swerveStrength = 0;
                   b.swervePowerStrength = 0;
                   b.impacted = false;
-                  b.active = false;
+                  b.active = true;
                   removePocketDropEntry(b.id);
+                  reactivateCueBallForInHand({ preferBaulk: true });
                 }
                 if (isTraining && table) {
                   const scratchPopup = createTrainingScratchPopupMesh();
