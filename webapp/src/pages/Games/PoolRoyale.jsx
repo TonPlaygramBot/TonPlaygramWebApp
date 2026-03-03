@@ -14278,7 +14278,6 @@ function PoolRoyaleGame({
   );
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
-  const lastCueIdlePoseRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -21407,25 +21406,8 @@ const powerRef = useRef(hud.power);
 
         const updateCueStroke = (now) => {
           const stroke = cueStrokeStateRef.current;
-          if (!cueStick) {
+          if (!stroke || !cueStick) {
             return Boolean(cueAnimating);
-          }
-          if (!stroke) {
-            if (cueAnimating) {
-              const idlePose = lastCueIdlePoseRef.current;
-              if (idlePose?.position) {
-                cueStick.position.copy(idlePose.position);
-                cueStick.rotation.x = idlePose.rotationX ?? cueStick.rotation.x;
-                cueStick.rotation.y = idlePose.rotationY ?? cueStick.rotation.y;
-                cueStick.visible = true;
-                syncCueShadow();
-              }
-              cueAnimating = false;
-              cuePullCurrentRef.current = 0;
-              cuePullTargetRef.current = 0;
-              pendingImpactRef.current = null;
-            }
-            return false;
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = false;
@@ -25230,11 +25212,6 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
-            lastCueIdlePoseRef.current = {
-              position: idlePos.clone(),
-              rotationX: cueStick.rotation.x,
-              rotationY: cueStick.rotation.y
-            };
             cueStrokeStateRef.current = {
               startTime,
               idlePos: idlePos.clone(),
