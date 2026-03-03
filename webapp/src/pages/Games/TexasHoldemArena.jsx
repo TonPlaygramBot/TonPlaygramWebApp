@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.86, landscape: 0.5 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 0.93 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.86, landscape: 0.24 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 0.82 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
@@ -6079,13 +6079,16 @@ function TexasHoldemArena({ search }) {
   }, [sliderVisible, sliderMax]);
 
   const handleChipClick = (value) => {
-    if (!sliderInteractive) return;
+    if (!sliderVisible || sliderMax <= 0 || humanPlayer?.folded || humanPlayer?.allIn) return;
     setChipSelection((prev) => {
       const currentTotal = prev.reduce((sum, chip) => sum + chip, 0);
-      const nextTotal = currentTotal + value;
-      if (nextTotal > sliderMax) return prev;
+      const remaining = Math.max(0, sliderMax - currentTotal);
+      if (remaining <= 0) return prev;
+      const appliedValue = Math.min(value, remaining);
+      if (appliedValue <= 0) return prev;
+      const nextTotal = currentTotal + appliedValue;
       setSliderValue(nextTotal);
-      return [...prev, value];
+      return [...prev, appliedValue];
     });
   };
 
