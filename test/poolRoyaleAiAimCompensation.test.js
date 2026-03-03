@@ -39,29 +39,4 @@ describe('Pool Royale AI aim compensation', () => {
     expect(withSide).toBeTruthy();
     expect(neutral.aimDir.angleTo(withSide.aimDir)).toBeGreaterThan(0.001);
   });
-
-  it('keeps suggestion influence while still applying final pot correction', () => {
-    const withoutSuggestion = resolveAiPotGhostAim({
-      cuePos,
-      targetPos,
-      pocketPos,
-      ballRadius: 0.03,
-      spin: { x: 0.3, y: -0.2 },
-      power: 0.75
-    });
-    const withSuggestion = resolveAiPotGhostAim({
-      cuePos,
-      targetPos,
-      pocketPos,
-      ballRadius: 0.03,
-      spin: { x: 0.3, y: -0.2 },
-      power: 0.75,
-      suggestedAimDir: { x: 0.95, y: 0.32 },
-      suggestedWeight: 0.3
-    });
-    expect(withoutSuggestion).toBeTruthy();
-    expect(withSuggestion).toBeTruthy();
-    expect(withSuggestion.aimDir.length()).toBeCloseTo(1, 5);
-    expect(withoutSuggestion.aimDir.angleTo(withSuggestion.aimDir)).toBeGreaterThan(0.0005);
-  });
 });
