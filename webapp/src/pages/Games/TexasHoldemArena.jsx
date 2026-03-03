@@ -385,13 +385,14 @@ const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(175);
-const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
-const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(12);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
-const HEAD_PITCH_SENSITIVITY = 0;
+const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.98 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.34 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.9 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.24 });
+const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * 0.52, landscape: -CARD_W * 0.52 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -4367,6 +4368,9 @@ function TexasHoldemArena({ search }) {
         railFocus.y -= HUMAN_TURN_RAIL_FOCUS_DROP;
         focus.copy(potFocus.clone().lerp(railFocus, HUMAN_TURN_RAIL_FOCUS_BLEND));
       }
+      if (!portrait) {
+        focus.y += CAMERA_LANDSCAPE_LOOK_UP_LIFT;
+      }
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
       const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
@@ -5007,7 +5011,8 @@ function TexasHoldemArena({ search }) {
       }
       if (state.mode === 'camera') {
         const dx = event.clientX - state.startX;
-        if (!state.dragged && Math.abs(dx) > 3) {
+        const dy = event.clientY - state.startY;
+        if (!state.dragged && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
           state.dragged = true;
         }
         headAnglesRef.current.yaw = THREE.MathUtils.clamp(
@@ -5015,7 +5020,12 @@ function TexasHoldemArena({ search }) {
           -CAMERA_HEAD_TURN_LIMIT,
           CAMERA_HEAD_TURN_LIMIT
         );
-        headAnglesRef.current.pitch = 0;
+        const pitchLimits = cameraBasisRef.current?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
+        headAnglesRef.current.pitch = clampValue(
+          state.startPitch + dy * HEAD_PITCH_SENSITIVITY,
+          pitchLimits.min,
+          pitchLimits.max
+        );
         applyHeadOrientation();
         return;
       }
@@ -6131,7 +6141,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(6.2rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))]">
+      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(6.2rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))]">
         <div className="flex items-center gap-2">
           <button
             type="button"
