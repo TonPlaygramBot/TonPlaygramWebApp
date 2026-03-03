@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.86, landscape: -0.16 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 0.82 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.62, landscape: -0.3 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.78 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
@@ -1340,7 +1340,7 @@ function adjustHexColor(hex, amount) {
 }
 
 function createChairClothTexture(chairOption, renderer) {
-  const primary = chairOption?.primary ?? '#0f6a2f';
+  const primary = chairOption?.seatColor ?? chairOption?.primary ?? '#0f6a2f';
   const accent = chairOption?.accent ?? adjustHexColor(primary, -0.28);
   const highlight = chairOption?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement('canvas');
@@ -1441,7 +1441,7 @@ function createChairClothTexture(chairOption, renderer) {
 
 function createChairFabricMaterial(chairOption, renderer) {
   const texture = createChairClothTexture(chairOption, renderer);
-  const primary = chairOption?.primary ?? '#0f6a2f';
+  const primary = chairOption?.seatColor ?? chairOption?.primary ?? '#0f6a2f';
   const sheenColor = chairOption?.highlight ?? adjustHexColor(primary, 0.2);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(adjustHexColor(primary, 0.04)),
@@ -1705,7 +1705,7 @@ async function buildChairTemplate(theme, renderer) {
 function applyChairThemeMaterials(target, theme, renderer) {
   const mats = target?.chairMaterials;
   if (!mats || theme?.preserveMaterials || target?.chairThemePreserve) return;
-  const seatColor = theme?.primary ?? '#7c3aed';
+  const seatColor = theme?.seatColor ?? theme?.primary ?? '#7c3aed';
   const legColor = theme?.legColor ?? DEFAULT_STOOL_THEME.legColor;
   if (mats.seat) {
     if (mats.seat.userData?.clothTexture && renderer) {
