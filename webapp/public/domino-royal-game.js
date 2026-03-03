@@ -70,7 +70,7 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FRAME_MANUAL_OVERRIDE_GRACE_MS = 20000;
-const ALLOW_AUTO_QUALITY_DOWNGRADE = true;
+const ALLOW_AUTO_QUALITY_DOWNGRADE = false;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function isTelegramRuntime() {
@@ -2261,11 +2261,12 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Murlan Default Table',
-      source: 'procedural',
+      source: 'polyhaven',
+      assetId: 'CoffeeTable_01',
       price: 0,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
       description:
-        'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+        'Standard Murlan Royale table using the default GLTF texture set.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
@@ -7410,13 +7411,10 @@ function handleWebglContextLoss(event) {
 function handleWebglContextRestored() {
   contextLost = false;
   clearContextLossTimer();
-  const fallbackFrameRateId = findFallbackFrameRateId(frameQuality?.id);
-  if (fallbackFrameRateId && fallbackFrameRateId !== frameQuality?.id) {
-    applyFrameRateSelection(fallbackFrameRateId, {
-      refreshUi: true,
-      source: 'context-recovery'
-    });
-  }
+  applyFrameRateSelection(frameRateId, {
+    refreshUi: true,
+    source: 'context-recovery'
+  });
   setStatus('Graphics restored.');
   setControlEnabled(false);
 }
