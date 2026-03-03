@@ -6,6 +6,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 import {
@@ -24,7 +25,7 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
@@ -1022,21 +1023,28 @@ function disposeChairMaterial(material) {
   material.dispose();
 }
 
+let sharedKtx2Loader = null;
+
 function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
-  const ktx2 = new KTX2Loader();
-  ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
   if (renderer) {
     try {
-      ktx2.detectSupport(renderer);
+      sharedKtx2Loader.detectSupport(renderer);
     } catch (error) {
       console.warn('KTX2 detection failed', error);
     }
   }
-  loader.setKTX2Loader(ktx2);
+  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 

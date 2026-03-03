@@ -85,6 +85,8 @@ const clamp01 = (value, fallback = 0) => {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(1, Math.max(0, value));
 };
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
@@ -1969,7 +1971,7 @@ function applyChairThemeMaterials(chairAssets, theme) {
 async function loadGltfChair() {
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
 
   let gltf = null;
@@ -2741,15 +2743,13 @@ function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder(MeshoptDecoder);
 
   if (!sharedKTX2Loader) {
     sharedKTX2Loader = new KTX2Loader();
-    sharedKTX2Loader.setTranscoderPath(
-      'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
-    );
+    sharedKTX2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     const supportRenderer = renderer || (typeof document !== 'undefined'
       ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
       : null);

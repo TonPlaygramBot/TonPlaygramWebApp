@@ -407,7 +407,7 @@ const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const resolveHdriVariant = (index) => {
@@ -718,7 +718,7 @@ async function getAbgAssets() {
     const loader = new GLTFLoader();
     loader.setCrossOrigin('anonymous');
     const draco = new DRACOLoader();
-    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    draco.setDecoderPath(DRACO_DECODER_PATH);
     loader.setDRACOLoader(draco);
 
     let root = null;
@@ -1260,7 +1260,7 @@ function applyChairThemeMaterials(three, theme) {
 async function loadGltfChair() {
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
 
   let gltf = null;

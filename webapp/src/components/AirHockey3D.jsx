@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/soundData.js';
 import GiftPopup from './GiftPopup.jsx';
@@ -45,6 +48,8 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const resolveNumber = (...values) => values.find((value) => typeof value === 'number' && !Number.isNaN(value));
 
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 0.85;
 const GRAPHICS_STORAGE_KEY = 'airHockeyGraphics';
@@ -232,6 +237,7 @@ const LOCK_POOL_ROYALE_TABLE_STYLE = false;
 const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
 const MARBLE_TEXTURE_CACHE = new Map();
 const GLTF_MATERIAL_CACHE = new Map();
+let sharedKtx2Loader = null;
 const POOL_BALL_MARBLE_FINISH = Object.freeze({
   clearcoat: 1,
   clearcoatRoughness: 0.03,
@@ -350,6 +356,30 @@ const loadMarbleTextureSet = (fieldOption) => {
   return promise;
 };
 
+const createConfiguredGltfLoader = (renderer = null) => {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
+  if (renderer) {
+    try {
+      sharedKtx2Loader.detectSupport(renderer);
+    } catch (error) {
+      console.warn('Air Hockey KTX2 support detection failed', error);
+    }
+  }
+
+  loader.setKTX2Loader(sharedKtx2Loader);
+  return loader;
+};
+
 const loadGltfMaterialSet = (fieldOption) => {
   const urls = fieldOption?.gltfUrls;
   const cacheKey = fieldOption?.id || urls?.[0];
@@ -357,7 +387,7 @@ const loadGltfMaterialSet = (fieldOption) => {
   if (GLTF_MATERIAL_CACHE.has(cacheKey)) return GLTF_MATERIAL_CACHE.get(cacheKey);
 
   const promise = (async () => {
-    const loader = new GLTFLoader();
+    const loader = createConfiguredGltfLoader();
     let gltf = null;
     for (const url of urls) {
       try {
