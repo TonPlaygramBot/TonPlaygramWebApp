@@ -10,6 +10,7 @@ import {
   LUDO_BATTLE_STORE_ITEMS
 } from '../webapp/src/config/ludoBattleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
+import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -28,5 +29,23 @@ describe('cross-game inventory alignment', () => {
 
     expect(tableIds).toEqual(new Set(MURLAN_TABLE_THEMES.map((theme) => theme.id)));
     expect(stoolIds).toEqual(new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id)));
+  });
+
+  test('domino store and defaults contain every murlan table and chair theme', () => {
+    const tableStoreIds = new Set(
+      DOMINO_ROYAL_STORE_ITEMS.filter((item) => item.type === 'tableTheme').map((item) => item.optionId)
+    );
+    const chairStoreIds = new Set(
+      DOMINO_ROYAL_STORE_ITEMS.filter((item) => item.type === 'chairTheme').map((item) => item.optionId)
+    );
+
+    expect(tableStoreIds).toEqual(new Set(MURLAN_TABLE_THEMES.map((theme) => theme.id)));
+    expect(chairStoreIds).toEqual(new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id)));
+    expect(new Set(DOMINO_ROYAL_DEFAULT_UNLOCKS.tableTheme)).toEqual(
+      new Set(MURLAN_TABLE_THEMES.map((theme) => theme.id))
+    );
+    expect(new Set(DOMINO_ROYAL_DEFAULT_UNLOCKS.chairTheme)).toEqual(
+      new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id))
+    );
   });
 });
