@@ -1838,14 +1838,14 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
-const CUE_PULL_DISTANCE_SCALE = 0.6;
+const CUE_PULL_DISTANCE_SCALE = 0.52;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.9; // trim pullback depth so backward cue travel remains tighter
-const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.84; // trim pullback depth so backward cue travel stays visible but less exaggerated
+const CUE_PULL_RETURN_PUSH = 1; // return all the way to the pull-start contact point before ending the stroke
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -5469,6 +5469,7 @@ const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 2.9;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 680; // start replay earlier so the pullback is fully framed before the strike
+const REPLAY_CUE_PULLBACK_START_BIAS_MS = 60; // begin replay slightly inside pullback so the first replay frames show backward cue motion
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.45; // stretch forward push in replay so the cue strike is clearly visible
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
@@ -21306,7 +21307,8 @@ const powerRef = useRef(hud.power);
                 0
             ) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
-          const localTime = targetTime - Math.max(0, startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
+          const localTime =
+            targetTime - Math.max(0, startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS) + REPLAY_CUE_PULLBACK_START_BIAS_MS;
           const playbackWindow = Number.isFinite(playback?.duration)
             ? Math.max(playback.duration, 1400)
             : 1400;
@@ -27537,10 +27539,6 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             const isBreakPlan = plan?.type === 'break';
-            const previewAimDir =
-              plan?.suggestedAimDir && plan.suggestedAimDir.lengthSq() > 1e-6
-                ? plan.suggestedAimDir.clone().normalize()
-                : dir.clone();
             const aiPower = isBreakPlan
               ? 1
               : clampPower(plan.power, 0.6);
@@ -27569,6 +27567,9 @@ const powerRef = useRef(hud.power);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
               aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
+              // Move off the suggestion line and onto the real pot line before spin changes.
+              aimDirRef.current.copy(dir);
+              alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
               animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
@@ -27577,13 +27578,8 @@ const powerRef = useRef(hud.power);
               const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
-                // Start from the same suggested line flow as user aim-assist,
-                // then finish on the AI-adjusted final pot line.
-                if (previewAimDir.lengthSq() > 1e-6) {
-                  aimDirRef.current.copy(previewAimDir);
-                  alignStandingCameraToAim(cue, previewAimDir, { preserveOrbit: false });
-                }
                 const finalizeAndFire = () => {
+                  // Re-assert final pot line after spin settles, then shoot.
                   aimDirRef.current.copy(dir);
                   alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
                   applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
@@ -27593,11 +27589,7 @@ const powerRef = useRef(hud.power);
                     breakWinnerSeatRef.current = null;
                   }
                 };
-                if (previewAimDir.lengthSq() > 1e-6) {
-                  window.setTimeout(finalizeAndFire, 220);
-                } else {
-                  finalizeAndFire();
-                }
+                finalizeAndFire();
               }, remaining);
             };
             if (dropDelay <= 0) {
