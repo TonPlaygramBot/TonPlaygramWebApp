@@ -310,7 +310,7 @@ const CHAIR_MODEL_URLS = [
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 
 let sharedKtx2Loader = null;
 
