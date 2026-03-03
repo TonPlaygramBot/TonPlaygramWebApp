@@ -115,7 +115,7 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -11188,6 +11188,7 @@ export function Table3D(
   };
 
   let polyhavenKtx2Loader = null;
+  let hasDetectedPolyhavenKtx2Support = false;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
 
@@ -11196,9 +11197,10 @@ export function Table3D(
       polyhavenKtx2Loader = new KTX2Loader();
       polyhavenKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     }
-    if (renderer) {
+    if (renderer && !hasDetectedPolyhavenKtx2Support) {
       try {
         polyhavenKtx2Loader.detectSupport(renderer);
+        hasDetectedPolyhavenKtx2Support = true;
       } catch (error) {
         console.warn('Pool Royale KTX2 support detection failed', error);
       }
@@ -11214,7 +11216,7 @@ export function Table3D(
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
-    loader.setMeshoptDecoder?.(MeshoptDecoder);
+    loader.setMeshoptDecoder(MeshoptDecoder);
     return loader;
   };
 
@@ -15103,7 +15105,6 @@ const powerRef = useRef(hud.power);
     moved: false
   });
   const pendingImpactRef = useRef(null);
-  const pendingImpactTimeoutRef = useRef(null);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -21500,7 +21501,6 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
-            clearPendingImpactTimeout();
             return false;
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
@@ -21508,7 +21508,6 @@ const powerRef = useRef(hud.power);
             cueAnimating = false;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
-            clearPendingImpactTimeout();
             syncCueShadow();
             return false;
           }
@@ -21610,7 +21609,6 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
-            clearPendingImpactTimeout();
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -21701,7 +21699,6 @@ const powerRef = useRef(hud.power);
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
-          clearPendingImpactTimeout();
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -21920,7 +21917,6 @@ const powerRef = useRef(hud.power);
           if (!Number.isFinite(duration) || duration <= 0) return;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
-          clearPendingImpactTimeout();
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
           overheadBroadcastVariantRef.current = 'replay';
@@ -24717,11 +24713,6 @@ const powerRef = useRef(hud.power);
         const { launchShot } = payload;
         launchShot?.();
       };
-      const clearPendingImpactTimeout = () => {
-        if (pendingImpactTimeoutRef.current == null) return;
-        window.clearTimeout(pendingImpactTimeoutRef.current);
-        pendingImpactTimeoutRef.current = null;
-      };
 
       const animatePowerSliderReturn = (durationMs = 320) => {
         const slider = sliderInstanceRef.current;
@@ -25340,23 +25331,6 @@ const powerRef = useRef(hud.power);
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               onImpact: () => applyShotAtImpact(shotImpactPayload)
             };
-            const impactAt =
-              startTime +
-              Math.max(0, pullbackDuration) +
-              Math.max(1, strikeDuration);
-            clearPendingImpactTimeout();
-            pendingImpactRef.current = {
-              time: impactAt,
-              apply: () => {
-                clearPendingImpactTimeout();
-                applyShotAtImpact(shotImpactPayload);
-              }
-            };
-            pendingImpactTimeoutRef.current = window.setTimeout(() => {
-              pendingImpactTimeoutRef.current = null;
-              pendingImpactRef.current = null;
-              applyShotAtImpact(shotImpactPayload);
-            }, Math.max(0, impactAt - performance.now()));
           } else {
             applyShotAtImpact(shotImpactPayload);
             cueStick.visible = false;
@@ -25364,8 +25338,6 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
-            pendingImpactRef.current = null;
-            clearPendingImpactTimeout();
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -28422,7 +28394,6 @@ const powerRef = useRef(hud.power);
         if (pendingImpact && nowMs >= pendingImpact.time) {
           pendingImpact.apply?.();
           pendingImpactRef.current = null;
-          clearPendingImpactTimeout();
         }
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
