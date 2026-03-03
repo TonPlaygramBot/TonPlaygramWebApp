@@ -390,9 +390,11 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.9 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.82 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.24 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
+const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
+const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * 0.52, landscape: -CARD_W * 0.52 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -4377,7 +4379,13 @@ function TexasHoldemArena({ search }) {
       const targetUp = WORLD_UP.clone().applyQuaternion(targetQuaternion).normalize();
       const targetForward = focus.clone().sub(position).normalize();
       const targetRight = new THREE.Vector3().crossVectors(targetForward, targetUp).normalize();
-      const pitchLimits = computeCameraPitchLimits(position, targetForward, { seatTopPoint });
+      const computedPitchLimits = computeCameraPitchLimits(position, targetForward, { seatTopPoint });
+      const pitchLimits = portrait
+        ? computedPitchLimits
+        : {
+          min: Math.min(computedPitchLimits.min, -CAMERA_LANDSCAPE_MIN_LOOK_UP),
+          max: Math.max(computedPitchLimits.max, CAMERA_LANDSCAPE_MAX_LOOK_DOWN)
+        };
       cameraBasisRef.current = {
         position: position.clone(),
         baseForward: targetForward,
