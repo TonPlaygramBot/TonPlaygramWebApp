@@ -1844,10 +1844,10 @@ const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera l
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.2; // ensure every stroke pulls farther back for readability at all angles
+const CUE_PULL_RETURN_PUSH = 0.97; // push the cue forward to contact more decisively after pullback
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -1861,12 +1861,12 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly to match the updated rail/cushion height
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.2; // keep a stronger safety gap so cue helpers stay above cushions and wooden rails
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.16; // lift helper trajectories a touch more to avoid rail/cushion contact
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.26; // keep a stronger safety gap so cue helpers stay above raised cushions/rails
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.22; // lift helper trajectories more to avoid rail/cushion contact with the updated table profile
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -21570,12 +21570,10 @@ const powerRef = useRef(hud.power);
                   return Math.ceil(sample.t * 4) / 4;
                 case 'whip':
                   return Math.pow(sample.t, 0.62);
-                case 'spring':
-                  return THREE.MathUtils.clamp(
-                    sample.t + Math.sin(sample.t * Math.PI) * (1 - sample.t) * 0.08,
-                    0,
-                    1
-                  );
+                case 'spring': {
+                  const damped = 1 - Math.exp(-7.4 * sample.t) * (1 + 7.4 * sample.t);
+                  return THREE.MathUtils.clamp(damped, 0, 1);
+                }
                 case 'classic':
                 default:
                   return easeInOutCubic(sample.t);
@@ -24055,12 +24053,38 @@ const powerRef = useRef(hud.power);
         cue.mesh.visible = true;
         cue.pos.set(pos.x, pos.y);
         cue.mesh.position.set(pos.x, BALL_CENTER_Y, pos.y);
+        if (cue.shadow) {
+          cue.shadow.visible = true;
+          cue.shadow.position.set(pos.x, BALL_SHADOW_Y, pos.y);
+        }
         cue.vel.set(0, 0);
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
+        cueStickAnchorRef.current.set(pos.x, CUE_Y, pos.y);
+      };
+      const respawnCueBallForInHand = ({ preferCenter = false } = {}) => {
+        if (!cue) return false;
+        const preferredSpawn = preferCenter
+          ? new THREE.Vector2(0, 0)
+          : new THREE.Vector2(0, baulkZ - BALL_R * 1.6);
+        const spawnPoint =
+          resolveInHandPlacement(preferredSpawn, {
+            clearanceMultiplier: preferCenter ? 2.2 : 2.05,
+            maxRadius: BALL_R * (preferCenter ? 7 : 6)
+          }) ||
+          defaultInHandPosition({ forceCenter: preferCenter }) ||
+          new THREE.Vector2(0, baulkZ);
+        cue.active = true;
+        updateCuePlacement(spawnPoint);
+        cue.impacted = false;
+        cue.launchDir = null;
+        cueBallPlacedFromHandRef.current = false;
+        pendingInHandResetRef.current = true;
+        inHandDrag.lastPos = spawnPoint.clone();
+        return true;
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
@@ -28065,29 +28089,8 @@ const powerRef = useRef(hud.power);
               }
             }
             if (cueBallPotted) {
-              cue.active = false;
               removePocketDropEntry(cue.id);
-              cue.mesh.visible = true;
-              cue.active = true;
-              const preferredSpawn = isTraining
-                ? new THREE.Vector2(0, baulkZ - BALL_R * 1.6)
-                : new THREE.Vector2(0, 0);
-              const spawnPoint = resolveInHandPlacement(preferredSpawn, {
-                clearanceMultiplier: isTraining ? 2.05 : 2.2,
-                maxRadius: BALL_R * (isTraining ? 6 : 7)
-              }) || defaultInHandPosition() || new THREE.Vector2(0, baulkZ);
-              cue.pos.copy(spawnPoint);
-              cue.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
-              cue.vel.set(0, 0);
-              cue.spin?.set(0, 0);
-              cue.pendingSpin?.set(0, 0);
-              cue.spinMode = 'standard';
-              cue.swerveStrength = 0;
-              cue.swervePowerStrength = 0;
-              cue.impacted = false;
-              cue.launchDir = null;
-              cueBallPlacedFromHandRef.current = false;
-              pendingInHandResetRef.current = true;
+              respawnCueBallForInHand({ preferCenter: !isTraining });
             }
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
@@ -30019,18 +30022,9 @@ const powerRef = useRef(hud.power);
                   hudRef.current = { ...hudRef.current, inHand: false };
                   setHud((prev) => ({ ...prev, inHand: false }));
                 } else {
-                  if (b.mesh) {
-                    b.mesh.visible = false;
-                  }
-                  b.vel.set(0, 0);
-                  b.spin?.set(0, 0);
-                  b.pendingSpin?.set(0, 0);
-                  b.spinMode = 'standard';
-                  b.swerveStrength = 0;
-                  b.swervePowerStrength = 0;
-                  b.impacted = false;
-                  b.active = false;
+                  // Keep the cue ball on-table in ball-in-hand mode so placement feels immediate.
                   removePocketDropEntry(b.id);
+                  respawnCueBallForInHand({ preferCenter: true });
                 }
                 if (isTraining && table) {
                   const scratchPopup = createTrainingScratchPopupMesh();

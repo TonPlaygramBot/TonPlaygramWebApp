@@ -32,7 +32,9 @@ export const sampleCueStrokeTimeline = ({
         case 'snap':
           return THREE.MathUtils.smoothstep(baseT, 0, 1)
         case 'spring': {
-          const spring = 1 - Math.exp(-6.6 * baseT) * Math.cos(8.6 * baseT)
+          // Use a critically-damped spring approximation so release motion
+          // stays monotonic (never snaps backward toward pullback).
+          const spring = 1 - Math.exp(-7.4 * baseT) * (1 + 7.4 * baseT)
           return THREE.MathUtils.clamp(spring, 0, 1)
         }
         case 'whip':
