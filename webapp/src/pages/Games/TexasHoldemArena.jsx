@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.64 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.06 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.86, landscape: 0.58 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 0.98 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
@@ -6150,7 +6150,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(6.2rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))]">
+      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(5.7rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))]">
         <div className="flex items-center gap-2">
           <button
             type="button"
