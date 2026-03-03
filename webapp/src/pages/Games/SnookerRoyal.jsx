@@ -93,7 +93,7 @@ import {
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -10214,6 +10214,7 @@ function Table3D(
   };
 
   let polyhavenKtx2Loader = null;
+  let hasDetectedPolyhavenKtx2Support = false;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
 
@@ -10222,9 +10223,10 @@ function Table3D(
       polyhavenKtx2Loader = new KTX2Loader();
       polyhavenKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     }
-    if (renderer) {
+    if (renderer && !hasDetectedPolyhavenKtx2Support) {
       try {
         polyhavenKtx2Loader.detectSupport(renderer);
+        hasDetectedPolyhavenKtx2Support = true;
       } catch (error) {
         console.warn('Snooker Royal KTX2 support detection failed', error);
       }
@@ -10240,7 +10242,7 @@ function Table3D(
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
-    loader.setMeshoptDecoder?.(MeshoptDecoder);
+    loader.setMeshoptDecoder(MeshoptDecoder);
     return loader;
   };
 
