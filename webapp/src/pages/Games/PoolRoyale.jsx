@@ -24798,16 +24798,22 @@ const powerRef = useRef(hud.power);
                   direction: shotPrediction.dir ?? new THREE.Vector2()
                 })
               : null;
-            pocketSwitchIntentRef.current = {
-              ballId: shotPrediction.ballId,
-              allowEarly: true,
-              forced: isDirectHit,
-              preferredPocketId:
-                cornerIntent && cornerIntent.score >= POCKET_CAM.dotThreshold
-                  ? cornerIntent.pocketId
-                  : null,
-              createdAt: intentTimestamp
-            };
+            const guaranteedCornerPocketId =
+              cornerIntent &&
+              cornerIntent.score >= POCKET_GUARANTEED_ALIGNMENT
+                ? cornerIntent.pocketId
+                : null;
+            pocketSwitchIntentRef.current = guaranteedCornerPocketId
+              ? {
+                  ballId: shotPrediction.ballId,
+                  // Early pocket-camera handoff is reserved for guaranteed corner pots.
+                  // Side (middle) pockets keep the existing camera behavior.
+                  allowEarly: true,
+                  forced: isDirectHit,
+                  preferredPocketId: guaranteedCornerPocketId,
+                  createdAt: intentTimestamp
+                }
+              : null;
           } else {
             pocketSwitchIntentRef.current = null;
           }
