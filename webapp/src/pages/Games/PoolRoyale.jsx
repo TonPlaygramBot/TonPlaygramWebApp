@@ -112,6 +112,12 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import {
+  applyShotImpact,
+  createShotImpactFallback,
+  createShotImpactPayload,
+  shouldResolveShot
+} from './cueShotImpact.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
@@ -24707,12 +24713,7 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
-      const applyShotAtImpact = (payload) => {
-        if (!payload || payload.applied) return;
-        payload.applied = true;
-        const { launchShot } = payload;
-        launchShot?.();
-      };
+      const applyShotAtImpact = (payload) => applyShotImpact(payload);
 
       const animatePowerSliderReturn = (durationMs = 320) => {
         const slider = sliderInstanceRef.current;
@@ -25092,10 +25093,11 @@ const powerRef = useRef(hud.power);
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
           };
-          const shotImpactPayload = {
-            applied: false,
-            launchShot
-          };
+          const shotImpactPayload = createShotImpactPayload(launchShot);
+          pendingImpactRef.current = createShotImpactFallback(
+            shotImpactPayload,
+            startTime + Math.max(40, strikeDuration * 0.85)
+          );
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -30427,7 +30429,11 @@ const powerRef = useRef(hud.power);
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            if (!any) {
+            const stroke = cueStrokeStateRef.current;
+            const impactPending = Boolean(
+              pendingImpactRef.current || (stroke && !stroke.shotApplied)
+            );
+            if (shouldResolveShot({ anyBallMoving: any, impactPending })) {
               resolve();
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
