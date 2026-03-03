@@ -5431,7 +5431,7 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 420;
+const REPLAY_CUE_START_HOLD_MS = 0;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5469,7 +5469,7 @@ const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 2.9;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 680; // start replay earlier so the pullback is fully framed before the strike
-const REPLAY_CUE_PULLBACK_START_BIAS_MS = 60; // begin replay slightly inside pullback so the first replay frames show backward cue motion
+const REPLAY_CUE_PULLBACK_START_BIAS_MS = 0; // start replay exactly at pullback start so viewers see the full wind-up
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.45; // stretch forward push in replay so the cue strike is clearly visible
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
@@ -24008,14 +24008,14 @@ const powerRef = useRef(hud.power);
       };
       const resolveInHandPlacement = (
         point,
-        { clearanceMultiplier = 2.05, maxRadius = BALL_R * 3.2 } = {}
+        { clearanceMultiplier = 2.0, maxRadius = BALL_R * 5.2 } = {}
       ) => {
         const clamped = clampInHandPosition(point);
         if (!clamped) return null;
         if (isSpotFree(clamped, clearanceMultiplier)) return clamped;
-        const step = Math.max(BALL_R * 0.35, 0.002);
+        const step = Math.max(BALL_R * 0.16, 0.0012);
         const ringCount = Math.max(1, Math.ceil(maxRadius / step));
-        const angleSteps = 16;
+        const angleSteps = 36;
         let best = null;
         let bestClearance = -Infinity;
         for (let ring = 1; ring <= ringCount; ring += 1) {
@@ -24084,7 +24084,21 @@ const powerRef = useRef(hud.power);
         if (!client) return null;
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
+        const previousScreen = inHandDrag.lastScreen;
         inHandDrag.lastScreen = client;
+        if (
+          inHandDrag.active &&
+          previousScreen &&
+          inHandDrag.lastPos &&
+          Number.isFinite(previousScreen.x) &&
+          Number.isFinite(previousScreen.y)
+        ) {
+          const previousProjected = projectFromClient(previousScreen.x, previousScreen.y);
+          if (previousProjected) {
+            const dragDelta = currentProjected.clone().sub(previousProjected);
+            return inHandDrag.lastPos.clone().add(dragDelta);
+          }
+        }
         return currentProjected;
       };
       const findAiInHandPlacement = () => {
@@ -25109,7 +25123,10 @@ const powerRef = useRef(hud.power);
           // The cue is already visually pulled before fire(), so release should start immediately.
           const pullbackDuration =
             startPull > 1e-4
-              ? 0
+              ? Math.max(
+                220,
+                Math.round((strokeProfile.pullbackDuration ?? PLAYER_CUE_PULLBACK_DURATION_MS) * 0.45)
+              )
               : strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const idleGap = 0.01;
@@ -25120,9 +25137,16 @@ const powerRef = useRef(hud.power);
             BALL_R + contactEps - followExtra
           );
           const idleDistanceFromBallCenter = BALL_R + idleGap;
-          const forwardPush = Math.max(0, idleDistanceFromBallCenter - endDistanceFromBallCenter);
-          const impactPos = idlePos.clone().addScaledVector(dir, forwardPush);
-          const followPos = impactPos.clone();
+          const forwardPushBase = Math.max(0, idleDistanceFromBallCenter - endDistanceFromBallCenter);
+          const forwardPushVisual = THREE.MathUtils.clamp(
+            THREE.MathUtils.lerp(CUE_FOLLOW_THROUGH_MIN, CUE_FOLLOW_THROUGH_MAX, Math.pow(powerStrength, 0.86)),
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX
+          );
+          const impactPush = Math.max(forwardPushBase, forwardPushVisual * 0.42);
+          const followPush = Math.max(impactPush + BALL_R * 0.12, forwardPushVisual);
+          const impactPos = idlePos.clone().addScaledVector(dir, impactPush);
+          const followPos = idlePos.clone().addScaledVector(dir, followPush);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -30019,9 +30043,10 @@ const powerRef = useRef(hud.power);
                   hudRef.current = { ...hudRef.current, inHand: false };
                   setHud((prev) => ({ ...prev, inHand: false }));
                 } else {
-                  if (b.mesh) {
-                    b.mesh.visible = false;
-                  }
+                  const respawn = defaultInHandPosition({ forceBaulk: !allowFullTableInHand() });
+                  const centerX = respawn?.x ?? 0;
+                  const centerZ = respawn?.y ?? baulkZ;
+                  b.pos.set(centerX, centerZ);
                   b.vel.set(0, 0);
                   b.spin?.set(0, 0);
                   b.pendingSpin?.set(0, 0);
@@ -30029,7 +30054,17 @@ const powerRef = useRef(hud.power);
                   b.swerveStrength = 0;
                   b.swervePowerStrength = 0;
                   b.impacted = false;
-                  b.active = false;
+                  b.active = true;
+                  if (b.mesh) {
+                    b.mesh.visible = true;
+                    b.mesh.position.set(centerX, BALL_CENTER_Y, centerZ);
+                    b.mesh.rotation.set(0, 0, 0);
+                  }
+                  if (b.shadow) {
+                    b.shadow.visible = true;
+                    b.shadow.position.set(centerX, BALL_SHADOW_Y, centerZ);
+                  }
+                  cueBallPlacedFromHandRef.current = false;
                   removePocketDropEntry(b.id);
                 }
                 if (isTraining && table) {
