@@ -25086,7 +25086,11 @@ const powerRef = useRef(hud.power);
           );
           const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
-          const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
+          // The cue is already visually pulled before fire(), so release should start immediately.
+          const pullbackDuration =
+            startPull > 1e-4
+              ? 0
+              : strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const idleGap = 0.01;
           const contactEps = 0.001;
