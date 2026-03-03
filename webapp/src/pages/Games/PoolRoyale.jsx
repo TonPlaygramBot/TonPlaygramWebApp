@@ -1523,8 +1523,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 1; // keep cushion-cut rebounds neutral so bank outcomes follow impact angle naturally
-const CUSHION_CUT_FRICTION_SCALE = 0.92; // reduce jaw grab so cuts do not unnaturally funnel balls into pockets
+const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // increase jaw rebound energy so cushion cuts feel a bit bouncier
+const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -1844,7 +1844,7 @@ const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera l
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.9; // trim pullback depth so backward cue travel remains tighter
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
@@ -1898,12 +1898,12 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 // angle for cushion cuts guiding balls into corner pockets
-const DEFAULT_CUSHION_CUT_ANGLE = 30;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 61;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 62;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 66;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 65;
 const VISUAL_SIDE_CUSHION_CUT_ANGLE = 65;
 const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5455,21 +5455,21 @@ const AI_SPIN_ADJUST_DELAY_MS = 2000;
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_STROKE_TIME_SCALE = 2.15;
-const AI_STROKE_PULLBACK_FACTOR = 0.86;
-const AI_CUE_PULL_SCALE = 0.62;
+const AI_STROKE_PULLBACK_FACTOR = 1.05;
+const AI_CUE_PULL_SCALE = 0.72;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 1.55;
 const PLAYER_FORWARD_SLOWDOWN = 1.75;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 2.9;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 680; // start replay earlier so the pullback is fully framed before the strike
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.45; // stretch forward push in replay so the cue strike is clearly visible
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 420; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.25; // slightly stretch the forward push so the strike is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
@@ -5477,7 +5477,7 @@ const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a 
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
-const LIVE_CUE_FORWARD_DURATION_MS = 210;
+const LIVE_CUE_FORWARD_DURATION_MS = 120;
 const LIVE_CUE_IMPACT_HOLD_MS = 50;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
@@ -6797,8 +6797,7 @@ function applySpinController(ball, stepScale, airborne = false) {
     return false;
   }
   if (ball.id === 'cue' && !ball.impacted) {
-    // Keep full spin stored until first impact so pre-contact travel stays perfectly straight.
-    return false;
+    return decaySpin(ball, stepScale, airborne);
   }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
@@ -6852,7 +6851,7 @@ function applyRailImpulse(ball, impact) {
   const impactFactor =
     impactSpeed > 1e-6 ? clamp(Math.abs(relNormal) / impactSpeed, 0, 1) : 0;
   const glancingScale = isCutImpact
-    ? THREE.MathUtils.lerp(0.9, 1, impactFactor)
+    ? THREE.MathUtils.lerp(0.72, 1, impactFactor)
     : 1;
   const restitutionScale = isCutImpact
     ? CUSHION_CUT_RESTITUTION_SCALE * glancingScale
@@ -26753,9 +26752,7 @@ const powerRef = useRef(hud.power);
               pocketPos: plan.pocketCenter,
               ballRadius: BALL_R,
               spin: plan.spin,
-              power: plan.power,
-              suggestedAimDir: plan.suggestedAimDir,
-              suggestedWeight: 0.3
+              power: plan.power
             });
             if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
               corrected = compensatedAim.aimDir.clone();
@@ -27579,20 +27576,13 @@ const powerRef = useRef(hud.power);
                   aimDirRef.current.copy(previewAimDir);
                   alignStandingCameraToAim(cue, previewAimDir, { preserveOrbit: false });
                 }
-                const finalizeAndFire = () => {
-                  aimDirRef.current.copy(dir);
-                  alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
-                  applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
-                  updateCamera();
-                  fire();
-                  if (breakWinnerSeatRef.current === 'B') {
-                    breakWinnerSeatRef.current = null;
-                  }
-                };
-                if (previewAimDir.lengthSq() > 1e-6) {
-                  window.setTimeout(finalizeAndFire, 220);
-                } else {
-                  finalizeAndFire();
+                aimDirRef.current.copy(dir);
+                alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
+                applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
+                updateCamera();
+                fire();
+                if (breakWinnerSeatRef.current === 'B') {
+                  breakWinnerSeatRef.current = null;
                 }
               }, remaining);
             };
