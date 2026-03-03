@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.82 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.24 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.74 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.16 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
@@ -4199,6 +4199,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
+    screen.orientation?.lock?.('landscape').catch(() => {});
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     applyRendererSRGB(renderer);
     renderer.shadowMap.enabled = true;
