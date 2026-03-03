@@ -5461,18 +5461,18 @@ const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 1.55;
 const PLAYER_FORWARD_SLOWDOWN = 1.75;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.52;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 2.9;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 680; // start replay earlier so the pullback is fully framed before the strike
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 820; // start replay early enough to clearly show the initial pullback before release
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.45; // stretch forward push in replay so the cue strike is clearly visible
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
-const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
+const REPLAY_CUE_MIN_PULLBACK_MS = 460; // keep replay wind-up visible and readable before the cue pushes back to contact
 const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
@@ -27537,10 +27537,6 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             const isBreakPlan = plan?.type === 'break';
-            const previewAimDir =
-              plan?.suggestedAimDir && plan.suggestedAimDir.lengthSq() > 1e-6
-                ? plan.suggestedAimDir.clone().normalize()
-                : dir.clone();
             const aiPower = isBreakPlan
               ? 1
               : clampPower(plan.power, 0.6);
@@ -27564,12 +27560,22 @@ const powerRef = useRef(hud.power);
               previewDelayMs,
               dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS + AI_SPIN_ADJUST_DELAY_MS
             );
+            const applyAiAimLine = (nextAimDir) => {
+              if (!nextAimDir || nextAimDir.lengthSq() <= 1e-6) return;
+              const normalized = nextAimDir.clone().normalize();
+              aimDirRef.current.copy(normalized);
+              alignStandingCameraToAim(cue, normalized, { preserveOrbit: false });
+              applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
+              updateCamera();
+            };
             const beginCueView = () => {
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
               aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
+              // Suggested line is only a hint; once cue view starts, lock to the real pot line.
+              applyAiAimLine(dir);
               animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
@@ -27577,26 +27583,11 @@ const powerRef = useRef(hud.power);
               const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
-                // Start from the same suggested line flow as user aim-assist,
-                // then finish on the AI-adjusted final pot line.
-                if (previewAimDir.lengthSq() > 1e-6) {
-                  aimDirRef.current.copy(previewAimDir);
-                  alignStandingCameraToAim(cue, previewAimDir, { preserveOrbit: false });
-                }
-                const finalizeAndFire = () => {
-                  aimDirRef.current.copy(dir);
-                  alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
-                  applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
-                  updateCamera();
-                  fire();
-                  if (breakWinnerSeatRef.current === 'B') {
-                    breakWinnerSeatRef.current = null;
-                  }
-                };
-                if (previewAimDir.lengthSq() > 1e-6) {
-                  window.setTimeout(finalizeAndFire, 220);
-                } else {
-                  finalizeAndFire();
+                // Reconfirm final pot line after spin settles, then shoot.
+                applyAiAimLine(dir);
+                fire();
+                if (breakWinnerSeatRef.current === 'B') {
+                  breakWinnerSeatRef.current = null;
                 }
               }, remaining);
             };
