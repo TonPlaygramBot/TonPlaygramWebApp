@@ -390,9 +390,9 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.86, landscape: 0.24 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 0.82 });
-const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.86, landscape: 0.04 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 0.64 });
+const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.04;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * 0.52, landscape: -CARD_W * 0.52 });
@@ -5918,6 +5918,9 @@ function TexasHoldemArena({ search }) {
   const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
   const sliderDisplayValue = sliderVisible ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
+  const landscapeSideActions = uiState.availableActions.slice(0, 2);
+  const leftLandscapeAction = landscapeSideActions[0] ?? null;
+  const rightLandscapeAction = landscapeSideActions[1] ?? null;
   const chatAvatar = humanPlayer?.avatar || '/assets/icons/profile.svg';
   const seatAnchors = useMemo(() => buildSeatAnchors(gameState.players.length), [gameState.players.length]);
 
@@ -6435,40 +6438,92 @@ function TexasHoldemArena({ search }) {
         />
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={handleUndoChip}
-            disabled={undoDisabled}
-            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
-              undoDisabled
-                ? 'bg-amber-900/40 text-white/40 shadow-none'
-                : 'bg-amber-500/90 hover:bg-amber-400'
-            }`}
-          >
-            Undo
-          </button>
-          {uiState.availableActions.map((action) => (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] z-30">
+          <div className="pointer-events-auto mx-auto flex items-center justify-center gap-3 landscape:hidden">
             <button
-              key={action.id}
-              onClick={() => handleAction(action.id)}
-              className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+              type="button"
+              onClick={handleUndoChip}
+              disabled={undoDisabled}
+              className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
+                undoDisabled
+                  ? 'bg-amber-900/40 text-white/40 shadow-none'
+                  : 'bg-amber-500/90 hover:bg-amber-400'
+              }`}
             >
-              {action.label}
+              Undo
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={handleAllIn}
-            disabled={overlayAllInDisabled}
-            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
-              overlayAllInDisabled
-                ? 'bg-red-900/50 text-white/40 shadow-none'
-                : 'bg-red-600/90 hover:bg-red-500'
-            }`}
-          >
-            All-in
-          </button>
+            {uiState.availableActions.map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleAction(action.id)}
+                className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+              >
+                {action.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleAllIn}
+              disabled={overlayAllInDisabled}
+              className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
+                overlayAllInDisabled
+                  ? 'bg-red-900/50 text-white/40 shadow-none'
+                  : 'bg-red-600/90 hover:bg-red-500'
+              }`}
+            >
+              All-in
+            </button>
+          </div>
+
+          <div className="hidden landscape:block">
+            <div className="pointer-events-auto fixed left-[max(0.75rem,env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+0.45rem)] flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleUndoChip}
+                disabled={undoDisabled}
+                className={`px-4 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
+                  undoDisabled
+                    ? 'bg-amber-900/40 text-white/40 shadow-none'
+                    : 'bg-amber-500/90 hover:bg-amber-400'
+                }`}
+              >
+                Undo
+              </button>
+              {leftLandscapeAction && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(leftLandscapeAction.id)}
+                  className="px-4 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+                >
+                  {leftLandscapeAction.label}
+                </button>
+              )}
+            </div>
+
+            <div className="pointer-events-auto fixed right-[max(0.75rem,env(safe-area-inset-right,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+0.45rem)] flex flex-col gap-2">
+              {rightLandscapeAction && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(rightLandscapeAction.id)}
+                  className="px-4 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+                >
+                  {rightLandscapeAction.label}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleAllIn}
+                disabled={overlayAllInDisabled}
+                className={`px-4 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
+                  overlayAllInDisabled
+                    ? 'bg-red-900/50 text-white/40 shadow-none'
+                    : 'bg-red-600/90 hover:bg-red-500'
+                }`}
+              >
+                All-in
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {chatBubbles.map((bubble) => (
