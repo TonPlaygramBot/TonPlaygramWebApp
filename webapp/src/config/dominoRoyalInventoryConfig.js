@@ -79,24 +79,9 @@ const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
 });
 
 const getDefaultOptionId = (options) => options?.[0]?.id;
-const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'CoffeeTable_01';
-const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
-
 const getDominoDefaultOptionId = (type) => {
   const options = DOMINO_ROYAL_OPTION_SETS[type] || [];
   if (!options.length) return undefined;
-  if (type === 'tableTheme') {
-    return (
-      options.find((option) => option.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID)?.id ||
-      getDefaultOptionId(options)
-    );
-  }
-  if (type === 'chairTheme') {
-    return (
-      options.find((option) => option.id === LUDO_MATCH_DEFAULT_CHAIR_THEME_ID)?.id ||
-      getDefaultOptionId(options)
-    );
-  }
   return getDefaultOptionId(options);
 };
 
