@@ -112,12 +112,6 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import {
-  applyShotImpact,
-  createShotImpactFallback,
-  createShotImpactPayload,
-  resolveShotImpactTime
-} from './cueShotImpact.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
@@ -24713,7 +24707,12 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
-      const applyShotAtImpact = (payload) => applyShotImpact(payload);
+      const applyShotAtImpact = (payload) => {
+        if (!payload || payload.applied) return;
+        payload.applied = true;
+        const { launchShot } = payload;
+        launchShot?.();
+      };
 
       const animatePowerSliderReturn = (durationMs = 320) => {
         const slider = sliderInstanceRef.current;
@@ -25093,7 +25092,10 @@ const powerRef = useRef(hud.power);
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
           };
-          const shotImpactPayload = createShotImpactPayload(launchShot);
+          const shotImpactPayload = {
+            applied: false,
+            launchShot
+          };
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25192,10 +25194,6 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          pendingImpactRef.current = createShotImpactFallback(
-            shotImpactPayload,
-            resolveShotImpactTime(startTime, strikeDuration)
-          );
           const impactPos = idlePos.clone();
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
