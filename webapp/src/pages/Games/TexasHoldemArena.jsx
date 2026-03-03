@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 1.08 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.44 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.94, landscape: 0.98 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.34 });
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * 0.52, landscape: -CARD_W * 0.52 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
@@ -459,8 +459,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/';
-const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/1.0.0/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
@@ -470,7 +470,18 @@ const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   )
 );
 let sharedKtx2Loader = null;
+let hasDetectedKtx2Support = false;
 const POLYHAVEN_MODEL_CACHE = new Map();
+
+function ensureKtx2SupportDetection(renderer = null) {
+  if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
+  try {
+    sharedKtx2Loader.detectSupport(renderer);
+    hasDetectedKtx2Support = true;
+  } catch (error) {
+    console.warn('Texas Hold\'em KTX2 support detection failed', error);
+  }
+}
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
@@ -954,13 +965,7 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
   }
 
-  if (renderer) {
-    try {
-      sharedKtx2Loader.detectSupport(renderer);
-    } catch (error) {
-      console.warn('Texas Hold\'em KTX2 support detection failed', error);
-    }
-  }
+  ensureKtx2SupportDetection(renderer);
 
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
