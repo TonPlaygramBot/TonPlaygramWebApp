@@ -112,6 +112,12 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import {
+  applyShotImpact,
+  createShotImpactFallback,
+  createShotImpactPayload,
+  shouldResolveShot
+} from './cueShotImpact.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
@@ -15105,6 +15111,7 @@ const powerRef = useRef(hud.power);
     moved: false
   });
   const pendingImpactRef = useRef(null);
+  const shotImpactAppliedRef = useRef(false);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -24708,10 +24715,11 @@ const powerRef = useRef(hud.power);
         return { side, vert, hasSpin };
       };
       const applyShotAtImpact = (payload) => {
-        if (!payload || payload.applied) return;
-        payload.applied = true;
-        const { launchShot } = payload;
-        launchShot?.();
+        const applied = applyShotImpact(payload);
+        if (applied) {
+          shotImpactAppliedRef.current = true;
+        }
+        return applied;
       };
 
       const animatePowerSliderReturn = (durationMs = 320) => {
@@ -24807,6 +24815,7 @@ const powerRef = useRef(hud.power);
           }
         };
         setShootingState(true);
+        shotImpactAppliedRef.current = false;
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
           shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
@@ -25092,10 +25101,11 @@ const powerRef = useRef(hud.power);
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
           };
-          const shotImpactPayload = {
-            applied: false,
-            launchShot
-          };
+          const shotImpactPayload = createShotImpactPayload(launchShot);
+          pendingImpactRef.current = createShotImpactFallback(
+            shotImpactPayload,
+            startTime + Math.max(40, strikeDuration * 0.98)
+          );
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25325,8 +25335,8 @@ const powerRef = useRef(hud.power);
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
-              strikeImpactThreshold: 1,
-              forwardOnly: false,
+              strikeImpactThreshold: 0.98,
+              forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               onImpact: () => applyShotAtImpact(shotImpactPayload)
@@ -30427,7 +30437,10 @@ const powerRef = useRef(hud.power);
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            if (!any) {
+            if (shouldResolveShot({
+              hasAnyMotion: any,
+              shotApplied: shotImpactAppliedRef.current
+            })) {
               resolve();
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
