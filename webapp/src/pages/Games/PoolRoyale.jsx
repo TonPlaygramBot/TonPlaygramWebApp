@@ -15103,6 +15103,7 @@ const powerRef = useRef(hud.power);
     moved: false
   });
   const pendingImpactRef = useRef(null);
+  const pendingImpactTimeoutRef = useRef(null);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -21499,6 +21500,7 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
+            clearPendingImpactTimeout();
             return false;
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
@@ -21506,6 +21508,7 @@ const powerRef = useRef(hud.power);
             cueAnimating = false;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
+            clearPendingImpactTimeout();
             syncCueShadow();
             return false;
           }
@@ -21607,6 +21610,7 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
+            clearPendingImpactTimeout();
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -21697,6 +21701,7 @@ const powerRef = useRef(hud.power);
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
+          clearPendingImpactTimeout();
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -21915,6 +21920,7 @@ const powerRef = useRef(hud.power);
           if (!Number.isFinite(duration) || duration <= 0) return;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
+          clearPendingImpactTimeout();
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
           overheadBroadcastVariantRef.current = 'replay';
@@ -24711,6 +24717,11 @@ const powerRef = useRef(hud.power);
         const { launchShot } = payload;
         launchShot?.();
       };
+      const clearPendingImpactTimeout = () => {
+        if (pendingImpactTimeoutRef.current == null) return;
+        window.clearTimeout(pendingImpactTimeoutRef.current);
+        pendingImpactTimeoutRef.current = null;
+      };
 
       const animatePowerSliderReturn = (durationMs = 320) => {
         const slider = sliderInstanceRef.current;
@@ -25333,10 +25344,19 @@ const powerRef = useRef(hud.power);
               startTime +
               Math.max(0, pullbackDuration) +
               Math.max(1, strikeDuration);
+            clearPendingImpactTimeout();
             pendingImpactRef.current = {
               time: impactAt,
-              apply: () => applyShotAtImpact(shotImpactPayload)
+              apply: () => {
+                clearPendingImpactTimeout();
+                applyShotAtImpact(shotImpactPayload);
+              }
             };
+            pendingImpactTimeoutRef.current = window.setTimeout(() => {
+              pendingImpactTimeoutRef.current = null;
+              pendingImpactRef.current = null;
+              applyShotAtImpact(shotImpactPayload);
+            }, Math.max(0, impactAt - performance.now()));
           } else {
             applyShotAtImpact(shotImpactPayload);
             cueStick.visible = false;
@@ -25345,6 +25365,7 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
+            clearPendingImpactTimeout();
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -28401,6 +28422,7 @@ const powerRef = useRef(hud.power);
         if (pendingImpact && nowMs >= pendingImpact.time) {
           pendingImpact.apply?.();
           pendingImpactRef.current = null;
+          clearPendingImpactTimeout();
         }
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
