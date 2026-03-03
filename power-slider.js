@@ -10,7 +10,6 @@ export class PowerSlider {
       onChange,
       onStart,
       onCommit,
-      commitThresholdRatio = 0.02,
       theme = 'default',
       labels = false
     } = opts;
@@ -24,7 +23,6 @@ export class PowerSlider {
     this.onChange = onChange;
     this.onStart = onStart;
     this.onCommit = onCommit;
-    this.commitThresholdRatio = Math.min(Math.max(commitThresholdRatio, 0), 1);
     this.locked = false;
 
     this.el = document.createElement('div');
@@ -89,7 +87,6 @@ export class PowerSlider {
     this._onPointerDown = this._pointerDown.bind(this);
     this._onPointerMove = this._pointerMove.bind(this);
     this._onPointerUp = this._pointerUp.bind(this);
-    this._onPointerCancel = this._pointerCancel.bind(this);
     this._onWheel = this._wheel.bind(this);
     this._onKeyDown = this._keyDown.bind(this);
     this.el.addEventListener('pointerdown', this._onPointerDown);
@@ -210,7 +207,6 @@ export class PowerSlider {
     e.preventDefault();
     this.dragging = true;
     this.dragMoved = false;
-    this._updateFromClientY(e.clientY);
     this.dragStartValue = this.value;
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
@@ -218,7 +214,6 @@ export class PowerSlider {
     if (typeof this.onStart === 'function') this.onStart(this.value);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
-    this.el.addEventListener('pointercancel', this._onPointerCancel);
   }
 
   _pointerMove(e) {
@@ -235,21 +230,13 @@ export class PowerSlider {
     this.el.releasePointerCapture(e.pointerId);
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
-    this.el.removeEventListener('pointercancel', this._onPointerCancel);
     this.el.classList.remove('ps-no-animate');
-    const range = Math.max(this.max - this.min, 1);
-    const ratio = (this.value - this.min) / range;
     const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
-    const shouldCommit = moved || ratio > this.commitThresholdRatio;
-    if (!shouldCommit) {
+    if (!moved) {
       this.set(this.dragStartValue, { animate: true });
       return;
     }
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
-  }
-
-  _pointerCancel(e) {
-    this._pointerUp(e);
   }
 
   _wheel(e) {
