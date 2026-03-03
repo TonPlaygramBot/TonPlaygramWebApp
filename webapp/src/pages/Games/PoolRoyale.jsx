@@ -1844,8 +1844,8 @@ const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera l
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.76; // shorten cue pullback depth so backward travel is tighter than before
-const CUE_PULL_RETURN_PUSH = 1; // snap the cue forward to its starting pose right after release
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.9; // trim pullback depth so backward cue travel remains tighter
+const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -5474,7 +5474,6 @@ const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
-const REPLAY_CUE_PULL_START_PROGRESS = 0.12; // start replay with the cue already in early pullback motion
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -21307,10 +21306,7 @@ const powerRef = useRef(hud.power);
                 0
             ) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
-          const baseLocalTime =
-            targetTime - Math.max(0, startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
-          const replayPullStartFloor = pullback * REPLAY_CUE_PULL_START_PROGRESS;
-          const localTime = Math.max(baseLocalTime, replayPullStartFloor);
+          const localTime = targetTime - Math.max(0, startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
           const playbackWindow = Number.isFinite(playback?.duration)
             ? Math.max(playback.duration, 1400)
             : 1400;
@@ -27361,7 +27357,7 @@ const powerRef = useRef(hud.power);
         startAiThinkingRef.current = startAiThinking;
         startUserSuggestionRef.current = updateUserSuggestion;
 
-        const animateAiSpinAdjustment = (targetSpin, durationMs, aimDir, { onComplete } = {}) => {
+        const animateAiSpinAdjustment = (targetSpin, durationMs, aimDir) => {
           cancelAiSpinAdjust();
           const startTime = performance.now();
           const startSpin = spinRef.current ?? { x: 0, y: 0 };
@@ -27389,9 +27385,6 @@ const powerRef = useRef(hud.power);
               aiSpinAdjustRef.current = requestAnimationFrame(animate);
             } else {
               aiSpinAdjustRef.current = null;
-              if (typeof onComplete === 'function') {
-                onComplete();
-              }
             }
           };
           aiSpinAdjustRef.current = requestAnimationFrame(animate);
@@ -27577,26 +27570,7 @@ const powerRef = useRef(hud.power);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
               aiCuePullReadyAtRef.current = performance.now() + AI_SPIN_ADJUST_DELAY_MS;
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
-              // Keep the same visual flow as suggested line preview, then let AI
-              // refine aim before/after spin so the final line stays pot-focused.
-              if (previewAimDir.lengthSq() > 1e-6) {
-                aimDirRef.current.copy(previewAimDir);
-                alignStandingCameraToAim(cue, previewAimDir, { preserveOrbit: false });
-              }
-              window.setTimeout(() => {
-                aimDirRef.current.copy(dir);
-                alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
-                applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
-                updateCamera();
-              }, Math.max(80, AI_SPIN_ADJUST_DELAY_MS * 0.12));
-              animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir, {
-                onComplete: () => {
-                  aimDirRef.current.copy(dir);
-                  alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
-                  applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
-                  updateCamera();
-                }
-              });
+              animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
