@@ -56,7 +56,7 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     thumbnail: finish.thumbnail,
     previewShape: 'table'
   })),
-  ...MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+  ...MURLAN_TABLE_THEMES.map((theme, idx) => ({
     id: `ludo-table-${theme.id}`,
     type: 'tables',
     optionId: theme.id,
@@ -65,7 +65,7 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
     thumbnail: theme.thumbnail
   })),
-  ...MURLAN_STOOL_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+  ...MURLAN_STOOL_THEMES.map((theme, idx) => ({
     id: `ludo-stool-${theme.id}`,
     type: 'stools',
     optionId: theme.id,
