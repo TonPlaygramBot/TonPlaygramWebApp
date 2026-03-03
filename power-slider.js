@@ -232,15 +232,7 @@ export class PowerSlider {
   _pointerUp(e) {
     if (!this.dragging) return;
     this.dragging = false;
-    try {
-      if (e?.pointerId != null && this.el.hasPointerCapture?.(e.pointerId)) {
-        this.el.releasePointerCapture(e.pointerId);
-      }
-    } catch {
-      // Some mobile browsers can emit pointerup/pointercancel after capture has
-      // already been released. We still need to finish the commit path so shots
-      // fire reliably when the player releases the slider.
-    }
+    this.el.releasePointerCapture(e.pointerId);
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.removeEventListener('pointercancel', this._onPointerCancel);
