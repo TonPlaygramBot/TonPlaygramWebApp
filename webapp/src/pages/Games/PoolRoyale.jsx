@@ -1845,7 +1845,7 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_PULL_RETURN_PUSH = 0.74; // keep a visible forward push after pullback instead of snapping immediately to the idle anchor
+const CUE_PULL_RETURN_PUSH = 0.92; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.4; // raise minimum forward push so every shot clearly shows the cue driving through
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 7.8; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -1861,13 +1861,12 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.22; // lift cue presentation a little higher so the stroke remains visible above the raised rail and ball profile
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.4; // lower the cue a touch more so the blue tip sits dead-centre on the cue ball
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.26; // raise the butt clearance to match the newer cushion crest height
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.22; // lift helper trajectories more so the cue stays clearly above rail cushions during pull/push
-const CUE_STROKE_MIN_LIFT = BALL_R * 0.14; // preserve a minimum visual cue elevation while stroke animation is active
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.2; // keep a stronger safety gap so cue helpers stay above cushions and wooden rails
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.16; // lift helper trajectories a touch more to avoid rail/cushion contact
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
@@ -24043,55 +24042,6 @@ const powerRef = useRef(hud.power);
         }
         return best;
       };
-      const resolveInHandPlacementFromDrag = (
-        rawPoint,
-        originPoint,
-        { clearanceMultiplier = 2.05 } = {}
-      ) => {
-        const clampedRaw = clampInHandPosition(rawPoint);
-        if (!clampedRaw) return null;
-        if (isSpotFree(clampedRaw, clearanceMultiplier)) {
-          return clampedRaw;
-        }
-        if (!originPoint) {
-          return resolveInHandPlacement(clampedRaw, {
-            clearanceMultiplier,
-            maxRadius: BALL_R * 3.8
-          });
-        }
-        const clampedOrigin = clampInHandPosition(originPoint);
-        if (!clampedOrigin) {
-          return resolveInHandPlacement(clampedRaw, {
-            clearanceMultiplier,
-            maxRadius: BALL_R * 3.8
-          });
-        }
-        const toTarget = clampedRaw.clone().sub(clampedOrigin);
-        const distance = toTarget.length();
-        if (distance <= 1e-6) {
-          return resolveInHandPlacement(clampedRaw, {
-            clearanceMultiplier,
-            maxRadius: BALL_R * 3.8
-          });
-        }
-        toTarget.multiplyScalar(1 / distance);
-        const step = Math.max(BALL_R * 0.32, 0.002);
-        const sampleCount = Math.max(2, Math.ceil(distance / step));
-        for (let i = sampleCount; i >= 0; i -= 1) {
-          TMP_VEC2_A.copy(clampedOrigin).addScaledVector(
-            toTarget,
-            (distance * i) / sampleCount
-          );
-          const candidate = clampInHandPosition(TMP_VEC2_A);
-          if (candidate && isSpotFree(candidate, clearanceMultiplier)) {
-            return candidate;
-          }
-        }
-        return resolveInHandPlacement(clampedRaw, {
-          clearanceMultiplier,
-          maxRadius: BALL_R * 3.8
-        });
-      };
       const defaultInHandPosition = ({ forceBaulk = false, forceCenter = false } = {}) => {
         const restrictToBaulk = forceBaulk || (!forceCenter && !allowFullTableInHand());
         const target = forceCenter
@@ -24115,9 +24065,7 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const clamped = resolveInHandPlacementFromDrag(raw, inHandDrag.lastPos, {
-          clearanceMultiplier: 2.05
-        });
+        const clamped = resolveInHandPlacement(raw);
         if (!clamped) return false;
         cue.active = true;
         updateCuePlacement(clamped);
@@ -28347,7 +28295,7 @@ const powerRef = useRef(hud.power);
             }
             const frameCamera = updateCamera();
             if (cueStick?.visible) {
-              cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + CUE_STROKE_MIN_LIFT);
+              cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
             }
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
@@ -28365,7 +28313,7 @@ const powerRef = useRef(hud.power);
         updateCueStroke(nowMs);
         if (ENABLE_CUE_STROKE_ANIMATION && cueStick && cueStrokeStateRef.current) {
           cueStick.visible = true;
-          cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + CUE_STROKE_MIN_LIFT);
+          cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
         }
         if (pendingInHandResetRef.current && hudRef.current?.inHand) {
           pendingInHandResetRef.current = false;
@@ -30071,43 +30019,17 @@ const powerRef = useRef(hud.power);
                   hudRef.current = { ...hudRef.current, inHand: false };
                   setHud((prev) => ({ ...prev, inHand: false }));
                 } else {
-                  const fallbackSpawn = clampInHandPosition(
-                    new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ),
-                    { ignoreBaulk: allowFullTableInHand() }
-                  );
-                  const resolvedSpawn = fallbackSpawn
-                    ? resolveInHandPlacement(fallbackSpawn, {
-                        clearanceMultiplier: 2.05,
-                        maxRadius: BALL_R * 5
-                      })
-                    : null;
-                  const spawnPoint = resolvedSpawn ?? fallbackSpawn;
-                  if (spawnPoint) {
-                    b.pos.set(spawnPoint.x, spawnPoint.y);
-                    if (b.mesh) {
-                      b.mesh.visible = true;
-                      b.mesh.position.set(spawnPoint.x, BALL_CENTER_Y, spawnPoint.y);
-                      b.mesh.rotation.set(0, 0, 0);
-                    }
-                    if (b.shadow) {
-                      b.shadow.visible = true;
-                      b.shadow.position.set(spawnPoint.x, BALL_SHADOW_Y, spawnPoint.y);
-                    }
-                    b.vel.set(0, 0);
-                    b.spin?.set(0, 0);
-                    b.pendingSpin?.set(0, 0);
-                    b.spinMode = 'standard';
-                    b.swerveStrength = 0;
-                    b.swervePowerStrength = 0;
-                    b.impacted = false;
-                    b.active = true;
-                    cueBallPlacedFromHandRef.current = true;
-                  } else {
-                    if (b.mesh) {
-                      b.mesh.visible = false;
-                    }
-                    b.active = false;
+                  if (b.mesh) {
+                    b.mesh.visible = false;
                   }
+                  b.vel.set(0, 0);
+                  b.spin?.set(0, 0);
+                  b.pendingSpin?.set(0, 0);
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
+                  b.impacted = false;
+                  b.active = false;
                   removePocketDropEntry(b.id);
                 }
                 if (isTraining && table) {
@@ -30140,14 +30062,9 @@ const powerRef = useRef(hud.power);
                     trainingPenaltyPopupTimeoutRef.current = null;
                   }, 900);
                 }
-                if (!shouldAutoRespawnCueAtCenter) {
-                  const currentHud = hudRef.current;
-                  const nextHud = { ...currentHud, inHand: true };
-                  hudRef.current = nextHud;
+                if (!shouldAutoRespawnCueAtCenter && !hudRef.current?.inHand) {
+                  hudRef.current = { ...hudRef.current, inHand: true };
                   setHud((prev) => ({ ...prev, inHand: true }));
-                  if (!inHandPlacementModeRef.current) {
-                    setInHandPlacementMode(true);
-                  }
                 }
                 const mappedColor = toBallColorId(b.id);
                 const colorId =
