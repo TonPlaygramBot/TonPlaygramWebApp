@@ -5431,7 +5431,7 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 320;
+const REPLAY_CUE_START_HOLD_MS = 420;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5468,7 +5468,8 @@ const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 340; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 420; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.25; // slightly stretch the forward push so the strike is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
@@ -21136,7 +21137,7 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return true;
           };
-          if (hasCueSnapshots) {
+          if (hasCueSnapshots && !stroke) {
             applyCueSnapshot();
             return;
           }
@@ -21282,7 +21283,7 @@ const powerRef = useRef(hud.power);
                   stroke.forward ??
                   stroke.forwardDuration ??
                   0
-              ) * replayScale
+              ) * replayScale * REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER
             );
           let followTime =
             Math.max(
@@ -21750,6 +21751,21 @@ const powerRef = useRef(hud.power);
 
         const primeReplayCueStick = (playback) => {
           if (!cueStick) return;
+          const cueSnapshot = playback?.frames?.[0]?.cue ?? null;
+          if (cueSnapshot?.position) {
+            const pos = normalizeVector3Snapshot(cueSnapshot.position);
+            if (pos) {
+              cueStick.position.set(pos.x, pos.y, pos.z);
+              const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
+              if (quat) {
+                cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+              }
+              cueStick.visible = cueSnapshot.visible ?? true;
+              cueAnimating = cueStick.visible;
+              syncCueShadow();
+              return;
+            }
+          }
           const stroke = playback?.cueStroke ?? null;
           if (stroke) {
             const idleSnap =
@@ -21765,21 +21781,6 @@ const powerRef = useRef(hud.power);
               }
               cueStick.visible = true;
               cueAnimating = true;
-              syncCueShadow();
-              return;
-            }
-          }
-          const cueSnapshot = playback?.frames?.[0]?.cue ?? null;
-          if (cueSnapshot?.position) {
-            const pos = normalizeVector3Snapshot(cueSnapshot.position);
-            if (pos) {
-              cueStick.position.set(pos.x, pos.y, pos.z);
-              const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
-              if (quat) {
-                cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
-              }
-              cueStick.visible = cueSnapshot.visible ?? true;
-              cueAnimating = cueStick.visible;
               syncCueShadow();
               return;
             }
@@ -25159,10 +25160,9 @@ const powerRef = useRef(hud.power);
               forceImmediateRailOverheadView ||
               (!earlyPocketView && !suppressPocketCameras);
             const shouldActivateActionView =
-              forceImmediateRailOverheadView ||
-              (!requiresCueBallMovementTrigger &&
-                (!isLongShot || forceActionActivation) &&
-                !isMaxPowerShot);
+              !requiresCueBallMovementTrigger &&
+              (!isLongShot || forceActionActivation) &&
+              !isMaxPowerShot;
             if (shouldActivateActionView && (!holdActive || forceImmediateRailOverheadView)) {
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
@@ -28167,7 +28167,9 @@ const powerRef = useRef(hud.power);
               startAiThinkingRef.current?.();
             }
           }, 0);
-          if (cameraRef.current && sphRef.current) {
+          const shouldAutoRecenterAfterShot =
+            !(hudRef.current?.turn === 0 && !hudRef.current?.over);
+          if (shouldAutoRecenterAfterShot && cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
               : new THREE.Vector2();
@@ -29944,49 +29946,6 @@ const powerRef = useRef(hud.power);
                 0,
                 1
               );
-              const shouldForceCornerPocketView =
-                !suppressPocketCameras &&
-                !topViewRef.current &&
-                pocketIndex < 4;
-              if (shouldForceCornerPocketView) {
-                const sph = sphRef.current;
-                const resumeView = sph
-                  ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
-                  : null;
-                const forcedCornerView = makePocketCameraView(b.id, resumeView, {
-                  forceCornerCapture: true,
-                  pocketCenterOverride: c
-                });
-                const shouldSwapView =
-                  forcedCornerView &&
-                  (!activeShotView ||
-                    activeShotView.mode !== 'pocket' ||
-                    activeShotView.ballId !== b.id);
-                if (shouldSwapView) {
-                  forcedCornerView.lastUpdate = performance.now();
-                  if (cameraRef.current) {
-                    const cam = cameraRef.current;
-                    forcedCornerView.smoothedPos = cam.position.clone();
-                    const storedTarget = lastCameraTargetRef.current?.clone();
-                    if (storedTarget) {
-                      forcedCornerView.smoothedTarget = storedTarget;
-                    }
-                  }
-                  if (pocketHoldActive) {
-                    queuedPocketView = forcedCornerView;
-                    queuedPocketView.pendingActivation = true;
-                  } else {
-                    if (activeShotView?.mode === 'action') {
-                      suspendedActionView = activeShotView;
-                      forcedCornerView.resumeAction = activeShotView;
-                    } else if (suspendedActionView?.mode === 'action') {
-                      forcedCornerView.resumeAction = suspendedActionView;
-                    }
-                    updatePocketCameraState(true);
-                    activeShotView = forcedCornerView;
-                  }
-                }
-              }
               if (pottedIds.has(b.id)) {
                 continue;
               }
@@ -30083,6 +30042,44 @@ const powerRef = useRef(hud.power);
                   mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
+                const shouldForceCornerPocketView =
+                  !suppressPocketCameras &&
+                  !topViewRef.current &&
+                  pocketIndex < 4;
+                if (shouldForceCornerPocketView) {
+                  const sph = sphRef.current;
+                  const resumeView = sph
+                    ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
+                    : null;
+                  const forcedCornerView = makePocketCameraView(b.id, resumeView, {
+                    forceCornerCapture: true,
+                    pocketCenterOverride: c
+                  });
+                  const shouldSwapView =
+                    forcedCornerView &&
+                    (!activeShotView ||
+                      activeShotView.mode !== 'pocket' ||
+                      activeShotView.ballId !== b.id);
+                  if (shouldSwapView) {
+                    forcedCornerView.lastUpdate = performance.now();
+                    if (cameraRef.current) {
+                      const cam = cameraRef.current;
+                      forcedCornerView.smoothedPos = cam.position.clone();
+                      const storedTarget = lastCameraTargetRef.current?.clone();
+                      if (storedTarget) {
+                        forcedCornerView.smoothedTarget = storedTarget;
+                      }
+                    }
+                    if (activeShotView?.mode === 'action') {
+                      suspendedActionView = activeShotView;
+                      forcedCornerView.resumeAction = activeShotView;
+                    } else if (suspendedActionView?.mode === 'action') {
+                      forcedCornerView.resumeAction = suspendedActionView;
+                    }
+                    updatePocketCameraState(true);
+                    activeShotView = forcedCornerView;
+                  }
+                }
                 if (
                   activeShotView?.mode === 'pocket' &&
                   activeShotView.ballId === b.id
@@ -30233,6 +30230,44 @@ const powerRef = useRef(hud.power);
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
+              const shouldForceCornerPocketView =
+                !suppressPocketCameras &&
+                !topViewRef.current &&
+                pocketIndex < 4;
+              if (shouldForceCornerPocketView) {
+                const sph = sphRef.current;
+                const resumeView = sph
+                  ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
+                  : null;
+                const forcedCornerView = makePocketCameraView(b.id, resumeView, {
+                  forceCornerCapture: true,
+                  pocketCenterOverride: c
+                });
+                const shouldSwapView =
+                  forcedCornerView &&
+                  (!activeShotView ||
+                    activeShotView.mode !== 'pocket' ||
+                    activeShotView.ballId !== b.id);
+                if (shouldSwapView) {
+                  forcedCornerView.lastUpdate = performance.now();
+                  if (cameraRef.current) {
+                    const cam = cameraRef.current;
+                    forcedCornerView.smoothedPos = cam.position.clone();
+                    const storedTarget = lastCameraTargetRef.current?.clone();
+                    if (storedTarget) {
+                      forcedCornerView.smoothedTarget = storedTarget;
+                    }
+                  }
+                  if (activeShotView?.mode === 'action') {
+                    suspendedActionView = activeShotView;
+                    forcedCornerView.resumeAction = activeShotView;
+                  } else if (suspendedActionView?.mode === 'action') {
+                    forcedCornerView.resumeAction = suspendedActionView;
+                  }
+                  updatePocketCameraState(true);
+                  activeShotView = forcedCornerView;
+                }
+              }
               if (
                 activeShotView?.mode === 'pocket' &&
                 activeShotView.ballId === b.id

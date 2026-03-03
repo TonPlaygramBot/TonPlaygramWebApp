@@ -5,7 +5,7 @@ public static class PhysicsConstants
 {
     public const double BallRadius = 0.028575;        // metres (57.15 mm diameter)
     public const double Restitution = 0.915;           // elastic coefficient (clean cushion hits 0.85–0.92)
-    public const double CushionRestitution = Restitution; // use the same restitution for cushions
+    public const double CushionRestitution = 0.93; // slightly livelier cushions for a touch more bounce
     // connectors retain only a quarter of the cushion bounce (lose ~75% of speed)
     public const double ConnectorRestitution = CushionRestitution * 0.25;
     // pocket edges fully absorb balls (no bounce)
