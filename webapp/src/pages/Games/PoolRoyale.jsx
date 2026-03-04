@@ -5431,7 +5431,7 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 0;
+const REPLAY_CUE_START_HOLD_MS = 110;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5470,7 +5470,6 @@ const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 180; // begin replay in the charge phase quickly so pullback + strike are both visible
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
-const CUE_STROKE_PULLBACK_VISUAL_RATIO = 0.62; // trim release pullback distance so charging reads cleaner and less exaggerated
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
@@ -5478,8 +5477,8 @@ const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a 
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
-const LIVE_CUE_FORWARD_DURATION_MS = 170;
-const LIVE_CUE_IMPACT_HOLD_MS = 90;
+const LIVE_CUE_FORWARD_DURATION_MS = 120;
+const LIVE_CUE_IMPACT_HOLD_MS = 50;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -24507,9 +24506,9 @@ const powerRef = useRef(hud.power);
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 90),
-          pullbackDuration: 150,
+          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 150),
+          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 70),
+          pullbackDuration: 0,
           recoverDuration: 0,
           impactThreshold: 0.9,
           forwardOnly: true,
@@ -25078,11 +25077,7 @@ const powerRef = useRef(hud.power);
           const pullRange = 0.24;
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-          const startPull = THREE.MathUtils.clamp(
-            pulledNow * CUE_STROKE_PULLBACK_VISUAL_RATIO,
-            0,
-            Math.max(maxPull, 0)
-          );
+          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
