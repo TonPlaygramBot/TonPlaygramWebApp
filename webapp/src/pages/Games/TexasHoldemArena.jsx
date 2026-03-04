@@ -396,13 +396,15 @@ const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * 0.52, landscape: -CARD_W * 0.52 });
-const OVERHEAD_ZOOM_DEFAULT = 1;
-const OVERHEAD_ZOOM_MIN = 0.82;
-const OVERHEAD_ZOOM_MAX = 1.1;
+const OVERHEAD_ZOOM_DEFAULT = 1.12;
+const OVERHEAD_ZOOM_MIN = 0.72;
+const OVERHEAD_ZOOM_MAX = 1.9;
 const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
+const OVERHEAD_VIEW_RADIUS = CHAIR_RADIUS + Math.max(SEAT_DEPTH, CARD_H) * 2.05;
+const OVERHEAD_VIEW_PADDING = 1.2;
 const SEATED_ZOOM_DEFAULT = 1;
 const SEATED_ZOOM_MIN = 0.74;
-const SEATED_ZOOM_MAX = 1.3;
+const SEATED_ZOOM_MAX = 2.1;
 const SEATED_PINCH_SENSITIVITY = 0.0018;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
@@ -4357,12 +4359,15 @@ function TexasHoldemArena({ search }) {
       const lateralOffset = (portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape) * zoom;
       const retreatOffset = (portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape) * zoom;
       const elevation = (portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape) * zoom;
+      const zoomOutT = THREE.MathUtils.clamp((zoom - 1) / Math.max(0.0001, SEATED_ZOOM_MAX - 1), 0, 1);
+      const extraRetreat = (portrait ? TABLE_RADIUS * 3.05 : TABLE_RADIUS * 1.45) * zoomOutT;
+      const extraElevation = (portrait ? TABLE_RADIUS * 1.56 : TABLE_RADIUS * 0.7) * zoomOutT;
       const position = humanSeat.stoolAnchor
         .clone()
-        .addScaledVector(humanSeat.forward, -retreatOffset)
+        .addScaledVector(humanSeat.forward, -(retreatOffset + extraRetreat))
         .addScaledVector(humanSeat.right, lateralOffset);
       const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
-      position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
+      position.y = Math.min(humanSeat.stoolHeight + elevation + extraElevation, maxCameraHeight);
       const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
       const seatTopPoint = seatTopPointRef.current;
       const focusForwardPull = portrait
@@ -4372,6 +4377,8 @@ function TexasHoldemArena({ search }) {
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT
         : CAMERA_PLAYER_FOCUS_HEIGHT;
       const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
+      const farFocusBlend = portrait ? 0.9 : 0.72;
+      const resolvedFocusBlend = THREE.MathUtils.lerp(focusBlend, farFocusBlend, zoomOutT);
       const rowRotation = threeRef.current?.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
       const communityAxes = threeRef.current?.communityAxes;
       const potFocus = computePotAnchor({
@@ -4387,7 +4394,7 @@ function TexasHoldemArena({ search }) {
       const humanActing = Boolean(
         activeState?.stage !== 'showdown' && activeState?.players?.[activeState.actionIndex]?.isHuman
       );
-      const focus = humanActing ? potFocus : focusBase.clone().lerp(chipFocus, focusBlend);
+      const focus = humanActing ? potFocus : focusBase.clone().lerp(chipFocus, resolvedFocusBlend);
       if (humanActing) {
         const railFocus = (humanSeat.chipRailAnchor ?? humanSeat.chipAnchor ?? chipFocus).clone();
         railFocus.y -= HUMAN_TURN_RAIL_FOCUS_DROP;
@@ -4439,8 +4446,16 @@ function TexasHoldemArena({ search }) {
     const applyOverheadCamera = (options = {}) => {
       const animate = Boolean(options.animate);
       const zoom = THREE.MathUtils.clamp(options.zoom ?? OVERHEAD_ZOOM_DEFAULT, OVERHEAD_ZOOM_MIN, OVERHEAD_ZOOM_MAX);
-      const height = TABLE_HEIGHT + BOARD_SIZE * 0.88 * zoom;
-      const lateralPull = humanSeat?.forward.clone().setY(0).normalize().multiplyScalar(TABLE_RADIUS * 0.12) ??
+      const mountWidth = Math.max(1, mount?.clientWidth ?? window.innerWidth ?? 1);
+      const mountHeight = Math.max(1, mount?.clientHeight ?? window.innerHeight ?? 1);
+      const aspect = mountWidth / mountHeight;
+      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+      const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+      const limitingHalfFov = Math.max(0.05, Math.min(verticalFov, horizontalFov) / 2);
+      const fitDistance = (OVERHEAD_VIEW_RADIUS * OVERHEAD_VIEW_PADDING) / Math.tan(limitingHalfFov);
+      const height = TABLE_HEIGHT + fitDistance * zoom;
+      const zoomOutT = THREE.MathUtils.clamp((zoom - 1) / Math.max(0.0001, OVERHEAD_ZOOM_MAX - 1), 0, 1);
+      const lateralPull = humanSeat?.forward.clone().setY(0).normalize().multiplyScalar(TABLE_RADIUS * 0.12 * (1 - zoomOutT)) ??
         new THREE.Vector3();
       const targetPosition = new THREE.Vector3(lateralPull.x, height, lateralPull.z + 0.001);
       const focus = new THREE.Vector3(0, TABLE_HEIGHT, 0);
