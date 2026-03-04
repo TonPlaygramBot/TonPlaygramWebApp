@@ -13497,13 +13497,13 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 20;
+  const spinControllerLiftPx = 28;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = 5;
-  const menuButtonLeftNudgePx = -4;
+  const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
-  const rightHudShiftPx = 4;
+  const rightHudShiftPx = -2;
   const bottomHudLeftPx = -22;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
@@ -31896,7 +31896,8 @@ const powerRef = useRef(hud.power);
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
           top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
-          left: `calc(0.75rem + env(safe-area-inset-left, 0px) + ${menuButtonLeftNudgePx}px)`
+          left: `calc(50% + ${menuButtonCenterNudgePx}px)`,
+          transform: 'translateX(-50%)'
         }}
       >
         <button
@@ -32933,6 +32934,10 @@ const powerRef = useRef(hud.power);
             infoIcon="ℹ️"
             muteIconOn="🔇"
             muteIconOff="🔊"
+            actionOffsets={{
+              chat: 6,
+              gift: -6
+            }}
             showInfo={false}
             showMute={false}
           />
