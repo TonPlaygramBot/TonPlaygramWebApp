@@ -19,7 +19,7 @@ describe('Pool Royale AI aim compensation', () => {
     expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeGreaterThan(0.04);
   });
 
-  it('applies side-spin compensation as a measurable aim shift', () => {
+  it('keeps pre-impact aim unchanged when only side spin changes', () => {
     const neutral = resolveAiPotGhostAim({
       cuePos,
       targetPos,
@@ -37,6 +37,6 @@ describe('Pool Royale AI aim compensation', () => {
       power: 0.8
     });
     expect(withSide).toBeTruthy();
-    expect(neutral.aimDir.angleTo(withSide.aimDir)).toBeGreaterThan(0.001);
+    expect(neutral.aimDir.angleTo(withSide.aimDir)).toBeLessThan(1e-6);
   });
 });

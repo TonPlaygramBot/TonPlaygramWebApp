@@ -29585,8 +29585,14 @@ const powerRef = useRef(hud.power);
                 TMP_VEC3_C.copy(TMP_VEC3_A).multiplyScalar(-BALL_R);
                 TMP_VEC3_D.set(a.vel.x, 0, a.vel.y);
                 TMP_VEC3_E.set(b.vel.x, 0, b.vel.y);
-                const omegaA = a.omega ?? TMP_VEC3_F.set(0, 0, 0);
-                const omegaB = b.omega ?? TMP_VEC3_G.set(0, 0, 0);
+                const cueSpinSuppressedA = a.id === 'cue' && !a.impacted;
+                const cueSpinSuppressedB = b.id === 'cue' && !b.impacted;
+                const omegaA = cueSpinSuppressedA
+                  ? TMP_VEC3_F.set(0, 0, 0)
+                  : a.omega ?? TMP_VEC3_F.set(0, 0, 0);
+                const omegaB = cueSpinSuppressedB
+                  ? TMP_VEC3_G.set(0, 0, 0)
+                  : b.omega ?? TMP_VEC3_G.set(0, 0, 0);
                 TMP_VEC3_H.copy(omegaA).cross(TMP_VEC3_B).add(TMP_VEC3_D);
                 TMP_VEC3_F.copy(omegaB).cross(TMP_VEC3_C).add(TMP_VEC3_E);
                 TMP_VEC3_F.sub(TMP_VEC3_H);
