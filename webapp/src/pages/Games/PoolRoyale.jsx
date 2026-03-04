@@ -13499,10 +13499,10 @@ function PoolRoyaleGame({
   const sharedHudLiftPx = 30;
   const spinControllerLiftPx = 28;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = 2;
+  const menuButtonTopNudgePx = 5;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
-  const sideActionButtonsDropPx = 24;
+  const sideActionButtonsDropPx = 18;
   const rightHudShiftPx = -2;
   const bottomHudLeftPx = -22;
   const viewButtonsOffsetPx = 32;
@@ -13568,13 +13568,6 @@ function PoolRoyaleGame({
       topViewControlsRef.current.exit?.();
     }
   }, [isTopDownView]);
-
-  useEffect(() => {
-    if (isPortrait) return;
-    if (!isTopDownView) {
-      setIsTopDownView(true);
-    }
-  }, [isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -32942,8 +32935,8 @@ const powerRef = useRef(hud.power);
             muteIconOn="🔇"
             muteIconOff="🔊"
             actionOffsets={{
-              chat: 10,
-              gift: 4
+              chat: 6,
+              gift: -6
             }}
             showInfo={false}
             showMute={false}
