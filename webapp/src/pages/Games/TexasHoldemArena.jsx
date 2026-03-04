@@ -47,6 +47,7 @@ import {
   speakCommentaryLines
 } from '../../utils/textToSpeech.js';
 import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
+import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
 import { chatBeep } from '../../assets/soundData.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -390,12 +391,12 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.7, landscape: -0.18 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.78 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.7, landscape: -0.28 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
-const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.12, landscape: -CARD_W * 0.62 });
+const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.12, landscape: -CARD_W * 0.78 });
 const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
@@ -1222,51 +1223,6 @@ async function buildTableForTheme({
   return tableInfo;
 }
 
-function pickPolyHavenHdriUrl(fileMap, preferredResolutions = PREFERRED_HDRI_RESOLUTIONS) {
-  if (!fileMap || typeof fileMap !== 'object') return null;
-  const exr = fileMap?.exr || {};
-  const hdr = fileMap?.hdr || {};
-  for (const res of preferredResolutions) {
-    if (exr[res]) return exr[res];
-    if (hdr[res]) return hdr[res];
-  }
-  const exrValues = Object.values(exr);
-  const hdrValues = Object.values(hdr);
-  return exrValues[0] || hdrValues[0] || null;
-}
-
-async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_RESOLUTIONS) {
-  const preferredResolutions =
-    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : preferred;
-  const fallbackResolution =
-    config?.fallbackResolution || preferredResolutions?.[0] || PREFERRED_HDRI_RESOLUTIONS[0] || '2k';
-  const assetId = config?.assetId || 'neon_photostudio';
-  const fallbackUrl =
-    config?.fallbackUrl ||
-    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackResolution}/${assetId}_${fallbackResolution}.hdr`;
-  if (config?.assetUrls && typeof config.assetUrls === 'object') {
-    for (const res of preferredResolutions) {
-      if (config.assetUrls[res]) return config.assetUrls[res];
-    }
-    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-    if (manual) return manual;
-  }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
-  try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
-    if (!response?.ok) return fallbackUrl;
-    const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferredResolutions);
-    return picked || fallbackUrl;
-  } catch (error) {
-    console.warn('Failed to resolve Poly Haven HDRI url', error);
-    return fallbackUrl;
-  }
-}
-
 async function createFallbackHdriEnvironment(renderer) {
   if (!renderer) return null;
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1290,7 +1246,7 @@ async function createFallbackHdriEnvironment(renderer) {
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
-  const url = await resolvePolyHavenHdriUrl(config);
+  const url = await resolveTexasHoldemHdriUrl(config, PREFERRED_HDRI_RESOLUTIONS);
   const resolveFallback = async () => {
     try {
       return await createFallbackHdriEnvironment(renderer);
@@ -6153,7 +6109,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(5.95rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.6rem+env(safe-area-inset-top,0px))]">
+      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(5.75rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.45rem+env(safe-area-inset-top,0px))]">
         <div className="flex items-center gap-2">
           <button
             type="button"
