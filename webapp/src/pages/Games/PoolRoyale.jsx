@@ -6797,7 +6797,9 @@ function applySpinController(ball, stepScale, airborne = false) {
     return false;
   }
   if (ball.id === 'cue' && !ball.impacted) {
-    return decaySpin(ball, stepScale, airborne);
+    // Keep spin stored but inactive until the cue ball actually hits another ball,
+    // so pre-impact travel always follows the aiming line.
+    return true;
   }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
@@ -29585,8 +29587,14 @@ const powerRef = useRef(hud.power);
                 TMP_VEC3_C.copy(TMP_VEC3_A).multiplyScalar(-BALL_R);
                 TMP_VEC3_D.set(a.vel.x, 0, a.vel.y);
                 TMP_VEC3_E.set(b.vel.x, 0, b.vel.y);
-                const omegaA = a.omega ?? TMP_VEC3_F.set(0, 0, 0);
-                const omegaB = b.omega ?? TMP_VEC3_G.set(0, 0, 0);
+                const preImpactCueA = a.id === 'cue' && !a.impacted;
+                const preImpactCueB = b.id === 'cue' && !b.impacted;
+                const omegaA = preImpactCueA
+                  ? TMP_VEC3_F.set(0, 0, 0)
+                  : a.omega ?? TMP_VEC3_F.set(0, 0, 0);
+                const omegaB = preImpactCueB
+                  ? TMP_VEC3_G.set(0, 0, 0)
+                  : b.omega ?? TMP_VEC3_G.set(0, 0, 0);
                 TMP_VEC3_H.copy(omegaA).cross(TMP_VEC3_B).add(TMP_VEC3_D);
                 TMP_VEC3_F.copy(omegaB).cross(TMP_VEC3_C).add(TMP_VEC3_E);
                 TMP_VEC3_F.sub(TMP_VEC3_H);
@@ -29615,13 +29623,13 @@ const powerRef = useRef(hud.power);
                     TMP_VEC3_G.multiplyScalar(clampedJt);
                     TMP_VEC3_D.addScaledVector(TMP_VEC3_G, -1 / BALL_MASS);
                     TMP_VEC3_E.addScaledVector(TMP_VEC3_G, 1 / BALL_MASS);
-                    if (a.omega) {
+                    if (a.omega && !preImpactCueA) {
                       a.omega.addScaledVector(
                         TMP_VEC3_H.copy(TMP_VEC3_B).cross(TMP_VEC3_G),
                         -1 / BALL_INERTIA
                       );
                     }
-                    if (b.omega) {
+                    if (b.omega && !preImpactCueB) {
                       b.omega.addScaledVector(
                         TMP_VEC3_A.copy(TMP_VEC3_C).cross(TMP_VEC3_G),
                         1 / BALL_INERTIA
