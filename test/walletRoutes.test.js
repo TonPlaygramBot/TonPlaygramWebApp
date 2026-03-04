@@ -24,6 +24,20 @@ function createInitData(id, token) {
   return params.toString();
 }
 
+
+async function createGoogleAccount(port, googleId) {
+  const res = await fetch(`http://localhost:${port}/api/account/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-google-id': googleId,
+    },
+    body: JSON.stringify({ googleId, firstName: googleId }),
+  });
+  assert.equal(res.status, 200);
+  return res.json();
+}
+
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
   server.stdout.on('data', (chunk) => process.stdout.write(chunk));
@@ -134,6 +148,70 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
     assert.equal(balRes.status, 200);
     const bal = await balRes.json();
     assert.equal(bal.balance, 100);
+  } finally {
+    server.kill();
+  }
+});
+
+
+test('google users can transfer TPC using account ids', { concurrency: false }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3213',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    WITHDRAW_ENABLED: 'true',
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1',
+  };
+
+  const server = await startServer(env);
+  try {
+    const sender = await createGoogleAccount(3213, 'google-user-1');
+    const receiver = await createGoogleAccount(3213, 'google-user-2');
+
+    const depositRes = await fetch('http://localhost:3213/api/wallet/deposit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-google-id': 'google-user-1',
+      },
+      body: JSON.stringify({ accountId: sender.accountId, amount: 75 }),
+    });
+    assert.equal(depositRes.status, 200);
+
+    const sendRes = await fetch('http://localhost:3213/api/wallet/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-google-id': 'google-user-1',
+      },
+      body: JSON.stringify({
+        fromAccountId: sender.accountId,
+        toAccountId: receiver.accountId,
+        amount: 25,
+        note: 'google transfer',
+      }),
+    });
+    assert.equal(sendRes.status, 200);
+    const sendBody = await sendRes.json();
+    assert.equal(sendBody.balance, 50);
+
+    const receiverBalanceRes = await fetch('http://localhost:3213/api/wallet/balance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-google-id': 'google-user-2',
+      },
+      body: JSON.stringify({ accountId: receiver.accountId }),
+    });
+
+    assert.equal(receiverBalanceRes.status, 200);
+    const receiverBalance = await receiverBalanceRes.json();
+    assert.equal(receiverBalance.balance, 25);
   } finally {
     server.kill();
   }

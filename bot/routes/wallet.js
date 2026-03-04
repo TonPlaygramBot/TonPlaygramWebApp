@@ -26,24 +26,67 @@ const TPC_JETTON_ADDRESS =
 
 const router = Router();
 
+function canAccessUser(req, user) {
+  if (!user) return false;
+  if (req.auth?.apiToken) return true;
+  if (user.telegramId && req.auth?.telegramId && user.telegramId === req.auth.telegramId) return true;
+  if (user.googleId && req.auth?.googleId && user.googleId === req.auth.googleId) return true;
+  if (user.accountId && req.auth?.accountId && user.accountId === req.auth.accountId) return true;
+  return !user.telegramId && !user.googleId;
+}
+
+async function getAuthenticatedUser(req) {
+  if (req.auth?.accountId) {
+    return User.findOne({ accountId: req.auth.accountId });
+  }
+  if (req.auth?.telegramId) {
+    return User.findOne({ telegramId: req.auth.telegramId });
+  }
+  if (req.auth?.googleId) {
+    return User.findOne({ googleId: req.auth.googleId });
+  }
+  return null;
+}
+
 router.post('/balance', authenticate, async (req, res) => {
 
-  const { telegramId } = req.body;
-  const authId = req.auth?.telegramId;
+  const { telegramId, accountId } = req.body;
 
-  const id = telegramId || authId;
-  if (!id) {
-    return res.status(400).json({ error: "telegramId required" });
-  }
-  if (telegramId && authId && telegramId !== authId) {
-    return res.status(403).json({ error: "forbidden" });
+  let user;
+  if (accountId) {
+    user = await User.findOne({ accountId });
+    if (user && !canAccessUser(req, user)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+  } else if (telegramId) {
+    user = await User.findOne({ telegramId });
+    if (user && !canAccessUser(req, user)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+  } else {
+    user = await getAuthenticatedUser(req);
   }
 
-  const user = await User.findOneAndUpdate(
-    { telegramId: id },
-    { $setOnInsert: { referralCode: String(id) } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+  if (!user) {
+    if (req.auth?.telegramId) {
+      user = await User.findOneAndUpdate(
+        { telegramId: req.auth.telegramId },
+        { $setOnInsert: { referralCode: String(req.auth.telegramId) } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } else if (req.auth?.googleId) {
+      user = await User.findOneAndUpdate(
+        { googleId: req.auth.googleId },
+        { $setOnInsert: { referralCode: String(req.auth.googleId) } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+  }
+
+  if (!user) {
+    return res.status(400).json({ error: 'accountId or telegramId required' });
+  }
+
   const balance = calculateBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
@@ -157,14 +200,15 @@ router.post('/usdt-balance', async (req, res) => {
   }
 });
 
-// Transfer TPC from one Telegram user to another
+// Transfer TPC between any authenticated users (Telegram or Google)
 
 router.post('/send', authenticate, async (req, res) => {
 
-  const { fromId, toId, amount, note } = req.body;
+  const { fromId, toId, fromAccountId, toAccountId, amount, note } = req.body;
+  const senderFilter = fromAccountId ? { accountId: fromAccountId } : { telegramId: fromId };
+  const receiverFilter = toAccountId ? { accountId: toAccountId } : { telegramId: toId };
 
-  const authId = req.auth?.telegramId;
-  if (!fromId || !toId || typeof amount !== 'number') {
+  if ((!fromId && !fromAccountId) || (!toId && !toAccountId) || typeof amount !== 'number') {
 
     return res.status(400).json({ error: 'fromId, toId and amount required' });
 
@@ -175,17 +219,12 @@ router.post('/send', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'amount must be positive' });
 
   }
-  if (!authId || fromId !== authId) {
+  const sender = await User.findOne(senderFilter);
+  if (!sender || !canAccessUser(req, sender)) {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  const sender = await User.findOne({ telegramId: fromId });
-
   ensureTransactionArray(sender);
-
-  if (!sender) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
 
   const senderBalance = calculateBalance(sender);
   sender.balance = senderBalance;
@@ -194,7 +233,7 @@ router.post('/send', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'insufficient balance' });
   }
 
-  let receiver = await User.findOne({ telegramId: toId });
+  let receiver = await User.findOne(receiverFilter);
 
   if (receiver) {
 
@@ -208,9 +247,12 @@ router.post('/send', authenticate, async (req, res) => {
 
     receiver = await User.findOneAndUpdate(
 
-      { telegramId: toId },
+      receiverFilter,
 
-      { $inc: { balance: amount }, $setOnInsert: { referralCode: toId.toString() } },
+      {
+        $inc: { balance: amount },
+        $setOnInsert: { referralCode: String(toAccountId || toId) }
+      },
 
       { upsert: true, new: true, setDefaultsOnInsert: true }
 
@@ -228,7 +270,7 @@ router.post('/send', authenticate, async (req, res) => {
       token: 'TPC',
       status: 'delivered',
       date: txDate,
-      toAccount: String(toId),
+      toAccount: String(receiver.accountId || toAccountId || toId),
       toName: receiver.nickname || receiver.firstName || '',
       ...(safeNote ? { detail: safeNote } : {})
     };
@@ -239,7 +281,7 @@ router.post('/send', authenticate, async (req, res) => {
       token: 'TPC',
       status: 'delivered',
       date: txDate,
-      fromAccount: String(fromId),
+      fromAccount: String(sender.accountId || fromAccountId || fromId),
       fromName: sender.nickname || sender.firstName || '',
       ...(safeNote ? { detail: safeNote } : {})
     };
@@ -253,7 +295,7 @@ router.post('/send', authenticate, async (req, res) => {
     await receiver.save();
 
     const senderName =
-      sender.nickname || sender.firstName || String(fromId);
+      sender.nickname || sender.firstName || String(sender.accountId || fromAccountId || fromId);
     const receiverBalance = receiver.balance;
     const noteText = safeNote ? ` Note: ${safeNote}` : '';
     const detailText =
@@ -261,20 +303,24 @@ router.post('/send', authenticate, async (req, res) => {
       `New balance: ${receiverBalance} TPC.` + noteText;
 
     try {
-      await sendTransferNotification(bot, toId, fromId, amount, safeNote);
-      await bot.telegram.sendMessage(String(toId), detailText);
+      if (receiver.telegramId) {
+        await sendTransferNotification(bot, receiver.telegramId, sender.telegramId, amount, safeNote);
+        await bot.telegram.sendMessage(String(receiver.telegramId), detailText);
+      }
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
     }
 
-    try {
-      await Message.create({
-        from: 0,
-        to: Number(toId),
-        text: detailText,
-      });
-    } catch (err) {
-      console.error('Failed to create inbox message:', err.message);
+    if (receiver.telegramId) {
+      try {
+        await Message.create({
+          from: 0,
+          to: Number(receiver.telegramId),
+          text: detailText,
+        });
+      } catch (err) {
+        console.error('Failed to create inbox message:', err.message);
+      }
     }
 
     return res.json({ balance: sender.balance, transaction: senderTx });
@@ -309,7 +355,7 @@ router.post('/send', authenticate, async (req, res) => {
 
     await User.updateOne(
 
-      { telegramId: toId },
+      receiverFilter,
 
       { $inc: { balance: -amount } }
 
@@ -325,27 +371,29 @@ router.post('/send', authenticate, async (req, res) => {
 
 router.post('/deposit', authenticate, async (req, res) => {
 
-  const { telegramId, amount } = req.body;
-  const authId = req.auth?.telegramId;
+  const { telegramId, accountId, amount } = req.body;
 
-  if (!telegramId || typeof amount !== 'number' || amount <= 0) {
+  if ((!telegramId && !accountId) || typeof amount !== 'number' || amount <= 0) {
 
-    return res.status(400).json({ error: 'telegramId and positive amount required' });
+    return res.status(400).json({ error: 'telegramId or accountId and positive amount required' });
 
   }
-  if (!authId || telegramId !== authId) {
-    return res.status(403).json({ error: "forbidden" });
+  let user = await User.findOne(accountId ? { accountId } : { telegramId });
+  if (user && !canAccessUser(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
   }
-
-  const user = await User.findOneAndUpdate(
-
-    { telegramId },
-
-    { $inc: { balance: amount }, $setOnInsert: { referralCode: telegramId.toString() } },
-
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-
-  );
+  if (!user) {
+    user = await User.findOneAndUpdate(
+      accountId ? { accountId } : { telegramId },
+      {
+        $inc: { balance: amount },
+        $setOnInsert: { referralCode: String(accountId || telegramId) }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } else {
+    user.balance += amount;
+  }
 
   ensureTransactionArray(user);
 
@@ -364,7 +412,7 @@ router.post('/deposit', authenticate, async (req, res) => {
   try {
     await sendTPCNotification(
       bot,
-      telegramId,
+      user.telegramId,
       `\u{1FA99} Your deposit of ${amount} TPC was credited`
     );
   } catch (err) {
@@ -383,23 +431,21 @@ router.post('/withdraw', authenticate, async (req, res) => {
     return res.status(403).json({ error: 'withdrawals disabled' });
   }
 
-  const { telegramId, address, amount } = req.body;
-  const authId = req.auth?.telegramId;
+  const { telegramId, accountId, address, amount } = req.body;
 
-  if (!telegramId || !address || typeof amount !== 'number' || amount <= 0) {
+  if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
 
     return res
 
       .status(400)
 
-      .json({ error: 'telegramId, address and positive amount required' });
+      .json({ error: 'telegramId or accountId, address and positive amount required' });
 
   }
-  if (!authId || telegramId !== authId) {
-    return res.status(403).json({ error: "forbidden" });
+  const user = await User.findOne(accountId ? { accountId } : { telegramId });
+  if (!user || !canAccessUser(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
   }
-
-  const user = await User.findOne({ telegramId });
 
   if (!user || user.balance < amount) {
 
@@ -430,7 +476,7 @@ router.post('/withdraw', authenticate, async (req, res) => {
     try {
       await sendTPCNotification(
         bot,
-        telegramId,
+        user.telegramId,
         `\u{1FA99} Claim of ${amount} TPC sent to ${address}. If it doesn't appear, add TPC using ${TPC_JETTON_ADDRESS}`
       );
     } catch (err) {
@@ -450,19 +496,18 @@ router.post('/withdraw', authenticate, async (req, res) => {
 
 // ✅ Claim TPC to an external TON wallet
 router.post('/claim-external', authenticate, async (req, res) => {
-  const { telegramId, address, amount } = req.body;
-  const authId = req.auth?.telegramId;
+  const { telegramId, accountId, address, amount } = req.body;
 
-  if (!telegramId || !address || typeof amount !== 'number' || amount <= 0) {
+  if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
     return res
       .status(400)
-      .json({ error: 'telegramId, address and positive amount required' });
-  }
-  if (!authId || telegramId !== authId) {
-    return res.status(403).json({ error: 'forbidden' });
+      .json({ error: 'telegramId or accountId, address and positive amount required' });
   }
 
-  const user = await User.findOne({ telegramId });
+  const user = await User.findOne(accountId ? { accountId } : { telegramId });
+  if (!user || !canAccessUser(req, user)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
 
   if (!user || user.balance < amount) {
     return res.status(400).json({ error: 'insufficient balance' });
@@ -490,7 +535,7 @@ router.post('/claim-external', authenticate, async (req, res) => {
     try {
       await sendTPCNotification(
         bot,
-        telegramId,
+        user.telegramId,
         `\u{1FA99} Claim of ${amount} TPC sent to ${address}. If it doesn't appear, add TPC using ${TPC_JETTON_ADDRESS}`
       );
     } catch (err) {
@@ -525,18 +570,14 @@ router.post('/transactions', authenticate, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'account not found' });
     }
-    if (
-      req.auth?.telegramId &&
-      user.telegramId &&
-      user.telegramId !== req.auth.telegramId
-    ) {
+    if (!canAccessUser(req, user)) {
       return res.status(403).json({ error: 'forbidden' });
     }
   } else {
-    if (req.auth?.telegramId && telegramId !== req.auth.telegramId) {
+    user = await User.findOne({ telegramId });
+    if (user && !canAccessUser(req, user)) {
       return res.status(403).json({ error: 'forbidden' });
     }
-    user = await User.findOne({ telegramId });
   }
 
   if (user) {
@@ -563,16 +604,15 @@ router.post('/transactions', authenticate, async (req, res) => {
 
 // Reset TPC wallet balance and history
 router.post('/reset', authenticate, async (req, res) => {
-  const { telegramId } = req.body;
-  const authId = req.auth?.telegramId;
-  if (!telegramId) {
-    return res.status(400).json({ error: 'telegramId required' });
-  }
-  if (!authId || telegramId !== authId) {
-    return res.status(403).json({ error: 'forbidden' });
+  const { telegramId, accountId } = req.body;
+  if (!telegramId && !accountId) {
+    return res.status(400).json({ error: 'telegramId or accountId required' });
   }
   try {
-    const user = await User.findOne({ telegramId });
+    const user = await User.findOne(accountId ? { accountId } : { telegramId });
+    if (user && !canAccessUser(req, user)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
     if (user) {
       user.balance = 0;
       user.minedTPC = 0;
