@@ -78,21 +78,10 @@ const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
   violetPulse: swatchThumbnail(['#7c3aed', '#5b21b6', '#ddd6fe'])
 });
 
-const DOMINO_DEFAULT_IDS = Object.freeze({
-  tableTheme: 'murlan-default',
-  tableWood: 'peelingPaintWeathered',
-  tableCloth: 'emerald',
-  chairTheme: 'dining_chair_02'
-});
-
 const getDefaultOptionId = (options) => options?.[0]?.id;
 const getDominoDefaultOptionId = (type) => {
   const options = DOMINO_ROYAL_OPTION_SETS[type] || [];
   if (!options.length) return undefined;
-  const preferredId = DOMINO_DEFAULT_IDS[type];
-  if (preferredId && options.some((option) => option.id === preferredId)) {
-    return preferredId;
-  }
   return getDefaultOptionId(options);
 };
 
