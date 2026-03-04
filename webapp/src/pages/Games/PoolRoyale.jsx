@@ -24500,14 +24500,15 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
+        const pullbackDuration = THREE.MathUtils.lerp(150, 260, p);
         return {
-          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
+          // Keep the strike readable on phone portrait framing by extending the
+          // visible pull/release timing for both player and AI turns.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
+          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 260),
+          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 120),
           pullbackDuration,
           recoverDuration: 0,
           impactThreshold: 0.88,
@@ -25243,7 +25244,8 @@ const powerRef = useRef(hud.power);
           }
           openingShotViewSuppressedRef.current = false;
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
-            const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
+            const strokeStartOffset =
+              REPLAY_CUE_START_HOLD_MS + REPLAY_CUE_STROKE_LEAD_IN_MS;
             shotRecording.cueStroke = {
               idle: serializeVector3Snapshot(idlePos),
               pull: serializeVector3Snapshot(pullPos),
