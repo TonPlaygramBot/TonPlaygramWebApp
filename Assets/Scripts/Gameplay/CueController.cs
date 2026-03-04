@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace Aiming
@@ -7,17 +8,139 @@ namespace Aiming
         public AdaptiveAimingEngine aiming;
         public Transform cueTip;
         public Transform cueBall, objectBall, pocket;
+        public Rigidbody cueBallBody;
         public Bounds tableBounds;
         public float ballRadius = 0.028575f;
-        public float cueDistanceFromBall = 0.12f;
-        public float animationPullbackDistance = 0.045f;
-        public float animationSpeed = 4f;
 
-        Vector3 _lastAimDirection = Vector3.forward;
+        [Header("Cue placement")]
+        public float idleTipGap = 0.012f;
+        public float baseCueOffset = 0.12f;
+        public float maxPullbackDistance = 0.16f;
+
+        [Header("Aiming feel")]
+        [Range(1f, 30f)] public float rotationDamping = 14f;
+        [Range(1f, 30f)] public float translationDamping = 18f;
+        public bool allowAimAdjustWhileCharging = false;
+
+        [Header("Strike feel")]
+        public float strikeDuration = 0.055f;
+        public float recoilDistance = 0.015f;
+        public float recoilDuration = 0.04f;
+        public float baseStrikeImpulse = 1.8f;
+        public float maxStrikeImpulse = 6.5f;
+        public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+        public AnimationCurve strikeEaseIn = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+        Vector3 _aimDirection = Vector3.forward;
+        Vector3 _targetDirection = Vector3.forward;
+        float _currentPullback;
+        float _targetPullback;
+        float _pullbackVelocity;
+        float _power;
+        bool _charging;
+        bool _striking;
 
         void Update()
         {
-            if (aiming == null || cueBall == null || objectBall == null || pocket == null) return;
+            if (aiming == null || cueBall == null || objectBall == null || pocket == null)
+            {
+                return;
+            }
+
+            if (_striking)
+            {
+                return;
+            }
+
+            bool ballsMoving = AreBallsMoving();
+            if (ballsMoving && !_charging)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
+            gameObject.SetActive(true);
+            UpdateAimDirection();
+            UpdatePullback();
+            UpdateCuePose();
+        }
+
+        public void SetChargePower(float normalizedPower)
+        {
+            _power = Mathf.Clamp01(normalizedPower);
+            _targetPullback = pullbackEasing.Evaluate(_power) * maxPullbackDistance;
+        }
+
+        public void BeginCharge()
+        {
+            _charging = true;
+        }
+
+        public void CancelCharge()
+        {
+            _charging = false;
+            SetChargePower(0f);
+        }
+
+        public void ReleaseAndStrike()
+        {
+            if (_striking) return;
+            StartCoroutine(StrikeRoutine());
+        }
+
+        void UpdateAimDirection()
+        {
+            var sol = BuildAimSolution();
+            if (sol.isValid)
+            {
+                Vector3 desiredDirection = (sol.aimEnd - sol.aimStart);
+                if (desiredDirection.sqrMagnitude > 1e-6f)
+                {
+                    desiredDirection.Normalize();
+                    if (!_charging || allowAimAdjustWhileCharging)
+                    {
+                        _targetDirection = desiredDirection;
+                    }
+                }
+            }
+
+            float rotationLerp = 1f - Mathf.Exp(-rotationDamping * Time.deltaTime);
+            _aimDirection = Vector3.Slerp(_aimDirection, _targetDirection, rotationLerp).normalized;
+            if (_aimDirection.sqrMagnitude < 1e-6f)
+            {
+                _aimDirection = _targetDirection;
+            }
+        }
+
+        void UpdatePullback()
+        {
+            if (!_charging)
+            {
+                _targetPullback = 0f;
+                _power = 0f;
+            }
+
+            _currentPullback = Mathf.SmoothDamp(
+                _currentPullback,
+                _targetPullback,
+                ref _pullbackVelocity,
+                1f / Mathf.Max(translationDamping, 0.01f));
+        }
+
+        void UpdateCuePose()
+        {
+            float cueDistance = baseCueOffset + idleTipGap + _currentPullback;
+            transform.position = cueBall.position - _aimDirection * cueDistance;
+            transform.rotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
+
+            if (cueTip != null)
+            {
+                cueTip.position = cueBall.position - _aimDirection * idleTipGap;
+            }
+        }
+
+        ShotSolution BuildAimSolution()
+        {
             ShotContext ctx = new ShotContext
             {
                 cueBallPos = cueBall.position,
@@ -29,29 +152,62 @@ namespace Aiming
                 highSpin = false,
                 collisionMask = aiming.config ? aiming.config.collisionMask : default
             };
-            var sol = aiming.GetAimSolution(ctx);
-            if (sol.isValid)
-            {
-                Vector3 dir = (sol.aimEnd - sol.aimStart);
-                if (dir.sqrMagnitude > 1e-6f)
-                {
-                    dir.Normalize();
-                    _lastAimDirection = dir;
+            return aiming.GetAimSolution(ctx);
+        }
 
-                    float animationPhase = (Mathf.Sin(Time.time * animationSpeed) + 1f) * 0.5f;
-                    float pullback = animationPhase * animationPullbackDistance;
-                    transform.position = sol.aimStart - dir * (cueDistanceFromBall + pullback);
-                    transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-                    if (cueTip != null)
-                    {
-                        cueTip.position = sol.aimStart;
-                    }
-                }
-            }
-            else
+        bool AreBallsMoving()
+        {
+            return cueBallBody != null && cueBallBody.velocity.sqrMagnitude > 0.0004f;
+        }
+
+        IEnumerator StrikeRoutine()
+        {
+            _striking = true;
+            _charging = false;
+
+            Vector3 strikeDirection = _aimDirection;
+            float startPullback = _currentPullback;
+            float elapsed = 0f;
+            bool didStrike = false;
+
+            while (elapsed < strikeDuration)
             {
-                transform.rotation = Quaternion.LookRotation(_lastAimDirection, Vector3.up);
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / Mathf.Max(strikeDuration, 0.001f));
+                float eased = strikeEaseIn.Evaluate(t);
+
+                _currentPullback = Mathf.Lerp(startPullback, 0f, eased);
+                UpdateCuePose();
+
+                if (!didStrike && t >= 0.98f)
+                {
+                    didStrike = true;
+                    ApplyStrikeImpulse(strikeDirection);
+                }
+
+                yield return null;
             }
+
+            _currentPullback = recoilDistance;
+            UpdateCuePose();
+            yield return new WaitForSeconds(recoilDuration);
+
+            _currentPullback = 0f;
+            _targetPullback = 0f;
+            _power = 0f;
+            _striking = false;
+            gameObject.SetActive(false);
+        }
+
+        void ApplyStrikeImpulse(Vector3 strikeDirection)
+        {
+            if (cueBallBody == null)
+            {
+                return;
+            }
+
+            float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(_power));
+            cueBallBody.AddForce(strikeDirection * impulseMagnitude, ForceMode.Impulse);
         }
     }
 }
