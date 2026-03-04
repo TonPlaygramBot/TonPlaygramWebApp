@@ -1846,7 +1846,6 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.2; // ensure every stroke pulls farther back for readability at all angles
 const CUE_PULL_RETURN_PUSH = 0.97; // push the cue forward to contact more decisively after pullback
-const CUE_PULL_LINEAR_BLEND = 0.82; // keep pullback mostly linear with a tiny easing tail for mobile feel
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -15017,8 +15016,6 @@ const powerRef = useRef(hud.power);
   const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const cuePowerDragActiveRef = useRef(false);
-  const cueAimLockRef = useRef(null);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
   const cueLiftRef = useRef({
     active: false,
@@ -21480,7 +21477,7 @@ const powerRef = useRef(hud.power);
                   return Math.pow(pushT, 0.68);
                 case 'classic':
                 default:
-                  return easeInCubic(pushT);
+                  return easeOutCubic(pushT);
               }
             })();
             const motionPush = (() => {
@@ -21525,7 +21522,7 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
-            cueStick.visible = false;
+            cueStick.visible = true;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -24595,20 +24592,16 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const easedRatio = THREE.MathUtils.lerp(
-          ratio,
-          easeOutCubic(ratio),
-          1 - CUE_PULL_LINEAR_BLEND
-        );
+        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
+        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
         const target =
-          amplifiedMax * easedRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
-      const easeInCubic = (t) => t * t * t;
       const easeInOutCubic = (t) =>
         t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -28456,12 +28449,8 @@ const powerRef = useRef(hud.power);
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
-        const chargingCue = Boolean(cuePowerDragActiveRef.current);
         if (!lookModeRef.current) {
-          if (chargingCue && cueAimLockRef.current?.lengthSq?.() > 1e-6) {
-            aimDir.copy(cueAimLockRef.current);
-            aimDir.normalize();
-          } else if (shouldLockAiAim) {
+          if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
@@ -28905,19 +28894,16 @@ const powerRef = useRef(hud.power);
             cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
             powerRef.current ?? 0
           );
-          const sliderDragging = Boolean(sliderInstanceRef.current?.dragging);
           const aiPullReady =
             !isAiTurn ||
             (aiCueViewActive && now >= (aiCuePullReadyAtRef.current ?? 0));
-          const desiredPull = isAiTurn
-            ? aiPullReady
-              ? computePullTargetFromPower(powerRef.current, maxPull)
-              : 0
-            : sliderDragging
-              ? computePullTargetFromPower(powerRef.current, maxPull)
-              : 0;
+          const desiredPull = aiPullReady
+            ? computePullTargetFromPower(powerRef.current, maxPull)
+            : 0;
           const pull = computeCuePull(desiredPull, maxPull, {
-            instant: sliderDragging || (isAiTurn && !aiPullReady),
+            instant:
+              Boolean(sliderInstanceRef.current?.dragging) ||
+              (isAiTurn && !aiPullReady),
             smoothingOverride: pullProfile.pullSmoothing
           });
           const visualPull = applyVisualPullCompensation(pull, dir);
@@ -30896,16 +30882,8 @@ const powerRef = useRef(hud.power);
       onChange: (v) => applyPower(v / 100),
       onStart: () => {
         captureCueStickAnchor();
-        cuePowerDragActiveRef.current = true;
-        const lockedAim = aimDirRef.current?.clone?.();
-        cueAimLockRef.current =
-          lockedAim && lockedAim.lengthSq() > 1e-6
-            ? lockedAim.normalize()
-            : new THREE.Vector2(0, 1);
       },
       onCommit: () => {
-        cuePowerDragActiveRef.current = false;
-        cueAimLockRef.current = null;
         fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
@@ -30916,8 +30894,6 @@ const powerRef = useRef(hud.power);
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
-      cuePowerDragActiveRef.current = false;
-      cueAimLockRef.current = null;
       sliderInstanceRef.current = null;
       slider.destroy();
     };
@@ -30928,8 +30904,6 @@ const powerRef = useRef(hud.power);
     if (slider) {
       slider.set(slider.min, { animate: true });
     }
-    cuePowerDragActiveRef.current = false;
-    cueAimLockRef.current = null;
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
