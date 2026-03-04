@@ -13514,6 +13514,7 @@ function PoolRoyaleGame({
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
+  const isLandscape = !isPortrait;
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
@@ -16950,7 +16951,7 @@ const powerRef = useRef(hud.power);
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
-      screen.orientation?.lock?.('portrait').catch(() => {});
+      screen.orientation?.lock?.('landscape').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -31894,8 +31895,10 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
-          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
-          left: `calc(0.75rem + env(safe-area-inset-left, 0px) + ${menuButtonLeftNudgePx}px)`
+          top: isLandscape ? 'calc(0.8rem + env(safe-area-inset-top, 0px))' : `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          left: isLandscape ? 'auto' : `calc(0.75rem + env(safe-area-inset-left, 0px) + ${menuButtonLeftNudgePx}px)`,
+          right: isLandscape ? 'calc(0.75rem + env(safe-area-inset-right, 0px))' : 'auto',
+          alignItems: isLandscape ? 'flex-end' : 'flex-start'
         }}
       >
         <button
@@ -31906,7 +31909,7 @@ const powerRef = useRef(hud.power);
           aria-controls="snooker-config-panel"
           style={{
             transform: `scale(${uiScale * 1.08})`,
-            transformOrigin: 'top left'
+            transformOrigin: isLandscape ? 'top right' : 'top left'
           }}
           className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
@@ -32881,12 +32884,26 @@ const powerRef = useRef(hud.power);
           ref={leftControlsRef}
           className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          right: `${rightHudShiftPx}px`,
-          bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
+          right: isLandscape ? 'calc(0.75rem + env(safe-area-inset-right, 0px))' : `${rightHudShiftPx}px`,
+          bottom: isLandscape
+            ? 'calc(4.8rem + env(safe-area-inset-bottom, 0px))'
+            : `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
-          transformOrigin: 'bottom right'
+          transformOrigin: isLandscape ? 'top right' : 'bottom right'
         }}
       >
+        {isLandscape && (
+          <button
+            type="button"
+            onClick={() => fireRef.current?.()}
+            disabled={!showPlayerControls || aiTakingShot || shotActive || replayActive || hud.over}
+            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-400/20 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-45"
+            aria-label="Shoot"
+            title="Shoot"
+          >
+            Shot
+          </button>
+        )}
         <button
           type="button"
           aria-pressed={isLookMode}
@@ -32922,8 +32939,12 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-2"
-            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px` }}
+            className={`fixed z-50 ${isLandscape ? 'left-1/2 flex -translate-x-1/2 flex-row items-center gap-3' : 'left-0 flex flex-col gap-2.5 -translate-x-2'}`}
+            style={{
+              bottom: isLandscape
+                ? 'calc(0.8rem + env(safe-area-inset-bottom, 0px))'
+                : `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px`
+            }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -33293,7 +33314,7 @@ const powerRef = useRef(hud.power);
       {/* Power Slider */}
       {showPowerSlider && !replayActive && (
         <div
-          className="absolute right-3 top-[56%] -translate-y-1/2"
+          className={`absolute top-[56%] -translate-y-1/2 ${isLandscape ? 'left-3' : 'right-3'}`}
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
@@ -33301,7 +33322,7 @@ const powerRef = useRef(hud.power);
             ref={sliderRef}
             style={{
               transform: `scale(${uiScale})`,
-              transformOrigin: 'top right'
+              transformOrigin: isLandscape ? 'top left' : 'top right'
             }}
           />
         </div>
@@ -33313,10 +33334,11 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            right: `${rightHudShiftPx}px`,
+            right: isLandscape ? 'auto' : `${rightHudShiftPx}px`,
+            left: isLandscape ? `${rightHudShiftPx}px` : 'auto',
             bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
             transform: `scale(${uiScale * 0.88})`,
-            transformOrigin: 'bottom right'
+            transformOrigin: isLandscape ? 'bottom left' : 'bottom right'
           }}
         >
           <div
