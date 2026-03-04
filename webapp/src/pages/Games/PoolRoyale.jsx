@@ -1844,7 +1844,7 @@ const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera l
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.2; // ensure every stroke pulls farther back for readability at all angles
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.94; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 0.97; // push the cue forward to contact more decisively after pullback
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
@@ -5431,7 +5431,7 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 420;
+const REPLAY_CUE_START_HOLD_MS = 110;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5456,9 +5456,9 @@ const AI_SPIN_ADJUST_DELAY_MS = 2000;
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_STROKE_TIME_SCALE = 2.15;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
-const AI_CUE_PULL_SCALE = 0.72;
-const AI_WARMUP_PULL_RATIO = 0.55;
-const PLAYER_WARMUP_PULL_RATIO = 0.62;
+const AI_CUE_PULL_SCALE = 0.6;
+const AI_WARMUP_PULL_RATIO = 0.44;
+const PLAYER_WARMUP_PULL_RATIO = 0.48;
 const PLAYER_STROKE_TIME_SCALE = 1.55;
 const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
@@ -5468,8 +5468,8 @@ const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 420; // start replay cue motion earlier so pullback is clearly visible from the first replay frame
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.25; // slightly stretch the forward push so the strike is readable in replay
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 180; // begin replay in the charge phase quickly so pullback + strike are both visible
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
@@ -24506,8 +24506,8 @@ const powerRef = useRef(hud.power);
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: LIVE_CUE_FORWARD_DURATION_MS,
-          holdDuration: LIVE_CUE_IMPACT_HOLD_MS,
+          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 150),
+          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 70),
           pullbackDuration: 0,
           recoverDuration: 0,
           impactThreshold: 0.9,
@@ -25074,7 +25074,7 @@ const powerRef = useRef(hud.power);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.34;
+          const pullRange = 0.24;
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
