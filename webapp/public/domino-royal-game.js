@@ -3489,12 +3489,6 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const POOL_ROYALE_DOMINO_CLOTH_PALETTE = Object.freeze([
-  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', border: '#021a0b' },
-  { id: 'crimson', label: 'Crimson Cloth', feltTop: '#960019', feltBottom: '#4a0012', border: '#210308' },
-  { id: 'arctic', label: 'Arctic Cloth', feltTop: '#2563eb', feltBottom: '#1d4ed8', border: '#071a42' },
-  { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', border: '#320e03' },
-  { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', border: '#1f0a47' },
-  { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', border: '#2b1402' },
   { id: 'cabanGreenMeadow', label: 'Caban Wool — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#1f6a3f' },
   { id: 'cabanGreenSpruce', label: 'Caban Wool — Green Spruce', feltTop: '#2ca85f', feltBottom: '#238f4a', border: '#1a5d35' },
   { id: 'cabanBlueHarbor', label: 'Caban Wool — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0a355a' },
@@ -3987,7 +3981,6 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
 
 
 const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
-const LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID = 'emerald';
 const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
 
 function resolveDefaultOptionId(key, options = []) {
@@ -3995,13 +3988,6 @@ function resolveDefaultOptionId(key, options = []) {
   if (key === 'tableTheme') {
     return (
       options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID)?.id ||
-      options[0]?.id ||
-      null
-    );
-  }
-  if (key === 'tableCloth') {
-    return (
-      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID)?.id ||
       options[0]?.id ||
       null
     );
@@ -5372,50 +5358,69 @@ function makeClothTexture({
   bottom = '#0b3a1d',
   border = '#041f10'
 } = {}) {
-  const size = 1024;
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, size);
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
   gradient.addColorStop(0, top);
-  gradient.addColorStop(1, bottom ?? top);
+  gradient.addColorStop(1, bottom);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
-  const highlight = adjustHexColor(top, 0.12);
-  const shadow = adjustHexColor(bottom ?? top, -0.12);
-
-  for (let y = 0; y < size; y += 2) {
-    for (let x = 0; x < size; x += 2) {
-      ctx.globalAlpha = 0.04 + Math.random() * 0.04;
-      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-
-  const centerGradient = ctx.createRadialGradient(
-    size / 2,
-    size / 2,
-    size * 0.05,
-    size / 2,
-    size / 2,
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const glow = ctx.createRadialGradient(
+    size * 0.5,
+    size * 0.45,
+    size * 0.12,
+    size * 0.5,
+    size * 0.45,
     size * 0.6
   );
-  centerGradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
-  centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = centerGradient;
+  glow.addColorStop(0, 'rgba(255,255,255,0.25)');
+  glow.addColorStop(0.65, 'rgba(255,255,255,0.08)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = glow;
   ctx.fillRect(0, 0, size, size);
+  ctx.restore();
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = size * 0.012;
+  ctx.strokeRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
+
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < size; i += 6) {
+    ctx.fillRect(i, 0, 1, size);
+    ctx.fillRect(0, i, size, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  const prng = (() => {
+    let value = 246813579;
+    return () => {
+      value = (value * 1664525 + 1013904223) % 4294967296;
+      return value / 4294967296;
+    };
+  })();
+  const image = ctx.getImageData(0, 0, size, size);
+  const { data } = image;
+  for (let idx = 0; idx < data.length; idx += 4) {
+    const fiber = (prng() - 0.5) * 0.18;
+    const greenFactor = 1 + fiber * 0.9;
+    const sideFactor = 1 + fiber * 0.45;
+    data[idx] = Math.min(255, Math.max(0, data[idx] * sideFactor));
+    data[idx + 1] = Math.min(255, Math.max(0, data[idx + 1] * greenFactor));
+    data[idx + 2] = Math.min(255, Math.max(0, data[idx + 2] * sideFactor));
+  }
+  ctx.putImageData(image, 0, 0);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 12;
-  const scaledRepeat = baseRepeat * 30 * 6 * 4;
-  texture.repeat.set(scaledRepeat, scaledRepeat);
+  texture.repeat.set(18 * 5 * 3, 18 * 5 * 3);
   const maxAnisotropy =
     renderer?.capabilities?.getMaxAnisotropy?.() ??
     renderer?.capabilities?.anisotropy ??
