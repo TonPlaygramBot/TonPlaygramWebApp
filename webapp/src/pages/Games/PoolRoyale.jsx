@@ -13499,7 +13499,7 @@ function PoolRoyaleGame({
   const sharedHudLiftPx = 30;
   const spinControllerLiftPx = 28;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = 5;
+  const menuButtonTopNudgePx = -2;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
@@ -13516,6 +13516,7 @@ function PoolRoyaleGame({
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isLookMode, setIsLookMode] = useState(false);
+  const usePortraitHud = true;
   const lookModeRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -13568,6 +13569,12 @@ function PoolRoyaleGame({
       topViewControlsRef.current.exit?.();
     }
   }, [isTopDownView]);
+
+  useEffect(() => {
+    if (!isPortrait && !isTopDownView) {
+      setIsTopDownView(true);
+    }
+  }, [isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -30806,7 +30813,7 @@ const powerRef = useRef(hud.power);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
-      if (!isPortrait) {
+      if (!usePortraitHud) {
       const left = uiScale * 150;
       const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
       setHudInsets({
@@ -30856,7 +30863,7 @@ const powerRef = useRef(hud.power);
     computeInsets();
     window.addEventListener('resize', computeInsets);
     return () => window.removeEventListener('resize', computeInsets);
-  }, [isPortrait, uiScale]);
+  }, [usePortraitHud, uiScale]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
@@ -31295,9 +31302,9 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 26 : 28;
+  const pottedTokenSize = usePortraitHud ? 26 : 28;
   const pottedNumberBadgeSize = Math.max(10, Math.round(pottedTokenSize * 0.48));
-  const pottedGap = isPortrait ? 8 : 10;
+  const pottedGap = usePortraitHud ? 8 : 10;
   const renderPottedRow = useCallback(
     (entries = [], highlightId = null, glowColor = null) => {
       if (!entries.length) {
@@ -31455,12 +31462,12 @@ const powerRef = useRef(hud.power);
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
-  const avatarSizeClass = isPortrait ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
-  const nameWidthClass = isPortrait ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
-  const nameTextClass = isPortrait ? 'text-[0.95rem]' : 'text-[1.05rem]';
-  const hudGapClass = isPortrait ? 'gap-5' : 'gap-7';
-  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const bottomHudScale = usePortraitHud ? uiScale * 1.08 : uiScale * 1.12;
+  const avatarSizeClass = usePortraitHud ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
+  const nameWidthClass = usePortraitHud ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
+  const nameTextClass = usePortraitHud ? 'text-[0.95rem]' : 'text-[1.05rem]';
+  const hudGapClass = usePortraitHud ? 'gap-5' : 'gap-7';
+  const bottomHudLayoutClass = usePortraitHud ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
     'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
   const chatGiftPanelClass =
@@ -31474,21 +31481,21 @@ const powerRef = useRef(hud.power);
   const chatGiftOptionActiveClass = 'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
   const chatGiftActionButtonClass =
     'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
-  const playerPanelClass = isPortrait
+  const playerPanelClass = usePortraitHud
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
-    : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
+    : `flex min-w-0 items-center ${usePortraitHud ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
         isPlayerTurn
           ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
           : 'pl-3.5 pr-3 text-white/80'
       }`;
-  const opponentPanelClass = isPortrait
+  const opponentPanelClass = usePortraitHud
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isOpponentTurn ? 'text-white' : 'text-white/80'}`
-    : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
+    : `flex min-w-0 items-center ${usePortraitHud ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
         isOpponentTurn
           ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
           : 'pl-3 pr-3.5 text-white/80'
       }`;
-  const playerPanelStyle = isPortrait
+  const playerPanelStyle = usePortraitHud
     ? {
         boxShadow: isPlayerTurn
           ? '0 0 18px rgba(16,185,129,0.32), -10px 0 18px rgba(16,185,129,0.18)'
@@ -31499,7 +31506,7 @@ const powerRef = useRef(hud.power);
           ? '0 0 18px rgba(16,185,129,0.35), -14px 0 22px rgba(16,185,129,0.28)'
           : '0 6px 14px rgba(0,0,0,0.35)'
       };
-  const opponentPanelStyle = isPortrait
+  const opponentPanelStyle = usePortraitHud
     ? {
         boxShadow: isOpponentTurn
           ? '0 0 18px rgba(16,185,129,0.32), 10px 0 18px rgba(16,185,129,0.18)'
@@ -32905,13 +32912,16 @@ const powerRef = useRef(hud.power);
         <button
           type="button"
           aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-              className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-                isTopDownView
-                  ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                  : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-              }`}
-              style={{ marginTop: `${viewToggleButtonDropPx}px` }}
+          onClick={() => {
+            if (!isPortrait) return;
+            setIsTopDownView((prev) => !prev);
+          }}
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
           aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
           <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
@@ -32935,8 +32945,8 @@ const powerRef = useRef(hud.power);
             muteIconOn="🔇"
             muteIconOff="🔊"
             actionOffsets={{
-              chat: 6,
-              gift: -6
+              chat: 10,
+              gift: 6
             }}
             showInfo={false}
             showMute={false}
@@ -32952,15 +32962,15 @@ const powerRef = useRef(hud.power);
             bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
-            transform: isPortrait ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
+            transform: usePortraitHud ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
           }}
         >
             <div
-              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${usePortraitHud ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
               style={{
                 transform: `scale(${bottomHudScale})`,
                 transformOrigin: 'bottom center',
-                maxWidth: isPortrait ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
+                maxWidth: usePortraitHud ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
               }}
             >
             <div
@@ -33005,14 +33015,14 @@ const powerRef = useRef(hud.power);
             {!isFreePractice && (
               <>
                 <div
-                  className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
+                  className={`flex items-center gap-2 ${usePortraitHud ? 'text-sm' : 'text-base'} font-semibold`}
                 >
                   <span className="text-amber-300">{hud.A}</span>
                   <span className="text-white/50">-</span>
                   <span>{hud.B}</span>
                 </div>
                 <div
-                  className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
+                  className={`${opponentPanelClass} ${usePortraitHud ? 'text-xs' : 'text-sm'}`}
                   style={opponentPanelStyle}
                   data-player-index="1"
                 >
