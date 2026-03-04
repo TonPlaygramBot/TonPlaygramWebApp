@@ -26,6 +26,7 @@ namespace Aiming
         public float strikeDuration = 0.055f;
         public float recoilDistance = 0.015f;
         public float recoilDuration = 0.04f;
+        public float resetPullbackDuration = 0.08f;
         public float baseStrikeImpulse = 1.8f;
         public float maxStrikeImpulse = 6.5f;
         public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
@@ -191,6 +192,21 @@ namespace Aiming
             _currentPullback = recoilDistance;
             UpdateCuePose();
             yield return new WaitForSeconds(recoilDuration);
+
+            elapsed = 0f;
+            float recoilStartPullback = _currentPullback;
+            while (elapsed < resetPullbackDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / Mathf.Max(resetPullbackDuration, 0.001f));
+                float eased = pullbackEasing.Evaluate(t);
+                _currentPullback = Mathf.Lerp(recoilStartPullback, startPullback, eased);
+                UpdateCuePose();
+                yield return null;
+            }
+
+            _currentPullback = startPullback;
+            UpdateCuePose();
 
             _currentPullback = 0f;
             _targetPullback = 0f;
