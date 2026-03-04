@@ -21305,7 +21305,11 @@ const powerRef = useRef(hud.power);
                 0
             ) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
-          const localTime = targetTime - Math.max(0, startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
+          // Allow replay lead-in to advance the cue stroke timeline even when
+          // the recorded stroke offset is short, so replays open on visible
+          // cue charging instead of a static idle pose.
+          const localTime =
+            targetTime - (startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
           const playbackWindow = Number.isFinite(playback?.duration)
             ? Math.max(playback.duration, 1400)
             : 1400;
@@ -29363,6 +29367,8 @@ const powerRef = useRef(hud.power);
           if (
             !cueAnimating &&
             !replayActive &&
+            !shooting &&
+            !aiTakingShot &&
             !(ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
           ) {
             cueStick.visible = false;
