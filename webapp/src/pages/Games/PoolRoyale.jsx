@@ -21522,7 +21522,7 @@ const powerRef = useRef(hud.power);
               syncCueShadow();
               return true;
             }
-            cueStick.position.copy(pullPos ?? idlePos);
+            cueStick.position.copy(idlePos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -21600,17 +21600,13 @@ const powerRef = useRef(hud.power);
           }
           if (sample.phase === 'recover') {
             const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(
-              followPos ?? impactPos,
-              pullPos ?? idlePos,
-              eased
-            );
+            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
             return true;
           }
-          cueStick.position.copy(pullPos ?? idlePos);
+          cueStick.position.copy(idlePos);
           cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
           cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
           syncCueShadow();
@@ -24517,9 +24513,7 @@ const powerRef = useRef(hud.power);
           strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
           holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
           pullbackDuration,
-          // Show a visible recoil so the cue returns toward the same
-          // pullback origin before settling.
-          recoverDuration: Math.max(120, pullbackDuration * 0.85),
+          recoverDuration: 0,
           impactThreshold: 0.88,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
@@ -25086,7 +25080,7 @@ const powerRef = useRef(hud.power);
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
           const pullRange = 0.24;
           const pullTarget = pullRange * strokeProfile.pullRatio;
-          const pulledNow = Math.max(cuePullCurrentRef.current ?? 0, pullTarget);
+          const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
