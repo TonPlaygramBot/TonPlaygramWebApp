@@ -16,6 +16,7 @@ namespace Aiming
         public float idleTipGap = 0.012f;
         public float baseCueOffset = 0.12f;
         public float maxPullbackDistance = 0.16f;
+        [Range(0.1f, 1f)] public float pullbackVisualScale = 0.55f;
 
         [Header("Aiming feel")]
         [Range(1f, 30f)] public float rotationDamping = 14f;
@@ -28,6 +29,11 @@ namespace Aiming
         public float recoilDuration = 0.04f;
         public float baseStrikeImpulse = 1.8f;
         public float maxStrikeImpulse = 6.5f;
+        [Header("Replay / AI shot readability")]
+        public bool autoChargeBeforeStrike = true;
+        [Range(0f, 1f)] public float autoChargePower = 0.45f;
+        public float autoChargeDuration = 0.12f;
+        public float followThroughHoldDuration = 0.1f;
         public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
         public AnimationCurve strikeEaseIn = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
@@ -68,7 +74,7 @@ namespace Aiming
         public void SetChargePower(float normalizedPower)
         {
             _power = Mathf.Clamp01(normalizedPower);
-            _targetPullback = pullbackEasing.Evaluate(_power) * maxPullbackDistance;
+            _targetPullback = pullbackEasing.Evaluate(_power) * maxPullbackDistance * pullbackVisualScale;
         }
 
         public void BeginCharge()
@@ -85,7 +91,8 @@ namespace Aiming
         public void ReleaseAndStrike()
         {
             if (_striking) return;
-            StartCoroutine(StrikeRoutine());
+            bool needsPreCharge = autoChargeBeforeStrike && !_charging && _currentPullback <= 0.0005f;
+            StartCoroutine(StrikeRoutine(needsPreCharge));
         }
 
         void UpdateAimDirection()
@@ -160,9 +167,15 @@ namespace Aiming
             return cueBallBody != null && cueBallBody.velocity.sqrMagnitude > 0.0004f;
         }
 
-        IEnumerator StrikeRoutine()
+        IEnumerator StrikeRoutine(bool includeAutoCharge)
         {
             _striking = true;
+
+            if (includeAutoCharge)
+            {
+                yield return StartCoroutine(AutoChargeRoutine());
+            }
+
             _charging = false;
 
             Vector3 strikeDirection = _aimDirection;
@@ -190,6 +203,7 @@ namespace Aiming
 
             _currentPullback = recoilDistance;
             UpdateCuePose();
+            yield return new WaitForSeconds(followThroughHoldDuration);
             yield return new WaitForSeconds(recoilDuration);
 
             _currentPullback = 0f;
@@ -197,6 +211,22 @@ namespace Aiming
             _power = 0f;
             _striking = false;
             gameObject.SetActive(false);
+        }
+
+        IEnumerator AutoChargeRoutine()
+        {
+            _charging = true;
+            SetChargePower(autoChargePower);
+
+            float elapsed = 0f;
+            float duration = Mathf.Max(autoChargeDuration, 0.001f);
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                UpdatePullback();
+                UpdateCuePose();
+                yield return null;
+            }
         }
 
         void ApplyStrikeImpulse(Vector3 strikeDirection)
