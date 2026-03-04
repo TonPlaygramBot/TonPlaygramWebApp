@@ -3450,7 +3450,7 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
     id: 'peelingPaintWeathered',
     label: 'Peeling Paint Weathered',
     presetId: 'oak',
-    grainId: 'estateBands',
+    grainId: 'wood_peeling_paint_weathered',
     price: 980,
     description: 'Weathered peeling paint wood rails with a reclaimed finish.'
   }),
@@ -3458,7 +3458,7 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
     id: 'oakVeneer01',
     label: 'Oak Veneer 01',
     presetId: 'oak',
-    grainId: 'studioVeins',
+    grainId: 'oak_veneer_01',
     price: 990,
     description: 'Warm oak veneer rails with smooth satin polish.'
   }),
@@ -3466,7 +3466,7 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
     id: 'woodTable001',
     label: 'Wood Table 001',
     presetId: 'walnut',
-    grainId: 'estateBands',
+    grainId: 'wood_table_001',
     price: 1000,
     description: 'Balanced walnut-brown rails inspired by classic table slabs.'
   }),
@@ -3474,7 +3474,7 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
     id: 'darkWood',
     label: 'Dark Wood',
     presetId: 'smokedOak',
-    grainId: 'studioVeins',
+    grainId: 'dark_wood',
     price: 1010,
     description: 'Deep espresso rails with strong grain contrast.'
   }),
@@ -3482,7 +3482,7 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
     id: 'rosewoodVeneer01',
     label: 'Rosewood Veneer 01',
     presetId: 'cherry',
-    grainId: 'estateBands',
+    grainId: 'rosewood_veneer_01',
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.'
   })
