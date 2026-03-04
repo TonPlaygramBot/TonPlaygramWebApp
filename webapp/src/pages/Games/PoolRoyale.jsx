@@ -24501,18 +24501,16 @@ const powerRef = useRef(hud.power);
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
-          motion: 'classic',
-          // Match reference cue-stroke feel exactly:
-          // pull = 0.34 * easeOutCubic(power), then direct forward push.
-          pullRatio: 1 - Math.pow(1 - p, 3),
-          pullSmoothing: 1,
-          strikeDuration: 120,
-          holdDuration: 50,
-          pullbackDuration: 0,
-          recoverDuration: 0,
-          impactThreshold: 0.9,
-          forwardOnly: true,
-          cameraExtraHoldMs: 240,
+          motion: 'featherLine',
+          pullRatio: 1 - Math.pow(1 - p, 2.4),
+          pullSmoothing: 0.14,
+          strikeDuration: THREE.MathUtils.lerp(520, 380, p),
+          holdDuration: 340,
+          pullbackDuration: THREE.MathUtils.lerp(760, 620, p),
+          recoverDuration: 180,
+          impactThreshold: 0.94,
+          forwardOnly: false,
+          cameraExtraHoldMs: 900,
           spinScale: 0.22
         };
       };
@@ -24556,17 +24554,50 @@ const powerRef = useRef(hud.power);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
-      const applyVisualPullCompensation = (pullValue, _dirVec3) => {
+      const applyVisualPullCompensation = (pullValue, dirVec3) => {
         const basePull = Math.max(pullValue ?? 0, 0);
-        // Keep pull distance literal to preserve the same pull/push feel as the reference.
-        return basePull;
+        if (basePull <= 1e-6 || !dirVec3) return basePull;
+        const cam =
+          activeRenderCameraRef.current ??
+          cameraRef.current ??
+          camera;
+        TMP_VEC3_CUE_DIR.set(dirVec3.x, 0, dirVec3.z);
+        if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
+          TMP_VEC3_CUE_DIR.normalize();
+        } else {
+          TMP_VEC3_CUE_DIR.set(0, 0, 1);
+        }
+        let alignment = 0;
+        if (cam?.getWorldDirection) {
+          cam.getWorldDirection(TMP_VEC3_CAM_DIR);
+          TMP_VEC3_CAM_DIR.y = 0;
+          if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_CAM_DIR.normalize();
+            alignment = Math.abs(TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR));
+          }
+        }
+        const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+        const cameraPullScale = THREE.MathUtils.lerp(
+          1 - CUE_PULL_CUE_CAMERA_DAMPING,
+          1 + CUE_PULL_STANDING_CAMERA_BONUS,
+          blend
+        );
+        const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
+        const compensated =
+          basePull * alignmentBoost * cameraPullScale;
+        const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
+        return Math.min(compensated, basePull * maxScale);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const styleRatio = 1 - Math.pow(1 - ratio, 3);
+        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
+        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const target = 0.34 * styleRatio;
-        return Math.min(target, effectiveMax);
+        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
+        const target =
+          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+        return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
       const easeInOutCubic = (t) =>
