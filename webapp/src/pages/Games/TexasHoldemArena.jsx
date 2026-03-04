@@ -400,10 +400,6 @@ const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
 const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
-const SEATED_ZOOM_DEFAULT = 1;
-const SEATED_ZOOM_MIN = 0.74;
-const SEATED_ZOOM_MAX = 1.3;
-const SEATED_PINCH_SENSITIVITY = 0.0018;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
@@ -2913,12 +2909,8 @@ function TexasHoldemArena({ search }) {
     dragged: false
   });
   const activePointersRef = useRef(new Map());
-  const overheadViewRef = useRef(false);
-  const overheadZoomRef = useRef(OVERHEAD_ZOOM_DEFAULT);
-  const seatedZoomRef = useRef(SEATED_ZOOM_DEFAULT);
   const pinchZoomRef = useRef({
     active: false,
-    mode: 'overhead',
     pointerIds: [],
     startDistance: 0,
     startZoom: OVERHEAD_ZOOM_DEFAULT
@@ -2989,7 +2981,6 @@ function TexasHoldemArena({ search }) {
   const [sliderValue, setSliderValue] = useState(0);
   const [overheadView, setOverheadView] = useState(false);
   const [overheadZoom, setOverheadZoom] = useState(OVERHEAD_ZOOM_DEFAULT);
-  const [seatedZoom, setSeatedZoom] = useState(SEATED_ZOOM_DEFAULT);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -3162,18 +3153,6 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
-
-  useEffect(() => {
-    overheadViewRef.current = overheadView;
-  }, [overheadView]);
-
-  useEffect(() => {
-    overheadZoomRef.current = overheadZoom;
-  }, [overheadZoom]);
-
-  useEffect(() => {
-    seatedZoomRef.current = seatedZoom;
-  }, [seatedZoom]);
 
   useEffect(() => {
     const handler = (event) => {
@@ -4353,10 +4332,9 @@ function TexasHoldemArena({ search }) {
       if (!humanSeat) return;
       const animate = Boolean(options.animate);
       const portrait = height > width;
-      const zoom = THREE.MathUtils.clamp(options.zoom ?? SEATED_ZOOM_DEFAULT, SEATED_ZOOM_MIN, SEATED_ZOOM_MAX);
-      const lateralOffset = (portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape) * zoom;
-      const retreatOffset = (portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape) * zoom;
-      const elevation = (portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape) * zoom;
+      const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
+      const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
+      const elevation = portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape;
       const position = humanSeat.stoolAnchor
         .clone()
         .addScaledVector(humanSeat.forward, -retreatOffset)
@@ -4483,7 +4461,7 @@ function TexasHoldemArena({ search }) {
     if (overheadView) {
       applyOverheadCamera({ zoom: overheadZoom });
     } else {
-      applySeatedCamera(mount.clientWidth, mount.clientHeight, { zoom: seatedZoom });
+      applySeatedCamera(mount.clientWidth, mount.clientHeight);
     }
 
     (async () => {
@@ -4915,16 +4893,15 @@ function TexasHoldemArena({ search }) {
     const resetPinchState = () => {
       pinchZoomRef.current = {
         active: false,
-        mode: overheadViewRef.current ? 'overhead' : 'seated',
         pointerIds: [],
         startDistance: 0,
-        startZoom: overheadViewRef.current ? overheadZoomRef.current : seatedZoomRef.current
+        startZoom: overheadZoom
       };
     };
 
     const beginPinchZoom = () => {
       const pointers = activePointersRef.current;
-      if (pointers.size < 2) {
+      if (!overheadView || pointers.size < 2) {
         resetPinchState();
         return;
       }
@@ -4934,13 +4911,11 @@ function TexasHoldemArena({ search }) {
         resetPinchState();
         return;
       }
-      const mode = overheadViewRef.current ? 'overhead' : 'seated';
       pinchZoomRef.current = {
         active: true,
-        mode,
         pointerIds: [first.pointerId, second.pointerId],
         startDistance,
-        startZoom: mode === 'overhead' ? overheadZoomRef.current : seatedZoomRef.current
+        startZoom: overheadZoom
       };
       resetPointerState();
       applyHoverTarget(null);
@@ -4956,23 +4931,13 @@ function TexasHoldemArena({ search }) {
       if (!first || !second) return;
       const currentDistance = Math.hypot(second.x - first.x, second.y - first.y);
       if (currentDistance <= 0) return;
-      const sensitivity = pinch.mode === 'overhead' ? OVERHEAD_PINCH_SENSITIVITY : SEATED_PINCH_SENSITIVITY;
-      const zoomDelta = (currentDistance - pinch.startDistance) * sensitivity;
-      if (pinch.mode === 'overhead') {
-        const nextZoom = THREE.MathUtils.clamp(
-          +(pinch.startZoom - zoomDelta).toFixed(3),
-          OVERHEAD_ZOOM_MIN,
-          OVERHEAD_ZOOM_MAX
-        );
-        setOverheadZoom(nextZoom);
-      } else {
-        const nextZoom = THREE.MathUtils.clamp(
-          +(pinch.startZoom - zoomDelta).toFixed(3),
-          SEATED_ZOOM_MIN,
-          SEATED_ZOOM_MAX
-        );
-        setSeatedZoom(nextZoom);
-      }
+      const zoomDelta = (currentDistance - pinch.startDistance) * OVERHEAD_PINCH_SENSITIVITY;
+      const nextZoom = THREE.MathUtils.clamp(
+        +(pinch.startZoom - zoomDelta).toFixed(3),
+        OVERHEAD_ZOOM_MIN,
+        OVERHEAD_ZOOM_MAX
+      );
+      setOverheadZoom(nextZoom);
     };
 
     const handlePointerDown = (event) => {
@@ -4982,7 +4947,7 @@ function TexasHoldemArena({ search }) {
         x: event.clientX,
         y: event.clientY
       });
-      if (activePointersRef.current.size >= 2) {
+      if (overheadView && activePointersRef.current.size >= 2) {
         beginPinchZoom();
         return;
       }
@@ -5082,7 +5047,7 @@ function TexasHoldemArena({ search }) {
     const handlePointerUp = (event) => {
       activePointersRef.current.delete(event.pointerId);
       if (pinchZoomRef.current.active) {
-        if (activePointersRef.current.size >= 2) {
+        if (activePointersRef.current.size >= 2 && overheadView) {
           beginPinchZoom();
         } else {
           resetPinchState();
@@ -5119,7 +5084,7 @@ function TexasHoldemArena({ search }) {
       if (overheadViewRef.current) {
         viewControlsRef.current?.applyOverheadCamera?.({ zoom: overheadZoomRef.current });
       } else {
-        viewControlsRef.current?.applySeatedCamera?.(clientWidth, clientHeight, { zoom: seatedZoomRef.current });
+        viewControlsRef.current?.applySeatedCamera?.(clientWidth, clientHeight);
       }
     };
 
@@ -5144,6 +5109,7 @@ function TexasHoldemArena({ search }) {
         lastFrameRef.current = time - Math.max(0, deltaMs - appliedMs);
         const deltaSeconds = Math.max(0, Math.min(0.1, appliedMs / 1000));
         three.chipFactory.update(deltaSeconds);
+        headAnglesRef.current.pitch = 0;
         applyHeadOrientation();
         three.renderer.render(three.scene, three.camera);
       }
@@ -6159,13 +6125,13 @@ function TexasHoldemArena({ search }) {
     const controls = viewControlsRef.current;
     const mount = mountRef.current;
     const three = threeRef.current;
-    if (!three?.camera) return;
-    const animate = lastViewRef.current !== overheadView;
-    if (animate) {
+    if (!overheadView) {
       activePointersRef.current.clear();
       pinchZoomRef.current.active = false;
       pinchZoomRef.current.pointerIds = [];
     }
+    if (!three?.camera) return;
+    const animate = lastViewRef.current !== overheadView;
     lastViewRef.current = overheadView;
     if (Array.isArray(three.seatGroups)) {
       three.seatGroups.forEach((seat) => {
@@ -6179,9 +6145,9 @@ function TexasHoldemArena({ search }) {
     } else {
       const width = mount?.clientWidth ?? window.innerWidth;
       const height = mount?.clientHeight ?? window.innerHeight;
-      controls.applySeatedCamera?.(width, height, { animate, zoom: seatedZoom });
+      controls.applySeatedCamera?.(width, height, { animate });
     }
-  }, [overheadView, overheadZoom, seatedZoom]);
+  }, [overheadView, overheadZoom]);
 
 
   return (
