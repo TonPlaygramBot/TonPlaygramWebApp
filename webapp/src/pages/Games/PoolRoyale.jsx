@@ -21185,10 +21185,10 @@ const powerRef = useRef(hud.power);
               : REPLAY_CUE_STICK_HOLD_MS;
             const fallbackPullback = CUE_PULL_BASE * 0.35;
             const fallbackForward = CUE_PULL_BASE * 0.18;
-            const pullbackTime = 0;
-            const forwardTime = 120;
-            const settleTime = 50;
-            const returnTime = 0;
+            const pullbackTime = 160;
+            const forwardTime = 210;
+            const settleTime = 120;
+            const returnTime = REPLAY_CUE_RETURN_WINDOW_MS;
             const totalStroke = pullbackTime + forwardTime + settleTime + returnTime;
             const holdWindow = Math.max(replayHoldWindow, totalStroke);
             const showCue = targetTime <= holdWindow;
@@ -21561,9 +21561,27 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'release') {
+            const animationStyle = stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
+            const eased = (() => {
+              switch (animationStyle) {
+                case 'linear':
+                  return sample.t;
+                case 'snap':
+                  return Math.ceil(sample.t * 4) / 4;
+                case 'whip':
+                  return Math.pow(sample.t, 0.62);
+                case 'spring': {
+                  const damped = 1 - Math.exp(-7.4 * sample.t) * (1 + 7.4 * sample.t);
+                  return THREE.MathUtils.clamp(damped, 0, 1);
+                }
+                case 'classic':
+                default:
+                  return easeInOutCubic(sample.t);
+              }
+            })();
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
-            cueStick.position.lerpVectors(pullPos, impactPos, sample.t);
-            cueStick.position.y -= (strikeDip ?? 0.003) * sample.t;
+            cueStick.position.lerpVectors(pullPos, impactPos, eased);
+            cueStick.position.y -= (strikeDip ?? 0.003) * eased;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
             syncCueShadow();
@@ -24483,18 +24501,16 @@ const powerRef = useRef(hud.power);
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
-          motion: 'classic',
-          pullRatio: 1 - Math.pow(1 - p, 3),
+          motion: 'featherLine',
+          pullRatio: 1 - Math.pow(1 - p, 2.4),
           pullSmoothing: 0.14,
-          // Match the reference stroke timing: release from pulled cue position,
-          // quick contact push, tiny hold, then snap back to idle.
-          strikeDuration: 120,
-          holdDuration: 50,
-          pullbackDuration: 0,
-          recoverDuration: 0,
-          impactThreshold: 0.9,
+          strikeDuration: THREE.MathUtils.lerp(520, 380, p),
+          holdDuration: 340,
+          pullbackDuration: THREE.MathUtils.lerp(760, 620, p),
+          recoverDuration: 180,
+          impactThreshold: 0.94,
           forwardOnly: false,
-          cameraExtraHoldMs: 320,
+          cameraExtraHoldMs: 900,
           spinScale: 0.22
         };
       };
