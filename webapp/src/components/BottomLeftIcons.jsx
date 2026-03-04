@@ -24,7 +24,8 @@ export default function BottomLeftIcons({
   muteIconOff,
   cameraIcon,
   cameraLabel = '2D',
-  order = ['chat', 'gift', 'info', 'mute']
+  order = ['chat', 'gift', 'info', 'mute'],
+  actionOffsets = {}
 }) {
   const [muted, setMuted] = useState(isGameMuted());
 
@@ -98,7 +99,12 @@ export default function BottomLeftIcons({
         .map((key) => ({ key, node: actions[key] }))
         .filter(({ node }) => node)
         .map(({ key, node }) => (
-          <div key={key}>{node}</div>
+          <div
+            key={key}
+            style={{ transform: `translateY(${Number(actionOffsets?.[key]) || 0}px)` }}
+          >
+            {node}
+          </div>
         ))}
     </div>
   );
