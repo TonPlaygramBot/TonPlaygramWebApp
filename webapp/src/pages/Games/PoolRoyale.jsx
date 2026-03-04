@@ -21542,8 +21542,11 @@ const powerRef = useRef(hud.power);
             }
             return false;
           }
+          const timelineElapsed = stroke.releaseStartsFromCurrentPull
+            ? elapsed + Math.max(0, pullbackDuration ?? 0)
+            : elapsed;
           const sample = sampleCueStrokeTimeline({
-            elapsed,
+            elapsed: timelineElapsed,
             pullbackDuration,
             strikeDuration,
             holdDuration,
@@ -25131,26 +25134,11 @@ const powerRef = useRef(hud.power);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-          const topspinFactor = THREE.MathUtils.clamp(
-            Math.max(0, appliedSpin?.y ?? 0) * powerStrength,
-            0,
-            1
-          );
           const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          const idleGap = 0.01;
-          const contactEps = 0.001;
-          const followExtra = THREE.MathUtils.clamp(topspinFactor * 0.016, 0, 0.018);
-          const endDistanceFromBallCenter = Math.max(
-            BALL_R * 0.55,
-            BALL_R + contactEps - followExtra
-          );
-          const idleDistanceFromBallCenter = BALL_R + idleGap;
-          const forwardPush = Math.max(0, idleDistanceFromBallCenter - endDistanceFromBallCenter);
-          const impactPos = idlePos.clone().addScaledVector(dir, forwardPush);
+          const impactPos = idlePos.clone();
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
@@ -25287,7 +25275,8 @@ const powerRef = useRef(hud.power);
               strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
-              motionTechnique: strokeProfile.motion ?? strokeStyle
+              motionTechnique: strokeProfile.motion ?? strokeStyle,
+              releaseStartsFromCurrentPull: true
             };
           } else {
             cueStick.visible = false;
