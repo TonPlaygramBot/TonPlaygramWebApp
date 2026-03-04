@@ -400,6 +400,8 @@ const OVERHEAD_ZOOM_DEFAULT = 1;
 const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
 const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
+const OVERHEAD_VIEW_RADIUS = CHAIR_RADIUS + Math.max(SEAT_DEPTH, CARD_H) * 1.45;
+const OVERHEAD_VIEW_PADDING = 1.08;
 const SEATED_ZOOM_DEFAULT = 1;
 const SEATED_ZOOM_MIN = 0.74;
 const SEATED_ZOOM_MAX = 1.3;
@@ -4439,7 +4441,14 @@ function TexasHoldemArena({ search }) {
     const applyOverheadCamera = (options = {}) => {
       const animate = Boolean(options.animate);
       const zoom = THREE.MathUtils.clamp(options.zoom ?? OVERHEAD_ZOOM_DEFAULT, OVERHEAD_ZOOM_MIN, OVERHEAD_ZOOM_MAX);
-      const height = TABLE_HEIGHT + BOARD_SIZE * 0.88 * zoom;
+      const mountWidth = Math.max(1, mount?.clientWidth ?? window.innerWidth ?? 1);
+      const mountHeight = Math.max(1, mount?.clientHeight ?? window.innerHeight ?? 1);
+      const aspect = mountWidth / mountHeight;
+      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+      const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+      const limitingHalfFov = Math.max(0.05, Math.min(verticalFov, horizontalFov) / 2);
+      const fitDistance = (OVERHEAD_VIEW_RADIUS * OVERHEAD_VIEW_PADDING) / Math.tan(limitingHalfFov);
+      const height = TABLE_HEIGHT + fitDistance * zoom;
       const lateralPull = humanSeat?.forward.clone().setY(0).normalize().multiplyScalar(TABLE_RADIUS * 0.12) ??
         new THREE.Vector3();
       const targetPosition = new THREE.Vector3(lateralPull.x, height, lateralPull.z + 0.001);
