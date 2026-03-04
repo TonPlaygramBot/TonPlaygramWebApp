@@ -391,9 +391,10 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: -0.14 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.04 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
+const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.12, landscape: -CARD_W * 0.78 });
@@ -3572,7 +3573,10 @@ function TexasHoldemArena({ search }) {
 
   const resetCameraToStartView = useCallback(() => {
     stopCameraTurnAnimation();
-    if (Math.abs(headAnglesRef.current.yaw) > CAMERA_TURN_SNAP_EPSILON) {
+    if (
+      Math.abs(headAnglesRef.current.yaw) > CAMERA_TURN_SNAP_EPSILON ||
+      Math.abs(headAnglesRef.current.pitch) > CAMERA_TURN_SNAP_EPSILON
+    ) {
       headAnglesRef.current.yaw = 0;
       headAnglesRef.current.pitch = 0;
       applyHeadOrientation();
@@ -4329,6 +4333,7 @@ function TexasHoldemArena({ search }) {
       }
       if (!portrait) {
         focus.y += CAMERA_LANDSCAPE_LOOK_UP_LIFT;
+        focus.addScaledVector(humanSeat.right, CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT);
       }
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
@@ -5771,6 +5776,7 @@ function TexasHoldemArena({ search }) {
     if (!gameState) return;
     if (gameState.stage === 'showdown') {
       timerRef.current = setTimeout(() => {
+        resetCameraToStartView();
         setGameState((prev) => resetForNextHand(cloneState(prev)));
       }, SHOWDOWN_RESET_DELAY);
       return () => {
@@ -6109,7 +6115,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(5.75rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.45rem+env(safe-area-inset-top,0px))]">
+      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.35rem+env(safe-area-inset-left,0px))] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] top-[calc(5.55rem+env(safe-area-inset-top,0px))] landscape:top-[calc(4.2rem+env(safe-area-inset-top,0px))]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -6296,7 +6302,7 @@ function TexasHoldemArena({ search }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.35rem)] landscape:translate-x-0">
+      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.55rem)] landscape:translate-x-0">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
@@ -6361,7 +6367,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -6373,7 +6379,7 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showMute={false}
           order={['gift']}
-          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.45rem)] landscape:left-[0.75rem] landscape:right-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+5.05rem)] flex flex-col gap-2.5 z-20"
+          className="fixed right-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] landscape:left-[0.75rem] landscape:right-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
