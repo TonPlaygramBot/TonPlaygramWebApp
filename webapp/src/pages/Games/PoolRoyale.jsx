@@ -24501,16 +24501,18 @@ const powerRef = useRef(hud.power);
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
-          motion: 'featherLine',
-          pullRatio: 1 - Math.pow(1 - p, 2.4),
-          pullSmoothing: 0.14,
-          strikeDuration: THREE.MathUtils.lerp(520, 380, p),
-          holdDuration: 340,
-          pullbackDuration: THREE.MathUtils.lerp(760, 620, p),
-          recoverDuration: 180,
-          impactThreshold: 0.94,
-          forwardOnly: false,
-          cameraExtraHoldMs: 900,
+          // Match the reference cue stroke exactly:
+          // pull = pullRange * easeOutCubic(power), then a quick forward strike.
+          motion: 'classic',
+          pullRatio: easeOutCubic(p),
+          pullSmoothing: 1,
+          strikeDuration: LIVE_CUE_FORWARD_DURATION_MS,
+          holdDuration: LIVE_CUE_IMPACT_HOLD_MS,
+          pullbackDuration: 0,
+          recoverDuration: 0,
+          impactThreshold: 0.9,
+          forwardOnly: true,
+          cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
       };
