@@ -539,7 +539,7 @@ const CAMERA_LATERAL_OFFSETS = Object.freeze({
 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({
   portrait: 0.8,
-  landscape: -0.1
+  landscape: 0.04
 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.55,
@@ -613,7 +613,7 @@ const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
 const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
 const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
-const SHOWDOWN_SEATED_CAMERA_ZOOM_OUT = 1;
+const SHOWDOWN_SEATED_CAMERA_ZOOM_OUT = 1.24;
 
 const shouldForcePortraitMode = () => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -5426,7 +5426,7 @@ function TexasHoldemArena({ search }) {
         };
 
         const chipStack = chipFactory.createStack(0, {
-          mode: 'scatter',
+          mode: 'stack',
           layout: railLayout
         });
         chipStack.position.copy(seat.chipRailAnchor);
@@ -5572,7 +5572,7 @@ function TexasHoldemArena({ search }) {
           });
           const initialChips = Math.max(0, Math.round(player.chips ?? 0));
           chipFactory.setAmount(chipStack, initialChips, {
-            mode: 'scatter',
+            mode: 'stack',
             layout: railLayout
           });
           chipStack.visible = true;
@@ -6520,7 +6520,7 @@ function TexasHoldemArena({ search }) {
         : chipsAmount;
       seat.chipStack.visible = seat.showRailChips !== false;
       chipFactory.setAmount(seat.chipStack, displayChips, {
-        mode: 'scatter',
+        mode: 'stack',
         layout: seat.railLayout
       });
 
@@ -7013,7 +7013,7 @@ function TexasHoldemArena({ search }) {
               );
               if (showdownAnimationRef.current.seatPending[seatIndex] <= 0) {
                 chipFactory.setAmount(seat.chipStack, targetChips, {
-                  mode: 'scatter',
+                  mode: 'stack',
                   layout: seat.railLayout
                 });
               }
