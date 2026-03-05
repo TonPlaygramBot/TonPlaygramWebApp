@@ -4,8 +4,7 @@ describe('Pool Royale cue stroke timeline', () => {
   const options = {
     pullbackDuration: 200,
     strikeDuration: 100,
-    holdDuration: 80,
-    recoverDuration: 120
+    holdDuration: 80
   };
 
   it('starts in pullback phase', () => {
@@ -33,13 +32,11 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(early.t).toBeLessThanOrEqual(middle.t + 1e-9);
     expect(middle.t).toBeLessThanOrEqual(late.t + 1e-9);
   });
-
-
-  it('enters recover then done', () => {
-    const recovering = sampleCueStrokeTimeline({ elapsed: 430, ...options });
-    const done = sampleCueStrokeTimeline({ elapsed: 510, ...options });
-    expect(recovering.phase).toBe('recover');
-    expect(recovering.done).toBe(false);
+  it('snaps to done once hold finishes (no recover phase)', () => {
+    const holding = sampleCueStrokeTimeline({ elapsed: 379, ...options });
+    const done = sampleCueStrokeTimeline({ elapsed: 381, ...options });
+    expect(holding.phase).toBe('hold');
+    expect(holding.done).toBe(false);
     expect(done.phase).toBe('done');
     expect(done.done).toBe(true);
   });

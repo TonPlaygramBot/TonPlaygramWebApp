@@ -21378,7 +21378,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            const eased = easeInOutCubic(t);
+            const eased = easeOutCubic(t);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -21399,23 +21399,9 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return;
           }
-          if (localTime <= recoverEnd && recoverTime > 0) {
-            const t = THREE.MathUtils.clamp(
-              (localTime - followEnd) / Math.max(recoverTime, 1e-6),
-              0,
-              1
-            );
-            const eased = easeInOutCubic(t);
-            tmpReplayCueA.set(followSnap.x, followSnap.y, followSnap.z);
-            tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
-            cueStick.visible = true;
-            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
-            syncCueShadow();
-            return;
-          }
           const replayHoldWindow = Number.isFinite(playback?.duration)
             ? playback.duration
-            : recoverEnd;
+            : followEnd;
           if (localTime <= replayHoldWindow) {
             cueStick.visible = true;
             cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
@@ -21608,7 +21594,7 @@ const powerRef = useRef(hud.power);
                 }
                 case 'classic':
                 default:
-                  return easeInOutCubic(sample.t);
+                  return easeOutCubic(sample.t);
               }
             })();
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
