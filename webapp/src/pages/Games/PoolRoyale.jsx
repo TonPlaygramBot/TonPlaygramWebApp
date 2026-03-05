@@ -5293,13 +5293,13 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // lift the 2D camera a touch so the table sits slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.1; // lift the 2D camera a bit more so portrait framing sits higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.06; // keep 2D framing a little higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.1; // keep 2D framing slightly farther out so the camera reads higher in portrait
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
+  x: PLAY_W * -0.018, // keep the table slightly more to the right on portrait screens
   z: PLAY_H * -0.036 // nudge the table a little further down on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -33323,7 +33323,7 @@ const powerRef = useRef(hud.power);
       {/* Power Slider */}
       {showPowerSlider && !replayActive && !shotBroadcastActive && (
         <div
-          className="absolute right-3 top-[56%] -translate-y-1/2"
+          className="absolute right-3 top-1/2 z-50 -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
@@ -33346,7 +33346,7 @@ const powerRef = useRef(hud.power);
             ? {
                 left: '50%',
                 right: 'auto',
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
+                bottom: `${2 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
                 transform: `translateX(-50%) scale(${uiScale * 0.88})`,
                 transformOrigin: 'bottom center'
               }
