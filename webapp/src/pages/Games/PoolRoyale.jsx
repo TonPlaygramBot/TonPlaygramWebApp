@@ -24536,18 +24536,18 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
-          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
+          // Match the reference cue interaction: drag builds pull, release performs a
+          // direct push to contact, short hold, then instant snap back to idle.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
-          pullbackDuration,
+          strikeDuration: 120,
+          holdDuration: 50,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 0.88,
-          forwardOnly: false,
+          impactThreshold: 0.9,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
@@ -25121,7 +25121,7 @@ const powerRef = useRef(hud.power);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
+          const pullRange = 0.34;
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
@@ -30928,7 +30928,9 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: () => {
-        fireRef.current?.();
+        if (powerRef.current > 0.02) {
+          fireRef.current?.();
+        }
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
