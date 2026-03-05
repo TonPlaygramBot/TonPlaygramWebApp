@@ -21551,7 +21551,7 @@ const powerRef = useRef(hud.power);
               stroke.onImpact?.();
             }
             syncCueShadow();
-            cueStick.visible = true;
+            cueStick.visible = stroke.shotApplied ? false : true;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -21642,7 +21642,7 @@ const powerRef = useRef(hud.power);
             stroke.onImpact?.();
           }
           syncCueShadow();
-          cueStick.visible = true;
+          cueStick.visible = stroke.shotApplied ? false : true;
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
@@ -23395,17 +23395,11 @@ const powerRef = useRef(hud.power);
       };
       const resolveCueTipTarget = (dir, pullAmount, spinWorld, options = {}) => {
         const anchor = cueStickAnchorRef.current;
-        const cueMoving =
-          cue?.vel &&
-          Number.isFinite(cue.vel.x) &&
-          Number.isFinite(cue.vel.y) &&
-          cue.vel.lengthSq() > 0.0004;
         const useAnchor =
           Boolean(options.forceAnchor) ||
           Boolean(sliderInstanceRef.current?.dragging) ||
           shooting ||
-          cueAnimating ||
-          cueMoving;
+          cueAnimating;
         const baseX = useAnchor && Number.isFinite(anchor?.x) ? anchor.x : cue.pos.x;
         const baseZ = useAnchor && Number.isFinite(anchor?.z) ? anchor.z : cue.pos.y;
         return TMP_VEC3_CUE_TIP_TARGET.set(
@@ -25327,7 +25321,7 @@ const powerRef = useRef(hud.power);
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
-                cueStick.visible = true;
+                cueStick.visible = false;
               }
             };
           } else {
@@ -28564,8 +28558,7 @@ const powerRef = useRef(hud.power);
           cue?.pos &&
           !sliderInstanceRef.current?.dragging &&
           !shooting &&
-          !cueAnimating &&
-          allStopped(balls)
+          !cueAnimating
         ) {
           cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
         }
