@@ -539,7 +539,7 @@ const CAMERA_LATERAL_OFFSETS = Object.freeze({
 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({
   portrait: 0.8,
-  landscape: -0.0
+  landscape: -0.62
 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.55,
@@ -613,8 +613,6 @@ const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
 const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
 const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
-const SHOWDOWN_SEATED_CAMERA_ZOOM_OUT = 1;
-
 const shouldForcePortraitMode = () => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
@@ -844,12 +842,8 @@ const CAMERA_PLAYER_FOCUS_BLEND = 0.68;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.26;
 const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.46;
 const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
-const SHOWDOWN_WINNER_CARD_Y_OFFSET = CARD_H * 0.82;
-const SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET = CARD_H * 1.62;
-const SHOWDOWN_WINNER_SPACING = HOLE_SPACING * 2.5;
 const SHOWDOWN_CARD_STAND_TILT = THREE.MathUtils.degToRad(10);
 const SHOWDOWN_OVERHEAD_ZOOM = 1.08;
-const SHOWDOWN_WINNER_NAMEPLATE_SCALE = 0.84;
 const TEXAS_TOP_UP_CHIPS = 1000;
 const HUMAN_TURN_RAIL_FOCUS_BLEND = 0.48;
 const HUMAN_TURN_RAIL_FOCUS_DROP = CARD_H * 0.28;
@@ -4275,6 +4269,83 @@ function TexasHoldemArena({ search }) {
     [applyHeadOrientation, stopCameraTurnAnimation]
   );
 
+  const turnCameraTowardsPoint = useCallback(
+    (targetPoint, options = {}) => {
+      const basis = cameraBasisRef.current;
+      if (!basis?.position || !targetPoint) {
+        return;
+      }
+      const target =
+        targetPoint instanceof THREE.Vector3
+          ? targetPoint.clone()
+          : new THREE.Vector3(
+              Number(targetPoint.x) || 0,
+              Number(targetPoint.y) || 0,
+              Number(targetPoint.z) || 0
+            );
+      const fromCamera = target.sub(basis.position);
+      fromCamera.y = 0;
+      if (fromCamera.lengthSq() <= 1e-6) {
+        return;
+      }
+      fromCamera.normalize();
+
+      const forwardFlat = basis.baseForward.clone();
+      forwardFlat.y = 0;
+      if (forwardFlat.lengthSq() <= 1e-6) {
+        return;
+      }
+      forwardFlat.normalize();
+
+      const currentYaw = headAnglesRef.current.yaw;
+      const targetOffsetYaw = Math.atan2(
+        forwardFlat.clone().cross(fromCamera).dot(WORLD_UP),
+        forwardFlat.dot(fromCamera)
+      );
+      const targetYaw = THREE.MathUtils.clamp(
+        targetOffsetYaw,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
+      );
+      const yawDelta =
+        THREE.MathUtils.euclideanModulo(
+          targetYaw - currentYaw + Math.PI,
+          Math.PI * 2
+        ) - Math.PI;
+
+      if (
+        Math.abs(yawDelta) <= CAMERA_TURN_SNAP_EPSILON ||
+        options.animate === false
+      ) {
+        stopCameraTurnAnimation();
+        headAnglesRef.current.yaw = targetYaw;
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+        return;
+      }
+
+      stopCameraTurnAnimation();
+      const startYaw = currentYaw;
+      const startTime = performance.now();
+      const duration = options.durationMs ?? CAMERA_TURN_DURATION_MS;
+      const animateStep = (now) => {
+        const t = Math.min(1, (now - startTime) / Math.max(1, duration));
+        const eased = t * (2 - t);
+        headAnglesRef.current.yaw = startYaw + yawDelta * eased;
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+        if (t < 1) {
+          cameraTurnAnimRef.current = requestAnimationFrame(animateStep);
+        } else {
+          headAnglesRef.current.yaw = targetYaw;
+          cameraTurnAnimRef.current = null;
+        }
+      };
+      cameraTurnAnimRef.current = requestAnimationFrame(animateStep);
+    },
+    [applyHeadOrientation, stopCameraTurnAnimation]
+  );
+
   const resetCameraToStartView = useCallback(() => {
     stopCameraTurnAnimation();
     if (
@@ -6329,26 +6400,6 @@ function TexasHoldemArena({ search }) {
         });
       });
     }
-    const winnerDisplayIndex = new Map(
-      winnerSeatOrder.map((seatIndex, orderIndex) => [seatIndex, orderIndex])
-    );
-    const winnerOffsetDirection = (
-      three.communityAxes?.forward ?? new THREE.Vector3(0, 0, 1)
-    )
-      .clone()
-      .normalize();
-    if (rowRotation) {
-      winnerOffsetDirection.applyAxisAngle(WORLD_UP, rowRotation);
-    }
-    const winnerDisplayCenter = computePotAnchor({
-      surfaceY: three.tableInfo?.surfaceY,
-      rotationY: rowRotation,
-      ...three.communityAxes
-    }).addScaledVector(
-      winnerOffsetDirection,
-      POT_BELOW_COMMUNITY_OFFSET * 0.92
-    );
-    const winnerSpreadOffset = (winnerSeatOrder.length - 1) * 0.5;
     const foldedSeatOrder = new Map();
     state.players.forEach((entry, seatIdx) => {
       if (entry?.folded) foldedSeatOrder.set(seatIdx, foldedSeatOrder.size);
@@ -6430,7 +6481,6 @@ function TexasHoldemArena({ search }) {
           setCardHighlight(mesh, false);
           return;
         }
-        const winnerOrderIndex = winnerDisplayIndex.get(idx);
         const edgeOutwardPush =
           !seat.isHuman && seat.isBottomSideOpponent
             ? BOTTOM_SIDE_OPPONENT_CARD_OUTWARD_PUSH
@@ -6439,26 +6489,8 @@ function TexasHoldemArena({ search }) {
           .clone()
           .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET + edgeOutwardPush)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
-        if (state.showdown && Number.isInteger(winnerOrderIndex)) {
-          position.copy(
-            winnerDisplayCenter
-              .clone()
-              .addScaledVector(
-                humanSeatRef.current?.right ?? right,
-                (winnerOrderIndex - winnerSpreadOffset) *
-                  SHOWDOWN_WINNER_SPACING
-              )
-              .addScaledVector(
-                humanSeatRef.current?.right ?? right,
-                (cardIdx - 0.5) * HOLE_SPACING
-              )
-          );
-          position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
-        } else {
-          const clothY =
-            (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
-          position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
-        }
+        const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
+        position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
         mesh.position.copy(position);
         const humanActiveTurn =
           seat.isHuman &&
@@ -6643,42 +6675,22 @@ function TexasHoldemArena({ search }) {
         );
         label.userData.texture.needsUpdate = true;
       }
-      const winnerOrderIndex = winnerDisplayIndex.get(idx);
       if (label) {
-        if (state.showdown && Number.isInteger(winnerOrderIndex)) {
-          const winnerAnchor = winnerDisplayCenter
-            .clone()
-            .addScaledVector(
-              humanSeatRef.current?.right ?? seat.right,
-              (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING
-            );
-          label.position.copy(
-            winnerAnchor
-              .clone()
-              .setY(winnerAnchor.y + SHOWDOWN_WINNER_NAMEPLATE_Y_OFFSET)
-          );
-          const lookForward =
-            humanSeatRef.current?.forward?.clone() ?? seat.forward.clone();
-          label.lookAt(label.position.clone().add(lookForward));
-          label.rotateX(NAMEPLATE_BACK_TILT);
-          label.scale.setScalar(SHOWDOWN_WINNER_NAMEPLATE_SCALE);
-        } else {
-          label.scale.setScalar(1);
-          const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
-          const labelForward = seat.labelOffset?.forward ?? 0;
-          const labelOffset = seat.forward
-            .clone()
-            .setLength(labelForward)
-            .add(new THREE.Vector3(0, labelLift, 0));
-          label.position.copy(seat.seatPos.clone().add(labelOffset));
-          const seatNameplateFacing = seat.forward
-            .clone()
-            .negate()
-            .setY(0)
-            .normalize();
-          label.lookAt(label.position.clone().add(seatNameplateFacing));
-          label.rotateX(NAMEPLATE_BACK_TILT);
-        }
+        label.scale.setScalar(1);
+        const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
+        const labelForward = seat.labelOffset?.forward ?? 0;
+        const labelOffset = seat.forward
+          .clone()
+          .setLength(labelForward)
+          .add(new THREE.Vector3(0, labelLift, 0));
+        label.position.copy(seat.seatPos.clone().add(labelOffset));
+        const seatNameplateFacing = seat.forward
+          .clone()
+          .negate()
+          .setY(0)
+          .normalize();
+        label.lookAt(label.position.clone().add(seatNameplateFacing));
+        label.rotateX(NAMEPLATE_BACK_TILT);
       }
 
       if (player.folded && !prevPlayer?.folded) {
@@ -6836,15 +6848,40 @@ function TexasHoldemArena({ search }) {
       if (indicator) {
         indicator.visible = false;
       }
+      const three = threeRef.current;
       viewControlsRef.current?.applySeatedCamera?.(
         mountRef.current?.clientWidth ?? window.innerWidth,
         mountRef.current?.clientHeight ?? window.innerHeight,
-        {
-          animate: true,
-          zoomOut: SHOWDOWN_SEATED_CAMERA_ZOOM_OUT,
-          forcePotFocus: true
-        }
+        { animate: true }
       );
+      const winnerIndices = [];
+      if (Array.isArray(gameState?.winners)) {
+        gameState.winners.forEach((potEntry) => {
+          const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
+          winners.forEach((winnerInfo) => {
+            const seatIndex = winnerInfo?.index;
+            if (
+              typeof seatIndex === 'number' &&
+              seatIndex >= 0 &&
+              !winnerIndices.includes(seatIndex)
+            ) {
+              winnerIndices.push(seatIndex);
+            }
+          });
+        });
+      }
+      const winnerSeats = winnerIndices
+        .map((seatIndex) => three?.seatGroups?.[seatIndex])
+        .filter(Boolean);
+      if (winnerSeats.length) {
+        const winnerFocus = winnerSeats.reduce(
+          (acc, seat) =>
+            acc.add(seat.chipRailAnchor ?? seat.chipAnchor ?? seat.seatPos),
+          new THREE.Vector3()
+        );
+        winnerFocus.divideScalar(winnerSeats.length);
+        turnCameraTowardsPoint(winnerFocus, { animate: true });
+      }
       return;
     }
     if (typeof currentActionIndex !== 'number') return;
@@ -6897,6 +6934,7 @@ function TexasHoldemArena({ search }) {
     findSeatWithAvatar,
     playSound,
     resetCameraToStartView,
+    turnCameraTowardsPoint,
     turnCameraTowardsSeat
   ]);
 
