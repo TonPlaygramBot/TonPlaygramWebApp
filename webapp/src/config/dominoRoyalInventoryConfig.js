@@ -99,7 +99,7 @@ const getDominoDefaultOptionId = (type) => {
 export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
   tableWood: [getDominoDefaultOptionId('tableWood')].filter(Boolean),
   tableCloth: [getDominoDefaultOptionId('tableCloth')].filter(Boolean),
-  tableTheme: DOMINO_ROYAL_OPTION_SETS.tableTheme.map((option) => option.id),
+  tableTheme: [getDominoDefaultOptionId('tableTheme')].filter(Boolean),
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
   dominoStyle: [getDominoDefaultOptionId('dominoStyle')].filter(Boolean),
   highlightStyle: [getDominoDefaultOptionId('highlightStyle')].filter(Boolean),
@@ -137,7 +137,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     description: option.description || 'Unlock a new felt tone for the Domino Royal table surface.',
     thumbnail: option.swatches?.length ? swatchThumbnail(option.swatches) : DOMINO_TABLE_CLOTH_THUMBNAILS[option.id]
   })),
-  ...DOMINO_ROYAL_OPTION_SETS.tableTheme.map((option, idx) => ({
+  ...DOMINO_ROYAL_OPTION_SETS.tableTheme.slice(1).map((option, idx) => ({
     id: `domino-table-theme-${option.id}`,
     type: 'tableTheme',
     optionId: option.id,
