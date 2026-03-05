@@ -613,14 +613,6 @@ const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
 const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
 const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
-const SHOWDOWN_SEATED_CAMERA_ZOOM_OUT = 1.24;
-
-const shouldForcePortraitMode = () => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  return window.matchMedia('(pointer: coarse) and (max-width: 1024px)').matches;
-};
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -4954,7 +4946,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
-    screen.orientation?.lock?.('portrait').catch(() => {});
+    screen.orientation?.lock?.('landscape').catch(() => {});
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
@@ -5143,13 +5135,7 @@ function TexasHoldemArena({ search }) {
     const applySeatedCamera = (width, height, options = {}) => {
       if (!humanSeat) return;
       const animate = Boolean(options.animate);
-      const forcePortrait = shouldForcePortraitMode();
-      const portrait = height > width || forcePortrait;
-      const seatedZoomOut = THREE.MathUtils.clamp(
-        options.zoomOut ?? 1,
-        1,
-        1.6
-      );
+      const portrait = height > width;
       const lateralOffset = portrait
         ? CAMERA_LATERAL_OFFSETS.portrait
         : CAMERA_LATERAL_OFFSETS.landscape;
@@ -5161,13 +5147,10 @@ function TexasHoldemArena({ search }) {
         : CAMERA_ELEVATION_OFFSETS.landscape;
       const position = humanSeat.stoolAnchor
         .clone()
-        .addScaledVector(humanSeat.forward, -retreatOffset * seatedZoomOut)
+        .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
       const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
-      position.y = Math.min(
-        humanSeat.stoolHeight + elevation * seatedZoomOut,
-        maxCameraHeight
-      );
+      position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
       const focusBase = cameraTarget
         .clone()
         .add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
@@ -6833,14 +6816,10 @@ function TexasHoldemArena({ search }) {
       if (indicator) {
         indicator.visible = false;
       }
-      viewControlsRef.current?.applySeatedCamera?.(
-        mountRef.current?.clientWidth ?? window.innerWidth,
-        mountRef.current?.clientHeight ?? window.innerHeight,
-        {
+      viewControlsRef.current?.applyOverheadCamera?.({
         animate: true,
-          zoomOut: SHOWDOWN_SEATED_CAMERA_ZOOM_OUT
-        }
-      );
+        zoom: SHOWDOWN_OVERHEAD_ZOOM
+      });
       return;
     }
     if (typeof currentActionIndex !== 'number') return;
@@ -7505,7 +7484,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.25rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+6.05rem)]">
+      <div className="absolute z-20 flex flex-col items-start gap-2 left-[calc(0.5rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+5.6rem)] landscape:left-[calc(0.75rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -7516,7 +7495,7 @@ function TexasHoldemArena({ search }) {
                 ? 'Close game settings menu'
                 : 'Open game settings menu'
             }
-            className={`pointer-events-auto fixed left-[calc(0.15rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+2.05rem)] flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+            className={`pointer-events-auto fixed left-[calc(0.3rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+1.3rem)] landscape:left-[calc(0.55rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
               configOpen
                 ? 'border-white/35 text-white'
                 : 'hover:border-white/30 hover:text-white'
@@ -7762,7 +7741,7 @@ function TexasHoldemArena({ search }) {
         </div>
       </div>
       {sliderVisible && (
-        <div className="pointer-events-auto absolute right-4 bottom-36 z-10 flex flex-col items-center gap-3 text-white sm:right-6 sm:bottom-40">
+        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+0.1rem)] sm:right-6 sm:bottom-36 sm:landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+0.35rem)]">
           <div className="flex flex-col items-center gap-3">
             <input
               type="range"
@@ -7826,14 +7805,14 @@ function TexasHoldemArena({ search }) {
           onChat={() => setShowChat(true)}
           showInfo={false}
           order={['gift', 'chat', 'mute']}
-          className="fixed left-[calc(0.15rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+6.15rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[calc(0.3rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] landscape:left-[calc(0.55rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.1rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
         />
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <div className="absolute bottom-[4.4rem] left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={handleUndoChip}
