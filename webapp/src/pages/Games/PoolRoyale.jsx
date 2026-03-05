@@ -5299,7 +5299,7 @@ const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.028, // shift the 2D table framing a touch more right on portrait screens
+  x: PLAY_W * -0.034, // shift the 2D table framing a touch more right on portrait screens
   z: PLAY_H * -0.022 // lift the 2D table framing a touch more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -13582,11 +13582,16 @@ function PoolRoyaleGame({
     }
   }, [isTopDownView]);
 
+  const isMobileLike = uiScale === TOUCH_UI_SCALE;
+
   useEffect(() => {
-    if (!isPortrait && isTopDownView) {
-      setIsTopDownView(false);
+    if (isPortrait || !isMobileLike || isTopDownView) {
+      return;
     }
-  }, [isPortrait, isTopDownView]);
+    setIsTopDownView(true);
+    topViewLockedRef.current = true;
+    topViewControlsRef.current.enter?.(true, { variant: 'top' });
+  }, [isMobileLike, isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -30884,7 +30889,10 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive;
+  const isPlayerTurn = hud.turn === 0;
+  const isOpponentTurn = hud.turn === 1;
+  const shotBroadcastActive = shotActive || pocketCameraActive;
+  const showPowerSlider = isPlayerTurn && !hud.over && !replayActive && !shotBroadcastActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -30926,9 +30934,6 @@ const powerRef = useRef(hud.power);
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
 
-  const isPlayerTurn = hud.turn === 0;
-  const isOpponentTurn = hud.turn === 1;
-  const shotBroadcastActive = shotActive || pocketCameraActive;
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
@@ -31921,7 +31926,7 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
-          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx + (isTopDownView ? -10 : 0)}px)`,
           left: `calc(50% + ${menuButtonCenterNudgePx}px)`,
           transform: 'translateX(-50%)'
         }}
@@ -32940,7 +32945,12 @@ const powerRef = useRef(hud.power);
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!isPortrait) return;
+            if (!isPortrait && isMobileLike) {
+              setIsTopDownView(true);
+              topViewLockedRef.current = true;
+              topViewControlsRef.current.enter?.(true, { variant: 'top' });
+              return;
+            }
             const nextState = !isTopDownView;
             setIsTopDownView(nextState);
             if (nextState) {
@@ -33344,7 +33354,7 @@ const powerRef = useRef(hud.power);
       {/* Power Slider */}
       {showPowerSlider && !replayActive && !shotBroadcastActive && (
         <div
-          className={`absolute z-50 -translate-y-1/2 ${isTopDownView ? 'right-2 top-[52%]' : 'right-3 top-[56%]'}`}
+          className="absolute z-50 right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
           data-top-down-view={isTopDownView ? 'true' : 'false'}
