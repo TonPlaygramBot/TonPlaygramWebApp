@@ -25027,7 +25027,9 @@ const powerRef = useRef(hud.power);
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
           };
-          const triggerImpactOnIdle = currentHud?.turn === 0;
+          // Fire the physics impulse during the release phase so a slider release
+          // always launches the cue ball immediately.
+          const triggerImpactOnIdle = false;
           const baseSide = scaledSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
