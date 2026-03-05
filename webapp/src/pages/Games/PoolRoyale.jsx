@@ -5299,8 +5299,8 @@ const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.018, // keep slight left offset while moving the table a bit more to the right on screen
-  z: PLAY_H * -0.018 // reduce downward bias so the table appears a little higher on portrait screens
+  x: PLAY_W * -0.022, // shift the 2D table framing a touch more right on portrait screens
+  z: PLAY_H * -0.022 // lift the 2D table framing a touch more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -13508,9 +13508,9 @@ function PoolRoyaleGame({
   }, []);
   const sharedHudLiftPx = 30;
   const spinControllerLiftPx = 28;
-  const topDownSpinControllerDropPx = 18;
+  const topDownSpinControllerDropPx = 10;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = -14;
+  const menuButtonTopNudgePx = -22;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
@@ -33324,9 +33324,10 @@ const powerRef = useRef(hud.power);
       {/* Power Slider */}
       {showPowerSlider && !replayActive && !shotBroadcastActive && (
         <div
-          className="absolute right-3 top-[56%] z-50 -translate-y-1/2"
+          className={`absolute z-50 -translate-y-1/2 ${isTopDownView ? 'right-2 top-[52%]' : 'right-3 top-[56%]'}`}
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
+          data-top-down-view={isTopDownView ? 'true' : 'false'}
         >
           <div
             ref={sliderRef}
