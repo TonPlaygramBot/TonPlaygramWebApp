@@ -5299,7 +5299,7 @@ const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.022, // shift the 2D table framing a touch more right on portrait screens
+  x: PLAY_W * -0.028, // shift the 2D table framing a touch more right on portrait screens
   z: PLAY_H * -0.022 // lift the 2D table framing a touch more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -13510,7 +13510,7 @@ function PoolRoyaleGame({
   const spinControllerLiftPx = 28;
   const topDownSpinControllerDropPx = 10;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = -22;
+  const menuButtonTopNudgePx = -30;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
@@ -25062,9 +25062,15 @@ const powerRef = useRef(hud.power);
               enterTopView(true, { variant: 'replay' });
               setIsTopDownView(true);
             } else {
-              topViewRef.current = false;
-              topViewLockedRef.current = false;
-              setIsTopDownView(false);
+              const preservePlayerTopView = isPlayerTurn && topViewLockedRef.current;
+              if (preservePlayerTopView) {
+                enterTopView(true, { variant: 'top' });
+                setIsTopDownView(true);
+              } else {
+                topViewRef.current = false;
+                topViewLockedRef.current = false;
+                setIsTopDownView(false);
+              }
             }
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
@@ -32913,7 +32919,11 @@ const powerRef = useRef(hud.power);
         <button
           type="button"
           aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsLookMode((prev) => !prev);
+          }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
@@ -32927,9 +32937,19 @@ const powerRef = useRef(hud.power);
         <button
           type="button"
           aria-pressed={isTopDownView}
-          onClick={() => {
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             if (!isPortrait) return;
-            setIsTopDownView((prev) => !prev);
+            const nextState = !isTopDownView;
+            setIsTopDownView(nextState);
+            if (nextState) {
+              topViewLockedRef.current = true;
+              topViewControlsRef.current.enter?.(true, { variant: 'top' });
+            } else {
+              topViewLockedRef.current = false;
+              topViewControlsRef.current.exit?.(true);
+            }
           }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isTopDownView
