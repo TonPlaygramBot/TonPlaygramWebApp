@@ -5296,6 +5296,7 @@ const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.03; // lower the 2D camera just a touch so the table appears slightly bigger
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.03; // lower the 2D top view a bit so the table reads larger
+const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
@@ -5748,6 +5749,15 @@ const fitRadius = (camera, margin = 1.1, distanceScale = 0.65) => {
   const r = Math.max(dzH, dzW) * distanceScale * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
+const fitTopViewRadius = (camera, margin = TOP_VIEW_MARGIN, distanceScale = 0.65) =>
+  fitRadius(
+    {
+      aspect: TOP_VIEW_REFERENCE_ASPECT,
+      fov: camera?.fov ?? STANDING_VIEW_FOV
+    },
+    margin,
+    distanceScale
+  );
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
   const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
   return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
@@ -13499,10 +13509,11 @@ function PoolRoyaleGame({
   const sharedHudLiftPx = 30;
   const spinControllerLiftPx = 28;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = -2;
+  const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
+  const bottomLeftChatGiftLiftPx = 12;
   const rightHudShiftPx = -2;
   const bottomHudLeftPx = -22;
   const viewButtonsOffsetPx = 32;
@@ -13571,8 +13582,8 @@ function PoolRoyaleGame({
   }, [isTopDownView]);
 
   useEffect(() => {
-    if (!isPortrait && !isTopDownView) {
-      setIsTopDownView(true);
+    if (!isPortrait && isTopDownView) {
+      setIsTopDownView(false);
     }
   }, [isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
@@ -17636,10 +17647,7 @@ const powerRef = useRef(hud.power);
       }
 
       const resolveBroadcastDistance = () => {
-        const hostAspect = host?.clientWidth && host?.clientHeight
-          ? host.clientWidth / host.clientHeight
-          : null;
-        const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
+        const aspect = TOP_VIEW_REFERENCE_ASPECT;
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
         const topDownRadius = Math.max(
           fitRadius(tempCamera, TOP_VIEW_MARGIN) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE,
@@ -20083,7 +20091,7 @@ const powerRef = useRef(hud.power);
           if (!overheadApplied) {
             if (overheadVariant === 'top') {
               const topRadiusBase =
-                fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+                fitTopViewRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
               const topRadius = clampOrbitRadius(
                 Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
               );
@@ -21968,7 +21976,7 @@ const powerRef = useRef(hud.power);
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
-          const targetRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+          const targetRadiusBase = fitTopViewRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
           const targetRadius = clampOrbitRadius(
             Math.max(targetRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
           );
@@ -32935,7 +32943,7 @@ const powerRef = useRef(hud.power);
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-2"
-            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px` }}
+            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx + bottomLeftChatGiftLiftPx}px` }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
