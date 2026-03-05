@@ -5293,9 +5293,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.03; // lower the 2D camera just a touch so the table appears slightly bigger
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // lift the 2D camera a touch so the table sits slightly higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.03; // lower the 2D top view a bit so the table reads larger
+const TOP_VIEW_RADIUS_SCALE = 1.06; // keep 2D framing a little higher for portrait readability
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
@@ -30921,9 +30921,12 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
+  const shotBroadcastActive = shotActive || pocketCameraActive;
+  const topDownMinimalUi = isTopDownView;
+  const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
-    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && !shotBroadcastActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -31469,7 +31472,8 @@ const powerRef = useRef(hud.power);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
+  const bottomHudVisible =
+    hud.turn != null && !hud.over && !shotActive && !replayActive && !hideNonEssentialHud;
   const bottomHudScale = usePortraitHudLayout ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = usePortraitHudLayout ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
   const nameWidthClass = usePortraitHudLayout ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
@@ -32896,7 +32900,7 @@ const powerRef = useRef(hud.power);
 
         <div
           ref={leftControlsRef}
-          className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+          className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${(replayActive || shotBroadcastActive) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           right: `${rightHudShiftPx}px`,
           bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
@@ -32904,6 +32908,7 @@ const powerRef = useRef(hud.power);
           transformOrigin: 'bottom right'
         }}
       >
+        {!isTopDownView && (
         <button
           type="button"
           aria-pressed={isLookMode}
@@ -32917,6 +32922,7 @@ const powerRef = useRef(hud.power);
         >
           <span aria-hidden="true">👁️</span>
         </button>
+        )}
         <button
           type="button"
           aria-pressed={isTopDownView}
@@ -32936,7 +32942,7 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
-      {!replayActive && !isFreePractice && (
+      {!replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div className="pointer-events-auto">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
@@ -33315,7 +33321,7 @@ const powerRef = useRef(hud.power);
         </button>
       )}
       {/* Power Slider */}
-      {showPowerSlider && !replayActive && (
+      {showPowerSlider && !replayActive && !shotBroadcastActive && (
         <div
           className="absolute right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
@@ -33336,12 +33342,20 @@ const powerRef = useRef(hud.power);
         <div
           ref={spinBoxRef}
           className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={{
-            right: `${rightHudShiftPx}px`,
-            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-            transform: `scale(${uiScale * 0.88})`,
-            transformOrigin: 'bottom right'
-          }}
+          style={isTopDownView
+            ? {
+                left: '50%',
+                right: 'auto',
+                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
+                transform: `translateX(-50%) scale(${uiScale * 0.88})`,
+                transformOrigin: 'bottom center'
+              }
+            : {
+                right: `${rightHudShiftPx}px`,
+                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
+                transform: `scale(${uiScale * 0.88})`,
+                transformOrigin: 'bottom right'
+              }}
         >
           <div
             id="spinBox"
@@ -33363,7 +33377,7 @@ const powerRef = useRef(hud.power);
               }}
             ></div>
           </div>
-          {canRepositionCueBall && (
+          {canRepositionCueBall && !isTopDownView && (
             <button
               type="button"
               onClick={handleCueBallReposition}
