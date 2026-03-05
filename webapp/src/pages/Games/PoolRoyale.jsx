@@ -5293,13 +5293,13 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.09; // lift the 2D camera a bit more so the table reads slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.13; // lift the 2D camera a touch more so the table reads slightly higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.13; // keep 2D framing a touch higher for portrait readability
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the 2D table framing a little more right on portrait screens
+  x: PLAY_W * 0.032, // shift the 2D table framing a little more left on portrait-aligned screens
   z: PLAY_H * -0.032 // lift the 2D table framing a little more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -21473,7 +21473,8 @@ const powerRef = useRef(hud.power);
             strikeDip,
             wobbleAmount,
             strikeImpactThreshold,
-            forwardOnly
+            forwardOnly,
+            impactOnRecover
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
@@ -21533,7 +21534,7 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.y =
               (baseRotationY ?? cueStick.rotation.y) +
               Math.sin(pushT * Math.PI) * (wobbleAmount ?? 0.0018);
-            if (!stroke.shotApplied && pushT >= impactThreshold) {
+            if (!impactOnRecover && !stroke.shotApplied && pushT >= impactThreshold) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
@@ -21545,6 +21546,10 @@ const powerRef = useRef(hud.power);
             cueStick.position.copy(idlePos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+            if (impactOnRecover && !stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             syncCueShadow();
             cueStick.visible = stroke.shotApplied ? false : true;
             cueAnimating = false;
@@ -21575,7 +21580,7 @@ const powerRef = useRef(hud.power);
           });
           cueStick.visible = !stroke.shotApplied;
           cueAnimating = !sample.done;
-          if (!stroke.shotApplied && sample.hitArmed) {
+          if (!impactOnRecover && !stroke.shotApplied && sample.hitArmed) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
@@ -21632,6 +21637,10 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(idlePos);
           cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
           cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+          if (impactOnRecover && !stroke.shotApplied) {
+            stroke.shotApplied = true;
+            stroke.onImpact?.();
+          }
           syncCueShadow();
           cueStick.visible = stroke.shotApplied ? false : true;
           cueAnimating = false;
@@ -25018,6 +25027,7 @@ const powerRef = useRef(hud.power);
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
           };
+          const triggerImpactOnIdle = currentHud?.turn === 0;
           const baseSide = scaledSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
@@ -25305,6 +25315,7 @@ const powerRef = useRef(hud.power);
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true,
+              impactOnRecover: triggerImpactOnIdle,
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
