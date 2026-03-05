@@ -5293,13 +5293,13 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.09; // lift the 2D camera a bit more so the table reads slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.12; // lift the 2D camera slightly more so the table reads higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.12; // keep 2D framing slightly farther from the cloth for better readability
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the 2D table framing a little more right on portrait screens
+  x: PLAY_W * -0.06, // shift the 2D table framing a little more toward screen-left
   z: PLAY_H * -0.032 // lift the 2D table framing a little more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -21473,7 +21473,8 @@ const powerRef = useRef(hud.power);
             strikeDip,
             wobbleAmount,
             strikeImpactThreshold,
-            forwardOnly
+            forwardOnly,
+            impactPhase
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
@@ -21575,7 +21576,9 @@ const powerRef = useRef(hud.power);
           });
           cueStick.visible = !stroke.shotApplied;
           cueAnimating = !sample.done;
-          if (!stroke.shotApplied && sample.hitArmed) {
+          const triggerImpactAtIdle = impactPhase === 'idle';
+          const shouldApplyImpact = triggerImpactAtIdle ? sample.done : sample.hitArmed;
+          if (!stroke.shotApplied && shouldApplyImpact) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
@@ -24709,7 +24712,7 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-      const fire = () => {
+      const fire = ({ impactPhase = 'release' } = {}) => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -25305,6 +25308,7 @@ const powerRef = useRef(hud.power);
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true,
+              impactPhase,
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
@@ -30915,7 +30919,7 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: () => {
-        fireRef.current?.();
+        fireRef.current?.({ impactPhase: 'idle' });
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
