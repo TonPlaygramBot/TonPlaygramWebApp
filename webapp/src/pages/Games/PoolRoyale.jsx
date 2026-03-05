@@ -21527,7 +21527,7 @@ const powerRef = useRef(hud.power);
                   return easedPush;
               }
             })();
-            cueStick.visible = !stroke.shotApplied;
+            cueStick.visible = true;
             cueStick.position.lerpVectors(pullPos, impactPos, motionPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * motionPush;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
@@ -21551,7 +21551,7 @@ const powerRef = useRef(hud.power);
               stroke.onImpact?.();
             }
             syncCueShadow();
-            cueStick.visible = stroke.shotApplied ? false : true;
+            cueStick.visible = true;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -24536,18 +24536,19 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
-          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
+          // Match the reference pull/strike flow:
+          // drag controls pullback depth, strike is a fixed quick push,
+          // then hold briefly and snap straight back to idle.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
-          pullbackDuration,
+          strikeDuration: 120,
+          holdDuration: 50,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 0.88,
-          forwardOnly: false,
+          impactThreshold: 0.9,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
