@@ -5293,14 +5293,14 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.09; // lift the 2D camera a bit more so the table reads slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // lift the 2D camera a touch more so the table reads slightly higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.11; // keep 2D framing a touch higher for portrait readability
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.038, // shift the 2D table framing a touch more right on portrait screens
-  z: PLAY_H * -0.025 // lift the 2D table framing a touch more toward the top edge
+  x: PLAY_W * -0.05, // shift the 2D table framing a touch more right on portrait screens
+  z: PLAY_H * -0.032 // lift the 2D table framing a touch more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -13510,7 +13510,7 @@ function PoolRoyaleGame({
   const spinControllerLiftPx = 28;
   const topDownSpinControllerDropPx = 10;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = -30;
+  const menuButtonTopNudgePx = -38;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
@@ -13527,6 +13527,9 @@ function PoolRoyaleGame({
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
+  const [isLandscapeViewport, setIsLandscapeViewport] = useState(
+    () => (typeof window === 'undefined' ? false : window.innerWidth > window.innerHeight)
+  );
   const usePortraitHudLayout = true;
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
@@ -13581,6 +13584,25 @@ function PoolRoyaleGame({
       topViewControlsRef.current.exit?.();
     }
   }, [isTopDownView]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const syncLandscapeTopView = () => {
+      const inLandscape = window.innerWidth > window.innerHeight;
+      setIsLandscapeViewport(inLandscape);
+      if (inLandscape) {
+        setIsTopDownView(true);
+      }
+      screen.orientation?.lock?.('portrait').catch(() => {});
+    };
+    syncLandscapeTopView();
+    window.addEventListener('resize', syncLandscapeTopView);
+    window.addEventListener('orientationchange', syncLandscapeTopView);
+    return () => {
+      window.removeEventListener('resize', syncLandscapeTopView);
+      window.removeEventListener('orientationchange', syncLandscapeTopView);
+    };
+  }, []);
 
   const isMobileLike = uiScale === TOUCH_UI_SCALE;
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
@@ -21525,7 +21547,8 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.y =
               (baseRotationY ?? cueStick.rotation.y) +
               Math.sin(pushT * Math.PI) * (wobbleAmount ?? 0.0018);
-            if (!stroke.shotApplied && pushT >= impactThreshold) {
+            const triggerOnRecover = stroke.shotTriggerPhase === 'recover';
+            if (!stroke.shotApplied && (!triggerOnRecover && pushT >= impactThreshold)) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
@@ -21537,8 +21560,12 @@ const powerRef = useRef(hud.power);
             cueStick.position.copy(idlePos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+            if (stroke.shotTriggerPhase === 'recover' && !stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             syncCueShadow();
-            cueStick.visible = true;
+            cueStick.visible = stroke.shotTriggerPhase === 'recover' ? false : true;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -21567,7 +21594,8 @@ const powerRef = useRef(hud.power);
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
-          if (!stroke.shotApplied && sample.hitArmed) {
+          const triggerOnRecover = stroke.shotTriggerPhase === 'recover';
+          if (!stroke.shotApplied && ((triggerOnRecover && sample.done) || (!triggerOnRecover && sample.hitArmed))) {
             stroke.shotApplied = true;
             stroke.onImpact?.();
           }
@@ -21625,7 +21653,7 @@ const powerRef = useRef(hud.power);
           cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
           cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
           syncCueShadow();
-          cueStick.visible = true;
+          cueStick.visible = stroke.shotTriggerPhase === 'recover' ? false : true;
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
@@ -24762,7 +24790,6 @@ const powerRef = useRef(hud.power);
             y: appliedSpinSnapshot.y ?? 0
           }
         };
-        setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
           shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
@@ -25022,36 +25049,42 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
+          const applyShotImpulse = () => {
+            if (shooting) return;
+            setShootingState(true);
+            cue.vel.copy(base);
+            if (cue.spin) {
+              cue.spin.set(spinSide, spinTop);
+            }
+            if (cue.omega) {
+              cue.omega.set(0, 0, 0);
+              TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+              if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+              TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+              if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+              TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+              TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+              const impulseMag = BALL_MASS * base.length();
+              TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+              TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+              cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+            }
+            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+            cue.spinMode = 'standard';
+            cue.swerveStrength = 0;
+            cue.swervePowerStrength = 0;
+            resetSpinRef.current?.();
+            cueLiftRef.current.lift = 0;
+            cueLiftRef.current.startLift = 0;
+            cue.impacted = false;
+            cue.launchDir = shotAimDir.clone().normalize();
+            maxPowerLiftTriggered = false;
+            cue.lift = 0;
+            cue.liftVel = 0;
+            playCueHit(clampedPower * 0.6);
+            cueStick.visible = false;
+            cueAnimating = false;
+          };
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25294,9 +25327,12 @@ const powerRef = useRef(hud.power);
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: true,
+              shotTriggerPhase: 'recover',
+              onImpact: applyShotImpulse
             };
           } else {
+            applyShotImpulse();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
@@ -32950,7 +32986,7 @@ const powerRef = useRef(hud.power);
               topViewControlsRef.current.enter?.(true, { variant: 'top' });
               return;
             }
-            const nextState = !isTopDownView;
+            const nextState = isLandscapeViewport ? true : !isTopDownView;
             setIsTopDownView(nextState);
             if (nextState) {
               topViewLockedRef.current = true;
