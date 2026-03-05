@@ -5299,8 +5299,8 @@ const TOP_VIEW_RADIUS_SCALE = 1.09; // keep 2D framing a bit higher for portrait
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.034, // shift the 2D table framing a touch more right on portrait screens
-  z: PLAY_H * -0.022 // lift the 2D table framing a touch more toward the top edge
+  x: PLAY_W * -0.038, // shift the 2D table framing a touch more right on portrait screens
+  z: PLAY_H * -0.025 // lift the 2D table framing a touch more toward the top edge
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -13516,7 +13516,7 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const rightHudShiftPx = -2;
-  const bottomHudLeftPx = -22;
+  const bottomHudLeftPx = 0;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -13575,7 +13575,7 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (isTopDownView) {
       topViewLockedRef.current = true;
-      topViewControlsRef.current.enter?.(false, { variant: 'top' });
+      topViewControlsRef.current.enter?.(true, { variant: 'top' });
     } else {
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
@@ -13583,15 +13583,6 @@ function PoolRoyaleGame({
   }, [isTopDownView]);
 
   const isMobileLike = uiScale === TOUCH_UI_SCALE;
-
-  useEffect(() => {
-    if (isPortrait || !isMobileLike || isTopDownView) {
-      return;
-    }
-    setIsTopDownView(true);
-    topViewLockedRef.current = true;
-    topViewControlsRef.current.enter?.(true, { variant: 'top' });
-  }, [isMobileLike, isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -19804,7 +19795,7 @@ const powerRef = useRef(hud.power);
                     broadcastArgs.focusWorld = resolvedTarget.clone();
                     broadcastArgs.targetWorld = resolvedTarget.clone();
                     broadcastArgs.orbitWorld = railReplayCamera.position.clone();
-                    broadcastArgs.lerp = 0.12;
+                    broadcastArgs.lerp = 0;
                     overheadApplied = true;
                   }
                 }
@@ -20090,7 +20081,7 @@ const powerRef = useRef(hud.power);
               if (broadcastCamerasRef.current) {
                 broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
-              broadcastArgs.lerp = 0.12;
+              broadcastArgs.lerp = 0;
               overheadApplied = true;
             }
           }
@@ -20120,7 +20111,7 @@ const powerRef = useRef(hud.power);
               if (broadcastCamerasRef.current) {
                 broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
-              broadcastArgs.lerp = 0.12;
+              broadcastArgs.lerp = 0;
             } else {
               const fallbackTarget =
                 lastCameraTargetRef.current?.clone?.() ?? topFocusTarget.clone();
@@ -32927,7 +32918,15 @@ const powerRef = useRef(hud.power);
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            setIsLookMode((prev) => !prev);
+            setIsLookMode((prev) => {
+              const next = !prev;
+              lookModeRef.current = next;
+              if (!next) {
+                aimFocusRef.current = null;
+              }
+              cameraUpdateRef.current?.();
+              return next;
+            });
           }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
