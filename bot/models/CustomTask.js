@@ -8,18 +8,7 @@ const customTaskSchema = new mongoose.Schema({
   },
   reward: { type: Number, required: true },
   link: { type: String, required: true },
-  description: { type: String },
-  section: {
-    type: String,
-    enum: ['tasks', 'mining'],
-    default: 'tasks'
-  },
-  videoProvider: {
-    type: String,
-    enum: ['youtube', 'tiktok', null],
-    default: null
-  },
-  videoDurationSec: { type: Number, default: 0 }
+  description: { type: String }
 });
 
 export default mongoose.model('CustomTask', customTaskSchema);

@@ -60,36 +60,6 @@ function parseTelegramLink(link) {
   };
 }
 
-
-function toEmbedVideo(link = '', provider = '') {
-  const raw = String(link || '').trim();
-  if (!raw) return null;
-
-  if (provider === 'youtube' || /youtu\.be|youtube\.com/i.test(raw)) {
-    const direct = raw.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{6,})/i);
-    const short = raw.match(/youtu\.be\/([A-Za-z0-9_-]{6,})/i);
-    const watch = raw.match(/[?&]v=([A-Za-z0-9_-]{6,})/i);
-    const id = (direct && direct[1]) || (short && short[1]) || (watch && watch[1]);
-    if (!id) return null;
-    return {
-      provider: 'youtube',
-      embedUrl: `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`,
-    };
-  }
-
-  if (provider === 'tiktok' || /tiktok\.com/i.test(raw)) {
-    const m = raw.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/i);
-    const id = m && m[1];
-    if (!id) return null;
-    return {
-      provider: 'tiktok',
-      embedUrl: `https://www.tiktok.com/embed/v2/${id}`,
-    };
-  }
-
-  return null;
-}
-
 router.post('/list', authenticate, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
@@ -120,7 +90,6 @@ router.post('/list', authenticate, async (req, res) => {
     customList.map(async (t) => {
       const taskId = `custom_${t._id}`;
       const rec = await Task.findOne({ telegramId, taskId });
-      const embed = toEmbedVideo(t.link, t.videoProvider);
       return {
         id: taskId,
         description: t.description || `Task on ${t.platform}`,
@@ -128,15 +97,7 @@ router.post('/list', authenticate, async (req, res) => {
         icon: PLATFORM_ICONS[t.platform] || t.platform,
         link: t.link,
         completed: !!rec,
-        cooldown: 0,
-        section: t.section || 'tasks',
-        video: embed
-          ? {
-              provider: embed.provider,
-              embedUrl: embed.embedUrl,
-              durationSec: Number(t.videoDurationSec) || 0
-            }
-          : null
+        cooldown: 0
       };
     })
   );
@@ -461,39 +422,23 @@ router.post('/admin/list', async (req, res) => {
 
 router.post('/admin/create', async (req, res) => {
   if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
-  const { platform, reward, link, description, section, videoProvider, videoDurationSec } = req.body;
+  const { platform, reward, link, description } = req.body;
   if (!platform || !reward || !link) {
     return res
       .status(400)
       .json({ error: 'platform, reward and link required' });
   }
-  const task = await CustomTask.create({
-    platform,
-    reward,
-    link,
-    description,
-    section: section || 'tasks',
-    videoProvider: videoProvider || null,
-    videoDurationSec: Number(videoDurationSec) || 0
-  });
+  const task = await CustomTask.create({ platform, reward, link, description });
   res.json(task);
 });
 
 router.post('/admin/update', async (req, res) => {
   if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
-  const { id, platform, reward, link, description, section, videoProvider, videoDurationSec } = req.body;
+  const { id, platform, reward, link, description } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
   const task = await CustomTask.findByIdAndUpdate(
     id,
-    {
-      platform,
-      reward,
-      link,
-      description,
-      section: section || 'tasks',
-      videoProvider: videoProvider || null,
-      videoDurationSec: Number(videoDurationSec) || 0
-    },
+    { platform, reward, link, description },
     { new: true }
   );
   if (!task) return res.status(404).json({ error: 'not found' });
