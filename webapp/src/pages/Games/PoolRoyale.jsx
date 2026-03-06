@@ -5293,14 +5293,14 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // lift the 2D camera a touch so the table sits slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // lift the 2D camera a bit more so the table reads slightly higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.06; // keep 2D framing a little higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.08; // keep 2D framing a little higher for portrait readability
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.028, // keep a light left bias but move the table a bit more to the visual right
-  z: PLAY_H * -0.02 // lift the table framing slightly upward on portrait screens
+  x: PLAY_W * -0.034, // keep a light left bias but move the table a bit more to the visual right
+  z: PLAY_H * -0.028 // lift the table framing slightly upward on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -5316,8 +5316,8 @@ const BROADCAST_TOP_VIEW_PHI = 0;
 const BROADCAST_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
 const BROADCAST_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.012, // keep rail overhead framing closer to table center than the 2D gameplay view
-  z: PLAY_H * -0.012 // reduce downward screen bias so overhead broadcast sits more centered
+  x: PLAY_W * -0.008, // push rail overhead framing a touch closer to true table centre
+  z: PLAY_H * -0.008 // reduce downward screen bias so overhead broadcast sits more centered
 });
 const BROADCAST_SNOOKER_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
@@ -5396,7 +5396,7 @@ const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while th
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.91; // push the rail overhead camera a touch farther toward table center during aiming
-const RAIL_OVERHEAD_AIM_PHI_LIFT = -0.02; // tilt the rail overhead view a bit more downward toward the cloth
+const RAIL_OVERHEAD_AIM_PHI_LIFT = -0.03; // tilt the rail overhead view a touch more downward toward the cloth
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -13510,7 +13510,7 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 18;
+  const spinControllerLiftPx = 8;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -24536,7 +24536,7 @@ const powerRef = useRef(hud.power);
           pullbackDuration,
           recoverDuration: 0,
           impactThreshold: 0.88,
-          forwardOnly: false,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
