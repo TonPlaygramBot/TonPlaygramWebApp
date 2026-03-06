@@ -4870,7 +4870,7 @@ function createBroadcastCameras({
 
   const defaultFocus = new THREE.Vector3(
     0,
-    TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+    TABLE_Y + TABLE.THICK + BALL_R * 2.1,
     0
   );
 
@@ -4884,7 +4884,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.6;
+  const cameraProximityScale = 0.54;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -5299,8 +5299,8 @@ const TOP_VIEW_RADIUS_SCALE = 1.06; // keep 2D framing a little higher for portr
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
-  z: PLAY_H * -0.036 // nudge the table a little further down on portrait screens
+  x: PLAY_W * -0.02, // keep the 2D table a touch more to the right while preserving slider clearance
+  z: PLAY_H * -0.018 // lift the 2D table slightly higher on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -5393,7 +5393,7 @@ const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while th
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.02; // pitch the rail-overhead broadcast a little more downward during aim assists
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -13507,7 +13507,7 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 28;
+  const spinControllerLiftPx = 20;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -21537,7 +21537,7 @@ const powerRef = useRef(hud.power);
               syncCueShadow();
               return true;
             }
-            cueStick.position.copy(idlePos);
+            cueStick.position.copy(followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -21617,14 +21617,13 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'recover') {
-            const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos, eased);
+            cueStick.position.copy(followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
             return true;
           }
-          cueStick.position.copy(idlePos);
+          cueStick.position.copy(followPos ?? impactPos);
           cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
           cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
           syncCueShadow();
