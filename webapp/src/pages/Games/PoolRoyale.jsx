@@ -30424,12 +30424,20 @@ const committedShotPowerRef = useRef(0);
             recordReplayFrame(now);
           }
           if (shooting) {
+            const awaitingCueImpact = Boolean(
+              (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current && !cueStrokeStateRef.current.shotApplied) ||
+              pendingImpactRef.current
+            );
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            if (!any) {
+            if (!any && !awaitingCueImpact) {
               resolve();
-            } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
+            } else if (
+              !awaitingCueImpact &&
+              shotStartedAt > 0 &&
+              now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS
+            ) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
               balls.forEach((ball) => {
                 if (!ball) return;
