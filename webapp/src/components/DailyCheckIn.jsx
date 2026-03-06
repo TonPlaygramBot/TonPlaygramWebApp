@@ -8,6 +8,7 @@ import { dailyCheckIn, getProfile } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 
 import LoginOptions from './LoginOptions.jsx';
+import TaskPromoVideo from './TaskPromoVideo.jsx';
 
 const REWARDS = Array.from({ length: 30 }, (_, i) => 100 + i * 20);
 
@@ -185,6 +186,7 @@ export default function DailyCheckIn() {
       />
 
       <h3 className="text-lg font-bold text-white">Daily Streaks</h3>
+      <TaskPromoVideo />
 
       <div className="flex space-x-2 justify-center">{progress}</div>
 

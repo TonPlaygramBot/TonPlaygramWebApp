@@ -11,6 +11,7 @@ import {
 import { getTelegramId } from '../utils/telegram.js';
 import { getGameVolume } from '../utils/sound.js';
 import LoginOptions from './LoginOptions.jsx';
+import TaskPromoVideo from './TaskPromoVideo.jsx';
 
 export default function SpinGame() {
   let telegramId;
@@ -263,6 +264,7 @@ export default function SpinGame() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
+      <TaskPromoVideo />
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       {!bonusMode ? (
         <div className="flex items-start justify-center">
