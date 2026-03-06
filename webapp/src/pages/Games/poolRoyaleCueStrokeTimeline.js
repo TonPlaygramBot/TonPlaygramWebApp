@@ -5,14 +5,12 @@ export const sampleCueStrokeTimeline = ({
   pullbackDuration = 0,
   strikeDuration = 120,
   holdDuration = 50,
-  impactThreshold = 1,
   animationStyle = 'classic'
 } = {}) => {
   const pullback = Math.max(0, pullbackDuration ?? 0)
   const release = Math.max(0, strikeDuration ?? 120)
   const hold = Math.max(0, holdDuration ?? 50)
   const safeElapsed = Math.max(0, elapsed)
-  const impactArm = THREE.MathUtils.clamp(impactThreshold ?? 1, 0, 1)
 
   const pullEnd = pullback
   const releaseEnd = pullEnd + release
@@ -47,7 +45,7 @@ export const sampleCueStrokeTimeline = ({
       phase: 'release',
       t: styleT,
       // Cue-ball movement starts only after the cue returns to the start contact point.
-      hitArmed: baseT >= impactArm || safeElapsed >= pullEnd + release,
+      hitArmed: safeElapsed >= pullEnd + release,
       done: false
     }
   }
