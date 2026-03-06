@@ -21538,7 +21538,7 @@ const committedShotPowerRef = useRef(0);
               stroke.onImpact?.();
             }
             syncCueShadow();
-            cueStick.visible = stroke.shotApplied ? false : true;
+            cueStick.visible = true;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -21630,7 +21630,7 @@ const committedShotPowerRef = useRef(0);
             stroke.onImpact?.();
           }
           syncCueShadow();
-          cueStick.visible = stroke.shotApplied ? false : true;
+          cueStick.visible = true;
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
@@ -25119,7 +25119,7 @@ const committedShotPowerRef = useRef(0);
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
-          const visualPull = applyVisualPullCompensation(startPull, dir);
+          const visualPull = startPull;
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -25306,7 +25306,7 @@ const committedShotPowerRef = useRef(0);
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
-              wobbleAmount: 0.0018,
+              wobbleAmount: 0.0014,
               strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
@@ -25316,7 +25316,6 @@ const committedShotPowerRef = useRef(0);
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
-                cueStick.visible = false;
               }
             };
           } else {
@@ -30903,6 +30902,7 @@ const committedShotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
+  const sliderReleaseAnimRef = useRef(0);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const shotBroadcastActive = shotActive || pocketCameraActive;
@@ -30916,6 +30916,7 @@ const committedShotPowerRef = useRef(0);
     const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
+      step: 0.1,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
@@ -30929,15 +30930,36 @@ const committedShotPowerRef = useRef(0);
         } else {
           committedShotPowerRef.current = 0;
         }
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
+        if (sliderReleaseAnimRef.current) {
+          cancelAnimationFrame(sliderReleaseAnimRef.current);
+          sliderReleaseAnimRef.current = 0;
+        }
+        const releaseStart = performance.now();
+        const from = clampPower(powerRef.current, 0);
+        const durationMs = 160;
+        const animateRelease = () => {
+          const t = THREE.MathUtils.clamp((performance.now() - releaseStart) / durationMs, 0, 1);
+          const nextPower = THREE.MathUtils.lerp(from, 0, easeOutCubic(t));
+          slider.set(nextPower * 100, { animate: false });
+          applyPower(nextPower);
+          if (t < 1) {
+            sliderReleaseAnimRef.current = requestAnimationFrame(animateRelease);
+            return;
+          }
+          sliderReleaseAnimRef.current = 0;
+          slider.set(slider.min, { animate: false });
           applyPower(0);
-        });
+        };
+        sliderReleaseAnimRef.current = requestAnimationFrame(animateRelease);
       }
     });
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
+      if (sliderReleaseAnimRef.current) {
+        cancelAnimationFrame(sliderReleaseAnimRef.current);
+        sliderReleaseAnimRef.current = 0;
+      }
       sliderInstanceRef.current = null;
       slider.destroy();
     };
