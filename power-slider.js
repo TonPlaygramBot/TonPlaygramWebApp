@@ -206,32 +206,36 @@ export class PowerSlider {
     if (this.locked) return;
     e.preventDefault();
     this.dragging = true;
+    this.dragMoved = false;
+    this.dragStartValue = this.value;
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
+    this.pointerStartY = e.clientY;
     if (typeof this.onStart === 'function') this.onStart(this.value);
-    this._updateFromClientY(e.clientY);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
-    this.el.addEventListener('pointercancel', this._onPointerUp);
   }
 
   _pointerMove(e) {
     if (!this.dragging) return;
+    if (!this.dragMoved && Math.abs(e.clientY - this.pointerStartY) > 1) {
+      this.dragMoved = true;
+    }
     this._updateFromClientY(e.clientY);
   }
 
   _pointerUp(e) {
     if (!this.dragging) return;
     this.dragging = false;
-    try {
-      this.el.releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
+    this.el.releasePointerCapture(e.pointerId);
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
-    this.el.removeEventListener('pointercancel', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
+    const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
+    if (!moved) {
+      this.set(this.dragStartValue, { animate: true });
+      return;
+    }
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
   }
 
