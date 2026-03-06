@@ -250,7 +250,6 @@ export default function RouletteMini() {
 
   const handleAdComplete = () => {
     setAdWatched(true);
-    setShowAd(false);
     startSpin();
   };
 

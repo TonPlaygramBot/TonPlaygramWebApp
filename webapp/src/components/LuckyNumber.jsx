@@ -131,7 +131,6 @@ export default function LuckyNumber() {
 
   const handleAdComplete = () => {
     setAdWatched(true);
-    setShowAd(false);
     setTrigger((t) => t + 1);
   };
 

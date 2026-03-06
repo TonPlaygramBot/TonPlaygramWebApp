@@ -216,7 +216,6 @@ export default function SpinGame() {
     const now = Date.now();
     localStorage.setItem('lastSpinAd', String(now));
     setAdWatched(true);
-    setShowAd(false);
     triggerSpin();
   };
 
