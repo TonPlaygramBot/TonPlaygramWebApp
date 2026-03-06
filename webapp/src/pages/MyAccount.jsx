@@ -52,7 +52,8 @@ import {
   FiBell,
   FiList,
   FiDollarSign,
-  FiCheckSquare
+  FiCheckSquare,
+  FiVideo
 } from 'react-icons/fi';
 
 export default function MyAccount() {
@@ -106,6 +107,7 @@ export default function MyAccount() {
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
+  const [devTaskSection, setDevTaskSection] = useState('tasks');
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
@@ -414,6 +416,11 @@ export default function MyAccount() {
       label: 'Manage tasks',
       value: 'Create, update, and remove quests',
       icon: FiList
+    },
+    {
+      label: 'Mining videos',
+      value: 'TikTok/YouTube iframe tasks with auto rewards',
+      icon: FiVideo
     },
     {
       label: 'Claims',
@@ -944,20 +951,33 @@ export default function MyAccount() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={() => setShowNotifyModal(true)}
                 className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
               >
                 <FiBell className="w-4 h-4" />
-                Open Notify Center
+                Notify
               </button>
               <button
-                onClick={() => setShowTasksModal(true)}
+                onClick={() => {
+                  setDevTaskSection('tasks');
+                  setShowTasksModal(true);
+                }}
                 className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
               >
                 <FiList className="w-4 h-4" />
-                Open Task Manager
+                Tasks
+              </button>
+              <button
+                onClick={() => {
+                  setDevTaskSection('mining');
+                  setShowTasksModal(true);
+                }}
+                className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"
+              >
+                <FiVideo className="w-4 h-4" />
+                Mining Videos
               </button>
             </div>
 
@@ -999,6 +1019,7 @@ export default function MyAccount() {
       <DevTasksModal
         open={showTasksModal}
         onClose={() => setShowTasksModal(false)}
+        initialSection={devTaskSection}
       />
       <InfoPopup
         open={showSaved}
