@@ -5299,8 +5299,8 @@ const TOP_VIEW_RADIUS_SCALE = 1.06; // keep 2D framing a little higher for portr
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
-  z: PLAY_H * -0.036 // nudge the table a little further down on portrait screens
+  x: PLAY_W * -0.028, // keep a light left bias but move the table a bit more to the visual right
+  z: PLAY_H * -0.02 // lift the table framing slightly upward on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -5315,13 +5315,16 @@ const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_PHI = 0;
 const BROADCAST_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
-const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
+  x: PLAY_W * -0.012, // keep rail overhead framing closer to table center than the 2D gameplay view
+  z: PLAY_H * -0.012 // reduce downward screen bias so overhead broadcast sits more centered
+});
 const BROADCAST_SNOOKER_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const BROADCAST_SNOOKER_TOP_VIEW_PHI = 0;
 const BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_SNOOKER_TOP_VIEW_RESOLVED_PHI = BROADCAST_SNOOKER_TOP_VIEW_PHI;
-const BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET = BROADCAST_TOP_VIEW_SCREEN_OFFSET;
 const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
   pool: Object.freeze({
     margin: BROADCAST_TOP_VIEW_MARGIN,
@@ -5342,7 +5345,7 @@ const resolveBroadcastTopViewVariant = (variant) =>
   BROADCAST_TOP_VIEW_VARIANTS[variant] ?? BROADCAST_TOP_VIEW_VARIANTS.pool;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
+const RAIL_OVERHEAD_PHI = BROADCAST_TOP_VIEW_RESOLVED_PHI; // keep rail overhead tied to the broadcast top view angle
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -5392,8 +5395,8 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
-const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
+const RAIL_OVERHEAD_AIM_ZOOM = 0.91; // push the rail overhead camera a touch farther toward table center during aiming
+const RAIL_OVERHEAD_AIM_PHI_LIFT = -0.02; // tilt the rail overhead view a bit more downward toward the cloth
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -13507,7 +13510,7 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 28;
+  const spinControllerLiftPx = 18;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -25154,7 +25157,18 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const followPos = impactPos.clone();
+          const followVector = impactPos.clone().sub(pullPos);
+          if (followVector.lengthSq() < 1e-8) {
+            followVector.copy(dir);
+          } else {
+            followVector.normalize();
+          }
+          const followDistance = THREE.MathUtils.lerp(
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX,
+            Math.pow(THREE.MathUtils.clamp(clampedPower, 0, 1), CUE_POWER_GAMMA)
+          );
+          const followPos = impactPos.clone().addScaledVector(followVector, followDistance);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
