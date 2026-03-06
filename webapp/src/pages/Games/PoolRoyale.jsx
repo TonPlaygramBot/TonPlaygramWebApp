@@ -25036,10 +25036,7 @@ const committedShotPowerRef = useRef(0);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          let shotImpactApplied = false;
           const triggerShotImpact = () => {
-            if (shotImpactApplied) return false;
-            shotImpactApplied = true;
             cue.vel.copy(base);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
@@ -25070,7 +25067,6 @@ const committedShotPowerRef = useRef(0);
             cue.lift = 0;
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
-            return true;
           };
 
           if (cameraRef.current && sphRef.current) {
@@ -25180,24 +25176,6 @@ const committedShotPowerRef = useRef(0);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
-          const fallbackImpactTime =
-            startTime +
-            Math.max(0, pullbackDuration) +
-            Math.max(0, strikeDuration) +
-            Math.max(0, followDurationResolved) +
-            Math.max(0, recoverDuration) +
-            40;
-          pendingImpactRef.current = {
-            time: fallbackImpactTime,
-            apply: () => {
-              if (triggerShotImpact()) {
-                if (cueStrokeStateRef.current) {
-                  cueStrokeStateRef.current.shotApplied = true;
-                }
-                cueStick.visible = false;
-              }
-            }
-          };
           const forwardPreviewHold =
             startTime +
             Math.max(
@@ -25338,13 +25316,11 @@ const committedShotPowerRef = useRef(0);
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
-                pendingImpactRef.current = null;
                 cueStick.visible = false;
               }
             };
           } else {
             triggerShotImpact();
-            pendingImpactRef.current = null;
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
