@@ -14418,6 +14418,7 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const committedShotPowerRef = useRef(0);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -24525,16 +24526,16 @@ const powerRef = useRef(hud.power);
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
           // Match the reference cue interaction: drag builds pull, release performs a
-          // short pullback + push stroke to contact, short hold, then instant snap back.
+          // direct push stroke to contact, short hold, then instant snap back.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
           strikeDuration: 120,
           holdDuration: 50,
-          pullbackDuration: 90,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 1,
-          forwardOnly: false,
+          impactThreshold: 0.9,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
@@ -24784,7 +24785,13 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const clampedPower = clampPower(powerRef.current, 0);
+        const useCommittedPower =
+          currentHud?.turn === 0 && committedShotPowerRef.current > 0;
+        const clampedPower = clampPower(
+          useCommittedPower ? committedShotPowerRef.current : powerRef.current,
+          0
+        );
+        committedShotPowerRef.current = 0;
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -30916,8 +30923,11 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: () => {
-        if (powerRef.current > 0.02) {
+        committedShotPowerRef.current = clampPower(powerRef.current, 0);
+        if (committedShotPowerRef.current > 0.02) {
           fireRef.current?.();
+        } else {
+          committedShotPowerRef.current = 0;
         }
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
