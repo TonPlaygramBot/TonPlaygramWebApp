@@ -271,7 +271,7 @@ export default function RouletteMini() {
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
       <TikTokTaskVideo
         title="Roulette Spin Video"
-        videoUrl="https://www.tiktok.com/@tonplaygram/video/7614119495149292818"
+        videoUrl="https://vt.tiktok.com/ZSu8hc7YM/"
         storageKey="rouletteVideoPopupSeen"
       />
       <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
