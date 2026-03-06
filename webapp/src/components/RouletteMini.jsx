@@ -4,6 +4,7 @@ import { getTelegramId } from '../utils/telegram.js';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
+import TaskPromoVideo from './TaskPromoVideo.jsx';
 
 const ROULETTE_ORDER = [
   0,
@@ -268,6 +269,7 @@ export default function RouletteMini() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
+      <TaskPromoVideo />
       <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
         <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-20 flex flex-col items-center">
           <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[18px] border-l-transparent border-r-transparent border-t-yellow-400 drop-shadow" />
