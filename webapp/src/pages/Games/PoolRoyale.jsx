@@ -24522,29 +24522,18 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullRatio = easeOutCubic(p);
-        const pullbackDuration = THREE.MathUtils.lerp(
-          PLAYER_CUE_PULLBACK_DURATION_MS * 0.6,
-          PLAYER_CUE_PULLBACK_DURATION_MS,
-          pullRatio
-        );
-        const strikeDuration = THREE.MathUtils.lerp(
-          LIVE_CUE_FORWARD_DURATION_MS,
-          PLAYER_CUE_RELEASE_DURATION_MS * 0.26,
-          pullRatio
-        );
         return {
-          // Keep a visible two-phase cue stroke: pull back while charging, then
-          // push through the cue ball on release.
+          // Match the reference cue interaction: drag builds pull, release performs a
+          // direct push to contact, short hold, then instant snap back to idle.
           motion: 'classic',
-          pullRatio,
+          pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration,
-          holdDuration: LIVE_CUE_IMPACT_HOLD_MS,
-          pullbackDuration,
+          strikeDuration: 120,
+          holdDuration: 50,
+          pullbackDuration: 0,
           recoverDuration: 0,
           impactThreshold: 0.9,
-          forwardOnly: false,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
