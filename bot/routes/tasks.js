@@ -130,7 +130,6 @@ router.post('/list', authenticate, async (req, res) => {
         completed: !!rec,
         cooldown: 0,
         section: t.section || 'tasks',
-        miningArea: t.miningArea || null,
         video: embed
           ? {
               provider: embed.provider,
@@ -462,8 +461,8 @@ router.post('/admin/list', async (req, res) => {
 
 router.post('/admin/create', async (req, res) => {
   if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
-  const { platform, reward, link, description, section, miningArea, videoProvider, videoDurationSec } = req.body;
-  if (!platform || reward === undefined || reward === null || !link) {
+  const { platform, reward, link, description, section, videoProvider, videoDurationSec } = req.body;
+  if (!platform || !reward || !link) {
     return res
       .status(400)
       .json({ error: 'platform, reward and link required' });
@@ -474,7 +473,6 @@ router.post('/admin/create', async (req, res) => {
     link,
     description,
     section: section || 'tasks',
-    miningArea: miningArea || null,
     videoProvider: videoProvider || null,
     videoDurationSec: Number(videoDurationSec) || 0
   });
@@ -483,7 +481,7 @@ router.post('/admin/create', async (req, res) => {
 
 router.post('/admin/update', async (req, res) => {
   if (!isAuthorized(req)) return res.status(403).json({ error: 'unauthorized' });
-  const { id, platform, reward, link, description, section, miningArea, videoProvider, videoDurationSec } = req.body;
+  const { id, platform, reward, link, description, section, videoProvider, videoDurationSec } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
   const task = await CustomTask.findByIdAndUpdate(
     id,
@@ -493,7 +491,6 @@ router.post('/admin/update', async (req, res) => {
       link,
       description,
       section: section || 'tasks',
-      miningArea: miningArea || null,
       videoProvider: videoProvider || null,
       videoDurationSec: Number(videoDurationSec) || 0
     },

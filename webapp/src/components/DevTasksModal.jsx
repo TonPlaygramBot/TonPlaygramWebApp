@@ -19,21 +19,12 @@ const defaultForm = {
   videoDurationSec: '30'
 };
 
-const MINING_AREAS = [
-  { key: 'daily_streaks', label: 'Daily Streaks' },
-  { key: 'spin_and_win', label: 'Spin and Win' },
-  { key: 'lucky_card', label: 'Lucky Card' },
-  { key: 'roulette_spin', label: 'Roulette Spin' }
-];
-
 export default function DevTasksModal({ open, onClose, initialSection = 'tasks' }) {
   const [tasks, setTasks] = useState([]);
   const [editing, setEditing] = useState(null);
   const [activeSection, setActiveSection] = useState('tasks');
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
-  const [miningLinks, setMiningLinks] = useState({});
-  const [miningSaving, setMiningSaving] = useState('');
 
   const load = async () => {
     const data = await adminListTasks();
@@ -47,15 +38,6 @@ export default function DevTasksModal({ open, onClose, initialSection = 'tasks' 
       load();
     }
   }, [open, initialSection]);
-
-  useEffect(() => {
-    const next = {};
-    for (const area of MINING_AREAS) {
-      const task = tasks.find((t) => (t.section || 'tasks') === 'mining' && t.miningArea === area.key);
-      next[area.key] = task?.link || '';
-    }
-    setMiningLinks(next);
-  }, [tasks]);
 
   const visibleTasks = useMemo(
     () => tasks.filter((t) => (t.section || 'tasks') === activeSection),
@@ -107,39 +89,6 @@ export default function DevTasksModal({ open, onClose, initialSection = 'tasks' 
     }
   };
 
-  const handleSaveMiningLink = async (areaKey) => {
-    const link = (miningLinks[areaKey] || '').trim();
-    if (!link) return;
-
-    const existing = tasks.find(
-      (t) => (t.section || 'tasks') === 'mining' && t.miningArea === areaKey
-    );
-
-    const payload = {
-      platform: parseVideoProvider(link) === 'youtube' ? 'youtube' : 'tiktok',
-      reward: 0,
-      link,
-      description: `${MINING_AREAS.find((a) => a.key === areaKey)?.label || 'Mining'} video`,
-      section: 'mining',
-      miningArea: areaKey,
-      videoProvider: parseVideoProvider(link) === 'none' ? null : parseVideoProvider(link),
-      videoDurationSec: 30
-    };
-
-    setMiningSaving(areaKey);
-    try {
-      if (existing?._id) {
-        await adminUpdateTask({ id: existing._id, ...payload });
-      } else {
-        await adminCreateTask(payload);
-      }
-      await load();
-      window.dispatchEvent(new Event('tasksUpdated'));
-    } finally {
-      setMiningSaving('');
-    }
-  };
-
   const handleEdit = (task) => {
     const section = task.section || 'tasks';
     setActiveSection(section);
@@ -162,7 +111,7 @@ export default function DevTasksModal({ open, onClose, initialSection = 'tasks' 
     window.dispatchEvent(new Event('tasksUpdated'));
   };
 
-  const isMiningSection = activeSection === 'mining';
+  const isMiningSection = form.section === 'mining';
 
   if (!open) return null;
 
@@ -201,144 +150,140 @@ export default function DevTasksModal({ open, onClose, initialSection = 'tasks' 
           ))}
         </div>
 
-        {isMiningSection ? (
-          <div className="rounded-xl border border-border bg-background/60 p-3 space-y-2">
-            <p className="text-sm font-semibold text-white flex items-center gap-2">
-              <FiVideo className="w-4 h-4" /> Mining video links by section
-            </p>
-            <p className="text-xs text-subtext">
-              Rewards are already handled in the mining modules. Here you only attach one video link per section.
-            </p>
-
-            <div className="space-y-2">
-              {MINING_AREAS.map((area) => (
-                <div key={area.key} className="rounded-lg border border-border bg-surface/40 p-2.5 space-y-2">
-                  <label className="text-sm font-semibold text-white">{area.label}</label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      placeholder="YouTube or TikTok link"
-                      value={miningLinks[area.key] || ''}
-                      onChange={(e) =>
-                        setMiningLinks((prev) => ({ ...prev, [area.key]: e.target.value }))
-                      }
-                      className="border p-2 rounded w-full text-black"
-                    />
-                    <button
-                      onClick={() => handleSaveMiningLink(area.key)}
-                      disabled={miningSaving === area.key}
-                      className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
-                    >
-                      {miningSaving === area.key ? 'Saving...' : 'Save link'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="rounded-xl border border-border bg-background/60 p-3 space-y-2">
+          <p className="text-sm font-semibold text-white">
+            {editing ? 'Edit task' : 'Create new task'}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select
+              value={form.platform}
+              onChange={(e) => updateForm('platform', e.target.value)}
+              className="border p-2 rounded w-full text-black"
+            >
+              <option value="tiktok">TikTok</option>
+              <option value="x">X</option>
+              <option value="telegram">Telegram</option>
+              <option value="discord">Discord</option>
+              <option value="youtube">YouTube</option>
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+            </select>
+            <input
+              type="number"
+              placeholder="Reward (TPC)"
+              value={form.reward}
+              onChange={(e) => updateForm('reward', e.target.value)}
+              className="border p-2 rounded w-full text-black"
+            />
           </div>
-        ) : (
-          <>
-            <div className="rounded-xl border border-border bg-background/60 p-3 space-y-2">
-              <p className="text-sm font-semibold text-white">
-                {editing ? 'Edit task' : 'Create new task'}
+
+          <input
+            type="text"
+            placeholder={isMiningSection ? 'TikTok or YouTube video link' : 'Task link'}
+            value={form.link}
+            onChange={(e) => updateForm('link', e.target.value)}
+            className="border p-2 rounded w-full text-black"
+          />
+
+          <input
+            type="text"
+            placeholder="Description"
+            value={form.description}
+            onChange={(e) => updateForm('description', e.target.value)}
+            className="border p-2 rounded w-full text-black"
+          />
+
+          {isMiningSection && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 p-2 space-y-2">
+              <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-1">
+                <FiVideo className="w-4 h-4" /> Mining video config
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <select
-                  value={form.platform}
-                  onChange={(e) => updateForm('platform', e.target.value)}
+                  value={form.videoProvider}
+                  onChange={(e) => updateForm('videoProvider', e.target.value)}
                   className="border p-2 rounded w-full text-black"
                 >
-                  <option value="tiktok">TikTok</option>
-                  <option value="x">X</option>
-                  <option value="telegram">Telegram</option>
-                  <option value="discord">Discord</option>
-                  <option value="youtube">YouTube</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="instagram">Instagram</option>
+                  <option value="none">No embedded video</option>
+                  <option value="youtube">YouTube embed</option>
+                  <option value="tiktok">TikTok embed</option>
                 </select>
                 <input
                   type="number"
-                  placeholder="Reward (TPC)"
-                  value={form.reward}
-                  onChange={(e) => updateForm('reward', e.target.value)}
+                  min="5"
+                  value={form.videoDurationSec}
+                  onChange={(e) => updateForm('videoDurationSec', e.target.value)}
                   className="border p-2 rounded w-full text-black"
+                  placeholder="Auto-complete after seconds"
                 />
               </div>
+              <p className="text-[11px] text-subtext">
+                For mining video tasks, reward is auto-claimed after the video timer ends.
+              </p>
+            </div>
+          )}
 
-              <input
-                type="text"
-                placeholder="Task link"
-                value={form.link}
-                onChange={(e) => updateForm('link', e.target.value)}
-                className="border p-2 rounded w-full text-black"
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full text-sm font-semibold disabled:opacity-60"
+            >
+              {saving ? 'Saving...' : editing ? 'Save Task' : 'Add Task'}
+            </button>
+            <button
+              onClick={() => resetForm(activeSection)}
+              className="px-3 py-2 bg-background border border-border rounded text-white w-full text-sm"
+            >
+              Reset
+            </button>
+            <button
+              onClick={load}
+              className="px-3 py-2 bg-background border border-border rounded text-white w-full text-sm inline-flex items-center justify-center gap-1"
+            >
+              <FiRefreshCw className="w-4 h-4" /> Refresh
+            </button>
+          </div>
+        </div>
 
-              <input
-                type="text"
-                placeholder="Description"
-                value={form.description}
-                onChange={(e) => updateForm('description', e.target.value)}
-                className="border p-2 rounded w-full text-black"
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <ul className="space-y-2 pb-6">
+          {visibleTasks.map((t) => (
+            <li key={t._id} className="rounded-lg border border-border bg-background/60 p-2.5 space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-white break-words">{t.description}</p>
+                <span className="text-[11px] uppercase rounded bg-primary/15 text-primary px-2 py-0.5 shrink-0">
+                  {t.platform}
+                </span>
+              </div>
+              <div className="text-xs text-subtext break-all">{t.link}</div>
+              <div className="flex items-center gap-2 text-xs text-subtext">
+                <span>{t.reward} TPC</span>
+                {(t.videoProvider || t.video?.provider) && (
+                  <span className="rounded bg-primary/15 text-primary px-1.5 py-0.5">
+                    {t.videoProvider || t.video.provider} video
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end">
                 <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full text-sm font-semibold disabled:opacity-60"
+                  className="px-2 py-1 rounded bg-primary/20 text-primary inline-flex items-center gap-1"
+                  onClick={() => handleEdit(t)}
                 >
-                  {saving ? 'Saving...' : editing ? 'Save Task' : 'Add Task'}
+                  <FiEdit className="w-4 h-4" /> Edit
                 </button>
                 <button
-                  onClick={() => resetForm(activeSection)}
-                  className="px-3 py-2 bg-background border border-border rounded text-white w-full text-sm"
+                  className="px-2 py-1 rounded bg-red-500/20 text-red-300 inline-flex items-center gap-1"
+                  onClick={() => handleDelete(t._id)}
                 >
-                  Reset
-                </button>
-                <button
-                  onClick={load}
-                  className="px-3 py-2 bg-background border border-border rounded text-white w-full text-sm inline-flex items-center justify-center gap-1"
-                >
-                  <FiRefreshCw className="w-4 h-4" /> Refresh
+                  <FiTrash2 className="w-4 h-4" /> Delete
                 </button>
               </div>
-            </div>
-
-            <ul className="space-y-2 pb-6">
-              {visibleTasks.map((t) => (
-                <li key={t._id} className="rounded-lg border border-border bg-background/60 p-2.5 space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-white break-words">{t.description}</p>
-                    <span className="text-[11px] uppercase rounded bg-primary/15 text-primary px-2 py-0.5 shrink-0">
-                      {t.platform}
-                    </span>
-                  </div>
-                  <div className="text-xs text-subtext break-all">{t.link}</div>
-                  <div className="flex items-center gap-2 text-xs text-subtext">
-                    <span>{t.reward} TPC</span>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      className="px-2 py-1 rounded bg-primary/20 text-primary inline-flex items-center gap-1"
-                      onClick={() => handleEdit(t)}
-                    >
-                      <FiEdit className="w-4 h-4" /> Edit
-                    </button>
-                    <button
-                      className="px-2 py-1 rounded bg-red-500/20 text-red-300 inline-flex items-center gap-1"
-                      onClick={() => handleDelete(t._id)}
-                    >
-                      <FiTrash2 className="w-4 h-4" /> Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-              {visibleTasks.length === 0 && (
-                <p className="text-center text-subtext text-sm py-2">No tasks in this section.</p>
-              )}
-            </ul>
-          </>
-        )}
+            </li>
+          ))}
+          {visibleTasks.length === 0 && (
+            <p className="text-center text-subtext text-sm py-2">No tasks in this section.</p>
+          )}
+        </ul>
       </div>
     </div>,
     document.body
