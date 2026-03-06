@@ -25021,9 +25021,9 @@ const committedShotPowerRef = useRef(0);
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
           };
-          // Fire the physics impulse during the release phase so a slider release
-          // always launches the cue ball immediately.
-          const triggerImpactOnIdle = false;
+          // Delay the physics impulse until the cue returns to idle so the shot
+          // power from the slider is applied exactly when the full stroke finishes.
+          const triggerImpactOnIdle = true;
           const baseSide = scaledSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
