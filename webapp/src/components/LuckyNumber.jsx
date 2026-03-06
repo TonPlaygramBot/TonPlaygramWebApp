@@ -7,7 +7,6 @@ import LoginOptions from './LoginOptions.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
-import TaskPromoVideo from './TaskPromoVideo.jsx';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -146,7 +145,6 @@ export default function LuckyNumber() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
-      <TaskPromoVideo />
       <div className="grid grid-cols-3 gap-2 justify-items-center relative">
         {cards.map((card, i) => (
           <div
