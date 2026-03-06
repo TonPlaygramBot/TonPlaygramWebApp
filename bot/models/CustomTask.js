@@ -14,6 +14,11 @@ const customTaskSchema = new mongoose.Schema({
     enum: ['tasks', 'mining'],
     default: 'tasks'
   },
+  miningArea: {
+    type: String,
+    enum: ['daily_streaks', 'spin_and_win', 'lucky_card', 'roulette_spin', null],
+    default: null
+  },
   videoProvider: {
     type: String,
     enum: ['youtube', 'tiktok', null],

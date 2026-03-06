@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
@@ -19,7 +19,8 @@ import {
   listFriendRequests,
   acceptFriendRequest,
   getOnlineCount,
-  getOnlineUsers
+  getOnlineUsers,
+  listTasks
 } from '../utils/api.js';
 import UserSearchBar from '../components/UserSearchBar.jsx';
 import { BOT_USERNAME } from '../utils/constants.js';
@@ -27,6 +28,41 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
 import InvitePopup from '../components/InvitePopup.jsx';
 import PlayerInvitePopup from '../components/PlayerInvitePopup.jsx';
+import { normalizeTasksResponse } from '../utils/taskUtils.js';
+
+
+const MINING_VIDEO_AREAS = [
+  { key: 'daily_streaks', label: 'Daily Streaks' },
+  { key: 'spin_and_win', label: 'Spin and Win' },
+  { key: 'lucky_card', label: 'Lucky Card' },
+  { key: 'roulette_spin', label: 'Roulette Spin' }
+];
+
+function MiningVideoModal({ item, onClose }) {
+  if (!item) return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 p-3 flex items-center justify-center">
+      <div className="w-full max-w-md bg-surface border border-border rounded-xl p-3 space-y-3">
+        <p className="font-semibold text-white text-sm">{item.label} Video</p>
+        <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
+          <iframe
+            src={item.embedUrl}
+            title={item.label}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+        <button
+          onClick={onClose}
+          className="w-full px-3 py-2 rounded bg-background border border-border text-white text-sm"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function normalizeRequests(payload) {
   if (Array.isArray(payload)) return payload;
@@ -61,6 +97,8 @@ export default function Mining() {
   const [mode, setMode] = useState('1v1');
   const [selected, setSelected] = useState([]);
   const [groupPopup, setGroupPopup] = useState(false);
+  const [miningVideoItems, setMiningVideoItems] = useState([]);
+  const [activeMiningVideo, setActiveMiningVideo] = useState(null);
 
   useEffect(() => {
     getReferralInfo(telegramId).then(setReferral);
@@ -69,6 +107,14 @@ export default function Mining() {
       setRank(data.rank);
     });
     listFriendRequests(telegramId).then((requests) => setFriendRequests(normalizeRequests(requests)));
+    listTasks(telegramId).then((data) => {
+      const allTasks = normalizeTasksResponse(data);
+      const videos = MINING_VIDEO_AREAS.map((area) => {
+        const task = allTasks.find((t) => t.section === 'mining' && t.miningArea === area.key && t.video?.embedUrl);
+        return task ? { key: area.key, label: area.label, embedUrl: task.video.embedUrl } : null;
+      }).filter(Boolean);
+      setMiningVideoItems(videos);
+    }).catch(() => {});
 
     const saved = loadAvatar();
     if (saved) {
@@ -137,6 +183,12 @@ export default function Mining() {
   const totalBoost =
     (referral.bonusMiningRate || 0) + (referral.storeMiningRate || 0);
 
+  const miningVideoMap = useMemo(() => {
+    const map = {};
+    for (const item of miningVideoItems) map[item.key] = item;
+    return map;
+  }, [miningVideoItems]);
+
   return (
     <>
       <div className="mining-page-content">
@@ -200,9 +252,41 @@ export default function Mining() {
             These actions improve your consistency and help you compound mining rewards every day.
           </p>
           <DailyCheckIn />
+          {miningVideoMap.daily_streaks && (
+            <button
+              onClick={() => setActiveMiningVideo(miningVideoMap.daily_streaks)}
+              className="w-full -mt-2 mb-1 px-3 py-2 rounded border border-border bg-background/70 text-xs text-subtext hover:text-white"
+            >
+              Watch Daily Streaks video
+            </button>
+          )}
           <SpinGame />
+          {miningVideoMap.spin_and_win && (
+            <button
+              onClick={() => setActiveMiningVideo(miningVideoMap.spin_and_win)}
+              className="w-full -mt-2 mb-1 px-3 py-2 rounded border border-border bg-background/70 text-xs text-subtext hover:text-white"
+            >
+              Watch Spin and Win video
+            </button>
+          )}
           <LuckyNumber />
+          {miningVideoMap.lucky_card && (
+            <button
+              onClick={() => setActiveMiningVideo(miningVideoMap.lucky_card)}
+              className="w-full -mt-2 mb-1 px-3 py-2 rounded border border-border bg-background/70 text-xs text-subtext hover:text-white"
+            >
+              Watch Lucky Card video
+            </button>
+          )}
           <RouletteMini />
+          {miningVideoMap.roulette_spin && (
+            <button
+              onClick={() => setActiveMiningVideo(miningVideoMap.roulette_spin)}
+              className="w-full -mt-2 mb-1 px-3 py-2 rounded border border-border bg-background/70 text-xs text-subtext hover:text-white"
+            >
+              Watch Roulette Spin video
+            </button>
+          )}
         </section>
 
         <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-text overflow-hidden wide-card">
@@ -398,6 +482,7 @@ export default function Mining() {
           setSelected([]);
         }}
       />
+      <MiningVideoModal item={activeMiningVideo} onClose={() => setActiveMiningVideo(null)} />
     </>
   );
 }
