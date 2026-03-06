@@ -22,6 +22,16 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(atHit.hitArmed).toBe(true);
   });
 
+
+  it('arms impact at the configured release threshold (reference strike at 90%)', () => {
+    const pre = sampleCueStrokeTimeline({ elapsed: 289, ...options, impactThreshold: 0.9 });
+    const at = sampleCueStrokeTimeline({ elapsed: 290, ...options, impactThreshold: 0.9 });
+    expect(pre.phase).toBe('release');
+    expect(pre.hitArmed).toBe(false);
+    expect(at.phase).toBe('release');
+    expect(at.hitArmed).toBe(true);
+  });
+
   it('keeps spring release monotonic so cue does not snap backward mid-push', () => {
     const early = sampleCueStrokeTimeline({ elapsed: 230, ...options, animationStyle: 'spring' });
     const middle = sampleCueStrokeTimeline({ elapsed: 260, ...options, animationStyle: 'spring' });
