@@ -30937,10 +30937,23 @@ const committedShotPowerRef = useRef(0);
         } else {
           committedShotPowerRef.current = 0;
         }
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+        const fromPower = clampPower(powerRef.current, 0);
+        const start = performance.now();
+        const durationMs = 160;
+        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+        const tick = () => {
+          const t = Math.min(1, Math.max(0, (performance.now() - start) / durationMs));
+          const nextPower = fromPower + (0 - fromPower) * easeOutCubic(t);
+          slider.set(nextPower * 100, { animate: false });
+          applyPower(nextPower);
+          if (t < 1) {
+            requestAnimationFrame(tick);
+          } else {
+            slider.set(slider.min, { animate: false });
+            applyPower(0);
+          }
+        };
+        requestAnimationFrame(tick);
       }
     });
     sliderInstanceRef.current = slider;
