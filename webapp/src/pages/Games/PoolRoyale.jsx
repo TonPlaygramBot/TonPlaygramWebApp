@@ -113,11 +113,6 @@ import {
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
-import {
-  applyShotImpact,
-  createShotImpactFallback,
-  createShotImpactPayload
-} from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -25041,7 +25036,7 @@ const committedShotPowerRef = useRef(0);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          const shotImpactPayload = createShotImpactPayload(() => {
+          const triggerShotImpact = () => {
             cue.vel.copy(base);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
@@ -25072,8 +25067,7 @@ const committedShotPowerRef = useRef(0);
             cue.lift = 0;
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
-          });
-          const triggerShotImpact = () => applyShotImpact(shotImpactPayload);
+          };
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25182,16 +25176,6 @@ const committedShotPowerRef = useRef(0);
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
-          const fallbackImpactTime =
-            startTime +
-            Math.max(
-              pullbackDuration + strikeDuration + followDurationResolved + recoverDuration + 40,
-              strikeDuration + 40
-            );
-          pendingImpactRef.current = createShotImpactFallback(
-            shotImpactPayload,
-            fallbackImpactTime
-          );
           const forwardPreviewHold =
             startTime +
             Math.max(
@@ -25337,7 +25321,6 @@ const committedShotPowerRef = useRef(0);
             };
           } else {
             triggerShotImpact();
-            pendingImpactRef.current = null;
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
