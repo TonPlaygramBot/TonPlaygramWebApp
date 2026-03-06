@@ -24525,16 +24525,16 @@ const powerRef = useRef(hud.power);
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
           // Match the reference cue interaction: drag builds pull, release performs a
-          // direct push stroke to contact, short hold, then instant snap back.
+          // short pullback + push stroke to contact, short hold, then instant snap back.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
           strikeDuration: 120,
           holdDuration: 50,
-          pullbackDuration: 0,
+          pullbackDuration: 90,
           recoverDuration: 0,
-          impactThreshold: 0.9,
-          forwardOnly: true,
+          impactThreshold: 1,
+          forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
