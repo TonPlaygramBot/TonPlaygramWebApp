@@ -28,6 +28,8 @@ namespace Aiming
         public float recoilDuration = 0.04f;
         public float baseStrikeImpulse = 1.8f;
         public float maxStrikeImpulse = 6.5f;
+        [Tooltip("How close to idle pullback the cue must be before applying the strike impulse.")]
+        public float strikeContactPullbackThreshold = 0.001f;
         public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
         public AnimationCurve strikeEaseIn = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
@@ -37,6 +39,7 @@ namespace Aiming
         float _targetPullback;
         float _pullbackVelocity;
         float _power;
+        float _lastRequestedPower;
         bool _charging;
         bool _striking;
 
@@ -68,6 +71,7 @@ namespace Aiming
         public void SetChargePower(float normalizedPower)
         {
             _power = Mathf.Clamp01(normalizedPower);
+            _lastRequestedPower = _power;
             _targetPullback = pullbackEasing.Evaluate(_power) * maxPullbackDistance;
         }
 
@@ -85,7 +89,9 @@ namespace Aiming
         public void ReleaseAndStrike()
         {
             if (_striking) return;
-            StartCoroutine(StrikeRoutine());
+
+            float shotPower = Mathf.Clamp01(Mathf.Max(_power, _lastRequestedPower));
+            StartCoroutine(StrikeRoutine(shotPower));
         }
 
         void UpdateAimDirection()
@@ -117,7 +123,6 @@ namespace Aiming
             if (!_charging)
             {
                 _targetPullback = 0f;
-                _power = 0f;
             }
 
             _currentPullback = Mathf.SmoothDamp(
@@ -160,7 +165,7 @@ namespace Aiming
             return cueBallBody != null && cueBallBody.velocity.sqrMagnitude > 0.0004f;
         }
 
-        IEnumerator StrikeRoutine()
+        IEnumerator StrikeRoutine(float shotPower)
         {
             _striking = true;
             _charging = false;
@@ -179,13 +184,18 @@ namespace Aiming
                 _currentPullback = Mathf.Lerp(startPullback, 0f, eased);
                 UpdateCuePose();
 
-                if (!didStrike && t >= 0.98f)
+                if (!didStrike && _currentPullback <= strikeContactPullbackThreshold)
                 {
                     didStrike = true;
-                    ApplyStrikeImpulse(strikeDirection);
+                    ApplyStrikeImpulse(strikeDirection, shotPower);
                 }
 
                 yield return null;
+            }
+
+            if (!didStrike)
+            {
+                ApplyStrikeImpulse(strikeDirection, shotPower);
             }
 
             _currentPullback = recoilDistance;
@@ -195,18 +205,19 @@ namespace Aiming
             _currentPullback = 0f;
             _targetPullback = 0f;
             _power = 0f;
+            _lastRequestedPower = 0f;
             _striking = false;
             gameObject.SetActive(false);
         }
 
-        void ApplyStrikeImpulse(Vector3 strikeDirection)
+        void ApplyStrikeImpulse(Vector3 strikeDirection, float shotPower)
         {
             if (cueBallBody == null)
             {
                 return;
             }
 
-            float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(_power));
+            float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(shotPower));
             cueBallBody.AddForce(strikeDirection * impulseMagnitude, ForceMode.Impulse);
         }
     }
