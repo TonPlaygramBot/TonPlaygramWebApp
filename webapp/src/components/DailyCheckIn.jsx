@@ -188,7 +188,7 @@ export default function DailyCheckIn() {
       <h3 className="text-lg font-bold text-white">Daily Streaks</h3>
       <TikTokTaskVideo
         title="Daily Streaks Video"
-        videoUrl="https://www.tiktok.com/@tonplaygram/video/7614140234548153607"
+        videoUrl="https://vt.tiktok.com/ZSu8hSaGs/"
         storageKey="dailyStreaksVideoPopupSeen"
       />
 

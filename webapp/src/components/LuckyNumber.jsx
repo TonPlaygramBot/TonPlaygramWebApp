@@ -148,7 +148,7 @@ export default function LuckyNumber() {
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
       <TikTokTaskVideo
         title="Lucky Card Video"
-        videoUrl="https://www.tiktok.com/@tonplaygram/video/7614133483421584658"
+        videoUrl="https://vt.tiktok.com/ZSu8hN8Xq/"
         storageKey="luckyCardVideoPopupSeen"
       />
       <div className="grid grid-cols-3 gap-2 justify-items-center relative">

@@ -3,8 +3,17 @@ import { useEffect, useMemo, useState } from 'react';
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
   if (/^\d+$/.test(urlOrId)) return urlOrId;
-  const match = String(urlOrId).match(/\/video\/(\d+)/);
-  return match ? match[1] : '';
+  const raw = String(urlOrId);
+  const match = raw.match(/\/video\/(\d+)/);
+  if (match) return match[1];
+
+  const shortLinkVideoMap = {
+    'https://vt.tiktok.com/ZSu8hSaGs/': '7614140234548153607',
+    'https://vt.tiktok.com/ZSu8hAvuM/': '7614138222150847762',
+    'https://vt.tiktok.com/ZSu8hN8Xq/': '7614133483421584658',
+    'https://vt.tiktok.com/ZSu8hc7YM/': '7614119495149292818',
+  };
+  return shortLinkVideoMap[raw] || '';
 }
 
 export default function TikTokTaskVideo({

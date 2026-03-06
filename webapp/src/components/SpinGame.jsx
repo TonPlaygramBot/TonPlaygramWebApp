@@ -266,7 +266,7 @@ export default function SpinGame() {
       <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
       <TikTokTaskVideo
         title="Spin & Win Video"
-        videoUrl="https://www.tiktok.com/@tonplaygram/video/7614138222150847762"
+        videoUrl="https://vt.tiktok.com/ZSu8hAvuM/"
         storageKey="spinWinVideoPopupSeen"
       />
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
