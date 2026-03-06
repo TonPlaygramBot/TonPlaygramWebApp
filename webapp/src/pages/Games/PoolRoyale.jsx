@@ -24525,16 +24525,16 @@ const powerRef = useRef(hud.power);
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
           // Match the reference cue interaction: drag builds pull, release performs a
-          // short pullback + push stroke to contact, short hold, then instant snap back.
+          // direct push stroke to contact, short hold, then instant snap back.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
           strikeDuration: 120,
           holdDuration: 50,
-          pullbackDuration: 90,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 1,
-          forwardOnly: false,
+          impactThreshold: 0.9,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
@@ -25305,7 +25305,8 @@ const powerRef = useRef(hud.power);
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: false,
-              impactOnRecover: triggerImpactOnIdle,
+              impactOnRecover:
+                Boolean(triggerImpactOnIdle) && !Boolean(strokeProfile.forwardOnly),
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
