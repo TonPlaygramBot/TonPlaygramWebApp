@@ -25312,7 +25312,8 @@ const committedShotPowerRef = useRef(0);
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: false,
-              impactOnRecover: triggerImpactOnIdle,
+              impactOnRecover:
+                Boolean(triggerImpactOnIdle) && !Boolean(strokeProfile.forwardOnly),
               shotApplied: false,
               onImpact: () => {
                 triggerShotImpact();
