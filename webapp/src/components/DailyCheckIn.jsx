@@ -106,7 +106,6 @@ export default function DailyCheckIn() {
     const now = Date.now();
     localStorage.setItem('lastCheckAd', String(now));
     setAdWatched(true);
-    setShowAd(false);
     handleCheckIn();
   };
 
