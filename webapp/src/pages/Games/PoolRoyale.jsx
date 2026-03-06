@@ -24531,9 +24531,9 @@ const powerRef = useRef(hud.power);
           pullSmoothing: 1,
           strikeDuration: 120,
           holdDuration: 50,
-          pullbackDuration: 0,
+          pullbackDuration: 90,
           recoverDuration: 0,
-          impactThreshold: 0.9,
+          impactThreshold: 1,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -30909,7 +30909,6 @@ const powerRef = useRef(hud.power);
     const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
-      step: 0.01,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
@@ -30917,27 +30916,13 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: () => {
-        const releaseStart = performance.now();
-        const releaseFrom = powerRef.current;
-        const releaseDurationMs = 160;
-        const tickRelease = () => {
-          const t = THREE.MathUtils.clamp(
-            (performance.now() - releaseStart) / releaseDurationMs,
-            0,
-            1
-          );
-          const eased = easeOutCubic(t);
-          const nextPower = THREE.MathUtils.lerp(releaseFrom, 0, eased);
-          slider.set(nextPower * 100);
-          applyPower(nextPower);
-          if (t < 1) {
-            requestAnimationFrame(tickRelease);
-          }
-        };
         if (powerRef.current > 0.02) {
           fireRef.current?.();
         }
-        requestAnimationFrame(tickRelease);
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
