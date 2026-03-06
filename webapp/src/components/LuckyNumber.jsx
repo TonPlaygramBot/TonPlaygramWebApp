@@ -4,6 +4,7 @@ import AdModal from './AdModal.tsx';
 import CardSpinner from './CardSpinner.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
+import TikTokTaskVideo from './TikTokTaskVideo.jsx';
 import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
@@ -145,6 +146,11 @@ export default function LuckyNumber() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
+      <TikTokTaskVideo
+        title="Lucky Card Video"
+        videoUrl="https://www.tiktok.com/@tonplaygram/video/7614133483421584658"
+        storageKey="luckyCardVideoPopupSeen"
+      />
       <div className="grid grid-cols-3 gap-2 justify-items-center relative">
         {cards.map((card, i) => (
           <div
