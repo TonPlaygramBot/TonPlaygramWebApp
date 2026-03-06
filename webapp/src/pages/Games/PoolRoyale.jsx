@@ -30930,13 +30930,13 @@ const committedShotPowerRef = useRef(0);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-        committedShotPowerRef.current = clampPower(powerRef.current, 0);
-        if (committedShotPowerRef.current > 0.02) {
-          fireRef.current?.();
-        } else {
-          committedShotPowerRef.current = 0;
-        }
+      onCommit: (value) => {
+        const committedPower = clampPower(
+          typeof value === 'number' ? value / 100 : powerRef.current,
+          0
+        );
+        committedShotPowerRef.current = committedPower;
+        fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
