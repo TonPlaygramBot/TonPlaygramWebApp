@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   listTasks,
@@ -43,58 +43,6 @@ const INFLUENCER_REWARDS = [
 const ONE_DAY = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
-
-function MiningVideoModal({ open, task, onClose, onComplete }) {
-  const [remaining, setRemaining] = useState(0);
-
-  useEffect(() => {
-    if (!open || !task?.video?.embedUrl) return;
-    const duration = Math.max(5, Number(task.video.durationSec) || 30);
-    setRemaining(duration);
-    const startedAt = Date.now();
-    const id = setInterval(() => {
-      const passed = Math.floor((Date.now() - startedAt) / 1000);
-      const left = Math.max(0, duration - passed);
-      setRemaining(left);
-      if (left <= 0) {
-        clearInterval(id);
-        onComplete();
-      }
-    }, 250);
-    return () => clearInterval(id);
-  }, [open, task, onComplete]);
-
-  if (!open || !task) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 p-3 flex items-center justify-center">
-      <div className="w-full max-w-md bg-surface border border-border rounded-xl p-3 space-y-3">
-        <p className="font-semibold text-white text-sm">Mining Video Task</p>
-        <p className="text-xs text-subtext">Watch until timer ends to auto-claim reward.</p>
-        <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
-          <iframe
-            src={task.video.embedUrl}
-            title={task.description}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-        </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-subtext">Auto-close in</span>
-          <span className="font-semibold text-primary">{remaining}s</span>
-        </div>
-        <button
-          onClick={onClose}
-          className="w-full px-3 py-2 rounded bg-background border border-border text-white text-sm"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function Tasks() {
   useTelegramBackButton();
   let telegramId;
@@ -120,7 +68,6 @@ export default function Tasks() {
   const [videoUrl, setVideoUrl] = useState('');
   const [myVideos, setMyVideos] = useState([]);
   const [streak, setStreak] = useState(1);
-  const [activeMiningVideoTask, setActiveMiningVideoTask] = useState(null);
   const [lastCheck, setLastCheck] = useState(() => {
     const ts = localStorage.getItem('lastCheckIn');
     return ts ? parseInt(ts, 10) : null;
@@ -195,12 +142,6 @@ export default function Tasks() {
       setShowTwitterInfo(true);
       return;
     }
-
-    if (task.section === 'mining' && task.video?.embedUrl) {
-      setActiveMiningVideoTask(task);
-      return;
-    }
-
     if (task.link) {
       window.open(task.link, '_blank');
     }
@@ -265,13 +206,6 @@ export default function Tasks() {
     return `${hh}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleCompleteMiningVideo = async () => {
-    if (!activeMiningVideoTask) return;
-    await completeTask(telegramId, activeMiningVideoTask.id);
-    setActiveMiningVideoTask(null);
-    load();
-  };
-
   const handleVideoSubmit = async () => {
     if (!videoUrl) return;
     await submitInfluencerVideo(telegramId, platform, videoUrl);
@@ -287,15 +221,6 @@ export default function Tasks() {
       alt="X"
       className="w-5 h-5"
     />
-  );
-
-  const tonPlaygramTasks = useMemo(
-    () => tasks.filter((task) => (task.section || 'tasks') !== 'mining'),
-    [tasks]
-  );
-  const miningTasks = useMemo(
-    () => tasks.filter((task) => (task.section || 'tasks') === 'mining'),
-    [tasks]
   );
 
   const ICONS = {
@@ -328,7 +253,7 @@ export default function Tasks() {
     <div className="relative p-4 space-y-2 text-text flex flex-col items-center wide-card">
       <h2 className="text-xl font-bold">Tasks</h2>
       <div className="flex justify-center space-x-2">
-        {['TonPlaygram', 'Mining', 'Influencer', 'Partners'].map((c) => (
+        {['TonPlaygram', 'Influencer', 'Partners'].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
@@ -358,7 +283,7 @@ export default function Tasks() {
                   )}
                 </div>
               </li>
-          {tonPlaygramTasks.map((t) => (
+          {tasks.map((t) => (
             <li key={t.id} className="lobby-tile w-full">
               <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
                 {ICONS[t.id] || ICONS[t.icon] || <FiLink className="w-5 h-5" />}
@@ -434,39 +359,6 @@ export default function Tasks() {
       </ul>
         </>
       )}
-
-      {category === 'Mining' && (
-        <div className="w-full space-y-2">
-          <p className="text-xs text-subtext text-center">
-            Mining tasks with video embed auto-close and auto-claim flow.
-          </p>
-          <ul className="space-y-2">
-            {miningTasks.map((t) => (
-              <li key={t.id} className="lobby-tile w-full">
-                <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
-                  {ICONS[t.id] || ICONS[t.icon] || <FiVideo className="w-5 h-5" />}
-                  <span className="text-sm">{t.description}</span>
-                  <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
-                  {t.completed ? (
-                    <span className="text-green-500 font-semibold text-sm">Completed</span>
-                  ) : (
-                    <button
-                      onClick={() => handleClaim(t)}
-                      className="px-2 py-1 bg-primary hover:bg-primary-hover text-white-shadow text-sm rounded"
-                    >
-                      {t.video?.embedUrl ? 'Watch' : 'Claim'}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-            {miningTasks.length === 0 && (
-              <p className="text-center text-subtext text-sm">No mining tasks yet.</p>
-            )}
-          </ul>
-        </div>
-      )}
-
       {category === 'Influencer' && (
         <div className="w-full space-y-2">
           <div className="flex justify-center space-x-2">
@@ -573,12 +465,6 @@ export default function Tasks() {
         onClose={() => setShowNew(false)}
         title="New Tasks"
         info="We've added new tasks!"
-      />
-      <MiningVideoModal
-        open={!!activeMiningVideoTask}
-        task={activeMiningVideoTask}
-        onClose={() => setActiveMiningVideoTask(null)}
-        onComplete={handleCompleteMiningVideo}
       />
 
     </div>
