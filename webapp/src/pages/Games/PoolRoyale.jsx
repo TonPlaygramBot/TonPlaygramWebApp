@@ -21572,7 +21572,8 @@ const powerRef = useRef(hud.power);
           }
           if (sample.phase === 'pullback') {
             const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(idlePos, pullPos, eased);
+            const pullbackStartPos = stroke.startPos ?? idlePos;
+            cueStick.position.lerpVectors(pullbackStartPos, pullPos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -24524,16 +24525,16 @@ const powerRef = useRef(hud.power);
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         return {
           // Match the reference cue interaction: drag builds pull, release performs a
-          // direct push to contact, short hold, then instant snap back to idle.
+          // short pullback + push stroke to contact, short hold, then instant snap back.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
           strikeDuration: 120,
           holdDuration: 50,
-          pullbackDuration: 0,
+          pullbackDuration: 90,
           recoverDuration: 0,
-          impactThreshold: 0.9,
-          forwardOnly: true,
+          impactThreshold: 1,
+          forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
@@ -25286,6 +25287,7 @@ const powerRef = useRef(hud.power);
             };
             cueStrokeStateRef.current = {
               startTime,
+              startPos: cueStick.position.clone(),
               idlePos: idlePos.clone(),
               pullPos: pullPos.clone(),
               impactPos: impactPos.clone(),
@@ -25302,7 +25304,7 @@ const powerRef = useRef(hud.power);
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true,
+              releaseStartsFromCurrentPull: false,
               impactOnRecover: triggerImpactOnIdle,
               shotApplied: false,
               onImpact: () => {
