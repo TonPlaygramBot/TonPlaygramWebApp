@@ -5302,6 +5302,11 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006, // nudge the 2D table a touch left on portrait screens
   z: PLAY_H * 0.006 // keep the 2D table slightly higher on portrait screens
 });
+const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
+  x: TOP_VIEW_SCREEN_OFFSET.x,
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.012 // push rail-overhead framing a bit higher on portrait displays
+});
+const RAIL_OVERHEAD_FOCUS_LIFT = -BALL_R * 1.4; // tilt the rail-overhead camera downward a little more so lower pockets stay in frame
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
@@ -13515,6 +13520,7 @@ function PoolRoyaleGame({
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
+  const portraitTopActionIconsOffsetRem = 0.95;
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = portraitViewport ? 18 : 8;
   const bottomHudLeftPx = -30;
@@ -20062,12 +20068,18 @@ const powerRef = useRef(hud.power);
         focusTarget.multiplyScalar(worldScaleFactor);
         lookTarget = focusTarget;
         if (topViewRef.current) {
-          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
-            ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
-          ).multiplyScalar(worldScaleFactor);
           const overheadVariant = overheadBroadcastVariantRef.current ?? 'rail';
+          const topViewOffset = overheadVariant === 'rail'
+            ? RAIL_OVERHEAD_SCREEN_OFFSET
+            : TOP_VIEW_SCREEN_OFFSET;
+          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+            playerOffsetRef.current + topViewOffset.x,
+            ORBIT_FOCUS_BASE_Y,
+            topViewOffset.z
+          ).multiplyScalar(worldScaleFactor);
+          if (overheadVariant === 'rail') {
+            topFocusTarget.y += RAIL_OVERHEAD_FOCUS_LIFT * worldScaleFactor;
+          }
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
@@ -33034,7 +33046,7 @@ const powerRef = useRef(hud.power);
       {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
-          style={{ top: `calc(env(safe-area-inset-top, 0px) + 0.35rem)` }}
+          style={{ top: `calc(env(safe-area-inset-top, 0px) + ${portraitTopActionIconsOffsetRem}rem)` }}
         >
           <button
             type="button"
