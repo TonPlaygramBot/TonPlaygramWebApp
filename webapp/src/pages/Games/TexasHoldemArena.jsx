@@ -391,7 +391,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.72, landscape: 0.04 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.64, landscape: 0.04 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -403,7 +403,7 @@ const OVERHEAD_ZOOM_MIN = 0.82;
 const OVERHEAD_ZOOM_MAX = 1.1;
 const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.66;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.62;
@@ -6115,7 +6115,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="fixed z-20 flex flex-col-reverse items-start gap-2 left-[calc(0.45rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] landscape:left-[calc(0.45rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)]">
+      <div className="fixed z-20 flex items-start left-[calc(0.2rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)] landscape:left-[calc(0.2rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -6302,7 +6302,7 @@ function TexasHoldemArena({ search }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.55rem)] landscape:translate-x-0">
+      <div className="absolute bottom-16 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.1rem)] landscape:translate-x-0">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
@@ -6367,7 +6367,7 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-[0.45rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.2rem] bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+5.3rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -6390,14 +6390,14 @@ function TexasHoldemArena({ search }) {
           showChat={false}
           showGift={false}
           order={['mute']}
-          className="fixed right-[0.45rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] landscape:left-auto landscape:right-[0.45rem] landscape:top-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] flex flex-col gap-2.5 z-20"
+          className="fixed left-[0.2rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] landscape:left-[0.2rem] landscape:right-auto landscape:top-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
         />
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
+        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={handleUndoChip}
