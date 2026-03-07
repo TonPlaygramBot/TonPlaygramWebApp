@@ -13514,6 +13514,7 @@ function PoolRoyaleGame({
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
+  const sideActionButtonStepPx = 60;
   const rightHudShiftPx = -2;
   const bottomHudLeftPx = -22;
   const viewButtonsOffsetPx = 32;
@@ -30876,7 +30877,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive;
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -31913,9 +31914,12 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
-          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
-          left: `calc(50% + ${menuButtonCenterNudgePx}px)`,
-          transform: 'translateX(-50%)'
+          top: isPortrait ? undefined : `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          left: isPortrait ? `calc(env(safe-area-inset-left, 0px) + 0.7rem)` : `calc(50% + ${menuButtonCenterNudgePx}px)`,
+          bottom: isPortrait
+            ? `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx + bottomLeftChatGiftLiftPx}px`
+            : undefined,
+          transform: isPortrait ? 'translateX(-0.35rem)' : 'translateX(-50%)'
         }}
       >
         <button
@@ -31926,7 +31930,7 @@ const powerRef = useRef(hud.power);
           aria-controls="snooker-config-panel"
           style={{
             transform: `scale(${uiScale * 1.08})`,
-            transformOrigin: 'top left'
+            transformOrigin: isPortrait ? 'bottom left' : 'top left'
           }}
           className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
@@ -31940,7 +31944,10 @@ const powerRef = useRef(hud.power);
           <div
             id="snooker-config-panel"
             ref={configPanelRef}
-            className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
+            className={`pointer-events-auto w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
+              isPortrait ? 'mb-2 max-h-[68vh] overflow-y-auto' : 'mt-2'
+            }`}
+            style={isPortrait ? { order: -1 } : undefined}
           >
             <div className="flex items-center justify-between gap-4">
               <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
@@ -32948,7 +32955,16 @@ const powerRef = useRef(hud.power);
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-2"
-            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx + bottomLeftChatGiftLiftPx}px` }}
+            style={{
+              bottom: `${
+                sideControlsBottomPx +
+                rightControlsLiftPx +
+                sideActionButtonsLiftPx -
+                sideActionButtonsDropPx +
+                bottomLeftChatGiftLiftPx -
+                (isPortrait ? sideActionButtonStepPx : 0)
+              }px`
+            }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -32961,6 +32977,7 @@ const powerRef = useRef(hud.power);
               chat: 10,
               gift: 6
             }}
+            order={isPortrait ? ['gift', 'chat'] : ['chat', 'gift']}
             showInfo={false}
             showMute={false}
           />
@@ -33320,7 +33337,7 @@ const powerRef = useRef(hud.power);
         </button>
       )}
       {/* Power Slider */}
-      {showPowerSlider && !replayActive && !shotBroadcastActive && (
+      {showPowerSlider && !replayActive && (
         <div
           className="absolute right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
