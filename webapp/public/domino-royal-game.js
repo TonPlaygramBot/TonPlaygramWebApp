@@ -3697,6 +3697,8 @@ const TABLE_SHAPE_OPTIONS = Object.freeze([
   }
 ]);
 
+const CLASSIC_OCTAGON_SHAPE_ID = 'classicOctagon';
+
 const DEFAULT_TABLE_THEME_OPTION = TABLE_THEME_OPTIONS[0] || null;
 const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
@@ -5650,9 +5652,15 @@ function setProceduralTableVisible(flag = true) {
   });
 }
 
+function isClassicOctagonShapeActive() {
+  const activeShape = TABLE_SHAPE_OPTIONS[appearance.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
+  return activeShape?.id === CLASSIC_OCTAGON_SHAPE_ID;
+}
+
 async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
+  const forceGltfOctagon = isClassicOctagonShapeActive();
   const theme = option || DEFAULT_TABLE_THEME_OPTION;
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
@@ -5662,11 +5670,14 @@ async function applyTableTheme(
   }
   const token = ++tableThemeToken;
   if (!theme?.assetId) {
+    if (forceGltfOctagon && DEFAULT_TABLE_THEME_OPTION?.assetId) {
+      return applyTableTheme(DEFAULT_TABLE_THEME_OPTION);
+    }
     activeTableThemeId = null;
     setProceduralTableVisible(true);
     return;
   }
-  setProceduralTableVisible(true);
+  setProceduralTableVisible(!forceGltfOctagon);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id, {
       preserveGltfTextureMapping: theme.preserveMaterials ?? true
@@ -5699,10 +5710,10 @@ async function applyTableTheme(
         activeTableThemeId = DEFAULT_TABLE_THEME_OPTION.id;
       } catch (fallbackError) {
         console.warn('Failed to load fallback Poly Haven table theme', fallbackError);
-        setProceduralTableVisible(true);
+        setProceduralTableVisible(!forceGltfOctagon);
       }
     } else {
-      setProceduralTableVisible(true);
+      setProceduralTableVisible(!forceGltfOctagon);
     }
   }
 }
@@ -6598,6 +6609,14 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = sanitizeAppearance(appearance);
+  const forceGltfOctagon = isClassicOctagonShapeActive();
+  if (forceGltfOctagon) {
+    const defaultThemeIndex = findDominoOptionIndex(
+      'tableTheme',
+      LUDO_MATCH_DEFAULT_TABLE_THEME_ID
+    );
+    appearance.tableTheme = defaultThemeIndex;
+  }
   applyEnvironmentHdri(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
@@ -6607,7 +6626,11 @@ function applyAppearanceChange({ refresh = true } = {}) {
   );
   rebuildProceduralTable();
   clearExistingDominoMeshes();
-  updateTableMaterials();
+  if (forceGltfOctagon) {
+    setProceduralTableVisible(false);
+  } else {
+    updateTableMaterials();
+  }
   applyDominoStyle(
     DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]
   );
