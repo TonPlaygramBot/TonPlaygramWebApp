@@ -32026,9 +32026,8 @@ const powerRef = useRef(hud.power);
             id="snooker-config-panel"
             ref={configPanelRef}
             className={`pointer-events-auto w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
-              isPortrait ? 'mb-2 max-h-[68vh] overflow-y-auto' : 'mt-2'
+              isPortrait ? 'mt-2 max-h-[68vh] overflow-y-auto' : 'mt-2'
             }`}
-            style={isPortrait ? { order: -1 } : undefined}
           >
             <div className="flex items-center justify-between gap-4">
               <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
