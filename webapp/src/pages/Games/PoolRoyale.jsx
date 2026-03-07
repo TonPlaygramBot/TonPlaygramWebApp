@@ -5293,14 +5293,14 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // lift the 2D camera a touch so the table sits slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // lift the 2D camera a touch more for a slightly higher overhead framing
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.06; // keep 2D framing a little higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.08; // keep 2D framing a little higher for portrait readability
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.02, // keep the 2D table a touch more to the right while preserving slider clearance
-  z: PLAY_H * -0.018 // lift the 2D table slightly higher on portrait screens
+  x: PLAY_W * 0.006, // nudge the 2D table a touch left on portrait screens
+  z: PLAY_H * 0.012 // nudge the 2D table a touch lower on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -30876,7 +30876,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive;
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
