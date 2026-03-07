@@ -219,6 +219,16 @@ function pickPoolRoyaleRewardNft(level) {
   return source[index] || source[maxIndex] || null;
 }
 
+function pickPoolRoyaleHighValueRewardNft() {
+  const source = POOL_ROYALE_STORE_NFT_CANDIDATES;
+  if (!source.length) return null;
+  const maxIndex = source.length - 1;
+  const topTierStart = Math.max(0, Math.floor(maxIndex * 0.8));
+  const minIndex = Math.min(topTierStart, maxIndex);
+  const index = minIndex + Math.floor(Math.random() * (maxIndex - minIndex + 1));
+  return source[index] || source[maxIndex] || null;
+}
+
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
   if (!valid.length) return [];
@@ -1865,23 +1875,24 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly 
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.26; // keep a stronger safety gap so cue helpers stay above raised cushions/rails
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.22; // lift helper trajectories more to avoid rail/cushion contact with the updated table profile
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.34; // lift cue-butt helpers higher so the stick never grazes raised cushions
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.31; // add more helper lift so cue trajectories clear cushions and nearby balls
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.15;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.65;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
-const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.72;
-const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.52;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
+const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
+const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.2, CUE_TIP_RADIUS * 1.75);
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.28, CUE_TIP_RADIUS * 2.05);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -1891,9 +1902,10 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
-const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 2.6;
-const TOPSPIN_MULTIPLIER = 1.5;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
+const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5300,7 +5312,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: PLAY_H * 0.012 // push rail overhead framing slightly higher on portrait so bottom pockets stay visible
+  z: TOP_VIEW_SCREEN_OFFSET.z // keep rail-overhead controls/camera coordinates identical to portrait 2D view
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -7556,7 +7568,7 @@ function updateCushionSegmentsFromTable(table) {
   table.userData.cushions.forEach((cushion) => {
     if (!cushion) return;
     const box = new THREE.Box3().setFromObject(cushion);
-    box.expandByScalar(CUE_OBSTRUCTION_POINT_RADIUS);
+    box.expandByScalar(CUE_OBSTRUCTION_POINT_RADIUS + CUE_CUSHION_HELPER_EXTRA_CLEARANCE);
     cushionBoxes.push(box);
   });
   table.userData.cueObstructionBoxes = cushionBoxes;
@@ -13091,6 +13103,10 @@ function PoolRoyaleGame({
     setTrainingTaskTransition(null);
     setPottedBySeat({ A: [], B: [] });
     lastPottedBySeatRef.current = { A: null, B: null };
+    perfectRunTrackerRef.current = {
+      A: { missedShot: false, foulShot: false },
+      B: { missedShot: false, foulShot: false }
+    };
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
     pocketPopupRef.current = [];
@@ -13300,6 +13316,10 @@ function PoolRoyaleGame({
     setRuleToast(null);
     setPottedBySeat({ A: [], B: [] });
     lastPottedBySeatRef.current = { A: null, B: null };
+    perfectRunTrackerRef.current = {
+      A: { missedShot: false, foulShot: false },
+      B: { missedShot: false, foulShot: false }
+    };
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
     pocketPopupRef.current = [];
@@ -13333,6 +13353,10 @@ function PoolRoyaleGame({
     setRuleToast(null);
     setPottedBySeat({ A: [], B: [] });
     lastPottedBySeatRef.current = { A: null, B: null };
+    perfectRunTrackerRef.current = {
+      A: { missedShot: false, foulShot: false },
+      B: { missedShot: false, foulShot: false }
+    };
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
     pocketPopupRef.current = [];
@@ -14388,6 +14412,10 @@ useEffect(() => {
 }, [hud.turn]);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
 const lastPottedBySeatRef = useRef({ A: null, B: null });
+const perfectRunTrackerRef = useRef({
+  A: { missedShot: false, foulShot: false },
+  B: { missedShot: false, foulShot: false }
+});
 const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
@@ -14532,6 +14560,10 @@ const powerRef = useRef(hud.power);
     openingShotViewSuppressedRef.current = true;
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
+    perfectRunTrackerRef.current = {
+      A: { missedShot: false, foulShot: false },
+      B: { missedShot: false, foulShot: false }
+    };
     lastAssignmentsRef.current = { A: null, B: null };
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
@@ -15159,6 +15191,10 @@ const powerRef = useRef(hud.power);
       powerRef.current = 0;
       setPottedBySeat({ A: [], B: [] });
       lastPottedBySeatRef.current = { A: null, B: null };
+      perfectRunTrackerRef.current = {
+        A: { missedShot: false, foulShot: false },
+        B: { missedShot: false, foulShot: false }
+      };
       lastAssignmentsRef.current = { A: null, B: null };
       lastShotReminderRef.current = { A: 0, B: 0 };
       setWinnerOverlay(null);
@@ -15499,6 +15535,26 @@ const powerRef = useRef(hud.power);
       tournamentStateKey,
       persistRewardNft
     ]
+  );
+
+
+  const resolvePerfectRunReward = useCallback(
+    ({ winnerSeat, userSeat }) => {
+      const seat = winnerSeat === 'B' ? 'B' : 'A';
+      const winnerTracker = perfectRunTrackerRef.current?.[seat];
+      const userWon = seat === (userSeat === 'B' ? 'B' : 'A');
+      if (!userWon || !winnerTracker) return null;
+      if (winnerTracker.missedShot || winnerTracker.foulShot) return null;
+      const variantId = String(activeVariantRef.current?.id || '').toLowerCase();
+      if (variantId === '9ball' || variantId === 'nineball') return null;
+      const pottedByWinner = pottedBySeat?.[seat] || [];
+      if (!Array.isArray(pottedByWinner) || pottedByWinner.length < 7) return null;
+      const reward = pickPoolRoyaleHighValueRewardNft();
+      if (!reward) return null;
+      persistRewardNft(reward);
+      return reward;
+    },
+    [persistRewardNft, pottedBySeat]
   );
 
   const stopActiveCrowdSound = useCallback(() => {
@@ -16383,6 +16439,7 @@ const powerRef = useRef(hud.power);
         resetTableLayoutForRematch();
         const userSeat = localSeat === 'B' ? 'B' : 'A';
         const userWon = winnerSeat === userSeat;
+        const perfectRunReward = resolvePerfectRunReward({ winnerSeat, userSeat });
         const prizeAmount =
           stakeAmount > 0
             ? Math.max(
@@ -16400,7 +16457,7 @@ const powerRef = useRef(hud.power);
           avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
           prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
           rewards: tournamentOutcome?.unlocks || [],
-          nftReward: tournamentOutcome?.nftReward || null,
+          nftReward: perfectRunReward || tournamentOutcome?.nftReward || null,
           userWon,
           tournamentAdvance: tournamentMode && userWon && !tournamentOutcome?.complete
         };
@@ -16463,7 +16520,8 @@ const powerRef = useRef(hud.power);
     tournamentPlayers,
     triggerCoinBurst,
     waitForActiveReplay,
-    openRewardGift
+    openRewardGift,
+    resolvePerfectRunReward
   ]);
   useEffect(() => {
     if (!rematchStatus?.expiresAt) {
@@ -23420,7 +23478,7 @@ const powerRef = useRef(hud.power);
         const len = info?.length ?? cueLen;
         if (!Number.isFinite(len) || len <= 1e-4) return;
         const minButtHeight =
-          cushionTop + CUE_BUTT_CUSHION_CLEARANCE + CUE_CUSHION_LIFT_BIAS;
+          cushionTop + CUE_BUTT_CUSHION_CLEARANCE + CUE_CUSHION_LIFT_BIAS + CUE_CUSHION_HELPER_EXTRA_CLEARANCE;
         const requiredOffset = minButtHeight - tipTarget.y;
         if (requiredOffset <= 0) return;
         const requiredTilt = Math.asin(
@@ -27962,6 +28020,16 @@ const powerRef = useRef(hud.power);
           showRuleToast('Foul');
         }
         const potCount = potted.filter((entry) => entry.id !== 'cue').length;
+        const seatTracker = perfectRunTrackerRef.current?.[shooterSeat];
+        if (seatTracker) {
+          if (!hadObjectPot) {
+            seatTracker.missedShot = true;
+          }
+          if (shotWasFoul || cueBallPotted) {
+            seatTracker.foulShot = true;
+            seatTracker.missedShot = true;
+          }
+        }
         if (potted.length) {
           potted.forEach((entry) => {
             const dropEntry = pocketDropRef.current.get(entry.id);
