@@ -198,6 +198,19 @@ const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
+const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
+  TILE_SIZE * 1.55,
+  TILE_SIZE * 1.18,
+  TILE_SIZE * 1.55,
+  TILE_SIZE * 1.18
+]);
+const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 3.55;
+const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
+  -TOKEN_RADIUS * 0.08,
+  TOKEN_RADIUS * 0.02,
+  TOKEN_RADIUS * 0.08,
+  -TOKEN_RADIUS * 0.02
+]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -3432,19 +3445,21 @@ function updateTokens(
         if (seatDirection.lengthSq() > 0.0001) {
           seatDirection.normalize();
           const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-          const baseRestRadius = BOARD_RADIUS + TILE_SIZE * 3.4;
-          const seatRestNudge = seatIndex === 0 ? TILE_SIZE * 0.18 : TILE_SIZE * 0.4;
-          const restRadius = baseRestRadius + seatRestNudge;
-          const railSpread = TOKEN_RADIUS * 0.78;
-          const pairIndex = index % 2;
-          const pairSign = pairIndex === 0 ? -1 : 1;
+          const seatDistance = seatWorld.distanceTo(boardLookTarget);
+          const inwardInset = TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? TILE_SIZE * 1.35;
+          const restRadius = clamp(
+            seatDistance - inwardInset,
+            TOKEN_REST_MIN_RADIUS,
+            Math.max(TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.4, seatDistance - TOKEN_RADIUS * 0.55)
+          );
+          const railSpread = TOKEN_REST_LATERAL_BY_SEAT[seatIndex] ?? 0;
           const railWorld = boardLookTarget
             .clone()
             .addScaledVector(seatDirection, restRadius)
-            .addScaledVector(lateral, railSpread * pairSign);
+            .addScaledVector(lateral, railSpread);
           worldPos = railWorld.clone();
           boardRoot.worldToLocal(worldPos);
-          worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+          worldPos.y = TOKEN_HEIGHT * 0.62;
         }
       }
       if (!worldPos) {
