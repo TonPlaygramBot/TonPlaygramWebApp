@@ -13507,8 +13507,8 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
-  const sharedHudLiftPx = portraitViewport ? 32 : 30;
-  const spinControllerLiftPx = portraitViewport ? 18 : 20;
+  const sharedHudLiftPx = portraitViewport ? 20 : 30;
+  const spinControllerLiftPx = portraitViewport ? 8 : 14;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -13516,9 +13516,8 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const rightHudShiftPx = 8;
+  const rightHudShiftPx = portraitViewport ? 18 : 8;
   const bottomHudLeftPx = -30;
-  const portraitActionIconsLiftPx = 52;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -13529,6 +13528,7 @@ function PoolRoyaleGame({
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
+  const [isRailOverheadView, setIsRailOverheadView] = useState(false);
   const usePortraitHudLayout = true;
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
@@ -13577,16 +13577,18 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (isTopDownView) {
       topViewLockedRef.current = true;
-      topViewControlsRef.current.enter?.(false, { variant: 'top' });
+      topViewControlsRef.current.enter?.(false, { variant: isRailOverheadView ? 'rail' : 'top' });
     } else {
       topViewLockedRef.current = false;
+      setIsRailOverheadView(false);
       topViewControlsRef.current.exit?.();
     }
-  }, [isTopDownView]);
+  }, [isTopDownView, isRailOverheadView]);
 
   useEffect(() => {
     if (!isPortrait && isTopDownView) {
       setIsTopDownView(false);
+      setIsRailOverheadView(false);
     }
   }, [isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
@@ -19213,7 +19215,12 @@ const powerRef = useRef(hud.power);
             rig.defaultFocus?.clone?.() ??
             null;
           if (target && Number.isFinite(minTargetY)) {
-            target.y = Math.max(target.y ?? minTargetY, minTargetY);
+            target.y = minTargetY;
+          }
+          if (target) {
+            const toTarget = target.clone().sub(position);
+            position.addScaledVector(toTarget, 0.08);
+            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 8.6, position.y - BALL_R * 2.4);
           }
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
@@ -32933,23 +32940,59 @@ const powerRef = useRef(hud.power);
           <span aria-hidden="true">👁️</span>
         </button>
         )}
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => {
-            if (!isPortrait) return;
-            setIsTopDownView((prev) => !prev);
-          }}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
-          aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
-        >
-          <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
-        </button>
+        <div className="pointer-events-auto mt-1 flex flex-col gap-2" style={{ marginTop: `${viewToggleButtonDropPx}px` }}>
+          <button
+            type="button"
+            aria-pressed={!isTopDownView}
+            onClick={() => {
+              if (!isPortrait) return;
+              setIsRailOverheadView(false);
+              setIsTopDownView(false);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              !isTopDownView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Switch to 3D view"
+          >
+            <span aria-hidden="true">3D</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView && !isRailOverheadView}
+            onClick={() => {
+              if (!isPortrait) return;
+              setIsRailOverheadView(false);
+              setIsTopDownView(true);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isTopDownView && !isRailOverheadView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Switch to 2D view"
+          >
+            <span aria-hidden="true">2D</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView && isRailOverheadView}
+            onClick={() => {
+              if (!isPortrait) return;
+              setIsRailOverheadView(true);
+              setIsTopDownView(true);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[16px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isTopDownView && isRailOverheadView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Switch to rail overhead view"
+          >
+            <span aria-hidden="true">▲</span>
+          </button>
+        </div>
       </div>
 
       {!isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
@@ -32991,7 +33034,7 @@ const powerRef = useRef(hud.power);
       {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
-          style={{ bottom: `${12 + chromeUiLiftPx + portraitActionIconsLiftPx}px` }}
+          style={{ top: `calc(env(safe-area-inset-top, 0px) + 0.35rem)` }}
         >
           <button
             type="button"
