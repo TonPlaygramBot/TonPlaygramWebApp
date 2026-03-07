@@ -31991,16 +31991,16 @@ const powerRef = useRef(hud.power);
         </>
       )}
 
-      {!isPortrait && (
+      {(!isPortrait || (isPortrait && configOpen && !isFreePractice && !hideNonEssentialHud)) && (
       <div
-        className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`${isPortrait ? 'fixed left-1/2 -translate-x-1/2 items-center' : 'absolute items-start'} z-50 flex flex-col gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
-          top: isPortrait ? undefined : `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
-          left: isPortrait ? `calc(env(safe-area-inset-left, 0px) + 0.7rem)` : `calc(50% + ${menuButtonCenterNudgePx}px)`,
-          bottom: isPortrait
-            ? `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx + bottomLeftChatGiftLiftPx}px`
-            : undefined,
-          transform: isPortrait ? 'translateX(-0.35rem)' : 'translateX(-50%)'
+          top: isPortrait
+            ? `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM}rem + 3.9rem)`
+            : `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          left: isPortrait ? '50%' : `calc(50% + ${menuButtonCenterNudgePx}px)`,
+          bottom: undefined,
+          transform: 'translateX(-50%)'
         }}
       >
         <button
@@ -32013,7 +32013,7 @@ const powerRef = useRef(hud.power);
             transform: `scale(${uiScale * 1.08})`,
             transformOrigin: isPortrait ? 'bottom left' : 'top left'
           }}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+          className={`pointer-events-auto ${isPortrait ? 'hidden' : 'flex'} items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
           aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
@@ -32026,9 +32026,8 @@ const powerRef = useRef(hud.power);
             id="snooker-config-panel"
             ref={configPanelRef}
             className={`pointer-events-auto w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
-              isPortrait ? 'mb-2 max-h-[68vh] overflow-y-auto' : 'mt-2'
+              isPortrait ? 'mt-2 max-h-[56vh] overflow-y-auto' : 'mt-2'
             }`}
-            style={isPortrait ? { order: -1 } : undefined}
           >
             <div className="flex items-center justify-between gap-4">
               <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
