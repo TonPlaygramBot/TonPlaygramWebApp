@@ -13507,8 +13507,8 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
-  const sharedHudLiftPx = portraitViewport ? 40 : 30;
-  const spinControllerLiftPx = portraitViewport ? 24 : 20;
+  const sharedHudLiftPx = portraitViewport ? 46 : 30;
+  const spinControllerLiftPx = portraitViewport ? 30 : 20;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -13516,8 +13516,9 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const rightHudShiftPx = -2;
-  const bottomHudLeftPx = -22;
+  const rightHudShiftPx = 8;
+  const bottomHudLeftPx = -30;
+  const portraitActionIconsLiftPx = 6;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -32990,7 +32991,7 @@ const powerRef = useRef(hud.power);
       {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
-          style={{ bottom: `${12 + chromeUiLiftPx}px` }}
+          style={{ bottom: `${12 + chromeUiLiftPx + portraitActionIconsLiftPx}px` }}
         >
           <button
             type="button"
