@@ -5304,7 +5304,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: 0 // center the rail overhead broadcast frame directly over the table midpoint
+  z: PLAY_H * 0.012 // push rail overhead framing slightly higher on portrait so bottom pockets stay visible
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -5398,8 +5398,6 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.02; // pitch the rail-overhead broadcast a little more downward during aim assists
-const RAIL_OVERHEAD_CENTER_PULL = 0.16; // slide the rail camera further inward toward table center for a truer overhead feel
-const RAIL_OVERHEAD_EXTRA_HEIGHT = BALL_R * 11.2; // lift the rail overhead camera to keep the full table inside the frame
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -19226,11 +19224,8 @@ const powerRef = useRef(hud.power);
           }
           if (target) {
             const toTarget = target.clone().sub(position);
-            position.addScaledVector(toTarget, RAIL_OVERHEAD_CENTER_PULL);
-            position.y = Math.max(
-              (minTargetY ?? baseSurfaceWorldY) + RAIL_OVERHEAD_EXTRA_HEIGHT,
-              position.y + BALL_R * 1.2
-            ); // keep the rail-overhead camera inward while preserving whole-table coverage
+            position.addScaledVector(toTarget, 0.08);
+            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 9.4, position.y + BALL_R * 1.2); // lift rail-overhead camera and steepen the downward look
           }
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
