@@ -4868,11 +4868,7 @@ function createBroadcastCameras({
   const cameras = {};
   const headHeight = Math.max(1.45, cameraHeight - floorY);
 
-  const defaultFocus = new THREE.Vector3(
-    0,
-    TABLE_Y + TABLE.THICK + BALL_R * 2.1,
-    0
-  );
+  const defaultFocus = new THREE.Vector3(0, TABLE_Y + BALL_R * 0.7, 0);
 
   const fallbackDepth = Math.max(
     shortRailZ + BALL_R * 12,
@@ -4884,7 +4880,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.54;
+  const cameraProximityScale = 0.68;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
