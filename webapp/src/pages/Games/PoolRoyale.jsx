@@ -1735,7 +1735,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 900;
 const POCKET_VIEW_EARLY_HOLD_MS = 160;
-const SPIN_GLOBAL_SCALE = 0.864; // boost overall spin impact by another 20% over the current tuning
+const SPIN_GLOBAL_SCALE = 0.72; // boost overall spin impact by 20%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1872,16 +1872,16 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.45;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.15;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.84;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.68;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
-const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
-const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.62;
-const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
+const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.72;
+const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.52;
+const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
-const CUE_OBSTRUCTION_SAMPLE_MAX = 24;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.24, CUE_TIP_RADIUS * 1.9);
+const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.2, CUE_TIP_RADIUS * 1.75);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -12386,82 +12386,6 @@ function PoolRoyaleGame({
     }
     return rewards;
   }, [isCueFinishUnlocked, poolInventory, resolvedAccountId]);
-
-  const resolveRequiredClearancePots = useCallback((frameLike, seatId) => {
-    const variant = String(frameLike?.meta?.variant || activeVariantId || 'american').toLowerCase();
-    if (variant === '9ball') return 9;
-    if (variant === 'snooker') return 8;
-    const assignment = frameLike?.meta?.state?.assignments?.[seatId];
-    if (assignment === 'blue' || assignment === 'red') return 8;
-    return 8;
-  }, [activeVariantId]);
-
-  const awardFlawlessVictoryStoreReward = useCallback(async () => {
-    if (!resolvedAccountId) return null;
-    let currentInventory = poolInventory;
-    try {
-      const latest = await getPoolRoyalInventory(resolvedAccountId);
-      if (latest) currentInventory = latest;
-    } catch (err) {
-      console.warn('Pool Royale flawless reward fetch fallback to cache', err);
-    }
-
-    const rewardPools = [
-      {
-        type: 'tableFinish',
-        options: TABLE_FINISH_OPTIONS
-          .map((option) => ({ id: option.id, price: Number(option.price) || 0 }))
-          .filter((option) => option.id)
-      },
-      {
-        type: 'clothColor',
-        options: POOL_ROYALE_CLOTH_VARIANTS
-          .map((option) => ({ id: option.id, price: Number(option.price) || 0 }))
-          .filter((option) => option.id)
-      },
-      {
-        type: 'environmentHdri',
-        options: POOL_ROYALE_HDRI_VARIANTS
-          .map((option) => ({ id: option.id, price: Number(option.price) || 0 }))
-          .filter((option) => option.id)
-      }
-    ];
-
-    const allCandidates = rewardPools.flatMap((pool) =>
-      pool.options.map((option) => ({
-        type: pool.type,
-        optionId: option.id,
-        price: option.price,
-        unlocked: isPoolOptionUnlocked(pool.type, option.id, currentInventory)
-      }))
-    );
-
-    const locked = allCandidates.filter((entry) => !entry.unlocked);
-    const source = (locked.length ? locked : allCandidates)
-      .sort((a, b) => (b.price || 0) - (a.price || 0));
-    const picked = source[0] || null;
-    if (!picked) return null;
-
-    try {
-      currentInventory = await addPoolRoyalUnlock(picked.type, picked.optionId, resolvedAccountId);
-    } catch (err) {
-      console.warn('Pool Royale flawless reward unlock failed', err);
-    }
-
-    if (currentInventory) {
-      setPoolInventory(currentInventory);
-    }
-
-    return {
-      type: picked.type,
-      optionId: picked.optionId,
-      label:
-        POOL_ROYALE_OPTION_LABELS[picked.type]?.[picked.optionId] ||
-        picked.optionId,
-      flawlessAward: true
-    };
-  }, [poolInventory, resolvedAccountId]);
-
   const resolveStoredSelection = useCallback(
     (type, storageKey, isValid, fallbackId) => {
       const inventory = poolInventory;
@@ -13166,7 +13090,6 @@ function PoolRoyaleGame({
     setTrainingRoadmapOpen(false);
     setTrainingTaskTransition(null);
     setPottedBySeat({ A: [], B: [] });
-    flawlessRunRef.current = { A: { missed: false, potted: 0 }, B: { missed: false, potted: 0 } };
     lastPottedBySeatRef.current = { A: null, B: null };
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
@@ -13376,7 +13299,6 @@ function PoolRoyaleGame({
     setTrainingTaskTransition(null);
     setRuleToast(null);
     setPottedBySeat({ A: [], B: [] });
-    flawlessRunRef.current = { A: { missed: false, potted: 0 }, B: { missed: false, potted: 0 } };
     lastPottedBySeatRef.current = { A: null, B: null };
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
@@ -13410,7 +13332,6 @@ function PoolRoyaleGame({
     const activeLevel = trainingLevelRef.current || trainingLevel || 1;
     setRuleToast(null);
     setPottedBySeat({ A: [], B: [] });
-    flawlessRunRef.current = { A: { missed: false, potted: 0 }, B: { missed: false, potted: 0 } };
     lastPottedBySeatRef.current = { A: null, B: null };
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
@@ -13610,7 +13531,6 @@ function PoolRoyaleGame({
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isRailOverheadView, setIsRailOverheadView] = useState(false);
   const usePortraitHudLayout = true;
-  const usePortraitQuickActionCoordinates = isPortrait || isTopDownView || isRailOverheadView;
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
   useEffect(() => {
@@ -14467,10 +14387,6 @@ useEffect(() => {
   }
 }, [hud.turn]);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
-  const flawlessRunRef = useRef({
-    A: { missed: false, potted: 0 },
-    B: { missed: false, potted: 0 }
-  });
 const lastPottedBySeatRef = useRef({ A: null, B: null });
 const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
@@ -14616,7 +14532,6 @@ const powerRef = useRef(hud.power);
     openingShotViewSuppressedRef.current = true;
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
-    flawlessRunRef.current = { A: { missed: false, potted: 0 }, B: { missed: false, potted: 0 } };
     lastAssignmentsRef.current = { A: null, B: null };
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
@@ -15243,7 +15158,6 @@ const powerRef = useRef(hud.power);
       }));
       powerRef.current = 0;
       setPottedBySeat({ A: [], B: [] });
-      flawlessRunRef.current = { A: { missed: false, potted: 0 }, B: { missed: false, potted: 0 } };
       lastPottedBySeatRef.current = { A: null, B: null };
       lastAssignmentsRef.current = { A: null, B: null };
       lastShotReminderRef.current = { A: 0, B: 0 };
@@ -16481,20 +16395,11 @@ const powerRef = useRef(hud.power);
           lastPottedBySeatRef.current?.[userSeat] ??
           null;
         setFinalPotLabel(lastPot ? resolveBallLabel(lastPot) : '');
-
-        const shooterStats = flawlessRunRef.current?.[userSeat] || { missed: false, potted: 0 };
-        const requiredPots = resolveRequiredClearancePots(currentFrame, userSeat);
-        const flawlessClearance = userWon && !shooterStats.missed && shooterStats.potted >= requiredPots;
-        const flawlessReward = flawlessClearance ? await awardFlawlessVictoryStoreReward() : null;
-        const mergedRewards = [
-          ...(tournamentOutcome?.unlocks || []),
-          ...(flawlessReward ? [flawlessReward] : [])
-        ];
         const overlayData = {
           name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
           avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
           prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
-          rewards: mergedRewards,
+          rewards: tournamentOutcome?.unlocks || [],
           nftReward: tournamentOutcome?.nftReward || null,
           userWon,
           tournamentAdvance: tournamentMode && userWon && !tournamentOutcome?.complete
@@ -16541,7 +16446,6 @@ const powerRef = useRef(hud.power);
   }, [
     frameState.frameOver,
     frameState.winner,
-    awardFlawlessVictoryStoreReward,
     handleTournamentResult,
     isTraining,
     localSeat,
@@ -16559,8 +16463,7 @@ const powerRef = useRef(hud.power);
     tournamentPlayers,
     triggerCoinBurst,
     waitForActiveReplay,
-    openRewardGift,
-    resolveRequiredClearancePots
+    openRewardGift
   ]);
   useEffect(() => {
     if (!rematchStatus?.expiresAt) {
@@ -28021,16 +27924,6 @@ const powerRef = useRef(hud.power);
           Boolean(replayDecision?.shouldReplay) &&
           (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
-        const shotMissed = !hadObjectPot || shotWasFoul || cueBallPotted;
-        if (shotMissed) {
-          flawlessRunRef.current = {
-            ...flawlessRunRef.current,
-            [shooterSeat]: {
-              ...(flawlessRunRef.current?.[shooterSeat] || { missed: false, potted: 0 }),
-              missed: true
-            }
-          };
-        }
         if (potted.length) {
           const newPots = potted.filter(
             (entry) => entry && entry.color && entry.color !== 'CUE'
@@ -28039,13 +27932,6 @@ const powerRef = useRef(hud.power);
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
               [shooterSeat]: newPots[newPots.length - 1] ?? null
-            };
-            flawlessRunRef.current = {
-              ...flawlessRunRef.current,
-              [shooterSeat]: {
-                ...(flawlessRunRef.current?.[shooterSeat] || { missed: false, potted: 0 }),
-                potted: (flawlessRunRef.current?.[shooterSeat]?.potted || 0) + newPots.length
-              }
             };
             setPottedBySeat((prev) => ({
               ...prev,
@@ -33112,7 +32998,7 @@ const powerRef = useRef(hud.power);
         </div>
       </div>
 
-      {!usePortraitQuickActionCoordinates && !replayActive && !isFreePractice && !hideNonEssentialHud && (
+      {!isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div className="pointer-events-auto">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
@@ -33148,7 +33034,7 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {usePortraitQuickActionCoordinates && !replayActive && !isFreePractice && !hideNonEssentialHud && (
+      {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
           style={{ top: `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM}rem)` }}
