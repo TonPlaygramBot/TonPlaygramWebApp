@@ -13506,8 +13506,9 @@ function PoolRoyaleGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 20;
+  const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
+  const sharedHudLiftPx = portraitViewport ? 40 : 30;
+  const spinControllerLiftPx = portraitViewport ? 24 : 20;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -31911,6 +31912,7 @@ const powerRef = useRef(hud.power);
         </>
       )}
 
+      {!isPortrait && (
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
@@ -32525,6 +32527,7 @@ const powerRef = useRef(hud.power);
           </div>
         )}
       </div>
+      )}
 
       {isTraining && !replayActive && (
         <div
@@ -32948,7 +32951,7 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
-      {!replayActive && !isFreePractice && !hideNonEssentialHud && (
+      {!isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div className="pointer-events-auto">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
@@ -32981,6 +32984,41 @@ const powerRef = useRef(hud.power);
             showInfo={false}
             showMute={false}
           />
+        </div>
+      )}
+
+      {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
+        <div
+          className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
+          style={{ bottom: `${12 + chromeUiLiftPx}px` }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowGift(true)}
+            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+            aria-label="Open gifts"
+          >
+            <span aria-hidden="true">🎁</span>
+          </button>
+          <button
+            ref={configButtonRef}
+            type="button"
+            onClick={() => setConfigOpen((prev) => !prev)}
+            aria-expanded={configOpen}
+            aria-controls="snooker-config-panel"
+            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+            aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
+          >
+            <span aria-hidden="true">☰</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowChat(true)}
+            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+            aria-label="Open chat"
+          >
+            <span aria-hidden="true">💬</span>
+          </button>
         </div>
       )}
 
@@ -33362,9 +33400,10 @@ const powerRef = useRef(hud.power);
             ? {
                 left: '50%',
                 right: 'auto',
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
+                top: topControlsOffset,
+                bottom: 'auto',
                 transform: `translateX(-50%) scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom center'
+                transformOrigin: 'top center'
               }
             : {
                 right: `${rightHudShiftPx}px`,
