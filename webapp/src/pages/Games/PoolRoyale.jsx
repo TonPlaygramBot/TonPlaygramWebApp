@@ -13521,8 +13521,6 @@ function PoolRoyaleGame({
   const sideControlsBottomPx =
     SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx;
   const rightControlsLiftPx = 2;
-  const portraitMenuBottomOffsetPx =
-    sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx + bottomLeftChatGiftLiftPx + 10;
   const sharedBottomControlsDropPx = 8;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
@@ -30878,6 +30876,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -30925,7 +30924,6 @@ const powerRef = useRef(hud.power);
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
-  const showPowerSlider = showPlayerControls;
   const showSpinController =
     !hud.over && !replayActive && !shotBroadcastActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
@@ -31914,16 +31912,11 @@ const powerRef = useRef(hud.power);
 
       <div
         className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
-        style={isPortrait
-          ? {
-              left: '-0.5rem',
-              bottom: `${portraitMenuBottomOffsetPx}px`
-            }
-          : {
-              top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
-              left: `calc(50% + ${menuButtonCenterNudgePx}px)`,
-              transform: 'translateX(-50%)'
-            }}
+        style={{
+          top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
+          left: `calc(50% + ${menuButtonCenterNudgePx}px)`,
+          transform: 'translateX(-50%)'
+        }}
       >
         <button
           ref={configButtonRef}
@@ -32964,10 +32957,9 @@ const powerRef = useRef(hud.power);
             infoIcon="ℹ️"
             muteIconOn="🔇"
             muteIconOff="🔊"
-            order={['gift', 'chat']}
             actionOffsets={{
-              chat: 0,
-              gift: 0
+              chat: 10,
+              gift: 6
             }}
             showInfo={false}
             showMute={false}
