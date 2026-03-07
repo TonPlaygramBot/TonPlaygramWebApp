@@ -4013,6 +4013,21 @@ const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
 const LUDO_MATCH_DEFAULT_TABLE_SHAPE_ID = 'classicOctagon';
 const LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID = 'emerald';
 const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
+const TEXAS_HOLDEM_OCTAGON_GLTF_THEME_ID = 'murlan-default';
+
+function resolveTableThemeById(themeId) {
+  if (!themeId) return null;
+  return TABLE_THEME_OPTIONS.find((option) => option?.id === themeId) ?? null;
+}
+
+function resolveTexasOctagonGltfTheme() {
+  return (
+    resolveTableThemeById(TEXAS_HOLDEM_OCTAGON_GLTF_THEME_ID) ||
+    TABLE_THEME_OPTIONS.find((option) => option?.assetId) ||
+    DEFAULT_TABLE_THEME_OPTION ||
+    null
+  );
+}
 
 function resolveDefaultOptionId(key, options = []) {
   if (!Array.isArray(options) || options.length === 0) return null;
@@ -4184,6 +4199,19 @@ function normalizeAppearance(raw) {
       'tableTheme',
       LUDO_MATCH_DEFAULT_TABLE_THEME_ID
     );
+  }
+
+  const selectedShape = TABLE_SHAPE_OPTIONS[normalized.tableShape];
+  if (selectedShape?.id === 'classicOctagon') {
+    const texasOctagonTheme = resolveTexasOctagonGltfTheme();
+    if (texasOctagonTheme?.id && !texasOctagonTheme?.assetId) {
+      const firstGltfTheme = TABLE_THEME_OPTIONS.find((option) => option?.assetId);
+      if (firstGltfTheme?.id) {
+        normalized.tableTheme = findDominoOptionIndex('tableTheme', firstGltfTheme.id);
+      }
+    } else if (texasOctagonTheme?.id) {
+      normalized.tableTheme = findDominoOptionIndex('tableTheme', texasOctagonTheme.id);
+    }
   }
 
   const selectedChairTheme = CHAIR_THEME_OPTIONS[normalized.chairTheme];
@@ -5653,7 +5681,10 @@ function setProceduralTableVisible(flag = true) {
 async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
-  const theme = option || DEFAULT_TABLE_THEME_OPTION;
+  const shapeOption = TABLE_SHAPE_OPTIONS[appearance.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
+  const enforcedTheme =
+    shapeOption?.id === 'classicOctagon' ? resolveTexasOctagonGltfTheme() : null;
+  const theme = enforcedTheme || option || DEFAULT_TABLE_THEME_OPTION;
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
