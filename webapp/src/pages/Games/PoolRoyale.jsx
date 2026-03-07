@@ -5302,10 +5302,6 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006, // nudge the 2D table a touch left on portrait screens
   z: PLAY_H * 0.006 // keep the 2D table slightly higher on portrait screens
 });
-const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
-  x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.02 // push rail-overhead framing higher on portrait screens
-});
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
@@ -5365,7 +5361,6 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // keep overhead rail/broadcast framing i
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const RAIL_OVERHEAD_EXTRA_HEIGHT = BALL_R * 2.4; // raise rail-overhead camera slightly for a more downward look
 const CUE_VIEW_RADIUS_RATIO = 0.0205; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.08;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -13519,9 +13514,8 @@ function PoolRoyaleGame({
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
-  const bottomLeftChatGiftLiftPx = 6;
+  const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const portraitTopActionsBottomPx = 120;
   const rightHudShiftPx = portraitViewport ? 18 : 8;
   const bottomHudLeftPx = -30;
   const viewButtonsOffsetPx = 32;
@@ -19226,10 +19220,7 @@ const powerRef = useRef(hud.power);
           if (target) {
             const toTarget = target.clone().sub(position);
             position.addScaledVector(toTarget, 0.08);
-            position.y = Math.max(
-              (minTargetY ?? baseSurfaceWorldY) + BALL_R * 8.6,
-              position.y - BALL_R * 2.4 + RAIL_OVERHEAD_EXTRA_HEIGHT
-            );
+            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 8.6, position.y - BALL_R * 2.4);
           }
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
@@ -20071,14 +20062,12 @@ const powerRef = useRef(hud.power);
         focusTarget.multiplyScalar(worldScaleFactor);
         lookTarget = focusTarget;
         if (topViewRef.current) {
-          const overheadVariant = overheadBroadcastVariantRef.current ?? 'rail';
-          const screenOffset =
-            overheadVariant === 'rail' ? RAIL_OVERHEAD_SCREEN_OFFSET : TOP_VIEW_SCREEN_OFFSET;
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + screenOffset.x,
+            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            screenOffset.z
+            TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
+          const overheadVariant = overheadBroadcastVariantRef.current ?? 'rail';
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
@@ -21989,12 +21978,10 @@ const powerRef = useRef(hud.power);
           overheadBroadcastVariantRef.current = variant;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
-          const screenOffset =
-            variant === 'rail' ? RAIL_OVERHEAD_SCREEN_OFFSET : TOP_VIEW_SCREEN_OFFSET;
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + screenOffset.x,
+            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            screenOffset.z
+            TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
@@ -33044,10 +33031,10 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {isPortrait && !replayActive && !isFreePractice && !shotBroadcastActive && (
+      {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
-          style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${portraitTopActionsBottomPx}px)` }}
+          style={{ top: `calc(env(safe-area-inset-top, 0px) + 0.35rem)` }}
         >
           <button
             type="button"
