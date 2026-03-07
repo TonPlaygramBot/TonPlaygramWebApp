@@ -5302,6 +5302,10 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006, // nudge the 2D table a touch left on portrait screens
   z: PLAY_H * 0.006 // keep the 2D table slightly higher on portrait screens
 });
+const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
+  x: TOP_VIEW_SCREEN_OFFSET.x,
+  z: PLAY_H * 0.012 // push rail overhead framing slightly higher on portrait so bottom pockets stay visible
+});
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
@@ -5328,7 +5332,7 @@ const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
     minRadiusScale: BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE,
     radiusScale: BROADCAST_TOP_VIEW_RADIUS_SCALE,
     phi: BROADCAST_TOP_VIEW_RESOLVED_PHI,
-    screenOffset: BROADCAST_TOP_VIEW_SCREEN_OFFSET
+    screenOffset: RAIL_OVERHEAD_SCREEN_OFFSET
   }),
   snooker2d: Object.freeze({
     margin: BROADCAST_SNOOKER_TOP_VIEW_MARGIN,
@@ -5394,6 +5398,7 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.02; // pitch the rail-overhead broadcast a little more downward during aim assists
+const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -19220,7 +19225,7 @@ const powerRef = useRef(hud.power);
           if (target) {
             const toTarget = target.clone().sub(position);
             position.addScaledVector(toTarget, 0.08);
-            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 8.6, position.y - BALL_R * 2.4);
+            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 9.4, position.y + BALL_R * 1.2); // lift rail-overhead camera and steepen the downward look
           }
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
@@ -20062,12 +20067,14 @@ const powerRef = useRef(hud.power);
         focusTarget.multiplyScalar(worldScaleFactor);
         lookTarget = focusTarget;
         if (topViewRef.current) {
-          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
-            ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
-          ).multiplyScalar(worldScaleFactor);
           const overheadVariant = overheadBroadcastVariantRef.current ?? 'rail';
+          const activeTopViewOffset =
+            overheadVariant === 'rail' ? RAIL_OVERHEAD_SCREEN_OFFSET : TOP_VIEW_SCREEN_OFFSET;
+          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+            playerOffsetRef.current + activeTopViewOffset.x,
+            ORBIT_FOCUS_BASE_Y,
+            activeTopViewOffset.z
+          ).multiplyScalar(worldScaleFactor);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
@@ -33034,7 +33041,7 @@ const powerRef = useRef(hud.power);
       {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
-          style={{ top: `calc(env(safe-area-inset-top, 0px) + 0.35rem)` }}
+          style={{ top: `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM}rem)` }}
         >
           <button
             type="button"
