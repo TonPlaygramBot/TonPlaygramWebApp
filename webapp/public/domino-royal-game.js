@@ -3677,6 +3677,21 @@ const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
   label: theme.label || theme.name || theme.id
 }));
 
+const SWATCH_THUMB = (colors = ['#0f172a', '#1f2937']) => {
+  const stops = colors.filter(Boolean);
+  if (!stops.length) {
+    return '';
+  }
+  const step = 100 / Math.max(stops.length - 1, 1);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 96" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">${stops
+    .map(
+      (color, index) =>
+        `<stop offset="${(index * step).toFixed(2)}%" stop-color="${color}" />`
+    )
+    .join('')}</linearGradient></defs><rect width="160" height="96" rx="14" ry="14" fill="url(#g)" /><rect x="6" y="6" width="148" height="84" rx="10" ry="10" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2" /></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
 const TABLE_SHAPE_OPTIONS = Object.freeze([
   {
     id: 'classicOctagon',
@@ -6098,6 +6113,11 @@ function clearProceduralTableParts() {
   }
 }
 
+function shouldUseProceduralTable(shapeIndex = appearance.tableShape) {
+  const selectedShape = TABLE_SHAPE_OPTIONS[shapeIndex] ?? TABLE_SHAPE_OPTIONS[0];
+  return selectedShape?.id === 'grandOval';
+}
+
 function rebuildProceduralTable() {
   const shapeOption = TABLE_SHAPE_OPTIONS[appearance.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
   const { topShape, feltShape, rimInnerShape } = buildTableShapes(shapeOption);
@@ -6598,16 +6618,33 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = sanitizeAppearance(appearance);
+  const useProceduralTable = shouldUseProceduralTable(appearance.tableShape);
   applyEnvironmentHdri(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
   );
-  applyTableTheme(
-    TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]
-  );
-  rebuildProceduralTable();
+  if (useProceduralTable) {
+    tableThemeToken += 1;
+    tableThemeG.visible = false;
+    while (tableThemeG.children.length) {
+      const child = tableThemeG.children.pop();
+      disposeObjectResources(child, { disposeTextures: false });
+      child?.removeFromParent?.();
+    }
+    activeTableThemeId = null;
+    rebuildProceduralTable();
+    setProceduralTableVisible(true);
+  } else {
+    clearProceduralTableParts();
+    setProceduralTableVisible(false);
+    applyTableTheme(
+      TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]
+    );
+  }
   clearExistingDominoMeshes();
-  updateTableMaterials();
+  if (useProceduralTable) {
+    updateTableMaterials();
+  }
   applyDominoStyle(
     DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]
   );
