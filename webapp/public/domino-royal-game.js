@@ -2111,6 +2111,18 @@ const DEFAULT_CHAIR_THEME = Object.freeze({
 const POLYHAVEN_THUMB = (id) =>
   `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=512&height=512`;
 
+const SWATCH_THUMB = (colors = ['#0f172a', '#1f2937']) => {
+  const palette = Array.isArray(colors) && colors.length ? colors : ['#0f172a', '#1f2937'];
+  const gradientStops = palette
+    .map((color, index) => {
+      const offset = palette.length <= 1 ? 0 : Math.round((index / (palette.length - 1)) * 100);
+      return `<stop offset="${offset}%" stop-color="${color}"/>`;
+    })
+    .join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1">${gradientStops}</linearGradient></defs><rect width="240" height="160" rx="28" fill="url(#g)"/><rect x="12" y="12" width="216" height="136" rx="22" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="4"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+
 const MURLAN_BASE_STOOL_THEMES = [
   {
     id: 'ruby',
@@ -2262,14 +2274,14 @@ const MURLAN_TABLE_THEMES = Object.freeze(
       id: 'murlan-default',
       label: 'Murlan Default Table',
       source: 'polyhaven',
-      assetId: 'CoffeeTable_01',
+      assetId: 'coffee_table_round_01',
       price: 0,
-      thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
+      thumbnail: POLYHAVEN_THUMB('coffee_table_round_01'),
       description:
         'Standard Murlan Royale table using the default GLTF texture set.'
     },
-    { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
-    { id: 'WoodenTable_02', label: 'Wooden Table 02' },
+    { id: 'coffee_table_01', label: 'Coffee Table 01', assetId: 'coffee_table_01' },
+    { id: 'wooden_table_02', label: 'Wooden Table 02', assetId: 'wooden_table_02' },
     { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
     { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
     { id: 'gallinera_table', label: 'Gallinera Table' },
@@ -2287,7 +2299,7 @@ const MURLAN_TABLE_THEMES = Object.freeze(
       ...option,
       assetId: source === 'polyhaven' ? option.assetId || option.id : null,
       source,
-      thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
+      thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.assetId || option.id),
       price: option.price ?? 980 + index * 40,
       preserveMaterials: option.preserveMaterials ?? source === 'polyhaven',
       description:
