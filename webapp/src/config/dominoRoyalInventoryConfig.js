@@ -1,81 +1,35 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
-import {
-  POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
-} from './poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
-  tableWood: MURLAN_TABLE_FINISHES.map(
-    ({ id, label, price = 0, description, thumbnail, woodOption }) => ({
-      id,
-      label,
-      price,
-      description,
-      thumbnail,
-      woodOption
-    })
-  ),
-  tableCloth: POOL_ROYALE_CLOTH_VARIANTS.map(
-    ({ id, name, price = 0, description, swatches }) => ({
-      id,
-      label: name,
-      price,
-      description,
-      swatches
-    })
-  ),
-  tableTheme: [
-    {
-      id: 'domino-octagon-pro',
-      label: 'Octagon Pro',
-      price: 0,
-      source: 'procedural',
-      shapeId: 'classicOctagon',
-      thumbnail: swatchThumbnail(['#0b1220', '#14532d', '#38bdf8']),
-      description:
-        'Default Domino Battle Royal octagon table using dedicated Domino materials.'
-    },
-    {
-      id: 'domino-oval-pro',
-      label: 'Oval Pro',
-      price: 1040,
-      source: 'procedural',
-      shapeId: 'grandOval',
-      thumbnail: swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316']),
-      description:
-        'Texas Hold’em-style oval profile rebuilt for Domino Battle Royal.'
-    },
-    ...MURLAN_TABLE_THEMES.filter((theme) => theme.id !== 'murlan-default')
-  ].map(
-    ({
-      id,
-      label,
-      price = 0,
-      description,
-      source,
-      assetId,
-      preserveMaterials,
-      shapeId,
-      thumbnail
-    }) => ({
-      id,
-      label,
-      price,
-      source,
-      assetId,
-      shapeId,
-      thumbnail,
-      preserveMaterials,
-      description: description || `${label} table from Murlan Royale`
-    })
-  ),
-  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map(({ id, name }) => ({
+  tableWood: MURLAN_TABLE_FINISHES.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
     id,
-    label: `${name} HDRI`
+    label,
+    price,
+    description,
+    thumbnail,
+    woodOption
   })),
+  tableCloth: POOL_ROYALE_CLOTH_VARIANTS.map(({ id, name, price = 0, description, swatches }) => ({
+    id,
+    label: name,
+    price,
+    description,
+    swatches
+  })),
+  tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
+    id,
+    label,
+    price,
+    source,
+    assetId,
+    preserveMaterials,
+    description: description || `${label} table from Murlan Royale`
+  })),
+  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
   dominoStyle: [
     { id: 'imperialIvory', label: 'Imperial Ivory' },
     { id: 'obsidianPlatinum', label: 'Obsidian Platinum' },
@@ -90,15 +44,14 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'iceTracer', label: 'Ice Tracer' },
     { id: 'violetPulse', label: 'Violet Pulse' }
   ],
-  chairTheme: MURLAN_STOOL_THEMES.map(
-    ({ id, label, price = 0, description }) => ({
-      id,
-      label,
-      price,
-      description: description || `${label} seating set from Murlan Royale`
-    })
-  )
+  chairTheme: MURLAN_STOOL_THEMES.map(({ id, label, price = 0, description }) => ({
+    id,
+    label,
+    price,
+    description: description || `${label} seating set from Murlan Royale`
+  }))
 });
+
 
 const DOMINO_TABLE_CLOTH_THUMBNAILS = Object.freeze({
   crimson: swatchThumbnail(['#960019', '#4a0012', '#fecaca']),
@@ -126,7 +79,7 @@ const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
 });
 
 const DOMINO_DEFAULT_IDS = Object.freeze({
-  tableTheme: 'domino-octagon-pro',
+  tableTheme: 'murlan-default',
   tableWood: 'peelingPaintWeathered',
   tableCloth: 'emerald',
   chairTheme: 'dining_chair_02'
@@ -172,9 +125,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price || 980 + idx * 40,
-    description:
-      option.description ||
-      'Table finish from the Ludo/Murlan Royale collection.',
+    description: option.description || 'Table finish from the Ludo/Murlan Royale collection.',
     thumbnail: option.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableCloth.slice(1).map((option, idx) => ({
@@ -183,12 +134,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price || 340 + idx * 30,
-    description:
-      option.description ||
-      'Unlock a new felt tone for the Domino Royal table surface.',
-    thumbnail: option.swatches?.length
-      ? swatchThumbnail(option.swatches)
-      : DOMINO_TABLE_CLOTH_THUMBNAILS[option.id]
+    description: option.description || 'Unlock a new felt tone for the Domino Royal table surface.',
+    thumbnail: option.swatches?.length ? swatchThumbnail(option.swatches) : DOMINO_TABLE_CLOTH_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.tableTheme.slice(1).map((option, idx) => ({
     id: `domino-table-theme-${option.id}`,
@@ -196,11 +143,8 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price || 900 + idx * 45,
-    description:
-      option.description ||
-      'Apply the Murlan Royale table collection to Domino.',
-    thumbnail: MURLAN_TABLE_THEMES.find((theme) => theme.id === option.id)
-      ?.thumbnail
+    description: option.description || 'Apply the Murlan Royale table collection to Domino.',
+    thumbnail: MURLAN_TABLE_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.environmentHdri.slice(1).map((option, idx) => ({
     id: `domino-hdri-${option.id}`,
@@ -209,9 +153,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     name: option.label,
     price: POOL_ROYALE_HDRI_VARIANTS[idx + 1]?.price || 1200 + idx * 80,
     description: 'HDRI environment from the Pool/Murlan Royale library.',
-    thumbnail: POOL_ROYALE_HDRI_VARIANTS.find(
-      (variant) => variant.id === option.id
-    )?.thumbnail
+    thumbnail: POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === option.id)?.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.dominoStyle.slice(1).map((option, idx) => ({
     id: `domino-style-${option.id}`,
@@ -237,17 +179,14 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price || 300 + idx * 25,
-    description:
-      option.description || 'Murlan Royale seating set for Domino Royal.',
-    thumbnail: MURLAN_STOOL_THEMES.find((theme) => theme.id === option.id)
-      ?.thumbnail
+    description: option.description || 'Murlan Royale seating set for Domino Royal.',
+    thumbnail: MURLAN_STOOL_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   }))
 ];
 
 const getLabelForOption = (type, optionId) =>
   DOMINO_ROYAL_OPTION_LABELS[type]?.[optionId] ||
-  DOMINO_ROYAL_OPTION_SETS[type]?.find((option) => option.id === optionId)
-    ?.label ||
+  DOMINO_ROYAL_OPTION_SETS[type]?.find((option) => option.id === optionId)?.label ||
   optionId;
 
 export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
@@ -259,18 +198,12 @@ export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
   {
     type: 'tableCloth',
     optionId: getDominoDefaultOptionId('tableCloth'),
-    label: getLabelForOption(
-      'tableCloth',
-      getDominoDefaultOptionId('tableCloth')
-    )
+    label: getLabelForOption('tableCloth', getDominoDefaultOptionId('tableCloth'))
   },
   {
     type: 'tableTheme',
     optionId: getDominoDefaultOptionId('tableTheme'),
-    label: getLabelForOption(
-      'tableTheme',
-      getDominoDefaultOptionId('tableTheme')
-    )
+    label: getLabelForOption('tableTheme', getDominoDefaultOptionId('tableTheme'))
   },
   {
     type: 'environmentHdri',
@@ -280,25 +213,16 @@ export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
   {
     type: 'dominoStyle',
     optionId: getDominoDefaultOptionId('dominoStyle'),
-    label: getLabelForOption(
-      'dominoStyle',
-      getDominoDefaultOptionId('dominoStyle')
-    )
+    label: getLabelForOption('dominoStyle', getDominoDefaultOptionId('dominoStyle'))
   },
   {
     type: 'highlightStyle',
     optionId: getDominoDefaultOptionId('highlightStyle'),
-    label: getLabelForOption(
-      'highlightStyle',
-      getDominoDefaultOptionId('highlightStyle')
-    )
+    label: getLabelForOption('highlightStyle', getDominoDefaultOptionId('highlightStyle'))
   },
   {
     type: 'chairTheme',
     optionId: getDominoDefaultOptionId('chairTheme'),
-    label: getLabelForOption(
-      'chairTheme',
-      getDominoDefaultOptionId('chairTheme')
-    )
+    label: getLabelForOption('chairTheme', getDominoDefaultOptionId('chairTheme'))
   }
 ];

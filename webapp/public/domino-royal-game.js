@@ -125,11 +125,7 @@ function detectHighRefreshDisplay() {
   ) {
     return false;
   }
-  const queries = [
-    '(min-refresh-rate: 143hz)',
-    '(min-refresh-rate: 120hz)',
-    '(min-refresh-rate: 90hz)'
-  ];
+  const queries = ['(min-refresh-rate: 143hz)', '(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -1888,8 +1884,7 @@ function updateTurnCameraFocus() {
   turnSeatTarget
     .copy(focusCenter)
     .lerp(focusSeat.position, CAMERA_TURN_SEAT_WEIGHT);
-  turnSeatTarget.y =
-    TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
+  turnSeatTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
 
   const now = performance.now();
   if (now < turnDominoFocusUntil) {
@@ -2264,24 +2259,14 @@ const MURLAN_STOOL_THEMES = Object.freeze([
 const MURLAN_TABLE_THEMES = Object.freeze(
   [
     {
-      id: 'domino-octagon-pro',
-      label: 'Octagon Pro',
-      source: 'procedural',
-      shapeId: 'classicOctagon',
+      id: 'murlan-default',
+      label: 'Murlan Default Table',
+      source: 'polyhaven',
+      assetId: 'CoffeeTable_01',
       price: 0,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
       description:
-        'Default Domino Battle Royal octagon table with dedicated Domino materials.'
-    },
-    {
-      id: 'domino-oval-pro',
-      label: 'Oval Pro',
-      source: 'procedural',
-      shapeId: 'grandOval',
-      price: 1040,
-      thumbnail: POLYHAVEN_THUMB('coffee_table_round_01'),
-      description:
-        "Texas Hold'em-style oval profile rebuilt for Domino Battle Royal."
+        'Standard Murlan Royale table using the default GLTF texture set.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
@@ -2329,10 +2314,8 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const polyhavenFilesManifestCache = new Map();
-const DRACO_DECODER_PATH =
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 
@@ -2371,13 +2354,10 @@ async function getPolyhavenFilesManifest(assetId) {
   }
   const promise = (async () => {
     try {
-      const response = await fetch(
-        `https://api.polyhaven.com/files/${assetId}`,
-        {
-          mode: 'cors',
-          credentials: 'omit'
-        }
-      );
+      const response = await fetch(`https://api.polyhaven.com/files/${assetId}`, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
       if (!response.ok) {
         throw new Error(`Poly Haven files API ${response.status}`);
       }
@@ -2434,10 +2414,7 @@ function applySRGBColorSpace(texture) {
   texture.needsUpdate = true;
 }
 
-function normalizePbrTexture(
-  texture,
-  { isColor = false, maxAnisotropy = 1 } = {}
-) {
+function normalizePbrTexture(texture, { isColor = false, maxAnisotropy = 1 } = {}) {
   if (!texture) return;
   if (isColor) {
     applySRGBColorSpace(texture);
@@ -2473,10 +2450,7 @@ function getRendererTextureSizeCap() {
   return renderer?.capabilities?.maxTextureSize ?? 8192;
 }
 
-function prepareLoadedModel(
-  model,
-  { preserveGltfTextureMapping = false } = {}
-) {
+function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) {
   if (!model) return;
   const maxAnisotropy = getRendererAnisotropyCap();
   model.traverse((obj) => {
@@ -2487,8 +2461,7 @@ function prepareLoadedModel(
     mats.forEach((mat) => {
       if (!mat) return;
       if (preserveGltfTextureMapping) {
-        if (mat.map)
-          mat.map.anisotropy = Math.max(mat.map.anisotropy ?? 1, maxAnisotropy);
+        if (mat.map) mat.map.anisotropy = Math.max(mat.map.anisotropy ?? 1, maxAnisotropy);
         if (mat.normalMap)
           mat.normalMap.anisotropy = Math.max(
             mat.normalMap.anisotropy ?? 1,
@@ -2505,10 +2478,7 @@ function prepareLoadedModel(
             maxAnisotropy
           );
         if (mat.aoMap)
-          mat.aoMap.anisotropy = Math.max(
-            mat.aoMap.anisotropy ?? 1,
-            maxAnisotropy
-          );
+          mat.aoMap.anisotropy = Math.max(mat.aoMap.anisotropy ?? 1, maxAnisotropy);
         mat.needsUpdate = true;
         return;
       }
@@ -2570,14 +2540,13 @@ async function loadPolyhavenModel(
     filesManifest,
     preferredResolutions
   );
-  const fallbackCandidates = buildPolyhavenModelUrls(
-    assetId,
-    preferredResolutions
-  ).map((url) => ({
-    url,
-    resolution: url.match(/\/(1k|2k)\//i)?.[1]?.toLowerCase?.() || '2k',
-    includeUrlMap: null
-  }));
+  const fallbackCandidates = buildPolyhavenModelUrls(assetId, preferredResolutions).map(
+    (url) => ({
+      url,
+      resolution: url.match(/\/(1k|2k)\//i)?.[1]?.toLowerCase?.() || '2k',
+      includeUrlMap: null
+    })
+  );
   const candidates = [...manifestCandidates, ...fallbackCandidates];
   let lastError = null;
 
@@ -2596,10 +2565,7 @@ async function loadPolyhavenModel(
         candidateUrl,
         typeof window !== 'undefined' ? window.location?.href : candidateUrl
       ).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
-      );
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
       loader.setResourcePath(resourcePath);
       loader.setPath('');
       // eslint-disable-next-line no-await-in-loop
@@ -2615,9 +2581,7 @@ async function loadPolyhavenModel(
     }
   }
 
-  throw (
-    lastError || new Error(`Failed to load Poly Haven model for ${assetId}`)
-  );
+  throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679,
@@ -2779,10 +2743,7 @@ async function ensureMurlanChairTemplate(theme = null) {
       }
     }
     if (!gltf) {
-      console.warn(
-        'Failed to load remote chair model, using procedural chair',
-        lastError
-      );
+      console.warn('Failed to load remote chair model, using procedural chair', lastError);
       return buildProceduralChairTemplate();
     }
 
@@ -3435,14 +3396,7 @@ function applyWoodTextures(
   return { map: material.map, roughnessMap: material.roughnessMap };
 }
 
-function makeTableWoodOption({
-  id,
-  label,
-  presetId,
-  grainId,
-  price,
-  description
-}) {
+function makeTableWoodOption({ id, label, presetId, grainId, price, description }) {
   const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
   const preset = (presetId && WOOD_PRESETS_BY_ID[presetId]) || fallbackPreset;
   return Object.freeze({
@@ -3535,132 +3489,24 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const POOL_ROYALE_DOMINO_CLOTH_PALETTE = Object.freeze([
-  {
-    id: 'emerald',
-    label: 'Emerald Cloth',
-    feltTop: '#0f6a2f',
-    feltBottom: '#054d24',
-    border: '#021a0b'
-  },
-  {
-    id: 'crimson',
-    label: 'Crimson Cloth',
-    feltTop: '#960019',
-    feltBottom: '#4a0012',
-    border: '#210308'
-  },
-  {
-    id: 'arctic',
-    label: 'Arctic Cloth',
-    feltTop: '#2563eb',
-    feltBottom: '#1d4ed8',
-    border: '#071a42'
-  },
-  {
-    id: 'sunset',
-    label: 'Sunset Cloth',
-    feltTop: '#ea580c',
-    feltBottom: '#c2410c',
-    border: '#320e03'
-  },
-  {
-    id: 'violet',
-    label: 'Violet Cloth',
-    feltTop: '#7c3aed',
-    feltBottom: '#5b21b6',
-    border: '#1f0a47'
-  },
-  {
-    id: 'amber',
-    label: 'Amber Cloth',
-    feltTop: '#b7791f',
-    feltBottom: '#92571a',
-    border: '#2b1402'
-  },
-  {
-    id: 'cabanGreenMeadow',
-    label: 'Caban Wool — Green Meadow',
-    feltTop: '#33b46a',
-    feltBottom: '#2ca85f',
-    border: '#1f6a3f'
-  },
-  {
-    id: 'cabanGreenSpruce',
-    label: 'Caban Wool — Green Spruce',
-    feltTop: '#2ca85f',
-    feltBottom: '#238f4a',
-    border: '#1a5d35'
-  },
-  {
-    id: 'cabanBlueHarbor',
-    label: 'Caban Wool — Blue Harbor',
-    feltTop: '#0b74c6',
-    feltBottom: '#0a6eb8',
-    border: '#0a355a'
-  },
-  {
-    id: 'cabanBlueFjord',
-    label: 'Caban Wool — Blue Fjord',
-    feltTop: '#1589e6',
-    feltBottom: '#0b74c6',
-    border: '#0a355a'
-  },
-  {
-    id: 'polarFleeceGreenMeadow',
-    label: 'Polar Fleece — Green Meadow',
-    feltTop: '#33b46a',
-    feltBottom: '#2ca85f',
-    border: '#205f40'
-  },
-  {
-    id: 'polarFleeceBlueHarbor',
-    label: 'Polar Fleece — Blue Harbor',
-    feltTop: '#0b74c6',
-    feltBottom: '#0a6eb8',
-    border: '#0b365e'
-  },
-  {
-    id: 'polarFleecePlushGreenMeadow',
-    label: 'Polar Fleece Plush — Green Meadow',
-    feltTop: '#42c47a',
-    feltBottom: '#2ca85f',
-    border: '#1f6b40'
-  },
-  {
-    id: 'polarFleecePlushBlueHarbor',
-    label: 'Polar Fleece Plush — Blue Harbor',
-    feltTop: '#1fa3ff',
-    feltBottom: '#0b74c6',
-    border: '#0b3c66'
-  },
-  {
-    id: 'polarFleeceNatureOceanGreenFern',
-    label: 'Polar Fleece Nature & Ocean — Green Fern',
-    feltTop: '#33b46a',
-    feltBottom: '#238f4a',
-    border: '#1c5a37'
-  },
-  {
-    id: 'polarFleeceNatureOceanBlueCrest',
-    label: 'Polar Fleece Nature & Ocean — Blue Crest',
-    feltTop: '#1589e6',
-    feltBottom: '#095fa4',
-    border: '#0a3458'
-  },
-  {
-    id: 'terryClothGreenMeadow',
-    label: 'Polyhaven Terry Cloth — Green Meadow',
-    feltTop: '#42c47a',
-    feltBottom: '#2ca85f',
-    border: '#1d603b'
-  },
-  {
-    id: 'terryClothBlueHarbor',
-    label: 'Polyhaven Terry Cloth — Blue Harbor',
-    feltTop: '#1fa3ff',
-    feltBottom: '#0b74c6',
-    border: '#0b365f'
-  }
+  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', border: '#021a0b' },
+  { id: 'crimson', label: 'Crimson Cloth', feltTop: '#960019', feltBottom: '#4a0012', border: '#210308' },
+  { id: 'arctic', label: 'Arctic Cloth', feltTop: '#2563eb', feltBottom: '#1d4ed8', border: '#071a42' },
+  { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', border: '#320e03' },
+  { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', border: '#1f0a47' },
+  { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', border: '#2b1402' },
+  { id: 'cabanGreenMeadow', label: 'Caban Wool — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#1f6a3f' },
+  { id: 'cabanGreenSpruce', label: 'Caban Wool — Green Spruce', feltTop: '#2ca85f', feltBottom: '#238f4a', border: '#1a5d35' },
+  { id: 'cabanBlueHarbor', label: 'Caban Wool — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0a355a' },
+  { id: 'cabanBlueFjord', label: 'Caban Wool — Blue Fjord', feltTop: '#1589e6', feltBottom: '#0b74c6', border: '#0a355a' },
+  { id: 'polarFleeceGreenMeadow', label: 'Polar Fleece — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#205f40' },
+  { id: 'polarFleeceBlueHarbor', label: 'Polar Fleece — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0b365e' },
+  { id: 'polarFleecePlushGreenMeadow', label: 'Polar Fleece Plush — Green Meadow', feltTop: '#42c47a', feltBottom: '#2ca85f', border: '#1f6b40' },
+  { id: 'polarFleecePlushBlueHarbor', label: 'Polar Fleece Plush — Blue Harbor', feltTop: '#1fa3ff', feltBottom: '#0b74c6', border: '#0b3c66' },
+  { id: 'polarFleeceNatureOceanGreenFern', label: 'Polar Fleece Nature & Ocean — Green Fern', feltTop: '#33b46a', feltBottom: '#238f4a', border: '#1c5a37' },
+  { id: 'polarFleeceNatureOceanBlueCrest', label: 'Polar Fleece Nature & Ocean — Blue Crest', feltTop: '#1589e6', feltBottom: '#095fa4', border: '#0a3458' },
+  { id: 'terryClothGreenMeadow', label: 'Polyhaven Terry Cloth — Green Meadow', feltTop: '#42c47a', feltBottom: '#2ca85f', border: '#1d603b' },
+  { id: 'terryClothBlueHarbor', label: 'Polyhaven Terry Cloth — Blue Harbor', feltTop: '#1fa3ff', feltBottom: '#0b74c6', border: '#0b365f' }
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze(
@@ -3671,6 +3517,7 @@ const TABLE_CLOTH_OPTIONS = Object.freeze(
     swatches: [option.feltTop, option.feltBottom, option.border]
   }))
 );
+
 
 const TABLE_BASE_OPTIONS = Object.freeze([
   {
@@ -4138,7 +3985,8 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   chairTheme: CHAIR_THEME_OPTIONS
 });
 
-const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'domino-octagon-pro';
+
+const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
 const LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID = 'emerald';
 const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
 
@@ -4146,24 +3994,21 @@ function resolveDefaultOptionId(key, options = []) {
   if (!Array.isArray(options) || options.length === 0) return null;
   if (key === 'tableTheme') {
     return (
-      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID)
-        ?.id ||
+      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID)?.id ||
       options[0]?.id ||
       null
     );
   }
   if (key === 'tableCloth') {
     return (
-      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID)
-        ?.id ||
+      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID)?.id ||
       options[0]?.id ||
       null
     );
   }
   if (key === 'chairTheme') {
     return (
-      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_CHAIR_THEME_ID)
-        ?.id ||
+      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_CHAIR_THEME_ID)?.id ||
       options[0]?.id ||
       null
     );
@@ -4268,10 +4113,7 @@ const DEFAULT_APPEARANCE = Object.freeze(
   }, {})
 );
 const APPEARANCE_STORAGE_KEY = 'dominoRoyalArenaAppearanceV3';
-const LEGACY_APPEARANCE_KEYS = [
-  'dominoRoyalArenaAppearanceV2',
-  'dominoRoyalArenaAppearance'
-];
+const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearanceV2', 'dominoRoyalArenaAppearance'];
 const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV1';
 let appearance = { ...DEFAULT_APPEARANCE };
 let dominoInventory = getDominoInventory();
@@ -4305,10 +4147,7 @@ function normalizeAppearance(raw) {
       LUDO_MATCH_DEFAULT_TABLE_THEME_ID
     );
   }
-  if (
-    selectedTableTheme?.source === 'procedural' &&
-    selectedTableTheme?.id !== 'domino-octagon-pro'
-  ) {
+  if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
     normalized.tableTheme = findDominoOptionIndex(
       'tableTheme',
       LUDO_MATCH_DEFAULT_TABLE_THEME_ID
@@ -4339,13 +4178,17 @@ function sanitizeAppearance(rawAppearance, inventory = dominoInventory) {
   return next;
 }
 
+
 function forceMurlanDefaultTableAppearance(rawAppearance) {
   const next = { ...(rawAppearance || {}) };
   next.tableTheme = findDominoOptionIndex(
     'tableTheme',
     LUDO_MATCH_DEFAULT_TABLE_THEME_ID
   );
-  next.tableWood = findDominoOptionIndex('tableWood', 'peelingPaintWeathered');
+  next.tableWood = findDominoOptionIndex(
+    'tableWood',
+    'peelingPaintWeathered'
+  );
   next.tableCloth = findDominoOptionIndex(
     'tableCloth',
     LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID
@@ -4503,9 +4346,7 @@ try {
   const hasMigratedDefaultTable =
     window.localStorage?.getItem(DEFAULT_TABLE_MIGRATION_KEY) === '1';
   if (!hasMigratedDefaultTable) {
-    appearance = sanitizeAppearance(
-      forceMurlanDefaultTableAppearance(appearance)
-    );
+    appearance = sanitizeAppearance(forceMurlanDefaultTableAppearance(appearance));
     window.localStorage?.setItem(
       APPEARANCE_STORAGE_KEY,
       JSON.stringify(appearance)
@@ -5557,22 +5398,6 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
-function createOvalShape(width, height, segments = 64) {
-  const shape = new THREE.Shape();
-  for (let i = 0; i <= segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const x = Math.cos(angle) * (width / 2);
-    const y = Math.sin(angle) * (height / 2);
-    if (i === 0) {
-      shape.moveTo(x, y);
-    } else {
-      shape.lineTo(x, y);
-    }
-  }
-  shape.closePath();
-  return shape;
-}
-
 function makeClothTexture({
   top = '#155c2a',
   bottom = '#0b3a1d',
@@ -5773,13 +5598,9 @@ function setProceduralTableVisible(flag = true) {
 }
 
 async function applyTableTheme(
-  option = TABLE_THEME_OPTIONS[appearance.tableTheme] ??
-    DEFAULT_TABLE_THEME_OPTION
+  option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
   const theme = option || DEFAULT_TABLE_THEME_OPTION;
-  if (theme?.source === 'procedural') {
-    rebuildProceduralTableGeometry(theme);
-  }
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
@@ -5808,11 +5629,7 @@ async function applyTableTheme(
     activeTableThemeId = theme.id;
   } catch (error) {
     console.warn('Failed to load table theme', error);
-    if (
-      theme.source !== 'procedural' &&
-      theme.id !== DEFAULT_TABLE_THEME_OPTION?.id &&
-      DEFAULT_TABLE_THEME_OPTION?.assetId
-    ) {
+    if (theme.id !== DEFAULT_TABLE_THEME_OPTION?.id && DEFAULT_TABLE_THEME_OPTION?.assetId) {
       try {
         const fallbackModel = await loadPolyhavenModel(
           DEFAULT_TABLE_THEME_OPTION.assetId,
@@ -5828,10 +5645,7 @@ async function applyTableTheme(
         setProceduralTableVisible(false);
         activeTableThemeId = DEFAULT_TABLE_THEME_OPTION.id;
       } catch (fallbackError) {
-        console.warn(
-          'Failed to load fallback Poly Haven table theme',
-          fallbackError
-        );
+        console.warn('Failed to load fallback Poly Haven table theme', fallbackError);
         setProceduralTableVisible(true);
       }
     } else {
@@ -6200,36 +6014,11 @@ const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
 const CLOTH_TOP = TABLE_HEIGHT;
 const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
-function getProceduralShapeSet(tableThemeOption) {
-  const shapeId = tableThemeOption?.shapeId || 'classicOctagon';
-  if (shapeId === 'grandOval') {
-    const topShape = createOvalShape(
-      TABLE_OUTER_RADIUS * 2.14,
-      TABLE_OUTER_RADIUS * 1.54,
-      72
-    );
-    const feltShape = createOvalShape(
-      CLOTH_RADIUS * 2.16,
-      CLOTH_RADIUS * 1.56,
-      72
-    );
-    const rimInnerShape = createOvalShape(
-      TABLE_INNER_RADIUS * 2.16,
-      TABLE_INNER_RADIUS * 1.56,
-      72
-    );
-    return { topShape, feltShape, rimInnerShape };
-  }
+(function buildTable() {
   const sides = 8;
   const topShape = createRegularPolygonShape(sides, TABLE_OUTER_RADIUS);
   const feltShape = createRegularPolygonShape(sides, CLOTH_RADIUS);
   const rimInnerShape = createRegularPolygonShape(sides, TABLE_INNER_RADIUS);
-  return { topShape, feltShape, rimInnerShape };
-}
-
-function rebuildProceduralTableGeometry(tableThemeOption) {
-  const { topShape, feltShape, rimInnerShape } =
-    getProceduralShapeSet(tableThemeOption);
 
   const topShapeWithHole = topShape.clone();
   topShapeWithHole.holes.push(feltShape);
@@ -6241,16 +6030,25 @@ function rebuildProceduralTableGeometry(tableThemeOption) {
     bevelSegments: 8
   });
   topGeo.rotateX(-Math.PI / 2);
-  if (tableParts.top?.geometry) tableParts.top.geometry.dispose();
-  tableParts.top.geometry = topGeo;
+  const topMesh = new THREE.Mesh(topGeo, tableMaterials.top);
+  topMesh.position.y = TABLE_BASE_Y;
+  topMesh.castShadow = true;
+  topMesh.receiveShadow = true;
+  tableG.add(topMesh);
+  tableParts.top = topMesh;
+  proceduralTableParts.push(topMesh);
 
   const feltGeo = new THREE.ExtrudeGeometry(feltShape, {
     depth: 0.01,
     bevelEnabled: false
   });
   feltGeo.rotateX(-Math.PI / 2);
-  if (tableParts.felt?.geometry) tableParts.felt.geometry.dispose();
-  tableParts.felt.geometry = feltGeo;
+  const feltMesh = new THREE.Mesh(feltGeo, tableMaterials.felt);
+  feltMesh.position.y = CLOTH_TOP + 0.0025;
+  feltMesh.receiveShadow = true;
+  tableG.add(feltMesh);
+  tableParts.felt = feltMesh;
+  proceduralTableParts.push(feltMesh);
 
   const rimShape = topShape.clone();
   rimShape.holes.push(rimInnerShape);
@@ -6262,8 +6060,13 @@ function rebuildProceduralTableGeometry(tableThemeOption) {
     bevelSegments: 6
   });
   rimGeo.rotateX(-Math.PI / 2);
-  if (tableParts.rim?.geometry) tableParts.rim.geometry.dispose();
-  tableParts.rim.geometry = rimGeo;
+  const rimMesh = new THREE.Mesh(rimGeo, tableMaterials.rim);
+  rimMesh.position.y = TABLE_BASE_Y + TABLE_TOP_DEPTH * 0.55;
+  rimMesh.castShadow = true;
+  rimMesh.receiveShadow = true;
+  tableG.add(rimMesh);
+  tableParts.rim = rimMesh;
+  proceduralTableParts.push(rimMesh);
 
   const accentShape = rimInnerShape.clone();
   accentShape.holes.push(feltShape);
@@ -6272,47 +6075,7 @@ function rebuildProceduralTableGeometry(tableThemeOption) {
     bevelEnabled: false
   });
   accentGeo.rotateX(-Math.PI / 2);
-  if (tableParts.accent?.geometry) tableParts.accent.geometry.dispose();
-  tableParts.accent.geometry = accentGeo;
-}
-
-(function buildTable() {
-  const topMesh = new THREE.Mesh(
-    new THREE.BufferGeometry(),
-    tableMaterials.top
-  );
-  topMesh.position.y = TABLE_BASE_Y;
-  topMesh.castShadow = true;
-  topMesh.receiveShadow = true;
-  tableG.add(topMesh);
-  tableParts.top = topMesh;
-  proceduralTableParts.push(topMesh);
-
-  const feltMesh = new THREE.Mesh(
-    new THREE.BufferGeometry(),
-    tableMaterials.felt
-  );
-  feltMesh.position.y = CLOTH_TOP + 0.0025;
-  feltMesh.receiveShadow = true;
-  tableG.add(feltMesh);
-  tableParts.felt = feltMesh;
-  proceduralTableParts.push(feltMesh);
-
-  const rimMesh = new THREE.Mesh(
-    new THREE.BufferGeometry(),
-    tableMaterials.rim
-  );
-  rimMesh.position.y = TABLE_BASE_Y + TABLE_TOP_DEPTH * 0.55;
-  rimMesh.castShadow = true;
-  rimMesh.receiveShadow = true;
-  tableG.add(rimMesh);
-  tableParts.rim = rimMesh;
-  proceduralTableParts.push(rimMesh);
-
-  const accentMesh = new THREE.Mesh(
-    new THREE.BufferGeometry(),
-    tableMaterials.accent
-  );
+  const accentMesh = new THREE.Mesh(accentGeo, tableMaterials.accent);
   accentMesh.position.y = CLOTH_TOP - 0.003;
   tableG.add(accentMesh);
   tableParts.accent = accentMesh;
@@ -6334,10 +6097,6 @@ function rebuildProceduralTableGeometry(tableThemeOption) {
   tableG.add(column);
   tableParts.column = column;
   proceduralTableParts.push(column);
-
-  rebuildProceduralTableGeometry(
-    TABLE_THEME_OPTIONS[DEFAULT_APPEARANCE.tableTheme] ?? TABLE_THEME_OPTIONS[0]
-  );
 
   // Base and trim intentionally omitted to remove the oversized pedestal.
 })();
@@ -6444,6 +6203,7 @@ function buildDominoMaterial(options = {}, defaults = {}) {
   return material;
 }
 
+
 const getDominoSurfaceTextures = (() => {
   let cache = null;
   return () => {
@@ -6453,15 +6213,10 @@ const getDominoSurfaceTextures = (() => {
       return cache;
     }
     const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(
-      1024,
-      Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
-    );
+    const preferredSize = Math.max(1024, Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize));
     const lowMemoryDevice =
       isLowProfileDevice ||
-      (typeof navigator !== 'undefined' &&
-        typeof navigator.deviceMemory === 'number' &&
-        navigator.deviceMemory <= 4);
+      (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
     let size = lowMemoryDevice ? Math.min(preferredSize, 1024) : preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
@@ -7095,8 +6850,7 @@ function refreshConfigUI() {
     wrapper.appendChild(label);
     const optionsGrid = document.createElement('div');
     optionsGrid.className = 'config-options';
-    optionsGrid.style.gridTemplateColumns =
-      'repeat(auto-fill, minmax(110px, 1fr))';
+    optionsGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(110px, 1fr))';
     const availableOptions = getUnlockedOptions(section.key, dominoInventory);
     availableOptions.forEach((option) => {
       const idx = findDominoOptionIndex(section.key, option.id);
@@ -7232,10 +6986,7 @@ function refreshConfigUI() {
     }
     button.addEventListener('click', () => {
       if (frameRateId === option.id) return;
-      applyFrameRateSelection(option.id, {
-        refreshUi: false,
-        source: 'manual'
-      });
+      applyFrameRateSelection(option.id, { refreshUi: false, source: 'manual' });
       refreshConfigUI();
     });
     graphicsGrid.appendChild(button);
@@ -9038,19 +8789,13 @@ function scheduleCpuPlay(delay = CPU_PLAY_DELAY) {
   }, safeDelay);
 }
 
-function scheduleTurnAdvanceAfterPlacement(
-  segment,
-  delayMs = TURN_ADVANCE_AFTER_PLACEMENT_MS
-) {
+function scheduleTurnAdvanceAfterPlacement(segment, delayMs = TURN_ADVANCE_AFTER_PLACEMENT_MS) {
   queueDominoCameraFocus(segment);
   if (pendingTurnAdvanceTimeout) {
     clearTimeout(pendingTurnAdvanceTimeout);
     pendingTurnAdvanceTimeout = null;
   }
-  const safeDelay = Math.max(
-    0,
-    Number.isFinite(delayMs) ? delayMs : TURN_ADVANCE_AFTER_PLACEMENT_MS
-  );
+  const safeDelay = Math.max(0, Number.isFinite(delayMs) ? delayMs : TURN_ADVANCE_AFTER_PLACEMENT_MS);
   pendingTurnAdvanceTimeout = setTimeout(() => {
     pendingTurnAdvanceTimeout = null;
     if (!gameFinished) {
@@ -9819,16 +9564,10 @@ let runtimeListenersDetached = false;
 
 const runtimeMessageHandler = (event) => {
   const message = event?.data;
-  if (
-    typeof message === 'string' &&
-    /domino-royal:(close|exit|disconnect)/i.test(message)
-  ) {
+  if (typeof message === 'string' && /domino-royal:(close|exit|disconnect)/i.test(message)) {
     shutdownDominoRoyal('message-close');
   }
-  if (
-    message?.type &&
-    /domino-royal:(close|exit|disconnect)/i.test(String(message.type))
-  ) {
+  if (message?.type && /domino-royal:(close|exit|disconnect)/i.test(String(message.type))) {
     shutdownDominoRoyal('message-close-type');
   }
 };
