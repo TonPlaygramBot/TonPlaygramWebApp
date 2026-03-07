@@ -5293,14 +5293,14 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // lift the 2D camera a touch more for a slightly higher overhead framing
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // lift the 2D camera slightly higher so portrait top view reads more elevated
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.08; // keep 2D framing a little higher for portrait readability
+const TOP_VIEW_RADIUS_SCALE = 1.11; // keep 2D framing a little higher so the camera sits a bit farther up
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006, // nudge the 2D table a touch left on portrait screens
-  z: PLAY_H * 0.012 // nudge the 2D table a touch lower on portrait screens
+  z: PLAY_H * 0.006 // keep the 2D table slightly higher on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
@@ -13507,8 +13507,8 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
-  const sharedHudLiftPx = portraitViewport ? 46 : 30;
-  const spinControllerLiftPx = portraitViewport ? 30 : 20;
+  const sharedHudLiftPx = portraitViewport ? 32 : 30;
+  const spinControllerLiftPx = portraitViewport ? 18 : 20;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -13518,7 +13518,7 @@ function PoolRoyaleGame({
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = 8;
   const bottomHudLeftPx = -30;
-  const portraitActionIconsLiftPx = 6;
+  const portraitActionIconsLiftPx = 52;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -33401,10 +33401,10 @@ const powerRef = useRef(hud.power);
             ? {
                 left: '50%',
                 right: 'auto',
-                top: topControlsOffset,
-                bottom: 'auto',
+                top: 'auto',
+                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
                 transform: `translateX(-50%) scale(${uiScale * 0.88})`,
-                transformOrigin: 'top center'
+                transformOrigin: 'bottom center'
               }
             : {
                 right: `${rightHudShiftPx}px`,
