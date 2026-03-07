@@ -115,12 +115,10 @@ export const DOMINO_ROYAL_TABLE_THEMES = [
   {
     id: 'murlan-default',
     label: 'Murlan Default Table',
-    source: 'polyhaven',
-    assetId: 'CoffeeTable_01',
-    preserveMaterials: true,
+    source: 'procedural',
     price: 0,
     thumbnail: polyHavenThumb('CoffeeTable_01'),
-    description: 'Standard Murlan Royale table using the default GLTF texture set.'
+    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
