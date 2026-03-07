@@ -1712,8 +1712,8 @@ input:focus {
 }
 
 .texas-holdem-chat-bubble {
-  left: calc(0.75rem + (3.15rem * 2) + 0.75rem);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem + 0.5rem);
+  left: calc(0.2rem + env(safe-area-inset-left, 0px) + 3.15rem + 0.6rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8.9rem + 1.15rem);
   transform: none;
 }
 

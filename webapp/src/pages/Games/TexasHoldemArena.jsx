@@ -49,7 +49,6 @@ import {
 import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
-import { chatBeep } from '../../assets/soundData.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -391,7 +390,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.64, landscape: 0.04 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54, landscape: -0.02 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -2906,6 +2905,36 @@ function TexasHoldemArena({ search }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const playChatBeep = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    try {
+      const context = new AudioCtx();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const now = context.currentTime;
+      const volume = Math.min(1, Math.max(0, getGameVolume()));
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(900, now);
+      oscillator.frequency.exponentialRampToValueAtTime(1280, now + 0.08);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.001, 0.12 * volume), now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.18);
+      oscillator.onended = () => {
+        context.close().catch(() => {});
+      };
+    } catch {
+      // ignore beep failures on locked audio contexts
+    }
+  }, []);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -5870,7 +5899,7 @@ function TexasHoldemArena({ search }) {
     [chipSelection]
   );
   const effectiveRaise = chipTotal > 0 ? chipTotal : sliderValue;
-  const sliderVisible = Boolean(humanPlayer) && gameState.stage !== 'showdown';
+  const sliderVisible = Boolean(humanPlayer) && isHumanTurn && gameState.stage !== 'showdown';
   const sliderInteractive = sliderVisible && sliderMax > 0 && !humanPlayer?.folded && !humanPlayer?.allIn;
   const sliderEnabled = Boolean(isHumanTurn && sliderInteractive && (toCall > 0 || sliderMax > 0));
   const raisePreview = sliderVisible ? Math.min(sliderMax, effectiveRaise) : 0;
@@ -6302,7 +6331,7 @@ function TexasHoldemArena({ search }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-16 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.1rem)] landscape:translate-x-0">
+      <div className="absolute bottom-20 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.45rem)] landscape:translate-x-0">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
@@ -6455,9 +6484,7 @@ function TexasHoldemArena({ search }) {
             const id = Date.now();
             setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: chatAvatar }]);
             if (!muted) {
-              const audio = new Audio(chatBeep);
-              audio.volume = getGameVolume();
-              audio.play().catch(() => {});
+              playChatBeep();
             }
             setTimeout(
               () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
