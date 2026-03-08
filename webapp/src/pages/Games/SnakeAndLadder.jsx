@@ -4,13 +4,6 @@ import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
-  dropSound,
-  snakeSound,
-  ladderSound,
-  bombSound,
-  timerBeep,
-  badLuckSound,
-  cheerSound,
   chatBeep,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
@@ -177,6 +170,15 @@ const PAWN_HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const PLAYERS = 4;
+const SNAKE_SFX = Object.freeze({
+  move: '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3',
+  snake: '/assets/sounds/snake-hissing-high-quality-240154.mp3',
+  ladder: '/assets/sounds/successful.mp3',
+  bomb: '/assets/sounds/a-bomb-139689.mp3',
+  timer: '/assets/sounds/clock-ticking-60-second-countdown-118231.mp3',
+  badLuck: '/assets/sounds/no-luck-too-bad-disappointing-sound-effect-112943.mp3',
+  cheer: '/assets/sounds/crowd-cheering-383111.mp3'
+});
 // Adjusted board dimensions to show five columns
 // while keeping the total cell count at 100
 const FINAL_TILE = BOARD_FINAL_TILE;
@@ -1785,13 +1787,13 @@ export default function SnakeAndLadder() {
       })
       .catch(() => {});
     const vol = getGameVolume();
-    moveSoundRef.current = new Audio(dropSound);
+    moveSoundRef.current = new Audio(SNAKE_SFX.move);
     moveSoundRef.current.volume = vol;
-    snakeSoundRef.current = new Audio(snakeSound);
+    snakeSoundRef.current = new Audio(SNAKE_SFX.snake);
     snakeSoundRef.current.volume = vol;
-    oldSnakeSoundRef.current = new Audio(dropSound);
+    oldSnakeSoundRef.current = new Audio(SNAKE_SFX.move);
     oldSnakeSoundRef.current.volume = vol;
-    ladderSoundRef.current = new Audio(ladderSound);
+    ladderSoundRef.current = new Audio(SNAKE_SFX.ladder);
     ladderSoundRef.current.volume = vol;
     winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
     winSoundRef.current.volume = vol;
@@ -1801,13 +1803,13 @@ export default function SnakeAndLadder() {
     yabbaSoundRef.current.volume = vol;
     hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
     hahaSoundRef.current.volume = vol;
-    bombSoundRef.current = new Audio(bombSound);
+    bombSoundRef.current = new Audio(SNAKE_SFX.bomb);
     bombSoundRef.current.volume = vol;
-    badLuckSoundRef.current = new Audio(badLuckSound);
+    badLuckSoundRef.current = new Audio(SNAKE_SFX.badLuck);
     badLuckSoundRef.current.volume = vol;
-    cheerSoundRef.current = new Audio(cheerSound);
+    cheerSoundRef.current = new Audio(SNAKE_SFX.cheer);
     cheerSoundRef.current.volume = vol;
-    timerSoundRef.current = new Audio(timerBeep);
+    timerSoundRef.current = new Audio(SNAKE_SFX.timer);
     timerSoundRef.current.volume = vol;
     diceRollSoundRef.current = createDiceRollAudio({ muted });
     if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;

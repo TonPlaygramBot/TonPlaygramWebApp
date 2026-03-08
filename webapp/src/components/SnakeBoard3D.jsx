@@ -57,9 +57,9 @@ const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const DEFAULT_PLAYER_COUNT = 4;
 const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(180)
 ];
 
 const DEFAULT_CHAIR_OPTION = Object.freeze({
@@ -184,7 +184,7 @@ const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
 const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS_SCALE = 1.19;
-const TOKEN_SCALE_MULTIPLIER = 1.7;
+const TOKEN_SCALE_MULTIPLIER = 1;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
@@ -2705,6 +2705,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     updateCameraTarget,
     updateHdriZoom,
     controls,
+    tableInfo,
     seatAnchors: chairs.map(({ anchor }) => anchor)
   };
 }
@@ -3174,7 +3175,8 @@ function updateTokens(
     tokenPrototypes = null,
     seatAnchors = [],
     boardLookTarget = null,
-    boardRoot = null
+    boardRoot = null,
+    tableInfo = null
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -3447,11 +3449,32 @@ function updateTokens(
           const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
           const seatDistance = seatWorld.distanceTo(boardLookTarget);
           const inwardInset = TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? TILE_SIZE * 1.35;
-          const restRadius = clamp(
+          let restRadius = clamp(
             seatDistance - inwardInset,
             TOKEN_REST_MIN_RADIUS,
             Math.max(TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.4, seatDistance - TOKEN_RADIUS * 0.55)
           );
+          if (tableInfo?.getInnerRadius) {
+            const inner = tableInfo.getInnerRadius(seatDirection);
+            if (Number.isFinite(inner) && inner > 0) {
+              const outer = tableInfo.getOuterRadius?.(seatDirection) ?? inner;
+              const rimInner = Math.min(inner, outer);
+              const rimOuter = Math.max(inner, outer);
+              const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
+              restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
+              restRadius = Math.max(restRadius, BOARD_RADIUS + TILE_SIZE * 1.1);
+              if (Number.isFinite(rimOuter)) {
+                restRadius = Math.min(restRadius, rimOuter - 0.12);
+              }
+            }
+          }
+          if (tableInfo?.getOuterRadius) {
+            const outer = tableInfo.getOuterRadius(seatDirection);
+            if (Number.isFinite(outer) && outer > 0) {
+              restRadius = Math.min(restRadius, outer - 0.14);
+            }
+          }
+          restRadius = Math.max(restRadius, TOKEN_REST_MIN_RADIUS);
           const railSpread = TOKEN_REST_LATERAL_BY_SEAT[seatIndex] ?? 0;
           const railWorld = boardLookTarget
             .clone()
@@ -4189,7 +4212,8 @@ export default function SnakeBoard3D({
       tokenPrototypes: board.tokenPrototypes,
       seatAnchors: board.seatAnchors,
       boardLookTarget: board.boardLookTarget,
-      boardRoot: board.root
+      boardRoot: board.root,
+      tableInfo: board.tableInfo
     });
 
     const sanitizedPositions = players.map((player) => {
