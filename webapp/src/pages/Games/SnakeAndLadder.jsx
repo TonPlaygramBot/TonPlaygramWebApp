@@ -5,6 +5,7 @@ import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
   chatBeep,
+  diceSound,
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
@@ -1811,7 +1812,10 @@ export default function SnakeAndLadder() {
     cheerSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(SNAKE_SFX.timer);
     timerSoundRef.current.volume = vol;
-    diceRollSoundRef.current = createDiceRollAudio({ muted });
+    diceRollSoundRef.current = createDiceRollAudio({
+      muted,
+      src: diceSound
+    });
     if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
     return () => {
       moveSoundRef.current?.pause();
