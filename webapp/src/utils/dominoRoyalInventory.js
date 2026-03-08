@@ -5,7 +5,6 @@ import {
 } from '../config/dominoRoyalInventoryConfig.js';
 
 const STORAGE_KEY = 'dominoRoyalInventoryByAccount';
-const TABLE_RESET_TYPES = new Set(['tableTheme']);
 
 const copyDefaults = () =>
   Object.entries(DOMINO_ROYAL_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
@@ -51,10 +50,6 @@ const normalizeInventory = (rawInventory) => {
   if (!rawInventory || typeof rawInventory !== 'object') return base;
   const merged = { ...base };
   Object.entries(rawInventory).forEach(([key, value]) => {
-    if (TABLE_RESET_TYPES.has(key)) {
-      merged[key] = [...(base[key] || [])];
-      return;
-    }
     if (!Array.isArray(value)) return;
     merged[key] = Array.from(new Set([...(merged[key] || []), ...value]));
   });
