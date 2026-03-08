@@ -18907,7 +18907,7 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = {
             ballId: ball.id,
             forced: true,
-            allowEarly: true,
+            allowEarly: false,
             createdAt: now
           };
         };
@@ -20647,13 +20647,20 @@ const powerRef = useRef(hud.power);
             forceEarly = false,
             forceCornerCapture = false,
             pocketCenterOverride = null,
-            preferredPocketId = null
+            preferredPocketId = null,
+            requireCueContact = false
           } = options;
           if (shotPrediction?.railNormal) return null;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
           if (!targetBall) return null;
+          if (requireCueContact) {
+            const firstContactId = firstHit != null ? String(firstHit) : null;
+            if (!firstContactId || firstContactId !== String(ballId)) {
+              return null;
+            }
+          }
           const dir = targetBall.vel.clone();
           if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
             dir.copy(shotPrediction.dir ?? new THREE.Vector2());
@@ -20707,7 +20714,6 @@ const powerRef = useRef(hud.power);
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           const allowEarly = forceCornerCapture;
-          if (!forceCornerCapture && !isGuaranteedPocket) return null;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
@@ -21506,7 +21512,7 @@ const powerRef = useRef(hud.power);
                 cueStick.position.copy(idlePose.position);
                 cueStick.rotation.x = idlePose.rotationX ?? cueStick.rotation.x;
                 cueStick.rotation.y = idlePose.rotationY ?? cueStick.rotation.y;
-                cueStick.visible = true;
+                cueStick.visible = false;
                 syncCueShadow();
               }
               cueAnimating = false;
@@ -21608,11 +21614,11 @@ const powerRef = useRef(hud.power);
               syncCueShadow();
               return true;
             }
-            cueStick.position.copy(followPos ?? impactPos);
+            cueStick.position.copy(idlePos ?? followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+            cueStick.visible = false;
             syncCueShadow();
-            cueStick.visible = true;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -21694,11 +21700,11 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return true;
           }
-          cueStick.position.copy(followPos ?? impactPos);
+          cueStick.position.copy(idlePos ?? followPos ?? impactPos);
           cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
           cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+          cueStick.visible = false;
           syncCueShadow();
-          cueStick.visible = true;
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
@@ -24905,36 +24911,7 @@ const powerRef = useRef(hud.power);
             : null
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
-          const intentTimestamp = performance.now();
-          if (shotPrediction.ballId && !isShortShot) {
-            const isDirectHit =
-              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
-            const predictedBall = balls.find((b) => b.id === shotPrediction.ballId) ?? null;
-            const cornerIntent = predictedBall
-              ? resolveCornerPocketIntent({
-                  ball: predictedBall,
-                  direction: shotPrediction.dir ?? new THREE.Vector2()
-                })
-              : null;
-            const guaranteedCornerPocketId =
-              cornerIntent &&
-              cornerIntent.score >= POCKET_GUARANTEED_ALIGNMENT
-                ? cornerIntent.pocketId
-                : null;
-            pocketSwitchIntentRef.current = guaranteedCornerPocketId
-              ? {
-                  ballId: shotPrediction.ballId,
-                  // Early pocket-camera handoff is reserved for guaranteed corner pots.
-                  // Side (middle) pockets keep the existing camera behavior.
-                  allowEarly: true,
-                  forced: isDirectHit,
-                  preferredPocketId: guaranteedCornerPocketId,
-                  createdAt: intentTimestamp
-                }
-              : null;
-          } else {
-            pocketSwitchIntentRef.current = null;
-          }
+          pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
@@ -27883,6 +27860,35 @@ const powerRef = useRef(hud.power);
           }
           trainingOutOfAttempts = remainingTrainingShots <= 0;
         }
+        const shooterPlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
+        const otherPlayer = shooterPlayer === 'B' ? 'A' : 'B';
+        const safeMetaState =
+          safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
+        const currentMetaState =
+          currentState && typeof currentState.meta === 'object' ? currentState.meta.state : null;
+        const openingBreakInProgress =
+          Boolean(safeMetaState?.breakInProgress || currentMetaState?.breakInProgress) ||
+          (currentState?.currentBreak ?? 0) === 0;
+        if (!isTraining && openingBreakInProgress && !cueBallPotted && !safeState?.foul) {
+          const breakPotCount = potted.filter(
+            (entry) => String(entry?.id || '').toLowerCase() !== 'cue'
+          ).length;
+          const breakNextPlayer = breakPotCount > 0 ? shooterPlayer : otherPlayer;
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: breakNextPlayer,
+              ballInHand: false
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: breakNextPlayer,
+            meta: nextMeta ?? safeState.meta
+          };
+        }
         if (!isTraining && cueBallPotted) {
           const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
           const nextMeta =
@@ -29954,7 +29960,8 @@ const powerRef = useRef(hud.power);
               const matchesIntent = pocketIntent?.ballId === ball.id;
               const candidate = makePocketCameraView(ball.id, resumeView, {
                 forceEarly: matchesIntent && pocketIntent?.allowEarly,
-                preferredPocketId: matchesIntent ? pocketIntent?.preferredPocketId : null
+                preferredPocketId: matchesIntent ? pocketIntent?.preferredPocketId : null,
+                requireCueContact: true
               });
               if (!candidate) continue;
               const matchesPrediction = shotPrediction?.ballId === ball.id;
