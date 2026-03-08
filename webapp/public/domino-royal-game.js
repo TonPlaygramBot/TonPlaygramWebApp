@@ -3676,27 +3676,6 @@ const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
   ...theme,
   label: theme.label || theme.name || theme.id
 }));
-
-const TABLE_SHAPE_OPTIONS = Object.freeze([
-  {
-    id: 'classicOctagon',
-    label: 'Classic Octagon',
-    preview: {
-      clipPath:
-        'polygon(50% 0%, 80% 10%, 100% 40%, 100% 60%, 80% 90%, 50% 100%, 20% 90%, 0% 60%, 0% 40%, 20% 10%)'
-    },
-    thumbnail: SWATCH_THUMB(['#0f172a', '#1f2937', '#38bdf8'])
-  },
-  {
-    id: 'grandOval',
-    label: 'Grand Oval',
-    preview: {
-      borderRadius: '50% / 35%'
-    },
-    thumbnail: SWATCH_THUMB(['#0b1220', '#111827', '#f97316'])
-  }
-]);
-
 const DEFAULT_TABLE_THEME_OPTION = TABLE_THEME_OPTIONS[0] || null;
 const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
@@ -3985,7 +3964,6 @@ const TABLE_SETUP_SECTIONS = [
     options: ENVIRONMENT_HDRI_OPTIONS
   },
   { key: 'tableTheme', label: 'Table Theme', options: TABLE_THEME_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'tableWood', label: 'Table Finish', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'dominoStyle', label: 'Domino', options: DOMINO_STYLE_OPTIONS },
@@ -4000,7 +3978,6 @@ const TABLE_SETUP_SECTIONS = [
 const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   environmentHdri: ENVIRONMENT_HDRI_OPTIONS,
   tableTheme: TABLE_THEME_OPTIONS,
-  tableShape: TABLE_SHAPE_OPTIONS,
   tableWood: TABLE_WOOD_OPTIONS,
   tableCloth: TABLE_CLOTH_OPTIONS,
   dominoStyle: DOMINO_STYLE_OPTIONS,
@@ -4010,7 +3987,6 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
 
 
 const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
-const LUDO_MATCH_DEFAULT_TABLE_SHAPE_ID = 'classicOctagon';
 const LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID = 'emerald';
 const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
 
@@ -4019,13 +3995,6 @@ function resolveDefaultOptionId(key, options = []) {
   if (key === 'tableTheme') {
     return (
       options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_THEME_ID)?.id ||
-      options[0]?.id ||
-      null
-    );
-  }
-  if (key === 'tableShape') {
-    return (
-      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_TABLE_SHAPE_ID)?.id ||
       options[0]?.id ||
       null
     );
@@ -4155,7 +4124,6 @@ function normalizeAppearance(raw) {
   const limits = [
     ['environmentHdri', ENVIRONMENT_HDRI_OPTIONS.length],
     ['tableTheme', TABLE_THEME_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length],
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
@@ -4216,10 +4184,6 @@ function forceMurlanDefaultTableAppearance(rawAppearance) {
   next.tableTheme = findDominoOptionIndex(
     'tableTheme',
     LUDO_MATCH_DEFAULT_TABLE_THEME_ID
-  );
-  next.tableShape = findDominoOptionIndex(
-    'tableShape',
-    LUDO_MATCH_DEFAULT_TABLE_SHAPE_ID
   );
   next.tableWood = findDominoOptionIndex(
     'tableWood',
@@ -5434,23 +5398,6 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
-function createOvalShape(width = 1, height = 1, segments = 64) {
-  const shape = new THREE.Shape();
-  const total = Math.max(24, Math.floor(segments));
-  for (let i = 0; i <= total; i += 1) {
-    const angle = (i / total) * Math.PI * 2;
-    const x = Math.cos(angle) * (width / 2);
-    const y = Math.sin(angle) * (height / 2);
-    if (i === 0) {
-      shape.moveTo(x, y);
-    } else {
-      shape.lineTo(x, y);
-    }
-  }
-  shape.closePath();
-  return shape;
-}
-
 function makeClothTexture({
   top = '#155c2a',
   bottom = '#0b3a1d',
@@ -6067,41 +6014,11 @@ const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
 const CLOTH_TOP = TABLE_HEIGHT;
 const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
-function buildTableShapes(shapeOption) {
-  if (shapeOption?.id === 'grandOval') {
-    const outerWidth = TABLE_OUTER_RADIUS * 2.1;
-    const outerHeight = TABLE_OUTER_RADIUS * 1.45;
-    const innerWidth = TABLE_INNER_RADIUS * 2.1;
-    const innerHeight = TABLE_INNER_RADIUS * 1.45;
-    const clothWidth = CLOTH_RADIUS * 2.1;
-    const clothHeight = CLOTH_RADIUS * 1.45;
-    return {
-      topShape: createOvalShape(outerWidth, outerHeight, 72),
-      feltShape: createOvalShape(clothWidth, clothHeight, 72),
-      rimInnerShape: createOvalShape(innerWidth, innerHeight, 72)
-    };
-  }
+(function buildTable() {
   const sides = 8;
-  return {
-    topShape: createRegularPolygonShape(sides, TABLE_OUTER_RADIUS),
-    feltShape: createRegularPolygonShape(sides, CLOTH_RADIUS),
-    rimInnerShape: createRegularPolygonShape(sides, TABLE_INNER_RADIUS)
-  };
-}
-
-function clearProceduralTableParts() {
-  while (proceduralTableParts.length) {
-    const mesh = proceduralTableParts.pop();
-    if (!mesh) continue;
-    mesh.parent?.remove(mesh);
-    mesh.geometry?.dispose?.();
-  }
-}
-
-function rebuildProceduralTable() {
-  const shapeOption = TABLE_SHAPE_OPTIONS[appearance.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
-  const { topShape, feltShape, rimInnerShape } = buildTableShapes(shapeOption);
-  clearProceduralTableParts();
+  const topShape = createRegularPolygonShape(sides, TABLE_OUTER_RADIUS);
+  const feltShape = createRegularPolygonShape(sides, CLOTH_RADIUS);
+  const rimInnerShape = createRegularPolygonShape(sides, TABLE_INNER_RADIUS);
 
   const topShapeWithHole = topShape.clone();
   topShapeWithHole.holes.push(feltShape);
@@ -6180,9 +6097,9 @@ function rebuildProceduralTable() {
   tableG.add(column);
   tableParts.column = column;
   proceduralTableParts.push(column);
-}
 
-rebuildProceduralTable();
+  // Base and trim intentionally omitted to remove the oversized pedestal.
+})();
 
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
@@ -6605,7 +6522,6 @@ function applyAppearanceChange({ refresh = true } = {}) {
   applyTableTheme(
     TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]
   );
-  rebuildProceduralTable();
   clearExistingDominoMeshes();
   updateTableMaterials();
   applyDominoStyle(
@@ -6728,25 +6644,6 @@ function createOptionPreview(key, option) {
       label.style.fontWeight = '700';
       label.style.letterSpacing = '0.04em';
       swatch.appendChild(label);
-      break;
-    }
-    case 'tableShape': {
-      swatch.style.background = 'linear-gradient(135deg, #0b1220, #111827)';
-      swatch.style.height = '2rem';
-      const inset = document.createElement('div');
-      inset.style.position = 'absolute';
-      inset.style.left = '16%';
-      inset.style.right = '16%';
-      inset.style.top = '18%';
-      inset.style.bottom = '18%';
-      inset.style.background = 'rgba(249,115,22,0.82)';
-      inset.style.border = '1px solid rgba(255,255,255,0.3)';
-      inset.style.borderRadius = option?.id === 'grandOval' ? '50% / 35%' : '12%';
-      if (option?.id === 'classicOctagon') {
-        inset.style.clipPath =
-          'polygon(50% 0%, 80% 10%, 100% 40%, 100% 60%, 80% 90%, 50% 100%, 20% 90%, 0% 60%, 0% 40%, 20% 10%)';
-      }
-      swatch.appendChild(inset);
       break;
     }
     case 'tableWood':

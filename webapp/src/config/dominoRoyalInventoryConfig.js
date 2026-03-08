@@ -4,23 +4,6 @@ import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
-const DOMINO_TABLE_SHAPE_OPTIONS = Object.freeze([
-  {
-    id: 'classicOctagon',
-    label: 'Classic Octagon',
-    price: 0,
-    description: 'Default octagon battle table matching Texas Hold\'em 3D silhouette.',
-    thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8'])
-  },
-  {
-    id: 'grandOval',
-    label: 'Grand Oval',
-    price: 760,
-    description: 'Oval battle table variant from the Texas Hold\'em 3D lineup.',
-    thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316'])
-  }
-]);
-
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: MURLAN_TABLE_FINISHES.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
     id,
@@ -46,7 +29,6 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     preserveMaterials,
     description: description || `${label} table from Murlan Royale`
   })),
-  tableShape: DOMINO_TABLE_SHAPE_OPTIONS,
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
   dominoStyle: [
     { id: 'imperialIvory', label: 'Imperial Ivory' },
@@ -100,7 +82,6 @@ const DOMINO_DEFAULT_IDS = Object.freeze({
   tableTheme: 'murlan-default',
   tableWood: 'peelingPaintWeathered',
   tableCloth: 'emerald',
-  tableShape: 'classicOctagon',
   chairTheme: 'dining_chair_02'
 });
 
@@ -165,15 +146,6 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     description: option.description || 'Apply the Murlan Royale table collection to Domino.',
     thumbnail: MURLAN_TABLE_THEMES.find((theme) => theme.id === option.id)?.thumbnail
   })),
-  ...DOMINO_ROYAL_OPTION_SETS.tableShape.slice(1).map((option, idx) => ({
-    id: `domino-table-shape-${option.id}`,
-    type: 'tableShape',
-    optionId: option.id,
-    name: option.label,
-    price: option.price || 720 + idx * 80,
-    description: option.description || 'Switch the Domino Royal table silhouette.',
-    thumbnail: option.thumbnail
-  })),
   ...DOMINO_ROYAL_OPTION_SETS.environmentHdri.slice(1).map((option, idx) => ({
     id: `domino-hdri-${option.id}`,
     type: 'environmentHdri',
@@ -232,11 +204,6 @@ export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
     type: 'tableTheme',
     optionId: getDominoDefaultOptionId('tableTheme'),
     label: getLabelForOption('tableTheme', getDominoDefaultOptionId('tableTheme'))
-  },
-  {
-    type: 'tableShape',
-    optionId: getDominoDefaultOptionId('tableShape'),
-    label: getLabelForOption('tableShape', getDominoDefaultOptionId('tableShape'))
   },
   {
     type: 'environmentHdri',
