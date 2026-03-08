@@ -1812,6 +1812,7 @@ export default function SnakeAndLadder() {
     timerSoundRef.current = new Audio(SNAKE_SFX.timer);
     timerSoundRef.current.volume = vol;
     diceRollSoundRef.current = createDiceRollAudio({ muted });
+    if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -2169,6 +2170,7 @@ export default function SnakeAndLadder() {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
       if (!muted && diceRollSoundRef.current) {
+        if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
         diceRollSoundRef.current.currentTime = 0;
         diceRollSoundRef.current.play().catch(() => {});
       }
