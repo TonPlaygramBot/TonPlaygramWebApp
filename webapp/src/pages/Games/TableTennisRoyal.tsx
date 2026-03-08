@@ -105,6 +105,11 @@ const PHYS = {
   netRest: 0.18,
   magnus: 0.00082,
   spinDamp: 0.995,
+  tableTangentialDamp: 0.91,
+  tableSpinTransfer: 0.00062,
+  paddleRest: 0.78,
+  paddleFriction: 0.12,
+  paddleSpinTransfer: 0.0066,
   maxSpeed: U(9.8),
 } as const;
 
@@ -122,14 +127,15 @@ const POWER = {
 
 const AI = {
   lerp: { easy: 0.11, medium: 0.16, hard: 0.21 },
-  react: { easy: 0.12, medium: 0.19, hard: 0.28 },
+  react: { easy: 0.14, medium: 0.24, hard: 0.34 },
   jitter: { easy: U(0.10), medium: U(0.06), hard: U(0.04) },
-  hitChance: { easy: 0.88, medium: 0.95, hard: 0.985 },
+  hitChance: { easy: 0.9, medium: 0.975, hard: 0.997 },
   serveDelayMs: { easy: 900, medium: 750, hard: 620 },
   sideBias: { easy: 0.62, medium: 0.8, hard: 0.93 },
-  aimStrength: { easy: 0.58, medium: 0.8, hard: 0.98 },
-  spinStrength: { easy: 0.55, medium: 0.75, hard: 0.95 },
-  hitPowerScale: { easy: 0.76, medium: 0.84, hard: 0.92 },
+  aimStrength: { easy: 0.62, medium: 0.88, hard: 1 },
+  spinStrength: { easy: 0.6, medium: 0.82, hard: 1.04 },
+  hitPowerScale: { easy: 0.8, medium: 0.9, hard: 1 },
+  recoveryBias: { easy: 0.14, medium: 0.28, hard: 0.38 },
   powerMix: {
     easy: [0.7, 0.84, 0.96],
     medium: [0.82, 0.98, 1.1],
@@ -183,6 +189,21 @@ type CommentaryPreset = {
   description: string;
   voiceHints: string[];
 };
+
+const TABLE_TENNIS_SFX_SOURCES = Object.freeze([
+  {
+    id: "freesound-ball-hit",
+    label: "Table tennis ball bounce references",
+    license: "CC0 / Public Domain",
+    url: "https://freesound.org/search/?q=table+tennis+bounce&f=license:%22Creative+Commons+0%22",
+  },
+  {
+    id: "pixabay-paddle-hit",
+    label: "Paddle impact timbre references",
+    license: "Pixabay License (free)",
+    url: "https://pixabay.com/sound-effects/search/ping%20pong/",
+  },
+]);
 
 const TABLE_TENNIS_PADDLE_OPTIONS: PaddleOption[] = Object.freeze([
   {
@@ -425,6 +446,36 @@ function pickAiSideTarget(diff: Difficulty) {
 function pickAiPowerFactor(diff: Difficulty) {
   const options = AI.powerMix[diff];
   return options[Math.floor(Math.random() * options.length)];
+}
+
+function predictBallAtZ(ball: BallState, targetZ: number, maxSimSeconds = 1.3) {
+  const p = ball.p.clone();
+  const v = ball.v.clone();
+  const dt = 1 / 120;
+  const maxSteps = Math.floor(maxSimSeconds / dt);
+  let previousZ = p.z;
+  for (let i = 0; i < maxSteps; i += 1) {
+    v.y += PHYS.g * dt;
+    v.multiplyScalar(PHYS.airDrag);
+    p.addScaledVector(v, dt);
+
+    const topY = TABLE.H + TABLE.THICK / 2;
+    const inX = Math.abs(p.x) <= TABLE.W / 2;
+    const inZ = Math.abs(p.z) <= TABLE.L / 2;
+    if (p.y - BALL.R <= topY && v.y < 0 && inX && inZ) {
+      p.y = topY + BALL.R;
+      v.y = -v.y * PHYS.tableRest;
+      v.x *= PHYS.tableTangentialDamp;
+      v.z *= PHYS.tableTangentialDamp;
+    }
+
+    if ((previousZ - targetZ) * (p.z - targetZ) <= 0) {
+      return { x: p.x, y: p.y, t: (i + 1) * dt };
+    }
+    previousZ = p.z;
+  }
+
+  return { x: p.x, y: p.y, t: maxSimSeconds };
 }
 
 function useTouch(rootRef: React.RefObject<HTMLDivElement>) {
@@ -816,6 +867,7 @@ export default function TableTennisRoyal() {
   const lightRig = useRef<{ ambient: THREE.AmbientLight; key: THREE.DirectionalLight } | null>(null);
   const hdriHandle = useRef<{ envMap: THREE.Texture | null; bgMap: THREE.Texture | null } | null>(null);
   const commentaryLastAtRef = useRef(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
     phase: "ready",
@@ -855,6 +907,58 @@ export default function TableTennisRoyal() {
     if (c === "NET") sim.current.callCooldownUntil = now + 250;
   }, []);
 
+  const getAudioCtx = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return null;
+    if (!audioCtxRef.current) audioCtxRef.current = new AC();
+    if (audioCtxRef.current.state === "suspended") {
+      void audioCtxRef.current.resume().catch(() => {});
+    }
+    return audioCtxRef.current;
+  }, []);
+
+  const playImpactFx = useCallback((type: "paddle" | "table") => {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const makeNoise = (duration: number, gain: number) => {
+      const bufferSize = Math.max(128, Math.floor(ctx.sampleRate * duration));
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const ch = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i += 1) ch[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(gain, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      src.connect(noiseGain).connect(ctx.destination);
+      src.start(now);
+      src.stop(now + duration + 0.01);
+    };
+
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = type === "paddle" ? "triangle" : "square";
+    const startFreq = type === "paddle" ? 340 : 920;
+    const endFreq = type === "paddle" ? 180 : 420;
+    const endGain = type === "paddle" ? 0.055 : 0.032;
+    const duration = type === "paddle" ? 0.07 : 0.05;
+
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+    oscGain.gain.setValueAtTime(type === "paddle" ? 0.09 : 0.05, now);
+    oscGain.gain.exponentialRampToValueAtTime(endGain, now + duration * 0.4);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.connect(oscGain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.01);
+
+    makeNoise(type === "paddle" ? 0.03 : 0.02, type === "paddle" ? 0.02 : 0.012);
+  }, [getAudioCtx]);
+
   const showAnnouncement = useCallback((text: string) => {
     if (!text) return;
     setAnnouncement(text);
@@ -871,6 +975,10 @@ export default function TableTennisRoyal() {
     return () => {
       if (announcementTimeoutRef.current) {
         window.clearTimeout(announcementTimeoutRef.current);
+      }
+      if (audioCtxRef.current) {
+        void audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
       }
     };
   }, []);
@@ -1155,13 +1263,15 @@ export default function TableTennisRoyal() {
           }
 
           {
-            const predX = b.p.x + b.v.x * AI.react[diff];
-            const wantX = b.p.z < 0 ? predX : 0;
-            const jitter = (Math.random() * 2 - 1) * AI.jitter[diff];
-            const ax = clamp(wantX + jitter, -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
-            const az = -TABLE.L / 2 + U(0.22);
-            t.paddleA.position.x = lerp(t.paddleA.position.x, ax, AI.lerp[diff]);
-            t.paddleA.position.z = lerp(t.paddleA.position.z, az, AI.lerp[diff] * 0.92);
+            const aiLaneZ = -TABLE.L / 2 + U(0.22);
+            const prediction = predictBallAtZ(b, aiLaneZ, 1.25 + AI.react[diff]);
+            const fallbackPredX = b.p.x + b.v.x * AI.react[diff];
+            const attackBias = clamp((Math.abs(b.p.z) / TABLE.L) * AI.recoveryBias[diff], 0, AI.recoveryBias[diff]);
+            const wantXRaw = b.p.z < 0 ? lerp(fallbackPredX, prediction.x, 0.72 + attackBias) : prediction.x * 0.2;
+            const jitter = (Math.random() * 2 - 1) * AI.jitter[diff] * (b.p.z < 0 ? 0.45 : 1);
+            const ax = clamp(wantXRaw + jitter, -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
+            t.paddleA.position.x = lerp(t.paddleA.position.x, ax, AI.lerp[diff] + 0.04);
+            t.paddleA.position.z = lerp(t.paddleA.position.z, aiLaneZ, AI.lerp[diff] * 0.94);
             t.paddleA.position.y = PADDLE.y;
           }
 
@@ -1240,7 +1350,14 @@ export default function TableTennisRoyal() {
             const inZ = Math.abs(b.p.z) <= TABLE.L / 2;
             if (b.p.y - BALL.R <= topY && inX && inZ && b.v.y < 0) {
               b.p.y = topY + BALL.R;
+              const contactVx = b.v.x;
+              const contactVz = b.v.z;
               b.v.y = -b.v.y * PHYS.tableRest;
+              b.v.x = contactVx * PHYS.tableTangentialDamp + b.spin.y * PHYS.tableSpinTransfer;
+              b.v.z = contactVz * PHYS.tableTangentialDamp - b.spin.x * PHYS.tableSpinTransfer;
+              b.spin.x *= 0.985;
+              b.spin.y *= 0.985;
+              playImpactFx("table");
 
               const side = sideOfZ(b.p.z);
               if (b.lastBounceSide === side) b.bouncesOnSide += 1;
@@ -1295,6 +1412,8 @@ export default function TableTennisRoyal() {
 
             if (who === "ai" && Math.random() > AI.hitChance[diff]) return false;
 
+            playImpactFx("paddle");
+
             if (who === "player") {
               const targetX = lerp(-TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18), g.current.x);
               const targetZ = -TABLE.L / 2 + POWER.targetZPad;
@@ -1305,14 +1424,17 @@ export default function TableTennisRoyal() {
               if (tmpDir.lengthSq() > 1e-9) {
                 tmpDir.normalize();
                 b.v.copy(tmpDir.multiplyScalar(speed));
-                b.v.z = -Math.abs(b.v.z);
+                b.v.z = -Math.abs(b.v.z) * PHYS.paddleRest;
                 b.v.y = Math.max(b.v.y, U(1.05));
+                b.v.x += g.current.vx * 900 * PHYS.paddleFriction;
+                b.v.z += g.current.vy * 600 * PHYS.paddleFriction;
               }
 
               const edge = clamp(dx / (PADDLE.bladeW * 0.5), -1, 1);
               const edgeSpin = edge * POWER.edgeSpinK;
               b.spin.x += (-g.current.vy * 1000) * POWER.swipeYToSpin;
               b.spin.y += (g.current.vx * 1000) * POWER.swipeXToSpin + edgeSpin;
+              b.spin.z += (g.current.vx * 400 + g.current.vy * 240) * PHYS.paddleSpinTransfer;
             } else {
               const lane = pickAiSideTarget(diff);
               const wide = Math.random() < AI.sideBias[diff];
@@ -1329,14 +1451,17 @@ export default function TableTennisRoyal() {
               if (tmpDir.lengthSq() > 1e-9) {
                 tmpDir.normalize();
                 b.v.copy(tmpDir.multiplyScalar(base));
-                b.v.z = Math.abs(b.v.z);
+                b.v.z = Math.abs(b.v.z) * PHYS.paddleRest;
                 b.v.y = Math.max(b.v.y, U(1.00));
+                const aiIntent = Math.sign(targetX - b.p.x || 1);
+                b.v.x += aiIntent * U(0.08) * AI.aimStrength[diff];
               }
 
               const edge = clamp(dx / (PADDLE.bladeW * 0.5), -1, 1);
               const edgeSpin = edge * POWER.edgeSpinK * AI.spinStrength[diff];
               b.spin.x += (Math.random() * 2 - 1) * U(0.10) * AI.spinStrength[diff];
               b.spin.y += (Math.random() * 2 - 1) * U(0.14) * AI.spinStrength[diff] + edgeSpin;
+              b.spin.z += (Math.random() * 2 - 1) * U(0.05) * AI.spinStrength[diff];
             }
 
             b.lastBounceSide = null;
@@ -1660,6 +1785,25 @@ export default function TableTennisRoyal() {
                     </span>
                   </button>
                   {!commentarySupported && <p className="mt-2 text-[0.65rem] text-white/60">Voice commentary requires browser speech support.</p>}
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Sound FX</h3>
+                  <p className="mt-1 text-[0.68rem] text-white/60">Ball/table and paddle hits are fully procedural via WebAudio (no binary audio files added to git).</p>
+                  <div className="mt-2 space-y-1 rounded-xl border border-white/15 bg-white/5 p-2">
+                    {TABLE_TENNIS_SFX_SOURCES.map((source) => (
+                      <a
+                        key={source.id}
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-lg border border-white/10 px-2 py-1 text-[10px] text-emerald-100/85 transition hover:border-emerald-300/60 hover:bg-emerald-400/10"
+                      >
+                        <span className="font-semibold uppercase tracking-[0.18em]">{source.label}</span>
+                        <span className="ml-2 text-white/60">{source.license}</span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
