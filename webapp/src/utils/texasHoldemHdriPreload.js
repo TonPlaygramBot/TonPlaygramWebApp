@@ -1,9 +1,18 @@
-import { TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
+import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
 
 const DEFAULT_RESOLUTIONS = Object.freeze(['4k']);
 const hdriUrlCache = new Map();
 const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
+
+function prioritizeDefaultHdri(options = TEXAS_HDRI_OPTIONS) {
+  const variants = Array.isArray(options) ? options.filter(Boolean) : [];
+  const defaultIndex = variants.findIndex((variant) => variant?.id === TEXAS_DEFAULT_HDRI_ID);
+  if (defaultIndex <= 0) return variants;
+  const prioritized = variants.slice();
+  const [defaultVariant] = prioritized.splice(defaultIndex, 1);
+  return [defaultVariant, ...prioritized];
+}
 
 function pickPolyHavenHdriUrl(fileMap, preferredResolutions = DEFAULT_RESOLUTIONS) {
   if (!fileMap || typeof fileMap !== 'object') return null;
@@ -79,7 +88,7 @@ export async function resolveTexasHoldemHdriUrl(config = {}, preferred = DEFAULT
 
 export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS) {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve();
-  const variants = Array.isArray(options) ? options.filter(Boolean) : [];
+  const variants = prioritizeDefaultHdri(options);
   const jobs = variants.map((variant) => {
     const key = variant?.id || variant?.assetId || variant?.fallbackUrl;
     if (!key) return Promise.resolve();
