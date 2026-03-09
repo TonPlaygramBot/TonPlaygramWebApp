@@ -4,19 +4,6 @@ const DEFAULT_RESOLUTIONS = Object.freeze(['4k']);
 const hdriUrlCache = new Map();
 const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
-const arenaAssetWarmPromiseCache = new Map();
-const FALLBACK_CHAIR_MODEL_URLS = Object.freeze([
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb'
-]);
-
-function buildPolyhavenModelUrls(assetId) {
-  if (!assetId) return [];
-  return [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
-  ];
-}
 
 function prioritizeDefaultHdri(options = TEXAS_HDRI_OPTIONS) {
   const variants = Array.isArray(options) ? options.filter(Boolean) : [];
@@ -118,53 +105,4 @@ export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS) {
     return job;
   });
   return Promise.allSettled(jobs);
-}
-
-export async function warmTexasHoldemArenaAssetsFromLobby() {
-  if (typeof window === 'undefined' || typeof fetch !== 'function') return null;
-  const cacheKey = 'texas-holdem-default-arena-assets';
-  if (arenaAssetWarmPromiseCache.has(cacheKey)) {
-    return arenaAssetWarmPromiseCache.get(cacheKey);
-  }
-
-  const task = (async () => {
-    const jobs = [warmTexasHoldemHdriFromLobby()];
-
-    const [
-      { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS },
-      { CARD_THEMES, warmTexasHoldemCardsFromLobby },
-      { warmTexasHoldemChipsFromLobby }
-    ] =
-      await Promise.all([
-        import('../config/texasHoldemOptions.js'),
-        import('./cards3d.js'),
-        import('./chips3d.js')
-      ]);
-
-    const defaultChairTheme = TEXAS_CHAIR_THEME_OPTIONS?.[0];
-    const defaultTableTheme = TEXAS_TABLE_THEME_OPTIONS?.[0];
-    const defaultCardTheme = CARD_THEMES?.[0];
-
-    const chairUrls = defaultChairTheme?.source === 'polyhaven' && defaultChairTheme?.assetId
-      ? buildPolyhavenModelUrls(defaultChairTheme.assetId)
-      : FALLBACK_CHAIR_MODEL_URLS;
-
-    const tableUrls = defaultTableTheme?.source === 'polyhaven' && defaultTableTheme?.assetId
-      ? buildPolyhavenModelUrls(defaultTableTheme.assetId)
-      : [];
-
-    [...chairUrls, ...tableUrls].forEach((url) => {
-      jobs.push(fetch(url, { mode: 'cors', cache: 'force-cache' }).catch(() => null));
-    });
-
-    if (defaultCardTheme) {
-      jobs.push(Promise.resolve(warmTexasHoldemCardsFromLobby(defaultCardTheme)));
-    }
-    jobs.push(Promise.resolve(warmTexasHoldemChipsFromLobby()));
-
-    return Promise.allSettled(jobs);
-  })();
-
-  arenaAssetWarmPromiseCache.set(cacheKey, task);
-  return task;
 }
