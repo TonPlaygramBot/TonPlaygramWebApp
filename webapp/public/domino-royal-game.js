@@ -18,8 +18,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 0.82,
-    pixelRatioCap: 1.15,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
     resolution: 'HD adaptive render • DPR 1.15 cap',
     description: 'Low-power 50 Hz preset tuned for stability on mobile GPUs.'
   },
@@ -27,8 +27,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'fhd60',
     label: 'Full HD Balanced (60 Hz)',
     fps: 60,
-    renderScale: 0.92,
-    pixelRatioCap: 1.25,
+    renderScale: 1.0,
+    pixelRatioCap: 1.35,
     resolution: 'Full HD balanced render • DPR 1.25 cap',
     description: 'Baseline profile matched to Ludo Battle Royal rendering.'
   },
@@ -36,8 +36,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'qhd90',
     label: 'QHD Smooth (90 Hz)',
     fps: 90,
-    renderScale: 0.98,
-    pixelRatioCap: 1.3,
+    renderScale: 1.08,
+    pixelRatioCap: 1.45,
     resolution: 'QHD smooth render • DPR 1.3 cap',
     description: 'Sharper 90 Hz profile for capable devices.'
   },
@@ -45,8 +45,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'uhd120',
     label: 'UHD Turbo (120 Hz cap)',
     fps: 120,
-    renderScale: 1.02,
-    pixelRatioCap: 1.4,
+    renderScale: 1.14,
+    pixelRatioCap: 1.6,
     resolution: 'UHD turbo render • DPR 1.4 cap',
     description: 'Highest quality profile for flagship and desktop GPUs.'
   },
@@ -54,8 +54,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'ultra144',
     label: 'Ultra 144 (desktop)',
     fps: 144,
-    renderScale: 1.04,
-    pixelRatioCap: 1.45,
+    renderScale: 1.2,
+    pixelRatioCap: 1.75,
     resolution: 'Desktop ultra render • DPR 1.45 cap',
     description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
   }
@@ -91,9 +91,9 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 });
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1024,
-  fhd60: 2048,
-  qhd90: 3072,
+  hd50: 1536,
+  fhd60: 2560,
+  qhd90: 3328,
   uhd120: 4096,
   ultra144: 4096
 });
@@ -6232,6 +6232,7 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
+const HUMAN_HAND_GAP_FACTOR = 0.92;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.6;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.18;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
@@ -7439,8 +7440,8 @@ function makeDomino(
 
   // Dots per your code — top & bottom faces (in body coordinates)
   if (faceUp) {
-    addPips(body, a, -0.8);
-    addPips(body, b, 0.2);
+    addPips(body, a, -0.5);
+    addPips(body, b, 0.5);
   }
 
   group.add(body);
@@ -7514,8 +7515,18 @@ const giftClose = document.getElementById('giftClose');
 const muteButton = document.getElementById('muteButton');
 const muteIcon = document.getElementById('muteIcon');
 const muteLabel = document.getElementById('muteLabel');
+const winnerOverlayEl = document.getElementById('winnerOverlay');
+const winnerBurstEl = document.getElementById('winnerBurst');
+const winnerAvatarEl = document.getElementById('winnerAvatar');
+const winnerTitleEl = document.getElementById('winnerTitle');
+const winnerSubtitleEl = document.getElementById('winnerSubtitle');
+const winnerPlayAgainButton = document.getElementById('winnerPlayAgain');
+const winnerReturnLobbyButton = document.getElementById('winnerReturnLobby');
+const winnerActionsEl = document.getElementById('winnerActions');
 
 let statusPrefix = '';
+const matchMode = (urlParams.get('mode') || 'local').toLowerCase();
+const isAiMatch = matchMode === 'local' || matchMode === 'ai';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0;
 let human = 0;
@@ -7686,7 +7697,11 @@ function renderHands() {
     const isSide = pi === 1 || pi === 3;
     const openFlat = isTopDown && isHuman;
 
-    const gapBase = openFlat ? BASE_GAP * 1.12 : BASE_GAP;
+    const gapBase = openFlat
+      ? BASE_GAP * 1.06
+      : isHuman
+        ? BASE_GAP * HUMAN_HAND_GAP_FACTOR
+        : BASE_GAP;
     const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y;
 
     let span = 0;
@@ -7881,6 +7896,7 @@ function clearWinnerHighlight() {
 
 function showWinnerHighlight(index) {
   clearWinnerHighlight();
+  hideWinnerOverlay();
   if (!Number.isInteger(index) || index < 0 || index >= chairs.length) {
     return;
   }
@@ -8213,6 +8229,7 @@ function startGame() {
   revealAllHands = false;
   lastAnnouncedTurn = null;
   clearWinnerHighlight();
+  hideWinnerOverlay();
   if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
@@ -9032,6 +9049,137 @@ function scheduleTurnAdvanceAfterPlacement(segment, delayMs = TURN_ADVANCE_AFTER
   }, safeDelay);
 }
 
+
+function styleWinnerOverlay() {
+  if (!winnerOverlayEl) return;
+  winnerOverlayEl.style.position = 'fixed';
+  winnerOverlayEl.style.inset = '0';
+  winnerOverlayEl.style.display = 'none';
+  winnerOverlayEl.style.alignItems = 'center';
+  winnerOverlayEl.style.justifyContent = 'center';
+  winnerOverlayEl.style.background = 'radial-gradient(circle at center, rgba(9,14,28,0.58), rgba(5,8,18,0.9))';
+  winnerOverlayEl.style.zIndex = '18';
+  winnerOverlayEl.style.padding = '1rem';
+  winnerOverlayEl.style.backdropFilter = 'blur(2px)';
+  if (winnerBurstEl) {
+    winnerBurstEl.style.position = 'absolute';
+    winnerBurstEl.style.inset = '0';
+    winnerBurstEl.style.pointerEvents = 'none';
+  }
+  const card = winnerOverlayEl.querySelector('.winner-card');
+  if (card) {
+    card.style.position = 'relative';
+    card.style.width = 'min(92vw, 360px)';
+    card.style.borderRadius = '20px';
+    card.style.padding = '1rem 1rem 1.1rem';
+    card.style.background = 'linear-gradient(160deg, rgba(15,23,42,0.96), rgba(8,14,34,0.95))';
+    card.style.border = '1px solid rgba(248,250,252,0.2)';
+    card.style.boxShadow = '0 28px 70px rgba(0,0,0,0.5)';
+    card.style.textAlign = 'center';
+    card.style.color = '#f8fafc';
+  }
+  if (winnerAvatarEl) {
+    winnerAvatarEl.style.width = '96px';
+    winnerAvatarEl.style.height = '96px';
+    winnerAvatarEl.style.margin = '0 auto .6rem';
+    winnerAvatarEl.style.borderRadius = '999px';
+    winnerAvatarEl.style.display = 'grid';
+    winnerAvatarEl.style.placeItems = 'center';
+    winnerAvatarEl.style.fontSize = '2.2rem';
+    winnerAvatarEl.style.background = 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.34), rgba(34,197,94,0.62))';
+    winnerAvatarEl.style.border = '2px solid rgba(255,255,255,0.62)';
+  }
+  if (winnerActionsEl) {
+    winnerActionsEl.style.display = 'grid';
+    winnerActionsEl.style.gridTemplateColumns = '1fr 1fr';
+    winnerActionsEl.style.gap = '.6rem';
+    winnerActionsEl.style.marginTop = '.9rem';
+  }
+}
+
+function launchCoinBurst() {
+  if (!winnerBurstEl) return;
+  winnerBurstEl.replaceChildren();
+  const count = 24;
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+  for (let i = 0; i < count; i += 1) {
+    const coin = document.createElement('span');
+    coin.textContent = '🪙';
+    coin.style.position = 'fixed';
+    coin.style.left = `${centerX}px`;
+    coin.style.top = `${centerY}px`;
+    coin.style.fontSize = `${18 + Math.random() * 14}px`;
+    coin.style.pointerEvents = 'none';
+    coin.style.filter = 'drop-shadow(0 6px 10px rgba(0,0,0,0.35))';
+    winnerBurstEl.appendChild(coin);
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.35;
+    const distance = 90 + Math.random() * 170;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance - 30;
+    coin.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(0.6)', opacity: 0 },
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.15 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.92)`, opacity: 0 }
+      ],
+      { duration: 900 + Math.random() * 360, easing: 'cubic-bezier(.2,.75,.2,1)', fill: 'forwards' }
+    );
+  }
+  window.setTimeout(() => {
+    winnerBurstEl?.replaceChildren();
+  }, 1500);
+}
+
+function hideWinnerOverlay() {
+  if (!winnerOverlayEl) return;
+  winnerOverlayEl.style.display = 'none';
+  winnerOverlayEl.setAttribute('aria-hidden', 'true');
+}
+
+function showWinnerOverlay(index) {
+  if (!winnerOverlayEl || !isAiMatch) return;
+  const winnerName = getSeatName(index);
+  if (winnerTitleEl) {
+    winnerTitleEl.textContent = index === human ? 'You win!' : `${winnerName} wins!`;
+  }
+  if (winnerSubtitleEl) {
+    winnerSubtitleEl.textContent = 'TPC burst bonus celebration';
+  }
+  const avatarSource = buildSeatAvatarSources(N)[index] || '🏆';
+  if (winnerAvatarEl) {
+    winnerAvatarEl.style.backgroundImage = '';
+    winnerAvatarEl.style.backgroundSize = '';
+    winnerAvatarEl.style.backgroundPosition = '';
+    winnerAvatarEl.textContent = '🏆';
+    if (isAvatarUrl(avatarSource)) {
+      winnerAvatarEl.textContent = '';
+      winnerAvatarEl.style.backgroundImage = `url(${avatarSource})`;
+      winnerAvatarEl.style.backgroundSize = 'cover';
+      winnerAvatarEl.style.backgroundPosition = 'center';
+    } else if (typeof avatarSource === 'string' && avatarSource.trim()) {
+      winnerAvatarEl.textContent = avatarSource.trim();
+    }
+  }
+  winnerOverlayEl.style.display = 'flex';
+  winnerOverlayEl.setAttribute('aria-hidden', 'false');
+  launchCoinBurst();
+}
+
+styleWinnerOverlay();
+hideWinnerOverlay();
+if (winnerPlayAgainButton) {
+  winnerPlayAgainButton.addEventListener('click', () => {
+    hideWinnerOverlay();
+    startGame();
+  });
+}
+if (winnerReturnLobbyButton) {
+  winnerReturnLobbyButton.addEventListener('click', () => {
+    window.location.assign('/games/domino-royal/lobby');
+  });
+}
+
 function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
   if (gameFinished) {
     return;
@@ -9092,6 +9240,7 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
   }
 
   if (winnerIndex !== null) {
+    showWinnerOverlay(winnerIndex);
     SFX.win();
   } else {
     SFX.drawGame();

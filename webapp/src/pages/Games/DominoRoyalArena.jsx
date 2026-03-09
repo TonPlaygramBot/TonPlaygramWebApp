@@ -185,6 +185,18 @@ export default function DominoRoyalArena() {
           <p className="gift-note">10% charge and the amount of the gift will be deducted from your balance.</p>
         </div>
       </div>
+      <div id="winnerOverlay" aria-hidden="true">
+        <div className="winner-burst" id="winnerBurst" />
+        <div className="winner-card" role="dialog" aria-modal="true" aria-labelledby="winnerTitle">
+          <div className="winner-avatar" id="winnerAvatar" aria-hidden="true">🏆</div>
+          <h3 id="winnerTitle">Winner</h3>
+          <p id="winnerSubtitle">Great round!</p>
+          <div className="winner-actions" id="winnerActions">
+            <button id="winnerPlayAgain" type="button">Play again</button>
+            <button id="winnerReturnLobby" type="button">Return lobby</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
