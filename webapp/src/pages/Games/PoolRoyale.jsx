@@ -1905,7 +1905,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const TOPSPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5312,10 +5312,10 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z // keep rail-overhead controls/camera coordinates identical to portrait 2D view
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.01 // nudge rail-overhead framing slightly inward toward table center
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // lift rail-overhead camera slightly higher for clearer broadcast context
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
@@ -5405,7 +5405,7 @@ const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while th
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.02; // pitch the rail-overhead broadcast a little more downward during aim assists
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -24068,8 +24068,17 @@ const powerRef = useRef(hud.power);
         const frameSnapshot = frameRef.current ?? frameState;
         const variant =
           frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
-        if (hudRef.current?.inHand || isTraining) {
+        const metaState = frameSnapshot?.meta?.state ?? {};
+        const breakPlacementRestricted = Boolean(
+          metaState.mustPlayFromBaulk ||
+            metaState.breakInProgress ||
+            frameSnapshot?.meta?.breakInProgress
+        );
+        if (isTraining) {
           return true;
+        }
+        if (breakPlacementRestricted) {
+          return false;
         }
         return variant !== 'uk';
       };
@@ -24187,11 +24196,20 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const clamped = resolveInHandPlacement(raw);
-        if (!clamped) return false;
+        const directClamped = clampInHandPosition(raw);
+        if (!directClamped) return false;
+        let next = null;
+        if (isSpotFree(directClamped)) {
+          next = directClamped;
+        } else if (commit) {
+          next = resolveInHandPlacement(raw);
+        } else {
+          next = inHandDrag.lastPos?.clone?.() ?? null;
+        }
+        if (!next) return false;
         cue.active = true;
-        updateCuePlacement(clamped);
-        inHandDrag.lastPos = clamped;
+        updateCuePlacement(next);
+        inHandDrag.lastPos = next;
         if (commit) {
           inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
@@ -27422,11 +27440,27 @@ const powerRef = useRef(hud.power);
             }
           }
           if (plan?.targetBall && cue?.pos) {
-            const directDir = new THREE.Vector2(
-              plan.targetBall.pos.x - cue.pos.x,
-              plan.targetBall.pos.y - cue.pos.y
-            );
-            if (applyAimDirection(directDir, suggestionKey)) {
+            let suggestedDir = null;
+            if (plan?.pocketCenter && plan?.targetBall?.pos) {
+              const compensatedAim = resolveAiPotGhostAim({
+                cuePos: cue.pos,
+                targetPos: plan.targetBall.pos,
+                pocketPos: plan.pocketCenter,
+                ballRadius: BALL_R,
+                spin: plan.spin,
+                power: plan.power
+              });
+              if (compensatedAim?.aimDir?.lengthSq?.() > 1e-6) {
+                suggestedDir = compensatedAim.aimDir.clone();
+              }
+            }
+            if (!suggestedDir) {
+              suggestedDir = new THREE.Vector2(
+                plan.targetBall.pos.x - cue.pos.x,
+                plan.targetBall.pos.y - cue.pos.y
+              );
+            }
+            if (applyAimDirection(suggestedDir, suggestionKey)) {
               return;
             }
           }
