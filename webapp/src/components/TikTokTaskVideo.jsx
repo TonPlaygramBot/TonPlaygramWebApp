@@ -7,6 +7,9 @@ function getVideoId(urlOrId) {
   const match = raw.match(/\/video\/(\d+)/);
   if (match) return match[1];
 
+  const embedMatch = raw.match(/\/embed\/(?:v2\/)?(\d+)/);
+  if (embedMatch) return embedMatch[1];
+
   const normalized = raw.endsWith('/') ? raw : `${raw}/`;
 
   const shortLinkVideoMap = {
@@ -29,7 +32,7 @@ export default function TikTokTaskVideo({
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
-    return `https://www.tiktok.com/player/v1/${videoId}?controls=1&music_info=0&description=0`;
+    return `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&rel=0`;
   }, [videoId]);
   const canonicalVideoUrl = useMemo(() => {
     if (!videoId) return videoUrl || '';
@@ -77,7 +80,7 @@ export default function TikTokTaskVideo({
                   title={title}
                   src={embedUrl}
                   className="absolute inset-0 w-full h-full"
-                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen
                   loading="lazy"
                   referrerPolicy="strict-origin-when-cross-origin"
