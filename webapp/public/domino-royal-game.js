@@ -38,7 +38,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 0.98,
     pixelRatioCap: 1.3,
-    resolution: 'QHD smooth render • DPR 1.3 cap',
+    resolution: 'QHD smooth render • DPR 1.4 cap',
     description: 'Sharper 90 Hz profile for capable devices.'
   },
   {
@@ -47,7 +47,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.02,
     pixelRatioCap: 1.4,
-    resolution: 'UHD turbo render • DPR 1.4 cap',
+    resolution: 'UHD turbo render • DPR 1.5 cap',
     description: 'Highest quality profile for flagship and desktop GPUs.'
   },
   {
@@ -56,7 +56,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 144,
     renderScale: 1.04,
     pixelRatioCap: 1.45,
-    resolution: 'Desktop ultra render • DPR 1.45 cap',
+    resolution: 'Desktop ultra render • DPR 1.55 cap',
     description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
   }
 ]);
@@ -91,10 +91,10 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 });
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1152,
-  fhd60: 1440,
+  hd50: 1024,
+  fhd60: 1536,
   qhd90: 2048,
-  uhd120: 2560,
+  uhd120: 3072,
   ultra144: 3072
 });
 
@@ -2275,12 +2275,12 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Octagon Table',
-      source: 'polyhaven',
-      assetId: 'CoffeeTable_01',
+      source: 'procedural',
+      assetId: null,
       price: 0,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
       description:
-        'Shared Battle Royale octagon baseline using the same GLTF finish texture workflow as Texas Holdem 3D.'
+        'Shared Battle Royale octagon table baseline used across Chess, Ludo, Texas, and Domino.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
@@ -5587,13 +5587,9 @@ function fitTableModelToFootprint(model) {
   const targetDiameter = TABLE_RADIUS * 2.1;
   const targetHeight = TABLE_HEIGHT * 1.05;
   const maxSide = Math.max(size.x, size.z, 0.0001);
-  const scaleXZ = targetDiameter / maxSide;
-  const scaleY = targetHeight / Math.max(size.y, 0.0001);
-  model.scale.set(
-    model.scale.x * scaleXZ,
-    model.scale.y * scaleY,
-    model.scale.z * scaleXZ
-  );
+  const heightScale = targetHeight / Math.max(size.y, 0.0001);
+  const scale = Math.min(targetDiameter / maxSide, heightScale);
+  model.scale.multiplyScalar(scale);
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
     -(scaled.min.x + scaled.max.x) / 2,
