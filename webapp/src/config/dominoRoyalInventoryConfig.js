@@ -1,8 +1,8 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
-import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: MURLAN_TABLE_FINISHES.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
@@ -13,12 +13,16 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     thumbnail,
     woodOption
   })),
-  tableCloth: POOL_ROYALE_CLOTH_VARIANTS.map(({ id, name, price = 0, description, swatches }) => ({
+  tableCloth: TABLE_CLOTH_OPTIONS.map(({ id, label, price = 0, description, swatches, sourceId, feltTop, feltBottom, emissive }) => ({
     id,
-    label: name,
+    label,
     price,
     description,
-    swatches
+    swatches:
+      swatches && swatches.length
+        ? swatches
+        : [feltTop, feltBottom, emissive].filter(Boolean),
+    sourceId
   })),
   tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
     id,
@@ -81,7 +85,7 @@ const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
 const DOMINO_DEFAULT_IDS = Object.freeze({
   tableTheme: 'murlan-default',
   tableWood: 'peelingPaintWeathered',
-  tableCloth: 'emerald',
+  tableCloth: TABLE_CLOTH_OPTIONS[0]?.id,
   chairTheme: 'dining_chair_02'
 });
 
