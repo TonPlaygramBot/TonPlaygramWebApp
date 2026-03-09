@@ -119,6 +119,68 @@ export default function DominoRoyalArena() {
         #quickActions .quick-action[data-action="chat"] {
           left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
         }
+        #winnerOverlay {
+          position: fixed;
+          inset: 0;
+          z-index: 20;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          background: rgba(2, 6, 23, 0.7);
+          backdrop-filter: blur(6px);
+          padding: 1rem;
+        }
+        #winnerOverlay.active { display: flex; }
+        .winner-card {
+          width: min(92vw, 360px);
+          border-radius: 22px;
+          padding: 1.1rem 1rem 1rem;
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.9));
+          text-align: center;
+          color: #f8fafc;
+        }
+        #winnerAvatar {
+          width: 5.25rem;
+          height: 5.25rem;
+          margin: 0 auto 0.6rem;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          font-size: 2rem;
+          font-weight: 800;
+          background: linear-gradient(145deg, #22c55e, #38bdf8);
+          border: 2px solid rgba(255, 255, 255, 0.55);
+          background-size: cover;
+          background-position: center;
+        }
+        #winnerCoinBurst { position: relative; height: 0; }
+        .winner-coin {
+          position: absolute;
+          top: -2.8rem;
+          left: 50%;
+          transform: translate(-50%, 0) rotate(var(--angle)) translateY(calc(var(--distance) * -1));
+          font-size: 0.54rem;
+          letter-spacing: 0.06em;
+          color: #fde68a;
+          text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+          opacity: 0;
+          animation: winner-coin-burst 740ms ease-out var(--delay) forwards;
+        }
+        @keyframes winner-coin-burst {
+          0% { opacity: 0; }
+          20% { opacity: 1; }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, 0) rotate(var(--angle)) translateY(calc((var(--distance) + 52px) * -1));
+          }
+        }
+        .winner-actions {
+          display: grid;
+          gap: 0.6rem;
+          margin-top: 0.95rem;
+        }
+        .winner-actions button { width: 100%; }
       `}</style>
       <div id="topRightActions" aria-label="Top actions">
         <button id="viewToggle" type="button" aria-label="Switch view" title="Switch view" />
@@ -183,6 +245,18 @@ export default function DominoRoyalArena() {
           </div>
           <button className="modal-primary" id="giftSend" type="button">Send Gift</button>
           <p className="gift-note">10% charge and the amount of the gift will be deducted from your balance.</p>
+        </div>
+      </div>
+      <div id="winnerOverlay" aria-hidden="true">
+        <div className="winner-card" role="dialog" aria-modal="true" aria-labelledby="winnerName">
+          <div id="winnerCoinBurst" />
+          <div id="winnerAvatar">🏆</div>
+          <h3 id="winnerName">Winner</h3>
+          <p id="winnerReason">Round complete.</p>
+          <div className="winner-actions">
+            <button id="winnerPlayAgain" type="button">Play Again</button>
+            <button id="winnerReturnLobby" type="button">Return Lobby</button>
+          </div>
         </div>
       </div>
     </div>
