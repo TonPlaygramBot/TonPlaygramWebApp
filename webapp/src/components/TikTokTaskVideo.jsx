@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
   if (/^\d+$/.test(urlOrId)) return urlOrId;
+
   const raw = String(urlOrId).trim();
   const match = raw.match(/\/video\/(\d+)/);
   if (match) return match[1];
@@ -10,15 +11,27 @@ function getVideoId(urlOrId) {
   const embedMatch = raw.match(/\/(?:embed\/(?:v2\/)?|player\/v1\/)(\d+)/);
   if (embedMatch) return embedMatch[1];
 
-  const normalized = raw.endsWith('/') ? raw : `${raw}/`;
   const shortLinkVideoMap = {
-    'https://vt.tiktok.com/ZSujamUuD/': '7614838290667031816',
-    'https://vt.tiktok.com/ZSujaPuVF/': '7614600402654252296',
-    'https://vt.tiktok.com/ZSujaXgpP/': '7614860616703986951',
-    'https://vt.tiktok.com/ZSujagfxp/': '7614503027684216071',
+    '/zsujamuuud': '7614838290667031816',
+    '/zsujapuvf': '7614600402654252296',
+    '/zsujaxgpp': '7614860616703986951',
+    '/zsujagfxp': '7614503027684216071',
   };
-  return shortLinkVideoMap[raw] || shortLinkVideoMap[normalized] || '';
+
+  try {
+    const parsedUrl = new URL(raw);
+    const host = parsedUrl.hostname.toLowerCase();
+    if (host === 'vt.tiktok.com' || host === 'www.vt.tiktok.com') {
+      const pathKey = parsedUrl.pathname.toLowerCase().replace(/\/+$/, '');
+      return shortLinkVideoMap[pathKey] || '';
+    }
+  } catch {
+    // Ignore URL parsing errors and fallback to empty id.
+  }
+
+  return '';
 }
+
 
 function ensureTikTokEmbedScript() {
   const src = 'https://www.tiktok.com/embed.js';
