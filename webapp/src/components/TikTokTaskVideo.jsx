@@ -3,9 +3,11 @@ import { useEffect, useMemo, useState } from 'react';
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
   if (/^\d+$/.test(urlOrId)) return urlOrId;
-  const raw = String(urlOrId);
+  const raw = String(urlOrId).trim();
   const match = raw.match(/\/video\/(\d+)/);
   if (match) return match[1];
+
+  const normalized = raw.endsWith('/') ? raw : `${raw}/`;
 
   const shortLinkVideoMap = {
     'https://vt.tiktok.com/ZSujamUuD/': '7614838290667031816',
@@ -13,7 +15,7 @@ function getVideoId(urlOrId) {
     'https://vt.tiktok.com/ZSujaXgpP/': '7614860616703986951',
     'https://vt.tiktok.com/ZSujagfxp/': '7614503027684216071',
   };
-  return shortLinkVideoMap[raw] || '';
+  return shortLinkVideoMap[raw] || shortLinkVideoMap[normalized] || '';
 }
 
 export default function TikTokTaskVideo({
@@ -26,7 +28,7 @@ export default function TikTokTaskVideo({
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
-    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&loop=1&music_info=0&description=0&controls=1`;
+    return `https://www.tiktok.com/embed/v2/${videoId}`;
   }, [videoId]);
 
   useEffect(() => {
@@ -72,6 +74,9 @@ export default function TikTokTaskVideo({
             ) : (
               <div className="p-4 text-sm text-subtext">Invalid TikTok video URL.</div>
             )}
+            <p className="px-3 pt-2 text-center text-[11px] text-subtext">
+              If TikTok embed is unavailable on your device, use “Open on TikTok”.
+            </p>
             <a
               href={videoUrl}
               target="_blank"
