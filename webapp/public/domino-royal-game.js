@@ -99,10 +99,10 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 4096,
-  fhd60: 4096,
-  qhd90: 4096,
-  uhd120: 4096,
+  hd50: 512,
+  fhd60: 1024,
+  qhd90: 2048,
+  uhd120: 3072,
   ultra144: 4096
 });
 
@@ -119,7 +119,23 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(2048, Math.min(4096, mappedSize));
+  return Math.max(512, Math.min(4096, mappedSize));
+}
+
+function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
+  switch (qualityId) {
+    case 'hd50':
+      return 0.85;
+    case 'fhd60':
+      return 1;
+    case 'qhd90':
+      return 1.15;
+    case 'uhd120':
+    case 'ultra144':
+      return 1.25;
+    default:
+      return 1;
+  }
 }
 
 function detectCoarsePointer() {
@@ -1405,7 +1421,7 @@ function applyRendererQuality(quality = frameQuality) {
       : resolveDefaultPixelRatioCap();
   const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 2) : pixelRatioCap;
   const runtimePixelRatioCap = IS_TELEGRAM_RUNTIME
-    ? Math.min(cappedRatio, 1)
+    ? Math.min(cappedRatio, resolveTelegramPixelRatioCap(quality?.id))
     : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
   if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
@@ -6333,7 +6349,7 @@ const getDominoSurfaceTextures = (() => {
       return cache;
     }
     const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
+    const preferredSize = Math.max(512, Math.min(sizeCap, targetSize));
     const lowMemoryDevice =
       isLowProfileDevice ||
       (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
