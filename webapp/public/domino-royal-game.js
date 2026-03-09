@@ -38,7 +38,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 0.98,
     pixelRatioCap: 1.3,
-    resolution: 'QHD smooth render • DPR 1.4 cap',
+    resolution: 'QHD smooth render • DPR 1.3 cap',
     description: 'Sharper 90 Hz profile for capable devices.'
   },
   {
@@ -47,7 +47,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.02,
     pixelRatioCap: 1.4,
-    resolution: 'UHD turbo render • DPR 1.5 cap',
+    resolution: 'UHD turbo render • DPR 1.4 cap',
     description: 'Highest quality profile for flagship and desktop GPUs.'
   },
   {
@@ -56,7 +56,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 144,
     renderScale: 1.04,
     pixelRatioCap: 1.45,
-    resolution: 'Desktop ultra render • DPR 1.55 cap',
+    resolution: 'Desktop ultra render • DPR 1.45 cap',
     description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
   }
 ]);
@@ -91,11 +91,11 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 });
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1024,
-  fhd60: 1536,
-  qhd90: 2048,
-  uhd120: 3072,
-  ultra144: 3072
+  hd50: 1536,
+  fhd60: 2048,
+  qhd90: 3072,
+  uhd120: 4096,
+  ultra144: 4096
 });
 
 function getAdaptiveTextureSize(baseSize = 2048) {
@@ -3050,13 +3050,13 @@ const WOOD_GRAIN_OPTIONS = Object.freeze([
     id: 'rosewood_veneer_01',
     label: 'Rosewood Veneer 01',
     rail: {
-      repeat: { x: 1, y: 1 },
+      repeat: { x: 0.7, y: 0.7 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
-      repeat: { x: 1, y: 1 },
+      repeat: { x: 0.72, y: 0.72 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
