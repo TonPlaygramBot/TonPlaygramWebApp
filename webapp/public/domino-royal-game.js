@@ -99,10 +99,10 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 768,
-  fhd60: 1536,
-  qhd90: 2560,
-  uhd120: 3584,
+  hd50: 1024,
+  fhd60: 1792,
+  qhd90: 2816,
+  uhd120: 3840,
   ultra144: 4096
 });
 
@@ -6231,8 +6231,7 @@ const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.1;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
-const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.58;
+const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.6;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.18;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
@@ -8264,7 +8263,6 @@ function startGame() {
     double: firstTile.a === firstTile.b
   });
   usedTileKeys.add(tileKey(firstTile));
-  const step = STEP;
   const isDoubleStart = firstTile.a === firstTile.b;
   if (!flipDir) {
     if (isDoubleStart) {
@@ -8290,7 +8288,7 @@ function startGame() {
       ends = {
         L: {
           v: firstTile.a,
-          x: -step,
+          x: 0,
           z: 0,
           dir: [-1, 0],
           orient: Math.PI,
@@ -8298,7 +8296,7 @@ function startGame() {
         },
         R: {
           v: firstTile.b,
-          x: step,
+          x: 0,
           z: 0,
           dir: [1, 0],
           orient: 0,
@@ -8330,7 +8328,7 @@ function startGame() {
       ends = {
         L: {
           v: firstTile.a,
-          x: step,
+          x: 0,
           z: 0,
           dir: [1, 0],
           orient: 0,
@@ -8338,7 +8336,7 @@ function startGame() {
         },
         R: {
           v: firstTile.b,
-          x: -step,
+          x: 0,
           z: 0,
           dir: [-1, 0],
           orient: Math.PI,
