@@ -91,7 +91,15 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 });
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1536,
+  hd50: 1024,
+  fhd60: 2048,
+  qhd90: 3072,
+  uhd120: 4096,
+  ultra144: 4096
+});
+
+const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
+  hd50: 1024,
   fhd60: 2048,
   qhd90: 3072,
   uhd120: 4096,
@@ -104,6 +112,14 @@ function getAdaptiveTextureSize(baseSize = 2048) {
     FRAME_RATE_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
   return Math.max(768, Math.min(4096, mappedSize));
+}
+
+function getAdaptiveDominoTextureSize(baseSize = 2048) {
+  const mappedSize =
+    DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
+    DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
+    baseSize;
+  return Math.max(1024, Math.min(4096, mappedSize));
 }
 
 function detectCoarsePointer() {
@@ -1485,9 +1501,12 @@ const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
-const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
-const CAMERA_REAR_OFFSET = { portrait: 1.65, landscape: 1.22 };
+const CAMERA_LATERAL_OFFSET = { portrait: 0.32, landscape: 0.24 };
+const CAMERA_REAR_OFFSET = { portrait: 1.36, landscape: 1.04 };
 const CAMERA_HEIGHT_BOOST = { portrait: 1.78, landscape: 1.46 };
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
+const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
+const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const CAMERA_TARGET = new THREE.Vector3(
   0,
   TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA,
@@ -1741,6 +1760,7 @@ const turnDominoTarget = new THREE.Vector3();
 let turnDominoFocusUntil = 0;
 
 let cameraHasUserControl = false;
+let cameraLookYaw = 0;
 controls.addEventListener('start', () => {
   cameraHasUserControl = true;
 });
@@ -1909,6 +1929,17 @@ function updateTurnCameraFocus() {
   } else {
     turnFocusTarget.copy(turnSeatTarget);
   }
+
+  if (cameraViewMode === VIEW_MODES.threeD && Math.abs(cameraLookYaw) > 0.0001) {
+    const toTarget = turnFocusTarget.clone().sub(camera.position);
+    const horizontalLength = Math.hypot(toTarget.x, toTarget.z);
+    if (horizontalLength > 0.0001) {
+      const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).normalize();
+      const yawOffset = Math.tan(cameraLookYaw) * horizontalLength;
+      turnFocusTarget.addScaledVector(lateral, yawOffset);
+    }
+  }
+
   controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
 }
 
@@ -1948,11 +1979,35 @@ function setCameraViewMode(mode = VIEW_MODES.threeD) {
 
   cameraViewMode = mode;
   cameraHasUserControl = false;
+  cameraLookYaw = 0;
   updateRaycasterThreshold();
   applyCameraConstraints();
   positionCameraForViewport({ force: true });
   updateViewToggleLabel();
   renderHands();
+}
+
+function handleCameraLookDrag(deltaX = 0) {
+  if (cameraViewMode !== VIEW_MODES.threeD) {
+    return;
+  }
+  cameraLookYaw = THREE.MathUtils.clamp(
+    cameraLookYaw - deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+    -CAMERA_LOOK_YAW_LIMIT,
+    CAMERA_LOOK_YAW_LIMIT
+  );
+}
+
+function updateCameraLookRecentering() {
+  if (cameraViewMode !== VIEW_MODES.threeD) {
+    cameraLookYaw = 0;
+    return;
+  }
+  cameraLookYaw = THREE.MathUtils.lerp(
+    cameraLookYaw,
+    0,
+    CAMERA_LOOK_YAW_RECENTER_SPEED
+  );
 }
 
 function toggleCameraViewMode() {
@@ -6269,7 +6324,7 @@ const getDominoSurfaceTextures = (() => {
   return () => {
     const targetSize = Math.min(
       4096,
-      getAdaptiveTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize) + 256
+      getAdaptiveDominoTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
     );
     if (cache && cachedSize === targetSize) return cache;
     disposeCachedTextures();
@@ -8676,6 +8731,10 @@ const updateRaycasterThreshold = () => {
 };
 updateRaycasterThreshold();
 const activePointers = new Set();
+const cameraLookPointerState = {
+  pointerId: null,
+  lastX: 0
+};
 function findPickRoot(o) {
   let n = o;
   while (n) {
@@ -8695,6 +8754,14 @@ function humanPickTile(obj) {
 
 renderer.domElement.addEventListener('pointerdown', (ev) => {
   activePointers.add(ev.pointerId);
+  if (
+    cameraViewMode === VIEW_MODES.threeD &&
+    activePointers.size === 1 &&
+    cameraLookPointerState.pointerId == null
+  ) {
+    cameraLookPointerState.pointerId = ev.pointerId;
+    cameraLookPointerState.lastX = ev.clientX;
+  }
   if (gameFinished) {
     return;
   }
@@ -8757,14 +8824,35 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     return;
   }
 });
+renderer.domElement.addEventListener('pointermove', (ev) => {
+  if (
+    cameraViewMode !== VIEW_MODES.threeD ||
+    cameraLookPointerState.pointerId !== ev.pointerId
+  ) {
+    return;
+  }
+  const deltaX = ev.clientX - cameraLookPointerState.lastX;
+  cameraLookPointerState.lastX = ev.clientX;
+  handleCameraLookDrag(deltaX);
+});
+
 renderer.domElement.addEventListener('pointerup', (ev) => {
   activePointers.delete(ev.pointerId);
+  if (cameraLookPointerState.pointerId === ev.pointerId) {
+    cameraLookPointerState.pointerId = null;
+  }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
   activePointers.delete(ev.pointerId);
+  if (cameraLookPointerState.pointerId === ev.pointerId) {
+    cameraLookPointerState.pointerId = null;
+  }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
   activePointers.delete(ev.pointerId);
+  if (cameraLookPointerState.pointerId === ev.pointerId) {
+    cameraLookPointerState.pointerId = null;
+  }
 });
 
 btnDraw.addEventListener('click', () => {
@@ -9709,6 +9797,7 @@ function tick(now) {
     updatePlacementAnimations(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
+    updateCameraLookRecentering();
     updateTurnCameraFocus();
     controls.update(deltaSeconds);
     enforceSeatedCameraLock();
