@@ -32,11 +32,11 @@ export default function TikTokTaskVideo({
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
-    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
+    return `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&rel=0`;
   }, [videoId]);
   const legacyEmbedUrl = useMemo(() => {
     if (!videoId) return '';
-    return `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&rel=0`;
+    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
   }, [videoId]);
   const canonicalVideoUrl = useMemo(() => {
     if (!videoId) return videoUrl || '';
@@ -104,7 +104,7 @@ export default function TikTokTaskVideo({
                     rel="noreferrer"
                     className="inline-block underline"
                   >
-                    Try legacy TikTok embed
+                    Try alternative TikTok player
                   </a>
                 )}
               </div>
