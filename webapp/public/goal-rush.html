@@ -227,6 +227,7 @@
 
 
 <script src="/goal-rush-api.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script src="/flag-emojis.js"></script>
 <script>
 (async () => {
@@ -301,6 +302,9 @@
   const oppAccountId = params.get('oppAcc') || params.get('oppId') || params.get('p2AccountId');
   const oppTgId = params.get('oppTg') || params.get('p2TgId');
   const mode = params.get('mode') || 'ai';
+  const tableId = params.get('tableId') || params.get('table') || '';
+  const onlineEnabled = mode === 'online' && !!tableId;
+  const onlineSideParam = params.get('side') || '';
   const difficulty = 'normal';
   const target = Number(params.get('target')) || 3;
   const avatarParam = params.get('avatar') || '';
@@ -457,6 +461,164 @@
     try{
       await grApi.addTransaction(tgId, -stake, 'stake', { game:'goalrush', players:2, accountId: myAccountId });
     }catch{}
+  }
+
+  const onlineState = {
+    enabled: onlineEnabled,
+    connected: false,
+    side: onlineSideParam === 'top' ? 'top' : 'bottom',
+    isHost: true,
+    lastInputAt: 0,
+    lastSyncAt: 0,
+    socket: null,
+    opponentInput: null,
+    inputThrottleMs: 22,
+    syncThrottleMs: 48,
+    syncIntervalMs: 1000,
+    syncTimer: null,
+    disconnectedToastAt: 0
+  };
+
+  function canControlBottom(){
+    if (!onlineState.enabled) return true;
+    return onlineState.side === 'bottom';
+  }
+
+  function canControlTop(){
+    if (!onlineState.enabled) return mode !== 'ai';
+    return onlineState.side === 'top';
+  }
+
+  function shouldRunPhysics(){
+    return !onlineState.enabled || onlineState.isHost;
+  }
+
+  function handleRemoteInput(input){
+    if (!onlineState.enabled || !input || typeof input !== 'object') return;
+    const target = input.side === 'top' ? p2 : p1;
+    if (!target) return;
+    target.x = Number(input.x) || target.x;
+    target.y = Number(input.y) || target.y;
+    target.vx = Number(input.vx) || 0;
+    target.vy = Number(input.vy) || 0;
+    onlineState.opponentInput = {
+      side: input.side,
+      x: target.x,
+      y: target.y,
+      vx: target.vx,
+      vy: target.vy
+    };
+  }
+
+  function getSerializableState(){
+    return {
+      score,
+      running,
+      lastTouch,
+      puck,
+      p1: { x: p1.x, y: p1.y, vx: p1.vx, vy: p1.vy },
+      p2: { x: p2.x, y: p2.y, vx: p2.vx, vy: p2.vy }
+    };
+  }
+
+  function applyStateSnapshot(snapshot){
+    if (!snapshot || typeof snapshot !== 'object') return;
+    if (snapshot.score && typeof snapshot.score === 'object') {
+      score.p1 = Number(snapshot.score.p1) || 0;
+      score.p2 = Number(snapshot.score.p2) || 0;
+      score.target = Number(snapshot.score.target) || score.target;
+      updateScore();
+    }
+    if (typeof snapshot.running === 'boolean') running = snapshot.running;
+    if (typeof snapshot.lastTouch === 'string') lastTouch = snapshot.lastTouch;
+    if (snapshot.puck) {
+      puck.x = Number(snapshot.puck.x) || puck.x;
+      puck.y = Number(snapshot.puck.y) || puck.y;
+      puck.vx = Number(snapshot.puck.vx) || 0;
+      puck.vy = Number(snapshot.puck.vy) || 0;
+      puck.r = Number(snapshot.puck.r) || puck.r;
+      puck.angle = Number(snapshot.puck.angle) || 0;
+      puck.spin = Number(snapshot.puck.spin) || 0;
+    }
+    if (snapshot.p1) {
+      p1.x = Number(snapshot.p1.x) || p1.x;
+      p1.y = Number(snapshot.p1.y) || p1.y;
+      p1.vx = Number(snapshot.p1.vx) || 0;
+      p1.vy = Number(snapshot.p1.vy) || 0;
+    }
+    if (snapshot.p2) {
+      p2.x = Number(snapshot.p2.x) || p2.x;
+      p2.y = Number(snapshot.p2.y) || p2.y;
+      p2.vx = Number(snapshot.p2.vx) || 0;
+      p2.vy = Number(snapshot.p2.vy) || 0;
+    }
+  }
+
+  function initOnlineSync(){
+    if (!onlineState.enabled || !window.io) return;
+    const socket = window.io({ transports: ['websocket', 'polling'] });
+    onlineState.socket = socket;
+    socket.on('connect', () => {
+      onlineState.connected = true;
+      socket.emit('register', { playerId: myAccountId });
+      socket.emit('joinGoalRushTable', { tableId, accountId: myAccountId });
+      socket.emit('goalRushSyncRequest', { tableId });
+    });
+    socket.on('disconnect', () => {
+      onlineState.connected = false;
+      const now = Date.now();
+      if (now - onlineState.disconnectedToastAt > 2000) {
+        toast('Connection lost. Reconnecting…');
+        onlineState.disconnectedToastAt = now;
+      }
+    });
+    socket.on('goalRushSeat', (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      if (payload.side === 'top' || payload.side === 'bottom') onlineState.side = payload.side;
+      if (typeof payload.isHost === 'boolean') onlineState.isHost = payload.isHost;
+    });
+    socket.on('goalRushInput', (payload = {}) => {
+      if (payload.tableId !== tableId) return;
+      if (payload.accountId && String(payload.accountId) === String(myAccountId)) return;
+      handleRemoteInput(payload.input);
+    });
+    socket.on('goalRushState', (payload = {}) => {
+      if (payload.tableId !== tableId) return;
+      if (onlineState.isHost && payload.hostId && String(payload.hostId) === String(myAccountId)) return;
+      applyStateSnapshot(payload.state);
+      onlineState.lastSyncAt = Date.now();
+    });
+    onlineState.syncTimer = window.setInterval(() => {
+      if (!onlineState.connected || !socket || !shouldRunPhysics()) return;
+      socket.emit('goalRushState', { tableId, accountId: myAccountId, state: getSerializableState() });
+    }, onlineState.syncIntervalMs);
+  }
+
+  function emitInputIfNeeded(){
+    if (!onlineState.enabled || !onlineState.connected || !onlineState.socket) return;
+    const now = Date.now();
+    if (now - onlineState.lastInputAt < onlineState.inputThrottleMs) return;
+    onlineState.lastInputAt = now;
+    const me = canControlBottom() ? p1 : p2;
+    onlineState.socket.emit('goalRushInput', {
+      tableId,
+      accountId: myAccountId,
+      input: {
+        side: canControlBottom() ? 'bottom' : 'top',
+        x: me.x,
+        y: me.y,
+        vx: me.vx,
+        vy: me.vy
+      }
+    });
+  }
+
+  function emitStateIfNeeded(){
+    if (!onlineState.enabled || !onlineState.connected || !onlineState.socket || !shouldRunPhysics()) return;
+    const now = Date.now();
+    if (now - onlineState.lastSyncAt < onlineState.syncThrottleMs) return;
+    onlineState.lastSyncAt = now;
+    onlineState.socket.emit('goalRushState', { tableId, accountId: myAccountId, state: getSerializableState() });
   }
 
   function celebrate(winner,avatarImg,avatarEmoji){
@@ -1994,31 +2156,50 @@
   }
 
   function update(dt){
-    paddleFollowTouch(p1, true);
+    if (canControlBottom()) {
+      paddleFollowTouch(p1, true);
+    }
+
     if (mode==='ai') {
       aiUpdate();
-    } else {
+    } else if (canControlTop()) {
       paddleFollowTouch(p2, false);
+    } else if (onlineState.opponentInput && onlineState.opponentInput.side === 'top') {
+      p2.x = onlineState.opponentInput.x;
+      p2.y = onlineState.opponentInput.y;
+      p2.vx = onlineState.opponentInput.vx;
+      p2.vy = onlineState.opponentInput.vy;
+    }
+
+    if (onlineState.enabled && !canControlBottom() && onlineState.opponentInput && onlineState.opponentInput.side === 'bottom') {
+      p1.x = onlineState.opponentInput.x;
+      p1.y = onlineState.opponentInput.y;
+      p1.vx = onlineState.opponentInput.vx;
+      p1.vy = onlineState.opponentInput.vy;
     }
 
     constrainPaddle(p1, true);
     constrainPaddle(p2, false);
 
-    puck.x += puck.vx * dt * 60;
-    puck.y += puck.vy * dt * 60;
-    const mag = puck.spin * dt * 0.6;
-    const magVx = -puck.vy * mag;
-    const magVy = puck.vx * mag;
-    puck.vx += magVx;
-    puck.vy += magVy;
-    puck.vx *= Math.pow(friction, dt*60);
-    puck.vy *= Math.pow(friction, dt*60);
-    puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
-    puck.angle += puck.spin * dt * 10;
-    puck.spin *= Math.pow(0.985, dt*60);
+    if (shouldRunPhysics()) {
+      puck.x += puck.vx * dt * 60;
+      puck.y += puck.vy * dt * 60;
+      const mag = puck.spin * dt * 0.6;
+      const magVx = -puck.vy * mag;
+      const magVy = puck.vx * mag;
+      puck.vx += magVx;
+      puck.vy += magVy;
+      puck.vx *= Math.pow(friction, dt*60);
+      puck.vy *= Math.pow(friction, dt*60);
+      puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
+      puck.angle += puck.spin * dt * 10;
+      puck.spin *= Math.pow(0.985, dt*60);
 
-    handleCollisions();
+      handleCollisions();
+      emitStateIfNeeded();
+    }
 
+    emitInputIfNeeded();
     [p1,p2].forEach(p=>{p.lastX=p.x; p.lastY=p.y;});
   }
 
@@ -2137,8 +2318,8 @@
     const vy = (p.y - last.y) / dt * 16.67;
     touches.set(e.pointerId, {x:p.x, y:p.y, vx, vy, t:now});
     const d1 = dist(p1.x,p1.y,p.x,p.y); const d2 = dist(p2.x,p2.y,p.x,p.y);
-    if (p.y > centerY && d1 < d2) { p1.vx = vx; p1.vy = vy; }
-    else if (p.y < centerY && d2 <= d1) { p2.vx = vx; p2.vy = vy; }
+    if (p.y > centerY && d1 < d2 && canControlBottom()) { p1.vx = vx; p1.vy = vy; }
+    else if (p.y < centerY && d2 <= d1 && canControlTop()) { p2.vx = vx; p2.vy = vy; }
   });
   function clearTouch(id){ touches.delete(id); }
   canvas.addEventListener('pointerup', e=>{
@@ -2173,8 +2354,8 @@
         touches.set(t.identifier, { x: p.x, y: p.y, vx, vy, t: now });
         const d1 = dist(p1.x, p1.y, p.x, p.y);
         const d2 = dist(p2.x, p2.y, p.x, p.y);
-        if (p.y > centerY && d1 < d2) { p1.vx = vx; p1.vy = vy; }
-        else if (p.y < centerY && d2 <= d1) { p2.vx = vx; p2.vy = vy; }
+        if (p.y > centerY && d1 < d2 && canControlBottom()) { p1.vx = vx; p1.vy = vy; }
+        else if (p.y < centerY && d2 <= d1 && canControlTop()) { p2.vx = vx; p2.vy = vy; }
       }
     }, { passive: false });
 
@@ -2267,6 +2448,17 @@
   }
 
   fit(); checkOrientation(); resetPositions(); updateScore(); playWhistle();
+  if (onlineState.enabled) {
+    initOnlineSync();
+    toast('Online sync active');
+  }
+  window.addEventListener('beforeunload', () => {
+    if (onlineState.syncTimer) clearInterval(onlineState.syncTimer);
+    if (onlineState.socket) {
+      onlineState.socket.emit('leaveLobby', { accountId: myAccountId, tableId });
+      onlineState.socket.disconnect();
+    }
+  });
   document.body.classList.add('loaded');
   requestAnimationFrame(loop);
   })();
