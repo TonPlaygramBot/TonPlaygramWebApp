@@ -54,7 +54,8 @@ import { giftSounds } from '../../utils/giftSounds.js';
 import { NFT_GIFTS } from '../../utils/nftGifts.js';
 import {
   createBallPreviewDataUrl,
-  getBallMaterial as getBilliardBallMaterial
+  getBallMaterial as getBilliardBallMaterial,
+  setBallMaterialAnisotropy
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import planShot from '../../../../lib/poolAi.js';
@@ -369,6 +370,7 @@ function isWebGLAvailable() {
 
 let rendererAnisotropyCap = 16;
 setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+setBallMaterialAnisotropy(Math.min(12, rendererAnisotropyCap));
 const updateRendererAnisotropyCap = (renderer) => {
   if (renderer?.capabilities?.getMaxAnisotropy) {
     const max = renderer.capabilities.getMaxAnisotropy();
@@ -377,6 +379,7 @@ const updateRendererAnisotropyCap = (renderer) => {
     }
   }
   setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+  setBallMaterialAnisotropy(Math.min(12, rendererAnisotropyCap));
 };
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
@@ -4738,6 +4741,8 @@ const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_CAMERA_SCALE_MIN = 0.78;
 const HDRI_CAMERA_SCALE_MAX = 1.32;
 const HDRI_CAMERA_SCALE_LERP = 0.18;
+const HDRI_URL_CACHE = new Map();
+const HDRI_PREFETCH_CACHE = new Map();
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
   const widthMm = tableSizeMeta?.playfield?.widthMm;
@@ -4775,6 +4780,10 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = {}) {
+  const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
+  if (HDRI_URL_CACHE.has(cacheKey)) {
+    return HDRI_URL_CACHE.get(cacheKey);
+  }
   const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
     ? config.preferredResolutions
     : DEFAULT_HDRI_RESOLUTIONS;
@@ -4784,23 +4793,53 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
   if (config?.assetUrls && typeof config.assetUrls === 'object') {
     for (const res of preferred) {
-      if (config.assetUrls[res]) return config.assetUrls[res];
+      if (config.assetUrls[res]) {
+        HDRI_URL_CACHE.set(cacheKey, config.assetUrls[res]);
+        return config.assetUrls[res];
+      }
     }
     const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-    if (manual) return manual;
+    if (manual) {
+      HDRI_URL_CACHE.set(cacheKey, manual);
+      return manual;
+    }
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
-  try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
-    if (!response?.ok) return fallbackUrl;
-    const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred);
-    return picked || fallbackUrl;
-  } catch (error) {
-    console.warn('Failed to resolve Poly Haven HDRI url', error);
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) {
+    HDRI_URL_CACHE.set(cacheKey, config.assetUrl);
+    return config.assetUrl;
+  }
+  if (!config?.assetId || typeof fetch !== 'function') {
+    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
     return fallbackUrl;
   }
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    if (!response?.ok) {
+      HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+      return fallbackUrl;
+    }
+    const json = await response.json();
+    const picked = pickPolyHavenHdriUrl(json, preferred);
+    const resolvedUrl = picked || fallbackUrl;
+    HDRI_URL_CACHE.set(cacheKey, resolvedUrl);
+    return resolvedUrl;
+  } catch (error) {
+    console.warn('Failed to resolve Poly Haven HDRI url', error);
+    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+    return fallbackUrl;
+  }
+}
+
+async function prefetchHdriVariant(config = {}) {
+  const key = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
+  if (HDRI_PREFETCH_CACHE.has(key)) return HDRI_PREFETCH_CACHE.get(key);
+  const request = (async () => {
+    const url = await resolvePolyHavenHdriUrl(config);
+    if (!url || typeof fetch !== 'function') return;
+    await fetch(url, { cache: 'force-cache' });
+  })().catch(() => {});
+  HDRI_PREFETCH_CACHE.set(key, request);
+  return request;
 }
 
 async function createFallbackHdriEnvironment(renderer) {
@@ -14039,6 +14078,29 @@ function PoolRoyaleGame({
     environmentHdriRef.current = environmentHdriId;
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
   }, [activeEnvironmentHdri, environmentHdriId]);
+  useEffect(() => {
+    const queue = availableEnvironmentHdris
+      .filter((variant) => variant.id !== environmentHdriId)
+      .slice(0, 2)
+      .map((variant) => {
+        const basePreferred =
+          Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+            ? variant.preferredResolutions
+            : DEFAULT_HDRI_RESOLUTIONS;
+        const resolved = resolvedHdriResolution ?? basePreferred[0];
+        const preferredResolutions = resolved
+          ? [resolved, ...basePreferred.filter((res) => res !== resolved)]
+          : basePreferred;
+        return {
+          ...variant,
+          preferredResolutions,
+          fallbackResolution: resolved
+        };
+      });
+    queue.forEach((variant) => {
+      void prefetchHdriVariant(variant);
+    });
+  }, [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
   useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
