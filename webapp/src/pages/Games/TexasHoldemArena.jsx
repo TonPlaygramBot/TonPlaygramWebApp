@@ -391,7 +391,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.84 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.92 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
@@ -457,7 +457,6 @@ const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
 const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
 const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
-const HIDDEN_CARD_BACK_ALIGNMENT_ROTATION = Math.PI;
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -5451,9 +5450,6 @@ function TexasHoldemArena({ search }) {
             : position.clone().add(seat.forward.clone());
         const face = seat.isHuman || isShowdownReveal ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: !isShowdownReveal });
-        if (!seat.isHuman && face === 'back' && !isShowdownReveal) {
-          mesh.rotateZ(HIDDEN_CARD_BACK_ALIGNMENT_ROTATION);
-        }
         if (!seat.isHuman && face === 'front' && !isShowdownReveal) {
           mesh.rotateY(Math.PI);
         }
