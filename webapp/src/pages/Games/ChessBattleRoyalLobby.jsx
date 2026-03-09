@@ -171,6 +171,13 @@ export default function ChessBattleRoyalLobby() {
           accountId: trackedAccountId,
         });
       } catch {}
+
+      if (!trackedAccountId) {
+        setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
+        setMatching(false);
+        setMatchStatus('');
+        return;
+      }
     }
 
     if (!isOnline) {
@@ -214,7 +221,7 @@ export default function ChessBattleRoyalLobby() {
 
     socket.on('gameStart', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
-    socket.emit('register', { playerId: trackedAccountId || accountId });
+    socket.emit('register', { playerId: trackedAccountId });
 
     const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
     socket.emit(
@@ -237,7 +244,7 @@ export default function ChessBattleRoyalLobby() {
         pendingTableRef.current = res.tableId;
         setMatchStatus('Waiting for another player…');
         socket.emit('confirmReady', {
-          accountId: trackedAccountId || accountId,
+          accountId: trackedAccountId,
           tableId: res.tableId
         });
       }
