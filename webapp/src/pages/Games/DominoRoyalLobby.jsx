@@ -326,50 +326,12 @@ export default function DominoRoyalLobby() {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Players</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Seats
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {PLAYER_OPTIONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setPlayerCount(value)}
-                className={`lobby-option-card ${
-                  playerCount === value
-                    ? 'lobby-option-card-active'
-                    : 'lobby-option-card-inactive'
-                }`}
-              >
-                <div className="lobby-option-thumb bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent">
-                  <div className="lobby-option-thumb-inner">
-                    <OptionIcon
-                      src={getLobbyIcon('domino-royal', `players-${value}`)}
-                      alt={`${value} players`}
-                      fallback={HUMAN_ICON_FALLBACK}
-                      className="lobby-option-icon"
-                    />
-                  </div>
-                </div>
-                <div className="text-center">
-                  <p className="lobby-option-label">{value} Players</p>
-                  <p className="lobby-option-subtitle">Local table seats</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Mode</h3>
+            <h3 className="font-semibold text-white">Match Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
               Queue
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
               {
                 id: 'local',
@@ -428,6 +390,46 @@ export default function DominoRoyalLobby() {
           <p className="text-xs text-white/60 text-center">
             Online status: {readiness.label}. Queue and matchmaking are now live.
           </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Vs how many players</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              Seats
+            </span>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="grid grid-cols-3 gap-3">
+              {PLAYER_OPTIONS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPlayerCount(value)}
+                  className={`lobby-option-card ${
+                    playerCount === value
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('domino-royal', `players-${value}`)}
+                        alt={`${value} players`}
+                        fallback={HUMAN_ICON_FALLBACK}
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{value} Players</p>
+                    <p className="lobby-option-subtitle">Local table seats</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <button
