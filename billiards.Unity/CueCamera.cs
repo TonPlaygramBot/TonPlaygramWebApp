@@ -154,7 +154,7 @@ public class CueCamera : MonoBehaviour
     public float broadcastDistanceInset = 0.08f;
     // Additional downward look offset to tilt the broadcast camera a little more
     // toward the cloth.
-    public float broadcastLookDownOffset = 0.02f;
+    public float broadcastLookDownOffset = 0.06f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
     // How quickly the camera aligns to the stored shot angle.
