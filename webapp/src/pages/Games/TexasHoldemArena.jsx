@@ -390,7 +390,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.44, landscape: -0.02 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54, landscape: -0.02 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -465,7 +465,7 @@ const CHAIR_MODEL_URLS = [
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['1k', '2k', '4k']);
+const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   0,
@@ -2984,9 +2984,6 @@ function TexasHoldemArena({ search }) {
   const hdriVariantRef = useRef(TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ?? TEXAS_HDRI_OPTIONS[0] ?? null);
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
-  const hdriEnvCacheRef = useRef(new Map());
-  const hdriPendingRef = useRef(new Map());
-  const hdriRequestTokenRef = useRef(0);
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
@@ -4155,29 +4152,10 @@ function TexasHoldemArena({ search }) {
       if (!three?.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current;
       if (!activeVariant) return;
-      const requestToken = ++hdriRequestTokenRef.current;
-      const cacheKey = String(activeVariant?.id || activeVariant?.assetId || activeVariant?.fallbackUrl || 'default-hdri');
-      let envResult = hdriEnvCacheRef.current.get(cacheKey) ?? null;
-      if (!envResult) {
-        let pending = hdriPendingRef.current.get(cacheKey);
-        if (!pending) {
-          pending = loadPolyHavenHdriEnvironment(three.renderer, activeVariant)
-            .then((result) => {
-              if (result?.envMap) {
-                hdriEnvCacheRef.current.set(cacheKey, result);
-              }
-              return result;
-            })
-            .finally(() => {
-              hdriPendingRef.current.delete(cacheKey);
-            });
-          hdriPendingRef.current.set(cacheKey, pending);
-        }
-        envResult = await pending;
-      }
-      if (requestToken !== hdriRequestTokenRef.current) return;
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap) return;
       const prevDispose = disposeEnvironmentRef.current;
+      const prevTexture = envTextureRef.current;
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.envMap;
       if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
@@ -4197,8 +4175,9 @@ function TexasHoldemArena({ search }) {
             three.scene.background = null;
           }
         }
+        envResult.envMap.dispose?.();
       };
-      if (prevDispose) {
+      if (prevDispose && prevTexture !== envResult.envMap) {
         prevDispose();
       }
       hdriVariantRef.current = activeVariant;
@@ -5220,11 +5199,6 @@ function TexasHoldemArena({ search }) {
         disposeChairMaterials(chairMaterials);
         threeRef.current.tableInfo?.dispose?.();
         disposeEnvironmentRef.current?.();
-        hdriEnvCacheRef.current.forEach((entry) => {
-          entry?.envMap?.dispose?.();
-        });
-        hdriEnvCacheRef.current.clear();
-        hdriPendingRef.current.clear();
         r.dispose();
       }
       mount.removeChild(renderer.domElement);
