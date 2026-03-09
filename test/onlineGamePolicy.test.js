@@ -14,6 +14,7 @@ describe('online game policy', () => {
       maxPlayers: 2,
       matchMeta: {
         mode: 'Ranked',
+        variant: 'UK',
         tableSize: '9ft',
         token: 'TPC',
         unexpected: 'ignore-me'
@@ -23,7 +24,12 @@ describe('online game policy', () => {
     expect(result.ok).toBe(true);
     expect(result.normalizedStake).toBe(25);
     expect(result.normalizedMaxPlayers).toBe(2);
-    expect(result.safeMatchMeta).toEqual({ mode: 'Ranked', tableSize: '9ft', token: 'TPC' });
+    expect(result.safeMatchMeta).toEqual({
+      mode: 'Ranked',
+      variant: 'UK',
+      tableSize: '9ft',
+      token: 'TPC'
+    });
   });
 
   test('rejects unsupported game and invalid max players', () => {
