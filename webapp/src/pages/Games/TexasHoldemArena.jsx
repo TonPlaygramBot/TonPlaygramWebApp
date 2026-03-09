@@ -390,7 +390,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54, landscape: -0.02 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.62, landscape: -0.02 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -465,7 +465,8 @@ const CHAIR_MODEL_URLS = [
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['2k', '1k']);
+const HDRI_ENV_CACHE_LIMIT = 4;
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   0,
@@ -476,6 +477,22 @@ const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 const POLYHAVEN_MODEL_CACHE = new Map();
+const HDRI_ENVIRONMENT_CACHE = new Map();
+
+function rememberHdriEnvironment(cacheKey, payload) {
+  if (!cacheKey || !payload?.envMap) return;
+  if (HDRI_ENVIRONMENT_CACHE.has(cacheKey)) {
+    HDRI_ENVIRONMENT_CACHE.delete(cacheKey);
+  }
+  HDRI_ENVIRONMENT_CACHE.set(cacheKey, payload);
+  while (HDRI_ENVIRONMENT_CACHE.size > HDRI_ENV_CACHE_LIMIT) {
+    const oldestKey = HDRI_ENVIRONMENT_CACHE.keys().next().value;
+    if (!oldestKey) break;
+    const oldest = HDRI_ENVIRONMENT_CACHE.get(oldestKey);
+    oldest?.envMap?.dispose?.();
+    HDRI_ENVIRONMENT_CACHE.delete(oldestKey);
+  }
+}
 
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
@@ -1246,6 +1263,12 @@ async function createFallbackHdriEnvironment(renderer) {
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
+  const cacheKey = String(config?.id || config?.assetId || config?.fallbackUrl || 'fallback');
+  const cached = HDRI_ENVIRONMENT_CACHE.get(cacheKey);
+  if (cached?.envMap) {
+    rememberHdriEnvironment(cacheKey, cached);
+    return { ...cached, fromCache: true, cacheKey };
+  }
   const url = await resolveTexasHoldemHdriUrl(config, PREFERRED_HDRI_RESOLUTIONS);
   const resolveFallback = async () => {
     try {
@@ -1276,7 +1299,9 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
         texture.dispose();
         pmrem.dispose();
-        resolve({ envMap, url });
+        const result = { envMap, url, fromCache: false, cacheKey };
+        rememberHdriEnvironment(cacheKey, result);
+        resolve(result);
       },
       undefined,
       async (error) => {
@@ -2984,6 +3009,7 @@ function TexasHoldemArena({ search }) {
   const hdriVariantRef = useRef(TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ?? TEXAS_HDRI_OPTIONS[0] ?? null);
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
+  const hdriApplyRequestRef = useRef(0);
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
@@ -3933,7 +3959,10 @@ function TexasHoldemArena({ search }) {
         applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
       }
     });
-    if (environmentOption) {
+    if (
+      environmentOption &&
+      (!envTextureRef.current || (hdriVariantRef.current?.id || hdriVariantRef.current?.assetId) !== (environmentOption.id || environmentOption.assetId))
+    ) {
       void applyHdriEnvironment(environmentOption);
     }
   }, [appearance, effectivePlayerCount]);
@@ -4152,8 +4181,18 @@ function TexasHoldemArena({ search }) {
       if (!three?.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current;
       if (!activeVariant) return;
+      const activeVariantId = activeVariant.id || activeVariant.assetId;
+      const currentVariantId = hdriVariantRef.current?.id || hdriVariantRef.current?.assetId;
+      if (envTextureRef.current && activeVariantId && currentVariantId === activeVariantId) {
+        return;
+      }
+      const requestToken = (hdriApplyRequestRef.current || 0) + 1;
+      hdriApplyRequestRef.current = requestToken;
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap) return;
+      if (hdriApplyRequestRef.current !== requestToken) {
+        return;
+      }
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
       three.scene.environment = envResult.envMap;
@@ -4175,7 +4214,9 @@ function TexasHoldemArena({ search }) {
             three.scene.background = null;
           }
         }
-        envResult.envMap.dispose?.();
+        if (!envResult.fromCache) {
+          envResult.envMap.dispose?.();
+        }
       };
       if (prevDispose && prevTexture !== envResult.envMap) {
         prevDispose();
