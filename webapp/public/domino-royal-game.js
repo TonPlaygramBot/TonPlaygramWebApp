@@ -6226,8 +6226,9 @@ const getDominoSurfaceTextures = (() => {
     cache = null;
   };
   return () => {
-    const targetSize = getAdaptiveTextureSize(
-      MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize
+    const targetSize = Math.min(
+      4096,
+      getAdaptiveTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize) + 256
     );
     if (cache && cachedSize === targetSize) return cache;
     disposeCachedTextures();
