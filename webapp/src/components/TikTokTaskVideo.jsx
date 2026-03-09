@@ -3,23 +3,21 @@ import { useEffect, useMemo, useState } from 'react';
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
   if (/^\d+$/.test(urlOrId)) return urlOrId;
-  const raw = String(urlOrId).trim().replace(/[\s).,!?]+$/g, '');
+  const raw = String(urlOrId).trim();
   const match = raw.match(/\/video\/(\d+)/);
   if (match) return match[1];
 
   const embedMatch = raw.match(/\/(?:embed\/(?:v2\/)?|player\/v1\/)(\d+)/);
   if (embedMatch) return embedMatch[1];
 
+  const normalized = raw.endsWith('/') ? raw : `${raw}/`;
   const shortLinkVideoMap = {
-    ZSujamUuD: '7614838290667031816',
-    ZSujaPuVF: '7614600402654252296',
-    ZSujaXgpP: '7614860616703986951',
-    ZSujagfxp: '7614503027684216071',
+    'https://vt.tiktok.com/ZSujamUuD/': '7614838290667031816',
+    'https://vt.tiktok.com/ZSujaPuVF/': '7614600402654252296',
+    'https://vt.tiktok.com/ZSujaXgpP/': '7614860616703986951',
+    'https://vt.tiktok.com/ZSujagfxp/': '7614503027684216071',
   };
-  const codeMatch = raw.match(/vt\.tiktok\.com\/(Z[A-Za-z0-9]+)\/?/i);
-  if (codeMatch) return shortLinkVideoMap[codeMatch[1]] || '';
-
-  return '';
+  return shortLinkVideoMap[raw] || shortLinkVideoMap[normalized] || '';
 }
 
 function ensureTikTokEmbedScript() {
