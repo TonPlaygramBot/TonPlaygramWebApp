@@ -1,6 +1,6 @@
 import { TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
 
-const DEFAULT_RESOLUTIONS = Object.freeze(['4k']);
+const DEFAULT_RESOLUTIONS = Object.freeze(['1k', '2k', '4k']);
 const hdriUrlCache = new Map();
 const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
