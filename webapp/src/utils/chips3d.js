@@ -13,6 +13,7 @@ const DENOMINATIONS = [
   { value: 500, color: '#a3362e' },
   { value: 1000, color: '#1fb3d6' }
 ];
+const chipsWarmCache = new Set();
 
 export function createChipFactory(renderer, { cardWidth }) {
   const radius = cardWidth * 0.18;
@@ -356,6 +357,22 @@ export function createChipFactory(renderer, { cardWidth }) {
     animateTransfer,
     update
   };
+}
+
+export function warmTexasHoldemChipsFromLobby() {
+  if (typeof document === 'undefined') return;
+  const key = 'default';
+  if (chipsWarmCache.has(key)) return;
+  const renderer = {
+    capabilities: {
+      getMaxAnisotropy: () => 4
+    }
+  };
+  const factory = createChipFactory(renderer, { cardWidth: 0.4 });
+  const stack = factory.createStack(100);
+  factory.disposeStack(stack);
+  factory.dispose();
+  chipsWarmCache.add(key);
 }
 
 function splitAmount(amount) {
