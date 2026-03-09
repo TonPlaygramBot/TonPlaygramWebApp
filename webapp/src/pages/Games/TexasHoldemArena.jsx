@@ -389,11 +389,11 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(12);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.55 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.4 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
-const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
+const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
 const CAMERA_LANDSCAPE_MIN_LOOK_UP = THREE.MathUtils.degToRad(10);
 const CAMERA_LANDSCAPE_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(34);
 const HUMAN_SEAT_INWARD_OFFSETS = Object.freeze({ portrait: CARD_W * -0.12, landscape: -CARD_W * 0.78 });
@@ -1283,14 +1283,38 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   const activeLoader = useExr && loader ? loader : rgbeLoader;
   if (!activeLoader) return null;
   activeLoader.setCrossOrigin?.('anonymous');
+  const loadTextureWithRetry = (resourceUrl, attempt = 0) =>
+    new Promise((resolve) => {
+      activeLoader.load(
+        resourceUrl,
+        (texture) => resolve({ texture, error: null }),
+        undefined,
+        (error) => {
+          if (attempt < 2) {
+            const retryDelayMs = 200 + attempt * 250;
+            window.setTimeout(() => {
+              resolve(loadTextureWithRetry(resourceUrl, attempt + 1));
+            }, retryDelayMs);
+            return;
+          }
+          resolve({ texture: null, error });
+        }
+      );
+    });
+
   return new Promise((resolve) => {
     if (!url) {
       resolveFallback().then(resolve);
       return;
     }
-    activeLoader.load(
-      url,
-      (texture) => {
+    loadTextureWithRetry(url)
+      .then(async ({ texture, error }) => {
+        if (!texture) {
+          console.warn('Failed to load Poly Haven HDRI', error);
+          const fallbackEnv = await resolveFallback();
+          resolve(fallbackEnv);
+          return;
+        }
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
@@ -1300,14 +1324,7 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         const result = { envMap, url, fromCache: false, cacheKey };
         rememberHdriEnvironment(cacheKey, result);
         resolve(result);
-      },
-      undefined,
-      async (error) => {
-        console.warn('Failed to load Poly Haven HDRI', error);
-        const fallbackEnv = await resolveFallback();
-        resolve(fallbackEnv);
-      }
-    );
+      });
   });
 }
 
@@ -3008,6 +3025,7 @@ function TexasHoldemArena({ search }) {
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
   const hdriApplyRequestRef = useRef(0);
+  const hdriFallbackRetryCountRef = useRef(0);
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
@@ -4188,6 +4206,20 @@ function TexasHoldemArena({ search }) {
       hdriApplyRequestRef.current = requestToken;
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap) return;
+      const usedFallbackEnvironment = !envResult.url;
+      if (usedFallbackEnvironment) {
+        if (hdriFallbackRetryCountRef.current < 2) {
+          hdriFallbackRetryCountRef.current += 1;
+          const scheduledToken = requestToken;
+          window.setTimeout(() => {
+            if (hdriApplyRequestRef.current !== scheduledToken) return;
+            const latestVariant = hdriVariantRef.current || activeVariant;
+            void applyHdriEnvironment(latestVariant);
+          }, 1200);
+        }
+      } else {
+        hdriFallbackRetryCountRef.current = 0;
+      }
       if (hdriApplyRequestRef.current !== requestToken) {
         return;
       }
