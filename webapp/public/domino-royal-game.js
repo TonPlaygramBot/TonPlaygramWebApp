@@ -87,7 +87,7 @@ const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 1536,
   chairClothTextureSize: 1536,
-  dominoTextureSize: 1536
+  dominoTextureSize: 2048
 });
 
 function detectCoarsePointer() {
@@ -2260,13 +2260,14 @@ const MURLAN_TABLE_THEMES = Object.freeze(
   [
     {
       id: 'murlan-default',
-      label: 'Murlan Default Table',
-      source: 'procedural',
-      assetId: null,
+      label: 'Octagon Table',
+      source: 'polyhaven',
       price: 0,
+      assetId: 'CoffeeTable_01',
+      preserveMaterials: true,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
       description:
-        'Shared Battle Royale octagon table baseline used across Chess, Ludo, Texas, and Domino.'
+        'Shared Battle Royale octagon table with original Pool Royale GLTF UV mapping.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
