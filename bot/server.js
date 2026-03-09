@@ -454,7 +454,6 @@ const tableWatchers = new Map();
 const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
-const goalRushStates = new Map();
 const snookerStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
@@ -474,20 +473,9 @@ function normalizeMatchMeta(rawMeta = {}) {
 }
 
 function isMatchMetaCompatible(existing = {}, requested = {}) {
-  return MATCH_META_KEYS.every((key) => {
-    const existingValue = existing?.[key] || '';
-    const requestedValue = requested?.[key] || '';
-    if (!existingValue || !requestedValue) return true;
-    return existingValue === requestedValue;
-  });
-}
-
-function mergeMatchMeta(existing = {}, requested = {}) {
-  const merged = { ...existing };
-  MATCH_META_KEYS.forEach((key) => {
-    if (!merged[key] && requested[key]) merged[key] = requested[key];
-  });
-  return merged;
+  const entries = Object.entries(requested);
+  if (!entries.length) return true;
+  return entries.every(([key, value]) => (existing?.[key] || '') === value);
 }
 
 function isRateLimited(socket, key, cooldownMs) {
@@ -722,7 +710,9 @@ async function seatTableSocket(
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
   table.ready.delete(String(accountId));
-  table.meta = mergeMatchMeta(table.meta, normalizeMatchMeta(matchMeta));
+  if (!table.meta) {
+    table.meta = normalizeMatchMeta(matchMeta);
+  }
   io.to(tableId).emit('lobbyUpdate', {
     tableId,
     players: table.players,
@@ -1573,75 +1563,6 @@ io.on('connection', (socket) => {
         updatedAt: cached.ts
       });
     }
-  });
-
-  socket.on('joinGoalRushTable', async ({ tableId, accountId }) => {
-    if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
-    socket.join(tableId);
-    if (accountId) {
-      await registerConnection({
-        userId: String(accountId),
-        roomId: tableId,
-        socketId: socket.id
-      });
-    }
-    const table = tableMap.get(tableId);
-    const players = Array.isArray(table?.players) ? table.players : [];
-    const sideIndex = players.findIndex((player) => String(player.id) === String(accountId));
-    socket.emit('goalRushSeat', {
-      tableId,
-      players,
-      side: sideIndex === 1 ? 'top' : 'bottom',
-      isHost: sideIndex <= 0
-    });
-    const cached = goalRushStates.get(tableId);
-    if (cached?.state) {
-      socket.emit('goalRushState', {
-        tableId,
-        state: cached.state,
-        updatedAt: cached.ts,
-        hostId: cached.hostId || null
-      });
-    }
-  });
-
-  socket.on('goalRushSyncRequest', ({ tableId }) => {
-    if (!tableId) return;
-    const cached = goalRushStates.get(tableId);
-    if (!cached?.state) return;
-    socket.emit('goalRushState', {
-      tableId,
-      state: cached.state,
-      updatedAt: cached.ts,
-      hostId: cached.hostId || null
-    });
-  });
-
-  socket.on('goalRushInput', ({ tableId, accountId, input }) => {
-    if (!tableId || !input) return;
-    socket.to(tableId).emit('goalRushInput', {
-      tableId,
-      accountId: accountId || null,
-      input,
-      updatedAt: Date.now()
-    });
-  });
-
-  socket.on('goalRushState', ({ tableId, accountId, state }) => {
-    if (!tableId || !state) return;
-    const ts = Date.now();
-    goalRushStates.set(tableId, {
-      state,
-      ts,
-      hostId: accountId || null
-    });
-    socket.to(tableId).emit('goalRushState', {
-      tableId,
-      state,
-      updatedAt: ts,
-      hostId: accountId || null
-    });
   });
 
   socket.on('poolSyncRequest', ({ tableId }) => {
