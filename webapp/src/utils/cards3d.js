@@ -6,7 +6,6 @@ export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
 const TONPLAYGRAM_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
 let tonplaygramLogoImage = null;
-const cardThemeWarmCache = new Set();
 
 function getTonplaygramLogoImage() {
   if (!tonplaygramLogoImage && typeof Image !== 'undefined') {
@@ -92,26 +91,6 @@ export function setCardFace(mesh, face) {
     mesh.material[5] = backMaterial;
     mesh.userData.cardFace = 'front';
   }
-}
-
-export function warmTexasHoldemCardsFromLobby(theme = DEFAULT_CARD_THEME) {
-  if (typeof document === 'undefined') return;
-  const resolvedTheme = theme || DEFAULT_CARD_THEME;
-  const key = resolvedTheme?.id || 'default';
-  if (cardThemeWarmCache.has(key)) return;
-  const geometry = createCardGeometry(0.4, 0.56, 0.02);
-  const cache = new Map();
-  const previewCards = [
-    { rank: 'A', suit: 'S' },
-    { rank: 'K', suit: 'H' }
-  ];
-  previewCards.forEach((card) => {
-    const mesh = createCardMesh(card, geometry, cache, resolvedTheme);
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    materials.forEach((mat) => mat?.dispose?.());
-  });
-  geometry.dispose();
-  cardThemeWarmCache.add(key);
 }
 
 function makeCardFace(rank, suit, theme, w = 512, h = 720) {
