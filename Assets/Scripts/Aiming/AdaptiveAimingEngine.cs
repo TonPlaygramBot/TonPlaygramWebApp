@@ -119,8 +119,13 @@ namespace Aiming
             sol.recommendedPower01 = RecommendPower(info.distBucket, ctx.requiresPower);
             if (ctx.highSpin)
             {
-                float side = Mathf.Sign(Vector3.Cross(info.vOP, info.vOC).y) * config.sideSpinAmount;
-                float vert = config.verticalSpinAmount * (ctx.requiresPower ? 1f : 0.7f);
+                // Keep spin strength consistent across left/right and top/back so
+                // players get identical response regardless of spin direction.
+                float uniformSpin = Mathf.Min(
+                    Mathf.Abs(config.sideSpinAmount),
+                    Mathf.Abs(config.verticalSpinAmount));
+                float side = Mathf.Sign(Vector3.Cross(info.vOP, info.vOC).y) * uniformSpin;
+                float vert = Mathf.Sign(config.verticalSpinAmount) * uniformSpin;
                 sol.tipOffset = new Vector2(Mathf.Clamp(side, -config.tipOffsetMax, config.tipOffsetMax),
                     Mathf.Clamp(vert, -config.tipOffsetMax, config.tipOffsetMax));
                 sol.cueElevationDeg = (ctx.requiresPower && info.isRailShot) ? config.elevationForPower : 0f;
