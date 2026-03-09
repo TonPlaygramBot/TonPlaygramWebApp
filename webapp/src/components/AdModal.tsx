@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const AD_IFRAME_URL = 'https://www.tiktok.com/embed/v2/7515418978852781329';
-const AD_FALLBACK_URL = 'https://vt.tiktok.com/ZSuREWyqx/';
+const AD_VIDEOS = [
+  {
+    iframeUrl: 'https://www.tiktok.com/embed/v2/7614860616703986951',
+    fallbackUrl: 'https://vt.tiktok.com/ZSujaXgpP/',
+  },
+  {
+    iframeUrl: 'https://www.tiktok.com/embed/v2/7614600402654252296',
+    fallbackUrl: 'https://vt.tiktok.com/ZSujaPuVF/',
+  },
+  {
+    iframeUrl: 'https://www.tiktok.com/embed/v2/7614503027684216071',
+    fallbackUrl: 'https://vt.tiktok.com/ZSujagfxp/',
+  },
+];
 const REWARD_DELAY_MS = 15_000;
 
 interface AdModalProps {
@@ -13,6 +25,7 @@ interface AdModalProps {
 export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
   const rewardIssuedRef = useRef(false);
   const [remainingMs, setRemainingMs] = useState(REWARD_DELAY_MS);
+  const [videoIndex, setVideoIndex] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -20,6 +33,8 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
       setRemainingMs(REWARD_DELAY_MS);
       return;
     }
+
+    setVideoIndex(Math.floor(Math.random() * AD_VIDEOS.length));
 
     const startedAt = Date.now();
     const intervalId = window.setInterval(() => {
@@ -39,6 +54,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
     () => Math.ceil(remainingMs / 1000),
     [remainingMs],
   );
+  const selectedVideo = AD_VIDEOS[videoIndex] || AD_VIDEOS[0];
 
   if (!open) return null;
 
@@ -66,7 +82,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
 
         <div className="aspect-[9/16] w-full overflow-hidden rounded-lg border border-border bg-black">
           <iframe
-            src={AD_IFRAME_URL}
+            src={selectedVideo.iframeUrl}
             title="Rewarded TikTok"
             className="w-full h-full"
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
@@ -74,8 +90,16 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
           />
         </div>
 
+        <button
+          type="button"
+          onClick={() => setVideoIndex((current) => (current + 1) % AD_VIDEOS.length)}
+          className="text-center text-xs text-brand-gold underline"
+        >
+          Video unavailable? Try another one
+        </button>
+
         <a
-          href={AD_FALLBACK_URL}
+          href={selectedVideo.fallbackUrl}
           target="_blank"
           rel="noreferrer"
           className="block text-center text-xs text-blue-300 underline"
