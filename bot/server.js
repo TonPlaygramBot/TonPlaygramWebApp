@@ -473,9 +473,20 @@ function normalizeMatchMeta(rawMeta = {}) {
 }
 
 function isMatchMetaCompatible(existing = {}, requested = {}) {
-  const entries = Object.entries(requested);
-  if (!entries.length) return true;
-  return entries.every(([key, value]) => (existing?.[key] || '') === value);
+  return MATCH_META_KEYS.every((key) => {
+    const existingValue = existing?.[key] || '';
+    const requestedValue = requested?.[key] || '';
+    if (!existingValue || !requestedValue) return true;
+    return existingValue === requestedValue;
+  });
+}
+
+function mergeMatchMeta(existing = {}, requested = {}) {
+  const merged = { ...existing };
+  MATCH_META_KEYS.forEach((key) => {
+    if (!merged[key] && requested[key]) merged[key] = requested[key];
+  });
+  return merged;
 }
 
 function isRateLimited(socket, key, cooldownMs) {
@@ -710,9 +721,7 @@ async function seatTableSocket(
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
   table.ready.delete(String(accountId));
-  if (!table.meta) {
-    table.meta = normalizeMatchMeta(matchMeta);
-  }
+  table.meta = mergeMatchMeta(table.meta, normalizeMatchMeta(matchMeta));
   io.to(tableId).emit('lobbyUpdate', {
     tableId,
     players: table.players,
