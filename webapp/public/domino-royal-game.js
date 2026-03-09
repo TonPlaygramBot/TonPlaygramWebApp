@@ -84,54 +84,11 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
-const MURLAN_3D_ASSET_RESOLUTION_BY_FRAME_RATE = Object.freeze({
-  hd50: Object.freeze({
-    tableClothTextureSize: 1024,
-    chairClothTextureSize: 1024,
-    dominoTextureSize: 1024
-  }),
-  fhd60: Object.freeze({
-    tableClothTextureSize: 1536,
-    chairClothTextureSize: 1536,
-    dominoTextureSize: 1536
-  }),
-  qhd90: Object.freeze({
-    tableClothTextureSize: 2048,
-    chairClothTextureSize: 2048,
-    dominoTextureSize: 2048
-  }),
-  uhd120: Object.freeze({
-    tableClothTextureSize: 3072,
-    chairClothTextureSize: 3072,
-    dominoTextureSize: 3072
-  }),
-  ultra144: Object.freeze({
-    tableClothTextureSize: 3072,
-    chairClothTextureSize: 3072,
-    dominoTextureSize: 3072
-  })
+const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
+  tableClothTextureSize: 2048,
+  chairClothTextureSize: 2048,
+  dominoTextureSize: 2048
 });
-const DEFAULT_MURLAN_3D_ASSET_RESOLUTION =
-  MURLAN_3D_ASSET_RESOLUTION_BY_FRAME_RATE[DEFAULT_FRAME_RATE_ID] ??
-  MURLAN_3D_ASSET_RESOLUTION_BY_FRAME_RATE.fhd60;
-let murlanAssetResolution = { ...DEFAULT_MURLAN_3D_ASSET_RESOLUTION };
-
-function getMurlanAssetResolution(frameOptionId = frameRateId) {
-  const profile = MURLAN_3D_ASSET_RESOLUTION_BY_FRAME_RATE[frameOptionId];
-  return profile ?? DEFAULT_MURLAN_3D_ASSET_RESOLUTION;
-}
-
-function applyMurlanAssetResolution(frameOptionId = frameRateId) {
-  const next = getMurlanAssetResolution(frameOptionId);
-  const changed =
-    next.tableClothTextureSize !== murlanAssetResolution.tableClothTextureSize ||
-    next.chairClothTextureSize !== murlanAssetResolution.chairClothTextureSize ||
-    next.dominoTextureSize !== murlanAssetResolution.dominoTextureSize;
-  if (changed) {
-    murlanAssetResolution = { ...next };
-  }
-  return changed;
-}
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -424,7 +381,6 @@ function findFallbackFrameRateId(currentId) {
 }
 
 let frameRateId = resolveInitialFrameRateId();
-applyMurlanAssetResolution(frameRateId);
 let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
 let slowFrameAccumulatorMs = 0;
@@ -2011,7 +1967,6 @@ spot.target = spotTarget;
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
-  let cacheSize = 0;
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
   const prng = (seed) => {
     let value = seed >>> 0;
@@ -2035,13 +1990,12 @@ const getPoolCarpetTextures = (() => {
     ctx.closePath();
   };
   return (renderer) => {
-    const size = murlanAssetResolution.tableClothTextureSize;
-    if (cache && cacheSize === size) return cache;
+    if (cache) return cache;
     if (typeof document === 'undefined') {
       cache = { map: null, bump: null };
-      cacheSize = size;
       return cache;
     }
+    const size = MURLAN_3D_ASSET_RESOLUTION.tableClothTextureSize;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -2139,11 +2093,12 @@ const getPoolCarpetTextures = (() => {
     bump.generateMipmaps = true;
 
     cache = { map: texture, bump };
-    cacheSize = size;
     return cache;
   };
 })();
 
+const CHAIR_CLOTH_TEXTURE_SIZE =
+  MURLAN_3D_ASSET_RESOLUTION.chairClothTextureSize;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: 'crimsonVelvet',
@@ -4491,8 +4446,7 @@ function createChairClothTexture(option, renderer) {
   const accent = adjustHexColor(primary, -0.28);
   const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement('canvas');
-  const clothSize = murlanAssetResolution.chairClothTextureSize;
-  canvas.width = canvas.height = clothSize;
+  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -6246,20 +6200,14 @@ function buildDominoMaterial(options = {}, defaults = {}) {
 
 const getDominoSurfaceTextures = (() => {
   let cache = null;
-  let cacheSize = 0;
   return () => {
-    const sizeCap = getRendererTextureSizeCap();
-    const requestedSize = Math.max(
-      1024,
-      Math.min(sizeCap, murlanAssetResolution.dominoTextureSize)
-    );
-    if (cache && cacheSize === requestedSize) return cache;
+    if (cache) return cache;
     if (typeof document === 'undefined') {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
-      cacheSize = requestedSize;
       return cache;
     }
-    const preferredSize = requestedSize;
+    const sizeCap = getRendererTextureSizeCap();
+    const preferredSize = Math.max(1024, Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize));
     const lowMemoryDevice =
       isLowProfileDevice ||
       (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
@@ -6275,7 +6223,6 @@ const getDominoSurfaceTextures = (() => {
     }
     if (!pctx) {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
-      cacheSize = requestedSize;
       return cache;
     }
     const grad = pctx.createLinearGradient(0, 0, size, size);
@@ -6303,7 +6250,6 @@ const getDominoSurfaceTextures = (() => {
     const rctx = roughCanvas.getContext('2d', { willReadFrequently: true });
     if (!rctx) {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
-      cacheSize = requestedSize;
       return cache;
     }
     rctx.fillStyle = '#8b8b8b';
@@ -6314,7 +6260,6 @@ const getDominoSurfaceTextures = (() => {
     const pipCtx = pipCanvas.getContext('2d', { willReadFrequently: true });
     if (!pipCtx) {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
-      cacheSize = requestedSize;
       return cache;
     }
     const pipGrad = pipCtx.createLinearGradient(0, 0, size, size);
@@ -6339,7 +6284,6 @@ const getDominoSurfaceTextures = (() => {
     pipMap.generateMipmaps = true;
 
     cache = { porcelainMap, porcelainRoughness, pipMap };
-    cacheSize = requestedSize;
     return cache;
   };
 })();
@@ -6617,7 +6561,6 @@ function applyFrameRateSelection(
     slowFrameAccumulatorMs = 0;
   }
   frameRateId = resolvedId;
-  const assetResolutionChanged = applyMurlanAssetResolution(resolvedId);
   frameQuality = buildFrameQuality(resolvedId);
   frameTiming = buildFrameTiming(frameQuality);
   persistFrameRateSelection(resolvedId);
@@ -6626,9 +6569,6 @@ function applyFrameRateSelection(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
   );
-  if (assetResolutionChanged) {
-    applyAppearanceChange({ refresh: false });
-  }
   if (refreshUi) {
     refreshConfigUI();
   }
@@ -6823,47 +6763,6 @@ function createOptionPreview(key, option) {
   return swatch;
 }
 
-function createGraphicsPreview(option) {
-  const swatch = document.createElement('div');
-  swatch.style.width = '100%';
-  swatch.style.height = '3rem';
-  swatch.style.borderRadius = '0.75rem';
-  swatch.style.border = '1px solid rgba(255,255,255,0.12)';
-  swatch.style.background =
-    'linear-gradient(135deg, rgba(56,189,248,0.28), rgba(79,70,229,0.24) 58%, rgba(15,23,42,0.95))';
-  swatch.style.position = 'relative';
-  swatch.style.overflow = 'hidden';
-
-  const badge = document.createElement('span');
-  badge.textContent = `${option.fps} FPS`;
-  badge.style.position = 'absolute';
-  badge.style.left = '0.35rem';
-  badge.style.top = '0.35rem';
-  badge.style.padding = '0.1rem 0.35rem';
-  badge.style.borderRadius = '999px';
-  badge.style.fontSize = '0.55rem';
-  badge.style.fontWeight = '800';
-  badge.style.letterSpacing = '0.08em';
-  badge.style.background = 'rgba(2,6,23,0.75)';
-  badge.style.color = 'rgba(226,232,240,0.95)';
-  swatch.appendChild(badge);
-
-  const subtitle = document.createElement('span');
-  subtitle.textContent = option.resolution || '';
-  subtitle.style.position = 'absolute';
-  subtitle.style.right = '0.35rem';
-  subtitle.style.bottom = '0.35rem';
-  subtitle.style.fontSize = '0.52rem';
-  subtitle.style.fontWeight = '700';
-  subtitle.style.letterSpacing = '0.05em';
-  subtitle.style.color = 'rgba(226,232,240,0.86)';
-  subtitle.style.textAlign = 'right';
-  subtitle.style.maxWidth = '70%';
-  swatch.appendChild(subtitle);
-
-  return swatch;
-}
-
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
@@ -6945,7 +6844,7 @@ function refreshConfigUI() {
     wrapper.appendChild(label);
     const optionsGrid = document.createElement('div');
     optionsGrid.className = 'config-options';
-    optionsGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(128px, 1fr))';
+    optionsGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(110px, 1fr))';
     const availableOptions = getUnlockedOptions(section.key, dominoInventory);
     availableOptions.forEach((option) => {
       const idx = findDominoOptionIndex(section.key, option.id);
@@ -7043,11 +6942,32 @@ function refreshConfigUI() {
       button.classList.add('active');
     }
     button.setAttribute('aria-pressed', String(frameRateId === option.id));
-    button.style.alignItems = 'stretch';
-    button.appendChild(createGraphicsPreview(option));
     const label = document.createElement('span');
     label.textContent = option.label;
     button.appendChild(label);
+    const line = document.createElement('div');
+    line.style.display = 'flex';
+    line.style.width = '100%';
+    line.style.justifyContent = 'space-between';
+    line.style.alignItems = 'center';
+    line.style.gap = '0.35rem';
+    line.style.fontSize = '0.72rem';
+    line.style.fontWeight = '700';
+    line.style.letterSpacing = '0.04em';
+    const fpsTag = document.createElement('strong');
+    fpsTag.textContent = `${option.fps} FPS`;
+    fpsTag.style.fontSize = '0.78rem';
+    fpsTag.style.color = 'var(--fg)';
+    line.appendChild(fpsTag);
+    const resolution = document.createElement('span');
+    resolution.textContent = option.resolution || '';
+    resolution.style.color = 'rgba(226,232,240,0.76)';
+    resolution.style.fontSize = '0.65rem';
+    resolution.style.textAlign = 'right';
+    resolution.style.flex = '1';
+    resolution.style.letterSpacing = '0.05em';
+    line.appendChild(resolution);
+    button.appendChild(line);
     if (option.description) {
       const desc = document.createElement('p');
       desc.textContent = option.description;
