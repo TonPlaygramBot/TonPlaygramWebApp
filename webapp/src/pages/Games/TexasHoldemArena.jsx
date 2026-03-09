@@ -352,7 +352,8 @@ const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
-const COMMUNITY_CARD_LANDSCAPE_TOP_LIFT = 0.085;
+const COMMUNITY_CARD_LANDSCAPE_TOP_LIFT = 0.105;
+const COMMUNITY_CARD_PORTRAIT_TOP_LIFT = 0.055;
 const COMMUNITY_ROW_ROTATION = 0;
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   new THREE.Vector3(
@@ -390,7 +391,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.8 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.92 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
@@ -4908,6 +4909,7 @@ function TexasHoldemArena({ search }) {
       });
 
       orientHumanCards();
+      void applyHdriEnvironment(initialEnvironment);
     })().catch((error) => console.error('Failed to set up Texas Hold\'em arena', error));
 
     const element = renderer.domElement;
@@ -5651,6 +5653,8 @@ function TexasHoldemArena({ search }) {
       }
       if (isLandscape) {
         mesh.rotateX(COMMUNITY_CARD_LANDSCAPE_TOP_LIFT);
+      } else {
+        mesh.rotateX(COMMUNITY_CARD_PORTRAIT_TOP_LIFT);
       }
       setCardFace(mesh, 'front');
       const communityKey = cardKey(card);
