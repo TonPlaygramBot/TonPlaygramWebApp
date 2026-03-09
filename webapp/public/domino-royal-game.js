@@ -19,8 +19,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     label: 'HD Performance (50 Hz)',
     fps: 50,
     renderScale: 0.82,
-    pixelRatioCap: 1.2,
-    resolution: 'HD adaptive render • DPR 1.2 cap',
+    pixelRatioCap: 1.15,
+    resolution: 'HD adaptive render • DPR 1.15 cap',
     description: 'Low-power 50 Hz preset tuned for stability on mobile GPUs.'
   },
   {
@@ -28,8 +28,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     label: 'Full HD Balanced (60 Hz)',
     fps: 60,
     renderScale: 0.92,
-    pixelRatioCap: 1.3,
-    resolution: 'Full HD balanced render • DPR 1.3 cap',
+    pixelRatioCap: 1.25,
+    resolution: 'Full HD balanced render • DPR 1.25 cap',
     description: 'Baseline profile matched to Ludo Battle Royal rendering.'
   },
   {
@@ -37,7 +37,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     label: 'QHD Smooth (90 Hz)',
     fps: 90,
     renderScale: 0.98,
-    pixelRatioCap: 1.38,
+    pixelRatioCap: 1.3,
     resolution: 'QHD smooth render • DPR 1.4 cap',
     description: 'Sharper 90 Hz profile for capable devices.'
   },
@@ -46,8 +46,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     label: 'UHD Turbo (120 Hz cap)',
     fps: 120,
     renderScale: 1.02,
-    pixelRatioCap: 1.48,
-    resolution: 'UHD turbo render • DPR 1.48 cap',
+    pixelRatioCap: 1.4,
+    resolution: 'UHD turbo render • DPR 1.5 cap',
     description: 'Highest quality profile for flagship and desktop GPUs.'
   },
   {
@@ -55,8 +55,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     label: 'Ultra 144 (desktop)',
     fps: 144,
     renderScale: 1.04,
-    pixelRatioCap: 1.52,
-    resolution: 'Desktop ultra render • DPR 1.52 cap',
+    pixelRatioCap: 1.45,
+    resolution: 'Desktop ultra render • DPR 1.55 cap',
     description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
   }
 ]);
@@ -92,10 +92,10 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
   hd50: 1024,
-  fhd60: 1792,
-  qhd90: 2304,
-  uhd120: 3328,
-  ultra144: 3584
+  fhd60: 1536,
+  qhd90: 2048,
+  uhd120: 3072,
+  ultra144: 3072
 });
 
 function getAdaptiveTextureSize(baseSize = 2048) {
