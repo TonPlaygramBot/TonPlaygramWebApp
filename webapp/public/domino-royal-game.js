@@ -99,10 +99,10 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 512,
-  fhd60: 1024,
-  qhd90: 2048,
-  uhd120: 3072,
+  hd50: 768,
+  fhd60: 1536,
+  qhd90: 2560,
+  uhd120: 3584,
   ultra144: 4096
 });
 
@@ -119,7 +119,7 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(512, Math.min(4096, mappedSize));
+  return Math.max(768, Math.min(4096, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -2008,7 +2008,7 @@ function handleCameraLookDrag(deltaX = 0) {
     return;
   }
   cameraLookYaw = THREE.MathUtils.clamp(
-    cameraLookYaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+    cameraLookYaw - deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
     -CAMERA_LOOK_YAW_LIMIT,
     CAMERA_LOOK_YAW_LIMIT
   );
@@ -6239,8 +6239,19 @@ const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const ZMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
-const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
-const CHAIN_TILE_Y = CLOTH_TOP + 0.02;
+const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0042;
+const CHAIN_TILE_Y = CLOTH_TOP + 0.026;
+
+function getTileSpanAlongChain(isDouble = false) {
+  return (isDouble ? DOMINO_WIDTH : DOMINO_LENGTH) * 0.5;
+}
+
+function getChainSpacing(
+  prevSpan = getTileSpanAlongChain(false),
+  nextSpan = getTileSpanAlongChain(false)
+) {
+  return prevSpan + nextSpan + DOMINO_CHAIN_GAP;
+}
 
 /* ---------- Materials ---------- */
 const SHARED_DOMINO_MATERIALS = new Set();
@@ -8263,20 +8274,36 @@ function startGame() {
           x: DOUBLE_END_SHIFT,
           z: 0,
           dir: [-1, 0],
-          orient: Math.PI
+          orient: Math.PI,
+          span: getTileSpanAlongChain(isDoubleStart)
         },
         R: {
           v: firstTile.b,
           x: -DOUBLE_END_SHIFT,
           z: 0,
           dir: [1, 0],
-          orient: 0
+          orient: 0,
+          span: getTileSpanAlongChain(isDoubleStart)
         }
       };
     } else {
       ends = {
-        L: { v: firstTile.a, x: -step, z: 0, dir: [-1, 0], orient: Math.PI },
-        R: { v: firstTile.b, x: step, z: 0, dir: [1, 0], orient: 0 }
+        L: {
+          v: firstTile.a,
+          x: -step,
+          z: 0,
+          dir: [-1, 0],
+          orient: Math.PI,
+          span: getTileSpanAlongChain(false)
+        },
+        R: {
+          v: firstTile.b,
+          x: step,
+          z: 0,
+          dir: [1, 0],
+          orient: 0,
+          span: getTileSpanAlongChain(false)
+        }
       };
     }
   } else {
@@ -8287,20 +8314,36 @@ function startGame() {
           x: -DOUBLE_END_SHIFT,
           z: 0,
           dir: [1, 0],
-          orient: 0
+          orient: 0,
+          span: getTileSpanAlongChain(isDoubleStart)
         },
         R: {
           v: firstTile.b,
           x: DOUBLE_END_SHIFT,
           z: 0,
           dir: [-1, 0],
-          orient: Math.PI
+          orient: Math.PI,
+          span: getTileSpanAlongChain(isDoubleStart)
         }
       };
     } else {
       ends = {
-        L: { v: firstTile.a, x: step, z: 0, dir: [1, 0], orient: 0 },
-        R: { v: firstTile.b, x: -step, z: 0, dir: [-1, 0], orient: Math.PI }
+        L: {
+          v: firstTile.a,
+          x: step,
+          z: 0,
+          dir: [1, 0],
+          orient: 0,
+          span: getTileSpanAlongChain(false)
+        },
+        R: {
+          v: firstTile.b,
+          x: -step,
+          z: 0,
+          dir: [-1, 0],
+          orient: Math.PI,
+          span: getTileSpanAlongChain(false)
+        }
       };
     }
   }
@@ -8359,9 +8402,14 @@ function placeOnBoard(tile, side, options = {}) {
     return { success: false };
   }
   let [dx, dz] = end.dir;
-  let nx = end.x + dx * STEP;
-  let nz = end.z + dz * STEP;
-  const railMargin = STEP * 0.65;
+  const nextSpan = getTileSpanAlongChain(a === b);
+  const prevSpan = Number.isFinite(end.span)
+    ? end.span
+    : getTileSpanAlongChain(false);
+  const stepDistance = getChainSpacing(prevSpan, nextSpan);
+  let nx = end.x + dx * stepDistance;
+  let nz = end.z + dz * stepDistance;
+  const railMargin = stepDistance * 0.65;
   const nearRail =
     Math.abs(nx) > XMAX - railMargin || Math.abs(nz) > ZMAX - railMargin;
   if (Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX || nearRail) {
@@ -8374,15 +8422,15 @@ function placeOnBoard(tile, side, options = {}) {
     let best = null;
     let bestScore = -Infinity;
     for (const candidate of candidates) {
-      const candX = end.x + candidate.dx * STEP;
-      const candZ = end.z + candidate.dz * STEP;
+      const candX = end.x + candidate.dx * stepDistance;
+      const candZ = end.z + candidate.dz * stepDistance;
       const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
       const towardCenter =
         candidate.dx * centerVecX + candidate.dz * centerVecZ;
       const distance = Math.hypot(candX, candZ);
       let score = towardCenter - distance * 0.02;
       if (exceeds) {
-        score -= STEP * 25;
+        score -= stepDistance * 25;
       }
       if (score > bestScore) {
         bestScore = score;
@@ -8456,7 +8504,8 @@ function placeOnBoard(tile, side, options = {}) {
     x: nx,
     z: nz,
     dir: [dx, dz],
-    orient: nextOrient
+    orient: nextOrient,
+    span: nextSpan
   };
   if (side < 0) {
     ends.L = updatedEnd;
@@ -8481,9 +8530,14 @@ function nextCandidate(end) {
     z,
     dir: [dx, dz]
   } = end;
-  let nx = x + dx * STEP,
-    nz = z + dz * STEP;
-  const railMargin = STEP * 0.65;
+  const prevSpan = Number.isFinite(end?.span)
+    ? end.span
+    : getTileSpanAlongChain(false);
+  const nextSpan = getTileSpanAlongChain(false);
+  const stepDistance = getChainSpacing(prevSpan, nextSpan);
+  let nx = x + dx * stepDistance,
+    nz = z + dz * stepDistance;
+  const railMargin = stepDistance * 0.65;
   if (
     Math.abs(nx) > XMAX ||
     Math.abs(nz) > ZMAX ||
@@ -8505,15 +8559,15 @@ function nextCandidate(end) {
     };
     let bestScore = -Infinity;
     for (const candidate of candidates) {
-      const candX = x + candidate.dx * STEP;
-      const candZ = z + candidate.dz * STEP;
+      const candX = x + candidate.dx * stepDistance;
+      const candZ = z + candidate.dz * stepDistance;
       const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
       const towardCenter =
         candidate.dx * centerVecX + candidate.dz * centerVecZ;
       const distance = Math.hypot(candX, candZ);
       let score = towardCenter - distance * 0.02;
       if (exceeds) {
-        score -= STEP * 25;
+        score -= stepDistance * 25;
       }
       if (score > bestScore) {
         bestScore = score;
