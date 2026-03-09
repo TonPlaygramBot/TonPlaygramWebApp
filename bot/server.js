@@ -454,6 +454,7 @@ const tableWatchers = new Map();
 const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
+const goalRushStates = new Map();
 const snookerStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
@@ -1572,6 +1573,75 @@ io.on('connection', (socket) => {
         updatedAt: cached.ts
       });
     }
+  });
+
+  socket.on('joinGoalRushTable', async ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+    }
+    const table = tableMap.get(tableId);
+    const players = Array.isArray(table?.players) ? table.players : [];
+    const sideIndex = players.findIndex((player) => String(player.id) === String(accountId));
+    socket.emit('goalRushSeat', {
+      tableId,
+      players,
+      side: sideIndex === 1 ? 'top' : 'bottom',
+      isHost: sideIndex <= 0
+    });
+    const cached = goalRushStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('goalRushState', {
+        tableId,
+        state: cached.state,
+        updatedAt: cached.ts,
+        hostId: cached.hostId || null
+      });
+    }
+  });
+
+  socket.on('goalRushSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const cached = goalRushStates.get(tableId);
+    if (!cached?.state) return;
+    socket.emit('goalRushState', {
+      tableId,
+      state: cached.state,
+      updatedAt: cached.ts,
+      hostId: cached.hostId || null
+    });
+  });
+
+  socket.on('goalRushInput', ({ tableId, accountId, input }) => {
+    if (!tableId || !input) return;
+    socket.to(tableId).emit('goalRushInput', {
+      tableId,
+      accountId: accountId || null,
+      input,
+      updatedAt: Date.now()
+    });
+  });
+
+  socket.on('goalRushState', ({ tableId, accountId, state }) => {
+    if (!tableId || !state) return;
+    const ts = Date.now();
+    goalRushStates.set(tableId, {
+      state,
+      ts,
+      hostId: accountId || null
+    });
+    socket.to(tableId).emit('goalRushState', {
+      tableId,
+      state,
+      updatedAt: ts,
+      hostId: accountId || null
+    });
   });
 
   socket.on('poolSyncRequest', ({ tableId }) => {
