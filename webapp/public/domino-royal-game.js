@@ -2261,12 +2261,12 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     {
       id: 'murlan-default',
       label: 'Murlan Default Table',
-      source: 'polyhaven',
-      assetId: 'CoffeeTable_01',
+      source: 'procedural',
+      assetId: null,
       price: 0,
       thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
       description:
-        'Standard Murlan Royale table using the default GLTF texture set.'
+        'Shared Battle Royale octagon table baseline used across Chess, Ludo, Texas, and Domino.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
@@ -4114,7 +4114,7 @@ const DEFAULT_APPEARANCE = Object.freeze(
 );
 const APPEARANCE_STORAGE_KEY = 'dominoRoyalArenaAppearanceV3';
 const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearanceV2', 'dominoRoyalArenaAppearance'];
-const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV1';
+const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV3';
 let appearance = { ...DEFAULT_APPEARANCE };
 let dominoInventory = getDominoInventory();
 
