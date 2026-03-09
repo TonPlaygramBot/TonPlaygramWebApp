@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
@@ -40,6 +40,7 @@ export default function TikTokTaskVideo({
   const [open, setOpen] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
   const [oEmbedReady, setOEmbedReady] = useState(false);
+  const embedRef = useRef(null);
 
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const canonicalVideoUrl = useMemo(() => {
@@ -64,16 +65,18 @@ export default function TikTokTaskVideo({
     setOEmbedReady(false);
     ensureTikTokEmbedScript();
 
-    const id = window.setTimeout(() => {
-      setShowFallback(true);
-    }, 4500);
-
     const renderTicker = window.setTimeout(() => {
       if (typeof window.tiktokEmbedLoad === 'function') {
         window.tiktokEmbedLoad();
       }
-      setOEmbedReady(true);
     }, 120);
+
+    const id = window.setTimeout(() => {
+      const iframeInEmbed = embedRef.current?.querySelector('iframe');
+      const loaded = Boolean(iframeInEmbed);
+      setOEmbedReady(loaded);
+      setShowFallback(!loaded);
+    }, 1500);
 
     return () => {
       clearTimeout(id);
@@ -105,6 +108,7 @@ export default function TikTokTaskVideo({
             {canonicalVideoUrl ? (
               <div className="relative flex-1 min-h-0 p-1">
                 <blockquote
+                  ref={embedRef}
                   className="tiktok-embed absolute inset-0 m-0 h-full w-full"
                   cite={canonicalVideoUrl}
                   data-video-id={videoId}
