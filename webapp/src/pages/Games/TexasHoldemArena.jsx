@@ -46,9 +46,8 @@ import {
   primeSpeechSynthesis,
   speakCommentaryLines
 } from '../../utils/textToSpeech.js';
-import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
+import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
-import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -390,7 +389,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.62, landscape: -0.02 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.69, landscape: 0.05 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -471,7 +470,7 @@ const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-defau
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   0,
   TEXAS_HDRI_OPTIONS.findIndex(
-    (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID || PREFERRED_HDRI_RESOLUTIONS.includes(variant?.fallbackResolution ?? '4k')
+    (variant) => variant.id === TEXAS_DEFAULT_HDRI_ID || PREFERRED_HDRI_RESOLUTIONS.includes(variant?.fallbackResolution ?? '4k')
   )
 );
 let sharedKtx2Loader = null;
