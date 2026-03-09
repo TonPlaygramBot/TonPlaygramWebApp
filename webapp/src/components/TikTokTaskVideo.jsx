@@ -1,27 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-
-const TIKTOK_EMBED_SCRIPT_ID = 'tiktok-embed-script';
-
-function ensureTikTokEmbedScript() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(TIKTOK_EMBED_SCRIPT_ID)) {
-    if (window?.tiktokEmbed?.lib?.render) {
-      window.tiktokEmbed.lib.render();
-    }
-    return;
-  }
-
-  const script = document.createElement('script');
-  script.id = TIKTOK_EMBED_SCRIPT_ID;
-  script.src = 'https://www.tiktok.com/embed.js';
-  script.async = true;
-  script.onload = () => {
-    if (window?.tiktokEmbed?.lib?.render) {
-      window.tiktokEmbed.lib.render();
-    }
-  };
-  document.body.appendChild(script);
-}
+import { useEffect, useMemo, useState } from 'react';
 
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
@@ -52,7 +29,6 @@ export default function TikTokTaskVideo({
 }) {
   const [open, setOpen] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
-  const officialEmbedRef = useRef(null);
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
@@ -75,19 +51,11 @@ export default function TikTokTaskVideo({
   }, [autoOpen, embedUrl, storageKey]);
 
   useEffect(() => {
-    if (!open || (!embedUrl && !videoId)) return;
+    if (!open || !embedUrl) return;
     setShowFallback(false);
     const id = setTimeout(() => setShowFallback(true), 4000);
     return () => clearTimeout(id);
-  }, [open, embedUrl, videoId]);
-
-  useEffect(() => {
-    if (!open || !videoId) return;
-    ensureTikTokEmbedScript();
-    if (window?.tiktokEmbed?.lib?.render && officialEmbedRef.current) {
-      window.tiktokEmbed.lib.render(officialEmbedRef.current);
-    }
-  }, [open, videoId]);
+  }, [open, embedUrl]);
 
   return (
     <>
@@ -110,22 +78,12 @@ export default function TikTokTaskVideo({
                 Close
               </button>
             </div>
-            {videoId ? (
-              <div className="relative flex-1 min-h-0 overflow-auto">
-                <blockquote
-                  ref={officialEmbedRef}
-                  className="tiktok-embed"
-                  cite={canonicalVideoUrl}
-                  data-video-id={videoId}
-                  style={{ maxWidth: 605, minWidth: 325, margin: '0 auto' }}
-                >
-                  <section />
-                </blockquote>
-
+            {embedUrl ? (
+              <div className="relative flex-1 min-h-0">
                 <iframe
-                  title={`${title} fallback`}
+                  title={title}
                   src={embedUrl}
-                  className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                  className="absolute inset-0 w-full h-full"
                   allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen
                   loading="lazy"
