@@ -98,14 +98,6 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
   ultra144: 4096
 });
 
-const DOMINO_TEXTURE_RESOLUTION_BY_QUALITY = Object.freeze({
-  hd50: 1024,
-  fhd60: 2048,
-  qhd90: 3072,
-  uhd120: 4096,
-  ultra144: 4096
-});
-
 function getAdaptiveTextureSize(baseSize = 2048) {
   const mappedSize =
     FRAME_RATE_TEXTURE_SIZE_MAP[frameRateId] ??
@@ -1493,12 +1485,9 @@ const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
-const CAMERA_LATERAL_OFFSET = { portrait: 0.56, landscape: 0.4 };
-const CAMERA_REAR_OFFSET = { portrait: 1.28, landscape: 0.96 };
+const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
+const CAMERA_REAR_OFFSET = { portrait: 1.65, landscape: 1.22 };
 const CAMERA_HEIGHT_BOOST = { portrait: 1.78, landscape: 1.46 };
-const CAMERA_LOOK_MAX_YAW = THREE.MathUtils.degToRad(34);
-const CAMERA_LOOK_SENSITIVITY = 0.0048;
-const CAMERA_LOOK_RETURN_LERP = 0.22;
 const CAMERA_TARGET = new THREE.Vector3(
   0,
   TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA,
@@ -1749,14 +1738,7 @@ controls.target.copy(CAMERA_TARGET);
 const turnFocusTarget = controls.target.clone();
 const turnSeatTarget = new THREE.Vector3();
 const turnDominoTarget = new THREE.Vector3();
-const turnFocusLookTarget = new THREE.Vector3();
-const cameraForwardDirection = new THREE.Vector3();
-const cameraLookOffset = new THREE.Vector3();
-const cameraYawAxis = new THREE.Vector3(0, 1, 0);
-const cameraFallbackDirection = new THREE.Vector3(0, 0, -1);
 let turnDominoFocusUntil = 0;
-let lookYawCurrent = 0;
-let lookYawTarget = 0;
 
 let cameraHasUserControl = false;
 controls.addEventListener('start', () => {
@@ -1861,33 +1843,6 @@ function applyCameraConstraints() {
   controls.minDistance = minRadius;
   controls.maxDistance = maxRadius;
   controls.enableRotate = false;
-  controls.enablePan = cameraViewMode === VIEW_MODES.twoD;
-}
-
-function applyCameraLookOffset(baseTarget) {
-  if (cameraViewMode === VIEW_MODES.twoD) {
-    lookYawCurrent = 0;
-    lookYawTarget = 0;
-    return baseTarget;
-  }
-  lookYawCurrent = THREE.MathUtils.lerp(
-    lookYawCurrent,
-    lookYawTarget,
-    CAMERA_LOOK_RETURN_LERP
-  );
-  cameraForwardDirection.copy(baseTarget).sub(camera.position);
-  if (cameraForwardDirection.lengthSq() < 1e-7) {
-    cameraForwardDirection.copy(cameraFallbackDirection);
-  }
-  cameraForwardDirection.y = 0;
-  if (cameraForwardDirection.lengthSq() < 1e-7) {
-    cameraForwardDirection.copy(cameraFallbackDirection);
-  }
-  cameraForwardDirection.normalize();
-  cameraForwardDirection.applyAxisAngle(cameraYawAxis, lookYawCurrent);
-  const focusDistance = Math.max(TABLE_RADIUS * 0.52, 0.8);
-  cameraLookOffset.copy(cameraForwardDirection).multiplyScalar(focusDistance);
-  return turnFocusLookTarget.copy(baseTarget).add(cameraLookOffset);
 }
 
 function clampCameraPosition(position, target = getActiveCameraTarget()) {
@@ -1929,9 +1884,8 @@ function positionCameraForViewport({ force = false } = {}) {
     camera.position.copy(clampCameraPosition(camera.position, target));
   }
 
-  const lookTarget = applyCameraLookOffset(target);
-  controls.target.copy(lookTarget);
-  turnFocusTarget.copy(lookTarget);
+  controls.target.copy(target);
+  turnFocusTarget.copy(target);
   controls.update();
 }
 
@@ -1955,8 +1909,7 @@ function updateTurnCameraFocus() {
   } else {
     turnFocusTarget.copy(turnSeatTarget);
   }
-  const lookTarget = applyCameraLookOffset(turnFocusTarget);
-  controls.target.lerp(lookTarget, CAMERA_TURN_FOCUS_LERP);
+  controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
 }
 
 function enforceSeatedCameraLock() {
@@ -2006,17 +1959,6 @@ function toggleCameraViewMode() {
   const next =
     cameraViewMode === VIEW_MODES.twoD ? VIEW_MODES.threeD : VIEW_MODES.twoD;
   setCameraViewMode(next);
-}
-
-function queueCameraLookDelta(deltaX = 0) {
-  if (cameraViewMode !== VIEW_MODES.threeD || !Number.isFinite(deltaX)) {
-    return;
-  }
-  lookYawTarget = THREE.MathUtils.clamp(
-    lookYawTarget + deltaX * CAMERA_LOOK_SENSITIVITY,
-    -CAMERA_LOOK_MAX_YAW,
-    CAMERA_LOOK_MAX_YAW
-  );
 }
 
 /* ---------- Lights ---------- */
@@ -6327,8 +6269,7 @@ const getDominoSurfaceTextures = (() => {
   return () => {
     const targetSize = Math.min(
       4096,
-      DOMINO_TEXTURE_RESOLUTION_BY_QUALITY[frameRateId] ??
-        getAdaptiveTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
+      getAdaptiveTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize) + 256
     );
     if (cache && cachedSize === targetSize) return cache;
     disposeCachedTextures();
@@ -7160,15 +7101,6 @@ document.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     closeConfigPanel();
-    return;
-  }
-  if (cameraViewMode !== VIEW_MODES.threeD) {
-    return;
-  }
-  if (event.key === 'ArrowLeft') {
-    queueCameraLookDelta(42);
-  } else if (event.key === 'ArrowRight') {
-    queueCameraLookDelta(-42);
   }
 });
 
@@ -8744,8 +8676,6 @@ const updateRaycasterThreshold = () => {
 };
 updateRaycasterThreshold();
 const activePointers = new Set();
-let lookPointerId = null;
-let lookPointerX = 0;
 function findPickRoot(o) {
   let n = o;
   while (n) {
@@ -8765,15 +8695,6 @@ function humanPickTile(obj) {
 
 renderer.domElement.addEventListener('pointerdown', (ev) => {
   activePointers.add(ev.pointerId);
-  if (
-    cameraViewMode === VIEW_MODES.threeD &&
-    !gameFinished &&
-    lookPointerId === null &&
-    (ev.pointerType === 'touch' || ev.pointerType === 'pen')
-  ) {
-    lookPointerId = ev.pointerId;
-    lookPointerX = ev.clientX;
-  }
   if (gameFinished) {
     return;
   }
@@ -8836,33 +8757,14 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     return;
   }
 });
-
-renderer.domElement.addEventListener('pointermove', (ev) => {
-  if (ev.pointerId !== lookPointerId) {
-    return;
-  }
-  const deltaX = ev.clientX - lookPointerX;
-  lookPointerX = ev.clientX;
-  queueCameraLookDelta(deltaX);
-});
-
 renderer.domElement.addEventListener('pointerup', (ev) => {
   activePointers.delete(ev.pointerId);
-  if (ev.pointerId === lookPointerId) {
-    lookPointerId = null;
-  }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
   activePointers.delete(ev.pointerId);
-  if (ev.pointerId === lookPointerId) {
-    lookPointerId = null;
-  }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
   activePointers.delete(ev.pointerId);
-  if (ev.pointerId === lookPointerId) {
-    lookPointerId = null;
-  }
 });
 
 btnDraw.addEventListener('click', () => {
