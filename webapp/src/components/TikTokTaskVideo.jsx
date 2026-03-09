@@ -8,14 +8,10 @@ function getVideoId(urlOrId) {
   if (match) return match[1];
 
   const shortLinkVideoMap = {
-    'https://vt.tiktok.com/ZSujamUuD/': '7614838290667031816',
-    'https://vt.tiktok.com/ZSujamUuD': '7614838290667031816',
-    'https://vt.tiktok.com/ZSujaPuVF/': '7614600402654252296',
-    'https://vt.tiktok.com/ZSujaPuVF': '7614600402654252296',
-    'https://vt.tiktok.com/ZSujaXgpP/': '7614860616703986951',
-    'https://vt.tiktok.com/ZSujaXgpP': '7614860616703986951',
-    'https://vt.tiktok.com/ZSujagfxp/': '7614503027684216071',
-    'https://vt.tiktok.com/ZSujagfxp': '7614503027684216071',
+    'https://vt.tiktok.com/ZSu8hSaGs/': '7614140234548153607',
+    'https://vt.tiktok.com/ZSu8hAvuM/': '7614138222150847762',
+    'https://vt.tiktok.com/ZSu8hN8Xq/': '7614133483421584658',
+    'https://vt.tiktok.com/ZSu8hc7YM/': '7614119495149292818',
   };
   return shortLinkVideoMap[raw] || '';
 }
