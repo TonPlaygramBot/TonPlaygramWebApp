@@ -32,6 +32,10 @@ export default function TikTokTaskVideo({
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
+    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
+  }, [videoId]);
+  const legacyEmbedUrl = useMemo(() => {
+    if (!videoId) return '';
     return `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&rel=0`;
   }, [videoId]);
   const canonicalVideoUrl = useMemo(() => {
@@ -91,9 +95,19 @@ export default function TikTokTaskVideo({
               <div className="p-4 text-sm text-subtext">Invalid TikTok video URL.</div>
             )}
             {showFallback && (
-              <p className="px-3 pt-2 text-center text-[11px] text-yellow-300">
-                Video preview can be blocked in some devices. Open it directly in TikTok.
-              </p>
+              <div className="px-3 pt-2 text-center text-[11px] text-yellow-300 space-y-1">
+                <p>Video preview can be blocked in some devices. Open it directly in TikTok.</p>
+                {legacyEmbedUrl && (
+                  <a
+                    href={legacyEmbedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block underline"
+                  >
+                    Try legacy TikTok embed
+                  </a>
+                )}
+              </div>
             )}
             <a
               href={canonicalVideoUrl}
