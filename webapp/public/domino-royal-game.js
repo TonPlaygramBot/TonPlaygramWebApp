@@ -99,9 +99,9 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1024,
-  fhd60: 2048,
-  qhd90: 3072,
+  hd50: 2048,
+  fhd60: 4096,
+  qhd90: 4096,
   uhd120: 4096,
   ultra144: 4096
 });
@@ -114,12 +114,12 @@ function getAdaptiveTextureSize(baseSize = 2048) {
   return Math.max(768, Math.min(4096, mappedSize));
 }
 
-function getAdaptiveDominoTextureSize(baseSize = 2048) {
+function getAdaptiveDominoTextureSize(baseSize = 4096) {
   const mappedSize =
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(1024, Math.min(4096, mappedSize));
+  return Math.max(2048, Math.min(4096, mappedSize));
 }
 
 function detectCoarsePointer() {
@@ -1992,7 +1992,7 @@ function handleCameraLookDrag(deltaX = 0) {
     return;
   }
   cameraLookYaw = THREE.MathUtils.clamp(
-    cameraLookYaw - deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+    cameraLookYaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
     -CAMERA_LOOK_YAW_LIMIT,
     CAMERA_LOOK_YAW_LIMIT
   );
@@ -6333,16 +6333,16 @@ const getDominoSurfaceTextures = (() => {
       return cache;
     }
     const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(1024, Math.min(sizeCap, targetSize));
+    const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
     const lowMemoryDevice =
       isLowProfileDevice ||
       (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
-    let size = lowMemoryDevice ? Math.min(preferredSize, 1024) : preferredSize;
+    let size = lowMemoryDevice ? Math.min(preferredSize, 2048) : preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
     let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
-    while (!pctx && size > 512) {
-      size = Math.max(512, Math.floor(size / 2));
+    while (!pctx && size > 2048) {
+      size = Math.max(2048, Math.floor(size / 2));
       porcelainCanvas = document.createElement('canvas');
       porcelainCanvas.width = porcelainCanvas.height = size;
       pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
