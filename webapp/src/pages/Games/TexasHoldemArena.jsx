@@ -351,7 +351,6 @@ const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
-const COMMUNITY_CARD_LANDSCAPE_TOP_LIFT = CARD_H * 0.035;
 const COMMUNITY_CARD_TILT = 0;
 const COMMUNITY_ROW_ROTATION = 0;
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
@@ -5572,11 +5571,6 @@ function TexasHoldemArena({ search }) {
     three.orientHumanCards?.();
 
     const newlyRevealedCommunity = [];
-    const viewportWidth = three.renderer?.domElement?.clientWidth ?? 0;
-    const viewportHeight = three.renderer?.domElement?.clientHeight ?? 0;
-    const isLandscapeViewport = viewportWidth > viewportHeight;
-    const communityCardLookLift =
-      COMMUNITY_CARD_LOOK_LIFT + (isLandscapeViewport ? COMMUNITY_CARD_LANDSCAPE_TOP_LIFT : 0);
     communityMeshes.forEach((mesh, idx) => {
       const sourceIdx = communityMeshes.length - 1 - idx;
       const card = state.community[sourceIdx];
@@ -5601,7 +5595,7 @@ function TexasHoldemArena({ search }) {
       }
       const lookTarget = slotPosition
         .clone()
-        .add(new THREE.Vector3(0, communityCardLookLift, 0))
+        .add(new THREE.Vector3(0, COMMUNITY_CARD_LOOK_LIFT, 0))
         .add(forward);
       orientCard(mesh, lookTarget, { face: 'front', flat: true });
       if (COMMUNITY_CARD_TILT) {
