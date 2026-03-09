@@ -99,10 +99,10 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1024,
-  fhd60: 1792,
-  qhd90: 2816,
-  uhd120: 3840,
+  hd50: 1536,
+  fhd60: 2560,
+  qhd90: 3328,
+  uhd120: 4096,
   ultra144: 4096
 });
 
@@ -1564,6 +1564,8 @@ function normalizeAvatarSource(src = '') {
 }
 
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
+const gameMode = (urlParams.get('mode') || 'local').toLowerCase();
+const isVsAiMatch = gameMode === 'local';
 const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
@@ -7514,6 +7516,68 @@ const giftClose = document.getElementById('giftClose');
 const muteButton = document.getElementById('muteButton');
 const muteIcon = document.getElementById('muteIcon');
 const muteLabel = document.getElementById('muteLabel');
+const winnerOverlay = document.getElementById('winnerOverlay');
+const winnerOverlayAvatar = document.getElementById('winnerAvatar');
+const winnerOverlayName = document.getElementById('winnerName');
+const winnerOverlayReason = document.getElementById('winnerReason');
+const winnerPlayAgainButton = document.getElementById('winnerPlayAgain');
+const winnerReturnLobbyButton = document.getElementById('winnerReturnLobby');
+const winnerCoinBurst = document.getElementById('winnerCoinBurst');
+
+function hideWinnerOverlay() {
+  if (!winnerOverlay) return;
+  winnerOverlay.classList.remove('active');
+  winnerOverlay.setAttribute('aria-hidden', 'true');
+}
+
+function showWinnerOverlay({ winner = null, reason = '' } = {}) {
+  if (!winnerOverlay || !isVsAiMatch) return;
+  const names = getSeatUsernames(N);
+  const avatars = buildSeatAvatarSources(N);
+  const safeWinner = Number.isInteger(winner) && winner >= 0 ? winner : human;
+  if (winnerOverlayName) {
+    winnerOverlayName.textContent =
+      safeWinner === human ? 'You win!' : `${names[safeWinner] || `Player ${safeWinner + 1}`} wins!`;
+  }
+  if (winnerOverlayReason) {
+    winnerOverlayReason.textContent = reason || 'Round finished.';
+  }
+  if (winnerOverlayAvatar) {
+    const source = avatars[safeWinner] || DEFAULT_AVATAR_EMOJI;
+    winnerOverlayAvatar.classList.remove('has-photo');
+    winnerOverlayAvatar.style.backgroundImage = '';
+    winnerOverlayAvatar.textContent = source;
+    if (isAvatarUrl(source)) {
+      winnerOverlayAvatar.classList.add('has-photo');
+      winnerOverlayAvatar.style.backgroundImage = `url(${source})`;
+      winnerOverlayAvatar.textContent = '';
+    }
+  }
+  if (winnerCoinBurst) {
+    winnerCoinBurst.innerHTML = '';
+    for (let i = 0; i < 20; i += 1) {
+      const coin = document.createElement('span');
+      coin.className = 'winner-coin';
+      coin.textContent = 'TPC';
+      coin.style.setProperty('--angle', `${(360 / 20) * i}deg`);
+      coin.style.setProperty('--distance', `${52 + (i % 4) * 14}px`);
+      coin.style.setProperty('--delay', `${i * 30}ms`);
+      winnerCoinBurst.appendChild(coin);
+    }
+  }
+  winnerOverlay.classList.add('active');
+  winnerOverlay.setAttribute('aria-hidden', 'false');
+}
+
+winnerPlayAgainButton?.addEventListener('click', () => {
+  hideWinnerOverlay();
+  startGame();
+});
+
+winnerReturnLobbyButton?.addEventListener('click', () => {
+  hideWinnerOverlay();
+  window.location.assign('/games/domino-royal/lobby');
+});
 
 let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
@@ -7533,6 +7597,7 @@ let winnerHighlight = null;
 let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
 let pendingTurnAdvanceTimeout = null;
+const activeHandMeshes = new Set();
 
 function tileKey(tile) {
   const ct = canonTile(tile);
@@ -7660,14 +7725,15 @@ function layoutSeat(idx) {
 }
 
 function renderHands() {
-  players.forEach((p) =>
+  activeHandMeshes.forEach((mesh) => {
+    piecesG.remove(mesh);
+  });
+  activeHandMeshes.clear();
+  players.forEach((p) => {
     p.hand.forEach((h) => {
-      if (h.mesh) {
-        piecesG.remove(h.mesh);
-        h.mesh = null;
-      }
-    })
-  );
+      h.mesh = null;
+    });
+  });
   clearSelectedHighlight();
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
@@ -7686,7 +7752,7 @@ function renderHands() {
     const isSide = pi === 1 || pi === 3;
     const openFlat = isTopDown && isHuman;
 
-    const gapBase = openFlat ? BASE_GAP * 1.12 : BASE_GAP;
+    const gapBase = openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94;
     const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y;
 
     let span = 0;
@@ -7737,6 +7803,7 @@ function renderHands() {
         m.rotation.z += Math.random() * 0.006 - 0.003;
       }
       h.mesh = m;
+      activeHandMeshes.add(m);
       m.userData = { tile: h, owner: pi };
       piecesG.add(m);
       if (selectedTile === h) {
@@ -8213,6 +8280,7 @@ function startGame() {
   revealAllHands = false;
   lastAnnouncedTurn = null;
   clearWinnerHighlight();
+  hideWinnerOverlay();
   if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
@@ -9096,6 +9164,7 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
   } else {
     SFX.drawGame();
   }
+  showWinnerOverlay({ winner: winnerIndex, reason });
 }
 
 function checkForBlockedGame() {
