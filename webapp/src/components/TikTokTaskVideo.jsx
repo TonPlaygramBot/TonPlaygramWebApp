@@ -29,7 +29,6 @@ export default function TikTokTaskVideo({
 }) {
   const [open, setOpen] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
-  const [useAltPlayer, setUseAltPlayer] = useState(false);
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
@@ -39,10 +38,6 @@ export default function TikTokTaskVideo({
     if (!videoId) return '';
     return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
   }, [videoId]);
-  const activeEmbedUrl = useMemo(
-    () => (useAltPlayer ? embedUrl : legacyEmbedUrl),
-    [embedUrl, legacyEmbedUrl, useAltPlayer],
-  );
   const canonicalVideoUrl = useMemo(() => {
     if (!videoId) return videoUrl || '';
     return `https://www.tiktok.com/@tonplaygram/video/${videoId}`;
@@ -56,16 +51,11 @@ export default function TikTokTaskVideo({
   }, [autoOpen, embedUrl, storageKey]);
 
   useEffect(() => {
-    if (!open || !activeEmbedUrl) return;
+    if (!open || !embedUrl) return;
     setShowFallback(false);
     const id = setTimeout(() => setShowFallback(true), 4000);
     return () => clearTimeout(id);
-  }, [open, activeEmbedUrl]);
-
-  useEffect(() => {
-    if (!open) return;
-    setUseAltPlayer(false);
-  }, [open, videoId]);
+  }, [open, embedUrl]);
 
   return (
     <>
@@ -88,11 +78,11 @@ export default function TikTokTaskVideo({
                 Close
               </button>
             </div>
-            {activeEmbedUrl ? (
+            {embedUrl ? (
               <div className="relative flex-1 min-h-0">
                 <iframe
                   title={title}
-                  src={activeEmbedUrl}
+                  src={embedUrl}
                   className="absolute inset-0 w-full h-full"
                   allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen
@@ -107,17 +97,14 @@ export default function TikTokTaskVideo({
             {showFallback && (
               <div className="px-3 pt-2 text-center text-[11px] text-yellow-300 space-y-1">
                 <p>Video preview can be blocked in some devices. Open it directly in TikTok.</p>
-                {embedUrl && legacyEmbedUrl && (
+                {legacyEmbedUrl && (
                   <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setUseAltPlayer((prev) => !prev);
-                      setShowFallback(false);
-                    }}
+                    href={legacyEmbedUrl}
+                    target="_blank"
+                    rel="noreferrer"
                     className="inline-block underline"
                   >
-                    Try {useAltPlayer ? 'classic player' : 'embed'} player
+                    Try alternative TikTok player
                   </a>
                 )}
               </div>
