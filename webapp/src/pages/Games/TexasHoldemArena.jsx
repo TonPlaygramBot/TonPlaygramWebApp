@@ -389,7 +389,7 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(12);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.55 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.4 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
@@ -4300,7 +4300,6 @@ function TexasHoldemArena({ search }) {
     const arenaGroup = new THREE.Group();
     scene.add(arenaGroup);
     hdriVariantRef.current = initialEnvironment;
-    void applyHdriEnvironment(initialEnvironment);
 
     const initialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const initialWood = resolveEffectiveWoodOption({
@@ -4532,8 +4531,20 @@ function TexasHoldemArena({ search }) {
     }
 
     (async () => {
-      const chairBuild = await buildChairTemplate(initialChair, renderer);
-      if (!chairBuild) return;
+      const [hdriResult, chairBuildResult] = await Promise.allSettled([
+        applyHdriEnvironment(initialEnvironment),
+        buildChairTemplate(initialChair, renderer)
+      ]);
+      if (hdriResult.status === 'rejected') {
+        console.warn('Failed to apply HDR environment on arena boot', hdriResult.reason);
+      }
+      const chairBuild = chairBuildResult.status === 'fulfilled' ? chairBuildResult.value : null;
+      if (!chairBuild) {
+        if (chairBuildResult.status === 'rejected') {
+          console.error('Failed to build chair template', chairBuildResult.reason);
+        }
+        return;
+      }
       const chairTemplate = chairBuild.chairTemplate;
       const chairMaterials = chairBuild.materials;
       applyChairThemeMaterials({ chairMaterials }, initialChair, renderer);
