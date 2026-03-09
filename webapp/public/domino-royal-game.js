@@ -2262,11 +2262,11 @@ const MURLAN_TABLE_THEMES = Object.freeze(
       id: 'murlan-default',
       label: 'Murlan Default Table',
       source: 'polyhaven',
-      assetId: 'CoffeeTable_01',
+      assetId: 'WoodenTable_02',
       price: 0,
-      thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
+      thumbnail: POLYHAVEN_THUMB('WoodenTable_02'),
       description:
-        'Standard Murlan Royale table using the default GLTF texture set.'
+        'Standard octagon table shared with Chess, Texas Hold\'em, and Ludo Battle Royale using the default GLTF texture set.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
     { id: 'WoodenTable_02', label: 'Wooden Table 02' },
