@@ -4,17 +4,16 @@ function getVideoId(urlOrId) {
   if (!urlOrId) return '';
   if (/^\d+$/.test(urlOrId)) return urlOrId;
   const raw = String(urlOrId);
-  const normalized = raw.split('?')[0].replace(/\/+$/, '/');
   const match = raw.match(/\/video\/(\d+)/);
   if (match) return match[1];
 
   const shortLinkVideoMap = {
-    'https://vt.tiktok.com/ZSujamUuD/': '7614838290667031816',
-    'https://vt.tiktok.com/ZSujaPuVF/': '7614600402654252296',
-    'https://vt.tiktok.com/ZSujaXgpP/': '7614860616703986951',
-    'https://vt.tiktok.com/ZSujagfxp/': '7614503027684216071',
+    'https://vt.tiktok.com/ZSu8hSaGs/': '7614140234548153607',
+    'https://vt.tiktok.com/ZSu8hAvuM/': '7614138222150847762',
+    'https://vt.tiktok.com/ZSu8hN8Xq/': '7614133483421584658',
+    'https://vt.tiktok.com/ZSu8hc7YM/': '7614119495149292818',
   };
-  return shortLinkVideoMap[normalized] || '';
+  return shortLinkVideoMap[raw] || '';
 }
 
 export default function TikTokTaskVideo({
@@ -27,7 +26,7 @@ export default function TikTokTaskVideo({
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
-    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&muted=1&loop=1&music_info=0&description=0&controls=1`;
+    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&loop=1&music_info=0&description=0&controls=1`;
   }, [videoId]);
 
   useEffect(() => {
