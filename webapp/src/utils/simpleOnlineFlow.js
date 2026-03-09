@@ -3,6 +3,41 @@ import { getAccountBalance, addTransaction } from './api.js';
 import { socket } from './socket.js';
 
 const DEFAULT_MATCH_TIMEOUT_MS = 35000;
+const SOCKET_CONNECT_TIMEOUT_MS = 8000;
+
+async function ensureSocketReady(socketInstance, timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
+  if (!socketInstance) return false;
+  if (socketInstance.connected) return true;
+
+  try {
+    socketInstance.connect?.();
+  } catch {
+    return false;
+  }
+
+  return await new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socketInstance.off?.('connect', onConnect);
+      socketInstance.off?.('connect_error', onConnectError);
+      socketInstance.off?.('error', onConnectError);
+      resolve(ok);
+    };
+
+    const onConnect = () => finish(true);
+    const onConnectError = () => finish(false);
+
+    const timer = setTimeout(() => finish(socketInstance.connected), timeoutMs);
+
+    socketInstance.once?.('connect', onConnect);
+    socketInstance.once?.('connect_error', onConnectError);
+    socketInstance.once?.('error', onConnectError);
+  });
+}
 
 export async function runSimpleOnlineFlow({
   gameType,
@@ -15,6 +50,7 @@ export async function runSimpleOnlineFlow({
   onMatched,
   deps = {},
   timeoutMs = DEFAULT_MATCH_TIMEOUT_MS,
+  socketConnectTimeoutMs = SOCKET_CONNECT_TIMEOUT_MS,
 }) {
   const {
     setMatching,
@@ -104,10 +140,10 @@ export async function runSimpleOnlineFlow({
     });
     stakeDebited = true;
 
-    if (!socketInstance?.connected) {
+    const socketReady = await ensureSocketReady(socketInstance, socketConnectTimeoutMs);
+    if (!socketReady) {
       setMatchError('Socket not connected. Please retry.');
-      setMatching(false);
-      setMatchStatus('');
+      cleanup({ keepError: true, refund: stakeDebited });
       return { ok: false, cleanup };
     }
 
