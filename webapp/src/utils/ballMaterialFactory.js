@@ -7,7 +7,24 @@ import { applySRGBColorSpace } from './colorSpace.js';
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
+const MAX_BALL_CACHE_ENTRIES = 48;
 const CUE_TIP_RADIUS_RATIO = 0.155;
+let ballTextureAnisotropy = 8;
+
+function touchCacheEntry(cache, key, value) {
+  cache.delete(key);
+  cache.set(key, value);
+}
+
+function clampBallCache(cache, maxEntries, disposeValue) {
+  while (cache.size > maxEntries) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const oldestValue = cache.get(oldestKey);
+    cache.delete(oldestKey);
+    disposeValue?.(oldestValue);
+  }
+}
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -314,7 +331,9 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
 function createBallTexture({ baseColor, pattern, number, variantKey }) {
   const key = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}`;
   if (BALL_TEXTURE_CACHE.has(key)) {
-    return BALL_TEXTURE_CACHE.get(key);
+    const cachedTexture = BALL_TEXTURE_CACHE.get(key);
+    touchCacheEntry(BALL_TEXTURE_CACHE, key, cachedTexture);
+    return cachedTexture;
   }
 
   const canvas = document.createElement('canvas');
@@ -330,7 +349,7 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 32;
+  texture.anisotropy = ballTextureAnisotropy;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -338,7 +357,15 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   texture.needsUpdate = true;
 
   BALL_TEXTURE_CACHE.set(key, texture);
+  clampBallCache(BALL_TEXTURE_CACHE, MAX_BALL_CACHE_ENTRIES, (cachedTexture) => {
+    cachedTexture?.dispose?.();
+  });
   return texture;
+}
+
+export function setBallMaterialAnisotropy(maxAnisotropy = 8) {
+  if (!Number.isFinite(maxAnisotropy) || maxAnisotropy <= 0) return;
+  ballTextureAnisotropy = Math.max(1, Math.min(16, Math.floor(maxAnisotropy)));
 }
 
 export function createBallPreviewDataUrl({
@@ -372,7 +399,9 @@ export function getBallMaterial({
   const baseColor = color ?? 0xffffff;
   const cacheKey = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}`;
   if (BALL_MATERIAL_CACHE.has(cacheKey)) {
-    return BALL_MATERIAL_CACHE.get(cacheKey);
+    const cachedMaterial = BALL_MATERIAL_CACHE.get(cacheKey);
+    touchCacheEntry(BALL_MATERIAL_CACHE, cacheKey, cachedMaterial);
+    return cachedMaterial;
   }
 
   const map = createBallTexture({
@@ -396,10 +425,19 @@ export function getBallMaterial({
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
+  clampBallCache(BALL_MATERIAL_CACHE, MAX_BALL_CACHE_ENTRIES, (cachedMaterial) => {
+    cachedMaterial?.dispose?.();
+  });
   return material;
 }
 
 export function clearBallMaterialCache() {
+  BALL_MATERIAL_CACHE.forEach((material) => {
+    material?.dispose?.();
+  });
+  BALL_TEXTURE_CACHE.forEach((texture) => {
+    texture?.dispose?.();
+  });
   BALL_MATERIAL_CACHE.clear();
   BALL_TEXTURE_CACHE.clear();
 }
