@@ -75,6 +75,10 @@ public class CameraController : MonoBehaviour
     // way to the plastic cap at the end of the stick.
     [Range(0f, 1f)]
     public float cueViewMaxCueDistanceRatio = 0.65f;
+    // Keep horizontal orbit aligned with mobile portrait expectations where
+    // dragging left rotates the view left on screen and dragging right rotates
+    // the view right.
+    public bool matchScreenHorizontalDirection = true;
 
     private void LateUpdate()
     {
@@ -141,6 +145,11 @@ public class CameraController : MonoBehaviour
         }
 
         Vector3 flatDir = flatOffset.normalized;
+        if (matchScreenHorizontalDirection)
+        {
+            flatDir = -flatDir;
+        }
+
         Vector3 desiredFlat = pivotFlat + flatDir * currentDistance;
         if (player != null)
         {
