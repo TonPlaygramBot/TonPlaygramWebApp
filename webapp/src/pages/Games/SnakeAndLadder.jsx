@@ -1762,6 +1762,13 @@ export default function SnakeAndLadder() {
   const aiRollTimeRef = useRef(null);
   const prevTimeLeftRef = useRef(TURN_TIME);
 
+  const playDiceRollSound = useCallback(() => {
+    if (muted || !diceRollSoundRef.current) return;
+    diceRollSoundRef.current.volume = 1;
+    diceRollSoundRef.current.currentTime = 0;
+    diceRollSoundRef.current.play().catch(() => {});
+  }, [muted]);
+
   const getPreviousTurn = useCallback(
     (turn) => {
       const totalPlayers = (ai ?? 0) + 1;
@@ -2173,11 +2180,7 @@ export default function SnakeAndLadder() {
     const onRolled = ({ value }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
-      if (!muted && diceRollSoundRef.current) {
-        if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
-        diceRollSoundRef.current.currentTime = 0;
-        diceRollSoundRef.current.play().catch(() => {});
-      }
+      playDiceRollSound();
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -2539,6 +2542,7 @@ export default function SnakeAndLadder() {
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
+    playDiceRollSound();
     if (doubleSix && !muted) {
       yabbaSoundRef.current.currentTime = 0;
       yabbaSoundRef.current.play().catch(() => {});
@@ -2809,6 +2813,7 @@ export default function SnakeAndLadder() {
 
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
+    playDiceRollSound();
     if (doubleSix && !muted) {
       yabbaSoundRef.current.currentTime = 0;
       yabbaSoundRef.current.play().catch(() => {});
