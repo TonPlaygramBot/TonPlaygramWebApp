@@ -114,11 +114,13 @@ const POLYHAVEN_TABLE_THEMES = [
 export const DOMINO_ROYAL_TABLE_THEMES = [
   {
     id: 'murlan-default',
-    label: 'Murlan Default Table',
-    source: 'procedural',
+    label: 'Octagon Table',
+    source: 'polyhaven',
     price: 0,
+    assetId: 'CoffeeTable_01',
+    preserveMaterials: true,
     thumbnail: polyHavenThumb('CoffeeTable_01'),
-    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+    description: 'Shared Battle Royale octagon table with original Pool Royale GLTF UV mapping.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
