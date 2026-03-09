@@ -2010,7 +2010,7 @@ function handleCameraLookDrag(deltaX = 0) {
     return;
   }
   cameraLookYaw = THREE.MathUtils.clamp(
-    cameraLookYaw - deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+    cameraLookYaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
     -CAMERA_LOOK_YAW_LIMIT,
     CAMERA_LOOK_YAW_LIMIT
   );
