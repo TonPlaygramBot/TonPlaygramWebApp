@@ -3496,25 +3496,51 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
   })
 ]);
 
+const toHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
+
+function deriveClothPalette(baseColor) {
+  return {
+    feltTop: adjustHexColor(baseColor, 0.08),
+    feltBottom: adjustHexColor(baseColor, -0.12),
+    border: adjustHexColor(baseColor, -0.65)
+  };
+}
+
 const POOL_ROYALE_DOMINO_CLOTH_PALETTE = Object.freeze([
-  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', border: '#021a0b' },
   { id: 'crimson', label: 'Crimson Cloth', feltTop: '#960019', feltBottom: '#4a0012', border: '#210308' },
+  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', border: '#021a0b' },
   { id: 'arctic', label: 'Arctic Cloth', feltTop: '#2563eb', feltBottom: '#1d4ed8', border: '#071a42' },
   { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', border: '#320e03' },
   { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', border: '#1f0a47' },
   { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', border: '#2b1402' },
-  { id: 'cabanGreenMeadow', label: 'Caban Wool — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#1f6a3f' },
-  { id: 'cabanGreenSpruce', label: 'Caban Wool — Green Spruce', feltTop: '#2ca85f', feltBottom: '#238f4a', border: '#1a5d35' },
-  { id: 'cabanBlueHarbor', label: 'Caban Wool — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0a355a' },
-  { id: 'cabanBlueFjord', label: 'Caban Wool — Blue Fjord', feltTop: '#1589e6', feltBottom: '#0b74c6', border: '#0a355a' },
-  { id: 'polarFleeceGreenMeadow', label: 'Polar Fleece — Green Meadow', feltTop: '#33b46a', feltBottom: '#2ca85f', border: '#205f40' },
-  { id: 'polarFleeceBlueHarbor', label: 'Polar Fleece — Blue Harbor', feltTop: '#0b74c6', feltBottom: '#0a6eb8', border: '#0b365e' },
-  { id: 'polarFleecePlushGreenMeadow', label: 'Polar Fleece Plush — Green Meadow', feltTop: '#42c47a', feltBottom: '#2ca85f', border: '#1f6b40' },
-  { id: 'polarFleecePlushBlueHarbor', label: 'Polar Fleece Plush — Blue Harbor', feltTop: '#1fa3ff', feltBottom: '#0b74c6', border: '#0b3c66' },
-  { id: 'polarFleeceNatureOceanGreenFern', label: 'Polar Fleece Nature & Ocean — Green Fern', feltTop: '#33b46a', feltBottom: '#238f4a', border: '#1c5a37' },
-  { id: 'polarFleeceNatureOceanBlueCrest', label: 'Polar Fleece Nature & Ocean — Blue Crest', feltTop: '#1589e6', feltBottom: '#095fa4', border: '#0a3458' },
-  { id: 'terryClothGreenMeadow', label: 'Polyhaven Terry Cloth — Green Meadow', feltTop: '#42c47a', feltBottom: '#2ca85f', border: '#1d603b' },
-  { id: 'terryClothBlueHarbor', label: 'Polyhaven Terry Cloth — Blue Harbor', feltTop: '#1fa3ff', feltBottom: '#0b74c6', border: '#0b365f' }
+  ...[
+    { id: 'denim_fabric_03', label: 'Denim Fabric 03 Cloth', base: 0x2b4a7a },
+    { id: 'hessian_230', label: 'Hessian 230 Cloth', base: 0x9b7a45 },
+    { id: 'polar_fleece', label: 'Polar Fleece Cloth', base: 0x5ead73 },
+    { id: 'polar_fleece_ocean_crest', label: 'Polar Fleece Ocean Crest Cloth', base: 0x2a8fc7 },
+    { id: 'polar_fleece_ocean_current', label: 'Polar Fleece Ocean Current Cloth', base: 0x2484bd },
+    { id: 'polar_fleece_ocean_lagoon', label: 'Polar Fleece Ocean Lagoon Cloth', base: 0x3a9dd9 },
+    { id: 'polar_fleece_ocean_reef', label: 'Polar Fleece Ocean Reef Cloth', base: 0x44a8e4 },
+    { id: 'polar_fleece_ocean_abyss', label: 'Polar Fleece Ocean Abyss Cloth', base: 0x1f74a7 },
+    { id: 'polar_fleece_nature_fern', label: 'Polar Fleece Nature Fern Cloth', base: 0x2f9b58 },
+    { id: 'polar_fleece_nature_grove', label: 'Polar Fleece Nature Grove Cloth', base: 0x279350 },
+    { id: 'polar_fleece_nature_canopy', label: 'Polar Fleece Nature Canopy Cloth', base: 0x3aa866 },
+    { id: 'polar_fleece_nature_meadow', label: 'Polar Fleece Nature Meadow Cloth', base: 0x45b471 },
+    { id: 'polar_fleece_nature_wildwood', label: 'Polar Fleece Nature Wildwood Cloth', base: 0x1f7e43 },
+    { id: 'fabric_leather_02', label: 'Leather Weave Cloth', base: 0x6a4a32 },
+    { id: 'faux_fur_geometric', label: 'Faux Fur Geo Cloth', base: 0xcaa0a8 },
+    { id: 'jogging_melange', label: 'Jogging Mélange Cloth', base: 0x7a7a7f },
+    { id: 'knitted_fleece', label: 'Knitted Fleece Cloth', base: 0x6e5a4a },
+    { id: 'caban', label: 'Caban Wool Cloth', base: 0x3f7242 },
+    { id: 'curly_teddy_checkered', label: 'Curly Teddy Checkered Cloth', base: 0x2f6a70 },
+    { id: 'denim_fabric_04', label: 'Denim Fabric 04 Cloth', base: 0x4a78a8 },
+    { id: 'denim_fabric_05', label: 'Denim Fabric 05 Cloth', base: 0x2c2f35 },
+    { id: 'scuba_suede', label: 'Scuba Suede Cloth', base: 0x2a8c86 }
+  ].map((option) => ({
+    id: option.id,
+    label: option.label,
+    ...deriveClothPalette(toHex(option.base))
+  }))
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze(
