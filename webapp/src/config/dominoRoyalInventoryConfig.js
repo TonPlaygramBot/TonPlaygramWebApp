@@ -1,11 +1,11 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
-import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { TEXAS_TABLE_FINISH_OPTIONS } from './texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
-  tableWood: MURLAN_TABLE_FINISHES.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
+  tableWood: TEXAS_TABLE_FINISH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
     id,
     label,
     price,
@@ -13,12 +13,13 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     thumbnail,
     woodOption
   })),
-  tableCloth: POOL_ROYALE_CLOTH_VARIANTS.map(({ id, name, price = 0, description, swatches }) => ({
+  tableCloth: TABLE_CLOTH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, feltTop, feltBottom, emissive }) => ({
     id,
-    label: name,
+    label,
     price,
     description,
-    swatches
+    swatches: [feltTop, feltBottom, emissive].filter(Boolean),
+    thumbnail
   })),
   tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
     id,
