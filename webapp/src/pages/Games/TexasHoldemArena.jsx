@@ -389,7 +389,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.25 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.4 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -4257,12 +4257,18 @@ function TexasHoldemArena({ search }) {
     rim.position.set(-4, 3, -4);
     scene.add(rim);
 
-    const arenaGroup = new THREE.Group();
-    scene.add(arenaGroup);
-    void applyHdriEnvironment(hdriVariantRef.current || TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] || TEXAS_HDRI_OPTIONS[0]);
-
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
+    const initialEnvironment =
+      TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ??
+      TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
+      TEXAS_HDRI_OPTIONS[0];
+
+    const arenaGroup = new THREE.Group();
+    scene.add(arenaGroup);
+    hdriVariantRef.current = initialEnvironment;
+    void applyHdriEnvironment(initialEnvironment);
+
     const initialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const initialWood = resolveEffectiveWoodOption({
       tableTheme: initialTheme,
