@@ -352,6 +352,7 @@ const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
+const COMMUNITY_CARD_LANDSCAPE_TOP_LIFT = 0.085;
 const COMMUNITY_ROW_ROTATION = 0;
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   new THREE.Vector3(
@@ -5598,8 +5599,15 @@ function TexasHoldemArena({ search }) {
         .add(new THREE.Vector3(0, COMMUNITY_CARD_LOOK_LIFT, 0))
         .add(forward);
       orientCard(mesh, lookTarget, { face: 'front', flat: true });
+      const rendererCanvas = three.renderer?.domElement;
+      const isLandscape =
+        (rendererCanvas?.clientWidth ?? window.innerWidth) >
+        (rendererCanvas?.clientHeight ?? window.innerHeight);
       if (COMMUNITY_CARD_TILT) {
         mesh.rotateX(COMMUNITY_CARD_TILT);
+      }
+      if (isLandscape) {
+        mesh.rotateX(COMMUNITY_CARD_LANDSCAPE_TOP_LIFT);
       }
       setCardFace(mesh, 'front');
       const communityKey = cardKey(card);
