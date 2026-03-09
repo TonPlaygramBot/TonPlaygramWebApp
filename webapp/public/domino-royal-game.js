@@ -1486,8 +1486,8 @@ const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
 const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
-const CAMERA_REAR_OFFSET = { portrait: 1.85, landscape: 1.35 };
-const CAMERA_HEIGHT_BOOST = { portrait: 1.95, landscape: 1.58 };
+const CAMERA_REAR_OFFSET = { portrait: 1.65, landscape: 1.22 };
+const CAMERA_HEIGHT_BOOST = { portrait: 1.78, landscape: 1.46 };
 const CAMERA_TARGET = new THREE.Vector3(
   0,
   TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA,
@@ -1725,14 +1725,15 @@ controls.zoomSpeed = 0;
 controls.enablePan = true;
 controls.panSpeed = 0.9;
 controls.screenSpacePanning = true;
-controls.enableRotate = true;
+controls.enableRotate = false;
 controls.minDistance = CAMERA_MIN_RADIUS;
 controls.maxDistance = CAMERA_MAX_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
-controls.touches.ONE = THREE.TOUCH.ROTATE;
+controls.touches.ONE = THREE.TOUCH.PAN;
 controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
+controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
 controls.target.copy(CAMERA_TARGET);
 const turnFocusTarget = controls.target.clone();
 const turnSeatTarget = new THREE.Vector3();
@@ -1841,7 +1842,7 @@ function applyCameraConstraints() {
   controls.maxPolarAngle = maxPolar;
   controls.minDistance = minRadius;
   controls.maxDistance = maxRadius;
-  controls.enableRotate = cameraViewMode !== VIEW_MODES.twoD;
+  controls.enableRotate = false;
 }
 
 function clampCameraPosition(position, target = getActiveCameraTarget()) {
@@ -1909,6 +1910,12 @@ function updateTurnCameraFocus() {
     turnFocusTarget.copy(turnSeatTarget);
   }
   controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
+}
+
+function enforceSeatedCameraLock() {
+  if (cameraViewMode === VIEW_MODES.twoD || entrySequenceActive) return;
+  const lockedPosition = clampCameraPosition(computeDesiredCameraPosition(), getActiveCameraTarget());
+  camera.position.copy(lockedPosition);
 }
 
 function queueDominoCameraFocus(segment) {
@@ -5537,7 +5544,11 @@ function updateTableMaterials() {
     textureSize: grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessBase: 0.16,
     roughnessVariance: 0.28,
-    sharedKey
+    sharedKey,
+    mapUrl: grain?.frame?.mapUrl ?? grain?.rail?.mapUrl,
+    roughnessMapUrl:
+      grain?.frame?.roughnessMapUrl ?? grain?.rail?.roughnessMapUrl,
+    normalMapUrl: grain?.frame?.normalMapUrl ?? grain?.rail?.normalMapUrl
   });
   applyWoodTextures(tableMaterials.rim, {
     hue: preset.hue,
@@ -5549,7 +5560,11 @@ function updateTableMaterials() {
     textureSize: grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessBase: 0.18,
     roughnessVariance: 0.32,
-    sharedKey
+    sharedKey,
+    mapUrl: grain?.rail?.mapUrl ?? grain?.frame?.mapUrl,
+    roughnessMapUrl:
+      grain?.rail?.roughnessMapUrl ?? grain?.frame?.roughnessMapUrl,
+    normalMapUrl: grain?.rail?.normalMapUrl ?? grain?.frame?.normalMapUrl
   });
   if (!tableMaterials.top.map) {
     tableMaterials.top.color.set(wood.baseHex);
@@ -9696,6 +9711,7 @@ function tick(now) {
     updateSeatBadgePositions();
     updateTurnCameraFocus();
     controls.update(deltaSeconds);
+    enforceSeatedCameraLock();
     renderer.render(scene, camera);
   } catch (error) {
     console.error('Domino Royal render loop failed', error);
