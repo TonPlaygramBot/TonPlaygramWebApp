@@ -1,9 +1,63 @@
 import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
+import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from '../config/texasHoldemOptions.js';
 
 const DEFAULT_RESOLUTIONS = Object.freeze(['4k']);
 const hdriUrlCache = new Map();
 const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
+const modelWarmPromiseCache = new Map();
+const imageWarmPromiseCache = new Map();
+const TEXAS_CARD_BACK_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+
+function buildPolyHavenModelUrls(assetId) {
+  if (!assetId) return [];
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
+  ];
+}
+
+function warmImageAsset(src) {
+  if (!src || typeof window === 'undefined') return Promise.resolve();
+  if (imageWarmPromiseCache.has(src)) return imageWarmPromiseCache.get(src);
+  const job = new Promise((resolve) => {
+    const image = new Image();
+    image.loading = 'eager';
+    image.decoding = 'async';
+    image.src = src;
+    image.onload = () => resolve(true);
+    image.onerror = () => resolve(false);
+  });
+  imageWarmPromiseCache.set(src, job);
+  return job;
+}
+
+function warmModelManifestAndEntry(assetId) {
+  if (!assetId || typeof fetch !== 'function') return Promise.resolve();
+  const cacheKey = String(assetId).toLowerCase();
+  if (modelWarmPromiseCache.has(cacheKey)) return modelWarmPromiseCache.get(cacheKey);
+
+  const job = fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`)
+    .then((response) => (response?.ok ? response.json() : null))
+    .then((files) => {
+      const gltf2k = files?.gltf?.['2k'];
+      if (typeof gltf2k === 'string' && gltf2k) {
+        return fetch(gltf2k, { mode: 'cors', cache: 'force-cache' }).catch(() => null);
+      }
+      return null;
+    })
+    .catch(() => null)
+    .then((result) => {
+      if (result) return result;
+      const fallbackUrls = buildPolyHavenModelUrls(assetId);
+      return Promise.allSettled(
+        fallbackUrls.map((url) => fetch(url, { mode: 'cors', cache: 'force-cache' }))
+      );
+    });
+
+  modelWarmPromiseCache.set(cacheKey, job);
+  return job;
+}
 
 function prioritizeDefaultHdri(options = TEXAS_HDRI_OPTIONS) {
   const variants = Array.isArray(options) ? options.filter(Boolean) : [];
@@ -104,5 +158,24 @@ export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS) {
     hdriWarmPromiseCache.set(key, job);
     return job;
   });
+  return Promise.allSettled(jobs);
+}
+
+export function warmTexasHoldemArenaAssetsFromLobby() {
+  if (typeof window === 'undefined') return Promise.resolve();
+  const defaultTable = TEXAS_TABLE_THEME_OPTIONS[0];
+  const defaultChair = TEXAS_CHAIR_THEME_OPTIONS[0];
+  const jobs = [
+    warmTexasHoldemHdriFromLobby(),
+    warmImageAsset(TEXAS_CARD_BACK_LOGO_SRC)
+  ];
+
+  if (defaultTable?.source === 'polyhaven' && defaultTable?.assetId) {
+    jobs.push(warmModelManifestAndEntry(defaultTable.assetId));
+  }
+  if (defaultChair?.source === 'polyhaven' && defaultChair?.assetId) {
+    jobs.push(warmModelManifestAndEntry(defaultChair.assetId));
+  }
+
   return Promise.allSettled(jobs);
 }
