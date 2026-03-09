@@ -90,6 +90,22 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   dominoTextureSize: 2048
 });
 
+const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
+  hd50: 1024,
+  fhd60: 1536,
+  qhd90: 2048,
+  uhd120: 3072,
+  ultra144: 3072
+});
+
+function getAdaptiveTextureSize(baseSize = 2048) {
+  const mappedSize =
+    FRAME_RATE_TEXTURE_SIZE_MAP[frameRateId] ??
+    FRAME_RATE_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
+    baseSize;
+  return Math.max(768, Math.min(4096, mappedSize));
+}
+
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
     return false;
@@ -2097,8 +2113,6 @@ const getPoolCarpetTextures = (() => {
   };
 })();
 
-const CHAIR_CLOTH_TEXTURE_SIZE =
-  MURLAN_3D_ASSET_RESOLUTION.chairClothTextureSize;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: 'crimsonVelvet',
@@ -4445,8 +4459,11 @@ function createChairClothTexture(option, renderer) {
   const primary = option?.seatColor ?? '#8b0000';
   const accent = adjustHexColor(primary, -0.28);
   const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
+  const chairClothTextureSize = getAdaptiveTextureSize(
+    MURLAN_3D_ASSET_RESOLUTION.chairClothTextureSize
+  );
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
+  canvas.width = canvas.height = chairClothTextureSize;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -6200,14 +6217,26 @@ function buildDominoMaterial(options = {}, defaults = {}) {
 
 const getDominoSurfaceTextures = (() => {
   let cache = null;
+  let cachedSize = 0;
+  const disposeCachedTextures = () => {
+    if (!cache) return;
+    cache.porcelainMap?.dispose?.();
+    cache.porcelainRoughness?.dispose?.();
+    cache.pipMap?.dispose?.();
+    cache = null;
+  };
   return () => {
-    if (cache) return cache;
+    const targetSize = getAdaptiveTextureSize(
+      MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize
+    );
+    if (cache && cachedSize === targetSize) return cache;
+    disposeCachedTextures();
     if (typeof document === 'undefined') {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
       return cache;
     }
     const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(1024, Math.min(sizeCap, MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize));
+    const preferredSize = Math.max(1024, Math.min(sizeCap, targetSize));
     const lowMemoryDevice =
       isLowProfileDevice ||
       (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
@@ -6284,6 +6313,7 @@ const getDominoSurfaceTextures = (() => {
     pipMap.generateMipmaps = true;
 
     cache = { porcelainMap, porcelainRoughness, pipMap };
+    cachedSize = size;
     return cache;
   };
 })();
@@ -6569,6 +6599,12 @@ function applyFrameRateSelection(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
   );
+  applyDominoStyle(currentDominoStyleOption);
+  buildChairs(
+    CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME
+  );
+  renderChain();
+  renderBoneyardStack();
   if (refreshUi) {
     refreshConfigUI();
   }
