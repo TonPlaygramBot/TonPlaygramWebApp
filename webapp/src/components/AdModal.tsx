@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const AD_IFRAME_URL = 'https://www.tiktok.com/embed/v2/7515418978852781329';
-const AD_FALLBACK_URL = 'https://vt.tiktok.com/ZSuREWyqx/';
+const AD_VIDEO_ID = '7614838290667031816';
+const AD_PLAYER_URL = `https://www.tiktok.com/player/v1/${AD_VIDEO_ID}?autoplay=1&rel=0`;
+const AD_CANONICAL_URL = `https://www.tiktok.com/@tonplaygram/video/${AD_VIDEO_ID}`;
 const REWARD_DELAY_MS = 15_000;
 
 interface AdModalProps {
@@ -13,11 +14,13 @@ interface AdModalProps {
 export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
   const rewardIssuedRef = useRef(false);
   const [remainingMs, setRemainingMs] = useState(REWARD_DELAY_MS);
+  const [showOpenLinkHint, setShowOpenLinkHint] = useState(false);
 
   useEffect(() => {
     if (!open) {
       rewardIssuedRef.current = false;
       setRemainingMs(REWARD_DELAY_MS);
+      setShowOpenLinkHint(false);
       return;
     }
 
@@ -32,7 +35,14 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
       }
     }, 250);
 
-    return () => window.clearInterval(intervalId);
+    const fallbackHintId = window.setTimeout(() => {
+      setShowOpenLinkHint(true);
+    }, 4000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(fallbackHintId);
+    };
   }, [open, onComplete]);
 
   const remainingSeconds = useMemo(
@@ -64,18 +74,26 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
           </p>
         </div>
 
-        <div className="aspect-[9/16] w-full overflow-hidden rounded-lg border border-border bg-black">
+        <div className="aspect-[9/16] w-full overflow-hidden rounded-lg border border-border bg-black relative">
           <iframe
-            src={AD_IFRAME_URL}
+            src={AD_PLAYER_URL}
             title="Rewarded TikTok"
             className="w-full h-full"
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
             allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
           />
         </div>
 
+        {showOpenLinkHint && (
+          <p className="text-center text-[11px] text-yellow-300">
+            If your device blocks preview playback, open the video directly in TikTok.
+          </p>
+        )}
+
         <a
-          href={AD_FALLBACK_URL}
+          href={AD_CANONICAL_URL}
           target="_blank"
           rel="noreferrer"
           className="block text-center text-xs text-blue-300 underline"

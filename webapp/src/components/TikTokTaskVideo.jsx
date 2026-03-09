@@ -7,11 +7,10 @@ function getVideoId(urlOrId) {
   const match = raw.match(/\/video\/(\d+)/);
   if (match) return match[1];
 
-  const embedMatch = raw.match(/\/embed\/(?:v2\/)?(\d+)/);
+  const embedMatch = raw.match(/\/(?:embed\/(?:v2\/)?|player\/v1\/)(\d+)/);
   if (embedMatch) return embedMatch[1];
 
   const normalized = raw.endsWith('/') ? raw : `${raw}/`;
-
   const shortLinkVideoMap = {
     'https://vt.tiktok.com/ZSujamUuD/': '7614838290667031816',
     'https://vt.tiktok.com/ZSujaPuVF/': '7614600402654252296',
@@ -19,6 +18,17 @@ function getVideoId(urlOrId) {
     'https://vt.tiktok.com/ZSujagfxp/': '7614503027684216071',
   };
   return shortLinkVideoMap[raw] || shortLinkVideoMap[normalized] || '';
+}
+
+function ensureTikTokEmbedScript() {
+  const src = 'https://www.tiktok.com/embed.js';
+  let script = document.querySelector(`script[src="${src}"]`);
+  if (!script) {
+    script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    document.body.appendChild(script);
+  }
 }
 
 export default function TikTokTaskVideo({
@@ -29,33 +39,47 @@ export default function TikTokTaskVideo({
 }) {
   const [open, setOpen] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [oEmbedReady, setOEmbedReady] = useState(false);
+
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
-  const embedUrl = useMemo(() => {
-    if (!videoId) return '';
-    return `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&rel=0`;
-  }, [videoId]);
-  const legacyEmbedUrl = useMemo(() => {
-    if (!videoId) return '';
-    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
-  }, [videoId]);
   const canonicalVideoUrl = useMemo(() => {
     if (!videoId) return videoUrl || '';
     return `https://www.tiktok.com/@tonplaygram/video/${videoId}`;
   }, [videoId, videoUrl]);
+  const playerUrl = useMemo(() => {
+    if (!videoId) return '';
+    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
+  }, [videoId]);
 
   useEffect(() => {
-    if (!autoOpen || !embedUrl || !storageKey) return;
+    if (!autoOpen || !playerUrl || !storageKey) return;
     if (localStorage.getItem(storageKey) === '1') return;
     setOpen(true);
     localStorage.setItem(storageKey, '1');
-  }, [autoOpen, embedUrl, storageKey]);
+  }, [autoOpen, playerUrl, storageKey]);
 
   useEffect(() => {
-    if (!open || !embedUrl) return;
+    if (!open || !canonicalVideoUrl) return;
     setShowFallback(false);
-    const id = setTimeout(() => setShowFallback(true), 4000);
-    return () => clearTimeout(id);
-  }, [open, embedUrl]);
+    setOEmbedReady(false);
+    ensureTikTokEmbedScript();
+
+    const id = window.setTimeout(() => {
+      setShowFallback(true);
+    }, 4500);
+
+    const renderTicker = window.setTimeout(() => {
+      if (typeof window.tiktokEmbedLoad === 'function') {
+        window.tiktokEmbedLoad();
+      }
+      setOEmbedReady(true);
+    }, 120);
+
+    return () => {
+      clearTimeout(id);
+      clearTimeout(renderTicker);
+    };
+  }, [open, canonicalVideoUrl]);
 
   return (
     <>
@@ -78,35 +102,34 @@ export default function TikTokTaskVideo({
                 Close
               </button>
             </div>
-            {embedUrl ? (
-              <div className="relative flex-1 min-h-0">
-                <iframe
-                  title={title}
-                  src={embedUrl}
-                  className="absolute inset-0 w-full h-full"
-                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  onLoad={() => setShowFallback(false)}
-                />
+            {canonicalVideoUrl ? (
+              <div className="relative flex-1 min-h-0 p-1">
+                <blockquote
+                  className="tiktok-embed absolute inset-0 m-0 h-full w-full"
+                  cite={canonicalVideoUrl}
+                  data-video-id={videoId}
+                  style={{ maxWidth: '100%', minWidth: '100%', margin: 0 }}
+                >
+                  <section />
+                </blockquote>
+                {!oEmbedReady && playerUrl && (
+                  <iframe
+                    title={`${title} fallback player`}
+                    src={playerUrl}
+                    className="absolute inset-0 w-full h-full"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                )}
               </div>
             ) : (
               <div className="p-4 text-sm text-subtext">Invalid TikTok video URL.</div>
             )}
             {showFallback && (
-              <div className="px-3 pt-2 text-center text-[11px] text-yellow-300 space-y-1">
-                <p>Video preview can be blocked in some devices. Open it directly in TikTok.</p>
-                {legacyEmbedUrl && (
-                  <a
-                    href={legacyEmbedUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block underline"
-                  >
-                    Try alternative TikTok player
-                  </a>
-                )}
+              <div className="px-3 pt-2 text-center text-[11px] text-yellow-300">
+                Video preview can be blocked in some devices. Use the direct TikTok link below.
               </div>
             )}
             <a
