@@ -3,7 +3,11 @@ import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
 import { polyHavenThumb } from './storeThumbnails.js';
-import { POOL_ROYALE_HDRI_VARIANTS, POOL_ROYALE_OPTION_LABELS } from './poolRoyaleInventoryConfig.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_OPTION_LABELS
+} from './poolRoyaleInventoryConfig.js';
 
 const reduceLabels = (items) =>
   items.reduce((acc, option) => {
@@ -89,12 +93,7 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
   }
 ]);
 
-export const TEXAS_HOLDEM_DEFAULT_HDRI_ID = 'dancingHall';
-
-const DEFAULT_HDRI_INDEX = Math.max(
-  0,
-  TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === TEXAS_HOLDEM_DEFAULT_HDRI_ID)
-);
+const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID));
 
 export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0]?.id],
@@ -105,7 +104,7 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableTheme: [TEXAS_TABLE_THEME_OPTIONS[0]?.id],
   tableShape: [TABLE_SHAPE_OPTIONS[0]?.id],
   cards: [CARD_THEMES[0]?.id],
-  environmentHdri: [TEXAS_HOLDEM_DEFAULT_HDRI_ID]
+  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
 });
 
 export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
@@ -226,9 +225,7 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
   { type: 'cards', optionId: CARD_THEMES[0]?.id, label: `${CARD_THEMES[0]?.label} Cards` },
   {
     type: 'environmentHdri',
-    optionId: TEXAS_HOLDEM_DEFAULT_HDRI_ID,
-    label:
-      TEXAS_HOLDEM_OPTION_LABELS.environmentHdri?.[TEXAS_HOLDEM_DEFAULT_HDRI_ID] ||
-      TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX]?.label
+    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
+    label: TEXAS_HOLDEM_OPTION_LABELS.environmentHdri?.[POOL_ROYALE_DEFAULT_HDRI_ID] || TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX]?.label
   }
 ];
