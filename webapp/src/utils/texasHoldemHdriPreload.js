@@ -1,4 +1,4 @@
-import { TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
+import { TEXAS_HDRI_OPTIONS, TEXAS_HOLDEM_DEFAULT_HDRI_ID } from '../config/texasHoldemInventoryConfig.js';
 
 const DEFAULT_RESOLUTIONS = Object.freeze(['4k']);
 const hdriUrlCache = new Map();
@@ -79,7 +79,11 @@ export async function resolveTexasHoldemHdriUrl(config = {}, preferred = DEFAULT
 
 export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS) {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve();
-  const variants = Array.isArray(options) ? options.filter(Boolean) : [];
+  const variants = (Array.isArray(options) ? options.filter(Boolean) : []).sort((a, b) => {
+    const aDefault = (a?.id || a?.assetId) === TEXAS_HOLDEM_DEFAULT_HDRI_ID ? 1 : 0;
+    const bDefault = (b?.id || b?.assetId) === TEXAS_HOLDEM_DEFAULT_HDRI_ID ? 1 : 0;
+    return bDefault - aDefault;
+  });
   const jobs = variants.map((variant) => {
     const key = variant?.id || variant?.assetId || variant?.fallbackUrl;
     if (!key) return Promise.resolve();
