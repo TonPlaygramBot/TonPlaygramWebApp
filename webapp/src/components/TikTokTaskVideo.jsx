@@ -25,11 +25,16 @@ export default function TikTokTaskVideo({
   storageKey,
 }) {
   const [open, setOpen] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
   const embedUrl = useMemo(() => {
     if (!videoId) return '';
-    return `https://www.tiktok.com/embed/v2/${videoId}`;
+    return `https://www.tiktok.com/player/v1/${videoId}?controls=1&music_info=0&description=0`;
   }, [videoId]);
+  const canonicalVideoUrl = useMemo(() => {
+    if (!videoId) return videoUrl || '';
+    return `https://www.tiktok.com/@tonplaygram/video/${videoId}`;
+  }, [videoId, videoUrl]);
 
   useEffect(() => {
     if (!autoOpen || !embedUrl || !storageKey) return;
@@ -37,6 +42,13 @@ export default function TikTokTaskVideo({
     setOpen(true);
     localStorage.setItem(storageKey, '1');
   }, [autoOpen, embedUrl, storageKey]);
+
+  useEffect(() => {
+    if (!open || !embedUrl) return;
+    setShowFallback(false);
+    const id = setTimeout(() => setShowFallback(true), 4000);
+    return () => clearTimeout(id);
+  }, [open, embedUrl]);
 
   return (
     <>
@@ -48,8 +60,8 @@ export default function TikTokTaskVideo({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-xl overflow-hidden border border-white/20 bg-black">
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-stretch justify-center">
+          <div className="w-full h-full overflow-hidden border border-white/10 bg-black flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/15">
               <span className="text-sm font-semibold text-white">{title}</span>
               <button
@@ -60,7 +72,7 @@ export default function TikTokTaskVideo({
               </button>
             </div>
             {embedUrl ? (
-              <div className="relative w-full pt-[177.78%]">
+              <div className="relative flex-1 min-h-0">
                 <iframe
                   title={title}
                   src={embedUrl}
@@ -69,19 +81,22 @@ export default function TikTokTaskVideo({
                   allowFullScreen
                   loading="lazy"
                   referrerPolicy="strict-origin-when-cross-origin"
+                  onLoad={() => setShowFallback(false)}
                 />
               </div>
             ) : (
               <div className="p-4 text-sm text-subtext">Invalid TikTok video URL.</div>
             )}
-            <p className="px-3 pt-2 text-center text-[11px] text-subtext">
-              If TikTok embed is unavailable on your device, use “Open on TikTok”.
-            </p>
+            {showFallback && (
+              <p className="px-3 pt-2 text-center text-[11px] text-yellow-300">
+                Video preview can be blocked in some devices. Open it directly in TikTok.
+              </p>
+            )}
             <a
-              href={videoUrl}
+              href={canonicalVideoUrl}
               target="_blank"
               rel="noreferrer"
-              className="block text-center text-xs text-subtext py-2"
+              className="block text-center text-sm font-semibold text-brand-gold py-3"
             >
               Open on TikTok
             </a>
