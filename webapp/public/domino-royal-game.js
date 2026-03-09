@@ -85,9 +85,9 @@ function isTelegramRuntime() {
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
-  tableClothTextureSize: 1536,
-  chairClothTextureSize: 1536,
-  dominoTextureSize: 1536
+  tableClothTextureSize: 2048,
+  chairClothTextureSize: 2048,
+  dominoTextureSize: 2048
 });
 
 function detectCoarsePointer() {
@@ -2260,7 +2260,7 @@ const MURLAN_TABLE_THEMES = Object.freeze(
   [
     {
       id: 'murlan-default',
-      label: 'Murlan Default Table',
+      label: 'Octagon Table',
       source: 'procedural',
       assetId: null,
       price: 0,
@@ -2461,24 +2461,18 @@ function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) 
     mats.forEach((mat) => {
       if (!mat) return;
       if (preserveGltfTextureMapping) {
-        if (mat.map) mat.map.anisotropy = Math.max(mat.map.anisotropy ?? 1, maxAnisotropy);
-        if (mat.normalMap)
-          mat.normalMap.anisotropy = Math.max(
-            mat.normalMap.anisotropy ?? 1,
-            maxAnisotropy
-          );
-        if (mat.roughnessMap)
-          mat.roughnessMap.anisotropy = Math.max(
-            mat.roughnessMap.anisotropy ?? 1,
-            maxAnisotropy
-          );
-        if (mat.metalnessMap)
-          mat.metalnessMap.anisotropy = Math.max(
-            mat.metalnessMap.anisotropy ?? 1,
-            maxAnisotropy
-          );
-        if (mat.aoMap)
-          mat.aoMap.anisotropy = Math.max(mat.aoMap.anisotropy ?? 1, maxAnisotropy);
+        normalizePbrTexture(mat.map, {
+          isColor: true,
+          maxAnisotropy
+        });
+        normalizePbrTexture(mat.emissiveMap, {
+          isColor: true,
+          maxAnisotropy
+        });
+        normalizePbrTexture(mat.normalMap, { maxAnisotropy });
+        normalizePbrTexture(mat.roughnessMap, { maxAnisotropy });
+        normalizePbrTexture(mat.metalnessMap, { maxAnisotropy });
+        normalizePbrTexture(mat.aoMap, { maxAnisotropy });
         mat.needsUpdate = true;
         return;
       }

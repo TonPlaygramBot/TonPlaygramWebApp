@@ -165,7 +165,7 @@ const POLYHAVEN_TABLE_THEMES = [
 export const MURLAN_TABLE_THEMES = [
   {
     id: 'murlan-default',
-    label: 'Murlan Default Table',
+    label: 'Octagon Table',
     source: 'procedural',
     price: 0,
     thumbnail: polyHavenThumb('CoffeeTable_01'),
