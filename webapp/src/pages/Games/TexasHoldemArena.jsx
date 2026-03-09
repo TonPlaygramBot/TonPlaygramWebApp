@@ -389,7 +389,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.0 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.74, landscape: 0.9 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = CARD_W * 0.2;
@@ -469,9 +469,7 @@ const HDRI_ENV_CACHE_LIMIT = 4;
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   0,
-  TEXAS_HDRI_OPTIONS.findIndex(
-    (variant) => variant.id === TEXAS_DEFAULT_HDRI_ID || PREFERRED_HDRI_RESOLUTIONS.includes(variant?.fallbackResolution ?? '4k')
-  )
+  TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === TEXAS_DEFAULT_HDRI_ID)
 );
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
