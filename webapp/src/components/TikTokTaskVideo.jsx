@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 function getVideoId(urlOrId) {
   if (!urlOrId) return '';
@@ -29,33 +29,53 @@ export default function TikTokTaskVideo({
 }) {
   const [open, setOpen] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const embedContainerRef = useRef(null);
   const videoId = useMemo(() => getVideoId(videoUrl), [videoUrl]);
-  const embedUrl = useMemo(() => {
-    if (!videoId) return '';
-    return `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&rel=0`;
-  }, [videoId]);
-  const legacyEmbedUrl = useMemo(() => {
-    if (!videoId) return '';
-    return `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&rel=0`;
-  }, [videoId]);
   const canonicalVideoUrl = useMemo(() => {
     if (!videoId) return videoUrl || '';
     return `https://www.tiktok.com/@tonplaygram/video/${videoId}`;
   }, [videoId, videoUrl]);
 
   useEffect(() => {
-    if (!autoOpen || !embedUrl || !storageKey) return;
+    if (!autoOpen || !videoId || !storageKey) return;
     if (localStorage.getItem(storageKey) === '1') return;
     setOpen(true);
     localStorage.setItem(storageKey, '1');
-  }, [autoOpen, embedUrl, storageKey]);
+  }, [autoOpen, storageKey, videoId]);
 
   useEffect(() => {
-    if (!open || !embedUrl) return;
+    if (!open || !videoId) return;
+    if (!embedContainerRef.current) return;
     setShowFallback(false);
-    const id = setTimeout(() => setShowFallback(true), 4000);
+    const container = embedContainerRef.current;
+    container.innerHTML = '';
+
+    const blockquote = document.createElement('blockquote');
+    blockquote.className = 'tiktok-embed';
+    blockquote.setAttribute('cite', canonicalVideoUrl);
+    blockquote.setAttribute('data-video-id', videoId);
+    blockquote.style.maxWidth = '605px';
+    blockquote.style.minWidth = '325px';
+    blockquote.style.margin = '0 auto';
+    blockquote.appendChild(document.createElement('section'));
+    container.appendChild(blockquote);
+
+    const existingScript = document.querySelector('script[src="https://www.tiktok.com/embed.js"]');
+    if (existingScript && typeof window.tiktokEmbedLoad === 'function') {
+      window.tiktokEmbedLoad();
+    } else if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://www.tiktok.com/embed.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    const id = setTimeout(() => {
+      const renderedFrame = container.querySelector('iframe');
+      setShowFallback(!renderedFrame);
+    }, 4500);
     return () => clearTimeout(id);
-  }, [open, embedUrl]);
+  }, [open, videoId, canonicalVideoUrl]);
 
   return (
     <>
@@ -78,35 +98,15 @@ export default function TikTokTaskVideo({
                 Close
               </button>
             </div>
-            {embedUrl ? (
-              <div className="relative flex-1 min-h-0">
-                <iframe
-                  title={title}
-                  src={embedUrl}
-                  className="absolute inset-0 w-full h-full"
-                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  onLoad={() => setShowFallback(false)}
-                />
+            {videoId ? (
+              <div className="relative flex-1 min-h-0 overflow-auto p-3" ref={embedContainerRef}>
               </div>
             ) : (
               <div className="p-4 text-sm text-subtext">Invalid TikTok video URL.</div>
             )}
             {showFallback && (
               <div className="px-3 pt-2 text-center text-[11px] text-yellow-300 space-y-1">
-                <p>Video preview can be blocked in some devices. Open it directly in TikTok.</p>
-                {legacyEmbedUrl && (
-                  <a
-                    href={legacyEmbedUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block underline"
-                  >
-                    Try legacy TikTok embed
-                  </a>
-                )}
+                <p>Embedded preview can be blocked on some devices. Open it directly in TikTok.</p>
               </div>
             )}
             <a
