@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(12);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.46 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.84 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 1.12 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
@@ -2887,8 +2887,6 @@ function TexasHoldemArena({ search }) {
   const humanSeatRef = useRef(null);
   const seatTopPointRef = useRef(null);
   const viewControlsRef = useRef({ applySeatedCamera: null, applyOverheadCamera: null });
-  const overheadViewRef = useRef(false);
-  const overheadZoomRef = useRef(OVERHEAD_ZOOM_DEFAULT);
   const lastViewRef = useRef(false);
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
@@ -3011,13 +3009,6 @@ function TexasHoldemArena({ search }) {
   const [sliderValue, setSliderValue] = useState(0);
   const [overheadView, setOverheadView] = useState(false);
   const [overheadZoom, setOverheadZoom] = useState(OVERHEAD_ZOOM_DEFAULT);
-  useEffect(() => {
-    overheadViewRef.current = overheadView;
-  }, [overheadView]);
-
-  useEffect(() => {
-    overheadZoomRef.current = overheadZoom;
-  }, [overheadZoom]);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -5449,21 +5440,17 @@ function TexasHoldemArena({ search }) {
         }
         mesh.position.copy(position);
         const humanActiveTurn = seat.isHuman && state.stage !== 'showdown' && idx === state.actionIndex;
-        const isOverheadView = overheadViewRef.current;
         const showdownFacing = humanSeatRef.current?.forward
           ? humanSeatRef.current.forward.clone()
           : new THREE.Vector3(0, 0, 1);
         const isShowdownReveal = state.showdown;
         const lookTarget = isShowdownReveal
           ? position.clone().add(showdownFacing)
-          : seat.isHuman && isOverheadView
-            ? position.clone().add(seat.forward.clone())
           : seat.isHuman
             ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
             : position.clone().add(seat.forward.clone());
         const face = seat.isHuman || isShowdownReveal ? 'front' : 'back';
-        const flatCard = isShowdownReveal ? false : (seat.isHuman && isOverheadView ? true : !isShowdownReveal);
-        orientCard(mesh, lookTarget, { face, flat: flatCard });
+        orientCard(mesh, lookTarget, { face, flat: !isShowdownReveal });
         if (!seat.isHuman && face === 'back' && !isShowdownReveal) {
           mesh.rotateZ(HIDDEN_CARD_BACK_ALIGNMENT_ROTATION);
         }
@@ -5472,7 +5459,7 @@ function TexasHoldemArena({ search }) {
         }
         if (isShowdownReveal) {
           mesh.rotateX(SHOWDOWN_CARD_STAND_TILT);
-        } else if (seat.isHuman && !isOverheadView) {
+        } else if (seat.isHuman) {
           animateHumanCardPosture(mesh, humanActiveTurn ? HUMAN_CARD_FACE_TILT : 0);
         }
         setCardFace(mesh, face);
@@ -6507,19 +6494,6 @@ function TexasHoldemArena({ search }) {
         </div>
       )}
       <div className="pointer-events-auto">
-        <button
-          type="button"
-          onClick={() => setOverheadView((prev) => !prev)}
-          className="fixed right-[0.45rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] z-20 flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-0.5 rounded-[14px] border border-white/20 bg-black/35 p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
-          aria-label={overheadView ? 'Switch to 3D camera view' : 'Switch to 2D top camera view'}
-          title={overheadView ? '3D View' : '2D View'}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.5A2.5 2.5 0 0 1 5.5 6h3.3l1.2-1.6A2 2 0 0 1 11.6 4h.8a2 2 0 0 1 1.6.8L15.2 6h3.3A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
-            <circle cx="12" cy="12" r="3.4" />
-          </svg>
-          <span className="text-[0.58rem] font-extrabold uppercase tracking-[0.08em]">{overheadView ? '3D' : '2D'}</span>
-        </button>
         <BottomLeftIcons
           onChat={() => setShowChat(true)}
           showInfo={false}
