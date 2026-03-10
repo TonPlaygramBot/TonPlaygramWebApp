@@ -1534,8 +1534,8 @@ const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
 const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
-  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
-  landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
+  portrait: { right: 0, forward: 0 },
+  landscape: { right: 0, forward: 0 }
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.42;
@@ -1760,7 +1760,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.enableZoom = false;
 controls.zoomSpeed = 0;
-controls.enablePan = true;
+controls.enablePan = false;
 controls.panSpeed = 0.9;
 controls.screenSpacePanning = true;
 controls.enableRotate = false;
@@ -1835,9 +1835,6 @@ function getTopDownFramingOffset() {
 }
 
 function getActiveCameraTarget() {
-  if (cameraViewMode === VIEW_MODES.twoD) {
-    return CAMERA_TARGET.clone().add(getTopDownFramingOffset());
-  }
   return CAMERA_TARGET.clone();
 }
 
@@ -2024,7 +2021,7 @@ function handleCameraLookDrag(deltaX = 0) {
     return;
   }
   cameraLookYaw = THREE.MathUtils.clamp(
-    cameraLookYaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+    cameraLookYaw - deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
     -CAMERA_LOOK_YAW_LIMIT,
     CAMERA_LOOK_YAW_LIMIT
   );
