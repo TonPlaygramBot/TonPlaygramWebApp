@@ -5351,7 +5351,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.01 // nudge rail-overhead framing slightly inward toward table center
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.014 // nudge rail-overhead framing a touch more inward so bottom pockets remain visible on portrait
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // lift rail-overhead camera slightly higher for clearer broadcast context
@@ -5445,7 +5445,7 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
-const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 4; // widen rail-overhead lens so near-rail pockets stay visible on portrait screens
+const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -13594,9 +13594,11 @@ function PoolRoyaleGame({
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isRailOverheadView, setIsRailOverheadView] = useState(false);
+  const [railOverheadSide, setRailOverheadSide] = useState('back');
   const usePortraitHudLayout = true;
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
+  const railOverheadSideRef = useRef('back');
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
@@ -13638,6 +13640,11 @@ function PoolRoyaleGame({
     }
     cameraUpdateRef.current?.();
   }, [isLookMode]);
+
+  useEffect(() => {
+    railOverheadSideRef.current = railOverheadSide === 'front' ? 'front' : 'back';
+    cameraUpdateRef.current?.();
+  }, [railOverheadSide]);
 
   useEffect(() => {
     if (isTopDownView) {
@@ -19317,14 +19324,19 @@ const powerRef = useRef(hud.power);
 
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
-          minTargetY = null
+          minTargetY = null,
+          preferredRail = null
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
+          const requestedRail = preferredRail === 'front' || preferredRail === 'back'
+            ? preferredRail
+            : null;
+          const activeRailId = requestedRail ?? rig.activeRail;
           const activeRail =
-            rig.activeRail === 'front'
+            activeRailId === 'front'
               ? rig.cameras.front
-              : rig.activeRail === 'back'
+              : activeRailId === 'back'
                 ? rig.cameras.back
                 : rig.cameras.back ?? rig.cameras.front;
           const head = activeRail?.head ?? null;
@@ -20198,7 +20210,8 @@ const powerRef = useRef(hud.power);
           if (overheadVariant === 'replay' || overheadVariant === 'rail') {
             const overheadCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
-              minTargetY
+              minTargetY,
+              preferredRail: overheadVariant === 'rail' ? railOverheadSideRef.current : null
             });
             if (overheadCamera?.position) {
               const resolvedTarget = overheadCamera.target ?? topFocusTarget;
@@ -33154,17 +33167,22 @@ const powerRef = useRef(hud.power);
             aria-pressed={isTopDownView && isRailOverheadView}
             onClick={() => {
               if (!isPortrait) return;
+              const isActiveRailView = isTopDownView && isRailOverheadView;
               setIsRailOverheadView(true);
               setIsTopDownView(true);
+              setRailOverheadSide((prev) => (isActiveRailView ? (prev === 'back' ? 'front' : 'back') : 'back'));
             }}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[16px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[13px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
               isTopDownView && isRailOverheadView
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
             }`}
-            aria-label="Switch to rail overhead view"
+            aria-label="Switch rail overhead side"
           >
-            <span aria-hidden="true">▲</span>
+            <span aria-hidden="true" className="flex flex-col items-center leading-[0.8]">
+              <span className={railOverheadSide === 'back' ? 'text-emerald-100' : 'text-white/65'}>▲</span>
+              <span className={railOverheadSide === 'front' ? 'text-emerald-100' : 'text-white/65'}>▼</span>
+            </span>
           </button>
         </div>
       </div>
