@@ -1518,8 +1518,8 @@ const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
 const CAMERA_LATERAL_OFFSET = { portrait: 0, landscape: 0 };
-const CAMERA_REAR_OFFSET = { portrait: 1.28, landscape: 1.04 };
-const CAMERA_HEIGHT_BOOST = { portrait: 1.78, landscape: 1.46 };
+const CAMERA_REAR_OFFSET = { portrait: 1.14, landscape: 0.96 };
+const CAMERA_HEIGHT_BOOST = { portrait: 1.86, landscape: 1.52 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
@@ -8233,6 +8233,7 @@ function takeTileMeshForAnimation(tile) {
   }
   const mesh = tile.mesh;
   tile.mesh = null;
+  activeHandMeshes.delete(mesh);
   const data = mesh.userData || (mesh.userData = {});
   delete data.owner;
   delete data.tile;
