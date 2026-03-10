@@ -1536,7 +1536,7 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
-  portrait: { right: TABLE_RADIUS * 0.06, forward: TABLE_RADIUS * 0.12 },
+  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.1 },
   landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
@@ -6623,6 +6623,9 @@ let boneyardStackTopLocal = 0;
 
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 760;
+const OPENING_SHUFFLE_ANIM_DURATION = 620;
+const OPENING_DEAL_ANIM_DURATION = 560;
+const OPENING_DEAL_STEP_DELAY = 76;
 const placementAnimations = [];
 const PLACE_ANIM_DURATION = 1320;
 const PLACE_ANIM_ARC = 0.16;
@@ -8083,8 +8086,63 @@ function spawnDrawAnimation(startWorld, seatIndex = human) {
     end,
     startTime: performance.now(),
     duration: DRAW_ANIM_DURATION,
+    delay: 0,
     arc: 0.05
   });
+}
+
+
+function spawnOpeningShuffleAnimation() {
+  const center = getBoneyardTopWorld() || boneyardStackG.getWorldPosition(new THREE.Vector3());
+  const swirlCount = Math.min(14, Math.max(8, Math.floor((Array.isArray(boneyard) ? boneyard.length : 0) / 2)));
+  for (let i = 0; i < swirlCount; i++) {
+    const angle = (i / swirlCount) * Math.PI * 2;
+    const radius = 0.09 + Math.random() * 0.08;
+    const start = center.clone().add(
+      new THREE.Vector3(
+        Math.cos(angle) * radius,
+        0.01 + Math.random() * 0.02,
+        Math.sin(angle) * radius
+      )
+    );
+    const end = center.clone().add(
+      new THREE.Vector3(
+        (Math.random() - 0.5) * 0.02,
+        Math.random() * 0.01,
+        (Math.random() - 0.5) * 0.02
+      )
+    );
+    const domino = makeDomino(0, 0, { flat: true, faceUp: false });
+    orientDominoFlat(domino, Math.PI / 2 + (Math.random() - 0.5) * 0.7);
+    domino.rotation.z = Math.PI;
+    domino.userData = { stockAnim: true, openingShuffle: true };
+    domino.position.copy(start);
+    piecesG.add(domino);
+    drawAnimations.push({
+      mesh: domino,
+      start,
+      end,
+      startTime: performance.now() + i * 14,
+      duration: OPENING_SHUFFLE_ANIM_DURATION,
+      arc: 0.035
+    });
+  }
+}
+
+function dealOpeningHands() {
+  for (let r = 0; r < 7; r++) {
+    players.forEach((p, pi) => {
+      const drawStart = getBoneyardTopWorld();
+      const dealt = drawTileFromStock();
+      if (!dealt) {
+        return;
+      }
+      p.hand.push(dealt);
+      if (drawStart) {
+        spawnDrawAnimation(drawStart, pi);
+      }
+    });
+  }
 }
 
 function clearWinnerHighlight() {
@@ -8467,15 +8525,16 @@ function startGame({ resetRace = true } = {}) {
   players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
   boneyard = shuffle(genSet());
   renderBoneyardStack();
-  for (let r = 0; r < 7; r++) {
-    players.forEach((p) => {
-      const dealt = drawTileFromStock();
-      if (dealt) {
-        p.hand.push(dealt);
-      }
-    });
-  }
+  spawnOpeningShuffleAnimation();
+  dealOpeningHands();
   players.forEach((p) => shuffle(p.hand)); // random order every game
+  drawAnimations.forEach((anim, index) => {
+    if (anim?.mesh?.userData?.openingShuffle) {
+      return;
+    }
+    anim.delay = OPENING_SHUFFLE_ANIM_DURATION * 0.45 + index * OPENING_DEAL_STEP_DELAY;
+    anim.duration = OPENING_DEAL_ANIM_DURATION;
+  });
   renderHands();
   let starter = 0,
     idx = -1,
@@ -10106,7 +10165,11 @@ function updateDrawAnimations(now) {
   const timestamp = Number.isFinite(now) ? now : performance.now();
   for (let i = drawAnimations.length - 1; i >= 0; i--) {
     const anim = drawAnimations[i];
-    const elapsed = timestamp - anim.startTime;
+    const delay = anim.delay || 0;
+    const elapsed = timestamp - anim.startTime - delay;
+    if (elapsed < 0) {
+      continue;
+    }
     const t = Math.min(1, elapsed / (anim.duration || DRAW_ANIM_DURATION));
     const ease = 1 - Math.pow(1 - t, 3);
     const pos = anim.start.clone();
