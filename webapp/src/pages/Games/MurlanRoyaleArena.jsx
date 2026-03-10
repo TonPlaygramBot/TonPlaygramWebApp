@@ -15,6 +15,10 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  createCardGeometry as createStandardCardGeometry,
+  createCardMesh as createStandardCardMesh
+} from '../../utils/cards3d.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
@@ -110,13 +114,6 @@ const CUSTOM_SEAT_ANGLES = [
 ];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
-const SUIT_COLORS = {
-  '♠': '#111111',
-  '♣': '#111111',
-  '♥': '#cc2233',
-  '♦': '#cc2233',
-  '🃏': '#111111'
-};
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -1256,41 +1253,19 @@ async function loadCharacterModel(theme, renderer = null) {
 }
 
 function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8' } = {}) {
+  void playerColor;
   const cardsGroup = new THREE.Group();
   const handCards = Array.isArray(handCardsInput) && handCardsInput.length
     ? handCardsInput.slice(0, 5)
     : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
   const safeCount = Math.max(handCards.length, 2);
-  const cardGeometry = new THREE.BoxGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE, 0.012 * MODEL_SCALE);
-  const edgeMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
-    roughness: 0.55,
-    metalness: 0.1
-  });
-  const backTexture = makeCardBackTexture(cardTheme);
-  const managedTextures = [backTexture];
-  const managedMaterials = [edgeMaterial];
+  const cardGeometry = createStandardCardGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE, 0.012 * MODEL_SCALE);
+  const textureCache = new Map();
 
   const spread = 0.12 * MODEL_SCALE;
   for (let idx = 0; idx < safeCount; idx++) {
     const handCard = handCards[idx] || handCards[handCards.length - 1];
-    const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, 256, 360);
-    managedTextures.push(faceTexture);
-    const frontMaterial = new THREE.MeshStandardMaterial({
-      map: faceTexture,
-      color: new THREE.Color('#ffffff'),
-      roughness: 0.36,
-      metalness: 0.08
-    });
-    const backMaterial = new THREE.MeshStandardMaterial({
-      map: backTexture,
-      color: new THREE.Color(idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'),
-      roughness: 0.6,
-      metalness: 0.15
-    });
-    managedMaterials.push(frontMaterial, backMaterial);
-    const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
-    const card = new THREE.Mesh(cardGeometry, sideMaterials);
+    const card = createStandardCardMesh(handCard, cardGeometry, textureCache, cardTheme);
     const centered = idx - (safeCount - 1) / 2;
     card.position.set(centered * spread, handLift * MODEL_SCALE + Math.abs(centered) * 0.008, idx * 0.004);
     card.rotation.set(
@@ -1305,8 +1280,13 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
 
   cardsGroup.userData.dispose = () => {
     cardGeometry.dispose();
-    managedMaterials.forEach((material) => material.dispose());
-    managedTextures.forEach((texture) => texture.dispose());
+    cardsGroup.children.forEach((cardMesh) => {
+      const materials = Array.isArray(cardMesh.material) ? cardMesh.material : [cardMesh.material];
+      materials.forEach((material) => material?.dispose?.());
+      cardMesh.userData.backTexture?.dispose?.();
+    });
+    textureCache.forEach((texture) => texture?.dispose?.());
+    textureCache.clear();
   };
   return cardsGroup;
 }
@@ -1931,7 +1911,7 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.02, landscape: 0.72 });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.84, landscape: 0.58 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscape: 0.86 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
@@ -1959,7 +1939,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.86;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.78;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -4073,11 +4053,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.9, 4.4 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.84, 4.1 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.45 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.56 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -4119,7 +4099,7 @@ export default function MurlanRoyaleArena({ search }) {
       const chairRadius = CHAIR_RADIUS;
       const seatThickness = SEAT_THICKNESS;
 
-      cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
+      cardGeometry = createStandardCardGeometry(CARD_W, CARD_H, CARD_D);
 
       const seatConfigs = [];
       threeStateRef.current.chairInstances = [];
@@ -5616,163 +5596,9 @@ function easeInOutCubic(t) {
 }
 
 function createCardMesh(card, geometry, cache, theme) {
-  const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
-  let faceTexture = cache.get(faceKey);
-  if (!faceTexture) {
-    faceTexture = makeCardFace(card.rank, card.suit, theme);
-    cache.set(faceKey, faceTexture);
-  }
-  const edgeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.edgeColor), roughness: 0.55, metalness: 0.1 });
-  const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
-  const frontMat = new THREE.MeshStandardMaterial({
-    map: faceTexture,
-    roughness: 0.35,
-    metalness: 0.08,
-    color: new THREE.Color('#ffffff')
-  });
-  const backTexture = makeCardBackTexture(theme);
-  const backMat = new THREE.MeshStandardMaterial({
-    map: backTexture,
-    color: new THREE.Color(theme.backColor),
-    roughness: 0.6,
-    metalness: 0.15
-  });
-  const hiddenMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(theme.hiddenColor || theme.backColor),
-    roughness: 0.7,
-    metalness: 0.12
-  });
-  const mesh = new THREE.Mesh(geometry, [...edgeMats, frontMat, backMat]);
+  const mesh = createStandardCardMesh(card, geometry, cache, theme);
   mesh.userData.cardId = card.id;
-  mesh.userData.card = card;
-  mesh.userData.frontMaterial = frontMat;
-  mesh.userData.backMaterial = backMat;
-  mesh.userData.hiddenMaterial = hiddenMat;
-  mesh.userData.edgeMaterials = edgeMats;
-  mesh.userData.backTexture = backTexture;
-  mesh.userData.cardFace = 'front';
   return mesh;
-}
-
-function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const g = canvas.getContext('2d');
-
-  g.fillStyle = theme.frontBackground || '#ffffff';
-  g.fillRect(0, 0, w, h);
-  g.strokeStyle = theme.frontBorder || '#d1d5db';
-  g.lineWidth = Math.max(4, Math.round(w * 0.012));
-  roundRect(g, g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth, Math.round(w * 0.12));
-  g.stroke();
-
-  const color = SUIT_COLORS[suit] || '#0f172a';
-  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
-
-  // Match bottom hand cards: top-left rank+suit, center suit, bottom-right rotated rank.
-  g.fillStyle = color;
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, Math.round(w * 0.095), Math.round(h * 0.065));
-
-  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, Math.round(w * 0.12), Math.round(h * 0.205));
-
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, w / 2, h / 2);
-
-  g.save();
-  g.translate(w - Math.round(w * 0.12), h - Math.round(h * 0.075));
-  g.rotate(Math.PI);
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, 0, 0);
-  g.restore();
-
-  const tex = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(tex);
-  tex.anisotropy = 12;
-  tex.magFilter = THREE.LinearFilter;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  return tex;
-}
-
-function makeCardBackTexture(theme, w = 512, h = 720) {
-  void theme;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-
-  // Match murlan-royale.html exactly.
-  const refCardWidth = 92;
-  const stripePx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const borderPx = Math.max(1, Math.round((w * 2) / refCardWidth));
-  const insetPx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const cardRadius = Math.max(4, Math.round((w * 10) / refCardWidth));
-  const innerRadius = Math.max(3, Math.round((w * 8) / refCardWidth));
-
-  const drawBack = (logoImage = null) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#122';
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#233';
-    for (let x = -h; x < w + h; x += stripePx * 2) {
-      ctx.save();
-      ctx.translate(x, 0);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillRect(0, -h, stripePx, h * 3);
-      ctx.restore();
-    }
-
-    if (logoImage) {
-      const drawWidth = Math.round(w * 0.6);
-      const ratio = logoImage.height / Math.max(logoImage.width, 1);
-      const drawHeight = Math.round(drawWidth * ratio);
-      ctx.drawImage(logoImage, (w - drawWidth) / 2, (h - drawHeight) / 2, drawWidth, drawHeight);
-    }
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = borderPx;
-    roundRect(ctx, borderPx / 2, borderPx / 2, w - borderPx, h - borderPx, cardRadius);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = borderPx;
-    ctx.setLineDash([borderPx * 2, borderPx * 2]);
-    roundRect(
-      ctx,
-      insetPx,
-      insetPx,
-      w - insetPx * 2,
-      h - insetPx * 2,
-      innerRadius
-    );
-    ctx.stroke();
-    ctx.setLineDash([]);
-  };
-
-  drawBack();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = 8;
-
-  const logo = new Image();
-  logo.crossOrigin = 'anonymous';
-  logo.onload = () => {
-    drawBack(logo);
-    texture.needsUpdate = true;
-  };
-  logo.src = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-
-  return texture;
 }
 
 function applyChairThemeMaterials(three, theme) {
@@ -5824,42 +5650,28 @@ function applyOutfitThemeMaterials(three, theme) {
 function applyCardThemeMaterials(three, theme, force = false) {
   if (!three?.cardMap) return;
   if (!force && three.cardThemeId === theme.id) return;
-  const frontTextures = new Set();
-  const backTextures = new Set();
-  three.cardMap.forEach(({ mesh }) => {
-    const { frontMaterial, backTexture } = mesh.userData ?? {};
-    if (frontMaterial?.map) frontTextures.add(frontMaterial.map);
-    if (backTexture) backTextures.add(backTexture);
-  });
-  frontTextures.forEach((tex) => tex?.dispose?.());
-  backTextures.forEach((tex) => tex?.dispose?.());
+
   three.faceTextureCache.forEach((tex) => tex.dispose());
   three.faceTextureCache.clear();
+
   three.cardMap.forEach(({ mesh }) => {
-    const { frontMaterial, backMaterial, hiddenMaterial, edgeMaterials, card } = mesh.userData ?? {};
-    if (!frontMaterial || !backMaterial || !edgeMaterials || !card) return;
-    const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
-    let faceTexture = three.faceTextureCache.get(faceKey);
-    if (!faceTexture) {
-      faceTexture = makeCardFace(card.rank, card.suit, theme);
-      three.faceTextureCache.set(faceKey, faceTexture);
-    }
-    frontMaterial.map = faceTexture;
-    frontMaterial.color?.set?.('#ffffff');
-    frontMaterial.needsUpdate = true;
-    const backTexture = makeCardBackTexture(theme);
-    mesh.userData.backTexture = backTexture;
-    backMaterial.map = backTexture;
-    backMaterial.color?.set?.(theme.backColor);
-    backMaterial.needsUpdate = true;
-    if (hiddenMaterial?.color) {
-      hiddenMaterial.color.set(theme.hiddenColor || theme.backColor);
-      hiddenMaterial.needsUpdate = true;
-    }
-    edgeMaterials.forEach((mat) => {
-      mat.color?.set?.(theme.edgeColor);
-      mat.needsUpdate = true;
-    });
+    const card = mesh?.userData?.card;
+    if (!mesh || !card) return;
+
+    const oldBackTexture = mesh.userData.backTexture;
+    const oldMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+    const replacement = createStandardCardMesh(card, mesh.geometry, three.faceTextureCache, theme);
+    mesh.material = replacement.material;
+    mesh.userData = {
+      ...replacement.userData,
+      cardId: card.id,
+      card
+    };
+
+    oldMaterials.forEach((material) => material?.dispose?.());
+    oldBackTexture?.dispose?.();
   });
+
   three.cardThemeId = theme.id;
 }
