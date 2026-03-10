@@ -1536,8 +1536,8 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
-  portrait: { right: 0, forward: 0 },
-  landscape: { right: 0, forward: 0 }
+  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.1 },
+  landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.42;
@@ -7873,88 +7873,6 @@ function layoutSeat(idx) {
   return seats[idx % seats.length];
 }
 
-function computeHandTilePose(
-  seatIndex,
-  tileIndex,
-  handCount,
-  { isTopDown = false } = {}
-) {
-  const [x0, z0] = layoutSeat(seatIndex);
-  const isHuman = seatIndex === human;
-  const isSide = seatIndex === 1 || seatIndex === 3;
-  const openFlat = isTopDown && isHuman;
-  const EDGE_SPAN = CLOTH_RADIUS - 0.28;
-  const BASE_GAP = DOMINO_HAND_GAP;
-  const MIN_GAP = DOMINO_LENGTH * 0.95;
-  const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
-  const count = Math.max(0, Number(handCount) || 0);
-  const safeIndex = Math.max(0, Math.min(count - 1, Number(tileIndex) || 0));
-
-  const gapBase =
-    (openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94) * PLAYER_HAND_GAP_SCALE;
-  const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
-  const seatLength = Math.hypot(x0, z0) || 1;
-  const outwardX = (x0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
-  const outwardZ = (z0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
-
-  let span = 0;
-  let gap = 0;
-  if (count > 1) {
-    const desiredSpan = gapBase * (count - 1);
-    const minSpan = Math.min(MIN_GAP * (count - 1), MAX_SPAN);
-    span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
-    gap = span / (count - 1);
-  }
-
-  let start = count > 1 ? -span / 2 : 0;
-  if (count > 1) {
-    const axisCenter = isSide ? z0 : x0;
-    const minLimit = -EDGE_SPAN;
-    const maxLimit = EDGE_SPAN;
-    const minStart = minLimit - axisCenter;
-    const maxStart = maxLimit - axisCenter - span;
-    if (minStart <= maxStart) {
-      if (start < minStart) start = minStart;
-      if (start > maxStart) start = maxStart;
-    } else {
-      start = (minStart + maxStart) / 2;
-    }
-  }
-
-  const baseOffset = count > 1 ? start + gap * safeIndex : 0;
-  const offset =
-    isHuman && !openFlat ? baseOffset * HUMAN_BOTTOM_HAND_GAP_SCALE : baseOffset;
-  const position = new THREE.Vector3();
-
-  if (isHuman && !openFlat) {
-    const handAnchorZ = z0 + HUMAN_HAND_OUTWARD_OFFSET;
-    const humanExtraOutwardX = (x0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
-    const humanExtraOutwardZ = (z0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
-    position.set(
-      x0 + outwardX + humanExtraOutwardX + offset,
-      handY - HUMAN_HAND_VERTICAL_OFFSET + HUMAN_BOTTOM_EXTRA_RAISE,
-      handAnchorZ + outwardZ + humanExtraOutwardZ
-    );
-  } else if (isSide) {
-    position.set(x0 + outwardX, handY, z0 + outwardZ + offset);
-  } else {
-    position.set(x0 + outwardX + offset, handY, z0 + outwardZ);
-  }
-
-  const yawTowardCenter = Math.atan2(-x0, -z0);
-  const quaternion = new THREE.Quaternion();
-  const orientTarget = new THREE.Object3D();
-  if (openFlat) {
-    orientDominoFlat(orientTarget, isHuman ? Math.PI / 2 : yawTowardCenter);
-    quaternion.copy(orientTarget.quaternion);
-  } else {
-    orientTarget.rotation.set(0, isHuman ? 0 : yawTowardCenter, 0);
-    quaternion.copy(orientTarget.quaternion);
-  }
-
-  return { position, quaternion, openFlat, isHuman };
-}
-
 function renderHands() {
   activeHandMeshes.forEach((mesh) => {
     piecesG.remove(mesh);
@@ -8146,11 +8064,7 @@ function getBoneyardTopWorld() {
   return boneyardStackG.localToWorld(localTop);
 }
 
-function spawnDrawAnimation(
-  startWorld,
-  seatIndex = human,
-  { tileIndex = 0, handCount = 1 } = {}
-) {
+function spawnDrawAnimation(startWorld, seatIndex = human) {
   if (!startWorld) {
     return;
   }
@@ -8164,10 +8078,8 @@ function spawnDrawAnimation(
   domino.position.copy(start);
   piecesG.add(domino);
 
-  const handPose = computeHandTilePose(seatIndex, tileIndex, handCount, {
-    isTopDown: false
-  });
-  const end = handPose.position;
+  const [seatX, seatZ] = layoutSeat(seatIndex);
+  const end = new THREE.Vector3(seatX * 0.55, HAND_Y + 0.012, seatZ - 0.08);
   drawAnimations.push({
     mesh: domino,
     start,
@@ -8227,10 +8139,7 @@ function dealOpeningHands() {
       }
       p.hand.push(dealt);
       if (drawStart) {
-        spawnDrawAnimation(drawStart, pi, {
-          tileIndex: p.hand.length - 1,
-          handCount: p.hand.length
-        });
+        spawnDrawAnimation(drawStart, pi);
       }
     });
   }
@@ -8312,13 +8221,7 @@ function takeTileMeshForAnimation(tile) {
 function spawnPlacementAnimation(
   tile,
   segment,
-  {
-    duration = PLACE_ANIM_DURATION,
-    mesh: providedMesh,
-    sourceSeat,
-    sourceIndex,
-    sourceCount
-  } = {}
+  { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}
 ) {
   if (!segment) {
     return;
@@ -8335,27 +8238,6 @@ function spawnPlacementAnimation(
     delete data.tile;
     data.animating = true;
     attachMeshPreserveWorld(mesh);
-  }
-  if (!mesh) {
-    if (
-      isValidTile(tile) &&
-      Number.isInteger(sourceSeat) &&
-      Number.isFinite(sourceIndex) &&
-      Number.isFinite(sourceCount)
-    ) {
-      const fallback = makeDomino(tile.a, tile.b, {
-        flat: false,
-        faceUp: sourceSeat === human
-      });
-      const handPose = computeHandTilePose(sourceSeat, sourceIndex, sourceCount, {
-        isTopDown: cameraViewMode === VIEW_MODES.twoD
-      });
-      fallback.position.copy(handPose.position);
-      fallback.quaternion.copy(handPose.quaternion);
-      fallback.userData = { animating: true };
-      piecesG.add(fallback);
-      mesh = fallback;
-    }
   }
   if (!mesh) {
     segment.animating = false;
@@ -8930,10 +8812,7 @@ function placeOnBoard(tile, side, options = {}) {
   if (animate) {
     spawnPlacementAnimation(tile, segment, {
       duration: options.duration,
-      mesh: options.animateMesh,
-      sourceSeat: options.sourceSeat,
-      sourceIndex: options.sourceIndex,
-      sourceCount: options.sourceCount
+      mesh: options.animateMesh
     });
   } else {
     renderChain();
@@ -9286,15 +9165,8 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     let playedTile = null;
     let playedPlacement = null;
     if (idx >= 0) {
-      const sourceCount = players[human].hand.length;
-      const sourceIndex = idx;
       const [picked] = players[human].hand.splice(idx, 1);
-      const placement = placeOnBoard(picked, side, {
-        animate: true,
-        sourceSeat: human,
-        sourceIndex,
-        sourceCount
-      });
+      const placement = placeOnBoard(picked, side, { animate: true });
       if (!placement.success) {
         players[human].hand.splice(idx, 0, picked);
         selectedTile = picked;
@@ -9407,10 +9279,7 @@ btnDraw.addEventListener('click', () => {
     const t = drawTileFromStock();
     if (!t) break;
     players[human].hand.push(t);
-    spawnDrawAnimation(startWorld, human, {
-      tileIndex: players[human].hand.length - 1,
-      handCount: players[human].hand.length
-    });
+    spawnDrawAnimation(startWorld, human);
     drewTile = true;
     const canL = t.a === ends?.L?.v || t.b === ends?.L?.v;
     const canR = t.a === ends?.R?.v || t.b === ends?.R?.v;
@@ -9727,15 +9596,8 @@ function cpuPlay() {
   for (const move of moves) {
     const tile = player.hand[move.index];
     if (!tile) continue;
-    const sourceCount = player.hand.length;
-    const sourceIndex = move.index;
     const picked = player.hand.splice(move.index, 1)[0];
-    const placement = placeOnBoard(picked, move.side, {
-      animate: true,
-      sourceSeat: current,
-      sourceIndex,
-      sourceCount
-    });
+    const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
       renderHands();
       announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', {
