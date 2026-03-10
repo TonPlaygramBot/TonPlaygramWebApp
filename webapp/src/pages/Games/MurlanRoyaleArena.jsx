@@ -1938,7 +1938,8 @@ const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.15;
 const COMMUNITY_CARD_TOP_TILT = 0.08;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
-const COMMUNITY_CARD_SPACING_MULTIPLIER = 1;
+const COMMUNITY_CARD_SPACING = CARD_W * COMMUNITY_CARD_SCALE * 1.08;
+const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 4;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
@@ -3180,10 +3181,10 @@ export default function MurlanRoyaleArena({ search }) {
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
     const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
-    const bottomCardSpacing = humanSeat?.spacing ?? 0.12 * MODEL_SCALE;
-    const bottomCardMaxSpread = humanSeat?.maxSpread ?? 2.1 * MODEL_SCALE;
+    const bottomCardSpacing = Math.max(humanSeat?.spacing ?? 0, COMMUNITY_CARD_SPACING);
+    const bottomCardMaxSpread = Math.max(humanSeat?.maxSpread ?? 0, COMMUNITY_CARD_MAX_SPREAD);
     const tableSpread = tableCount > 1
-      ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread) * COMMUNITY_CARD_SPACING_MULTIPLIER
+      ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread)
       : 0;
     const tableSpacing = tableCount > 1 ? tableSpread / (tableCount - 1) : 0;
     const tableStartX = tableCount > 1 ? -tableSpread / 2 : 0;
@@ -5633,7 +5634,7 @@ function createCardMesh(card, geometry, cache, theme) {
   const backTexture = makeCardBackTexture(theme);
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
-    color: new THREE.Color(theme.backColor),
+    color: new THREE.Color('#ffffff'),
     roughness: 0.6,
     metalness: 0.15
   });
@@ -5714,9 +5715,7 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   const refCardWidth = 92;
   const stripePx = Math.max(1, Math.round((w * 6) / refCardWidth));
   const borderPx = Math.max(1, Math.round((w * 2) / refCardWidth));
-  const insetPx = Math.max(1, Math.round((w * 6) / refCardWidth));
   const cardRadius = Math.max(4, Math.round((w * 10) / refCardWidth));
-  const innerRadius = Math.max(3, Math.round((w * 8) / refCardWidth));
 
   const drawBack = (logoImage = null) => {
     ctx.clearRect(0, 0, w, h);
@@ -5732,7 +5731,7 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
     }
 
     if (logoImage) {
-      const drawWidth = Math.round(w * 0.6);
+      const drawWidth = Math.round(w * 0.9);
       const ratio = logoImage.height / Math.max(logoImage.width, 1);
       const drawHeight = Math.round(drawWidth * ratio);
       ctx.drawImage(logoImage, (w - drawWidth) / 2, (h - drawHeight) / 2, drawWidth, drawHeight);
@@ -5742,20 +5741,6 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
     ctx.lineWidth = borderPx;
     roundRect(ctx, borderPx / 2, borderPx / 2, w - borderPx, h - borderPx, cardRadius);
     ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = borderPx;
-    ctx.setLineDash([borderPx * 2, borderPx * 2]);
-    roundRect(
-      ctx,
-      insetPx,
-      insetPx,
-      w - insetPx * 2,
-      h - insetPx * 2,
-      innerRadius
-    );
-    ctx.stroke();
-    ctx.setLineDash([]);
   };
 
   drawBack();
