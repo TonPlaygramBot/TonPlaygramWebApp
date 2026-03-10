@@ -146,7 +146,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-function makeCardBackTexture(theme, w = 3072, h = 4320) {
+export function makeCardBackTexture(theme, w = 3072, h = 4320) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
