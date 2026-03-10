@@ -1536,8 +1536,8 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
-  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.1 },
-  landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
+  portrait: { right: 0, forward: 0 },
+  landscape: { right: 0, forward: 0 }
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.42;
@@ -7873,6 +7873,77 @@ function layoutSeat(idx) {
   return seats[idx % seats.length];
 }
 
+function getHandPlacementForIndex(playerIndex, handCount, tileIndex) {
+  const [x0, z0] = layoutSeat(playerIndex);
+  const isHuman = playerIndex === human;
+  const isSide = playerIndex === 1 || playerIndex === 3;
+  const openFlat = cameraViewMode === VIEW_MODES.twoD && isHuman;
+
+  const EDGE_SPAN = CLOTH_RADIUS - 0.28;
+  const BASE_GAP = DOMINO_HAND_GAP;
+  const MIN_GAP = DOMINO_LENGTH * 0.95;
+  const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
+
+  const gapBase =
+    (openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94) * PLAYER_HAND_GAP_SCALE;
+  const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
+  const seatLength = Math.hypot(x0, z0) || 1;
+  const outwardX = (x0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
+  const outwardZ = (z0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
+
+  let span = 0;
+  let gap = 0;
+  if (handCount > 1) {
+    const desiredSpan = gapBase * (handCount - 1);
+    const minSpan = Math.min(MIN_GAP * (handCount - 1), MAX_SPAN);
+    span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
+    gap = span / (handCount - 1);
+  }
+
+  let start = handCount > 1 ? -span / 2 : 0;
+  if (handCount > 1) {
+    const axisCenter = isSide ? z0 : x0;
+    const minLimit = -EDGE_SPAN;
+    const maxLimit = EDGE_SPAN;
+    const minStart = minLimit - axisCenter;
+    const maxStart = maxLimit - axisCenter - span;
+    if (minStart <= maxStart) {
+      if (start < minStart) start = minStart;
+      if (start > maxStart) start = maxStart;
+    } else {
+      start = (minStart + maxStart) / 2;
+    }
+  }
+
+  const baseOffset = handCount > 1 ? start + gap * tileIndex : 0;
+  const offset =
+    isHuman && !openFlat ? baseOffset * HUMAN_BOTTOM_HAND_GAP_SCALE : baseOffset;
+  const position = new THREE.Vector3();
+  if (isHuman && !openFlat) {
+    const handAnchorZ = z0 + HUMAN_HAND_OUTWARD_OFFSET;
+    const humanExtraOutwardX = (x0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
+    const humanExtraOutwardZ = (z0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
+    position.set(
+      x0 + outwardX + humanExtraOutwardX + offset,
+      handY - HUMAN_HAND_VERTICAL_OFFSET + HUMAN_BOTTOM_EXTRA_RAISE,
+      handAnchorZ + outwardZ + humanExtraOutwardZ
+    );
+  } else if (isSide) {
+    position.set(x0 + outwardX, handY, z0 + outwardZ + offset);
+  } else {
+    position.set(x0 + outwardX + offset, handY, z0 + outwardZ);
+  }
+
+  const yawTowardCenter = Math.atan2(-x0, -z0);
+  return {
+    position,
+    yawTowardCenter,
+    openFlat,
+    isHuman,
+    yaw: openFlat ? (isHuman ? Math.PI / 2 : yawTowardCenter) : yawTowardCenter
+  };
+}
+
 function renderHands() {
   activeHandMeshes.forEach((mesh) => {
     piecesG.remove(mesh);
@@ -7885,11 +7956,6 @@ function renderHands() {
   });
   clearSelectedHighlight();
 
-  const EDGE_SPAN = CLOTH_RADIUS - 0.28;
-  const BASE_GAP = DOMINO_HAND_GAP;
-  const MIN_GAP = DOMINO_LENGTH * 0.95;
-  const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
-
   const isTopDown = cameraViewMode === VIEW_MODES.twoD;
 
   players.forEach((p, pi) => {
@@ -7898,69 +7964,20 @@ function renderHands() {
     const faceUp =
       revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
     const count = p.hand.length;
-    const isSide = pi === 1 || pi === 3;
     const openFlat = isTopDown && isHuman;
     const openFaceUpHand = isTopDown && isHuman;
-
-    const gapBase =
-      (openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94) * PLAYER_HAND_GAP_SCALE;
-    const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
-    const seatLength = Math.hypot(x0, z0) || 1;
-    const outwardX = (x0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
-    const outwardZ = (z0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
-
-    let span = 0;
-    let gap = 0;
-    if (count > 1) {
-      const desiredSpan = gapBase * (count - 1);
-      const minSpan = Math.min(MIN_GAP * (count - 1), MAX_SPAN);
-      span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
-      gap = span / (count - 1);
-    }
-
-    let start = count > 1 ? -span / 2 : 0;
-    if (count > 1) {
-      const axisCenter = isSide ? z0 : x0;
-      const minLimit = -EDGE_SPAN;
-      const maxLimit = EDGE_SPAN;
-      const minStart = minLimit - axisCenter;
-      const maxStart = maxLimit - axisCenter - span;
-      if (minStart <= maxStart) {
-        if (start < minStart) start = minStart;
-        if (start > maxStart) start = maxStart;
-      } else {
-        start = (minStart + maxStart) / 2;
-      }
-    }
 
     p.hand.forEach((h, hi) => {
       const m = makeDomino(h.a, h.b, {
         flat: openFlat,
         faceUp: faceUp || openFaceUpHand
       });
-      const baseOffset = count > 1 ? start + gap * hi : 0;
-      const offset =
-        isHuman && !openFlat ? baseOffset * HUMAN_BOTTOM_HAND_GAP_SCALE : baseOffset;
-      if (isHuman && !openFlat) {
-        const handAnchorZ = z0 + HUMAN_HAND_OUTWARD_OFFSET;
-        const humanExtraOutwardX = (x0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
-        const humanExtraOutwardZ = (z0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
-        m.position.set(
-          x0 + outwardX + humanExtraOutwardX + offset,
-          handY - HUMAN_HAND_VERTICAL_OFFSET + HUMAN_BOTTOM_EXTRA_RAISE,
-          handAnchorZ + outwardZ + humanExtraOutwardZ
-        );
-      } else if (isSide) {
-        m.position.set(x0 + outwardX, handY, z0 + outwardZ + offset);
+      const handPlacement = getHandPlacementForIndex(pi, count, hi);
+      m.position.copy(handPlacement.position);
+      if (handPlacement.openFlat) {
+        orientDominoFlat(m, handPlacement.yaw);
       } else {
-        m.position.set(x0 + outwardX + offset, handY, z0 + outwardZ);
-      }
-      const yawTowardCenter = Math.atan2(-x0, -z0);
-      if (openFlat) {
-        const yaw = isHuman ? Math.PI / 2 : yawTowardCenter;
-        orientDominoFlat(m, yaw);
-      } else {
-        m.rotation.set(0, pi === human ? 0 : yawTowardCenter, 0);
+        m.rotation.set(0, pi === human ? 0 : handPlacement.yawTowardCenter, 0);
         m.rotation.z += Math.random() * 0.006 - 0.003;
       }
       h.mesh = m;
@@ -8064,7 +8081,7 @@ function getBoneyardTopWorld() {
   return boneyardStackG.localToWorld(localTop);
 }
 
-function spawnDrawAnimation(startWorld, seatIndex = human) {
+function spawnDrawAnimation(startWorld, seatIndex = human, targetTile = null) {
   if (!startWorld) {
     return;
   }
@@ -8078,12 +8095,30 @@ function spawnDrawAnimation(startWorld, seatIndex = human) {
   domino.position.copy(start);
   piecesG.add(domino);
 
-  const [seatX, seatZ] = layoutSeat(seatIndex);
-  const end = new THREE.Vector3(seatX * 0.55, HAND_Y + 0.012, seatZ - 0.08);
+  const tileIndex = Math.max(0, players?.[seatIndex]?.hand?.indexOf(targetTile) ?? 0);
+  const handPlacement = getHandPlacementForIndex(
+    seatIndex,
+    Math.max(1, players?.[seatIndex]?.hand?.length ?? 1),
+    tileIndex
+  );
+  const end = handPlacement.position.clone();
+  const endQuat = new THREE.Quaternion();
+  if (handPlacement.openFlat) {
+    const orientTarget = new THREE.Object3D();
+    orientDominoFlat(orientTarget, handPlacement.yaw);
+    endQuat.copy(orientTarget.quaternion);
+  } else {
+    const orientTarget = new THREE.Object3D();
+    orientTarget.rotation.set(0, seatIndex === human ? 0 : handPlacement.yawTowardCenter, 0);
+    endQuat.copy(orientTarget.quaternion);
+  }
   drawAnimations.push({
     mesh: domino,
     start,
     end,
+    startQuat: domino.quaternion.clone(),
+    endQuat,
+    targetTile,
     startTime: performance.now(),
     duration: DRAW_ANIM_DURATION,
     delay: 0,
@@ -8139,7 +8174,7 @@ function dealOpeningHands() {
       }
       p.hand.push(dealt);
       if (drawStart) {
-        spawnDrawAnimation(drawStart, pi);
+        spawnDrawAnimation(drawStart, pi, dealt);
       }
     });
   }
@@ -10172,12 +10207,23 @@ function updateDrawAnimations(now) {
     }
     const t = Math.min(1, elapsed / (anim.duration || DRAW_ANIM_DURATION));
     const ease = 1 - Math.pow(1 - t, 3);
-    const pos = anim.start.clone();
-    pos.lerp(anim.end, ease);
+    const targetMesh = anim.targetTile?.mesh;
+    const dynamicEnd = targetMesh
+      ? targetMesh.getWorldPosition(new THREE.Vector3())
+      : anim.end;
+    const pos = anim.start.clone().lerp(dynamicEnd, ease);
     if (anim.arc) {
       pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
     anim.mesh.position.copy(pos);
+
+    if (anim.startQuat && anim.endQuat) {
+      if (targetMesh) {
+        targetMesh.getWorldQuaternion(anim.endQuat);
+      }
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
+      anim.mesh.quaternion.copy(quat);
+    }
     if (t >= 1) {
       piecesG.remove(anim.mesh);
       drawAnimations.splice(i, 1);
