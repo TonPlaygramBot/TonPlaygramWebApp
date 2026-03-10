@@ -352,8 +352,8 @@ const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
-const COMMUNITY_CARD_LANDSCAPE_TOP_LIFT = 0.105;
-const COMMUNITY_CARD_PORTRAIT_TOP_LIFT = 0.055;
+const COMMUNITY_CARD_LANDSCAPE_TOP_LIFT = 0;
+const COMMUNITY_CARD_PORTRAIT_TOP_LIFT = 0;
 const COMMUNITY_ROW_ROTATION = 0;
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   new THREE.Vector3(
@@ -363,8 +363,9 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   )
 );
 const HOLE_SPACING = CARD_W * 1.08;
+const HUMAN_HOLE_SPACING = HOLE_SPACING * 0.78;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.22;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.46;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.22;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = 0;
@@ -405,7 +406,7 @@ const OVERHEAD_PINCH_SENSITIVITY = 0.0025;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.66;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.9;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.62;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.4;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.34;
@@ -4853,7 +4854,7 @@ function TexasHoldemArena({ search }) {
           const right = humanSeatGroup.right.clone();
 
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
+            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_HOLE_SPACING));
             mesh.position.copy(position);
 
             const lookTarget = baseAnchor
@@ -5425,13 +5426,13 @@ function TexasHoldemArena({ search }) {
         const position = baseAnchor
           .clone()
           .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET + edgeOutwardPush)
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * (seat.isHuman ? HUMAN_HOLE_SPACING : HOLE_SPACING)));
         if (state.showdown && Number.isInteger(winnerOrderIndex)) {
           position.copy(
             winnerDisplayCenter
               .clone()
               .addScaledVector(humanSeatRef.current?.right ?? right, (winnerOrderIndex - winnerSpreadOffset) * SHOWDOWN_WINNER_SPACING)
-              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * HOLE_SPACING)
+              .addScaledVector(humanSeatRef.current?.right ?? right, (cardIdx - 0.5) * (seat.isHuman ? HUMAN_HOLE_SPACING : HOLE_SPACING))
           );
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
