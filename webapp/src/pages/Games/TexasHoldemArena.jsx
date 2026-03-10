@@ -390,8 +390,8 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(12);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0032;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 1.12 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.34 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 0.8, landscape: 0.84 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.55, landscape: 0.72 });
 const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.24;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
@@ -5449,8 +5449,9 @@ function TexasHoldemArena({ search }) {
           : seat.isHuman
             ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
             : position.clone().add(seat.forward.clone());
+        const isOverheadHumanReveal = overheadView && seat.isHuman && !isShowdownReveal;
         const face = seat.isHuman || isShowdownReveal ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: !isShowdownReveal });
+        orientCard(mesh, lookTarget, { face, flat: isOverheadHumanReveal || !isShowdownReveal });
         if (!seat.isHuman && face === 'back' && !isShowdownReveal) {
           mesh.rotateZ(HIDDEN_CARD_BACK_ALIGNMENT_ROTATION);
         }
@@ -5459,6 +5460,8 @@ function TexasHoldemArena({ search }) {
         }
         if (isShowdownReveal) {
           mesh.rotateX(SHOWDOWN_CARD_STAND_TILT);
+        } else if (isOverheadHumanReveal) {
+          animateHumanCardPosture(mesh, 0);
         } else if (seat.isHuman) {
           animateHumanCardPosture(mesh, humanActiveTurn ? HUMAN_CARD_FACE_TILT : 0);
         }
@@ -6230,8 +6233,11 @@ function TexasHoldemArena({ search }) {
     if (Array.isArray(three.seatGroups)) {
       three.seatGroups.forEach((seat) => {
         if (seat?.group) {
-          seat.group.visible = !overheadView;
+          seat.group.visible = true;
         }
+        seat?.chairMeshes?.forEach((mesh) => {
+          if (mesh) mesh.visible = !overheadView;
+        });
       });
     }
     if (overheadView) {
@@ -6521,7 +6527,11 @@ function TexasHoldemArena({ search }) {
           showInfo={false}
           showChat={false}
           showGift={false}
-          order={['mute']}
+          showCamera2d
+          camera2dActive={overheadView}
+          onCamera2d={() => setOverheadView((prev) => !prev)}
+          cameraIcon="📷"
+          order={['mute', 'camera2d']}
           className="fixed left-[0.2rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] landscape:left-[0.2rem] landscape:right-auto landscape:top-auto landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+1.6rem)] flex flex-col gap-2.5 z-20"
           buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-transparent p-0 text-white shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
           iconClassName="text-lg leading-none"
