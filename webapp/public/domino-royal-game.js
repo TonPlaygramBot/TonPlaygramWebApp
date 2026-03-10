@@ -1928,6 +1928,10 @@ function positionCameraForViewport({ force = false } = {}) {
 }
 
 function updateTurnCameraFocus() {
+  if (current === human && cameraHasUserControl) {
+    return;
+  }
+
   if (cameraViewMode === VIEW_MODES.twoD || !Number.isInteger(current)) {
     turnFocusTarget.copy(getActiveCameraTarget());
     controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
@@ -1962,7 +1966,12 @@ function updateTurnCameraFocus() {
 }
 
 function enforceSeatedCameraLock() {
-  if (cameraViewMode === VIEW_MODES.twoD || entrySequenceActive) return;
+  if (
+    cameraViewMode === VIEW_MODES.twoD ||
+    entrySequenceActive ||
+    current === human
+  )
+    return;
   const lockedPosition = clampCameraPosition(computeDesiredCameraPosition(), getActiveCameraTarget());
   camera.position.copy(lockedPosition);
 }
@@ -7750,7 +7759,8 @@ function renderHands() {
       revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
     const count = p.hand.length;
     const isSide = pi === 1 || pi === 3;
-    const openFlat = isTopDown && isHuman;
+    const openFlat = false;
+    const openFaceUpHand = isTopDown && isHuman;
 
     const gapBase = openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94;
     const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y;
@@ -7780,7 +7790,10 @@ function renderHands() {
     }
 
     p.hand.forEach((h, hi) => {
-      const m = makeDomino(h.a, h.b, { flat: openFlat, faceUp });
+      const m = makeDomino(h.a, h.b, {
+        flat: openFlat,
+        faceUp: faceUp || openFaceUpHand
+      });
       const offset = count > 1 ? start + gap * hi : 0;
       if (isHuman && !openFlat) {
         const handAnchorZ = z0 + HUMAN_HAND_OUTWARD_OFFSET;
