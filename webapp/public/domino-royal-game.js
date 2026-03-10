@@ -6282,8 +6282,14 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
+const PLAYER_HAND_GAP_SCALE = 0.84;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 0.34;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.13;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.85;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.08;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.24;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.065;
+const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.94;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -7893,8 +7899,12 @@ function renderHands() {
     const openFlat = isTopDown && isHuman;
     const openFaceUpHand = isTopDown && isHuman;
 
-    const gapBase = openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94;
-    const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y;
+    const gapBase =
+      (openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94) * PLAYER_HAND_GAP_SCALE;
+    const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y + PLAYER_HAND_VERTICAL_RAISE;
+    const seatLength = Math.hypot(x0, z0) || 1;
+    const outwardX = (x0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
+    const outwardZ = (z0 / seatLength) * PLAYER_HAND_OUTWARD_OFFSET;
 
     let span = 0;
     let gap = 0;
@@ -7925,18 +7935,22 @@ function renderHands() {
         flat: openFlat,
         faceUp: faceUp || openFaceUpHand
       });
-      const offset = count > 1 ? start + gap * hi : 0;
+      const baseOffset = count > 1 ? start + gap * hi : 0;
+      const offset =
+        isHuman && !openFlat ? baseOffset * HUMAN_BOTTOM_HAND_GAP_SCALE : baseOffset;
       if (isHuman && !openFlat) {
         const handAnchorZ = z0 + HUMAN_HAND_OUTWARD_OFFSET;
+        const humanExtraOutwardX = (x0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
+        const humanExtraOutwardZ = (z0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
         m.position.set(
-          x0 + offset,
-          handY - HUMAN_HAND_VERTICAL_OFFSET,
-          handAnchorZ
+          x0 + outwardX + humanExtraOutwardX + offset,
+          handY - HUMAN_HAND_VERTICAL_OFFSET + HUMAN_BOTTOM_EXTRA_RAISE,
+          handAnchorZ + outwardZ + humanExtraOutwardZ
         );
       } else if (isSide) {
-        m.position.set(x0, handY, z0 + offset);
+        m.position.set(x0 + outwardX, handY, z0 + outwardZ + offset);
       } else {
-        m.position.set(x0 + offset, handY, z0);
+        m.position.set(x0 + outwardX + offset, handY, z0 + outwardZ);
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       if (openFlat) {
