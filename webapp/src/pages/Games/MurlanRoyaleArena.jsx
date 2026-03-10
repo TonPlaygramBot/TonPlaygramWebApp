@@ -3139,7 +3139,7 @@ export default function MurlanRoyaleArena({ search }) {
         CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
       );
       const cards = player.hand;
-      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : AI_CARD_LIFT);
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT;
       const forward = seat.forward;
       const right = seat.right;
       const radius = seat.radius;
@@ -3152,11 +3152,9 @@ export default function MurlanRoyaleArena({ search }) {
         if (!entry) return;
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
-        mesh.visible = !isHumanCard;
+        mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
-        if (!isHumanCard) {
-          handsVisible.add(card.id);
-        }
+        handsVisible.add(card.id);
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
@@ -3175,6 +3173,9 @@ export default function MurlanRoyaleArena({ search }) {
           three.animations
         );
         mesh.userData.cardId = card.id;
+        if (isHumanCard && humanTurn) {
+          three.selectionTargets.push(mesh);
+        }
       });
     });
 
@@ -3251,9 +3252,11 @@ export default function MurlanRoyaleArena({ search }) {
       }
     });
 
-    three.selectionTargets = [];
+    if (!humanTurn) {
+      three.selectionTargets = [];
+    }
     if (three.renderer?.domElement) {
-      three.renderer.domElement.style.cursor = humanTurn ? 'pointer' : 'default';
+      three.renderer.domElement.style.cursor = humanTurn && three.selectionTargets.length ? 'pointer' : 'default';
     }
   }, []);
 
@@ -4163,7 +4166,7 @@ export default function MurlanRoyaleArena({ search }) {
           forward,
           right,
           focus,
-          radius: (isHumanSeat ? 2.7 : 3.25) * MODEL_SCALE,
+          radius: (isHumanSeat ? 3.05 : 3.25) * MODEL_SCALE,
           spacing: 0.12 * MODEL_SCALE,
           maxSpread: 2.1 * MODEL_SCALE,
           stoolPosition,
@@ -4605,7 +4608,6 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const humanPlayer = gameState.players.find((player) => player.isHuman) ?? null;
-  const humanHand = humanPlayer?.hand ?? [];
 
   return (
     <div className="absolute inset-0">
@@ -4856,7 +4858,7 @@ export default function MurlanRoyaleArena({ search }) {
             showInfo={false}
           />
           <BottomLeftIcons
-            className="fixed left-4 bottom-[10.2rem] z-20"
+            className="fixed left-4 bottom-[4.8rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
             iconClassName="text-2xl"
             order={['chat']}
@@ -4866,7 +4868,7 @@ export default function MurlanRoyaleArena({ search }) {
             onChat={() => setShowChat(true)}
           />
           <BottomLeftIcons
-            className="fixed right-4 bottom-[10.2rem] z-20"
+            className="fixed right-4 bottom-[4.8rem] z-20"
             buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
             iconClassName="text-2xl"
             order={['gift']}
@@ -4887,42 +4889,7 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="mb-2 flex min-h-[6.5rem] items-end justify-center overflow-x-auto px-2 py-1">
-              <div className="flex min-w-max items-end justify-center">
-                {humanHand.map((card, index) => {
-                  const selected = selectedIds.includes(card.id);
-                  const redSuit = card.suit === '♥' || card.suit === '♦';
-                  return (
-                    <button
-                      type="button"
-                      key={card.id}
-                      onClick={() => toggleSelection(card.id)}
-                      className={`relative h-28 w-20 shrink-0 rounded-xl border-2 bg-white text-left shadow-[0_8px_22px_rgba(0,0,0,0.45)] transition-transform ${
-                        selected
-                          ? '-translate-y-3 border-sky-300 ring-2 ring-sky-300/70'
-                          : 'border-slate-300 hover:-translate-y-1'
-                      }`}
-                      style={{ marginLeft: index === 0 ? 0 : -56, zIndex: 10 + index }}
-                      disabled={!uiState.humanTurn}
-                    >
-                      <span className={`absolute left-1.5 top-1.5 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
-                        {card.rank}
-                      </span>
-                      <span className={`absolute left-2 top-6 text-base leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
-                        {card.suit}
-                      </span>
-                      <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-3xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
-                        {card.suit}
-                      </span>
-                      <span className={`absolute bottom-1.5 right-1.5 rotate-180 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
-                        {card.rank}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="fixed bottom-[10.2rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
+            <div className="fixed bottom-[4.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
