@@ -30,6 +30,23 @@ const CHESS_AI_FLAG_KEY = 'chessBattleRoyalAiFlag';
 
 const PLAYER_OPTIONS = [2, 3, 4];
 const HUMAN_ICON_FALLBACK = '🧑‍🤝‍🧑';
+const GAME_TYPE_OPTIONS = [
+  {
+    id: 'single',
+    label: 'Single Game',
+    desc: 'One round winner',
+    accent: 'from-purple-400/30 via-indigo-500/10 to-transparent',
+    icon: '🎴'
+  },
+  {
+    id: 'points',
+    label: 'Points Race',
+    desc: 'Race to target',
+    accent: 'from-pink-400/30 via-fuchsia-500/10 to-transparent',
+    icon: '🏁'
+  }
+];
+const TARGET_POINTS_OPTIONS = [51, 101];
 
 export default function DominoRoyalLobby() {
   const navigate = useNavigate();
@@ -39,6 +56,8 @@ export default function DominoRoyalLobby() {
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
+  const [gameType, setGameType] = useState('single');
+  const [targetPoints, setTargetPoints] = useState(51);
   const [frameRateId, setFrameRateId] = useState(DEFAULT_FRAME_RATE_ID);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
@@ -111,6 +130,8 @@ export default function DominoRoyalLobby() {
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('players', String(totalPlayers));
+    params.set('game', gameType);
+    if (gameType === 'points') params.set('points', String(targetPoints));
     if (mode !== 'local' && token) params.set('token', token);
     if (mode !== 'local' && amount) params.set('amount', amount);
     if (avatar) params.set('avatar', avatar);
@@ -168,7 +189,9 @@ export default function DominoRoyalLobby() {
           playerName: getTelegramUsername() || 'Player',
           avatar,
           mode: 'online',
-          token: stake.token
+          token: stake.token,
+          game: gameType,
+          points: gameType === 'points' ? Number(targetPoints) : 0
         },
         (res = {}) => {
           if (!res.success || !res.tableId) {
@@ -214,7 +237,7 @@ export default function DominoRoyalLobby() {
     return () => {
       socket.off('gameStart', handleGameStart);
     };
-  }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags]);
+  }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags, gameType, targetPoints]);
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -390,6 +413,78 @@ export default function DominoRoyalLobby() {
           <p className="text-xs text-white/60 text-center">
             Online status: {readiness.label}. Queue and matchmaking are now live.
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Game Type</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              Rules
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {GAME_TYPE_OPTIONS.map(({ id, label, desc, accent, icon }) => {
+              const active = gameType === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setGameType(id)}
+                  className={`lobby-option-card ${
+                    active
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('domino-royal', `type-${id}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {gameType === 'points' && (
+            <div className="grid grid-cols-2 gap-3">
+              {TARGET_POINTS_OPTIONS.map((pts) => (
+                <button
+                  key={pts}
+                  type="button"
+                  onClick={() => setTargetPoints(pts)}
+                  className={`lobby-option-card ${
+                    targetPoints === pts
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-pink-400/30 via-fuchsia-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('domino-royal', `points-${pts}`)}
+                        alt={`${pts} points`}
+                        fallback="🏁"
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{pts} pts</p>
+                    <p className="lobby-option-subtitle">Points to race</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-3">

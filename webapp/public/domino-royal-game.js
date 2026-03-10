@@ -7533,6 +7533,52 @@ const winnerOverlayReason = document.getElementById('winnerReason');
 const winnerPlayAgainButton = document.getElementById('winnerPlayAgain');
 const winnerReturnLobbyButton = document.getElementById('winnerReturnLobby');
 const winnerCoinBurst = document.getElementById('winnerCoinBurst');
+const leaderboardCard = document.createElement('div');
+leaderboardCard.id = 'dominoLeaderboardCard';
+leaderboardCard.setAttribute('aria-live', 'polite');
+leaderboardCard.innerHTML =
+  '<div class="leaderboard-title">Leaderboard</div><div class="leaderboard-rows"></div>';
+document.body.appendChild(leaderboardCard);
+
+function computePipTotal(hand = []) {
+  return hand.reduce(
+    (sum, tile) => sum + Number(tile?.a || 0) + Number(tile?.b || 0),
+    0
+  );
+}
+
+function updateLeaderboardCard() {
+  if (!leaderboardCard) return;
+  const titleEl = leaderboardCard.querySelector('.leaderboard-title');
+  const rowsHost = leaderboardCard.querySelector('.leaderboard-rows');
+  if (!rowsHost) return;
+  if (titleEl) {
+    titleEl.textContent = isPointsRace
+      ? `Leaderboard • Race to ${raceTargetPoints}`
+      : 'Leaderboard • Single Game';
+  }
+  const names = getSeatUsernames(N);
+  const rows = players
+    .map((player, idx) => ({
+      idx,
+      name: names[idx] || `Player ${idx + 1}`,
+      piecesLeft: player?.hand?.length ?? 0,
+      pointsLeft: computePipTotal(player?.hand || [])
+    }))
+    .sort((a, b) => a.pointsLeft - b.pointsLeft || a.piecesLeft - b.piecesLeft);
+
+  rowsHost.innerHTML = rows
+    .map(
+      (entry, rank) =>
+        `<div class="leaderboard-row ${entry.idx === human ? 'is-human' : ''}">` +
+        `<span class="leaderboard-rank">${rank + 1}</span>` +
+        `<span class="leaderboard-name">${entry.name}</span>` +
+        `<span class="leaderboard-stat">${entry.pointsLeft} pts</span>` +
+        `<span class="leaderboard-stat">${entry.piecesLeft} left</span>` +
+        '</div>'
+    )
+    .join('');
+}
 
 function hideWinnerOverlay() {
   if (!winnerOverlay) return;
@@ -7710,6 +7756,12 @@ const requestedPlayers = Number.parseInt(
   urlParams.get('players') || urlParams.get('playerCount') || '',
   10
 );
+const selectedGameType = (urlParams.get('game') || 'single').toLowerCase();
+const raceTargetPoints = Number.parseInt(urlParams.get('points') || '', 10);
+const isPointsRace =
+  selectedGameType === 'points' &&
+  Number.isFinite(raceTargetPoints) &&
+  raceTargetPoints > 0;
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
 }
@@ -7718,6 +7770,11 @@ const stakeToken = urlParams.get('token') || 'TPC';
 if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
   statusPrefix = `Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`;
   setStatus('Ready');
+}
+if (isPointsRace) {
+  statusPrefix = statusPrefix
+    ? `${statusPrefix} • Race ${raceTargetPoints} pts`
+    : `Race ${raceTargetPoints} pts`;
 }
 
 applyAppearanceChange({ refresh: false });
@@ -7810,7 +7867,7 @@ function renderHands() {
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       if (openFlat) {
-        const yaw = isHuman ? 0 : yawTowardCenter;
+        const yaw = isHuman ? Math.PI / 2 : yawTowardCenter;
         orientDominoFlat(m, yaw);
       } else {
         m.rotation.set(0, pi === human ? 0 : yawTowardCenter, 0);
@@ -7825,6 +7882,7 @@ function renderHands() {
       }
     });
   });
+  updateLeaderboardCard();
 }
 
 /* ---------- Chain Rendering ---------- */
@@ -9987,6 +10045,9 @@ function shutdownDominoRoyal(reason = 'unknown') {
     scene.visible = false;
     if (seatOverlay?.parentNode) {
       seatOverlay.parentNode.removeChild(seatOverlay);
+    }
+    if (leaderboardCard?.parentNode) {
+      leaderboardCard.parentNode.removeChild(leaderboardCard);
     }
     if (reason === 'react-unmount') {
       controls?.dispose?.();

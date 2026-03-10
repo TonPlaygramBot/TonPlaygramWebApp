@@ -119,6 +119,65 @@ export default function DominoRoyalArena() {
         #quickActions .quick-action[data-action="chat"] {
           left: calc(0.75rem + env(safe-area-inset-left, 0px)) !important;
         }
+        #dominoLeaderboardCard {
+          position: fixed;
+          top: calc(6.15rem + env(safe-area-inset-top, 0px));
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(90vw, 24rem);
+          z-index: 5;
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.82));
+          box-shadow: 0 12px 24px rgba(2, 6, 23, 0.42);
+          backdrop-filter: blur(8px);
+          color: #f8fafc;
+          padding: 0.5rem 0.55rem;
+          pointer-events: none;
+        }
+        #dominoLeaderboardCard .leaderboard-title {
+          font-size: 0.64rem;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: rgba(186, 230, 253, 0.9);
+          margin-bottom: 0.35rem;
+          text-align: center;
+        }
+        #dominoLeaderboardCard .leaderboard-rows {
+          display: grid;
+          gap: 0.2rem;
+        }
+        #dominoLeaderboardCard .leaderboard-row {
+          display: grid;
+          grid-template-columns: 1.05rem minmax(0, 1fr) auto auto;
+          align-items: center;
+          column-gap: 0.35rem;
+          border-radius: 9px;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.6);
+          padding: 0.24rem 0.35rem;
+          font-size: 0.68rem;
+        }
+        #dominoLeaderboardCard .leaderboard-row.is-human {
+          border-color: rgba(56, 189, 248, 0.55);
+          background: rgba(14, 116, 144, 0.24);
+        }
+        #dominoLeaderboardCard .leaderboard-rank {
+          font-weight: 800;
+          text-align: center;
+          color: #fde68a;
+        }
+        #dominoLeaderboardCard .leaderboard-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-weight: 700;
+        }
+        #dominoLeaderboardCard .leaderboard-stat {
+          font-weight: 700;
+          color: rgba(226, 232, 240, 0.9);
+          white-space: nowrap;
+        }
         #winnerOverlay {
           position: fixed;
           inset: 0;
