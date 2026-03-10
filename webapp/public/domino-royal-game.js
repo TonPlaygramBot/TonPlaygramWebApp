@@ -8244,7 +8244,7 @@ function takeTileMeshForAnimation(tile) {
 function spawnPlacementAnimation(
   tile,
   segment,
-  { duration = PLACE_ANIM_DURATION, mesh: providedMesh, source = null } = {}
+  { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}
 ) {
   if (!segment) {
     return;
@@ -8252,34 +8252,6 @@ function spawnPlacementAnimation(
   let mesh = providedMesh;
   if (!mesh) {
     mesh = takeTileMeshForAnimation(tile);
-    if (!mesh && isValidTile(tile) && Number.isInteger(source?.seatIndex)) {
-      const fallbackSeatIndex = source.seatIndex;
-      const fallbackHandCount = Math.max(
-        1,
-        Number.isFinite(source.handCount) ? source.handCount : (players[fallbackSeatIndex]?.hand?.length ?? 1)
-      );
-      const safeHandIndex = Number.isFinite(source.handIndex)
-        ? Math.max(0, Math.min(fallbackHandCount - 1, Math.round(source.handIndex)))
-        : Math.max(0, fallbackHandCount - 1);
-      const fallbackStart = computeHandSlotPosition(
-        fallbackSeatIndex,
-        safeHandIndex,
-        fallbackHandCount,
-        { isTopDown: cameraViewMode === VIEW_MODES.twoD }
-      );
-      mesh = makeDomino(tile.a, tile.b, {
-        flat: true,
-        faceUp: true,
-        preserveOrder: true
-      });
-      const seat = chairs[fallbackSeatIndex];
-      const fallbackYaw = seat
-        ? Math.atan2(-seat.position.z, -seat.position.x)
-        : 0;
-      orientDominoFlat(mesh, fallbackYaw);
-      mesh.position.copy(fallbackStart);
-      piecesG.add(mesh);
-    }
   } else {
     if (tile && tile.mesh === mesh) {
       tile.mesh = null;
@@ -8863,8 +8835,7 @@ function placeOnBoard(tile, side, options = {}) {
   if (animate) {
     spawnPlacementAnimation(tile, segment, {
       duration: options.duration,
-      mesh: options.animateMesh,
-      source: options.source
+      mesh: options.animateMesh
     });
   } else {
     renderChain();
@@ -9217,16 +9188,8 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     let playedTile = null;
     let playedPlacement = null;
     if (idx >= 0) {
-      const handCountBeforePlay = players[human].hand.length;
       const [picked] = players[human].hand.splice(idx, 1);
-      const placement = placeOnBoard(picked, side, {
-        animate: true,
-        source: {
-          seatIndex: human,
-          handIndex: idx,
-          handCount: handCountBeforePlay
-        }
-      });
+      const placement = placeOnBoard(picked, side, { animate: true });
       if (!placement.success) {
         players[human].hand.splice(idx, 0, picked);
         selectedTile = picked;
@@ -9656,16 +9619,8 @@ function cpuPlay() {
   for (const move of moves) {
     const tile = player.hand[move.index];
     if (!tile) continue;
-    const handCountBeforePlay = player.hand.length;
     const picked = player.hand.splice(move.index, 1)[0];
-    const placement = placeOnBoard(picked, move.side, {
-      animate: true,
-      source: {
-        seatIndex: current,
-        handIndex: move.index,
-        handCount: handCountBeforePlay
-      }
-    });
+    const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
       renderHands();
       announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', {
