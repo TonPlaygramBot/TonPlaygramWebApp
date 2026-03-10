@@ -27,7 +27,7 @@ export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME
     faceTexture = makeCardFace(card.rank, card.suit, theme);
     cache?.set?.(faceKey, faceTexture);
   }
-  const backTexture = makeCardBackTexture(theme);
+  const backTexture = makeTonplaygramCardBackTexture(theme);
   const edgeMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.edgeColor || '#f0f2f5'),
     roughness: 0.55,
@@ -146,7 +146,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-function makeCardBackTexture(theme, w = 3072, h = 4320) {
+export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
