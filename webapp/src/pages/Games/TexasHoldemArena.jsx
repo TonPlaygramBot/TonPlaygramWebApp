@@ -419,9 +419,6 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
-const HUMAN_CARD_SCREEN_SPACING = HOLE_SPACING * 0.86;
-const HUMAN_CARD_CAMERA_DISTANCE = TABLE_RADIUS * 0.46;
-const HUMAN_CARD_CAMERA_VERTICAL_OFFSET = -TABLE_RADIUS * 0.26;
 const POT_PLAYER_PILE_RADIUS = CARD_W * 1.02;
 const POT_TWO_PILE_SIDE_OFFSET = CARD_W * 0.4;
 const POT_TWO_PILE_FORWARD_STEP = CARD_D * 1.5;
@@ -4848,21 +4845,22 @@ function TexasHoldemArena({ search }) {
         const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
         if (!humanSeatGroup) return;
 
-          const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
-          const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
-          const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-          const baseAnchor = camera.position
-            .clone()
-            .addScaledVector(cameraForward, HUMAN_CARD_CAMERA_DISTANCE)
-            .addScaledVector(cameraUp, HUMAN_CARD_CAMERA_VERTICAL_OFFSET);
+          const baseAnchor =
+            getHumanCardAnchor(humanSeatGroup) ??
+            humanSeatGroup.cardRailAnchor?.clone() ??
+            humanSeatGroup.chipRailAnchor?.clone() ??
+            humanSeatGroup.chipAnchor.clone();
+          const right = humanSeatGroup.right.clone();
 
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-            const position = baseAnchor
-              .clone()
-              .addScaledVector(cameraRight, (idx - 0.5) * HUMAN_CARD_SCREEN_SPACING);
+            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
             mesh.position.copy(position);
 
-            const lookTarget = position.clone().add(cameraForward);
+            const lookTarget = baseAnchor
+              .clone()
+              .addScaledVector(humanSeatGroup.forward, 2.4 * MODEL_SCALE)
+              .add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
+            lookTarget.y = position.y;
             orientCard(mesh, lookTarget, { face: 'front', flat: false });
             mesh.rotateX(HUMAN_CARD_FACE_TILT);
             setCardFace(mesh, 'front');
@@ -5624,8 +5622,8 @@ function TexasHoldemArena({ search }) {
 
     const newlyRevealedCommunity = [];
     communityMeshes.forEach((mesh, idx) => {
-      const sourceIdx = idx;
-      const card = state.community[idx];
+      const sourceIdx = communityMeshes.length - 1 - idx;
+      const card = state.community[sourceIdx];
       if (!card) {
         mesh.position.copy(deckAnchor);
         mesh.visible = false;
