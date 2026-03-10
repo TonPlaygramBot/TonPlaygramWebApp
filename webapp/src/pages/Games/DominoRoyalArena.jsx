@@ -122,7 +122,7 @@ export default function DominoRoyalArena() {
         #dominoLeaderboardCard {
           position: fixed;
           top: calc(3.9rem + env(safe-area-inset-top, 0px));
-          left: 50%;
+          left: 57%;
           transform: translateX(-50%);
           width: min(72vw, 15.5rem);
           z-index: 5;

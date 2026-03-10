@@ -1929,11 +1929,15 @@ function positionCameraForViewport({ force = false } = {}) {
 }
 
 function updateTurnCameraFocus() {
-  if (current === human && cameraHasUserControl) {
+  if (cameraHasUserControl) {
     return;
   }
 
-  if (cameraViewMode === VIEW_MODES.twoD || !Number.isInteger(current)) {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return;
+  }
+
+  if (!Number.isInteger(current)) {
     turnFocusTarget.copy(getActiveCameraTarget());
     controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
     return;
@@ -2031,11 +2035,6 @@ function updateCameraLookRecentering() {
     cameraLookYaw = 0;
     return;
   }
-  cameraLookYaw = THREE.MathUtils.lerp(
-    cameraLookYaw,
-    0,
-    CAMERA_LOOK_YAW_RECENTER_SPEED
-  );
 }
 
 function toggleCameraViewMode() {
@@ -6244,8 +6243,8 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.6;
-const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.18;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.85;
+const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.08;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -9677,17 +9676,21 @@ function showPassBubble(seatIndex = current) {
   bubble.style.position = 'fixed';
   bubble.style.zIndex = '9999';
   bubble.style.pointerEvents = 'none';
-  bubble.style.padding = '0.22rem 0.48rem';
+  bubble.style.padding = '0.2rem 0.5rem';
   bubble.style.borderRadius = '999px';
-  bubble.style.background = 'rgba(127, 29, 29, 0.9)';
-  bubble.style.color = '#fecaca';
-  bubble.style.border = '1px solid rgba(248, 113, 113, 0.75)';
-  bubble.style.boxShadow = '0 8px 20px rgba(127, 29, 29, 0.35)';
+  bubble.style.background = 'rgba(153, 27, 27, 0.94)';
+  bubble.style.color = '#fee2e2';
+  bubble.style.border = '1px solid rgba(252, 165, 165, 0.95)';
+  bubble.style.boxShadow = '0 10px 24px rgba(127, 29, 29, 0.44)';
+  bubble.style.textShadow = '0 1px 4px rgba(69, 10, 10, 0.82)';
   bubble.style.fontFamily = 'Inter, system-ui, sans-serif';
-  bubble.style.fontSize = '0.64rem';
-  bubble.style.fontWeight = '800';
-  bubble.style.letterSpacing = '0.08em';
+  bubble.style.fontSize = '0.7rem';
+  bubble.style.fontWeight = '900';
+  bubble.style.letterSpacing = '0.1em';
   bubble.style.transform = 'translate(-50%, -100%)';
+  bubble.style.opacity = '0';
+  bubble.style.transition =
+    'transform 620ms cubic-bezier(0.16, 1, 0.3, 1), opacity 620ms ease-out';
   document.body.appendChild(bubble);
   const badge = seatBadges[seatIndex];
   if (badge) {
@@ -9698,6 +9701,14 @@ function showPassBubble(seatIndex = current) {
     bubble.style.left = '50vw';
     bubble.style.top = '16vh';
   }
+  requestAnimationFrame(() => {
+    bubble.style.opacity = '1';
+    bubble.style.transform = 'translate(-50%, -130%) scale(1.08)';
+  });
+  setTimeout(() => {
+    bubble.style.opacity = '0';
+    bubble.style.transform = 'translate(-50%, -178%) scale(0.94)';
+  }, 880);
   const timeout = setTimeout(() => {
     clearPassBubble(seatIndex);
   }, 1600);
