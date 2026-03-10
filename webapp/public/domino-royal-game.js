@@ -1760,18 +1760,20 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.enableZoom = false;
 controls.zoomSpeed = 0;
-controls.enablePan = true;
-controls.panSpeed = 0.9;
-controls.screenSpacePanning = true;
+controls.enablePan = false;
+controls.panSpeed = 0;
+controls.screenSpacePanning = false;
 controls.enableRotate = false;
 controls.minDistance = CAMERA_MIN_RADIUS;
 controls.maxDistance = CAMERA_MAX_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
-controls.touches.ONE = THREE.TOUCH.PAN;
-controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-controls.touches.THREE = THREE.TOUCH.PAN;
-controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+controls.touches.ONE = THREE.TOUCH.NONE;
+controls.touches.TWO = THREE.TOUCH.NONE;
+controls.touches.THREE = THREE.TOUCH.NONE;
+controls.mouseButtons.LEFT = THREE.MOUSE.NONE;
+controls.mouseButtons.MIDDLE = THREE.MOUSE.NONE;
+controls.mouseButtons.RIGHT = THREE.MOUSE.NONE;
 controls.target.copy(CAMERA_TARGET);
 const turnFocusTarget = controls.target.clone();
 const turnSeatTarget = new THREE.Vector3();
@@ -1961,7 +1963,7 @@ function updateTurnCameraFocus() {
     const toTarget = turnFocusTarget.clone().sub(camera.position);
     const horizontalLength = Math.hypot(toTarget.x, toTarget.z);
     if (horizontalLength > 0.0001) {
-      const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).normalize();
+      const lateral = new THREE.Vector3(toTarget.z, 0, -toTarget.x).normalize();
       const yawOffset = Math.tan(cameraLookYaw) * horizontalLength;
       turnFocusTarget.addScaledVector(lateral, yawOffset);
     }
