@@ -1944,11 +1944,12 @@ const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.33 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.125 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = -0.35 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.145 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(5);
 const AI_HAND_CARD_SPACING = 0.12 * MODEL_SCALE;
 const AI_HAND_CARD_MAX_SPREAD = 2.1 * MODEL_SCALE;
 const AI_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(14);
@@ -1963,6 +1964,7 @@ const COMMUNITY_CARD_CLOSER_TO_HUMAN = -0.28 * MODEL_SCALE;
 const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = HUMAN_HAND_DIRECTIONAL_LIFT * 0.8;
+const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -3224,7 +3226,11 @@ export default function MurlanRoyaleArena({ search }) {
           mesh,
           target,
           handLookTarget,
-          { face: isHumanCard ? 'front' : 'back', yawY: fanYaw },
+          {
+            face: isHumanCard ? 'front' : 'back',
+            yawY: fanYaw,
+            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
+          },
           immediate,
           three.animations
         );
@@ -3262,7 +3268,7 @@ export default function MurlanRoyaleArena({ search }) {
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
       const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(tableCount, idx);
-      const communityFanYaw = 0;
+      const communityFanYaw = normalizedOffset * COMMUNITY_CARD_SIDE_ORIENTATION_YAW;
       const lateralOffset = tableStartX + idx * tableSpacing;
       if (humanSeat?.right) {
         target.addScaledVector(humanSeat.right, lateralOffset + COMMUNITY_CARD_LEFT_SHIFT);
@@ -5578,7 +5584,7 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
 }
 
 function orientMesh(mesh, lookTarget, options = {}) {
-  const { face = 'front', flat = false, flatTiltX = 0, flatYawY = 0, yawY = 0, rollZ = 0 } = options;
+  const { face = 'front', flat = false, flatTiltX = 0, flatYawY = 0, yawY = 0, pitchX = 0, rollZ = 0 } = options;
   if (flat) {
     mesh.rotation.set(-Math.PI / 2 + flatTiltX, (face === 'back' ? Math.PI : 0) + flatYawY, 0);
     return;
@@ -5588,6 +5594,9 @@ function orientMesh(mesh, lookTarget, options = {}) {
   mesh.rotation.z = 0;
   if (yawY) {
     mesh.rotateY(yawY);
+  }
+  if (pitchX) {
+    mesh.rotateX(pitchX);
   }
   if (rollZ) {
     mesh.rotateZ(rollZ);
