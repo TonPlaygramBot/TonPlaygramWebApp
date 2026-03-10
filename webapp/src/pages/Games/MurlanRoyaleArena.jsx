@@ -1936,12 +1936,9 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscap
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.15;
-const COMMUNITY_CARD_TOP_TILT = 0.12;
+const COMMUNITY_CARD_TOP_TILT = 0.08;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
-const COMMUNITY_CARD_SPACING_MULTIPLIER = 1.18;
-const COMMUNITY_CARD_MIN_GAP = CARD_W * 1.06;
-const COMMUNITY_CARD_RENDER_ORDER_BASE = 120;
-const COMMUNITY_CARD_LAYER_LIFT = 0.0009;
+const COMMUNITY_CARD_SPACING_MULTIPLIER = 1;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
@@ -1962,7 +1959,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.76;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.86;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -3154,13 +3151,10 @@ export default function MurlanRoyaleArena({ search }) {
         if (!entry) return;
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
-        mesh.visible = true;
-        mesh.renderOrder = 0;
+        mesh.visible = !isHumanCard;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         if (!isHumanCard) {
           handsVisible.add(card.id);
-        } else if (humanTurn) {
-          three.selectionTargets.push(mesh);
         }
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
@@ -3191,10 +3185,8 @@ export default function MurlanRoyaleArena({ search }) {
     const tableSpread = tableCount > 1
       ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread) * COMMUNITY_CARD_SPACING_MULTIPLIER
       : 0;
-    const spreadSpacing = tableCount > 1 ? tableSpread / (tableCount - 1) : 0;
-    const tableSpacing = tableCount > 1 ? Math.max(spreadSpacing, COMMUNITY_CARD_MIN_GAP) : 0;
-    const effectiveTableSpread = tableCount > 1 ? tableSpacing * (tableCount - 1) : 0;
-    const tableStartX = tableCount > 1 ? -effectiveTableSpread / 2 : 0;
+    const tableSpacing = tableCount > 1 ? tableSpread / (tableCount - 1) : 0;
+    const tableStartX = tableCount > 1 ? -tableSpread / 2 : 0;
     const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
     state.tableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
@@ -3206,8 +3198,7 @@ export default function MurlanRoyaleArena({ search }) {
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
       target.x += tableStartX + idx * tableSpacing;
-      target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET + idx * COMMUNITY_CARD_LAYER_LIFT;
-      mesh.renderOrder = COMMUNITY_CARD_RENDER_ORDER_BASE + idx;
+      target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET;
       setMeshPosition(
         mesh,
         target,
@@ -3239,7 +3230,6 @@ export default function MurlanRoyaleArena({ search }) {
       const target = discardAnchor.clone();
       target.x += layer * discardSpacing;
       target.y += layer * 0.0015;
-      mesh.renderOrder = 0;
       setMeshPosition(
         mesh,
         target,
@@ -3254,7 +3244,6 @@ export default function MurlanRoyaleArena({ search }) {
       if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
       mesh.scale.setScalar(1);
       mesh.visible = false;
-      mesh.renderOrder = 0;
       if (mesh.userData?.animation) {
         mesh.userData.animation.cancelled = true;
         mesh.userData.animation = null;
@@ -4088,7 +4077,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.62 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.45 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -4615,6 +4604,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const humanPlayer = gameState.players.find((player) => player.isHuman) ?? null;
+  const humanHand = humanPlayer?.hand ?? [];
 
   return (
     <div className="absolute inset-0">
@@ -4885,19 +4875,51 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        <div className="pointer-events-none absolute left-1/2 top-[61.8%] z-20 w-[min(88vw,31rem)] -translate-x-1/2 text-center">
-          <div className="rounded-3xl border border-sky-200/60 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.26),rgba(12,23,42,0.92)_60%)] px-4 py-2.5 shadow-[0_14px_44px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-[3px]">
-            <p className="text-base font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+        <div className="pointer-events-none absolute left-1/2 top-[61.8%] z-20 w-[min(96vw,39rem)] -translate-x-1/2 text-center">
+          <div className="rounded-3xl border border-sky-200/60 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.26),rgba(12,23,42,0.92)_60%)] px-5 py-4 shadow-[0_14px_44px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-[3px]">
+            <p className="text-lg font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
             {uiState.tableSummary && (
-              <p className="mt-1 text-sm font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+              <p className="mt-1 text-base font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
             )}
             {actionError && <p className="mt-2 text-sm font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
           </div>
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="mb-1 flex min-h-[1.5rem] items-center justify-center px-2">
-              <p className="text-[11px] font-medium tracking-wide text-sky-100/85 drop-shadow-[0_1px_4px_rgba(0,0,0,0.75)]">Tap your cards on the table to select them.</p>
+            <div className="mb-2 flex min-h-[6.5rem] items-end justify-center overflow-x-auto px-2 py-1">
+              <div className="flex min-w-max items-end justify-center">
+                {humanHand.map((card, index) => {
+                  const selected = selectedIds.includes(card.id);
+                  const redSuit = card.suit === '♥' || card.suit === '♦';
+                  return (
+                    <button
+                      type="button"
+                      key={card.id}
+                      onClick={() => toggleSelection(card.id)}
+                      className={`relative h-28 w-20 shrink-0 rounded-xl border-2 bg-white text-left shadow-[0_8px_22px_rgba(0,0,0,0.45)] transition-transform ${
+                        selected
+                          ? '-translate-y-3 border-sky-300 ring-2 ring-sky-300/70'
+                          : 'border-slate-300 hover:-translate-y-1'
+                      }`}
+                      style={{ marginLeft: index === 0 ? 0 : -56, zIndex: 10 + index }}
+                      disabled={!uiState.humanTurn}
+                    >
+                      <span className={`absolute left-1.5 top-1.5 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.rank}
+                      </span>
+                      <span className={`absolute left-2 top-6 text-base leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.suit}
+                      </span>
+                      <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-3xl font-bold ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.suit}
+                      </span>
+                      <span className={`absolute bottom-1.5 right-1.5 rotate-180 text-base font-black leading-none ${redSuit ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {card.rank}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="fixed bottom-[10.2rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
@@ -5611,7 +5633,7 @@ function createCardMesh(card, geometry, cache, theme) {
   const backTexture = makeCardBackTexture(theme);
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
-    color: new THREE.Color('#ffffff'),
+    color: new THREE.Color(theme.backColor),
     roughness: 0.6,
     metalness: 0.15
   });
@@ -5642,44 +5664,35 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   g.fillRect(0, 0, w, h);
   g.strokeStyle = theme.frontBorder || '#d1d5db';
   g.lineWidth = Math.max(4, Math.round(w * 0.012));
-  roundRect(g, g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth, Math.round(w * 0.1));
+  roundRect(g, g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth, Math.round(w * 0.12));
   g.stroke();
 
-  const color = SUIT_COLORS[suit] || '#111111';
+  const color = SUIT_COLORS[suit] || '#0f172a';
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
-  const glyph = String(suit || '');
-  const pad = Math.round(w * 0.09);
-  const topRankY = Math.round(h * 0.14);
-  const topSuitY = topRankY + Math.round(h * 0.085);
-  const bottomSuitY = h - Math.round(h * 0.12);
-  const bottomRankY = bottomSuitY - Math.round(h * 0.085);
 
+  // Match bottom hand cards: top-left rank+suit, center suit, bottom-right rotated rank.
   g.fillStyle = color;
   g.textAlign = 'left';
-  g.textBaseline = 'alphabetic';
-  g.font = `900 ${Math.round(w * 0.17)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, pad, topRankY);
-  g.font = `700 ${Math.round(w * 0.135)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(glyph, pad, topSuitY);
-  g.font = `900 ${Math.round(w * 0.17)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, pad, bottomRankY);
-  g.font = `700 ${Math.round(w * 0.135)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(glyph, pad, bottomSuitY);
+  g.textBaseline = 'top';
+  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, Math.round(w * 0.095), Math.round(h * 0.065));
 
-  g.textAlign = 'right';
-  g.font = `900 ${Math.round(w * 0.17)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, w - pad, topRankY);
-  g.font = `700 ${Math.round(w * 0.135)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(glyph, w - pad, topSuitY);
-  g.font = `900 ${Math.round(w * 0.17)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, w - pad, bottomRankY);
-  g.font = `700 ${Math.round(w * 0.135)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(glyph, w - pad, bottomSuitY);
+  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, Math.round(w * 0.12), Math.round(h * 0.205));
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = `700 ${Math.round(w * 0.34)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(glyph, w / 2, h / 2);
+  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, w / 2, h / 2);
+
+  g.save();
+  g.translate(w - Math.round(w * 0.12), h - Math.round(h * 0.075));
+  g.rotate(Math.PI);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, 0, 0);
+  g.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
@@ -5837,7 +5850,7 @@ function applyCardThemeMaterials(three, theme, force = false) {
     const backTexture = makeCardBackTexture(theme);
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
-    backMaterial.color?.set?.('#ffffff');
+    backMaterial.color?.set?.(theme.backColor);
     backMaterial.needsUpdate = true;
     if (hiddenMaterial?.color) {
       hiddenMaterial.color.set(theme.hiddenColor || theme.backColor);
