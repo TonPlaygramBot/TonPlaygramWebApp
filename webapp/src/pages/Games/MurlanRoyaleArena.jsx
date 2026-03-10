@@ -1931,7 +1931,7 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.02, landscape: 0.72 });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.9, landscape: 0.62 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscape: 0.86 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
@@ -1959,7 +1959,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.86;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.8;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -4073,11 +4073,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.9, 4.4 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.84, 4.08 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.45 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.58 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
