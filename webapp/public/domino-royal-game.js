@@ -1541,6 +1541,7 @@ const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.42;
 const CAMERA_DOMINO_FOCUS_HOLD_MS = 1250;
 const TURN_ADVANCE_AFTER_PLACEMENT_MS = 950;
+const PASS_TURN_ADVANCE_DELAY_MS = 680;
 const UP = new THREE.Vector3(0, 1, 0);
 const USE_MINIMAL_STAGE = true;
 
@@ -7759,7 +7760,7 @@ function renderHands() {
       revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
     const count = p.hand.length;
     const isSide = pi === 1 || pi === 3;
-    const openFlat = false;
+    const openFlat = isTopDown && isHuman;
     const openFaceUpHand = isTopDown && isHuman;
 
     const gapBase = openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94;
@@ -9034,7 +9035,7 @@ btnPass.addEventListener('click', () => {
     selectedTile = null;
     SFX.pass();
     announceCommentary('pass', { player: human });
-    nextTurn();
+    schedulePassTurnAdvance(human);
   }
 });
 
@@ -9205,6 +9206,7 @@ function updateInteractivity() {
       player: current
     });
   }
+  clearAllPassBubbles();
   renderHands();
   renderChain();
 }
@@ -9262,12 +9264,12 @@ function cpuPlay() {
       } else {
         SFX.pass();
         announceCommentary('pass', { player: current });
-        nextTurn();
+        schedulePassTurnAdvance(current);
       }
     } else {
       SFX.pass();
       announceCommentary('pass', { player: current });
-      nextTurn();
+      schedulePassTurnAdvance(current);
     }
     return;
   }
@@ -9314,12 +9316,12 @@ function cpuPlay() {
     } else {
       SFX.pass();
       announceCommentary('pass', { player: current });
-      nextTurn();
+      schedulePassTurnAdvance(current);
     }
   } else {
     SFX.pass();
     announceCommentary('pass', { player: current });
-    nextTurn();
+    schedulePassTurnAdvance(current);
   }
 }
 
@@ -9486,6 +9488,83 @@ function showChatBubble(text, seatIndex = human) {
     bubble.style.bottom = '5.5rem';
   }
   setTimeout(() => bubble.remove(), 3000);
+}
+
+
+const passBubbleTimers = new Map();
+
+function clearPassBubble(seatIndex) {
+  const timer = passBubbleTimers.get(seatIndex);
+  if (timer) {
+    clearTimeout(timer);
+    passBubbleTimers.delete(seatIndex);
+  }
+  const bubble = document.querySelector(`[data-pass-bubble="${seatIndex}"]`);
+  bubble?.remove?.();
+}
+
+function clearAllPassBubbles() {
+  passBubbleTimers.forEach((timer) => clearTimeout(timer));
+  passBubbleTimers.clear();
+  document
+    .querySelectorAll('[data-pass-bubble]')
+    .forEach((node) => node?.remove?.());
+}
+
+function showPassBubble(seatIndex = current) {
+  clearPassBubble(seatIndex);
+  const bubble = document.createElement('div');
+  bubble.dataset.passBubble = String(seatIndex);
+  bubble.textContent = 'PASS';
+  bubble.style.position = 'fixed';
+  bubble.style.zIndex = '9999';
+  bubble.style.pointerEvents = 'none';
+  bubble.style.padding = '0.22rem 0.48rem';
+  bubble.style.borderRadius = '999px';
+  bubble.style.background = 'rgba(127, 29, 29, 0.9)';
+  bubble.style.color = '#fecaca';
+  bubble.style.border = '1px solid rgba(248, 113, 113, 0.75)';
+  bubble.style.boxShadow = '0 8px 20px rgba(127, 29, 29, 0.35)';
+  bubble.style.fontFamily = 'Inter, system-ui, sans-serif';
+  bubble.style.fontSize = '0.64rem';
+  bubble.style.fontWeight = '800';
+  bubble.style.letterSpacing = '0.08em';
+  bubble.style.transform = 'translate(-50%, -100%)';
+  document.body.appendChild(bubble);
+  const badge = seatBadges[seatIndex];
+  if (badge) {
+    const rect = badge.getBoundingClientRect();
+    bubble.style.left = `${rect.left + rect.width * 0.5}px`;
+    bubble.style.top = `${rect.top - 8}px`;
+  } else {
+    bubble.style.left = '50vw';
+    bubble.style.top = '16vh';
+  }
+  const timeout = setTimeout(() => {
+    clearPassBubble(seatIndex);
+  }, 1600);
+  passBubbleTimers.set(seatIndex, timeout);
+}
+
+function schedulePassTurnAdvance(
+  playerIndex = current,
+  delayMs = PASS_TURN_ADVANCE_DELAY_MS
+) {
+  showPassBubble(playerIndex);
+  if (pendingTurnAdvanceTimeout) {
+    clearTimeout(pendingTurnAdvanceTimeout);
+    pendingTurnAdvanceTimeout = null;
+  }
+  const safeDelay = Math.max(
+    0,
+    Number.isFinite(delayMs) ? delayMs : PASS_TURN_ADVANCE_DELAY_MS
+  );
+  pendingTurnAdvanceTimeout = setTimeout(() => {
+    pendingTurnAdvanceTimeout = null;
+    if (!gameFinished) {
+      nextTurn();
+    }
+  }, safeDelay);
 }
 
 function animateGift(fromIndex, toIndex, gift) {
