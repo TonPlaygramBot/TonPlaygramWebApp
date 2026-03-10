@@ -4878,13 +4878,13 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        <div className="pointer-events-none absolute left-1/2 top-[61.8%] z-20 w-[min(96vw,39rem)] -translate-x-1/2 text-center">
-          <div className="rounded-3xl border border-sky-200/60 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.26),rgba(12,23,42,0.92)_60%)] px-5 py-4 shadow-[0_14px_44px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-[3px]">
-            <p className="text-lg font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+        <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
+          <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
+            <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
             {uiState.tableSummary && (
-              <p className="mt-1 text-base font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+              <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
             )}
-            {actionError && <p className="mt-2 text-sm font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+            {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
           </div>
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
