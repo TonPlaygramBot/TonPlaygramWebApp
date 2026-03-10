@@ -1521,7 +1521,7 @@ const CAMERA_LATERAL_OFFSET = { portrait: 0.32, landscape: 0.24 };
 const CAMERA_REAR_OFFSET = { portrait: 1.36, landscape: 1.04 };
 const CAMERA_HEIGHT_BOOST = { portrait: 1.78, landscape: 1.46 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
-const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
+const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const CAMERA_TARGET = new THREE.Vector3(
   0,
@@ -1533,6 +1533,8 @@ const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
 const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
+const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
+const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
   portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
   landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
@@ -1787,11 +1789,41 @@ controls.addEventListener('start', () => {
 });
 renderer.domElement.addEventListener(
   'wheel',
-  () => {
+  (event) => {
+    if (cameraViewMode === VIEW_MODES.twoD) {
+      event.preventDefault();
+      const zoomScale = 1 + event.deltaY * CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR;
+      const boundedZoom = THREE.MathUtils.clamp(zoomScale, 0.86, 1.16);
+      const activeTarget = getActiveCameraTarget();
+      const nextPosition = activeTarget
+        .clone()
+        .add(camera.position.clone().sub(activeTarget).multiplyScalar(boundedZoom));
+      camera.position.copy(clampCameraPosition(nextPosition, activeTarget));
+      controls.target.copy(activeTarget);
+      turnFocusTarget.copy(activeTarget);
+      controls.update();
+      return;
+    }
     cameraHasUserControl = true;
   },
-  { passive: true }
+  { passive: false }
 );
+
+function applyTopDownZoomFromPinch(deltaDistance = 0) {
+  if (cameraViewMode !== VIEW_MODES.twoD || !Number.isFinite(deltaDistance)) {
+    return;
+  }
+  const zoomScale = 1 - deltaDistance * CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR;
+  const boundedZoom = THREE.MathUtils.clamp(zoomScale, 0.85, 1.15);
+  const activeTarget = getActiveCameraTarget();
+  const nextPosition = activeTarget
+    .clone()
+    .add(camera.position.clone().sub(activeTarget).multiplyScalar(boundedZoom));
+  camera.position.copy(clampCameraPosition(nextPosition, activeTarget));
+  controls.target.copy(activeTarget);
+  turnFocusTarget.copy(activeTarget);
+  controls.update();
+}
 
 function getViewportMetrics() {
   const dom = renderer.domElement;
@@ -8987,6 +9019,10 @@ const updateRaycasterThreshold = () => {
 };
 updateRaycasterThreshold();
 const activePointers = new Set();
+const activePointerPositions = new Map();
+const pinchZoomState = {
+  distance: null
+};
 const cameraLookPointerState = {
   pointerId: null,
   lastX: 0
@@ -9010,6 +9046,10 @@ function humanPickTile(obj) {
 
 renderer.domElement.addEventListener('pointerdown', (ev) => {
   activePointers.add(ev.pointerId);
+  activePointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ev.pointerType === 'touch' && activePointers.size > 1) {
+    pinchZoomState.distance = null;
+  }
   if (
     cameraViewMode === VIEW_MODES.threeD &&
     activePointers.size === 1 &&
@@ -9081,6 +9121,36 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   }
 });
 renderer.domElement.addEventListener('pointermove', (ev) => {
+  if (activePointers.has(ev.pointerId)) {
+    activePointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  }
+
+  if (cameraViewMode === VIEW_MODES.twoD && ev.pointerType === 'touch') {
+    const touchPoints = [];
+    for (const pointerId of activePointers) {
+      const point = activePointerPositions.get(pointerId);
+      if (point) {
+        touchPoints.push(point);
+      }
+      if (touchPoints.length === 2) {
+        break;
+      }
+    }
+    if (touchPoints.length === 2) {
+      const [first, second] = touchPoints;
+      const currentDistance = Math.hypot(
+        second.x - first.x,
+        second.y - first.y
+      );
+      if (Number.isFinite(pinchZoomState.distance)) {
+        applyTopDownZoomFromPinch(currentDistance - pinchZoomState.distance);
+      }
+      pinchZoomState.distance = currentDistance;
+    } else {
+      pinchZoomState.distance = null;
+    }
+  }
+
   if (
     cameraViewMode !== VIEW_MODES.threeD ||
     cameraLookPointerState.pointerId !== ev.pointerId
@@ -9094,18 +9164,30 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
 
 renderer.domElement.addEventListener('pointerup', (ev) => {
   activePointers.delete(ev.pointerId);
+  activePointerPositions.delete(ev.pointerId);
+  if (activePointers.size < 2) {
+    pinchZoomState.distance = null;
+  }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
   }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
   activePointers.delete(ev.pointerId);
+  activePointerPositions.delete(ev.pointerId);
+  if (activePointers.size < 2) {
+    pinchZoomState.distance = null;
+  }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
   }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
   activePointers.delete(ev.pointerId);
+  activePointerPositions.delete(ev.pointerId);
+  if (activePointers.size < 2) {
+    pinchZoomState.distance = null;
+  }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
   }
