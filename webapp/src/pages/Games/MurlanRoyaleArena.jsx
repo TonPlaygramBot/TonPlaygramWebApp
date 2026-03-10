@@ -1944,9 +1944,9 @@ const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = 0.46 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = 0.66 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.065 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = 0.14 * MODEL_SCALE;
+const HUMAN_HAND_LEFT_SHIFT = -0.01 * MODEL_SCALE;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
 const AI_HAND_CARD_SPACING = 0.12 * MODEL_SCALE;
@@ -1973,7 +1973,7 @@ const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
-const AI_CARD_OUTWARD = 0.06 * MODEL_SCALE;
+const AI_CARD_OUTWARD = 0.02 * MODEL_SCALE;
 
 function calcFanCardPose(cardCount, cardIdx) {
   if (cardCount <= 1) {
@@ -4150,7 +4150,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.58 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.74 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -4235,7 +4235,7 @@ export default function MurlanRoyaleArena({ search }) {
           forward,
           right,
           focus,
-          radius: (isHumanSeat ? 3.05 : 3.25) * MODEL_SCALE,
+          radius: (isHumanSeat ? 2.9 : 3.05) * MODEL_SCALE,
           spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
           stoolPosition,
@@ -4739,8 +4739,8 @@ export default function MurlanRoyaleArena({ search }) {
         <div
           className="absolute z-30 pointer-events-auto"
           style={{
-            top: 'calc(6.2rem + env(safe-area-inset-top, 0px))',
-            left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
+            top: 'calc(5.9rem + env(safe-area-inset-top, 0px))',
+            left: 'calc(0.35rem + env(safe-area-inset-left, 0px))'
           }}
         >
           <div className="relative">
