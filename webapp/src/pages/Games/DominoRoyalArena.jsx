@@ -121,8 +121,8 @@ export default function DominoRoyalArena() {
         }
         #dominoLeaderboardCard {
           position: fixed;
-          top: calc(3.9rem + env(safe-area-inset-top, 0px));
-          left: 57%;
+          top: calc(3.55rem + env(safe-area-inset-top, 0px));
+          left: 56.4%;
           transform: translateX(-50%);
           width: min(72vw, 15.5rem);
           z-index: 5;
@@ -203,6 +203,21 @@ export default function DominoRoyalArena() {
           white-space: nowrap;
           font-size: 0.61rem;
           letter-spacing: 0.01em;
+        }
+        @media (orientation: portrait) {
+          #configButton {
+            left: calc(0.45rem + env(safe-area-inset-left, 0px)) !important;
+          }
+          #status {
+            top: auto !important;
+            bottom: calc(
+              env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
+                clamp(2.8rem, 8vh, 3.4rem) + 1.4rem
+            ) !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 7 !important;
+          }
         }
         #winnerOverlay {
           position: fixed;
