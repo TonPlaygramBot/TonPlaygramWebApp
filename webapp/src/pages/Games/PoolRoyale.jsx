@@ -5445,6 +5445,7 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
+const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 4; // widen rail-overhead lens so near-rail pockets stay visible on portrait screens
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -19340,10 +19341,10 @@ const powerRef = useRef(hud.power);
           }
           if (target) {
             const toTarget = target.clone().sub(position);
-            position.addScaledVector(toTarget, 0.08);
-            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 9.4, position.y + BALL_R * 1.2); // lift rail-overhead camera and steepen the downward look
+            position.addScaledVector(toTarget, 0.04);
+            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 10.6, position.y + BALL_R * 1.8); // lift rail-overhead camera and reduce forward push so both bottom pockets remain in frame
           }
-          return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
+          return { position, target, fov: RAIL_OVERHEAD_REPLAY_FOV, minTargetY };
         };
 
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
