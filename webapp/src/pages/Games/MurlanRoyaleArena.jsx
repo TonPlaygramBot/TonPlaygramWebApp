@@ -63,6 +63,18 @@ import {
   resolveMurlanLanguageKey
 } from '../../utils/murlanRoyaleCommentary.js';
 
+const TONPLAYGRAM_CARD_BACK_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+let tonplaygramCardBackLogoImage = null;
+
+function getTonplaygramCardBackLogoImage() {
+  if (!tonplaygramCardBackLogoImage && typeof Image !== 'undefined') {
+    tonplaygramCardBackLogoImage = new Image();
+    tonplaygramCardBackLogoImage.crossOrigin = 'anonymous';
+    tonplaygramCardBackLogoImage.src = TONPLAYGRAM_CARD_BACK_LOGO_SRC;
+  }
+  return tonplaygramCardBackLogoImage;
+}
+
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
@@ -1938,7 +1950,7 @@ const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.15;
 const COMMUNITY_CARD_TOP_TILT = 0.08;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
-const COMMUNITY_CARD_SPACING_MULTIPLIER = 1;
+const COMMUNITY_CARD_SPACING_MULTIPLIER = 1.22;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
@@ -5704,75 +5716,98 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 }
 
 function makeCardBackTexture(theme, w = 512, h = 720) {
-  void theme;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
 
-  // Match murlan-royale.html exactly.
-  const refCardWidth = 92;
-  const stripePx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const borderPx = Math.max(1, Math.round((w * 2) / refCardWidth));
-  const insetPx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const cardRadius = Math.max(4, Math.round((w * 10) / refCardWidth));
-  const innerRadius = Math.max(3, Math.round((w * 8) / refCardWidth));
-
-  const drawBack = (logoImage = null) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#122';
+  const drawBack = () => {
+    const cardBackPattern = ctx.createPattern(makeLuckyCardBackPatternCanvas(), 'repeat');
+    ctx.fillStyle = cardBackPattern || '#112233';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#233';
-    for (let x = -h; x < w + h; x += stripePx * 2) {
-      ctx.save();
-      ctx.translate(x, 0);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillRect(0, -h, stripePx, h * 3);
-      ctx.restore();
-    }
 
-    if (logoImage) {
-      const drawWidth = Math.round(w * 0.6);
-      const ratio = logoImage.height / Math.max(logoImage.width, 1);
-      const drawHeight = Math.round(drawWidth * ratio);
-      ctx.drawImage(logoImage, (w - drawWidth) / 2, (h - drawHeight) / 2, drawWidth, drawHeight);
-    }
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = borderPx;
-    roundRect(ctx, borderPx / 2, borderPx / 2, w - borderPx, h - borderPx, cardRadius);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = borderPx;
-    ctx.setLineDash([borderPx * 2, borderPx * 2]);
-    roundRect(
-      ctx,
-      insetPx,
-      insetPx,
-      w - insetPx * 2,
-      h - insetPx * 2,
-      innerRadius
-    );
-    ctx.stroke();
-    ctx.setLineDash([]);
+    drawCardBackLogoFrame(ctx, w, h, theme);
   };
 
   drawBack();
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 16;
 
-  const logo = new Image();
-  logo.crossOrigin = 'anonymous';
-  logo.onload = () => {
-    drawBack(logo);
-    texture.needsUpdate = true;
-  };
-  logo.src = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+  const logoImage = getTonplaygramCardBackLogoImage();
+  if (logoImage && !(logoImage.complete && logoImage.naturalWidth > 0)) {
+    logoImage.addEventListener(
+      'load',
+      () => {
+        drawBack();
+        texture.needsUpdate = true;
+      },
+      { once: true }
+    );
+  }
 
   return texture;
+}
+
+function makeLuckyCardBackPatternCanvas(size = 96) {
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = size;
+  patternCanvas.height = size;
+  const patternCtx = patternCanvas.getContext('2d');
+  patternCtx.fillStyle = '#223333';
+  patternCtx.fillRect(0, 0, size, size);
+  patternCtx.fillStyle = '#112222';
+  patternCtx.beginPath();
+  patternCtx.moveTo(0, size * 0.5);
+  patternCtx.lineTo(size * 0.5, 0);
+  patternCtx.lineTo(size, size * 0.5);
+  patternCtx.lineTo(size * 0.5, size);
+  patternCtx.closePath();
+  patternCtx.fill();
+  return patternCanvas;
+}
+
+function drawCardBackLogoFrame(ctx, w, h, theme) {
+  const frameInset = Math.min(w, h) * 0.045;
+  const frameRadius = Math.min(w, h) * 0.04;
+  const frameWidth = w - frameInset * 2;
+  const frameHeight = h - frameInset * 2;
+  const logoImage = getTonplaygramCardBackLogoImage();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.56)';
+  ctx.lineWidth = Math.max(12, Math.round(w * 0.007));
+  roundRect(ctx, frameInset, frameInset, frameWidth, frameHeight, frameRadius);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = Math.max(5, Math.round(w * 0.003));
+  roundRect(ctx, frameInset + 24, frameInset + 24, frameWidth - 48, frameHeight - 48, frameRadius * 0.85);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  if (logoImage?.complete && logoImage.naturalWidth > 0) {
+    const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
+    const logoBoxWidth = w * 0.94;
+    const logoBoxHeight = h * 0.56;
+    const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
+    const drawHeight = drawWidth / ratio;
+    const logoX = w / 2 - drawWidth / 2;
+    const logoY = h / 2 - drawHeight / 2;
+    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
+  } else {
+    ctx.fillStyle = theme?.backAccent || 'rgba(255,255,255,0.85)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 48px "Inter", system-ui, sans-serif';
+    ctx.fillText('TonPlaygram', w / 2, h / 2);
+  }
+
+  ctx.restore();
 }
 
 function applyChairThemeMaterials(three, theme) {
