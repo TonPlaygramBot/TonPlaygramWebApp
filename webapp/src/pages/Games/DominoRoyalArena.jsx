@@ -81,7 +81,7 @@ export default function DominoRoyalArena() {
       <style>{`
         #viewToggle {
           position: fixed !important;
-          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
+          right: calc(0.38rem + env(safe-area-inset-right, 0px)) !important;
           left: auto !important;
           top: calc(8.15rem + env(safe-area-inset-top, 0px)) !important;
           margin: 0 !important;
@@ -99,7 +99,7 @@ export default function DominoRoyalArena() {
         #configButton span:last-child { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
         #muteButton {
           top: calc(4.55rem + env(safe-area-inset-top, 0px)) !important;
-          right: calc(0.75rem + env(safe-area-inset-right, 0px)) !important;
+          right: calc(0.38rem + env(safe-area-inset-right, 0px)) !important;
           left: auto !important;
           bottom: auto !important;
         }
@@ -206,7 +206,11 @@ export default function DominoRoyalArena() {
         }
         @media (orientation: portrait) {
           #configButton {
-            left: calc(0.45rem + env(safe-area-inset-left, 0px)) !important;
+            left: calc(0.1rem + env(safe-area-inset-left, 0px)) !important;
+          }
+          #dominoLeaderboardCard {
+            top: calc(0.62rem + env(safe-area-inset-top, 0px));
+            left: 54.9%;
           }
           #status {
             top: auto !important;
