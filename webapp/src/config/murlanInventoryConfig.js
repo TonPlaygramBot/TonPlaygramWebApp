@@ -52,51 +52,15 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     thumbnail: finish.thumbnail,
     previewShape: 'table'
   })),
-  {
-    id: 'cards-solstice',
+  ...CARD_THEMES.slice(1).map((option, idx) => ({
+    id: `murlan-card-${option.id}`,
     type: 'cards',
-    optionId: 'solstice',
-    name: 'Solstice Deck',
-    price: 260,
-    description: 'Sun-baked backs with warm metallic edgework.',
-    thumbnail: CARD_THEMES.find((theme) => theme.id === 'solstice')?.thumbnail
-  },
-  {
-    id: 'cards-nebula',
-    type: 'cards',
-    optionId: 'nebula',
-    name: 'Nebula Deck',
-    price: 300,
-    description: 'Cosmic purples with glowing starlit accents.',
-    thumbnail: CARD_THEMES.find((theme) => theme.id === 'nebula')?.thumbnail
-  },
-  {
-    id: 'cards-jade',
-    type: 'cards',
-    optionId: 'jade',
-    name: 'Jade Deck',
-    price: 280,
-    description: 'Emerald gradients with luminous jade borders.',
-    thumbnail: CARD_THEMES.find((theme) => theme.id === 'jade')?.thumbnail
-  },
-  {
-    id: 'cards-ember',
-    type: 'cards',
-    optionId: 'ember',
-    name: 'Ember Deck',
-    price: 320,
-    description: 'Fiery orange backs with charcoal cores.',
-    thumbnail: CARD_THEMES.find((theme) => theme.id === 'ember')?.thumbnail
-  },
-  {
-    id: 'cards-onyx',
-    type: 'cards',
-    optionId: 'onyx',
-    name: 'Onyx Deck',
-    price: 340,
-    description: 'Monochrome slate backs with steel edging.',
-    thumbnail: CARD_THEMES.find((theme) => theme.id === 'onyx')?.thumbnail
-  }
+    optionId: option.id,
+    name: `${option.label} Cards`,
+    price: 460 + idx * 35,
+    description: 'Add a fresh premium deck style to the arena.',
+    thumbnail: option.thumbnail
+  }))
 ].concat(
   MURLAN_TABLE_CLOTHS.map((cloth, idx) => ({
     id: `cloth-${cloth.id}`,
