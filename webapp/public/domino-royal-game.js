@@ -4928,12 +4928,17 @@ function createDominoChair(option, renderer, sharedMaterials = null) {
 const arenaG = new THREE.Group();
 scene.add(arenaG);
 
+const TABLE_OCTAGON_ROTATION = Math.PI / 8;
 const tableG = new THREE.Group();
 arenaG.add(tableG);
 tableG.rotation.y = 0;
+const proceduralTableG = new THREE.Group();
+proceduralTableG.rotation.y = TABLE_OCTAGON_ROTATION;
+tableG.add(proceduralTableG);
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
 const tableThemeG = new THREE.Group();
+tableThemeG.rotation.y = TABLE_OCTAGON_ROTATION;
 arenaG.add(tableThemeG);
 
 /* ---------- Arena Dressings (Carpet & Walls) ---------- */
@@ -6202,7 +6207,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   topMesh.position.y = TABLE_BASE_Y;
   topMesh.castShadow = true;
   topMesh.receiveShadow = true;
-  tableG.add(topMesh);
+  proceduralTableG.add(topMesh);
   tableParts.top = topMesh;
   proceduralTableParts.push(topMesh);
 
@@ -6214,7 +6219,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   const feltMesh = new THREE.Mesh(feltGeo, tableMaterials.felt);
   feltMesh.position.y = CLOTH_TOP + 0.0025;
   feltMesh.receiveShadow = true;
-  tableG.add(feltMesh);
+  proceduralTableG.add(feltMesh);
   tableParts.felt = feltMesh;
   proceduralTableParts.push(feltMesh);
 
@@ -6232,7 +6237,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   rimMesh.position.y = TABLE_BASE_Y + TABLE_TOP_DEPTH * 0.55;
   rimMesh.castShadow = true;
   rimMesh.receiveShadow = true;
-  tableG.add(rimMesh);
+  proceduralTableG.add(rimMesh);
   tableParts.rim = rimMesh;
   proceduralTableParts.push(rimMesh);
 
@@ -6245,7 +6250,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   accentGeo.rotateX(-Math.PI / 2);
   const accentMesh = new THREE.Mesh(accentGeo, tableMaterials.accent);
   accentMesh.position.y = CLOTH_TOP - 0.003;
-  tableG.add(accentMesh);
+  proceduralTableG.add(accentMesh);
   tableParts.accent = accentMesh;
   proceduralTableParts.push(accentMesh);
 
@@ -6262,7 +6267,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   column.position.y = TABLE_BASE_Y - columnHeight / 2;
   column.castShadow = true;
   column.receiveShadow = true;
-  tableG.add(column);
+  proceduralTableG.add(column);
   tableParts.column = column;
   proceduralTableParts.push(column);
 
