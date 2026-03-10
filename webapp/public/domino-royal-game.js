@@ -8244,7 +8244,7 @@ function takeTileMeshForAnimation(tile) {
 function spawnPlacementAnimation(
   tile,
   segment,
-  { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}
+  { duration = PLACE_ANIM_DURATION, mesh: providedMesh, sourceSeat = current } = {}
 ) {
   if (!segment) {
     return;
@@ -8252,15 +8252,40 @@ function spawnPlacementAnimation(
   let mesh = providedMesh;
   if (!mesh) {
     mesh = takeTileMeshForAnimation(tile);
-  } else {
-    if (tile && tile.mesh === mesh) {
-      tile.mesh = null;
+  }
+  if (!mesh && isValidTile(tile)) {
+    const sourceHand = players[sourceSeat]?.hand;
+    const sourceCount = Math.max(1, Array.isArray(sourceHand) ? sourceHand.length : 1);
+    const sourceSlot = Math.max(0, sourceCount - 1);
+    mesh = makeDomino(tile.a, tile.b, {
+      flat: cameraViewMode === VIEW_MODES.twoD,
+      faceUp: true
+    });
+    const sourcePos = computeHandSlotPosition(sourceSeat, sourceSlot, sourceCount, {
+      isTopDown: cameraViewMode === VIEW_MODES.twoD
+    });
+    mesh.position.copy(sourcePos);
+    const [seatX, seatZ] = layoutSeat(sourceSeat);
+    const yawTowardCenter = Math.atan2(-seatX, -seatZ);
+    if (cameraViewMode === VIEW_MODES.twoD) {
+      orientDominoFlat(mesh, sourceSeat === human ? Math.PI / 2 : yawTowardCenter);
+    } else {
+      mesh.rotation.set(0, sourceSeat === human ? 0 : yawTowardCenter, 0);
     }
     const data = mesh.userData || (mesh.userData = {});
-    delete data.owner;
-    delete data.tile;
     data.animating = true;
-    attachMeshPreserveWorld(mesh);
+    piecesG.add(mesh);
+  } else {
+    if (mesh === providedMesh) {
+      if (tile && tile.mesh === mesh) {
+        tile.mesh = null;
+      }
+      const data = mesh.userData || (mesh.userData = {});
+      delete data.owner;
+      delete data.tile;
+      data.animating = true;
+      attachMeshPreserveWorld(mesh);
+    }
   }
   if (!mesh) {
     segment.animating = false;
