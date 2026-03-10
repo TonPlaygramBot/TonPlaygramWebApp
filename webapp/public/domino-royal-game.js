@@ -1531,6 +1531,8 @@ const CAMERA_TARGET = new THREE.Vector3(
 const CAMERA_TOPDOWN_RADIUS = TABLE_RADIUS * 2.35;
 const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
+const CAMERA_TOPDOWN_ZOOM_STEP = 0.0016;
+const CAMERA_TOPDOWN_PINCH_SENSITIVITY = 0.004;
 const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
@@ -1782,6 +1784,7 @@ let turnDominoFocusUntil = 0;
 
 let cameraHasUserControl = false;
 let cameraLookYaw = 0;
+let cameraTopDownRadius = CAMERA_TOPDOWN_RADIUS;
 controls.addEventListener('start', () => {
   cameraHasUserControl = true;
 });
@@ -1844,11 +1847,25 @@ function getActiveCameraTarget() {
 }
 
 function computeTopDownCameraPosition(target = CAMERA_TARGET) {
-  const lift = Math.max(
-    TABLE_HEIGHT + CAMERA_TARGET_EXTRA,
-    CAMERA_TOPDOWN_RADIUS
-  );
+  const lift = Math.max(TABLE_HEIGHT + CAMERA_TARGET_EXTRA, cameraTopDownRadius);
   return target.clone().add(new THREE.Vector3(0, lift, 0.0001));
+}
+
+function applyTopDownZoom(delta = 0) {
+  if (cameraViewMode !== VIEW_MODES.twoD || !Number.isFinite(delta) || delta === 0) {
+    return;
+  }
+  const nextRadius = THREE.MathUtils.clamp(
+    cameraTopDownRadius + delta,
+    CAMERA_TOPDOWN_MIN_RADIUS,
+    CAMERA_TOPDOWN_MAX_RADIUS
+  );
+  if (Math.abs(nextRadius - cameraTopDownRadius) < 0.0001) {
+    return;
+  }
+  cameraTopDownRadius = nextRadius;
+  cameraHasUserControl = true;
+  positionCameraForViewport();
 }
 
 function getActiveCameraConstraints() {
@@ -2026,7 +2043,7 @@ function handleCameraLookDrag(deltaX = 0) {
     return;
   }
   cameraLookYaw = THREE.MathUtils.clamp(
-    cameraLookYaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+    cameraLookYaw - deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
     -CAMERA_LOOK_YAW_LIMIT,
     CAMERA_LOOK_YAW_LIMIT
   );
@@ -8987,10 +9004,20 @@ const updateRaycasterThreshold = () => {
 };
 updateRaycasterThreshold();
 const activePointers = new Set();
+const pointerPositions = new Map();
 const cameraLookPointerState = {
   pointerId: null,
   lastX: 0
 };
+let topDownPinchDistance = null;
+
+function getPinchDistance() {
+  if (pointerPositions.size < 2) {
+    return null;
+  }
+  const [first, second] = [...pointerPositions.values()];
+  return Math.hypot(second.x - first.x, second.y - first.y);
+}
 function findPickRoot(o) {
   let n = o;
   while (n) {
@@ -9010,6 +9037,7 @@ function humanPickTile(obj) {
 
 renderer.domElement.addEventListener('pointerdown', (ev) => {
   activePointers.add(ev.pointerId);
+  pointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
   if (
     cameraViewMode === VIEW_MODES.threeD &&
     activePointers.size === 1 &&
@@ -9017,6 +9045,9 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   ) {
     cameraLookPointerState.pointerId = ev.pointerId;
     cameraLookPointerState.lastX = ev.clientX;
+  }
+  if (cameraViewMode === VIEW_MODES.twoD && activePointers.size >= 2) {
+    topDownPinchDistance = getPinchDistance();
   }
   if (gameFinished) {
     return;
@@ -9081,6 +9112,18 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   }
 });
 renderer.domElement.addEventListener('pointermove', (ev) => {
+  if (activePointers.has(ev.pointerId)) {
+    pointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  }
+  if (cameraViewMode === VIEW_MODES.twoD && activePointers.size >= 2) {
+    const nextDistance = getPinchDistance();
+    if (Number.isFinite(nextDistance) && Number.isFinite(topDownPinchDistance)) {
+      const pinchDelta = (topDownPinchDistance - nextDistance) * CAMERA_TOPDOWN_PINCH_SENSITIVITY;
+      applyTopDownZoom(pinchDelta);
+    }
+    topDownPinchDistance = nextDistance;
+    return;
+  }
   if (
     cameraViewMode !== VIEW_MODES.threeD ||
     cameraLookPointerState.pointerId !== ev.pointerId
@@ -9094,22 +9137,45 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
 
 renderer.domElement.addEventListener('pointerup', (ev) => {
   activePointers.delete(ev.pointerId);
+  pointerPositions.delete(ev.pointerId);
+  if (activePointers.size < 2) {
+    topDownPinchDistance = null;
+  }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
   }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
   activePointers.delete(ev.pointerId);
+  pointerPositions.delete(ev.pointerId);
+  if (activePointers.size < 2) {
+    topDownPinchDistance = null;
+  }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
   }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
   activePointers.delete(ev.pointerId);
+  pointerPositions.delete(ev.pointerId);
+  if (activePointers.size < 2) {
+    topDownPinchDistance = null;
+  }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
   }
 });
+renderer.domElement.addEventListener(
+  'wheel',
+  (ev) => {
+    if (cameraViewMode !== VIEW_MODES.twoD) {
+      return;
+    }
+    ev.preventDefault();
+    applyTopDownZoom(ev.deltaY * CAMERA_TOPDOWN_ZOOM_STEP);
+  },
+  { passive: false }
+);
 
 btnDraw.addEventListener('click', () => {
   if (current !== human || gameFinished) return;
