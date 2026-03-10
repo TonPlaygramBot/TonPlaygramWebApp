@@ -1937,7 +1937,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscap
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.48;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.42;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
 const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const AI_HAND_CARD_SPACING = 0.12 * MODEL_SCALE;
@@ -3131,16 +3131,6 @@ export default function MurlanRoyaleArena({ search }) {
 
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
-    const camera = three.camera;
-    const cameraRight = new THREE.Vector3(1, 0, 0);
-    const cameraForward = new THREE.Vector3(0, 0, -1);
-    if (camera) {
-      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0).setY(0);
-      if (cameraRight.lengthSq() > 1e-6) cameraRight.normalize();
-      camera.getWorldDirection(cameraForward);
-      if (cameraForward.lengthSq() > 1e-6) cameraForward.normalize();
-    }
-
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
 
@@ -3177,13 +3167,13 @@ export default function MurlanRoyaleArena({ search }) {
           : 0;
         const lateral = isHumanCard ? humanLineOffset : (cards.length > 1 ? (centeredOffset * spread) / Math.max(cards.length - 1, 1) : 0);
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
-        const lateralAxis = isHumanCard && cameraRight.lengthSq() > 1e-6 ? cameraRight : right;
+        const lateralAxis = right;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
         target.y = baseHeight;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : 1);
         const handLookTarget = isHumanCard
-          ? target.clone().addScaledVector(cameraForward, -2.4 * MODEL_SCALE)
+          ? focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE)
           : focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         setMeshPosition(
@@ -3221,7 +3211,12 @@ export default function MurlanRoyaleArena({ search }) {
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
-      target.x += tableStartX + idx * tableSpacing;
+      const lateralOffset = tableStartX + idx * tableSpacing;
+      if (humanSeat?.right) {
+        target.addScaledVector(humanSeat.right, lateralOffset);
+      } else {
+        target.x += lateralOffset;
+      }
       target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET;
       setMeshPosition(
         mesh,
