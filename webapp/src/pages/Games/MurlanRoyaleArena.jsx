@@ -18,7 +18,6 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.j
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
-import { makeCardBackTexture as makeSharedCardBackTexture } from '../../utils/cards3d.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
   getMurlanInventory,
@@ -1268,7 +1267,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     roughness: 0.55,
     metalness: 0.1
   });
-  const backTexture = makeSharedCardBackTexture(cardTheme);
+  const backTexture = makeCardBackTexture(cardTheme);
   const managedTextures = [backTexture];
   const managedMaterials = [edgeMaterial];
 
@@ -1936,7 +1935,7 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 1.02, landscape:
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscape: 0.86 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
-const HUMAN_HAND_CARD_SCALE = 1.22;
+const HUMAN_HAND_CARD_SCALE = 1.15;
 const COMMUNITY_CARD_TOP_TILT = 0.12;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
 const COMMUNITY_CARD_SPACING_MULTIPLIER = 1.18;
@@ -4175,8 +4174,8 @@ export default function MurlanRoyaleArena({ search }) {
           right,
           focus,
           radius: (isHumanSeat ? 2.7 : 3.25) * MODEL_SCALE,
-          spacing: 0.107 * MODEL_SCALE,
-          maxSpread: 1.88 * MODEL_SCALE,
+          spacing: 0.12 * MODEL_SCALE,
+          maxSpread: 2.1 * MODEL_SCALE,
           stoolPosition,
           stoolHeight
         });
@@ -5609,7 +5608,7 @@ function createCardMesh(card, geometry, cache, theme) {
     metalness: 0.08,
     color: new THREE.Color('#ffffff')
   });
-  const backTexture = makeSharedCardBackTexture(theme);
+  const backTexture = makeCardBackTexture(theme);
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
     color: new THREE.Color('#ffffff'),
@@ -5691,6 +5690,78 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
+function makeCardBackTexture(theme, w = 512, h = 720) {
+  void theme;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Match murlan-royale.html exactly.
+  const refCardWidth = 92;
+  const stripePx = Math.max(1, Math.round((w * 6) / refCardWidth));
+  const borderPx = Math.max(1, Math.round((w * 2) / refCardWidth));
+  const insetPx = Math.max(1, Math.round((w * 6) / refCardWidth));
+  const cardRadius = Math.max(4, Math.round((w * 10) / refCardWidth));
+  const innerRadius = Math.max(3, Math.round((w * 8) / refCardWidth));
+
+  const drawBack = (logoImage = null) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#122';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#233';
+    for (let x = -h; x < w + h; x += stripePx * 2) {
+      ctx.save();
+      ctx.translate(x, 0);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(0, -h, stripePx, h * 3);
+      ctx.restore();
+    }
+
+    if (logoImage) {
+      const drawWidth = Math.round(w * 0.6);
+      const ratio = logoImage.height / Math.max(logoImage.width, 1);
+      const drawHeight = Math.round(drawWidth * ratio);
+      ctx.drawImage(logoImage, (w - drawWidth) / 2, (h - drawHeight) / 2, drawWidth, drawHeight);
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = borderPx;
+    roundRect(ctx, borderPx / 2, borderPx / 2, w - borderPx, h - borderPx, cardRadius);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = borderPx;
+    ctx.setLineDash([borderPx * 2, borderPx * 2]);
+    roundRect(
+      ctx,
+      insetPx,
+      insetPx,
+      w - insetPx * 2,
+      h - insetPx * 2,
+      innerRadius
+    );
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+
+  drawBack();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.anisotropy = 8;
+
+  const logo = new Image();
+  logo.crossOrigin = 'anonymous';
+  logo.onload = () => {
+    drawBack(logo);
+    texture.needsUpdate = true;
+  };
+  logo.src = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+
+  return texture;
+}
+
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
@@ -5763,7 +5834,7 @@ function applyCardThemeMaterials(three, theme, force = false) {
     frontMaterial.map = faceTexture;
     frontMaterial.color?.set?.('#ffffff');
     frontMaterial.needsUpdate = true;
-    const backTexture = makeSharedCardBackTexture(theme);
+    const backTexture = makeCardBackTexture(theme);
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
     backMaterial.color?.set?.('#ffffff');
