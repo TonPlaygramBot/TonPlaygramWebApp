@@ -1937,8 +1937,9 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscap
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.58;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.48;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
+const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const AI_HAND_CARD_SPACING = 0.12 * MODEL_SCALE;
 const AI_HAND_CARD_MAX_SPREAD = 2.1 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = 0.08;
@@ -3130,6 +3131,15 @@ export default function MurlanRoyaleArena({ search }) {
 
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
+    const camera = three.camera;
+    const cameraRight = new THREE.Vector3(1, 0, 0);
+    const cameraForward = new THREE.Vector3(0, 0, -1);
+    if (camera) {
+      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0).setY(0);
+      if (cameraRight.lengthSq() > 1e-6) cameraRight.normalize();
+      camera.getWorldDirection(cameraForward);
+      if (cameraForward.lengthSq() > 1e-6) cameraForward.normalize();
+    }
 
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
@@ -3144,7 +3154,7 @@ export default function MurlanRoyaleArena({ search }) {
         CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
       );
       const cards = player.hand;
-      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT;
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + (player.isHuman ? HUMAN_HAND_EXTRA_LIFT : 0);
       const forward = seat.forward;
       const right = seat.right;
       const radius = seat.radius;
@@ -3161,14 +3171,20 @@ export default function MurlanRoyaleArena({ search }) {
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
-        const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
-        const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
+        const centeredOffset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
+        const humanLineOffset = cards.length > 1
+          ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
+          : 0;
+        const lateral = isHumanCard ? humanLineOffset : (cards.length > 1 ? (centeredOffset * spread) / Math.max(cards.length - 1, 1) : 0);
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
-        const target = forward.clone().multiplyScalar(radial).addScaledVector(right, lateral);
+        const lateralAxis = isHumanCard && cameraRight.lengthSq() > 1e-6 ? cameraRight : right;
+        const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
         target.y = baseHeight;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : 1);
-        const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
+        const handLookTarget = isHumanCard
+          ? target.clone().addScaledVector(cameraForward, -2.4 * MODEL_SCALE)
+          : focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         setMeshPosition(
           mesh,
