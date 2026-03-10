@@ -99,9 +99,9 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1536,
-  fhd60: 2560,
-  qhd90: 3328,
+  hd50: 2048,
+  fhd60: 3072,
+  qhd90: 4096,
   uhd120: 4096,
   ultra144: 4096
 });
@@ -1517,7 +1517,7 @@ const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
-const CAMERA_LATERAL_OFFSET = { portrait: 0.32, landscape: 0.24 };
+const CAMERA_LATERAL_OFFSET = { portrait: 0.4, landscape: 0.3 };
 const CAMERA_REAR_OFFSET = { portrait: 1.36, landscape: 1.04 };
 const CAMERA_HEIGHT_BOOST = { portrait: 1.78, landscape: 1.46 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
@@ -1536,8 +1536,8 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
-  portrait: { right: TABLE_RADIUS * 0.06, forward: TABLE_RADIUS * 0.12 },
-  landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
+  portrait: { right: TABLE_RADIUS * 0.09, forward: TABLE_RADIUS * 0.12 },
+  landscape: { right: TABLE_RADIUS * 0.1, forward: TABLE_RADIUS * 0.05 }
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.42;
@@ -6624,8 +6624,8 @@ let boneyardStackTopLocal = 0;
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 640;
-const PLACE_ANIM_ARC = 0.05;
+const PLACE_ANIM_DURATION = 980;
+const PLACE_ANIM_ARC = 0.12;
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
