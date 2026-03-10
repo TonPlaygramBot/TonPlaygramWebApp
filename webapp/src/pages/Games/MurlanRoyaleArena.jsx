@@ -1937,14 +1937,15 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscap
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.3;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
 const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
-const HUMAN_HAND_CLOSER_OFFSET = 0.3 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.04 * MODEL_SCALE;
+const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
+const HUMAN_HAND_CLOSER_OFFSET = 0.46 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.065 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.14 * MODEL_SCALE;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
@@ -3203,7 +3204,9 @@ export default function MurlanRoyaleArena({ search }) {
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard ? HUMAN_HAND_FAN_DIRECTION : 1;
-        const fanYaw = normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
+        const fanYaw = isHumanCard && HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
+          ? HUMAN_HAND_FAN_MAX_YAW
+          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
         const lateralAxis = right;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
         if (isHumanCard) {
@@ -3259,7 +3262,7 @@ export default function MurlanRoyaleArena({ search }) {
       setCommunityCardLegibility(mesh, true);
       const target = tableAnchor.clone();
       const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(tableCount, idx);
-      const communityFanYaw = normalizedOffset * HUMAN_HAND_FAN_MAX_YAW * HUMAN_HAND_FAN_DIRECTION;
+      const communityFanYaw = 0;
       const lateralOffset = tableStartX + idx * tableSpacing;
       if (humanSeat?.right) {
         target.addScaledVector(humanSeat.right, lateralOffset + COMMUNITY_CARD_LEFT_SHIFT);
