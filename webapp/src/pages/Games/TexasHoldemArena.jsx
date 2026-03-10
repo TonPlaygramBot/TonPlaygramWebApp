@@ -457,6 +457,8 @@ const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
 const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
 const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
+const DEAL_CARD_ANIMATION_MS = 340;
+const DEAL_CARD_STEP_DELAY_MS = 90;
 const HIDDEN_CARD_BACK_ALIGNMENT_ROTATION = Math.PI;
 
 const CHAIR_MODEL_URLS = [
@@ -3736,6 +3738,46 @@ function TexasHoldemArena({ search }) {
     mesh.userData.foldAnimFrame = requestAnimationFrame(tick);
   }, []);
 
+  const animateDealCardToSeat = useCallback((mesh, targetPosition, lookTarget, delayMs = 0) => {
+    if (!mesh?.position || !targetPosition?.isVector3) return;
+    const existingFrame = mesh.userData?.dealAnimFrame;
+    if (existingFrame) {
+      cancelAnimationFrame(existingFrame);
+    }
+    const existingDelayTimeout = mesh.userData?.dealDelayTimeout;
+    if (existingDelayTimeout) {
+      clearTimeout(existingDelayTimeout);
+      mesh.userData.dealDelayTimeout = null;
+    }
+
+    const runAnimation = () => {
+      const startPosition = mesh.position.clone();
+      const startTime = performance.now();
+      const tick = (now) => {
+        const t = Math.min(1, (now - startTime) / DEAL_CARD_ANIMATION_MS);
+        const eased = 1 - (1 - t) * (1 - t);
+        mesh.position.lerpVectors(startPosition, targetPosition, eased);
+        orientCard(mesh, lookTarget, { face: 'back', flat: true });
+        if (t < 1) {
+          mesh.userData.dealAnimFrame = requestAnimationFrame(tick);
+        } else {
+          mesh.userData.dealAnimFrame = null;
+        }
+      };
+      mesh.userData.dealAnimFrame = requestAnimationFrame(tick);
+    };
+
+    if (delayMs > 0) {
+      mesh.userData.dealDelayTimeout = setTimeout(() => {
+        mesh.userData.dealDelayTimeout = null;
+        runAnimation();
+      }, delayMs);
+      return;
+    }
+
+    runAnimation();
+  }, []);
+
   const animateHumanCardPosture = useCallback((mesh, targetTilt) => {
     if (!mesh) return;
     const frame = mesh.userData?.postureAnimFrame;
@@ -5438,7 +5480,21 @@ function TexasHoldemArena({ search }) {
           const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
           position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
         }
-        mesh.position.copy(position);
+        const isNewHandCard = Boolean(card && !prevPlayer?.hand?.[cardIdx]);
+        const cardDealOrder = cardIdx * state.players.length + idx;
+        if (isNewHandCard && !state.showdown) {
+          mesh.position.copy(deckAnchor);
+          animateDealCardToSeat(
+            mesh,
+            position,
+            seat.isHuman
+              ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
+              : position.clone().add(seat.forward.clone()),
+            cardDealOrder * DEAL_CARD_STEP_DELAY_MS
+          );
+        } else if (!mesh.userData?.dealAnimFrame && !mesh.userData?.dealDelayTimeout) {
+          mesh.position.copy(position);
+        }
         const humanActiveTurn = seat.isHuman && state.stage !== 'showdown' && idx === state.actionIndex;
         const showdownFacing = humanSeatRef.current?.forward
           ? humanSeatRef.current.forward.clone()
@@ -5718,6 +5774,7 @@ function TexasHoldemArena({ search }) {
       actionIndex: state.actionIndex
     };
   }, [
+    animateDealCardToSeat,
     animateFoldCardToPile,
     animateHumanCardPosture,
     findSeatWithAvatar,
