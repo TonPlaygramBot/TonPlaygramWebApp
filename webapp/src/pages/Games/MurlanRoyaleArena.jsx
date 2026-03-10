@@ -1936,6 +1936,8 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.12, landscap
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.15;
+const HUMAN_HAND_HEIGHT_OFFSET = -0.08 * MODEL_SCALE;
+const HUMAN_HAND_OUTWARD_OFFSET = 0.3 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = 0.12;
 const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
 const COMMUNITY_CARD_SPACING_MULTIPLIER = 1.18;
@@ -3141,7 +3143,7 @@ export default function MurlanRoyaleArena({ search }) {
         CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
       );
       const cards = player.hand;
-      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : AI_CARD_LIFT);
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? HUMAN_HAND_HEIGHT_OFFSET : AI_CARD_LIFT);
       const forward = seat.forward;
       const right = seat.right;
       const radius = seat.radius;
@@ -3164,7 +3166,7 @@ export default function MurlanRoyaleArena({ search }) {
         }
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
-        const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
+        const radial = player.isHuman ? radius + HUMAN_HAND_OUTWARD_OFFSET : radius + AI_CARD_OUTWARD;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(right, lateral);
         target.y = baseHeight;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
@@ -5690,59 +5692,106 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
-function makeCardBackTexture(theme, w = 512, h = 720) {
+function makeCardBackTexture(theme, w = 3072, h = 4320) {
   void theme;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
 
-  // Match murlan-royale.html exactly.
-  const refCardWidth = 92;
-  const stripePx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const borderPx = Math.max(1, Math.round((w * 2) / refCardWidth));
-  const insetPx = Math.max(1, Math.round((w * 6) / refCardWidth));
-  const cardRadius = Math.max(4, Math.round((w * 10) / refCardWidth));
-  const innerRadius = Math.max(3, Math.round((w * 8) / refCardWidth));
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = 96;
+  patternCanvas.height = 96;
+  const patternCtx = patternCanvas.getContext('2d');
+  patternCtx.fillStyle = '#223333';
+  patternCtx.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
+  patternCtx.fillStyle = '#112222';
+  patternCtx.beginPath();
+  patternCtx.moveTo(0, patternCanvas.height * 0.5);
+  patternCtx.lineTo(patternCanvas.width * 0.5, 0);
+  patternCtx.lineTo(patternCanvas.width, patternCanvas.height * 0.5);
+  patternCtx.lineTo(patternCanvas.width * 0.5, patternCanvas.height);
+  patternCtx.closePath();
+  patternCtx.fill();
 
   const drawBack = (logoImage = null) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#122';
+    const cardBackPattern = ctx.createPattern(patternCanvas, 'repeat');
+    ctx.fillStyle = cardBackPattern || '#112233';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#233';
-    for (let x = -h; x < w + h; x += stripePx * 2) {
-      ctx.save();
-      ctx.translate(x, 0);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillRect(0, -h, stripePx, h * 3);
-      ctx.restore();
-    }
 
-    if (logoImage) {
-      const drawWidth = Math.round(w * 0.6);
-      const ratio = logoImage.height / Math.max(logoImage.width, 1);
-      const drawHeight = Math.round(drawWidth * ratio);
-      ctx.drawImage(logoImage, (w - drawWidth) / 2, (h - drawHeight) / 2, drawWidth, drawHeight);
-    }
+    const borderThickness = w * 0.023;
+    const innerPadding = w * 0.07;
+    const cornerRadius = w * 0.06;
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = borderPx;
-    roundRect(ctx, borderPx / 2, borderPx / 2, w - borderPx, h - borderPx, cardRadius);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = borderPx;
-    ctx.setLineDash([borderPx * 2, borderPx * 2]);
+    ctx.save();
+    ctx.lineWidth = borderThickness;
+    ctx.strokeStyle = 'rgba(226,232,240,0.82)';
     roundRect(
       ctx,
-      insetPx,
-      insetPx,
-      w - insetPx * 2,
-      h - insetPx * 2,
-      innerRadius
+      borderThickness * 0.5,
+      borderThickness * 0.5,
+      w - borderThickness,
+      h - borderThickness,
+      cornerRadius
+    );
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(203,213,225,0.72)';
+    ctx.setLineDash([w * 0.018, w * 0.016]);
+    roundRect(
+      ctx,
+      innerPadding,
+      innerPadding,
+      w - innerPadding * 2,
+      h - innerPadding * 2,
+      cornerRadius * 0.78
     );
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
+
+    const frameInset = w * 0.16;
+    const frameTop = h * 0.2;
+    const frameWidth = w - frameInset * 2;
+    const frameHeight = h * 0.6;
+    const frameRadius = w * 0.05;
+
+    const frameGradient = ctx.createLinearGradient(0, frameTop, 0, frameTop + frameHeight);
+    frameGradient.addColorStop(0, 'rgba(15,23,42,0.86)');
+    frameGradient.addColorStop(1, 'rgba(30,41,59,0.82)');
+    ctx.fillStyle = frameGradient;
+    roundRect(ctx, frameInset, frameTop, frameWidth, frameHeight, frameRadius);
+    ctx.fill();
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(226,232,240,0.42)';
+    ctx.lineWidth = w * 0.011;
+    roundRect(
+      ctx,
+      frameInset + w * 0.012,
+      frameTop + w * 0.012,
+      frameWidth - w * 0.024,
+      frameHeight - w * 0.024,
+      frameRadius * 0.85
+    );
+    ctx.stroke();
+    ctx.restore();
+
+    const fallbackTextSize = Math.max(w * 0.15, h * 0.1);
+    ctx.fillStyle = '#f8fafc';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.round(fallbackTextSize)}px "Inter", "Segoe UI", sans-serif`;
+    ctx.fillText('TON', w / 2, h * 0.5);
+
+    if (logoImage?.complete && logoImage.naturalWidth > 0) {
+      const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
+      const logoBoxWidth = w * 0.94;
+      const logoBoxHeight = h * 0.56;
+      const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
+      const drawHeight = drawWidth / Math.max(ratio, 0.0001);
+      ctx.drawImage(logoImage, w / 2 - drawWidth / 2, h / 2 - drawHeight / 2, drawWidth, drawHeight);
+    }
   };
 
   drawBack();
