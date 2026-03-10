@@ -7567,15 +7567,23 @@ function updateLeaderboardCard() {
       name: names[idx] || `Player ${idx + 1}`,
       avatar: avatars[idx] || DEFAULT_AVATAR_EMOJI,
       piecesLeft: player?.hand?.length ?? 0,
-      pointsLeft: computePipTotal(player?.hand || [])
+      pointsLeft: computePipTotal(player?.hand || []),
+      raceTotal: Number.isFinite(racePenaltyTotals[idx]) ? racePenaltyTotals[idx] : 0,
+      disqualified: Boolean(raceDisqualifiedPlayers[idx])
     }))
     .sort((a, b) => {
       if (isPointsRace) {
-        return a.pointsLeft - b.pointsLeft || a.piecesLeft - b.piecesLeft;
+        if (gameFinished && Number.isInteger(lastHandWinnerIndex)) {
+          if (a.idx === lastHandWinnerIndex && b.idx !== lastHandWinnerIndex) return -1;
+          if (b.idx === lastHandWinnerIndex && a.idx !== lastHandWinnerIndex) return 1;
+        }
+        if (a.disqualified !== b.disqualified) {
+          return a.disqualified ? 1 : -1;
+        }
+        return a.raceTotal - b.raceTotal || a.pointsLeft - b.pointsLeft || a.piecesLeft - b.piecesLeft;
       }
       return a.piecesLeft - b.piecesLeft || a.pointsLeft - b.pointsLeft;
     });
-
   rowsHost.innerHTML = rows
     .map((entry, rank) => {
       const avatarClass = isAvatarUrl(entry.avatar)
@@ -7585,7 +7593,7 @@ function updateLeaderboardCard() {
         ? ` style="background-image:url('${entry.avatar}')"`
         : '';
       const scoreColumn = isPointsRace
-        ? `<span class="leaderboard-stat">${entry.pointsLeft} pts</span>`
+        ? `<span class="leaderboard-stat">${entry.raceTotal} pts${entry.disqualified ? ' • DQ' : ''}</span>`
         : '';
       const avatarLabel = isAvatarUrl(entry.avatar)
         ? ''
@@ -7671,6 +7679,10 @@ let flipDir = false; // alternate chain direction after each game
 const usedTileKeys = new Set();
 let gameFinished = false;
 let winnerIndex = null;
+let lastHandWinnerIndex = null;
+let racePenaltyTotals = [];
+let raceDisqualifiedPlayers = [];
+let raceRoundNumber = 1;
 let revealAllHands = false;
 let winnerHighlight = null;
 let winnerHighlightStart = 0;
@@ -8362,7 +8374,7 @@ function cpuDrawUntilPlayable(player) {
   return drew;
 }
 
-function startGame() {
+function startGame({ resetRace = true } = {}) {
   clearMarkers();
   clearExistingDominoMeshes();
   selectedTile = null;
@@ -8372,6 +8384,7 @@ function startGame() {
   usedTileKeys.clear();
   gameFinished = false;
   winnerIndex = null;
+  lastHandWinnerIndex = null;
   revealAllHands = false;
   lastAnnouncedTurn = null;
   clearWinnerHighlight();
@@ -8387,6 +8400,17 @@ function startGame() {
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
+  if (isPointsRace) {
+    if (resetRace || racePenaltyTotals.length !== N) {
+      racePenaltyTotals = Array.from({ length: N }, () => 0);
+      raceDisqualifiedPlayers = Array.from({ length: N }, () => false);
+      raceRoundNumber = 1;
+    }
+  } else {
+    racePenaltyTotals = [];
+    raceDisqualifiedPlayers = [];
+    raceRoundNumber = 1;
+  }
   refreshSeatAvatars();
   players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
   boneyard = shuffle(genSet());
@@ -9262,13 +9286,66 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
   showWinnerOverlay({ winner: winnerIndex, reason });
 }
 
+
+function finishPointsRaceHand({ winner = null, reason = '' } = {}) {
+  const handScores = players.map((p) => pipSum(p.hand));
+  racePenaltyTotals = handScores.map(
+    (score, idx) =>
+      (Number.isFinite(racePenaltyTotals[idx]) ? racePenaltyTotals[idx] : 0) + score
+  );
+  lastHandWinnerIndex = Number.isInteger(winner) ? winner : null;
+  raceDisqualifiedPlayers = racePenaltyTotals.map(
+    (total) => total >= raceTargetPoints
+  );
+  const eliminated = raceDisqualifiedPlayers
+    .map((isOut, idx) => (isOut ? idx : -1))
+    .filter((idx) => idx >= 0);
+
+  if (!eliminated.length) {
+    const nextRound = raceRoundNumber + 1;
+    const roundSummary = handScores
+      .map((score, idx) => `P${idx + 1}: +${score} (${racePenaltyTotals[idx]})`)
+      .join(' • ');
+    setStatus(
+      `Round ${raceRoundNumber} over. ${roundSummary}. Round ${nextRound} starts…`
+    );
+    gameFinished = true;
+    revealAllHands = true;
+    renderHands();
+    renderChain();
+    updateLeaderboardCard();
+    setTimeout(() => {
+      raceRoundNumber = nextRound;
+      startGame({ resetRace: false });
+    }, 1800);
+    return;
+  }
+
+  const dqLabel = eliminated.map((idx) => `Player ${idx + 1}`).join(', ');
+  finishGame({
+    winner,
+    revealAll: true,
+    reason:
+      reason ||
+      `${dqLabel} reached ${raceTargetPoints} points and is disqualified. Lowest points wins.`
+  });
+}
+
+function concludeHand({ winner = null, reason = '', revealAll = false } = {}) {
+  if (isPointsRace) {
+    finishPointsRaceHand({ winner, reason });
+    return;
+  }
+  finishGame({ winner, reason, revealAll });
+}
+
 function checkForBlockedGame() {
   if (gameFinished) {
     return true;
   }
   const blk = blockedAndWinner();
   if (blk) {
-    finishGame({ winner: blk.winner, reason: blk.reason, revealAll: true });
+    concludeHand({ winner: blk.winner, reason: blk.reason, revealAll: true });
     return true;
   }
   return false;
@@ -9297,7 +9374,7 @@ function nextTurn() {
   }
   const player = players[current];
   if (player && player.hand.length === 0) {
-    finishGame({
+    concludeHand({
       winner: current,
       reason: current === human ? 'You won!' : `Player ${current + 1} won!`
     });
@@ -9374,7 +9451,7 @@ function cpuPlay() {
         );
       }
       if (player.hand.length === 0) {
-        finishGame({
+        concludeHand({
           winner: current,
           reason: current === human ? 'You won!' : `Player ${current + 1} won!`
         });
