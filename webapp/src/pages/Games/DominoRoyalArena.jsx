@@ -121,27 +121,28 @@ export default function DominoRoyalArena() {
         }
         #dominoLeaderboardCard {
           position: fixed;
-          top: calc(6.15rem + env(safe-area-inset-top, 0px));
+          top: calc(5.35rem + env(safe-area-inset-top, 0px));
           left: 50%;
           transform: translateX(-50%);
-          width: min(90vw, 24rem);
+          width: min(86vw, 21rem);
           z-index: 5;
-          border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.82));
-          box-shadow: 0 12px 24px rgba(2, 6, 23, 0.42);
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.34);
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86));
+          box-shadow: 0 10px 20px rgba(2, 6, 23, 0.4);
           backdrop-filter: blur(8px);
           color: #f8fafc;
-          padding: 0.5rem 0.55rem;
+          padding: 0.44rem 0.48rem;
           pointer-events: none;
         }
         #dominoLeaderboardCard .leaderboard-title {
-          font-size: 0.64rem;
-          letter-spacing: 0.16em;
+          font-size: 0.58rem;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: rgba(186, 230, 253, 0.9);
-          margin-bottom: 0.35rem;
+          color: rgba(186, 230, 253, 0.92);
+          margin-bottom: 0.3rem;
           text-align: center;
+          font-weight: 800;
         }
         #dominoLeaderboardCard .leaderboard-rows {
           display: grid;
@@ -149,34 +150,59 @@ export default function DominoRoyalArena() {
         }
         #dominoLeaderboardCard .leaderboard-row {
           display: grid;
-          grid-template-columns: 1.05rem minmax(0, 1fr) auto auto;
+          grid-template-columns: 1.1rem 1.1rem minmax(0, 1fr) auto auto;
           align-items: center;
-          column-gap: 0.35rem;
-          border-radius: 9px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.6);
-          padding: 0.24rem 0.35rem;
-          font-size: 0.68rem;
+          column-gap: 0.33rem;
+          border-radius: 8px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          background: rgba(15, 23, 42, 0.62);
+          padding: 0.2rem 0.34rem;
+          font-size: 0.64rem;
+        }
+        #dominoLeaderboardCard.is-single-game .leaderboard-row {
+          grid-template-columns: 1.1rem 1.1rem minmax(0, 1fr) auto;
         }
         #dominoLeaderboardCard .leaderboard-row.is-human {
-          border-color: rgba(56, 189, 248, 0.55);
-          background: rgba(14, 116, 144, 0.24);
+          border-color: rgba(56, 189, 248, 0.58);
+          background: rgba(14, 116, 144, 0.27);
         }
         #dominoLeaderboardCard .leaderboard-rank {
           font-weight: 800;
           text-align: center;
           color: #fde68a;
+          font-size: 0.62rem;
+        }
+        #dominoLeaderboardCard .leaderboard-avatar {
+          width: 1.1rem;
+          height: 1.1rem;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          font-size: 0.63rem;
+          line-height: 1;
+          background: rgba(30, 41, 59, 0.95);
+          background-size: cover;
+          background-position: center;
+        }
+        #dominoLeaderboardCard .leaderboard-avatar.has-photo {
+          color: transparent;
+          text-indent: -9999px;
         }
         #dominoLeaderboardCard .leaderboard-name {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
           font-weight: 700;
+          font-size: 0.63rem;
         }
         #dominoLeaderboardCard .leaderboard-stat {
           font-weight: 700;
-          color: rgba(226, 232, 240, 0.9);
+          color: rgba(226, 232, 240, 0.92);
           white-space: nowrap;
+          font-size: 0.61rem;
+          letter-spacing: 0.01em;
         }
         #winnerOverlay {
           position: fixed;

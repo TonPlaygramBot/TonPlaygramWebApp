@@ -7557,26 +7557,49 @@ function updateLeaderboardCard() {
       ? `Leaderboard • Race to ${raceTargetPoints}`
       : 'Leaderboard • Single Game';
   }
+  leaderboardCard.classList.toggle('is-points-race', Boolean(isPointsRace));
+  leaderboardCard.classList.toggle('is-single-game', !isPointsRace);
   const names = getSeatUsernames(N);
+  const avatars = buildSeatAvatarSources(N);
   const rows = players
     .map((player, idx) => ({
       idx,
       name: names[idx] || `Player ${idx + 1}`,
+      avatar: avatars[idx] || DEFAULT_AVATAR_EMOJI,
       piecesLeft: player?.hand?.length ?? 0,
       pointsLeft: computePipTotal(player?.hand || [])
     }))
-    .sort((a, b) => a.pointsLeft - b.pointsLeft || a.piecesLeft - b.piecesLeft);
+    .sort((a, b) => {
+      if (isPointsRace) {
+        return a.pointsLeft - b.pointsLeft || a.piecesLeft - b.piecesLeft;
+      }
+      return a.piecesLeft - b.piecesLeft || a.pointsLeft - b.pointsLeft;
+    });
 
   rowsHost.innerHTML = rows
-    .map(
-      (entry, rank) =>
+    .map((entry, rank) => {
+      const avatarClass = isAvatarUrl(entry.avatar)
+        ? 'leaderboard-avatar has-photo'
+        : 'leaderboard-avatar';
+      const avatarStyle = isAvatarUrl(entry.avatar)
+        ? ` style="background-image:url('${entry.avatar}')"`
+        : '';
+      const scoreColumn = isPointsRace
+        ? `<span class="leaderboard-stat">${entry.pointsLeft} pts</span>`
+        : '';
+      const avatarLabel = isAvatarUrl(entry.avatar)
+        ? ''
+        : entry.avatar || DEFAULT_AVATAR_EMOJI;
+      return (
         `<div class="leaderboard-row ${entry.idx === human ? 'is-human' : ''}">` +
         `<span class="leaderboard-rank">${rank + 1}</span>` +
+        `<span class="${avatarClass}"${avatarStyle}>${avatarLabel}</span>` +
         `<span class="leaderboard-name">${entry.name}</span>` +
-        `<span class="leaderboard-stat">${entry.pointsLeft} pts</span>` +
+        `${scoreColumn}` +
         `<span class="leaderboard-stat">${entry.piecesLeft} left</span>` +
         '</div>'
-    )
+      );
+    })
     .join('');
 }
 
