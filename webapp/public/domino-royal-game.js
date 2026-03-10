@@ -5799,6 +5799,35 @@ const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
 
+const seatPassStyle = document.createElement('style');
+seatPassStyle.textContent = `
+  .seat-badge-pass {
+    position: absolute;
+    top: calc(100% + 0.1rem);
+    left: 50%;
+    transform: translate(-50%, -0.2rem);
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #fecaca;
+    text-transform: uppercase;
+    background: rgba(127, 29, 29, 0.86);
+    border: 1px solid rgba(252, 165, 165, 0.48);
+    opacity: 0;
+    transition: opacity 180ms ease, transform 180ms ease;
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+
+  .seat-badge-pass.active {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+`;
+document.head.appendChild(seatPassStyle);
+
 function buildSeatNames(count = N) {
   return getSeatUsernames(count);
 }
@@ -6021,8 +6050,30 @@ function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
   label.textContent = name || '';
   wrap.appendChild(label);
 
+  const passIndicator = document.createElement('span');
+  passIndicator.className = 'seat-badge-pass';
+  passIndicator.textContent = 'PASS';
+  wrap.appendChild(passIndicator);
+
   seatOverlay.appendChild(wrap);
   return wrap;
+}
+
+function clearPassIndicators() {
+  seatBadges.forEach((badge) => {
+    const passIndicator = badge?.querySelector?.('.seat-badge-pass');
+    passIndicator?.classList?.remove('active');
+  });
+}
+
+function showPassIndicator(seatIndex) {
+  clearPassIndicators();
+  const badge = seatBadges[seatIndex];
+  if (!badge) {
+    return;
+  }
+  const passIndicator = badge.querySelector('.seat-badge-pass');
+  passIndicator?.classList?.add('active');
 }
 
 function refreshSeatBadges(avatars = [], names = []) {
@@ -6579,8 +6630,8 @@ let boneyardStackTopLocal = 0;
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 640;
-const PLACE_ANIM_ARC = 0.05;
+const PLACE_ANIM_DURATION = 860;
+const PLACE_ANIM_ARC = 0.085;
 const CPU_PLAY_DELAY = 2600;
 
 const TMP_WORLD_POS = new THREE.Vector3();
@@ -7761,6 +7812,7 @@ function renderHands() {
     const isSide = pi === 1 || pi === 3;
     const openFlat = false;
     const openFaceUpHand = isTopDown && isHuman;
+    const openHandInTwoD = isTopDown && isHuman;
 
     const gapBase = openFlat ? BASE_GAP * 1.04 : BASE_GAP * 0.94;
     const handY = openFlat ? CLOTH_TOP + 0.018 : HAND_Y;
@@ -7808,7 +7860,7 @@ function renderHands() {
         m.position.set(x0 + offset, handY, z0);
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
-      if (openFlat) {
+      if (openFlat || openHandInTwoD) {
         const yaw = isHuman ? 0 : yawTowardCenter;
         orientDominoFlat(m, yaw);
       } else {
@@ -9033,6 +9085,7 @@ btnPass.addEventListener('click', () => {
     clearMarkers();
     selectedTile = null;
     SFX.pass();
+    showPassIndicator(human);
     announceCommentary('pass', { player: human });
     nextTurn();
   }
@@ -9193,6 +9246,7 @@ function checkForBlockedGame() {
 }
 
 function updateInteractivity() {
+  clearPassIndicators();
   if (gameFinished) {
     renderHands();
     renderChain();
@@ -9261,11 +9315,13 @@ function cpuPlay() {
         scheduleCpuPlay();
       } else {
         SFX.pass();
+        showPassIndicator(current);
         announceCommentary('pass', { player: current });
         nextTurn();
       }
     } else {
       SFX.pass();
+      showPassIndicator(current);
       announceCommentary('pass', { player: current });
       nextTurn();
     }
@@ -9313,11 +9369,13 @@ function cpuPlay() {
       scheduleCpuPlay();
     } else {
       SFX.pass();
+      showPassIndicator(current);
       announceCommentary('pass', { player: current });
       nextTurn();
     }
   } else {
     SFX.pass();
+    showPassIndicator(current);
     announceCommentary('pass', { player: current });
     nextTurn();
   }
@@ -9908,6 +9966,9 @@ function shutdownDominoRoyal(reason = 'unknown') {
     scene.visible = false;
     if (seatOverlay?.parentNode) {
       seatOverlay.parentNode.removeChild(seatOverlay);
+    }
+    if (seatPassStyle?.parentNode) {
+      seatPassStyle.parentNode.removeChild(seatPassStyle);
     }
     if (reason === 'react-unmount') {
       controls?.dispose?.();
