@@ -457,9 +457,6 @@ const CARD_PEEK_OUTER_SWAY = CARD_W * 0.08;
 const CARD_PEEK_TOP_LIFT_ANGLE = THREE.MathUtils.degToRad(74);
 const CARD_PEEK_EDGE_PIVOT_FACTOR = 0.5;
 const FOLD_TO_PILE_ANIMATION_MS = 420;
-const HOLE_DEAL_DURATION_MS = 420;
-const HOLE_DEAL_STEP_DELAY_MS = 110;
-const HOLE_DEAL_ARC_HEIGHT = CARD_H * 0.8;
 const HIDDEN_CARD_BACK_ALIGNMENT_ROTATION = Math.PI;
 
 const CHAIR_MODEL_URLS = [
@@ -3769,47 +3766,6 @@ function TexasHoldemArena({ search }) {
     mesh.userData.postureAnimFrame = requestAnimationFrame(tick);
   }, []);
 
-  const animateHoleCardDeal = useCallback((mesh, options) => {
-    if (!mesh || !options?.targetPosition || !options?.lookTarget || !options?.startPosition) return;
-    if (mesh.userData?.dealAnimFrame) {
-      cancelAnimationFrame(mesh.userData.dealAnimFrame);
-    }
-    const duration = Math.max(180, options.durationMs ?? HOLE_DEAL_DURATION_MS);
-    const delay = Math.max(0, options.delayMs ?? 0);
-    const arcHeight = Math.max(0, options.arcHeight ?? HOLE_DEAL_ARC_HEIGHT);
-    const start = options.startPosition.clone();
-    const end = options.targetPosition.clone();
-    const lookTarget = options.lookTarget.clone();
-    const face = options.face ?? 'back';
-    const flat = options.flat !== false;
-    const launchedAt = performance.now() + delay;
-
-    mesh.position.copy(start);
-    orientCard(mesh, lookTarget, { face, flat });
-
-    const tick = (now) => {
-      const elapsed = now - launchedAt;
-      if (elapsed < 0) {
-        mesh.userData.dealAnimFrame = requestAnimationFrame(tick);
-        return;
-      }
-      const t = Math.min(1, elapsed / duration);
-      const eased = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
-      mesh.position.lerpVectors(start, end, eased);
-      mesh.position.y += Math.sin(eased * Math.PI) * arcHeight;
-      orientCard(mesh, lookTarget, { face, flat });
-      if (t < 1) {
-        mesh.userData.dealAnimFrame = requestAnimationFrame(tick);
-      } else {
-        mesh.position.copy(end);
-        orientCard(mesh, lookTarget, { face, flat });
-        mesh.userData.dealAnimFrame = null;
-      }
-    };
-
-    mesh.userData.dealAnimFrame = requestAnimationFrame(tick);
-  }, []);
-
   const findSeatWithAvatar = useCallback((startIndex = 0, options = {}) => {
     const state = gameStateRef.current;
     const players = state?.players ?? [];
@@ -5409,14 +5365,6 @@ function TexasHoldemArena({ search }) {
       if (entry?.folded) foldedSeatOrder.set(seatIdx, foldedSeatOrder.size);
     });
 
-    const isNewHandDeal = previous?.handId !== state.handId && state.stage === 'preflop';
-    const activeSeatCount = Math.max(1, state.players.length);
-    const tableCenterDealStart = new THREE.Vector3(
-      0,
-      (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_SURFACE_OFFSET + CARD_D * 1.6,
-      0
-    );
-
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
       if (!seat) return;
@@ -5442,10 +5390,6 @@ function TexasHoldemArena({ search }) {
           card = prevPlayer?.hand?.[cardIdx] ?? mesh.userData?.card ?? null;
         }
         if (!card) {
-          if (mesh.userData?.dealAnimFrame) {
-            cancelAnimationFrame(mesh.userData.dealAnimFrame);
-            mesh.userData.dealAnimFrame = null;
-          }
           mesh.visible = false;
           mesh.position.copy(deckAnchor);
           setCardHighlight(mesh, false);
@@ -5494,6 +5438,7 @@ function TexasHoldemArena({ search }) {
           const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
           position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
         }
+        mesh.position.copy(position);
         const humanActiveTurn = seat.isHuman && state.stage !== 'showdown' && idx === state.actionIndex;
         const showdownFacing = humanSeatRef.current?.forward
           ? humanSeatRef.current.forward.clone()
@@ -5505,32 +5450,12 @@ function TexasHoldemArena({ search }) {
             ? seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
             : position.clone().add(seat.forward.clone());
         const face = seat.isHuman || isShowdownReveal ? 'front' : 'back';
-        const hasDealAnimation = Boolean(mesh.userData?.dealAnimFrame);
-        const canAnimateDeal =
-          isNewHandDeal && !state.showdown && !player.folded && !prevPlayer?.hand?.[cardIdx];
-        if (canAnimateDeal) {
-          const dealOrder = cardIdx * activeSeatCount + idx;
-          animateHoleCardDeal(mesh, {
-            startPosition: tableCenterDealStart,
-            targetPosition: position,
-            lookTarget,
-            face,
-            flat: !isShowdownReveal,
-            delayMs: dealOrder * HOLE_DEAL_STEP_DELAY_MS,
-            durationMs: HOLE_DEAL_DURATION_MS
-          });
-        } else if (!hasDealAnimation) {
-          mesh.position.copy(position);
-          orientCard(mesh, lookTarget, { face, flat: !isShowdownReveal });
+        orientCard(mesh, lookTarget, { face, flat: !isShowdownReveal });
+        if (!seat.isHuman && face === 'back' && !isShowdownReveal) {
+          mesh.rotateZ(HIDDEN_CARD_BACK_ALIGNMENT_ROTATION);
         }
-        const isDealing = canAnimateDeal || hasDealAnimation;
-        if (!isDealing) {
-          if (!seat.isHuman && face === 'back' && !isShowdownReveal) {
-            mesh.rotateZ(HIDDEN_CARD_BACK_ALIGNMENT_ROTATION);
-          }
-          if (!seat.isHuman && face === 'front' && !isShowdownReveal) {
-            mesh.rotateY(Math.PI);
-          }
+        if (!seat.isHuman && face === 'front' && !isShowdownReveal) {
+          mesh.rotateY(Math.PI);
         }
         if (isShowdownReveal) {
           mesh.rotateX(SHOWDOWN_CARD_STAND_TILT);
@@ -5790,11 +5715,9 @@ function TexasHoldemArena({ search }) {
       community: state.community.map((card) => (card ? { ...card } : null)),
       pot: state.pot,
       stage: state.stage,
-      actionIndex: state.actionIndex,
-      handId: state.handId
+      actionIndex: state.actionIndex
     };
   }, [
-    animateHoleCardDeal,
     animateFoldCardToPile,
     animateHumanCardPosture,
     findSeatWithAvatar,
