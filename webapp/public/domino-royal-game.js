@@ -1536,7 +1536,7 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
-  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
+  portrait: { right: TABLE_RADIUS * 0.06, forward: TABLE_RADIUS * 0.12 },
   landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
@@ -9762,15 +9762,18 @@ function showPassBubble(seatIndex = current) {
   bubble.style.pointerEvents = 'none';
   bubble.style.padding = '0.2rem 0.5rem';
   bubble.style.borderRadius = '999px';
-  bubble.style.background = 'rgba(153, 27, 27, 0.94)';
-  bubble.style.color = '#fee2e2';
-  bubble.style.border = '1px solid rgba(252, 165, 165, 0.95)';
-  bubble.style.boxShadow = '0 10px 24px rgba(127, 29, 29, 0.44)';
-  bubble.style.textShadow = '0 1px 4px rgba(69, 10, 10, 0.82)';
+  bubble.style.background =
+    'linear-gradient(145deg, rgba(220, 38, 38, 0.98), rgba(153, 27, 27, 0.96))';
+  bubble.style.color = '#fff1f2';
+  bubble.style.border = '1px solid rgba(254, 205, 211, 0.95)';
+  bubble.style.boxShadow =
+    '0 12px 28px rgba(127, 29, 29, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25)';
+  bubble.style.textShadow = '0 2px 6px rgba(69, 10, 10, 0.86)';
   bubble.style.fontFamily = 'Inter, system-ui, sans-serif';
-  bubble.style.fontSize = '0.7rem';
+  bubble.style.fontSize = '0.92rem';
   bubble.style.fontWeight = '900';
-  bubble.style.letterSpacing = '0.1em';
+  bubble.style.letterSpacing = '0.16em';
+  bubble.style.backdropFilter = 'blur(3px)';
   bubble.style.transform = 'translate(-50%, -100%)';
   bubble.style.opacity = '0';
   bubble.style.transition =
