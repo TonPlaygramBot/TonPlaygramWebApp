@@ -10,7 +10,7 @@ export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = 0.012;
+export const STUN_TOPSPIN_BIAS = -0.012;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -143,9 +143,9 @@ export const normalizeSpinInput = (spin) => {
   const distance = Math.hypot(x, y);
   if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
     if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
-      return { x: 0, y: STUN_TOPSPIN_BIAS };
+      return { x: 0, y: 0 };
     }
-    return { x: 0, y: clamp(y + STUN_TOPSPIN_BIAS, -MAX_SPIN_OFFSET, MAX_SPIN_OFFSET) };
+    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
   }
   return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
 };
