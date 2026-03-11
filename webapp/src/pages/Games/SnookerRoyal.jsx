@@ -5248,32 +5248,6 @@ const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
-const resolveCueFollowDirection = ({ cueFollowDir, baseDir, perp, physicsSpin }) => {
-  const resolved = cueFollowDir.clone();
-  const spinY = physicsSpin?.y || 0;
-  const spinX = physicsSpin?.x || 0;
-  if (spinY >= -1e-6) {
-    const topSpinWeight = Math.max(0, spinY) * AIM_SPIN_PREVIEW_FORWARD;
-    const sideSpinWeight = spinX * AIM_SPIN_PREVIEW_SIDE;
-    if (topSpinWeight > 1e-8) {
-      resolved.add(baseDir.clone().multiplyScalar(topSpinWeight));
-    }
-    if (Math.abs(sideSpinWeight) > 1e-8) {
-      resolved.add(perp.clone().multiplyScalar(sideSpinWeight));
-    }
-  }
-  const backSpinWeight = Math.max(0, -spinY);
-  if (backSpinWeight > 1e-8) {
-    const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
-    const drawDir = baseDir.clone().negate();
-    resolved.lerp(drawDir, drawLerp);
-  }
-  if (resolved.lengthSq() > 1e-8) {
-    resolved.normalize();
-    return resolved;
-  }
-  return baseDir.clone();
-};
 const resolveShortRailBroadcastDirection = ({
   pocketCenter = null,
   approachDir = null,
@@ -24708,13 +24682,17 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const cueFollowDirSpinAdjusted = resolveCueFollowDirection({
-            cueFollowDir,
-            baseDir: dir,
-            perp,
-            physicsSpin
-          });
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = dir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
@@ -24961,13 +24939,17 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const cueFollowDirSpinAdjusted = resolveCueFollowDirection({
-            cueFollowDir,
-            baseDir,
-            perp,
-            physicsSpin: remotePhysicsSpin
-          });
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * 0.68;
+          const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = baseDir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
