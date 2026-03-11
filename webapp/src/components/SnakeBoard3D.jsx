@@ -93,14 +93,14 @@ const PYRAMID_LEVELS = [11, 9, 6, 3];
 const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4 - 4));
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
-const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 0.95; // widen board footprint closer to the coin-vase span
+const RAW_BOARD_SIZE = 1.22;
+const BOARD_SCALE = 2.7 * 0.72 * 1.15 * 0.95; // wider board footprint for a broader pyramid silhouette
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.32; // Lift pyramid tiers a bit more for a taller board profile
+const PYRAMID_HEIGHT_MULTIPLIER = 1.54; // taller pyramid profile for clearer floor separation
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -191,10 +191,10 @@ const CHESS_TOKEN_HEIGHT_SCALE = 1;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
-const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.3;
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
+const LEVEL_SIDE_PADDING = TILE_SIZE * 0.84;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -239,6 +239,8 @@ const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
+const CAMERA_POSITION_LOCKED = true;
+const BOARD_ROTATION_SPEED = 0.0065;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -1637,12 +1639,15 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
     }
   }
 
-  const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
-  const orbitDirection = boardToCamera.lengthSq() > 1e-6
-    ? boardToCamera.clone().lerp(desiredOrbitDirection, TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND).normalize()
-    : desiredOrbitDirection;
-  const position = target.clone().addScaledVector(orbitDirection, currentDistance);
-  position.y = camera.position.y;
+  let position = camera.position.clone();
+  if (!CAMERA_POSITION_LOCKED) {
+    const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
+    const orbitDirection = boardToCamera.lengthSq() > 1e-6
+      ? boardToCamera.clone().lerp(desiredOrbitDirection, TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND).normalize()
+      : desiredOrbitDirection;
+    position = target.clone().addScaledVector(orbitDirection, currentDistance);
+    position.y = camera.position.y;
+  }
 
   return { position, target };
 }
@@ -1665,7 +1670,9 @@ function computeDiceCameraFocusState(board, camera) {
   if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
   direction.normalize();
 
-  const position = target.clone().addScaledVector(direction, currentDistance);
+  const position = CAMERA_POSITION_LOCKED
+    ? camera.position.clone()
+    : target.clone().addScaledVector(direction, currentDistance);
   position.y = camera.position.y;
   return { position, target };
 }
@@ -2585,10 +2592,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
   controls.enableZoom = true;
-  controls.enableRotate = true;
+  controls.enableRotate = !CAMERA_POSITION_LOCKED;
   controls.rotateSpeed = 0.6;
-  controls.minAzimuthAngle = -Infinity;
-  controls.maxAzimuthAngle = Infinity;
+  controls.minAzimuthAngle = CAMERA_POSITION_LOCKED ? cameraSeatAngle : -Infinity;
+  controls.maxAzimuthAngle = CAMERA_POSITION_LOCKED ? cameraSeatAngle : Infinity;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
@@ -2863,7 +2870,7 @@ function buildSnakeBoard(
     loadPolyhavenTextureSet(floorTexture.assetId, renderer)
       .then((textureSet) => {
         if (!textureSet) return;
-        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE * 2;
+        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE * 0.95;
         applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
         topMaterials.forEach((material) => {
           applyTextureSetToMaterial(material, textureSet, repeat);
@@ -2877,7 +2884,7 @@ function buildSnakeBoard(
       .then((textureSet) => {
         if (!textureSet) return;
         wallMaterials.forEach((material) => {
-          const repeatX = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 0.5;
+          const repeatX = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 0.28;
           const repeatY = repeatX / 1.5;
           applyTextureSetToMaterial(material, textureSet, { x: repeatX, y: repeatY });
         });
@@ -2900,17 +2907,12 @@ function buildSnakeBoard(
       const idx = offset + seqIndex + 1;
       const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
       const materialSet = createTileMaterialSet(baseColor, boardTheme);
-      const baseX = -half + (col + 0.5) * TILE_SIZE;
-      const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
+      const innerHalf = Math.max(TILE_SIZE * 0.5, half - LEVEL_SIDE_PADDING);
+      const normalizedCol = size > 1 ? col / (size - 1) : 0.5;
+      const normalizedRow = size > 1 ? (size - 1 - row) / (size - 1) : 0.5;
+      const baseX = THREE.MathUtils.lerp(-innerHalf, innerHalf, normalizedCol);
+      const baseZ = THREE.MathUtils.lerp(-innerHalf, innerHalf, normalizedRow);
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
-      if (levelIndex === 0) {
-        const outward = tilePosition.clone();
-        outward.y = 0;
-        if (outward.lengthSq() > 1e-6) {
-          outward.normalize().multiplyScalar(EDGE_TILE_OUTWARD_OFFSET);
-          tilePosition.add(outward);
-        }
-      }
       if (idx === TOTAL_BOARD_TILES) {
         tilePosition.y += topTileLift;
       }
@@ -3842,6 +3844,7 @@ export default function SnakeBoard3D({
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const frameAccumulatorRef = useRef(0);
+  const pointerStateRef = useRef({ active: false, x: 0 });
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
@@ -3924,7 +3927,7 @@ export default function SnakeBoard3D({
       const restore = cameraRestoreRef.current;
       camera.position.copy(restore.position);
       controls.target.copy(restore.target);
-      controls.enableRotate = restore.enableRotate;
+      controls.enableRotate = CAMERA_POSITION_LOCKED ? false : restore.enableRotate;
       controls.minPolarAngle = restore.minPolarAngle;
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
@@ -4506,6 +4509,42 @@ export default function SnakeBoard3D({
       };
     }
   }, [diceEvent, cameraViewMode]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount || cameraViewMode === '2d') return undefined;
+
+    const onPointerDown = (event) => {
+      if (cameraViewMode !== '3d') return;
+      pointerStateRef.current.active = true;
+      pointerStateRef.current.x = event.clientX ?? 0;
+    };
+    const onPointerMove = (event) => {
+      if (!pointerStateRef.current.active) return;
+      const board = boardRef.current;
+      if (!board?.root) return;
+      const nextX = event.clientX ?? pointerStateRef.current.x;
+      const deltaX = nextX - pointerStateRef.current.x;
+      pointerStateRef.current.x = nextX;
+      board.root.rotation.y -= deltaX * BOARD_ROTATION_SPEED;
+    };
+    const onPointerUp = () => {
+      pointerStateRef.current.active = false;
+    };
+
+    mount.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    return () => {
+      mount.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      pointerStateRef.current.active = false;
+    };
+  }, [cameraViewMode]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
