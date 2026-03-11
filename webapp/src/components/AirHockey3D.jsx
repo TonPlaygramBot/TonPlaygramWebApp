@@ -188,7 +188,7 @@ const HUD_VERTICAL_SHIFT_REM = 9;
 const HUD_TOP_ROW_LIFT_REM = 2.5;
 const HUD_ICON_ROW_TOP_REM = 0.9;
 const HUD_MENU_LEFT_REM = 0.5;
-const AIR_HOCKEY_MENU_TOP_TWEAK_REM = -0.25;
+const AIR_HOCKEY_MENU_TOP_TWEAK_REM = -1.05;
 const AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM = -0.25;
 const AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM = 0.6;
 const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
@@ -1472,11 +1472,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       emissiveIntensity: 0.6
     });
     materialsRef.current.goal = goalMaterial;
+    const goalInsetTowardCenter = railThickness * 0.3;
     const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
-    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7);
+    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7 + goalInsetTowardCenter);
     tableGroup.add(northGoal);
     const southGoal = new THREE.Mesh(goalGeometry, goalMaterial);
-    southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7);
+    southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7 - goalInsetTowardCenter);
     tableGroup.add(southGoal);
 
     const goalCutoutGeometry = new THREE.BoxGeometry(
@@ -1506,7 +1507,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       mouth.position.set(
         0,
         0.048 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.08)
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.08 - goalInsetTowardCenter)
       );
       tableGroup.add(mouth);
 
@@ -1517,12 +1518,36 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       net.position.set(
         0,
         0.072 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.78)
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.78 - goalInsetTowardCenter)
       );
       tableGroup.add(net);
     };
     createGoalMouth(-1);
     createGoalMouth(1);
+
+    const goalTrimMaterial = new THREE.MeshStandardMaterial({
+      color: 0x09121d,
+      roughness: 0.82,
+      metalness: 0.08,
+      emissive: new THREE.Color(0x02060b),
+      emissiveIntensity: 0.24
+    });
+    const goalCushionTrimGeometry = new THREE.BoxGeometry(
+      PLAYFIELD.goalW * 0.92,
+      0.2 * SCALE_WIDTH,
+      railThickness * 0.5
+    );
+    const addGoalCushionTrim = (direction) => {
+      const trim = new THREE.Mesh(goalCushionTrimGeometry, goalTrimMaterial);
+      trim.position.set(
+        0,
+        0.072 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.22 - goalInsetTowardCenter)
+      );
+      tableGroup.add(trim);
+    };
+    addGoalCushionTrim(-1);
+    addGoalCushionTrim(1);
 
     const createGoalLabel = (text, accent) => {
       const width = 1024;
