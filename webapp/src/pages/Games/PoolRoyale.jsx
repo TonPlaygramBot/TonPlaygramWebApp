@@ -1757,6 +1757,7 @@ const SPIN_TABLE_SCALE = Math.max(
   PLAY_H / SPIN_TABLE_REFERENCE_HEIGHT
 );
 const SPIN_ROLL_ACCELERATION = 1.2 * SPIN_TABLE_SCALE;
+const CUE_DEFAULT_FORWARD_ROLL = 0.12; // keep cue ball naturally rolling forward on center/soft top hits
 const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
@@ -6761,12 +6762,15 @@ function reflectRails(ball) {
   return null;
 }
 
-function resolveSpinFrame(ball) {
+function resolveSpinFrame(ball, options = {}) {
+  const preferLaunchDir = Boolean(options?.preferLaunchDir);
   const speed = Math.max(ball?.vel?.length?.() ?? 0, 0);
-  const forward =
-    speed > 1e-6
+  const hasLaunchDir = Boolean(ball?.launchDir && ball.launchDir.lengthSq?.() > 1e-8);
+  const forward = preferLaunchDir && hasLaunchDir
+    ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
+    : speed > 1e-6
       ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
-      : ball?.launchDir
+      : hasLaunchDir
         ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
         : TMP_VEC2_FORWARD.set(0, 1);
   const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
@@ -6823,7 +6827,10 @@ function applySpinController(ball, stepScale, airborne = false) {
   if (ball.id === 'cue' && !ball.impacted) {
     return decaySpin(ball, stepScale, airborne);
   }
-  const { forward, speed } = resolveSpinFrame(ball);
+  const cueForwardFromAimLine = ball.id === 'cue' && (ball.spin?.y ?? 0) >= 0;
+  const { forward, speed } = resolveSpinFrame(ball, {
+    preferLaunchDir: cueForwardFromAimLine
+  });
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
     const powerScale = resolveSpinPowerScale(speed);
@@ -25127,6 +25134,9 @@ const powerRef = useRef(hud.power);
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
+          }
+          if (physicsSpin.y >= 0) {
+            spinTop += CUE_DEFAULT_FORWARD_ROLL;
           }
           cue.vel.copy(base);
           if (cue.spin) {
