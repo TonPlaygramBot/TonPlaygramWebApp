@@ -94,13 +94,13 @@ const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 0.95; // widen board footprint closer to the coin-vase span
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06; // make board footprint visibly wider
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.32; // Lift pyramid tiers a bit more for a taller board profile
+const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -166,9 +166,7 @@ const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
 const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
-const TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD = 0.6;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
-const TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND = 0.8;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
 const DICE_CAMERA_LOOK_OUT_DURATION = 420;
@@ -191,7 +189,6 @@ const CHESS_TOKEN_HEIGHT_SCALE = 1;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
-const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.3;
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
@@ -237,6 +234,7 @@ const STAIR_DEPTH_MIN = TILE_SIZE * 0.22;
 const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
+const BOARD_ROTATION_DRAG_SPEED = 0.0065;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -1584,9 +1582,9 @@ function shouldFollowTileChange(_fromIndex, toIndex) {
 
 function createTokenCameraFollowAnimation(camera, controls, followState, restoreState, onComplete) {
   if (!followState) return null;
-  const { focusTarget, cameraPosition } = followState;
+  const { focusTarget } = followState;
   return createCameraTransitionAnimation(camera, controls, {
-    toPosition: cameraPosition,
+    toPosition: camera.position.clone(),
     toTarget: focusTarget,
     durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
     hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
@@ -1618,31 +1616,11 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const target = boardLookTarget.clone().lerp(seatWorld, 0.34);
   target.y = boardLookTarget.y;
 
-  const currentDistance = camera.position.distanceTo(boardLookTarget);
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
 
-  const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-  if (isTopOrBottomSeat) {
-    return null;
-  }
-
-  const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (boardToCamera.lengthSq() > 1e-6) {
-    boardToCamera.normalize();
-    const facingCameraDot = direction.dot(boardToCamera);
-    if (facingCameraDot >= TURN_CAMERA_BOTTOM_PLAYER_DOT_THRESHOLD) {
-      return null;
-    }
-  }
-
-  const desiredOrbitDirection = direction.clone().multiplyScalar(-1);
-  const orbitDirection = boardToCamera.lengthSq() > 1e-6
-    ? boardToCamera.clone().lerp(desiredOrbitDirection, TURN_CAMERA_SIDE_PLAYER_ROTATION_BLEND).normalize()
-    : desiredOrbitDirection;
-  const position = target.clone().addScaledVector(orbitDirection, currentDistance);
-  position.y = camera.position.y;
+  const position = camera.position.clone();
 
   return { position, target };
 }
@@ -2585,11 +2563,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
   controls.enableZoom = true;
-  controls.enableRotate = true;
-  controls.rotateSpeed = 0.6;
+  controls.enableRotate = false;
+  controls.rotateSpeed = 0;
   controls.minAzimuthAngle = -Infinity;
   controls.maxAzimuthAngle = Infinity;
-  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
   controls.minPolarAngle = CAM.phiMin;
@@ -2863,7 +2841,7 @@ function buildSnakeBoard(
     loadPolyhavenTextureSet(floorTexture.assetId, renderer)
       .then((textureSet) => {
         if (!textureSet) return;
-        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE * 2;
+        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE * 3;
         applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
         topMaterials.forEach((material) => {
           applyTextureSetToMaterial(material, textureSet, repeat);
@@ -2877,7 +2855,7 @@ function buildSnakeBoard(
       .then((textureSet) => {
         if (!textureSet) return;
         wallMaterials.forEach((material) => {
-          const repeatX = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 0.5;
+          const repeatX = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 1.15;
           const repeatY = repeatX / 1.5;
           applyTextureSetToMaterial(material, textureSet, { x: repeatX, y: repeatY });
         });
@@ -2903,14 +2881,6 @@ function buildSnakeBoard(
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
-      if (levelIndex === 0) {
-        const outward = tilePosition.clone();
-        outward.y = 0;
-        if (outward.lengthSq() > 1e-6) {
-          outward.normalize().multiplyScalar(EDGE_TILE_OUTWARD_OFFSET);
-          tilePosition.add(outward);
-        }
-      }
       if (idx === TOTAL_BOARD_TILES) {
         tilePosition.y += topTileLift;
       }
@@ -4017,6 +3987,41 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? []
     };
 
+    const boardRoot = arena.boardGroup;
+    const dragState = {
+      pointerId: null,
+      lastX: 0
+    };
+    const onPointerDown = (event) => {
+      if (event.button !== 0 && event.pointerType !== 'touch') return;
+      dragState.pointerId = event.pointerId;
+      dragState.lastX = event.clientX;
+      renderer.domElement.setPointerCapture?.(event.pointerId);
+    };
+    const onPointerMove = (event) => {
+      if (dragState.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - dragState.lastX;
+      dragState.lastX = event.clientX;
+      if (Math.abs(deltaX) < 0.25) return;
+      boardRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
+    };
+    const onPointerEnd = (event) => {
+      if (dragState.pointerId !== event.pointerId) return;
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      dragState.pointerId = null;
+    };
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointerup', onPointerEnd);
+    renderer.domElement.addEventListener('pointercancel', onPointerEnd);
+    handlers.push(() => {
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointermove', onPointerMove);
+      renderer.domElement.removeEventListener('pointerup', onPointerEnd);
+      renderer.domElement.removeEventListener('pointercancel', onPointerEnd);
+    });
+
     railTextureRef.current?.dispose?.();
     snakeTextureRef.current?.dispose?.();
     railTextureRef.current = makeRailTexture(appearanceMemo.rail);
@@ -4446,7 +4451,7 @@ export default function SnakeBoard3D({
           removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
           const restoreState = turnCameraStateRef.current || captureCameraState(camera, controls);
           const diceCameraAnimation = createCameraTransitionAnimation(camera, controls, {
-            toPosition: diceCameraState.position,
+            toPosition: camera.position.clone(),
             toTarget: diceCameraState.target,
             durationIn: DICE_CAMERA_LOOK_IN_DURATION,
             hold: DICE_CAMERA_LOOK_HOLD_DURATION,
