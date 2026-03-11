@@ -5028,13 +5028,13 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the standing view dip slig
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0148; // pull the standing orbit slightly closer so the table feels nearer in portrait play
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.95;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.92;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
 const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing-camera distance limit for the same close orbit feel
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
@@ -5109,9 +5109,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.13; // lift the 2D camera a touch higher while keeping the full table in frame
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // align Snooker 2D overhead framing with Pool Royale so the full table stays in frame
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.13; // lift the 2D camera a touch higher while keeping the full table in frame
+const TOP_VIEW_RADIUS_SCALE = 1.11; // align Snooker 2D overhead framing with Pool Royale so the full table stays in frame
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006,
@@ -5122,7 +5122,7 @@ const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.014 // nudge rail-overhead framing inward so the near short-rail pockets stay visible
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // keep rail-overhead height aligned with the tuned 2D lift
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // lift rail-overhead camera slightly higher for clearer broadcast context
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -5140,12 +5140,12 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance) * CAMERA_DISPLAY_SCALE;
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // mirror Pool Royale overhead distance so both lower pockets stay visible
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0196; // tighten cue-camera distance so the cue/target balls read larger on portrait
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.08;
+const CUE_VIEW_RADIUS_RATIO = 0.0205; // match Pool Royale cue-camera radius limit for identical close-up behavior
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -5175,7 +5175,7 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // mirror Pool Royale rail-overhead aiming tilt to preserve bottom-pocket visibility
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens so both near short-rail pockets stay in frame on portrait
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
