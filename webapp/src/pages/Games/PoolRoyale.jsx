@@ -1757,6 +1757,7 @@ const SPIN_TABLE_SCALE = Math.max(
   PLAY_H / SPIN_TABLE_REFERENCE_HEIGHT
 );
 const SPIN_ROLL_ACCELERATION = 1.2 * SPIN_TABLE_SCALE;
+const CUE_DEFAULT_FORWARD_ROLL = 0.08; // center-ball hits keep a slight natural forward roll
 const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
@@ -1764,7 +1765,7 @@ const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // mirror Snooker Royale cushion throw from side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
+const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.9; // keep direction line aligned with the spin-adjusted cue-ball path
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale now mirrors Snooker Royale shot-force tuning to keep cue-ball travel identical.
@@ -1894,15 +1895,15 @@ const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
+const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
-const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 2.6;
-const TOPSPIN_MULTIPLIER = 1.5;
+const TOPSPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
+const SIDE_SPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -6761,12 +6762,15 @@ function reflectRails(ball) {
   return null;
 }
 
-function resolveSpinFrame(ball) {
+function resolveSpinFrame(ball, options = {}) {
+  const preferLaunchDir = Boolean(options?.preferLaunchDir);
   const speed = Math.max(ball?.vel?.length?.() ?? 0, 0);
-  const forward =
-    speed > 1e-6
+  const hasLaunchDir = Boolean(ball?.launchDir && ball.launchDir.lengthSq?.() > 1e-8);
+  const forward = preferLaunchDir && hasLaunchDir
+    ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
+    : speed > 1e-6
       ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
-      : ball?.launchDir
+      : hasLaunchDir
         ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
         : TMP_VEC2_FORWARD.set(0, 1);
   const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
@@ -6823,7 +6827,10 @@ function applySpinController(ball, stepScale, airborne = false) {
   if (ball.id === 'cue' && !ball.impacted) {
     return decaySpin(ball, stepScale, airborne);
   }
-  const { forward, speed } = resolveSpinFrame(ball);
+  const cueForwardFromAimLine = ball.id === 'cue';
+  const { forward, speed } = resolveSpinFrame(ball, {
+    preferLaunchDir: cueForwardFromAimLine
+  });
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
     const powerScale = resolveSpinPowerScale(speed);
@@ -6968,6 +6975,23 @@ function updatePowerLinePoints(geom, start, end, powerStrength) {
   return true;
 }
 
+
+function resolveCueSpinComponents(spin, powerStrength, ranges = {}) {
+  const normalized = normalizeSpinInput(spin);
+  const powerScale = 0.55 + THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1) * 0.45;
+  const baseSide = (normalized.x || 0) * (ranges.side ?? 0) * powerScale;
+  const baseForward = (normalized.y || 0) * (ranges.forward ?? 0) * powerScale;
+  const spinSide = baseSide * SIDE_SPIN_MULTIPLIER;
+  let spinTop = baseForward;
+  if (normalized.y < 0) {
+    spinTop *= BACKSPIN_MULTIPLIER;
+  } else {
+    spinTop *= TOPSPIN_MULTIPLIER;
+    spinTop += CUE_DEFAULT_FORWARD_ROLL;
+  }
+  return { spinSide, spinTop };
+}
+
 function resolveTargetSpinDeflection(
   targetDir,
   cueDir,
@@ -7011,9 +7035,16 @@ function resolveCueFollowPreview({
   spin,
   powerStrength,
   cuePowerStrength,
-  liftStrength = 0
+  liftStrength = 0,
+  spinRanges = {}
 }) {
-  const normalizedSpin = normalizeSpinInput(spin);
+  const { spinSide, spinTop } = resolveCueSpinComponents(spin, powerStrength, spinRanges);
+  const maxSide = Math.max(Math.abs((spinRanges.side ?? 0) * SIDE_SPIN_MULTIPLIER), 1e-6);
+  const maxForward = Math.max(Math.abs((spinRanges.forward ?? 0) * TOPSPIN_MULTIPLIER) + CUE_DEFAULT_FORWARD_ROLL, 1e-6);
+  const normalizedSpin = {
+    x: THREE.MathUtils.clamp(spinSide / maxSide, -1, 1),
+    y: THREE.MathUtils.clamp(spinTop / maxForward, -1, 1)
+  };
   const clampedPower = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
   const clampedCuePower = Number.isFinite(cuePowerStrength)
     ? THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1)
@@ -25119,15 +25150,11 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
+          const { spinSide, spinTop } = resolveCueSpinComponents(
+            physicsSpin,
+            clampedPower,
+            ranges
+          );
           cue.vel.copy(base);
           if (cue.spin) {
             cue.spin.set(spinSide, spinTop);
@@ -29031,7 +29058,8 @@ const powerRef = useRef(hud.power);
             spin: physicsSpin,
             powerStrength,
             cuePowerStrength,
-            liftStrength
+            liftStrength,
+            spinRanges: ranges
           });
           const cueFollowStart = end
             .clone()
@@ -29347,7 +29375,8 @@ const powerRef = useRef(hud.power);
             spin: mapSpinForPhysics(remoteSpinNormalized),
             powerStrength,
             cuePowerStrength,
-            liftStrength: 0
+            liftStrength: 0,
+            spinRanges: spinRangeRef.current || {}
           });
           const cueFollowStart = end
             .clone()
