@@ -1663,11 +1663,6 @@ const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
-const SPIN_RING_THICKNESS_PX = 14;
-const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
-const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
-const SPIN_DECORATION_DOT_SIZE_PX = 12;
-const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5109,9 +5104,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.12; // lift the 2D camera a touch higher while preserving full-table framing
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.14; // lift the 2D camera slightly higher so portrait top view sits a little more elevated
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.12; // lift the 2D camera a touch higher while preserving full-table framing
+const TOP_VIEW_RADIUS_SCALE = 1.14; // lift the 2D camera slightly higher so portrait top view sits a little more elevated
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006,
@@ -5119,10 +5114,10 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.014 // nudge rail-overhead framing inward so the near short-rail pockets stay visible
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.019 // nudge rail-overhead framing further inward so the bottom pockets stay visible on portrait
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // lift rail-overhead camera slightly higher for clearer broadcast context
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.06; // lift rail-overhead camera a little more for clearer bottom-pocket visibility
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -5175,7 +5170,7 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.048; // tilt rail-overhead aim view slightly more downward so lower pockets remain readable
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens so both near short-rail pockets stay in frame on portrait
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -5416,6 +5411,37 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
+};
+
+const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
+  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
+  const viewVec = computeCueViewVector(cueBall, camera);
+  if (!viewVec) return spinInput;
+  const axes = prepareSpinAxes(aimDir);
+  TMP_VEC2_SPIN.set(0, 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
+  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
+  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
+  if (viewDot >= 0) return spinInput;
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
+  return {
+    x: TMP_VEC2_SPIN.dot(axes.perp),
+    y: TMP_VEC2_SPIN.dot(axes.axis)
+  };
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -26219,20 +26245,7 @@ const powerRef = useRef(hud.power);
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
-    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
-  const spinDecorationPoints = useMemo(
-    () =>
-      SPIN_DECORATION_ANGLES.flatMap((angle) => {
-        const radians = (angle * Math.PI) / 180;
-        const x = Math.cos(radians);
-        const y = Math.sin(radians);
-        return SPIN_DECORATION_RADII.map((radius) => ({
-          x: x * radius,
-          y: y * radius
-        }));
-      }),
-    []
-  );
+    !hud.over && !replayActive && !shotActive && !pocketCameraActive && (isPlayerTurn || aiTakingShot);
 
   // Spin controller interactions
   useEffect(() => {
@@ -26280,7 +26293,17 @@ const powerRef = useRef(hud.power);
     const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
-      return clampToUnitCircle(limited.x, limited.y);
+      const aimVec = aimDirRef.current;
+      const cueBall = cueRef.current;
+      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const viewLimited = clampSpinToVisibleHemisphere(
+        limited,
+        aimVec,
+        cueBall,
+        activeCamera
+      );
+      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
+      return clampToUnitCircle(reclamped.x, reclamped.y);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -28019,88 +28042,46 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={{
-            bottom: `${6 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale * 0.88})`,
-            transformOrigin: 'bottom right'
-          }}
+          className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          style={isTopDownView
+            ? {
+                left: '50%',
+                right: 'auto',
+                top: 'auto',
+                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
+                transform: `translateX(-50%) scale(${uiScale * 0.88})`,
+                transformOrigin: 'bottom center'
+              }
+            : {
+                right: `${rightHudShiftPx}px`,
+                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
+                transform: `scale(${uiScale * 0.88})`,
+                transformOrigin: 'bottom right'
+              }}
         >
           <div
             id="spinBox"
-            className={`relative rounded-full border border-white/40 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full border border-white/70 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
+              background: '#ffffff'
             }}
           >
-            <div className="absolute inset-0 rounded-full overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  inset: `${SPIN_RING_THICKNESS_PX}px`,
-                  background: '#fef6df',
-                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
-                style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
-              />
-              <div
-                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
-                style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-              />
-              <div
-                className="absolute rounded-full border-2 border-rose-500/70"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  pointerEvents: 'none'
-                }}
-              />
-              {spinDecorationPoints.map((point, index) => (
-                <span
-                  key={`spin-deco-${index}`}
-                  className="absolute rounded-full border-2 border-black/75"
-                  style={{
-                    width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                    height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                    left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                    top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                    transform: 'translate(-50%, -50%)',
-                    background: 'rgba(156,163,175,0.65)',
-                    pointerEvents: 'none'
-                  }}
-                />
-              ))}
-              <div
-                id="spinDot"
-                className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX}px`,
-                  left: '50%',
-                  top: '50%'
-                }}
-              ></div>
-            </div>
+            <div
+              id="spinDot"
+              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX}px`,
+                height: `${SPIN_DOT_DIAMETER_PX}px`,
+                left: '50%',
+                top: '50%'
+              }}
+            ></div>
           </div>
         </div>
       )}
+
 
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
