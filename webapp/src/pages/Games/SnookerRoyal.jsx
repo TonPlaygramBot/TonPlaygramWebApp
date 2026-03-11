@@ -1163,7 +1163,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_SIZE_MULTIPLIER);
-const BALL_SIZE_SCALE = 1.1155; // increase balls 15% from the previous tuned size for stronger table presence
+const BALL_SIZE_SCALE = 1.14; // bump ball scale slightly so shots read larger on portrait screens without changing table proportions
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5014,7 +5014,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing-camera tilt limits for identical portrait framing
+const STANDING_VIEW_PHI = 0.95; // drop standing camera slightly lower while keeping a stable portrait read of the table
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5023,7 +5023,7 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the standing view dip slig
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0148; // pull the standing + cue orbit a touch closer to the cloth for a tighter gameplay view
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -5114,7 +5114,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.055 // push rail-overhead framing farther so the table sits a bit closer to the top on portrait screens
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.07 // nudge overhead framing so the table appears a little higher on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.1; // lift rail-overhead camera a little more for clearer bottom-pocket visibility
@@ -5145,7 +5145,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
+const CUE_VIEW_PHI_LIFT = 0.04; // lower cue camera a bit so aiming sits closer to table level
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
