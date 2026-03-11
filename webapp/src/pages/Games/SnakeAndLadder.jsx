@@ -3503,6 +3503,7 @@ export default function SnakeAndLadder() {
           frameRate={frameRateValue}
           cameraViewMode={cameraViewMode}
           camera2dTilt={camera2dTilt}
+          onCameraTiltChange={setCamera2dTilt}
         />
       </div>
       <div
@@ -3730,30 +3731,6 @@ export default function SnakeAndLadder() {
       </div>
       <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4 pointer-events-none">
         <div className="pointer-events-auto w-full">
-          {cameraViewMode === '2d' ? (
-            <div
-              className="fixed z-30 flex flex-col gap-2 pointer-events-auto"
-              style={{
-                right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
-                top: 'calc(9.5rem + env(safe-area-inset-top, 0px))'
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setCamera2dTilt((value) => Math.max(0, value - 0.08))}
-                className="rounded-full border border-white/20 bg-black/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/90"
-              >
-                Move Up
-              </button>
-              <button
-                type="button"
-                onClick={() => setCamera2dTilt((value) => Math.min(1, value + 0.08))}
-                className="rounded-full border border-white/20 bg-black/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/90"
-              >
-                Move Down
-              </button>
-            </div>
-          ) : null}
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
             showMute

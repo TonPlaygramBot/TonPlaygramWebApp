@@ -3818,7 +3818,8 @@ export default function SnakeBoard3D({
   appearanceKey,
   frameRate = 90,
   cameraViewMode = '3d',
-  camera2dTilt = 0.2
+  camera2dTilt = 0.2,
+  onCameraTiltChange
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -3843,6 +3844,7 @@ export default function SnakeBoard3D({
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
   const frameAccumulatorRef = useRef(0);
+  const cameraTiltRef = useRef(clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2));
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
@@ -3855,6 +3857,10 @@ export default function SnakeBoard3D({
   useEffect(() => {
     cameraViewModeRef.current = cameraViewMode;
   }, [cameraViewMode]);
+
+  useEffect(() => {
+    cameraTiltRef.current = clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2);
+  }, [camera2dTilt]);
 
   useEffect(() => {
     frameRateRef.current = Math.max(30, frameRate || 90);
@@ -3934,6 +3940,16 @@ export default function SnakeBoard3D({
       controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY_PAN };
       controls.update();
       return;
+    }
+
+    const desiredPolar = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, tiltRatio);
+    const offset = camera.position.clone().sub(controls.target);
+    if (offset.lengthSq() > 0.000001) {
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      spherical.phi = clamp(desiredPolar, CAM.phiMin, CAM.phiMax);
+      offset.setFromSpherical(spherical);
+      camera.position.copy(controls.target).add(offset);
+      controls.update();
     }
 
     if (cameraRestoreRef.current) {
@@ -4039,21 +4055,36 @@ export default function SnakeBoard3D({
     const boardRotationRoot = board.rotationRoot || board.root;
     const dragState = {
       pointerId: null,
-      lastX: 0
+      lastX: 0,
+      lastY: 0
     };
     const onPointerDown = (event) => {
-      if (cameraViewModeRef.current === '2d') return;
       if (event.button !== 0 && event.pointerType !== 'touch') return;
       dragState.pointerId = event.pointerId;
       dragState.lastX = event.clientX;
+      dragState.lastY = event.clientY;
       renderer.domElement.setPointerCapture?.(event.pointerId);
     };
     const onPointerMove = (event) => {
-      if (cameraViewModeRef.current === '2d') return;
       if (dragState.pointerId !== event.pointerId) return;
       const deltaX = event.clientX - dragState.lastX;
+      const deltaY = event.clientY - dragState.lastY;
       dragState.lastX = event.clientX;
-      if (Math.abs(deltaX) < 0.25) return;
+      dragState.lastY = event.clientY;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      if (absY >= absX && absY >= 0.25 && typeof onCameraTiltChange === 'function') {
+        const nextTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
+        if (Math.abs(nextTilt - cameraTiltRef.current) > 0.0001) {
+          cameraTiltRef.current = nextTilt;
+          onCameraTiltChange(nextTilt);
+        }
+        return;
+      }
+
+      if (cameraViewModeRef.current === '2d') return;
+      if (absX < 0.25) return;
       boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
     };
     const onPointerEnd = (event) => {
