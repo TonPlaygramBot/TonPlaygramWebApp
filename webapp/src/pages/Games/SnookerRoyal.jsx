@@ -1414,7 +1414,7 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 4.1; // push middle-pocket cameras farther toward the corner-side edges
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // match Pool Royale middle-pocket camera edge shift
 const POCKET_CAM_DISTANCE_PULL = BALL_DIAMETER * 7; // pull pocket cameras inward by ~7 balls (adds ~3 balls more)
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1565,7 +1565,7 @@ const POCKET_SOUND_TAIL = 1;
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 4.5;
-const BASE_TABLE_LIFT = 4.1;
+const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.82;
 const TABLE_HEIGHT_SCALE = 1.56;
@@ -1575,9 +1575,9 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 1.02; // extend the current leg length slightly so the playfield lifts higher
+const LEG_ELEVATION_SCALE = 0.96; // mirror Pool Royale leg extension so playfield height matches exactly
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const BASE_HEIGHT_REDUCTION = 0.9; // shorten table bases by 10% so the bases rise with the lifted stance
+const BASE_HEIGHT_REDUCTION = 0.8; // mirror Pool Royale base reduction so rail-to-floor profile stays identical
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -5014,7 +5014,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.95; // drop standing camera slightly lower while keeping a stable portrait read of the table
+const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing camera tilt
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5030,7 +5030,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.34; // bring standing camera slightly closer so table action reads larger on portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing camera distance
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5145,7 +5145,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.04; // lower cue camera a bit so aiming sits closer to table level
+const CUE_VIEW_PHI_LIFT = 0.06; // match Pool Royale cue-camera elevation
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,

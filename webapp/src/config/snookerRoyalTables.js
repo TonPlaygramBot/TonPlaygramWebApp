@@ -1,38 +1,38 @@
-const BASE_TABLE_SCALE = 1.46;
-const BASE_TABLE_MOBILE_SCALE = 1.52;
-const BASE_TABLE_COMPACT_SCALE = 1.36;
-const BASE_PLAYFIELD_WIDTH_MM = 3569; // official 12ft snooker playfield width
+const BASE_TABLE_SCALE = 1.44;
+const BASE_TABLE_MOBILE_SCALE = 1.44;
+const BASE_TABLE_COMPACT_SCALE = 1.44;
+const BASE_PLAYFIELD_WIDTH_MM = 2540; // keep Snooker Royal chassis matched to Pool Royale 9ft playfield width
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
   '12ft': {
     id: '12ft',
-    label: '12 ft (Championship)',
-    playfield: Object.freeze({ widthMm: 3569, heightMm: 1778 }), // official 12ft snooker playfield (11ft 8.5in x 5ft 10in)
+    label: '12 ft (Pool Royale Match)',
+    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // Pool Royale 9ft chassis dimensions for parity
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
       corner: 114.3,
       side: 127
     }),
-    cushionCutAngleDeg: 27,
-    sideCushionCutAngleDeg: 27,
+    cushionCutAngleDeg: 32,
+    sideCushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     scaleOverrides: Object.freeze({
       scale: 1.56,
-      mobileScale: 1.68,
+      mobileScale: 1.72,
       compactScale: 1.48
     })
   },
   '10ft': {
     id: '10ft',
-    label: '10 ft (Club)',
-    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // official 10ft snooker playfield
+    label: '10 ft (Pool Royale Compact)',
+    playfield: Object.freeze({ widthMm: 2235, heightMm: 1118 }), // Pool Royale 8ft chassis dimensions for parity
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
+      corner: 171.45,
+      side: 152.4
     }),
-    cushionCutAngleDeg: 27,
-    sideCushionCutAngleDeg: 27,
+    cushionCutAngleDeg: 32,
+    sideCushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
 });
@@ -52,7 +52,7 @@ function deriveMobileScale(baseScale, mobileScale = BASE_TABLE_MOBILE_SCALE) {
 
 function deriveCompactScale(baseScale, compactScale = BASE_TABLE_COMPACT_SCALE) {
   const scaled = baseScale * 0.94;
-  return Math.max(1.08, Math.min(compactScale, scaled));
+  return Math.max(1.1, Math.min(compactScale, scaled));
 }
 
 export const TABLE_SIZE_OPTIONS = Object.freeze(
