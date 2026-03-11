@@ -2828,10 +2828,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const topDownPolar = 0.001;
     if (nextIs2d) {
+      cancelCameraFocusAnimation();
+      cancelCameraViewAnimation();
       if (!saved3dCameraStateRef.current) {
         saved3dCameraStateRef.current = {
           position: camera.position.clone(),
           target: controls.target.clone(),
+          minDistance: controls.minDistance,
+          maxDistance: controls.maxDistance,
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
           minAzimuthAngle: controls.minAzimuthAngle,
@@ -2839,10 +2843,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           enableRotate: controls.enableRotate
         };
       }
-      const topDownDistance = clamp(CAM.minR * 1.35, CAM.minR, CAM.maxR);
+      const topDownDistance = CAM.maxR * 1.45;
       camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
       controls.target.copy(boardLookTarget);
+      cameraTurnStateRef.current.currentTarget = boardLookTarget.clone();
       controls.enableRotate = false;
+      controls.minDistance = topDownDistance;
+      controls.maxDistance = topDownDistance;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
@@ -2850,6 +2857,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
+      controls.minDistance = saved?.minDistance ?? CAM.minR;
+      controls.maxDistance = saved?.maxDistance ?? CAM.maxR;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
@@ -2865,7 +2874,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     controls.update();
     syncSkyboxToCameraRef.current?.();
-  }, []);
+  }, [cancelCameraFocusAnimation, cancelCameraViewAnimation]);
 
   const handleToggleCamera2d = useCallback(() => {
     setIsCamera2d((current) => {
