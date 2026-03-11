@@ -1931,11 +1931,11 @@ const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
-const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.08, landscape: 0.5 });
+const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12, landscape: 0.56 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46, landscape: 0.52 });
-const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.2, landscape: 1.06 });
+const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.28, landscape: 1.12 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = -0.22 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.3 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -2004,7 +2004,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.72;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.68;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
@@ -4408,17 +4408,13 @@ export default function MurlanRoyaleArena({ search }) {
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
       const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
-      const verticalSwing = THREE.MathUtils.degToRad(isPortrait ? 12 : 9);
-      controls.minPolarAngle = THREE.MathUtils.clamp(
-        cameraSpherical.phi - verticalSwing,
+      const lockedPolarAngle = THREE.MathUtils.clamp(
+        cameraSpherical.phi,
         ARENA_CAMERA_DEFAULTS.phiMin,
         ARENA_CAMERA_DEFAULTS.phiMax
       );
-      controls.maxPolarAngle = THREE.MathUtils.clamp(
-        cameraSpherical.phi + verticalSwing,
-        ARENA_CAMERA_DEFAULTS.phiMin,
-        ARENA_CAMERA_DEFAULTS.phiMax
-      );
+      controls.minPolarAngle = lockedPolarAngle;
+      controls.maxPolarAngle = lockedPolarAngle;
       controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
       controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
       controls.minDistance = desiredRadius;
