@@ -3805,7 +3805,8 @@ export default function SnakeBoard3D({
   appearance = {},
   appearanceKey,
   frameRate = 90,
-  cameraViewMode = '3d'
+  cameraViewMode = '3d',
+  camera2dTilt = 0.2
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -3882,7 +3883,10 @@ export default function SnakeBoard3D({
     const boardLookTarget = board?.boardLookTarget;
     if (!board || !camera || !controls || !boardLookTarget) return;
 
-    const topDownPolar = 0.001;
+    const min2dTilt = 0.001;
+    const max2dTilt = 0.42;
+    const tiltRatio = clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2);
+    const topDownPolar = THREE.MathUtils.lerp(min2dTilt, max2dTilt, tiltRatio);
     if (cameraViewMode === '2d') {
       if (!cameraRestoreRef.current) {
         cameraRestoreRef.current = {
@@ -3895,8 +3899,14 @@ export default function SnakeBoard3D({
           maxAzimuthAngle: controls.maxAzimuthAngle
         };
       }
-      const topDownDistance = clamp(CAM.minR * 1.5, CAM.minR, CAM.maxR);
-      camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
+      const topDownDistance = clamp(CAM.minR * 2.25, CAM.minR * 1.55, CAM.maxR * 0.96);
+      const verticalDistance = Math.cos(topDownPolar) * topDownDistance;
+      const forwardDistance = Math.sin(topDownPolar) * topDownDistance;
+      camera.position.set(
+        boardLookTarget.x,
+        boardLookTarget.y + verticalDistance,
+        boardLookTarget.z + forwardDistance
+      );
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.minPolarAngle = topDownPolar;
@@ -3919,7 +3929,7 @@ export default function SnakeBoard3D({
       controls.update();
       cameraRestoreRef.current = null;
     }
-  }, [cameraViewMode]);
+  }, [cameraViewMode, camera2dTilt]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -4260,7 +4270,7 @@ export default function SnakeBoard3D({
     }
     prevPlayerPositionsRef.current = sanitizedPositions;
 
-    if (movement && shouldFollowTileChange(movement.from, movement.to)) {
+    if (cameraViewMode !== '2d' && movement && shouldFollowTileChange(movement.from, movement.to)) {
       const camera = cameraRef.current;
       const controls = board.controls;
       const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
@@ -4290,7 +4300,8 @@ export default function SnakeBoard3D({
     keyForEffect,
     tokenTheme,
     tokenShape,
-    tokenPrototypeVersion
+    tokenPrototypeVersion,
+    cameraViewMode
   ]);
 
   useEffect(() => {
@@ -4348,7 +4359,7 @@ export default function SnakeBoard3D({
     const camera = cameraRef.current;
     const controls = board.controls;
     const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
-    if (camera && controls && followState && shouldFollowTileChange(slide.from, slide.to)) {
+    if (cameraViewMode !== '2d' && camera && controls && followState && shouldFollowTileChange(slide.from, slide.to)) {
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
       const restoreState =
@@ -4390,7 +4401,7 @@ export default function SnakeBoard3D({
         return false;
       }
     });
-  }, [slide, onSlideComplete]);
+  }, [slide, onSlideComplete, cameraViewMode]);
 
   useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
