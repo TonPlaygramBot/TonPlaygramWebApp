@@ -4,8 +4,7 @@ import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
-  chatBeep,
-  diceSound,
+  chatBeep
 } from "../../assets/soundData.js";
 import { AVATARS } from "../../components/AvatarPickerModal.jsx";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
@@ -90,7 +89,7 @@ import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
-import { createDiceRollAudio } from "../../utils/diceAudio.js";
+import { createDiceRollAudio, DICE_SFX_PRESETS } from "../../utils/diceAudio.js";
 import {
   buildSnakeCommentaryLine,
   createSnakeMatchCommentaryScript,
@@ -191,6 +190,7 @@ const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const DICE_SFX_STORAGE_KEY = 'snakeDiceSfxPreset';
 const SNAKE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
@@ -1213,6 +1213,15 @@ export default function SnakeAndLadder() {
     }
     return false;
   });
+  const [diceSfxPresetId, setDiceSfxPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(DICE_SFX_STORAGE_KEY);
+      if (stored && DICE_SFX_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DICE_SFX_PRESETS[0]?.id || 'classic-wood';
+  });
   const [showConfig, setShowConfig] = useState(false);
   const [showTrailEnabled, setShowTrailEnabled] = useState(true);
   const [appearance, setAppearance] = useState(() => {
@@ -1373,6 +1382,12 @@ export default function SnakeAndLadder() {
       window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
     }
   }, [commentaryMuted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(DICE_SFX_STORAGE_KEY, diceSfxPresetId);
+    }
+  }, [diceSfxPresetId]);
   const playersRef = useRef([]);
   const refreshPlayersNeeded = useCallback(
     (playersList = playersRef.current, capacityValue) => {
@@ -1821,7 +1836,7 @@ export default function SnakeAndLadder() {
     timerSoundRef.current.volume = vol;
     diceRollSoundRef.current = createDiceRollAudio({
       muted,
-      src: diceSound
+      presetId: diceSfxPresetId
     });
     if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
     return () => {
@@ -1839,7 +1854,7 @@ export default function SnakeAndLadder() {
       timerSoundRef.current?.pause();
       diceRollSoundRef.current?.pause();
     };
-  }, [accountId, muted]);
+  }, [accountId, muted, diceSfxPresetId]);
 
   useEffect(() => {
     [
@@ -3545,6 +3560,29 @@ export default function SnakeAndLadder() {
                 </button>
               </div>
               <div className="mt-4 space-y-3 pr-1">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/70">Dice roll sound</h3>
+                  <div className="grid gap-2">
+                    {DICE_SFX_PRESETS.map((preset) => {
+                      const active = preset.id === diceSfxPresetId;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setDiceSfxPresetId(preset.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                          }`}
+                        >
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white">{preset.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
                   <p className="mt-1 text-[0.7rem] text-white/60">Boards, tokens, and table themes.</p>

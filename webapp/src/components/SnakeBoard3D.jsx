@@ -2700,11 +2700,17 @@ function buildSnakeBoard(
   const boardRoot = new THREE.Group();
   boardGroup.add(boardRoot);
 
+  const boardRotationRoot = new THREE.Group();
+  boardRoot.add(boardRotationRoot);
+
+  const boardStaticRoot = new THREE.Group();
+  boardRoot.add(boardStaticRoot);
+
   const platformGroup = new THREE.Group();
-  boardRoot.add(platformGroup);
+  boardRotationRoot.add(platformGroup);
 
   const tileGroup = new THREE.Group();
-  boardRoot.add(tileGroup);
+  boardRotationRoot.add(tileGroup);
 
   const boardTheme = appearanceOptions.board ?? {};
   const railTheme = appearanceOptions.rail ?? {};
@@ -2726,7 +2732,7 @@ function buildSnakeBoard(
   );
 
   const labelGroup = new THREE.Group();
-  boardRoot.add(labelGroup);
+  boardRotationRoot.add(labelGroup);
 
   const platformThickness = PYRAMID_PLATFORM_THICKNESS;
   const levelGap = PYRAMID_LEVEL_GAP;
@@ -3007,13 +3013,16 @@ function buildSnakeBoard(
   };
 
   const laddersGroup = new THREE.Group();
-  boardRoot.add(laddersGroup);
+  boardRotationRoot.add(laddersGroup);
 
   const snakesGroup = new THREE.Group();
-  boardRoot.add(snakesGroup);
+  boardRotationRoot.add(snakesGroup);
 
-  const tokensGroup = new THREE.Group();
-  boardRoot.add(tokensGroup);
+  const boardTokensGroup = new THREE.Group();
+  boardRotationRoot.add(boardTokensGroup);
+
+  const reserveTokensGroup = new THREE.Group();
+  boardStaticRoot.add(reserveTokensGroup);
 
   const potGroup = new THREE.Group();
   const coin = new THREE.Mesh(
@@ -3034,7 +3043,7 @@ function buildSnakeBoard(
   potGroup.userData.coin = coin;
   const potPos = serpentineIndexToXZ(TOTAL_BOARD_TILES);
   potGroup.position.set(potPos.x, potPos.y + COIN_RAISE, potPos.z);
-  boardRoot.add(potGroup);
+  boardRotationRoot.add(potGroup);
 
   const diceGroup = new THREE.Group();
   const baseLevelTop = levelPlacements[0].tileTopY;
@@ -3055,7 +3064,7 @@ function buildSnakeBoard(
     diceGroup.add(die);
     diceSet.push(die);
   }
-  boardRoot.add(diceGroup);
+  boardStaticRoot.add(diceGroup);
 
   disposeHandlers.push(() => {
     platformMeshes.forEach((mesh) => {
@@ -3090,11 +3099,14 @@ function buildSnakeBoard(
 
   return {
     root: boardRoot,
+    rotationRoot: boardRotationRoot,
+    staticRoot: boardStaticRoot,
     tileMeshes,
     indexToPosition,
     laddersGroup,
     snakesGroup,
-    tokensGroup,
+    boardTokensGroup,
+    reserveTokensGroup,
     serpentineIndexToXZ,
     potGroup,
     labelGroup,
@@ -3132,7 +3144,8 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
 }
 
 function updateTokens(
-  tokensGroup,
+  boardTokensGroup,
+  reserveTokensGroup,
   players,
   indexToPosition,
   serpentineIndexToXZ,
@@ -3150,13 +3163,11 @@ function updateTokens(
     tableInfo = null
   } = {}
 ) {
-  if (!tokensGroup) return;
-  const existing = new Map();
-  tokensGroup.children.forEach((child) => {
-    if (child.userData && child.userData.playerIndex != null) {
-      existing.set(child.userData.playerIndex, child);
-    }
-  });
+  if (!boardTokensGroup || !reserveTokensGroup) return;
+  const existing = new Map([
+    ...boardTokensGroup.children.map((child) => [child.userData?.playerIndex, child]),
+    ...reserveTokensGroup.children.map((child) => [child.userData?.playerIndex, child])
+  ]);
 
   const occupancy = new Map();
   players.forEach((player, index) => {
@@ -3202,7 +3213,7 @@ function updateTokens(
         token.userData?.usesPrototype !== Boolean(basePiecePrototype) ||
         token.userData?.headPresetId !== headPresetId)
     ) {
-      tokensGroup.remove(token);
+      token.parent?.remove(token);
       token.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry.dispose();
@@ -3322,7 +3333,7 @@ function updateTokens(
         usesPrototype: Boolean(piecePrototype),
         headPresetId
       };
-      tokensGroup.add(token);
+      boardTokensGroup.add(token);
     }
 
     const mat = token.userData.coreMaterial || token.userData.material;
@@ -3463,6 +3474,11 @@ function updateTokens(
       }
     }
 
+    const targetGroup = hasBoardPosition ? boardTokensGroup : reserveTokensGroup;
+    if (token.parent !== targetGroup) {
+      targetGroup.add(token);
+    }
+
     if (!token.userData.isSliding && worldPos) {
       token.position.copy(worldPos);
     }
@@ -3470,7 +3486,7 @@ function updateTokens(
 
   existing.forEach((group, index) => {
     if (!keep.has(index)) {
-      tokensGroup.remove(group);
+      group.parent?.remove(group);
       group.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry.dispose();
@@ -3988,7 +4004,7 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? []
     };
 
-    const boardRotationRoot = board.root;
+    const boardRotationRoot = board.rotationRoot || board.root;
     const dragState = {
       pointerId: null,
       lastX: 0
@@ -4208,7 +4224,7 @@ export default function SnakeBoard3D({
   useEffect(() => {
     if (!boardRef.current) return;
     const board = boardRef.current;
-    updateTokens(board.tokensGroup, players, board.indexToPosition, board.serpentineIndexToXZ, {
+    updateTokens(board.boardTokensGroup, board.reserveTokensGroup, players, board.indexToPosition, board.serpentineIndexToXZ, {
       burning,
       rollingIndex,
       currentTurn,
@@ -4304,12 +4320,9 @@ export default function SnakeBoard3D({
   useEffect(() => {
     if (!slide || !boardRef.current) return;
     const board = boardRef.current;
-    const tokensGroup = board.tokensGroup;
-    if (!tokensGroup) {
-      onSlideComplete?.(slide.id, false);
-      return;
-    }
-    const token = tokensGroup.children.find((child) => child.userData?.playerIndex === slide.playerIndex);
+    const token =
+      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === slide.playerIndex) ||
+      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === slide.playerIndex);
     if (!token) {
       onSlideComplete?.(slide.id, false);
       return;
@@ -4320,8 +4333,8 @@ export default function SnakeBoard3D({
         : board.snakesGroup?.userData?.paths;
     const startBase = (board.indexToPosition.get(slide.from) || board.serpentineIndexToXZ(slide.from)).clone();
     const endBase = (board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)).clone();
-    startBase.y = startBase.y ?? tokensGroup.position.y;
-    endBase.y = endBase.y ?? tokensGroup.position.y;
+    startBase.y = startBase.y ?? token.parent?.position?.y ?? 0;
+    endBase.y = endBase.y ?? token.parent?.position?.y ?? 0;
     let pathInfo = pathMap?.get(slide.from);
     if (!pathInfo) {
       const fallbackCurve = new THREE.LineCurve3(startBase.clone(), endBase.clone());
