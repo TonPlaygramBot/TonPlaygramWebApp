@@ -5019,7 +5019,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 1.03; // lower the standing orbit a touch for a closer table feel
+const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing-camera tilt limits for identical portrait framing
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5035,7 +5035,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.22; // pull the standing camera closer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing-camera distance limit for the same close orbit feel
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5098,7 +5098,7 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = 0.1;
+const RAIL_LIMIT_PADDING = BALL_R * 0.12; // mirror Pool Royale rail padding so balls cannot slip outside table limits
 const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.04;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
@@ -5109,9 +5109,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.05; // lift the top view slightly higher
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise Snooker 2D camera slightly higher on screen
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.05; // lift the 2D top view slightly higher to keep the framing airy
+const TOP_VIEW_RADIUS_SCALE = 1.08; // raise Snooker 2D camera slightly higher on screen
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045,
@@ -5140,7 +5140,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera 
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0205; // match Pool Royale cue-camera radius limit for identical close-up behavior
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -6694,6 +6694,8 @@ function alignRailsToCushions(table, frame, railMeshes = null) {
 function updateRailLimitsFromTable(table) {
   if (!table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
+  RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
+  RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
   let minAbsX = Infinity;
   let minAbsZ = Infinity;
   for (const cushion of table.userData.cushions) {
