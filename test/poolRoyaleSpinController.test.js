@@ -9,8 +9,12 @@ describe('Pool Royale spin controller mapping', () => {
   it('maps the center to a slight stun bias with minimal roll', () => {
     const center = mapSpinForPhysics({ x: 0, y: 0 });
     expect(Math.abs(center.x)).toBe(0);
-    expect(center.y).toBeLessThanOrEqual(0);
     expect(center.y).toBeGreaterThanOrEqual(STUN_TOPSPIN_BIAS);
+  });
+
+  it('adds baseline forward roll to low top/back spin inputs', () => {
+    expect(mapSpinForPhysics({ x: 0, y: -0.05 }).y).toBeGreaterThan(-0.05);
+    expect(mapSpinForPhysics({ x: 0, y: 0.05 }).y).toBeGreaterThan(0.05);
   });
 
   it('keeps left/right spin directions aligned with the table axes', () => {
