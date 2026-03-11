@@ -16,8 +16,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
-import '../../../../pool-royale-power-slider.css';
+import { SnookerRoyalPowerSlider } from '../../../../snooker-royale-power-slider.js';
+import '../../../../snooker-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -1414,8 +1414,8 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // match Pool Royale middle-pocket camera edge offset
-const POCKET_CAM_DISTANCE_PULL = 0; // keep pocket camera distance identical to Pool Royale
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_DIAMETER * 4.1; // push middle-pocket cameras farther toward the corner-side edges
+const POCKET_CAM_DISTANCE_PULL = BALL_DIAMETER * 7; // pull pocket cameras inward by ~7 balls (adds ~3 balls more)
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1664,6 +1664,10 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
+const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
+const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+const SPIN_DECORATION_DOT_SIZE_PX = 12;
+const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5031,7 +5035,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing camera distance scale
+const STANDING_VIEW_DISTANCE_SCALE = 0.22; // pull the standing camera closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5105,16 +5109,16 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // match Pool Royale 2D top-view minimum radius
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.05; // lift the top view slightly higher
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.11; // match Pool Royale 2D top-view radius
+const TOP_VIEW_RADIUS_SCALE = 1.05; // lift the 2D top view slightly higher to keep the framing airy
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045,
   z: PLAY_H * -0.078
 });
-const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail-overhead min radius aligned with Pool Royale top view
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // match Pool Royale rail-overhead radius lift
+const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -5132,11 +5136,11 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance) * CAMERA_DISPLAY_SCALE;
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // keep rail-overhead broadcast distance identical to Pool Royale
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0205; // match Pool Royale cue-view radius ratio
+const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -11913,7 +11917,7 @@ function SnookerRoyalGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = isPortrait ? 8 : 14;
+  const spinControllerLiftPx = 20;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = 8;
   const menuButtonLeftNudgePx = -4;
@@ -11929,9 +11933,6 @@ function SnookerRoyalGame({
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
-  const [isRailOverheadView, setIsRailOverheadView] = useState(false);
-  const [railOverheadSide, setRailOverheadSide] = useState('back');
-  const railOverheadSideRef = useRef('back');
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
   useEffect(() => {
@@ -11983,15 +11984,8 @@ function SnookerRoyalGame({
     } else {
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
-      if (isRailOverheadView) {
-        setIsRailOverheadView(false);
-      }
     }
-  }, [isRailOverheadView, isTopDownView]);
-
-  useEffect(() => {
-    railOverheadSideRef.current = railOverheadSide === 'front' ? 'front' : 'back';
-  }, [railOverheadSide]);
+  }, [isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -16708,21 +16702,16 @@ const powerRef = useRef(hud.power);
 
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
-          minTargetY = null,
-          preferredRail = null
+          minTargetY = null
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
           const activeRail =
-            preferredRail === 'front'
+            rig.activeRail === 'front'
               ? rig.cameras.front
-              : preferredRail === 'back'
+              : rig.activeRail === 'back'
                 ? rig.cameras.back
-                : rig.activeRail === 'front'
-                  ? rig.cameras.front
-                  : rig.activeRail === 'back'
-                    ? rig.cameras.back
-                    : rig.cameras.back ?? rig.cameras.front;
+                : rig.cameras.back ?? rig.cameras.front;
           const head = activeRail?.head ?? null;
           if (!head) return null;
           const position = head.getWorldPosition(new THREE.Vector3());
@@ -17561,15 +17550,14 @@ const powerRef = useRef(hud.power);
             ORBIT_FOCUS_BASE_Y,
             TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
-          const overheadVariant = overheadBroadcastVariantRef.current ?? (isRailOverheadView ? 'rail' : 'top');
+          const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
           if (overheadVariant === 'replay') {
             const overheadCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
-              minTargetY,
-              preferredRail: overheadVariant === 'rail' || overheadVariant === 'replay' ? railOverheadSideRef.current : null
+              minTargetY
             });
             if (overheadCamera?.position) {
               const resolvedTarget = overheadCamera.target ?? topFocusTarget;
@@ -17586,9 +17574,6 @@ const powerRef = useRef(hud.power);
               broadcastArgs.focusWorld = resolvedTarget.clone();
               broadcastArgs.targetWorld = resolvedTarget.clone();
               broadcastArgs.orbitWorld = overheadCamera.position.clone();
-              if (overheadVariant === 'rail' || overheadVariant === 'replay') {
-                broadcastArgs.preferredRail = railOverheadSideRef.current;
-              }
               if (broadcastCamerasRef.current) {
                 broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
@@ -26138,14 +26123,14 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new PoolRoyalePowerSlider({
+    const slider = new SnookerRoyalPowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
@@ -26185,6 +26170,19 @@ const powerRef = useRef(hud.power);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
+  const spinDecorationPoints = useMemo(
+    () =>
+      SPIN_DECORATION_ANGLES.flatMap((angle) => {
+        const radians = (angle * Math.PI) / 180;
+        const x = Math.cos(radians);
+        const y = Math.sin(radians);
+        return SPIN_DECORATION_RADII.map((radius) => ({
+          x: x * radius,
+          y: y * radius
+        }));
+      }),
+    []
+  );
 
   // Spin controller interactions
   useEffect(() => {
@@ -26643,12 +26641,11 @@ const powerRef = useRef(hud.power);
       : null;
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
-  const usePortraitHudLayout = isPortrait;
-  const avatarSizeClass = usePortraitHudLayout ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
+  const avatarSizeClass = isPortrait ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
   const nameWidthClass = isPortrait ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
   const nameTextClass = isPortrait ? 'text-[0.95rem]' : 'text-[1.05rem]';
   const hudGapClass = isPortrait ? 'gap-5' : 'gap-7';
-  const bottomHudLayoutClass = usePortraitHudLayout ? 'justify-center px-4 w-full' : 'justify-center';
+  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
     'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
   const chatGiftPanelClass =
@@ -27659,7 +27656,7 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${(replayActive || shotBroadcastActive) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           right: `${rightHudShiftPx}px`,
           bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
@@ -27680,64 +27677,20 @@ const powerRef = useRef(hud.power);
         >
           <span aria-hidden="true">👁️</span>
         </button>
-        <div className="pointer-events-auto mt-1 flex flex-col gap-2" style={{ marginTop: `${viewToggleButtonDropPx}px` }}>
-          <button
-            type="button"
-            aria-pressed={!isTopDownView}
-            onClick={() => {
-              if (!isPortrait) return;
-              setIsRailOverheadView(false);
-              setIsTopDownView(false);
-            }}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              !isTopDownView
-                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-            }`}
-            aria-label="Switch to 3D view"
-          >
-            <span aria-hidden="true">3D</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={isTopDownView && !isRailOverheadView}
-            onClick={() => {
-              if (!isPortrait) return;
-              setIsRailOverheadView(false);
-              setIsTopDownView(true);
-            }}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              isTopDownView && !isRailOverheadView
-                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-            }`}
-            aria-label="Switch to 2D view"
-          >
-            <span aria-hidden="true">2D</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={isTopDownView && isRailOverheadView}
-            onClick={() => {
-              if (!isPortrait) return;
-              const isActiveRailView = isTopDownView && isRailOverheadView;
-              setIsRailOverheadView(true);
-              setIsTopDownView(true);
-              setRailOverheadSide((prev) => (isActiveRailView ? (prev === 'back' ? 'front' : 'back') : 'back'));
-            }}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[13px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              isTopDownView && isRailOverheadView
-                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-            }`}
-            aria-label="Switch rail overhead side"
-          >
-            <span aria-hidden="true" className="flex flex-col items-center leading-[0.8]">
-              <span className={railOverheadSide === 'back' ? 'text-emerald-100' : 'text-white/65'}>▲</span>
-              <span className={railOverheadSide === 'front' ? 'text-emerald-100' : 'text-white/65'}>▼</span>
-            </span>
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-pressed={isTopDownView}
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
+          aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
+        >
+          <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
+        </button>
       </div>
 
       {!replayActive && (
@@ -27767,10 +27720,10 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx}px`,
+            bottom: `${10 + chromeUiLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
-            transform: usePortraitHudLayout ? `translateX(${bottomHudOffset}px)` : undefined
+            transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
           <div
@@ -27961,42 +27914,85 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={isTopDownView
-            ? {
-                left: '50%',
-                right: 'auto',
-                top: 'auto',
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx}px`,
-                transform: `translateX(-50%) scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom center'
-              }
-            : {
-                right: `${rightHudShiftPx}px`,
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx}px`,
-                transform: `scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom right'
-              }}
+          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          style={{
+            bottom: `${6 + chromeUiLiftPx}px`,
+            transform: `scale(${uiScale * 0.88})`,
+            transformOrigin: 'bottom right'
+          }}
         >
           <div
             id="spinBox"
-            className={`relative rounded-full border border-white/70 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full border border-white/40 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: '#ffffff'
+              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
             }}
           >
-            <div
-              id="spinDot"
-              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX}px`,
-                height: `${SPIN_DOT_DIAMETER_PX}px`,
-                left: '50%',
-                top: '50%'
-              }}
-            ></div>
+            <div className="absolute inset-0 rounded-full overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  boxShadow:
+                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  inset: `${SPIN_RING_THICKNESS_PX}px`,
+                  background: '#fef6df',
+                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
+                style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
+              />
+              <div
+                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
+                style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              />
+              <div
+                className="absolute rounded-full border-2 border-rose-500/70"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  pointerEvents: 'none'
+                }}
+              />
+              {spinDecorationPoints.map((point, index) => (
+                <span
+                  key={`spin-deco-${index}`}
+                  className="absolute rounded-full border-2 border-black/75"
+                  style={{
+                    width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                    height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                    left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                    top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(156,163,175,0.65)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              ))}
+              <div
+                id="spinDot"
+                className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX}px`,
+                  left: '50%',
+                  top: '50%'
+                }}
+              ></div>
+            </div>
           </div>
         </div>
       )}
