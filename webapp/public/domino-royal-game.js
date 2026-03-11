@@ -1518,10 +1518,12 @@ const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
 const CAMERA_LATERAL_OFFSET = { portrait: 0, landscape: 0 };
-const CAMERA_REAR_OFFSET = { portrait: 1.14, landscape: 0.96 };
-const CAMERA_HEIGHT_BOOST = { portrait: 1.86, landscape: 1.52 };
+const CAMERA_REAR_OFFSET = { portrait: 1.14, landscape: 0.68 };
+const CAMERA_HEIGHT_BOOST = { portrait: 1.86, landscape: 1.08 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const CAMERA_TARGET = new THREE.Vector3(
   0,
@@ -1784,6 +1786,7 @@ let turnDominoFocusUntil = 0;
 
 let cameraHasUserControl = false;
 let cameraLookYaw = 0;
+let cameraLookPitch = 0;
 controls.addEventListener('start', () => {
   cameraHasUserControl = true;
 });
@@ -2001,6 +2004,15 @@ function updateTurnCameraFocus() {
     }
   }
 
+  if (cameraViewMode === VIEW_MODES.threeD && Math.abs(cameraLookPitch) > 0.0001) {
+    const toTarget = turnFocusTarget.clone().sub(camera.position);
+    const distance = toTarget.length();
+    if (distance > 0.0001) {
+      const pitchOffset = Math.tan(cameraLookPitch) * distance;
+      turnFocusTarget.y += pitchOffset;
+    }
+  }
+
   controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
 }
 
@@ -2046,6 +2058,7 @@ function setCameraViewMode(mode = VIEW_MODES.threeD) {
   cameraViewMode = mode;
   cameraHasUserControl = false;
   cameraLookYaw = 0;
+  cameraLookPitch = 0;
   updateRaycasterThreshold();
   applyCameraConstraints();
   positionCameraForViewport({ force: true });
@@ -2053,7 +2066,7 @@ function setCameraViewMode(mode = VIEW_MODES.threeD) {
   renderHands();
 }
 
-function handleCameraLookDrag(deltaX = 0) {
+function handleCameraLookDrag(deltaX = 0, deltaY = 0) {
   if (cameraViewMode !== VIEW_MODES.threeD) {
     return;
   }
@@ -2062,13 +2075,24 @@ function handleCameraLookDrag(deltaX = 0) {
     -CAMERA_LOOK_YAW_LIMIT,
     CAMERA_LOOK_YAW_LIMIT
   );
+  cameraLookPitch = THREE.MathUtils.clamp(
+    cameraLookPitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+    -CAMERA_LOOK_PITCH_LIMIT,
+    CAMERA_LOOK_PITCH_LIMIT
+  );
 }
 
 function updateCameraLookRecentering() {
   if (cameraViewMode !== VIEW_MODES.threeD) {
     cameraLookYaw = 0;
+    cameraLookPitch = 0;
     return;
   }
+}
+
+function isLandscapeViewport() {
+  const { width, height } = getViewportMetrics();
+  return width > height;
 }
 
 function toggleCameraViewMode() {
@@ -7587,6 +7611,12 @@ leaderboardCard.innerHTML =
   '<div class="leaderboard-title">Leaderboard</div><div class="leaderboard-rows"></div>';
 document.body.appendChild(leaderboardCard);
 
+function updateLeaderboardVisibility() {
+  if (!leaderboardCard) return;
+  leaderboardCard.style.display = isLandscapeViewport() ? 'none' : '';
+}
+updateLeaderboardVisibility();
+
 function computePipTotal(hand = []) {
   return hand.reduce(
     (sum, tile) => sum + Number(tile?.a || 0) + Number(tile?.b || 0),
@@ -7596,6 +7626,7 @@ function computePipTotal(hand = []) {
 
 function updateLeaderboardCard() {
   if (!leaderboardCard) return;
+  updateLeaderboardVisibility();
   const titleEl = leaderboardCard.querySelector('.leaderboard-title');
   const rowsHost = leaderboardCard.querySelector('.leaderboard-rows');
   if (!rowsHost) return;
@@ -9152,7 +9183,8 @@ const pinchZoomState = {
 };
 const cameraLookPointerState = {
   pointerId: null,
-  lastX: 0
+  lastX: 0,
+  lastY: 0
 };
 function findPickRoot(o) {
   let n = o;
@@ -9184,6 +9216,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   ) {
     cameraLookPointerState.pointerId = ev.pointerId;
     cameraLookPointerState.lastX = ev.clientX;
+    cameraLookPointerState.lastY = ev.clientY;
   }
   if (gameFinished) {
     return;
@@ -9285,8 +9318,10 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
     return;
   }
   const deltaX = ev.clientX - cameraLookPointerState.lastX;
+  const deltaY = ev.clientY - cameraLookPointerState.lastY;
   cameraLookPointerState.lastX = ev.clientX;
-  handleCameraLookDrag(deltaX);
+  cameraLookPointerState.lastY = ev.clientY;
+  handleCameraLookDrag(deltaX, deltaY);
 });
 
 renderer.domElement.addEventListener('pointerup', (ev) => {
@@ -9297,6 +9332,7 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
+    cameraLookPointerState.lastY = 0;
   }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
@@ -9307,6 +9343,7 @@ renderer.domElement.addEventListener('pointercancel', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
+    cameraLookPointerState.lastY = 0;
   }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
@@ -9317,6 +9354,7 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
+    cameraLookPointerState.lastY = 0;
   }
 });
 
@@ -10461,6 +10499,7 @@ function onResize() {
     positionCameraForViewport();
   }
   updateSeatBadgePositions();
+  updateLeaderboardVisibility();
 }
 
 function onVisibilityChange() {
