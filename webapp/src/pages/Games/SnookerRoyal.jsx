@@ -16,8 +16,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { SnookerRoyalPowerSlider } from '../../../../snooker-royale-power-slider.js';
-import '../../../../snooker-royale-power-slider.css';
+import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
@@ -11916,25 +11916,33 @@ function SnookerRoyalGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const sharedHudLiftPx = 30;
-  const spinControllerLiftPx = 20;
+  const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
+  const sharedHudLiftPx = portraitViewport ? 20 : 30;
+  const spinControllerLiftPx = portraitViewport ? 8 : 14;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = 8;
-  const menuButtonLeftNudgePx = -4;
+  const menuButtonTopNudgePx = -14;
+  const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
-  const sideActionButtonsDropPx = 12;
-  const rightHudShiftPx = 4;
+  const sideActionButtonsDropPx = 18;
+  const bottomLeftChatGiftLiftPx = 12;
+  const sideActionButtonStepPx = 60;
+  const rightHudShiftPx = portraitViewport ? 18 : 8;
+  const bottomHudLeftPx = -30;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
     SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - viewButtonsOffsetPx;
   const rightControlsLiftPx = 2;
+  const sharedBottomControlsDropPx = 8;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
+  const [isRailOverheadView, setIsRailOverheadView] = useState(false);
+  const [railOverheadSide, setRailOverheadSide] = useState('back');
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
+  const railOverheadSideRef = useRef('back');
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
@@ -11978,14 +11986,27 @@ function SnookerRoyalGame({
   }, [isLookMode]);
 
   useEffect(() => {
+    railOverheadSideRef.current = railOverheadSide === 'front' ? 'front' : 'back';
+    cameraUpdateRef.current?.();
+  }, [railOverheadSide]);
+
+  useEffect(() => {
     if (isTopDownView) {
       topViewLockedRef.current = true;
-      topViewControlsRef.current.enter?.();
+      topViewControlsRef.current.enter?.(false, { variant: isRailOverheadView ? 'rail' : 'top' });
     } else {
       topViewLockedRef.current = false;
+      setIsRailOverheadView(false);
       topViewControlsRef.current.exit?.();
     }
-  }, [isTopDownView]);
+  }, [isTopDownView, isRailOverheadView]);
+
+  useEffect(() => {
+    if (!isPortrait && isTopDownView) {
+      setIsTopDownView(false);
+      setIsRailOverheadView(false);
+    }
+  }, [isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -13394,7 +13415,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('top');
+  const overheadBroadcastVariantRef = useRef('rail');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -17545,19 +17566,25 @@ const powerRef = useRef(hud.power);
         focusTarget.multiplyScalar(worldScaleFactor);
         lookTarget = focusTarget;
         if (topViewRef.current) {
+          const overheadVariant = overheadBroadcastVariantRef.current ?? 'rail';
+          const activeTopViewOffset =
+            overheadVariant === 'rail' ? RAIL_OVERHEAD_SCREEN_OFFSET : TOP_VIEW_SCREEN_OFFSET;
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + activeTopViewOffset.x,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            activeTopViewOffset.z
           ).multiplyScalar(worldScaleFactor);
-          const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           let overheadApplied = false;
-          if (overheadVariant === 'replay') {
+          if (overheadVariant === 'replay' || overheadVariant === 'rail') {
             const overheadCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
-              minTargetY
+              minTargetY,
+              preferredRail:
+                overheadVariant === 'rail' || overheadVariant === 'replay'
+                  ? railOverheadSideRef.current
+                  : null
             });
             if (overheadCamera?.position) {
               const resolvedTarget = overheadCamera.target ?? topFocusTarget;
@@ -17574,6 +17601,7 @@ const powerRef = useRef(hud.power);
               broadcastArgs.focusWorld = resolvedTarget.clone();
               broadcastArgs.targetWorld = resolvedTarget.clone();
               broadcastArgs.orbitWorld = overheadCamera.position.clone();
+              broadcastArgs.preferredRail = railOverheadSideRef.current;
               if (broadcastCamerasRef.current) {
                 broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
@@ -17582,7 +17610,8 @@ const powerRef = useRef(hud.power);
             }
           }
           if (!overheadApplied) {
-            const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+            if (overheadVariant === 'top') {
+              const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
             const topRadius = clampOrbitRadius(
               Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
             );
@@ -17606,6 +17635,7 @@ const powerRef = useRef(hud.power);
               broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
             }
             broadcastArgs.lerp = 0.12;
+            }
           }
         } else {
           camera.up.set(0, 1, 0);
@@ -18991,7 +19021,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          overheadBroadcastVariantRef.current = 'top';
+          overheadBroadcastVariantRef.current = 'rail';
           setReplayActive(false);
           setReplayFoul(null);
         };
@@ -19012,10 +19042,10 @@ const powerRef = useRef(hud.power);
         };
         skipReplayRef.current = skipReplay;
 
-        const enterTopView = (immediate = false) => {
+        const enterTopView = (immediate = false, { variant = 'rail' } = {}) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = 'replay';
+          overheadBroadcastVariantRef.current = variant;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
@@ -26130,7 +26160,7 @@ const powerRef = useRef(hud.power);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new SnookerRoyalPowerSlider({
+    const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
@@ -26934,10 +26964,10 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
           top: `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
-          left: `calc(0.75rem + env(safe-area-inset-left, 0px) + ${menuButtonLeftNudgePx}px)`
+          left: `calc(50% + ${menuButtonCenterNudgePx}px)`
         }}
       >
         <button
@@ -27664,43 +27694,98 @@ const powerRef = useRef(hud.power);
           transformOrigin: 'bottom right'
         }}
       >
-        <button
-          type="button"
-          aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isLookMode
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-          aria-label="Toggle look mode"
-        >
-          <span aria-hidden="true">👁️</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
-          aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
-        >
-          <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
-        </button>
+        {!isTopDownView && (
+          <button
+            type="button"
+            aria-pressed={isLookMode}
+            onClick={() => setIsLookMode((prev) => !prev)}
+            className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isLookMode
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Toggle look mode"
+          >
+            <span aria-hidden="true">👁️</span>
+          </button>
+        )}
+        <div className="pointer-events-auto mt-1 flex flex-col gap-2" style={{ marginTop: `${viewToggleButtonDropPx}px` }}>
+          <button
+            type="button"
+            aria-pressed={!isTopDownView}
+            onClick={() => {
+              if (!isPortrait) return;
+              setIsRailOverheadView(false);
+              setIsTopDownView(false);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              !isTopDownView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Switch to 3D view"
+          >
+            <span aria-hidden="true">3D</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView && !isRailOverheadView}
+            onClick={() => {
+              if (!isPortrait) return;
+              setIsRailOverheadView(false);
+              setIsTopDownView(true);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isTopDownView && !isRailOverheadView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Switch to 2D view"
+          >
+            <span aria-hidden="true">2D</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView && isRailOverheadView}
+            onClick={() => {
+              if (!isPortrait) return;
+              const isActiveRailView = isTopDownView && isRailOverheadView;
+              setIsRailOverheadView(true);
+              setIsTopDownView(true);
+              setRailOverheadSide((prev) => (isActiveRailView ? (prev === 'back' ? 'front' : 'back') : 'back'));
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[13px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isTopDownView && isRailOverheadView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+            aria-label="Switch rail overhead side"
+          >
+            <span aria-hidden="true" className="flex flex-col items-center leading-[0.8]">
+              <span className={railOverheadSide === 'back' ? 'text-emerald-100' : 'text-white/65'}>▲</span>
+              <span className={railOverheadSide === 'front' ? 'text-emerald-100' : 'text-white/65'}>▼</span>
+            </span>
+          </button>
+        </div>
       </div>
 
-      {!replayActive && (
+      {!isPortrait && !replayActive && (
         <div className="pointer-events-auto">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             className="fixed left-0 z-50 flex flex-col gap-2.5 -translate-x-2"
-            style={{ bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx - sideActionButtonsDropPx}px` }}
+            style={{
+              bottom: `${
+                sideControlsBottomPx +
+                rightControlsLiftPx +
+                sideActionButtonsLiftPx -
+                sideActionButtonsDropPx +
+                bottomLeftChatGiftLiftPx -
+                (isPortrait ? sideActionButtonStepPx : 0)
+              }px`
+            }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border-none bg-transparent p-0 text-white shadow-none"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -27720,8 +27805,8 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${10 + chromeUiLiftPx}px`,
-            left: hudInsets.left,
+            bottom: `${10 + chromeUiLiftPx + sharedBottomControlsDropPx}px`,
+            left: isPortrait ? `calc(${hudInsets.left} + ${bottomHudLeftPx}px)` : hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
