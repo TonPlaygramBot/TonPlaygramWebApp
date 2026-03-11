@@ -5766,6 +5766,7 @@ const TMP_VEC3_CUE_SAMPLE_POINT = new THREE.Vector3();
 const TMP_VEC3_OBSTRUCTION_TARGET = new THREE.Vector3();
 const TMP_VEC3_POWER = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
+const TMP_VEC3_FOLLOW_DIR = new THREE.Vector3();
 const TMP_COLOR_POWER = new THREE.Color();
 const POWER_LINE_COLOR_LOW = new THREE.Color(0xf9d648);
 const POWER_LINE_COLOR_MID = new THREE.Color(0xf59e0b);
@@ -25242,7 +25243,27 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
+          // Match the reference cue-stick behavior for spin:
+          // topspin adds a tiny forward follow-through after contact,
+          // while backspin keeps a clean stop at impact.
+          const topspinFactor = THREE.MathUtils.clamp(
+            Math.max(0, appliedSpin?.y ?? 0) * clampedPower,
+            0,
+            1
+          );
+          const followExtra = THREE.MathUtils.clamp(
+            topspinFactor * BALL_R * 0.32,
+            0,
+            BALL_R * 0.34
+          );
           const followPos = impactPos.clone();
+          if (followExtra > 1e-6) {
+            TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
+            if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_FOLLOW_DIR.normalize();
+              followPos.addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
+            }
+          }
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
