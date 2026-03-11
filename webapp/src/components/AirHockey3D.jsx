@@ -192,7 +192,6 @@ const AIR_HOCKEY_MENU_TOP_TWEAK_REM = -0.25;
 const AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM = -0.25;
 const AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM = 0.6;
 const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
-const AIR_HOCKEY_TOP_VIEW_MENU_TOP_REM = 6.4;
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -562,8 +561,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isTopDownView, setIsTopDownView] = useState(false);
-  const [isRailOverheadView, setIsRailOverheadView] = useState(false);
-  const [railOverheadSide, setRailOverheadSide] = useState('back');
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
@@ -666,8 +663,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const cameraViewRef = useRef({ applyCurrent: () => {} });
   const cameraLiftRef = useRef(DEFAULT_CAMERA_LIFT);
   const isTopDownViewRef = useRef(false);
-  const isRailOverheadViewRef = useRef(false);
-  const railOverheadSideRef = useRef('back');
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
     renderResolutionScale: initialProfile.renderScale ?? 1,
@@ -824,20 +819,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   useEffect(() => {
     isTopDownViewRef.current = isTopDownView;
     cameraLiftRef.current = DEFAULT_CAMERA_LIFT;
-    cameraViewRef.current.applyCurrent?.({
-      useTopView: isTopDownView,
-      useRailOverhead: isRailOverheadView,
-      railSide: railOverheadSide
-    });
-  }, [isTopDownView, isRailOverheadView, railOverheadSide]);
-
-  useEffect(() => {
-    isRailOverheadViewRef.current = isRailOverheadView;
-  }, [isRailOverheadView]);
-
-  useEffect(() => {
-    railOverheadSideRef.current = railOverheadSide;
-  }, [railOverheadSide]);
+    cameraViewRef.current.applyCurrent?.(isTopDownView, DEFAULT_CAMERA_LIFT);
+  }, [isTopDownView]);
 
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;
@@ -1468,94 +1451,29 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     materialsRef.current.baseAccent = finishMaterials.trim ?? finishMaterials.rail ?? null;
 
     const railThickness = TABLE_WALL * 0.6;
-    const shortRailDepth = POOL_ROYALE_TABLE_DIMENSIONS.endRailDepth * TABLE_SCALE;
-    const sideRailDepth = POOL_ROYALE_TABLE_DIMENSIONS.sideRailDepth * TABLE_SCALE;
 
     tableBaseRef.current = {
       rebuild: (variantId) => poolTableEntry?.setBaseVariant?.(variantId),
       clear: () => {}
     };
 
-    const goalMouthDepth = Math.max(railThickness * 0.68, sideRailDepth * 0.78);
-    const goalMouthThickness = Math.max(railThickness * 0.42, sideRailDepth * 0.46);
-    const goalMouthHeight = 0.11 * SCALE_WIDTH;
-    const goalBarZOffset = PLAYFIELD.h / 2 - shortRailDepth * 0.5;
-    const goalTrimWidth = (PLAYFIELD.w - PLAYFIELD.goalW) / 2;
-
+    const goalGeometry = new THREE.BoxGeometry(
+      PLAYFIELD.goalW,
+      0.11 * SCALE_WIDTH,
+      railThickness * 0.6
+    );
     const goalMaterial = new THREE.MeshStandardMaterial({
       color: 0x99ffd6,
       emissive: 0x003322,
       emissiveIntensity: 0.6
     });
     materialsRef.current.goal = goalMaterial;
-
-    const goalNetMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd8f7ff,
-      roughness: 0.42,
-      metalness: 0.15,
-      transparent: true,
-      opacity: 0.42,
-      side: THREE.DoubleSide
-    });
-
-    const makeGoalAssembly = (isNorth) => {
-      const direction = isNorth ? -1 : 1;
-      const goalGroup = new THREE.Group();
-      const zBase = direction * goalBarZOffset;
-
-      const goalFace = new THREE.Mesh(
-        new THREE.BoxGeometry(PLAYFIELD.goalW, goalMouthHeight, goalMouthThickness),
-        goalMaterial
-      );
-      goalFace.position.set(0, goalMouthHeight / 2, zBase + direction * goalMouthThickness * 0.5);
-      goalGroup.add(goalFace);
-
-      const leftTrim = new THREE.Mesh(
-        new THREE.BoxGeometry(goalTrimWidth, goalMouthHeight * 1.02, goalMouthDepth),
-        goalMaterial
-      );
-      leftTrim.position.set(
-        -PLAYFIELD.goalW / 2 - goalTrimWidth / 2,
-        goalMouthHeight / 2,
-        zBase + direction * goalMouthDepth * 0.46
-      );
-      goalGroup.add(leftTrim);
-
-      const rightTrim = leftTrim.clone();
-      rightTrim.position.x *= -1;
-      goalGroup.add(rightTrim);
-
-      const netWidth = PLAYFIELD.goalW * 0.98;
-      const netHeight = goalMouthHeight * 0.92;
-      const netDepth = goalMouthDepth * 0.88;
-      const netCenterZ = zBase - direction * (goalMouthThickness * 0.5 + netDepth * 0.54);
-
-      const netBack = new THREE.Mesh(new THREE.PlaneGeometry(netWidth, netHeight), goalNetMaterial);
-      netBack.position.set(0, goalMouthHeight * 0.53, netCenterZ - direction * netDepth * 0.5);
-      netBack.rotation.y = isNorth ? 0 : Math.PI;
-      goalGroup.add(netBack);
-
-      const netLeft = new THREE.Mesh(new THREE.PlaneGeometry(netDepth, netHeight), goalNetMaterial);
-      netLeft.position.set(-netWidth / 2, goalMouthHeight * 0.53, netCenterZ);
-      netLeft.rotation.y = isNorth ? Math.PI / 2 : -Math.PI / 2;
-      goalGroup.add(netLeft);
-
-      const netRight = netLeft.clone();
-      netRight.position.x *= -1;
-      netRight.rotation.y *= -1;
-      goalGroup.add(netRight);
-
-      const netRoof = new THREE.Mesh(new THREE.PlaneGeometry(netWidth, netDepth), goalNetMaterial);
-      netRoof.position.set(0, goalMouthHeight * 0.98, netCenterZ);
-      netRoof.rotation.x = Math.PI / 2;
-      goalGroup.add(netRoof);
-
-      tableGroup.add(goalGroup);
-      return { goalGroup, goalFace };
-    };
-
-    const northGoal = makeGoalAssembly(true).goalFace;
-    const southGoal = makeGoalAssembly(false).goalFace;
+    const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
+    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7);
+    tableGroup.add(northGoal);
+    const southGoal = new THREE.Mesh(goalGeometry, goalMaterial);
+    southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7);
+    tableGroup.add(southGoal);
 
     const createGoalLabel = (text, accent) => {
       const width = 1024;
@@ -1759,24 +1677,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       updateRendererSettings();
     };
 
-    const updateRailOverheadCamera = (side = 'back') => {
-      camera.aspect = host.clientWidth / host.clientHeight;
-      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
-      const verticalTan = Math.tan(Math.max(verticalFov / 2, 1e-3));
-      const horizontalTan = Math.max(verticalTan * camera.aspect, 1e-3);
-      const halfWidth = (TABLE.w * 1.02) / 2;
-      const halfLength = (TABLE.h * 0.52) / 2;
-      const sideDir = side === 'front' ? 1 : -1;
-      const distance = Math.max(halfLength / verticalTan, halfWidth / horizontalTan) * 0.92;
-      const sideShift = PLAYFIELD.h * 0.34 * sideDir;
-      const lift = TABLE.h * 0.2;
-      camera.up.copy(topViewUp);
-      camera.position.set(0, topViewTarget.y + distance + lift, tableCenterZ + sideShift);
-      camera.lookAt(new THREE.Vector3(0, topViewTarget.y, tableCenterZ + sideShift * 0.44));
-      camera.updateProjectionMatrix();
-      updateRendererSettings();
-    };
-
     const tableCorners = [
       new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2 + tableCenterZ),
       new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2 + tableCenterZ),
@@ -1811,11 +1711,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     cameraViewRef.current = {
-      applyCurrent: ({ useTopView = false, useRailOverhead = false, railSide = 'back' } = {}) => {
-        if (useTopView && useRailOverhead) {
-          updateRailOverheadCamera(railSide);
-          return;
-        }
+      applyCurrent: (useTopView) => {
         if (useTopView) {
           updateTopViewCamera();
         } else {
@@ -2047,11 +1943,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tick();
 
     const onResize = () => {
-      cameraViewRef.current.applyCurrent?.({
-        useTopView: isTopDownViewRef.current,
-        useRailOverhead: isRailOverheadViewRef.current,
-        railSide: railOverheadSideRef.current
-      });
+      fitCameraToTable();
     };
     window.addEventListener('resize', onResize);
 
@@ -2583,9 +2475,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         }`}
         style={{
           left: `${HUD_MENU_LEFT_REM}rem`,
-          top: isTopDownView
-            ? `${AIR_HOCKEY_TOP_VIEW_MENU_TOP_REM}rem`
-            : `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`
+          top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`
         }}
         aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
       >
@@ -2631,77 +2521,43 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           </>
         ) : null}
       </div>
-      <div
-        className="absolute right-3 z-40 flex flex-col items-center gap-1"
-        style={{
-          top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM + AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM}rem`
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            toggleGameMuted();
-            setMuted(isGameMuted());
-          }}
-          className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-          aria-label={muted ? 'Unmute' : 'Mute'}
-        >
-          <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={!isTopDownView}
-          onClick={() => {
-            setIsRailOverheadView(false);
-            setIsTopDownView(false);
-          }}
-          className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
-            !isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
-          }`}
-          aria-label="Switch to 3D view"
-        >
-          <span className="inline-flex items-center gap-1"><span>3D</span></span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView && !isRailOverheadView}
-          onClick={() => {
-            setIsRailOverheadView(false);
-            setIsTopDownView(true);
-          }}
-          className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
-            isTopDownView && !isRailOverheadView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
-          }`}
-          aria-label="Switch to 2D view"
-        >
-          <span className="inline-flex items-center gap-1"><span>2D</span></span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView && isRailOverheadView}
-          onClick={() => {
-            const isActiveRailView = isTopDownView && isRailOverheadView;
-            setIsRailOverheadView(true);
-            setIsTopDownView(true);
-            setRailOverheadSide((prev) => (isActiveRailView ? (prev === 'back' ? 'front' : 'back') : 'back'));
-          }}
-          className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
-            isTopDownView && isRailOverheadView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
-          }`}
-          aria-label="Switch rail overhead side"
-        >
-          <span aria-hidden="true" className="flex flex-col items-center text-[12px] leading-[0.8]">
-            <span className={railOverheadSide === 'back' ? 'text-emerald-100' : 'text-white/65'}>▲</span>
-            <span className={railOverheadSide === 'front' ? 'text-emerald-100' : 'text-white/65'}>▼</span>
-          </span>
-        </button>
-      </div>
+      {!isTopDownView && (
+        <>
+          <div
+            className="absolute right-3 z-40 flex flex-col items-center gap-1"
+            style={{
+              top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM + AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM}rem`
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                toggleGameMuted();
+                setMuted(isGameMuted());
+              }}
+              className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+              aria-label={muted ? 'Unmute' : 'Mute'}
+            >
+              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={isTopDownView}
+              onClick={() => setIsTopDownView((prev) => !prev)}
+              className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
+                isTopDownView
+                  ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                  : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1">
+                <span aria-hidden>🧭</span>
+                <span>{isTopDownView ? '3D' : '2D'}</span>
+              </span>
+            </button>
+          </div>
+        </>
+      )}
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         {!isTopDownView && (
           <button
@@ -2711,6 +2567,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           >
             <span className="text-xl">🎁</span>
             <span>Gift</span>
+          </button>
+        )}
+        {isTopDownView && (
+          <button
+            type="button"
+            aria-pressed={isTopDownView}
+            onClick={() => setIsTopDownView((prev) => !prev)}
+            className="rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition border-emerald-300 bg-emerald-300/20 text-emerald-100"
+          >
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden>🧭</span>
+              <span>3D</span>
+            </span>
           </button>
         )}
         {showCustomizer && (
