@@ -241,7 +241,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.048;
+const BOARD_SCALE = 0.0576;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -1810,9 +1810,9 @@ const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
 const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.9;
 const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
 const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
-const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.08;
-const CAMERA_2D_MIN_RADIUS = CAMERA_2D_RADIUS;
-const CAMERA_2D_MAX_RADIUS = CAMERA_2D_RADIUS;
+const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.14;
+const CAMERA_2D_MIN_RADIUS = CAMERA_2D_RADIUS * 0.8;
+const CAMERA_2D_MAX_RADIUS = CAMERA_2D_RADIUS * 1.4;
 const CAM = {
   fov: ARENA_CAMERA_DEFAULTS.fov,
   near: ARENA_CAMERA_DEFAULTS.near,
@@ -7750,10 +7750,10 @@ function Chess3D({
       if (mode === '2d') {
         cameraMemory.last3d = current;
         controls.target.copy(boardLookTarget);
-        controls.enabled = false;
+        controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
-        controls.enableZoom = false;
+        controls.enableZoom = true;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.minDistance = CAMERA_2D_MIN_RADIUS;
