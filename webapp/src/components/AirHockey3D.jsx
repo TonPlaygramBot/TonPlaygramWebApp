@@ -192,6 +192,9 @@ const AIR_HOCKEY_MENU_TOP_TWEAK_REM = -0.25;
 const AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM = -0.25;
 const AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM = 0.6;
 const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
+const CAMERA_LIFT_STEP = 0.2;
+const CAMERA_LIFT_MIN = 0.45;
+const CAMERA_LIFT_MAX = 1.85;
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -563,6 +566,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [cameraLiftUi, setCameraLiftUi] = useState(DEFAULT_CAMERA_LIFT);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -1475,6 +1479,51 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7);
     tableGroup.add(southGoal);
 
+    const goalCutoutGeometry = new THREE.BoxGeometry(
+      PLAYFIELD.goalW * 0.92,
+      0.13 * SCALE_WIDTH,
+      railThickness * 0.95
+    );
+    const goalCutoutMaterial = new THREE.MeshStandardMaterial({
+      color: 0x09121d,
+      roughness: 0.82,
+      metalness: 0.08,
+      emissive: new THREE.Color(0x02060b),
+      emissiveIntensity: 0.35
+    });
+    const goalNetMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc8f3ff,
+      emissive: new THREE.Color(0x0e3446),
+      emissiveIntensity: 0.45,
+      roughness: 0.78,
+      metalness: 0.1,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.7
+    });
+    const createGoalMouth = (direction) => {
+      const mouth = new THREE.Mesh(goalCutoutGeometry, goalCutoutMaterial);
+      mouth.position.set(
+        0,
+        0.048 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.08)
+      );
+      tableGroup.add(mouth);
+
+      const net = new THREE.Mesh(
+        new THREE.BoxGeometry(PLAYFIELD.goalW * 0.88, 0.165 * SCALE_WIDTH, railThickness * 0.9),
+        goalNetMaterial
+      );
+      net.position.set(
+        0,
+        0.072 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.78)
+      );
+      tableGroup.add(net);
+    };
+    createGoalMouth(-1);
+    createGoalMouth(1);
+
     const createGoalLabel = (text, accent) => {
       const width = 1024;
       const height = 300;
@@ -1652,7 +1701,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       elevatedTableSurfaceY + TABLE.h * 0.31,
       tableCenterZ + playerRailZ + TABLE.w * 0.12
     );
-    const resolveCameraAnchor = () => standingCameraAnchor.clone();
+    const resolveCameraAnchor = () => {
+      const anchor = standingCameraAnchor.clone();
+      anchor.y += (cameraLiftRef.current - DEFAULT_CAMERA_LIFT) * SCALE_WIDTH * 0.38;
+      return anchor;
+    };
     const getCameraDirection = (anchor) =>
       new THREE.Vector3().subVectors(anchor, cameraFocus).normalize();
     const TOP_VIEW_MARGIN = 1.12;
@@ -1711,7 +1764,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     cameraViewRef.current = {
-      applyCurrent: (useTopView) => {
+      applyCurrent: (useTopView, lift = cameraLiftRef.current) => {
+        cameraLiftRef.current = clamp(lift, CAMERA_LIFT_MIN, CAMERA_LIFT_MAX);
         if (useTopView) {
           updateTopViewCamera();
         } else {
@@ -2473,10 +2527,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         className={`absolute z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
           showCustomizer ? 'bg-black/60' : 'hover:bg-black/60'
         }`}
-        style={{
-          left: `${HUD_MENU_LEFT_REM}rem`,
-          top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`
-        }}
+        style={
+          isTopDownView
+            ? {
+                left: '50%',
+                top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`,
+                transform: 'translateX(-50%)'
+              }
+            : {
+                left: `${HUD_MENU_LEFT_REM}rem`,
+                top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`
+              }
+        }
         aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
       >
         <span className="text-lg leading-none" aria-hidden="true">☰</span>
@@ -2554,6 +2616,32 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 <span aria-hidden>🧭</span>
                 <span>{isTopDownView ? '3D' : '2D'}</span>
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextLift = clamp(cameraLiftUi + CAMERA_LIFT_STEP, CAMERA_LIFT_MIN, CAMERA_LIFT_MAX);
+                setCameraLiftUi(nextLift);
+                cameraViewRef.current.applyCurrent?.(false, nextLift);
+              }}
+              className="rounded border border-white/15 bg-white/10 px-2 py-1 text-lg leading-none text-white transition hover:bg-white/20"
+              aria-label="Lift camera angle up"
+              title="Camera up"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextLift = clamp(cameraLiftUi - CAMERA_LIFT_STEP, CAMERA_LIFT_MIN, CAMERA_LIFT_MAX);
+                setCameraLiftUi(nextLift);
+                cameraViewRef.current.applyCurrent?.(false, nextLift);
+              }}
+              className="rounded border border-white/15 bg-white/10 px-2 py-1 text-lg leading-none text-white transition hover:bg-white/20"
+              aria-label="Lower camera angle down"
+              title="Camera down"
+            >
+              ▼
             </button>
           </div>
         </>
