@@ -1537,6 +1537,8 @@ const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
+const CAMERA_3D_ZOOM_WHEEL_FACTOR = 0.0012;
+const CAMERA_3D_ZOOM_PINCH_FACTOR = 0.0042;
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
   portrait: { right: 0, forward: 0 },
   landscape: { right: 0, forward: 0 }
@@ -1797,14 +1799,16 @@ renderer.domElement.addEventListener(
       event.preventDefault();
       const zoomScale = 1 + event.deltaY * CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR;
       const boundedZoom = THREE.MathUtils.clamp(zoomScale, 0.86, 1.16);
-      const activeTarget = getActiveCameraTarget();
-      const nextPosition = activeTarget
-        .clone()
-        .add(camera.position.clone().sub(activeTarget).multiplyScalar(boundedZoom));
-      camera.position.copy(clampCameraPosition(nextPosition, activeTarget));
-      controls.target.copy(activeTarget);
-      turnFocusTarget.copy(activeTarget);
-      controls.update();
+      applyCameraZoomScale(boundedZoom);
+      return;
+    }
+
+    if (cameraViewMode === VIEW_MODES.threeD) {
+      event.preventDefault();
+      const zoomScale = 1 + event.deltaY * CAMERA_3D_ZOOM_WHEEL_FACTOR;
+      const boundedZoom = THREE.MathUtils.clamp(zoomScale, 0.88, 1.14);
+      applyCameraZoomScale(boundedZoom);
+      cameraHasUserControl = true;
       return;
     }
     cameraHasUserControl = true;
@@ -1812,20 +1816,37 @@ renderer.domElement.addEventListener(
   { passive: false }
 );
 
+function applyCameraZoomScale(zoomScale = 1) {
+  if (!Number.isFinite(zoomScale) || zoomScale <= 0) {
+    return;
+  }
+  const activeTarget = getActiveCameraTarget();
+  const nextPosition = activeTarget
+    .clone()
+    .add(camera.position.clone().sub(activeTarget).multiplyScalar(zoomScale));
+  camera.position.copy(clampCameraPosition(nextPosition, activeTarget));
+  controls.target.copy(activeTarget);
+  turnFocusTarget.copy(activeTarget);
+  controls.update();
+}
+
 function applyTopDownZoomFromPinch(deltaDistance = 0) {
   if (cameraViewMode !== VIEW_MODES.twoD || !Number.isFinite(deltaDistance)) {
     return;
   }
   const zoomScale = 1 - deltaDistance * CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR;
   const boundedZoom = THREE.MathUtils.clamp(zoomScale, 0.85, 1.15);
-  const activeTarget = getActiveCameraTarget();
-  const nextPosition = activeTarget
-    .clone()
-    .add(camera.position.clone().sub(activeTarget).multiplyScalar(boundedZoom));
-  camera.position.copy(clampCameraPosition(nextPosition, activeTarget));
-  controls.target.copy(activeTarget);
-  turnFocusTarget.copy(activeTarget);
-  controls.update();
+  applyCameraZoomScale(boundedZoom);
+}
+
+function applyThreeDZoomFromPinch(deltaDistance = 0) {
+  if (cameraViewMode !== VIEW_MODES.threeD || !Number.isFinite(deltaDistance)) {
+    return;
+  }
+  const zoomScale = 1 - deltaDistance * CAMERA_3D_ZOOM_PINCH_FACTOR;
+  const boundedZoom = THREE.MathUtils.clamp(zoomScale, 0.9, 1.12);
+  applyCameraZoomScale(boundedZoom);
+  cameraHasUserControl = true;
 }
 
 function getViewportMetrics() {
@@ -9179,7 +9200,8 @@ updateRaycasterThreshold();
 const activePointers = new Set();
 const activePointerPositions = new Map();
 const pinchZoomState = {
-  distance: null
+  distance: null,
+  mode: null
 };
 const cameraLookPointerState = {
   pointerId: null,
@@ -9208,6 +9230,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   activePointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
   if (ev.pointerType === 'touch' && activePointers.size > 1) {
     pinchZoomState.distance = null;
+    pinchZoomState.mode = cameraViewMode;
   }
   if (
     cameraViewMode === VIEW_MODES.threeD &&
@@ -9306,8 +9329,41 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
         applyTopDownZoomFromPinch(currentDistance - pinchZoomState.distance);
       }
       pinchZoomState.distance = currentDistance;
+      pinchZoomState.mode = VIEW_MODES.twoD;
     } else {
       pinchZoomState.distance = null;
+      pinchZoomState.mode = null;
+    }
+  }
+
+  if (cameraViewMode === VIEW_MODES.threeD && ev.pointerType === 'touch') {
+    const touchPoints = [];
+    for (const pointerId of activePointers) {
+      const point = activePointerPositions.get(pointerId);
+      if (point) {
+        touchPoints.push(point);
+      }
+      if (touchPoints.length === 2) {
+        break;
+      }
+    }
+    if (touchPoints.length === 2) {
+      const [first, second] = touchPoints;
+      const currentDistance = Math.hypot(
+        second.x - first.x,
+        second.y - first.y
+      );
+      if (
+        Number.isFinite(pinchZoomState.distance) &&
+        pinchZoomState.mode === VIEW_MODES.threeD
+      ) {
+        applyThreeDZoomFromPinch(currentDistance - pinchZoomState.distance);
+      }
+      pinchZoomState.distance = currentDistance;
+      pinchZoomState.mode = VIEW_MODES.threeD;
+    } else {
+      pinchZoomState.distance = null;
+      pinchZoomState.mode = null;
     }
   }
 
@@ -9329,6 +9385,7 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
   activePointerPositions.delete(ev.pointerId);
   if (activePointers.size < 2) {
     pinchZoomState.distance = null;
+    pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
@@ -9340,6 +9397,7 @@ renderer.domElement.addEventListener('pointercancel', (ev) => {
   activePointerPositions.delete(ev.pointerId);
   if (activePointers.size < 2) {
     pinchZoomState.distance = null;
+    pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
@@ -9351,6 +9409,7 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
   activePointerPositions.delete(ev.pointerId);
   if (activePointers.size < 2) {
     pinchZoomState.distance = null;
+    pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
