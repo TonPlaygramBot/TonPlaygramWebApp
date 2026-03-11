@@ -1472,7 +1472,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       emissiveIntensity: 0.6
     });
     materialsRef.current.goal = goalMaterial;
-    const goalInsetTowardCenter = railThickness * 0.3;
+    const goalInsetTowardCenter = railThickness * 0.44;
     const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
     northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7 + goalInsetTowardCenter);
     tableGroup.add(northGoal);
@@ -1480,10 +1480,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7 - goalInsetTowardCenter);
     tableGroup.add(southGoal);
 
+    const goalOpeningWidth = PLAYFIELD.goalW * 0.74;
+    const goalSideCushionWidth = Math.max(
+      PLAYFIELD.goalW * 0.09,
+      (PLAYFIELD.goalW - goalOpeningWidth) / 2
+    );
     const goalCutoutGeometry = new THREE.BoxGeometry(
-      PLAYFIELD.goalW * 0.92,
+      goalOpeningWidth,
       0.13 * SCALE_WIDTH,
-      railThickness * 0.95
+      railThickness * 1.05
     );
     const goalCutoutMaterial = new THREE.MeshStandardMaterial({
       color: 0x09121d,
@@ -1492,16 +1497,36 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       emissive: new THREE.Color(0x02060b),
       emissiveIntensity: 0.35
     });
-    const goalNetMaterial = new THREE.MeshStandardMaterial({
-      color: 0xc8f3ff,
-      emissive: new THREE.Color(0x0e3446),
-      emissiveIntensity: 0.45,
-      roughness: 0.78,
-      metalness: 0.1,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.7
+    const pocketNetReference =
+      poolTable?.userData?.finish?.parts?.pocketNetMeshes?.[0]?.material ?? null;
+    const goalNetMaterial = pocketNetReference
+      ? pocketNetReference.clone()
+      : new THREE.MeshStandardMaterial({
+          color: 0xc8f3ff,
+          emissive: new THREE.Color(0x0e3446),
+          emissiveIntensity: 0.45,
+          roughness: 0.78,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.7
+        });
+    goalNetMaterial.wireframe = true;
+    goalNetMaterial.transparent = true;
+    goalNetMaterial.opacity = typeof goalNetMaterial.opacity === 'number' ? goalNetMaterial.opacity : 0.68;
+    goalNetMaterial.needsUpdate = true;
+
+    const goalPocketCavityMaterial = new THREE.MeshStandardMaterial({
+      color: 0x04070b,
+      roughness: 0.92,
+      metalness: 0.04,
+      emissive: new THREE.Color(0x010205),
+      emissiveIntensity: 0.3
     });
+    const goalSideCushionMaterial =
+      materialsRef.current.cushion?.clone?.() ?? goalCutoutMaterial.clone();
+    if (goalSideCushionMaterial?.color) {
+      goalSideCushionMaterial.color.offsetHSL(0, 0, -0.04);
+    }
     const createGoalMouth = (direction) => {
       const mouth = new THREE.Mesh(goalCutoutGeometry, goalCutoutMaterial);
       mouth.position.set(
@@ -1511,14 +1536,39 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       );
       tableGroup.add(mouth);
 
+      const cavity = new THREE.Mesh(
+        new THREE.BoxGeometry(goalOpeningWidth * 0.94, 0.125 * SCALE_WIDTH, railThickness * 1.8),
+        goalPocketCavityMaterial
+      );
+      cavity.position.set(
+        0,
+        0.04 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.92 - goalInsetTowardCenter)
+      );
+      tableGroup.add(cavity);
+
+      const sideOffsetX = goalOpeningWidth / 2 + goalSideCushionWidth / 2;
+      [-1, 1].forEach((xDirection) => {
+        const sideCushion = new THREE.Mesh(
+          new THREE.BoxGeometry(goalSideCushionWidth, 0.16 * SCALE_WIDTH, railThickness * 0.68),
+          goalSideCushionMaterial
+        );
+        sideCushion.position.set(
+          xDirection * sideOffsetX,
+          0.07 * SCALE_WIDTH,
+          direction * (PLAYFIELD.h / 2 + railThickness * 0.26 - goalInsetTowardCenter)
+        );
+        tableGroup.add(sideCushion);
+      });
+
       const net = new THREE.Mesh(
-        new THREE.BoxGeometry(PLAYFIELD.goalW * 0.88, 0.165 * SCALE_WIDTH, railThickness * 0.9),
+        new THREE.BoxGeometry(goalOpeningWidth * 0.96, 0.165 * SCALE_WIDTH, railThickness * 1.15),
         goalNetMaterial
       );
       net.position.set(
         0,
-        0.072 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.78 - goalInsetTowardCenter)
+        0.062 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.95 - goalInsetTowardCenter)
       );
       tableGroup.add(net);
     };
