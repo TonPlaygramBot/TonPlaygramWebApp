@@ -5109,16 +5109,20 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise Snooker 2D camera slightly higher on screen
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // align Snooker 2D overhead framing with Pool Royale so the full table stays in frame
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.08; // raise Snooker 2D camera slightly higher on screen
+const TOP_VIEW_RADIUS_SCALE = 1.11; // align Snooker 2D overhead framing with Pool Royale so the full table stays in frame
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045,
-  z: PLAY_H * -0.078
+  x: PLAY_W * 0.006,
+  z: PLAY_H * 0.006
 });
-const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = 1.06; // match Pool Royale rail overhead framing
+const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
+  x: TOP_VIEW_SCREEN_OFFSET.x,
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.014 // nudge rail-overhead framing inward so the near short-rail pockets stay visible
+});
+const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // lift rail-overhead camera slightly higher for clearer broadcast context
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -5172,6 +5176,7 @@ const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while th
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
+const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens so both near short-rail pockets stay in frame on portrait
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -16725,14 +16730,19 @@ const powerRef = useRef(hud.power);
 
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
-          minTargetY = null
+          minTargetY = null,
+          preferredRail = null
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
+          const requestedRail = preferredRail === 'front' || preferredRail === 'back'
+            ? preferredRail
+            : null;
+          const activeRailId = requestedRail ?? rig.activeRail;
           const activeRail =
-            rig.activeRail === 'front'
+            activeRailId === 'front'
               ? rig.cameras.front
-              : rig.activeRail === 'back'
+              : activeRailId === 'back'
                 ? rig.cameras.back
                 : rig.cameras.back ?? rig.cameras.front;
           const head = activeRail?.head ?? null;
@@ -16745,9 +16755,14 @@ const powerRef = useRef(hud.power);
             rig.defaultFocus?.clone?.() ??
             null;
           if (target && Number.isFinite(minTargetY)) {
-            target.y = Math.max(target.y ?? minTargetY, minTargetY);
+            target.y = minTargetY;
           }
-          return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
+          if (target) {
+            const toTarget = target.clone().sub(position);
+            position.addScaledVector(toTarget, 0.04);
+            position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 10.6, position.y + BALL_R * 1.8);
+          }
+          return { position, target, fov: RAIL_OVERHEAD_REPLAY_FOV, minTargetY };
         };
 
         const hasReplayCameraChanged = (previous, next) => {
@@ -17627,7 +17642,10 @@ const powerRef = useRef(hud.power);
             const resolvedPosition = camera.position.clone();
             lookTarget = resolvedTarget;
             lastCameraTargetRef.current.copy(resolvedTarget);
-            camera.updateProjectionMatrix();
+            if (camera.fov !== STANDING_VIEW_FOV) {
+              camera.fov = STANDING_VIEW_FOV;
+              camera.updateProjectionMatrix();
+            }
             camera.lookAt(resolvedTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld = resolvedTarget.clone();
