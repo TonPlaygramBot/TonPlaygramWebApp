@@ -5103,10 +5103,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.14; // lift the 2D camera slightly higher so portrait top view sits a little more elevated
+const TOP_VIEW_MARGIN = 1.16; // lift the top view a touch more so the full table stays in frame on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.18; // raise the 2D camera slightly more to reveal the whole table on portrait
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.14; // lift the 2D camera slightly higher so portrait top view sits a little more elevated
+const TOP_VIEW_RADIUS_SCALE = 1.18; // raise the 2D camera slightly more to reveal the whole table on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006,
@@ -5114,13 +5114,13 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.019 // nudge rail-overhead framing further inward so the bottom pockets stay visible on portrait
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.028 // nudge rail-overhead framing further inward so the lower pockets stay visible on portrait
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.06; // lift rail-overhead camera a little more for clearer bottom-pocket visibility
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.1; // lift rail-overhead camera a little more for clearer bottom-pocket visibility
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
+const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.01; // keep overhead framing close to 2D while adding a slight broadcast tilt
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -5170,7 +5170,7 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.048; // tilt rail-overhead aim view slightly more downward so lower pockets remain readable
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.064; // tilt rail-overhead aim view slightly more downward so lower pockets remain readable
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens so both near short-rail pockets stay in frame on portrait
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
