@@ -1472,7 +1472,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       emissiveIntensity: 0.6
     });
     materialsRef.current.goal = goalMaterial;
-    const goalInsetTowardCenter = railThickness * 0.3;
+    const goalInsetTowardCenter = railThickness * 0.48;
     const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
     northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7 + goalInsetTowardCenter);
     tableGroup.add(northGoal);
@@ -1521,6 +1521,29 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         direction * (PLAYFIELD.h / 2 + railThickness * 0.78 - goalInsetTowardCenter)
       );
       tableGroup.add(net);
+
+      const cushionGap = new THREE.Mesh(
+        new THREE.BoxGeometry(PLAYFIELD.goalW * 1.04, 0.24 * SCALE_WIDTH, railThickness * 1.26),
+        goalCutoutMaterial
+      );
+      cushionGap.position.set(
+        0,
+        0.078 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.22 - goalInsetTowardCenter)
+      );
+      tableGroup.add(cushionGap);
+
+      const pocketNet = new THREE.Mesh(
+        new THREE.CylinderGeometry(PLAYFIELD.goalW * 0.44, PLAYFIELD.goalW * 0.36, 0.19 * SCALE_WIDTH, 24, 1, true),
+        goalNetMaterial
+      );
+      pocketNet.rotation.x = Math.PI / 2;
+      pocketNet.position.set(
+        0,
+        0.055 * SCALE_WIDTH,
+        direction * (PLAYFIELD.h / 2 + railThickness * 0.64 - goalInsetTowardCenter)
+      );
+      tableGroup.add(pocketNet);
     };
     createGoalMouth(-1);
     createGoalMouth(1);
