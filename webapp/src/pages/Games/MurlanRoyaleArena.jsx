@@ -4360,8 +4360,17 @@ export default function MurlanRoyaleArena({ search }) {
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
       const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
-      controls.minPolarAngle = cameraSpherical.phi;
-      controls.maxPolarAngle = cameraSpherical.phi;
+      const verticalSwing = THREE.MathUtils.degToRad(isPortrait ? 14 : 10);
+      controls.minPolarAngle = THREE.MathUtils.clamp(
+        cameraSpherical.phi - verticalSwing,
+        ARENA_CAMERA_DEFAULTS.phiMin,
+        ARENA_CAMERA_DEFAULTS.phiMax
+      );
+      controls.maxPolarAngle = THREE.MathUtils.clamp(
+        cameraSpherical.phi + verticalSwing,
+        ARENA_CAMERA_DEFAULTS.phiMin,
+        ARENA_CAMERA_DEFAULTS.phiMax
+      );
       controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
       controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
       controls.minDistance = desiredRadius;
