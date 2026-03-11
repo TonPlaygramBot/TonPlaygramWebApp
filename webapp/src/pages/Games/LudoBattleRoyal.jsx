@@ -1526,6 +1526,7 @@ const CAM = {
   phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
+const CAMERA_2D_DISTANCE_FACTOR = 1;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -2836,24 +2837,40 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           maxPolarAngle: controls.maxPolarAngle,
           minAzimuthAngle: controls.minAzimuthAngle,
           maxAzimuthAngle: controls.maxAzimuthAngle,
-          enableRotate: controls.enableRotate
+          enableRotate: controls.enableRotate,
+          enablePan: controls.enablePan,
+          enableZoom: controls.enableZoom,
+          minDistance: controls.minDistance,
+          maxDistance: controls.maxDistance
         };
       }
-      const topDownDistance = clamp(CAM.minR * 1.35, CAM.minR, CAM.maxR);
+      cancelCameraFocusAnimation();
+      cancelCameraViewAnimation();
+      cameraTurnStateRef.current.activePriority = -Infinity;
+      cameraTurnStateRef.current.followObject = null;
+      const topDownDistance = clamp(CAM.maxR * CAMERA_2D_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
       camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.enableZoom = false;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
+      controls.minDistance = topDownDistance;
+      controls.maxDistance = topDownDistance;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
+      controls.enablePan = saved?.enablePan ?? false;
+      controls.enableZoom = saved?.enableZoom ?? true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
       controls.maxAzimuthAngle = saved?.maxAzimuthAngle ?? Infinity;
+      controls.minDistance = saved?.minDistance ?? CAM.minR;
+      controls.maxDistance = saved?.maxDistance ?? CAM.maxR;
       if (saved?.position && saved?.target) {
         camera.position.copy(saved.position);
         controls.target.copy(saved.target);
