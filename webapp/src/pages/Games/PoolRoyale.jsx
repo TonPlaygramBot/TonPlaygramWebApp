@@ -6912,31 +6912,12 @@ function applyRailImpulse(ball, impact) {
 
 function resolveSwerveAimDir(
   aimDir,
-  spin,
-  powerStrength,
-  forceSwerve = false,
-  liftStrength = 0
+  _spin,
+  _powerStrength,
+  _forceSwerve = false,
+  _liftStrength = 0
 ) {
-  if (!aimDir) return aimDir;
-  const dir = aimDir.clone();
-  if (dir.lengthSq() < 1e-8) return aimDir;
-  dir.normalize();
-  const sideSpin = spin?.x ?? 0;
-  const topSpin = spin?.y ?? 0;
-  const sideWeight = Math.min(1, Math.abs(sideSpin));
-  const topWeight = Math.min(1, Math.max(0, topSpin));
-  const active = forceSwerve || sideWeight > 1e-4 || topWeight > 1e-4;
-  if (!active) return dir;
-  const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  const lift = Math.max(0, liftStrength ?? 0);
-  const sideDir = new THREE.Vector2(-dir.y, dir.x);
-  if (sideDir.lengthSq() > 1e-8) sideDir.normalize();
-  const sideDeflect = sideSpin * (0.035 + power * 0.05) * (1 + lift * 0.15);
-  const forwardBias = topSpin * (0.012 + power * 0.015);
-  dir.addScaledVector(sideDir, sideDeflect);
-  dir.addScaledVector(dir.clone(), forwardBias);
-  if (dir.lengthSq() > 1e-8) dir.normalize();
-  return dir;
+  return aimDir;
 }
 
 function buildSwerveAimLinePoints(
@@ -6944,61 +6925,19 @@ function buildSwerveAimLinePoints(
   controlPoint,
   start,
   end,
-  dir,
-  perp,
-  spin,
-  powerStrength,
-  swerveActive,
-  liftStrength = 0
+  _dir,
+  _perp,
+  _spin,
+  _powerStrength,
+  _swerveActive,
+  _liftStrength = 0
 ) {
-  if (!points || !start || !end) return [start, end].filter(Boolean);
-  const travel = start.distanceTo(end);
-  const sideSpin = spin?.x ?? 0;
-  const topSpin = spin?.y ?? 0;
-  const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  const lift = Math.max(0, liftStrength ?? 0);
-  const sideStrength = Math.min(1, Math.abs(sideSpin));
-  const topStrength = Math.min(1, Math.max(0, topSpin));
-  const curveStrength =
-    sideStrength * (0.09 + power * 0.09) + topStrength * (0.015 + power * 0.025);
-  const shouldCurve = Boolean(swerveActive) || curveStrength > 1e-4;
-
-  const lineDir = dir && dir.lengthSq() > 1e-8
-    ? dir.clone().normalize()
-    : end.clone().sub(start).normalize();
-  const linePerp = perp && perp.lengthSq() > 1e-8
-    ? perp.clone().normalize()
-    : new THREE.Vector3(-lineDir.z, 0, lineDir.x).normalize();
-
-  if (!shouldCurve || !Number.isFinite(travel) || travel < 1e-4) {
-    points.length = 2;
-    if (!points[0]) points[0] = new THREE.Vector3();
-    if (!points[1]) points[1] = new THREE.Vector3();
-    points[0].copy(start);
-    points[1].copy(end);
-    return points;
-  }
-
-  const segmentCount = 14;
-  points.length = segmentCount + 1;
-  if (!controlPoint) controlPoint = new THREE.Vector3();
-  controlPoint
-    .copy(start)
-    .addScaledVector(lineDir, travel * (0.46 + topStrength * 0.06))
-    .addScaledVector(
-      linePerp,
-      travel * curveStrength * Math.sign(sideSpin || 1) * (1 + lift * 0.18)
-    );
-  for (let i = 0; i <= segmentCount; i += 1) {
-    if (!points[i]) points[i] = new THREE.Vector3();
-    const t = i / segmentCount;
-    const omt = 1 - t;
-    points[i]
-      .copy(start)
-      .multiplyScalar(omt * omt)
-      .add(controlPoint.clone().multiplyScalar(2 * omt * t))
-      .add(end.clone().multiplyScalar(t * t));
-  }
+  if (!points) return [start, end];
+  points.length = 2;
+  if (!points[0]) points[0] = new THREE.Vector3();
+  if (!points[1]) points[1] = new THREE.Vector3();
+  points[0].copy(start);
+  points[1].copy(end);
   return points;
 }
 
