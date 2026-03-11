@@ -1932,8 +1932,8 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.08, landscape: 0.5 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54, landscape: 0.6 });
-const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 0.98, landscape: 0.86 });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.5, landscape: 0.56 });
+const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.06, landscape: 0.93 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
@@ -2231,6 +2231,10 @@ export default function MurlanRoyaleArena({ search }) {
   });
   const appearanceRef = useRef(appearance);
   const [configOpen, setConfigOpen] = useState(false);
+  const [isLandscapeViewport, setIsLandscapeViewport] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth > window.innerHeight;
+  });
 
   const [gameState, setGameState] = useState(() => initializeGame(players));
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2355,6 +2359,19 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const updateOrientation = () => {
+      setIsLandscapeViewport(window.innerWidth > window.innerHeight);
+    };
+    updateOrientation();
+    window.addEventListener('resize', updateOrientation);
+    window.addEventListener('orientationchange', updateOrientation);
+    return () => {
+      window.removeEventListener('resize', updateOrientation);
+      window.removeEventListener('orientationchange', updateOrientation);
+    };
+  }, []);
   const resolvedHdriResolution = DEFAULT_HDRI_RESOLUTIONS[0];
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
@@ -4328,7 +4345,7 @@ export default function MurlanRoyaleArena({ search }) {
         camConfig.near,
         camConfig.far
       );
-      const targetHeightOffset = CAMERA_TARGET_LIFT;
+      const targetHeightOffset = CAMERA_TARGET_LIFT + 0.03 * MODEL_SCALE;
       let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
       let initialCameraPosition;
       if (humanSeatConfig) {
@@ -4391,7 +4408,7 @@ export default function MurlanRoyaleArena({ search }) {
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
       const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
-      const verticalSwing = THREE.MathUtils.degToRad(isPortrait ? 14 : 10);
+      const verticalSwing = THREE.MathUtils.degToRad(isPortrait ? 12 : 9);
       controls.minPolarAngle = THREE.MathUtils.clamp(
         cameraSpherical.phi - verticalSwing,
         ARENA_CAMERA_DEFAULTS.phiMin,
@@ -5014,15 +5031,17 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
-          <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
-            <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
-            {uiState.tableSummary && (
-              <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
-            )}
-            {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+        {!isLandscapeViewport && (
+          <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
+            <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
+              <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+              {uiState.tableSummary && (
+                <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+              )}
+              {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+            </div>
           </div>
-        </div>
+        )}
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
             <div className="fixed bottom-[4.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
