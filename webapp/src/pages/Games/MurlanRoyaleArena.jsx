@@ -2005,6 +2005,8 @@ const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.8;
+const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
+const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2926,7 +2928,10 @@ export default function MurlanRoyaleArena({ search }) {
     targetDistance: 1
   });
   const cameraLockedPositionRef = useRef(new THREE.Vector3());
+  const cameraLockedBasePositionRef = useRef(new THREE.Vector3());
   const cameraForwardScratchRef = useRef(new THREE.Vector3());
+  const cameraOrbitSphericalRef = useRef({ phi: null, phiMin: null, phiMax: null });
+  const cameraForwardOffsetScratchRef = useRef(new THREE.Vector3());
   const cameraTurnAnimationRef = useRef(null);
   const cameraTurnHoldTimeoutRef = useRef(null);
 
@@ -2934,6 +2939,32 @@ export default function MurlanRoyaleArena({ search }) {
     const { camera, controls } = threeStateRef.current;
     if (!camera || !controls) return;
     const lockedPosition = cameraLockedPositionRef.current;
+    const basePosition = cameraLockedBasePositionRef.current;
+    const defaultTarget = cameraDefaultTargetRef.current;
+    const orbit = cameraOrbitSphericalRef.current;
+    const orbitalOffset = camera.position.clone().sub(controls.target);
+    const currentSpherical = new THREE.Spherical().setFromVector3(orbitalOffset);
+    const phiMin = Number.isFinite(orbit.phiMin) ? orbit.phiMin : controls.minPolarAngle;
+    const phiMax = Number.isFinite(orbit.phiMax) ? orbit.phiMax : controls.maxPolarAngle;
+    const basePhi = Number.isFinite(orbit.phi) ? orbit.phi : currentSpherical.phi;
+    const upTiltRange = Math.max(1e-4, basePhi - phiMin);
+    const upTiltRatio = THREE.MathUtils.clamp((basePhi - currentSpherical.phi) / upTiltRange, 0, 1);
+    const forwardOffset = cameraForwardOffsetScratchRef.current
+      .copy(defaultTarget)
+      .sub(basePosition)
+      .setY(0);
+    if (forwardOffset.lengthSq() > 1e-6) {
+      forwardOffset
+        .normalize()
+        .multiplyScalar(CAMERA_UP_TILT_FORWARD_BLEND * upTiltRatio);
+    } else {
+      forwardOffset.set(0, 0, 0);
+    }
+    const liftedY = THREE.MathUtils.lerp(basePosition.y, defaultTarget.y, upTiltRatio * 0.22);
+    const desiredLockedPosition = basePosition.clone().add(forwardOffset);
+    desiredLockedPosition.y = liftedY;
+    const blend = upTiltRatio > 0.0001 ? CAMERA_UP_TILT_FORWARD_LERP : 1;
+    lockedPosition.lerp(desiredLockedPosition, blend);
     if (camera.position.distanceToSquared(lockedPosition) <= 1e-8) return;
     const forward = cameraForwardScratchRef.current;
     camera.getWorldDirection(forward);
@@ -4379,6 +4410,12 @@ export default function MurlanRoyaleArena({ search }) {
       controls.target.copy(target);
       controls.update();
       cameraLockedPositionRef.current.copy(camera.position);
+      cameraLockedBasePositionRef.current.copy(camera.position);
+      cameraOrbitSphericalRef.current = {
+        phi: cameraSpherical.phi,
+        phiMin: controls.minPolarAngle,
+        phiMax: controls.maxPolarAngle
+      };
       cameraDefaultTargetRef.current.copy(target);
       const lookVector = controls.target.clone().sub(camera.position);
       const targetDistance = Math.max(0.1, lookVector.length());
