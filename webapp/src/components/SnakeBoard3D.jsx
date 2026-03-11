@@ -1628,9 +1628,20 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
 
-  const position = camera.position.clone();
+  const position = startCameraState?.position?.clone() ?? camera.position.clone();
 
   return { position, target };
+}
+
+function rotateCameraLookTarget(camera, controls, yawDelta) {
+  if (!camera || !controls || !Number.isFinite(yawDelta) || Math.abs(yawDelta) <= 1e-6) return;
+  const currentTarget = controls.target?.clone?.() ?? new THREE.Vector3();
+  const lookVector = currentTarget.sub(camera.position);
+  if (lookVector.lengthSq() <= 1e-6) return;
+  lookVector.applyAxisAngle(WORLD_UP, yawDelta);
+  controls.target.copy(camera.position.clone().add(lookVector));
+  camera.lookAt(controls.target);
+  controls.update();
 }
 
 function computeDiceCameraFocusState(board, camera) {
@@ -4085,7 +4096,7 @@ export default function SnakeBoard3D({
 
       if (cameraViewModeRef.current === '2d') return;
       if (absX < 0.25) return;
-      boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
+      rotateCameraLookTarget(cameraRef.current, boardRef.current?.controls, deltaX * BOARD_ROTATION_DRAG_SPEED);
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
