@@ -1950,18 +1950,18 @@ const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(5);
-const AI_HAND_CARD_SPACING = 0.12 * MODEL_SCALE;
-const AI_HAND_CARD_MAX_SPREAD = 2.1 * MODEL_SCALE;
-const AI_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(14);
-const AI_HAND_FAN_ARC_LIFT = 0.03 * MODEL_SCALE;
+const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
+const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
+const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
+const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const COMMUNITY_CARD_TOP_TILT = 0;
-const COMMUNITY_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
-const COMMUNITY_CARD_SPACING = CARD_W * COMMUNITY_CARD_SCALE * 0.28;
+const COMMUNITY_CARD_SCALE = 1.08;
+const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
 const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const COMMUNITY_CARD_FAN_ARC_LIFT = 0;
-const COMMUNITY_CARD_CLOSER_TO_HUMAN = -0.28 * MODEL_SCALE;
-const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
+const COMMUNITY_CARD_CLOSER_TO_HUMAN = 0;
+const COMMUNITY_CARD_BOTTOM_SHIFT_Y = 0.012 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
@@ -1976,7 +1976,7 @@ const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
-const AI_CARD_OUTWARD = 0.02 * MODEL_SCALE;
+const AI_CARD_OUTWARD = 0;
 
 function calcFanCardPose(cardCount, cardIdx) {
   if (cardCount <= 1) {
@@ -3268,7 +3268,7 @@ export default function MurlanRoyaleArena({ search }) {
         }
         target.y = baseHeight + centerWeight * fanArcLift + (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0);
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : 1);
+        mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = isHumanCard
           ? focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE)
           : focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -3344,14 +3344,13 @@ export default function MurlanRoyaleArena({ search }) {
     });
 
     const discardSpacing = CARD_W * 0.08;
-    const discardAnchor = three.discardAnchor?.clone() ??
-      tableAnchor.clone().add(
-        new THREE.Vector3(
-          DISCARD_PILE_OFFSET.x,
-          DISCARD_PILE_OFFSET.y,
-          DISCARD_PILE_OFFSET.z
-        )
-      );
+    const pileRightAxis = humanSeat?.right?.clone()?.normalize?.() ?? new THREE.Vector3(1, 0, 0);
+    const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
+    const discardAnchor = tableAnchor
+      .clone()
+      .addScaledVector(pileForwardAxis, CARD_H * -1.18)
+      .addScaledVector(pileRightAxis, CARD_W * 1.98)
+      .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -5910,7 +5909,7 @@ function applyCardThemeMaterials(three, theme, force = false) {
     const backTexture = makeCardBackTexture(theme);
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
-    backMaterial.color?.set?.(theme.backColor);
+    backMaterial.color?.set?.('#ffffff');
     backMaterial.needsUpdate = true;
     if (hiddenMaterial?.color) {
       hiddenMaterial.color.set(theme.hiddenColor || theme.backColor);
