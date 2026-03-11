@@ -1757,7 +1757,6 @@ const SPIN_TABLE_SCALE = Math.max(
   PLAY_H / SPIN_TABLE_REFERENCE_HEIGHT
 );
 const SPIN_ROLL_ACCELERATION = 1.2 * SPIN_TABLE_SCALE;
-const CUE_DEFAULT_FORWARD_ROLL = 0.12; // keep cue ball naturally rolling forward on center/soft top hits
 const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
@@ -1895,15 +1894,15 @@ const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET;
+const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
+const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 2.6;
-const TOPSPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
-const SIDE_SPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5912,6 +5911,13 @@ const computeShortRailPairFraming = (camera, cuePos, targetPos = null, margin = 
   };
 };
 
+const resolveBackspinPreviewLerp = (backSpinWeight) => {
+  if (!Number.isFinite(backSpinWeight) || backSpinWeight <= 1e-4) return 0;
+  const eased = Math.min(1, Math.pow(backSpinWeight, 0.75));
+  const minimum = Math.min(0.24, backSpinWeight * 0.4 + 0.05);
+  return Math.min(1, Math.max(eased, minimum));
+};
+
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   if (!cueBall || !cueBall.pos) {
     return { blocked: false, reason: '' };
@@ -6755,15 +6761,12 @@ function reflectRails(ball) {
   return null;
 }
 
-function resolveSpinFrame(ball, options = {}) {
-  const preferLaunchDir = Boolean(options?.preferLaunchDir);
+function resolveSpinFrame(ball) {
   const speed = Math.max(ball?.vel?.length?.() ?? 0, 0);
-  const hasLaunchDir = Boolean(ball?.launchDir && ball.launchDir.lengthSq?.() > 1e-8);
-  const forward = preferLaunchDir && hasLaunchDir
-    ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
-    : speed > 1e-6
+  const forward =
+    speed > 1e-6
       ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
-      : hasLaunchDir
+      : ball?.launchDir
         ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
         : TMP_VEC2_FORWARD.set(0, 1);
   const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
@@ -6820,9 +6823,7 @@ function applySpinController(ball, stepScale, airborne = false) {
   if (ball.id === 'cue' && !ball.impacted) {
     return decaySpin(ball, stepScale, airborne);
   }
-  const { forward, speed } = resolveSpinFrame(ball, {
-    preferLaunchDir: ball.id === 'cue'
-  });
+  const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
     const powerScale = resolveSpinPowerScale(speed);
@@ -6954,7 +6955,7 @@ function resolvePowerLineColor(powerStrength) {
 
 function resolveAimPreviewSpin(spin) {
   const normalized = normalizeSpinInput(spin);
-  return { x: normalized?.x ?? 0, y: normalized?.y ?? 0 };
+  return { x: -(normalized?.x ?? 0), y: normalized?.y ?? 0 };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -7030,52 +7031,53 @@ function resolveCueFollowPreview({
   } else {
     aimVec.normalize();
   }
-
-  const spinX = normalizedSpin?.x ?? 0;
-  const spinY = normalizedSpin?.y ?? 0;
-  const spinMagnitude = Math.hypot(spinX, spinY);
-  const lateral = new THREE.Vector3(-aimVec.z, 0, aimVec.x);
-  if (lateral.lengthSq() > 1e-8) lateral.normalize();
-
-  const powerSpinScale = 0.55 + impactPower * 0.45;
-  const sideScaled =
-    spinX *
-    MAX_SPIN_SIDE *
-    SIDE_SPIN_MULTIPLIER *
-    powerSpinScale;
-  let forwardScaled =
-    spinY *
-    MAX_SPIN_FORWARD *
-    powerSpinScale;
-  if (spinY < 0) {
-    forwardScaled *= BACKSPIN_MULTIPLIER;
-  } else if (spinY > 0) {
-    forwardScaled *= TOPSPIN_MULTIPLIER;
-  }
-  if (spinY >= 0) {
-    forwardScaled += CUE_DEFAULT_FORWARD_ROLL;
-  }
-
-  const previewDir = aimVec.clone()
-    .addScaledVector(lateral, sideScaled)
-    .addScaledVector(aimVec, forwardScaled);
-
   const spinAdjusted =
     resolveTargetSpinDeflection(
-      previewDir,
+      baseDir ?? aimVec,
       aimVec,
       normalizedSpin,
       impactPower,
       liftStrength
-    ) ?? previewDir;
-  if (spinAdjusted.lengthSq() > 1e-8) {
-    previewDir.copy(spinAdjusted).normalize();
-  } else {
-    previewDir.copy(aimVec);
-  }
-
+    ) ?? baseDir ?? aimVec;
+  const spinX = normalizedSpin?.x ?? 0;
+  const spinY = normalizedSpin?.y ?? 0;
+  const spinMagnitude = Math.hypot(spinX, spinY);
   const backspinWeight = Math.max(0, -spinY);
   const topspinWeight = Math.max(0, spinY);
+  const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
+  const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
+  const previewDir = spinAdjusted.clone();
+  const backwards = aimVec.clone().multiplyScalar(-1);
+  const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
+  const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
+  if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
+    const drawBlend = THREE.MathUtils.clamp(
+      backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
+      0,
+      1
+    );
+    previewDir.lerp(backwards, drawBlend);
+  } else if (topspinLerp > 1e-4) {
+    const followBlend = THREE.MathUtils.clamp(
+      topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
+      0,
+      1
+    );
+    previewDir.lerp(aimVec, followBlend);
+  }
+  const sideInfluence =
+    Math.min(Math.abs(spinX), 1) *
+    (0.18 + impactPower * 0.22) *
+    (1 - cutPenalty * 0.3);
+  if (sideInfluence > 1e-4) {
+    const sideBasis = aimVec.lengthSq() > 1e-8 ? aimVec : previewDir;
+    const perp = new THREE.Vector3(-sideBasis.z, 0, sideBasis.x);
+    if (perp.lengthSq() > 1e-8) {
+      perp.normalize();
+      previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
+    }
+  }
+  if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
   const power = clampedPower;
   const cuePower = clampedCuePower;
   const stunShot = spinMagnitude <= SPIN_STUN_RADIUS + 1e-4;
@@ -7087,7 +7089,7 @@ function resolveCueFollowPreview({
     length *= 1 + backspinWeight * backBoost;
   }
   if (topspinWeight > 1e-4) {
-    length *= 1 + topspinWeight * 0.25 * power;
+    length *= 1 + topspinWeight * 0.15 * power;
   }
   return {
     dir: previewDir,
@@ -25125,9 +25127,6 @@ const powerRef = useRef(hud.power);
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
-          }
-          if (physicsSpin.y >= 0) {
-            spinTop += CUE_DEFAULT_FORWARD_ROLL;
           }
           cue.vel.copy(base);
           if (cue.spin) {
