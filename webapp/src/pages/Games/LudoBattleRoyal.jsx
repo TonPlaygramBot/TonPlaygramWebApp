@@ -2853,13 +2853,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
-      controls.enableZoom = false;
+      controls.enableZoom = true;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.minDistance = topDownDistance;
-      controls.maxDistance = topDownDistance;
+      controls.minDistance = CAM.minR;
+      controls.maxDistance = CAM.maxR;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
