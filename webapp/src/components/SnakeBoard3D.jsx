@@ -1609,9 +1609,10 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const seatIndex = Math.trunc(rawSeatIndex);
   if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
   const startCameraState = board.startCameraState;
-  if (seatIndex === 0 && startCameraState?.position && startCameraState?.target) {
+  const fixedPosition = startCameraState?.position?.clone() ?? camera.position.clone();
+  if ((seatIndex === 0 || seatIndex === 2) && startCameraState?.target) {
     return {
-      position: startCameraState.position.clone(),
+      position: fixedPosition,
       target: startCameraState.target.clone()
     };
   }
@@ -1628,9 +1629,19 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
 
-  const position = camera.position.clone();
+  const position = fixedPosition;
 
   return { position, target };
+}
+
+function rotateCameraTargetHorizontally(camera, controls, angleDelta) {
+  if (!camera || !controls || !Number.isFinite(angleDelta) || Math.abs(angleDelta) < 1e-6) return;
+  const offset = controls.target.clone().sub(camera.position);
+  if (offset.lengthSq() < 1e-6) return;
+  offset.applyAxisAngle(WORLD_UP, angleDelta);
+  controls.target.copy(camera.position).add(offset);
+  camera.lookAt(controls.target);
+  controls.update();
 }
 
 function computeDiceCameraFocusState(board, camera) {
@@ -4052,7 +4063,6 @@ export default function SnakeBoard3D({
       startCameraState: arena.startCameraState ?? null
     };
 
-    const boardRotationRoot = board.rotationRoot || board.root;
     const dragState = {
       pointerId: null,
       lastX: 0,
@@ -4085,7 +4095,7 @@ export default function SnakeBoard3D({
 
       if (cameraViewModeRef.current === '2d') return;
       if (absX < 0.25) return;
-      boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
+      rotateCameraTargetHorizontally(cameraRef.current, boardRef.current?.controls, -deltaX * BOARD_ROTATION_DRAG_SPEED);
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
