@@ -1932,10 +1932,10 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.08, landscape: 0.5 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54, landscape: 0.6 });
-const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 0.98, landscape: 0.86 });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46, landscape: 0.54 });
+const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.06, landscape: 0.9 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.2 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -3108,11 +3108,13 @@ export default function MurlanRoyaleArena({ search }) {
     const scoreboard = store.scoreboard;
     if (!scoreboard?.context || !scoreboard.texture || !scoreboard.mesh || !scoreboard.canvas) return;
     const { canvas, context, texture, mesh } = scoreboard;
+    const mount = mountRef.current;
+    const isLandscape = mount ? mount.clientWidth > mount.clientHeight : false;
     const { width, height } = canvas;
 
     context.clearRect(0, 0, width, height);
 
-    if (!entries?.length) {
+    if (!entries?.length || isLandscape) {
       mesh.visible = false;
       texture.needsUpdate = true;
       return;
