@@ -5104,9 +5104,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.16; // lift the top view a touch more so the full table stays in frame on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.18; // raise the 2D camera slightly more to reveal the whole table on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.22; // raise the 2D camera a touch more so portrait framing sits slightly higher
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.18; // raise the 2D camera slightly more to reveal the whole table on portrait
+const TOP_VIEW_RADIUS_SCALE = 1.22; // raise the 2D camera a touch more so portrait framing sits slightly higher
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006,
@@ -5114,7 +5114,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.028 // nudge rail-overhead framing further inward so the lower pockets stay visible on portrait
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.04 // push rail-overhead framing a little farther so the table sits higher on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
 const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.1; // lift rail-overhead camera a little more for clearer bottom-pocket visibility
