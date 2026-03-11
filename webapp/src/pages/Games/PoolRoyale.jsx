@@ -1478,14 +1478,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.08,
+  restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 0.6,
+  airSpinDecay: 6.0,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.995;
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1499,20 +1499,22 @@ const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.014;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.012;
-const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.35;
+const STOP_EPS = 0.02;
+const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // disable max-power bounce lift (never reaches this)
+const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
+const MAX_POWER_SPIN_LATERAL_THROW = 0; // remove max-power lateral throw from side spin
+const MAX_POWER_SPIN_LIFT_BONUS = 0; // remove max-power spin-driven lift bonus
 const JUMP_SHOT_POWER_THRESHOLD = 0.7;
 const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
@@ -1522,22 +1524,20 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.12; // widen the capture bowl so firm/spun shots still drop like the prior tuning
-const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
-const POCKET_GUARD_RADIUS = Math.max(0, CAPTURE_R - BALL_R * 0.08); // align the rail guard to the playable capture bowl instead of the visual rim
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
+const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_CAPTURE_R - BALL_R * 0.12; // use the middle-pocket bowl to gate reflections with a tighter inset
+  SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // increase jaw rebound energy so cushion cuts feel a bit bouncier
-const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
+const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -29880,6 +29880,51 @@ const powerRef = useRef(hud.power);
                 const targetImpactId = shotPrediction?.ballId ?? null;
                 const isTargetImpact =
                   !targetImpactId || (hitBallId && String(hitBallId) === String(targetImpactId));
+                if (
+                  cueBall &&
+                  hitBallId &&
+                  isTargetImpact &&
+                  isNewImpact &&
+                  lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
+                  !maxPowerLiftTriggered
+                ) {
+                  const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
+                  const liftBoost = 1.2;
+                  maxPowerLiftTriggered = true;
+                  const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
+                  playCueHit(liftSoundVol);
+                  const spinEnergy = cueBall.spin?.length() ?? 0;
+                  const spinHeightBonus = spinEnergy * MAX_POWER_SPIN_LIFT_BONUS;
+                  const liftCeiling = Math.min(
+                    MAX_POWER_LIFT_HEIGHT * liftBoost + spinHeightBonus,
+                    MAX_POWER_BOUNCE_IMPULSE * 0.9
+                  );
+                  cueBall.lift = Math.max(
+                    cueBall.lift ?? 0,
+                    liftCeiling
+                  );
+                  const launchCeiling = Math.min(
+                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost + spinHeightBonus,
+                    MAX_POWER_BOUNCE_IMPULSE * 0.95
+                  );
+                  cueBall.liftVel = Math.max(
+                    cueBall.liftVel ?? 0,
+                    launchCeiling
+                  );
+                  if (spinEnergy > 1e-6) {
+                    const spinThrow = Math.min(
+                      spinEnergy * MAX_POWER_SPIN_LATERAL_THROW,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.4
+                    );
+                    if (spinThrow > 0 && cueBall.spin) {
+                      const spinDir = resolveSpinWorldVector(cueBall, TMP_VEC2_SPIN);
+                      if (spinDir && spinDir.lengthSq() > 1e-6) {
+                        spinDir.normalize();
+                        cueBall.vel.add(spinDir.multiplyScalar(spinThrow));
+                      }
+                    }
+                  }
+                }
                 if (
                   hitBallId &&
                   activeShotView?.mode === 'action' &&
