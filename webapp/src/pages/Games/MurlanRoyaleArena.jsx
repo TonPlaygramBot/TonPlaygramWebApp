@@ -1256,7 +1256,7 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
-function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8' } = {}) {
+function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0] } = {}) {
   const cardsGroup = new THREE.Group();
   const handCards = Array.isArray(handCardsInput) && handCardsInput.length
     ? handCardsInput.slice(0, 5)
@@ -1285,7 +1285,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backTexture,
-      color: new THREE.Color(idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'),
+      color: new THREE.Color('#ffffff'),
       roughness: 0.6,
       metalness: 0.15
     });
@@ -1950,21 +1950,17 @@ const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(5);
-const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
-const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
-const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
-const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
+const NON_HUMAN_HAND_CARD_SCALE = HUMAN_HAND_CARD_SCALE;
+const NON_HUMAN_HAND_LINE_SPACING = HUMAN_HAND_CARD_SPACING;
+const NON_HUMAN_HAND_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
+const NON_HUMAN_HAND_LINE_LIFT = HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y;
 const COMMUNITY_CARD_TOP_TILT = 0;
 const COMMUNITY_CARD_SCALE = 1.08;
-const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
-const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
+const COMMUNITY_CARD_PILE_LIFT_STEP = CARD_D * 0.14;
+const COMMUNITY_CARD_PILE_FORWARD_OFFSET = 0;
+const COMMUNITY_CARD_PILE_RIGHT_OFFSET = 0;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
-const COMMUNITY_CARD_FAN_ARC_LIFT = 0;
-const COMMUNITY_CARD_CLOSER_TO_HUMAN = 0;
 const COMMUNITY_CARD_BOTTOM_SHIFT_Y = 0.012 * MODEL_SCALE;
-const COMMUNITY_CARD_LEFT_SHIFT = 0;
-const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
-const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
@@ -3249,26 +3245,27 @@ export default function MurlanRoyaleArena({ search }) {
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
-        const { centeredOffset, normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(cards.length, cardIdx);
-        const humanLineOffset = cards.length > 1
+        const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(cards.length, cardIdx);
+        const lineOffset = cards.length > 1
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
-        const lateral = isHumanCard ? humanLineOffset : (cards.length > 1 ? (centeredOffset * spread) / Math.max(cards.length - 1, 1) : 0);
+        const lateral = lineOffset;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
-        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
-        const fanDirection = isHumanCard ? HUMAN_HAND_FAN_DIRECTION : 1;
         const fanYaw = isHumanCard && HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
-          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
+          : normalizedOffset * HUMAN_HAND_FAN_MAX_YAW * HUMAN_HAND_FAN_DIRECTION;
         const lateralAxis = right;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
         if (isHumanCard) {
           target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
           target.addScaledVector(lateralAxis, HUMAN_HAND_LEFT_SHIFT);
         }
-        target.y = baseHeight + centerWeight * fanArcLift + (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0);
+        target.y = baseHeight
+          + (isHumanCard
+            ? centerWeight * HUMAN_HAND_FAN_ARC_LIFT + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT
+            : NON_HUMAN_HAND_LINE_LIFT);
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
+        mesh.scale.setScalar(isHumanCard ? HUMAN_HAND_CARD_SCALE : NON_HUMAN_HAND_CARD_SCALE);
         const handLookTarget = isHumanCard
           ? focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE)
           : focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -3299,20 +3296,15 @@ export default function MurlanRoyaleArena({ search }) {
     });
 
     const tableAnchor = three.tableAnchor.clone();
-    const tableCount = state.tableCards.length;
     const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
-    const bottomCardSpacing = Math.max(humanSeat?.spacing ?? 0, COMMUNITY_CARD_SPACING);
-    const bottomCardMaxSpread = Math.max(humanSeat?.maxSpread ?? 0, COMMUNITY_CARD_MAX_SPREAD);
-    const tableSpread = tableCount > 1
-      ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread)
-      : 0;
-    const tableSpacing = tableCount > 1 ? tableSpread / (tableCount - 1) : 0;
-    const tableStartX = tableCount > 1 ? -tableSpread / 2 : 0;
+    const pileRightAxis = humanSeat?.right?.clone()?.normalize?.() ?? new THREE.Vector3(1, 0, 0);
+    const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
+    const communityPileAnchor = tableAnchor
+      .clone()
+      .addScaledVector(pileForwardAxis, COMMUNITY_CARD_PILE_FORWARD_OFFSET)
+      .addScaledVector(pileRightAxis, COMMUNITY_CARD_PILE_RIGHT_OFFSET)
+      .add(new THREE.Vector3(0, 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET + COMMUNITY_CARD_BOTTOM_SHIFT_Y, 0));
     const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
-    if (humanSeat?.forward) {
-      tableAnchor.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN);
-      tableLookBase.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN);
-    }
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
     state.tableCards.forEach((card, idx) => {
@@ -3323,46 +3315,29 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
-      const target = tableAnchor.clone();
-      const { normalizedOffset } = calcFanCardPose(tableCount, idx);
-      const communityFanYaw = normalizedOffset * COMMUNITY_CARD_SIDE_ORIENTATION_YAW;
-      const lateralOffset = tableStartX + idx * tableSpacing;
-      if (humanSeat?.right) {
-        target.addScaledVector(humanSeat.right, lateralOffset + COMMUNITY_CARD_LEFT_SHIFT);
-      } else {
-        target.x += lateralOffset + COMMUNITY_CARD_LEFT_SHIFT;
-      }
-      target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET + COMMUNITY_CARD_FAN_ARC_LIFT + COMMUNITY_CARD_BOTTOM_SHIFT_Y + COMMUNITY_CARD_DIRECTIONAL_LIFT;
+      const target = communityPileAnchor.clone();
+      target.y += idx * COMMUNITY_CARD_PILE_LIFT_STEP;
       setMeshPosition(
         mesh,
         target,
         communityLookTarget,
-        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT, flatYawY: communityFanYaw },
+        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT, flatYawY: 0 },
         immediate,
         three.animations
       );
     });
 
-    const discardSpacing = CARD_W * 0.08;
-    const pileRightAxis = humanSeat?.right?.clone()?.normalize?.() ?? new THREE.Vector3(1, 0, 0);
-    const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
-    const discardAnchor = tableAnchor
-      .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * -1.18)
-      .addScaledVector(pileRightAxis, CARD_W * 1.98)
-      .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
+    const discardAnchor = communityPileAnchor.clone();
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
-      mesh.scale.setScalar(1);
+      mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
       updateCardFace(mesh, 'back');
       setCommunityCardLegibility(mesh, false);
-      const layer = idx;
       const target = discardAnchor.clone();
-      target.x += layer * discardSpacing;
-      target.y += layer * 0.0015;
+      target.y += (state.tableCards.length + idx) * COMMUNITY_CARD_PILE_LIFT_STEP;
       setMeshPosition(
         mesh,
         target,
@@ -4298,8 +4273,8 @@ export default function MurlanRoyaleArena({ search }) {
           right,
           focus,
           radius: (isHumanSeat ? 2.9 : 3.05) * MODEL_SCALE,
-          spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
-          maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
+          spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : NON_HUMAN_HAND_LINE_SPACING,
+          maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : NON_HUMAN_HAND_MAX_SPREAD,
           stoolPosition,
           stoolHeight
         });
