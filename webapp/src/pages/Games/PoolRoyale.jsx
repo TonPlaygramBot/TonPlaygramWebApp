@@ -7070,7 +7070,8 @@ function resolveCueFollowPreview({
     (0.18 + impactPower * 0.22) *
     (1 - cutPenalty * 0.3);
   if (sideInfluence > 1e-4) {
-    const perp = new THREE.Vector3(-previewDir.z, 0, previewDir.x);
+    const sideBasis = aimVec.lengthSq() > 1e-8 ? aimVec : previewDir;
+    const perp = new THREE.Vector3(-sideBasis.z, 0, sideBasis.x);
     if (perp.lengthSq() > 1e-8) {
       perp.normalize();
       previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
@@ -29032,10 +29033,15 @@ const powerRef = useRef(hud.power);
             cuePowerStrength,
             liftStrength
           });
-          const followEnd = end
+          const cueFollowStart = end
+            .clone()
+            .add(cueFollowPreview.dir.clone().multiplyScalar(BALL_R * 0.08));
+          const followEnd = cueFollowStart
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
-          cueAfterGeom.setFromPoints([end, followEnd]);
+          cueFollowStart.y = BALL_CENTER_Y + BALL_R * 0.02;
+          followEnd.y = cueFollowStart.y;
+          cueAfterGeom.setFromPoints([cueFollowStart, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
@@ -29338,15 +29344,20 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: baseDir,
-            spin: aimPreviewSpin,
+            spin: mapSpinForPhysics(remoteSpinNormalized),
             powerStrength,
             cuePowerStrength,
             liftStrength: 0
           });
-          const followEnd = end
+          const cueFollowStart = end
+            .clone()
+            .add(cueFollowPreview.dir.clone().multiplyScalar(BALL_R * 0.08));
+          const followEnd = cueFollowStart
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
-          cueAfterGeom.setFromPoints([end, followEnd]);
+          cueFollowStart.y = BALL_CENTER_Y + BALL_R * 0.02;
+          followEnd.y = cueFollowStart.y;
+          cueAfterGeom.setFromPoints([cueFollowStart, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
