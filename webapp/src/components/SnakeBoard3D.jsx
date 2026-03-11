@@ -211,6 +211,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
+const SHOW_PAVEMENT_LAYER = false;
 const RAIL_HEIGHT = TILE_SIZE * 0.6;
 const RAIL_GAP_WIDTH = TILE_SIZE * 1.4;
 const RAIL_RADIUS = TILE_SIZE * 0.03;
@@ -2813,7 +2814,7 @@ function buildSnakeBoard(
       levelIndex
     });
 
-    if (levelIndex === 0) {
+    if (levelIndex === 0 && SHOW_PAVEMENT_LAYER) {
       const pavementSize = platformSize * PAVEMENT_EXTRA_SCALE;
       addPavementLayer(
         platformGroup,
@@ -3987,7 +3988,7 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? []
     };
 
-    const boardRoot = arena.boardGroup;
+    const boardRotationRoot = board.root;
     const dragState = {
       pointerId: null,
       lastX: 0
@@ -4003,7 +4004,7 @@ export default function SnakeBoard3D({
       const deltaX = event.clientX - dragState.lastX;
       dragState.lastX = event.clientX;
       if (Math.abs(deltaX) < 0.25) return;
-      boardRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
+      boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
