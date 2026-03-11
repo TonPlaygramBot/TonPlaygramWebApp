@@ -308,8 +308,9 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8']),
     createShapes: ({ radius }) => {
-      const topShape = createRegularPolygonShape(8, radius);
-      const feltShape = createRegularPolygonShape(8, radius * 0.8);
+      const octagonSideStretch = 1.16;
+      const topShape = scaleShape2D(createRegularPolygonShape(8, radius), octagonSideStretch, 1);
+      const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), octagonSideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
       return { topShape, feltShape, rimInnerShape };
     }
