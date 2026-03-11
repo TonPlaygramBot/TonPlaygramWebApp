@@ -1608,6 +1608,13 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
     : Number(turnIndex);
   const seatIndex = Math.trunc(rawSeatIndex);
   if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
+  const startCameraState = board.startCameraState;
+  if (seatIndex === 0 && startCameraState?.position && startCameraState?.target) {
+    return {
+      position: startCameraState.position.clone(),
+      target: startCameraState.target.clone()
+    };
+  }
   const anchor = anchors[seatIndex];
   const boardLookTarget = board.boardLookTarget;
   if (!anchor || !boardLookTarget) return null;
@@ -2575,6 +2582,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.maxPolarAngle = CAM.phiMax;
   controls.target.copy(boardLookTarget);
   controls.update();
+  const startCameraState = {
+    position: camera.position.clone(),
+    target: boardLookTarget.clone()
+  };
 
   const fit = () => {
     const w = host.clientWidth;
@@ -2685,7 +2696,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     updateHdriZoom,
     controls,
     tableInfo,
-    seatAnchors: chairs.map(({ anchor }) => anchor)
+    seatAnchors: chairs.map(({ anchor }) => anchor),
+    startCameraState
   };
 }
 
@@ -3829,6 +3841,7 @@ export default function SnakeBoard3D({
   const previousTurnRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
+  const cameraViewModeRef = useRef(cameraViewMode);
   const frameAccumulatorRef = useRef(0);
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
@@ -3838,6 +3851,10 @@ export default function SnakeBoard3D({
   const tokenShape = appearanceMemo?.tokenShape;
   const railTheme = appearanceMemo?.rail;
   const snakeTheme = appearanceMemo?.snakeSkin;
+
+  useEffect(() => {
+    cameraViewModeRef.current = cameraViewMode;
+  }, [cameraViewMode]);
 
   useEffect(() => {
     frameRateRef.current = Math.max(30, frameRate || 90);
@@ -3909,10 +3926,12 @@ export default function SnakeBoard3D({
       );
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
+      controls.enablePan = false;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
+      controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY_PAN };
       controls.update();
       return;
     }
@@ -3922,10 +3941,12 @@ export default function SnakeBoard3D({
       camera.position.copy(restore.position);
       controls.target.copy(restore.target);
       controls.enableRotate = restore.enableRotate;
+      controls.enablePan = false;
       controls.minPolarAngle = restore.minPolarAngle;
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
       controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+      controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
       controls.update();
       cameraRestoreRef.current = null;
     }
@@ -4011,7 +4032,8 @@ export default function SnakeBoard3D({
       ...board,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
-      seatAnchors: arena.seatAnchors ?? []
+      seatAnchors: arena.seatAnchors ?? [],
+      startCameraState: arena.startCameraState ?? null
     };
 
     const boardRotationRoot = board.rotationRoot || board.root;
@@ -4020,12 +4042,14 @@ export default function SnakeBoard3D({
       lastX: 0
     };
     const onPointerDown = (event) => {
+      if (cameraViewModeRef.current === '2d') return;
       if (event.button !== 0 && event.pointerType !== 'touch') return;
       dragState.pointerId = event.pointerId;
       dragState.lastX = event.clientX;
       renderer.domElement.setPointerCapture?.(event.pointerId);
     };
     const onPointerMove = (event) => {
+      if (cameraViewModeRef.current === '2d') return;
       if (dragState.pointerId !== event.pointerId) return;
       const deltaX = event.clientX - dragState.lastX;
       dragState.lastX = event.clientX;
