@@ -5823,7 +5823,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = -1; // allow full 360° spin input so every controller side stays responsive
+const SPIN_VIEW_BLOCK_THRESHOLD = -0.18;
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -5855,10 +5855,35 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
-const clampSpinToVisibleHemisphere = (spinInput, _aimDir, _cueBall, _camera) => {
-  // Keep controller input 1:1 with the user's chosen strike direction on screen.
-  // Do not remap to the camera-facing hemisphere; it made some sides feel unresponsive.
-  return spinInput;
+const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
+  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
+  const viewVec = computeCueViewVector(cueBall, camera);
+  if (!viewVec) return spinInput;
+  const axes = prepareSpinAxes(aimDir);
+  TMP_VEC2_SPIN.set(0, 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
+  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
+  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
+  if (viewDot >= 0) return spinInput;
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
+  return {
+    x: TMP_VEC2_SPIN.dot(axes.perp),
+    y: TMP_VEC2_SPIN.dot(axes.axis)
+  };
 };
 
 
