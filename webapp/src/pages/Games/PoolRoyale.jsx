@@ -1674,14 +1674,15 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
-const POCKET_GLOW_ENABLED = false;
+const POCKET_GLOW_ENABLED = true;
 const POCKET_GLOW_RADIUS = BALL_R * 1.32;
 const POCKET_GLOW_LIFT = BALL_R * 0.78;
-const POCKET_GLOW_OPACITY = 0.62;
+const POCKET_GLOW_OPACITY = 0.82;
 const POCKET_GLOW_COLORS = Object.freeze({
   good: 0x2eea73,
   foul: 0xff4b4b
 });
+const DISABLE_DYNAMIC_CAMERA = true;
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.85;
 const POCKET_EARLY_ALIGNMENT = 0.7;
@@ -5307,7 +5308,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.2; // thinner guides for cue/target direction lines with better clarity
+const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.35; // slightly thicker guides for cue/target/direction readability
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -6959,7 +6960,7 @@ function resolvePowerLineColor(powerStrength) {
 
 function resolveAimPreviewSpin(spin) {
   const normalized = normalizeSpinInput(spin);
-  return { x: -(normalized?.x ?? 0), y: normalized?.y ?? 0 };
+  return { x: normalized?.x ?? 0, y: normalized?.y ?? 0 };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -7050,11 +7051,18 @@ function resolveCueFollowPreview({
   const topspinWeight = Math.max(0, spinY);
   const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
   const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
+  const straightVerticalSpin = Math.abs(spinX) <= STRAIGHT_SPIN_DEADZONE && Math.abs(spinY) > 1e-4;
   const previewDir = spinAdjusted.clone();
   const backwards = aimVec.clone().multiplyScalar(-1);
   const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
   const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
-  if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
+  if (straightVerticalSpin) {
+    if (spinY < 0 && BACKSPIN_DIRECTION_PREVIEW > 0) {
+      previewDir.copy(backwards);
+    } else if (spinY > 0) {
+      previewDir.copy(aimVec);
+    }
+  } else if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
     const drawBlend = THREE.MathUtils.clamp(
       backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
       0,
@@ -7082,7 +7090,7 @@ function resolveCueFollowPreview({
     }
   }
   const physicsFollowInfluence = THREE.MathUtils.clamp(0.35 + impactPower * 0.45, 0.25, 0.9);
-  if (Math.abs(spinY) > 1e-4) {
+  if (!straightVerticalSpin && Math.abs(spinY) > 1e-4) {
     previewDir.addScaledVector(aimVec, spinY * physicsFollowInfluence);
   }
   if (Math.abs(spinX) > 1e-4) {
@@ -7328,6 +7336,19 @@ const toBallColorId = (id) => {
   if (lower.startsWith('stripe')) return 'STRIPE';
   if (lower.startsWith('solid')) return 'SOLID';
   return lower.toUpperCase();
+};
+
+const resolvePocketGlowToneFromBall = (ballColorId, fallback = 'good') => {
+  if (!ballColorId || typeof ballColorId !== 'string') return fallback;
+  const normalized = ballColorId.toUpperCase();
+  if (normalized === 'CUE') return 'foul';
+  return `ball_${normalized.toLowerCase()}`;
+};
+
+const resolvePocketGlowColorHex = (ballColorId) => {
+  if (!ballColorId || typeof ballColorId !== 'string') return null;
+  const normalized = ballColorId.toLowerCase();
+  return BASE_BALL_COLORS[normalized] ?? null;
 };
 
 function alignRailsToCushions(table, frame, railMeshes = null) {
@@ -8409,9 +8430,29 @@ export function Table3D(
         })
       }
     : {};
+  const pocketGlowBallMaterials = new Map();
+  const resolvePocketGlowMaterial = (tone = 'good') => {
+    if (!POCKET_GLOW_ENABLED) return null;
+    if (pocketGlowMaterials[tone]) return pocketGlowMaterials[tone];
+    if (!tone?.startsWith?.('ball_')) return pocketGlowMaterials.good;
+    const cached = pocketGlowBallMaterials.get(tone);
+    if (cached) return cached;
+    const colorId = tone.slice(5).toUpperCase();
+    const colorHex = resolvePocketGlowColorHex(colorId) ?? POCKET_GLOW_COLORS.good;
+    const material = new THREE.MeshBasicMaterial({
+      color: colorHex,
+      transparent: true,
+      opacity: POCKET_GLOW_OPACITY,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    pocketGlowBallMaterials.set(tone, material);
+    return material;
+  };
   const createPocketGlowMesh = (tone = 'good') => {
     if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
-    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
+    const material = resolvePocketGlowMaterial(tone);
     if (!material) return null;
     const glow = new THREE.Mesh(pocketGlowGeometry, material);
     glow.rotation.x = -Math.PI / 2;
@@ -8422,7 +8463,7 @@ export function Table3D(
   };
   const setPocketGlowTone = (entry, tone = 'good') => {
     if (!entry?.glowMesh) return;
-    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
+    const material = resolvePocketGlowMaterial(tone);
     if (material) entry.glowMesh.material = material;
     entry.glowTone = tone;
   };
@@ -25082,6 +25123,7 @@ const powerRef = useRef(hud.power);
             (!isShortShot &&
               (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
           const allowLongShotCameraSwitch =
+            !DISABLE_DYNAMIC_CAMERA &&
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
             !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             allowRailOverheadActionView;
@@ -28141,7 +28183,7 @@ const powerRef = useRef(hud.power);
           potted.forEach((entry) => {
             const dropEntry = pocketDropRef.current.get(entry.id);
             if (dropEntry?.glowMesh) {
-              setPocketGlowTone(dropEntry, shotWasFoul ? 'foul' : 'good');
+              setPocketGlowTone(dropEntry, shotWasFoul ? 'foul' : (dropEntry.glowTone ?? 'good'));
             }
           });
         }
@@ -30428,7 +30470,11 @@ const powerRef = useRef(hud.power);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
+              const mappedColor = toBallColorId(b.id);
+              const colorId =
+                mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               if (!isCueBall) {
+                const glowTone = resolvePocketGlowToneFromBall(colorId, shotWasFoul ? 'foul' : 'good');
                 const dropEntry = {
                   start: dropStart,
                   fromY: BALL_CENTER_Y,
@@ -30455,20 +30501,25 @@ const powerRef = useRef(hud.power);
                   rollStartAt: null,
                   rollProgress: 0,
                   pocketId,
-                  resting: false
+                  resting: false,
+                  glowTone,
+                  glowMesh: null
                 };
                 if (b.mesh) {
                   b.mesh.visible = true;
                   b.mesh.scale.set(1, 1, 1);
                   b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
                 }
+                const glowMesh = createPocketGlowMesh(glowTone);
+                if (glowMesh) {
+                  glowMesh.position.set(c.x, BALL_CENTER_Y - POCKET_GLOW_LIFT, c.y);
+                  table?.add?.(glowMesh);
+                  dropEntry.glowMesh = glowMesh;
+                }
                 pocketDropRef.current.set(b.id, dropEntry);
               } else {
                 removePocketDropEntry(b.id);
               }
-              const mappedColor = toBallColorId(b.id);
-              const colorId =
-                mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
               const shouldForceCornerPocketView =
@@ -30882,6 +30933,8 @@ const powerRef = useRef(hud.power);
         pocketDropRef.current.clear();
         pocketGlowGeometry.dispose?.();
         Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        pocketGlowBallMaterials.forEach((material) => material?.dispose?.());
+        pocketGlowBallMaterials.clear();
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
