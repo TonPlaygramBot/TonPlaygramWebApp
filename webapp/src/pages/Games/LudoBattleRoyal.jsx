@@ -373,6 +373,7 @@ const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
+const CAMERA_TURN_PLAYER_LERP = 0.44;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.82,
   forwardOffset: 0.6,
@@ -1646,8 +1647,8 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.052
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
-const TOKEN_MOVE_SPEED = 2.45;
-const TOKEN_STEP_DURATION_SECONDS = 0.32;
+const TOKEN_MOVE_SPEED = 3.1;
+const TOKEN_STEP_DURATION_SECONDS = 0.24;
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -2512,7 +2513,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraTurnStateRef = useRef({
     currentTarget: null,
     activePriority: -Infinity,
-    followObject: null
+    followObject: null,
+    baseTurnView: null
   });
   const humanSelectionRef = useRef(null);
   const fitRef = useRef(() => {});
@@ -3439,17 +3441,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (active) {
       if (tile.material.emissive) {
         if (tokenColor) {
-          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.06);
+          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.14);
         } else if (data.highlightEmissive) {
           tile.material.emissive.copy(data.highlightEmissive);
         }
       }
       if (tile.material.color && tokenColor) {
-        tile.material.color.copy(tokenColor);
+        tile.material.color.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.08);
       } else if (tile.material.color && data.highlightColor) {
         tile.material.color.copy(data.highlightColor);
       }
-      tile.material.emissiveIntensity = tokenColor ? Math.max(data.baseIntensity + 0.95, 0.92) : data.highlightIntensity;
+      tile.material.emissiveIntensity = tokenColor
+        ? Math.max(data.baseIntensity + 1.2, data.highlightIntensity + 0.2, 1.2)
+        : Math.max(data.highlightIntensity, data.baseIntensity + 1.05);
       data.isHighlighted = true;
     } else {
       if (tile.material.emissive && data.baseEmissive) {
@@ -4990,7 +4994,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const boardLookTarget = arena.boardLookTarget;
     const seatWorld = new THREE.Vector3();
     anchor.getWorldPosition(seatWorld);
-    const target = boardLookTarget.clone().lerp(seatWorld, 0.34);
+    const target = boardLookTarget.clone().lerp(seatWorld, CAMERA_TURN_PLAYER_LERP);
     target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
 
     const currentDistance = camera.position.distanceTo(boardLookTarget);
@@ -4999,7 +5003,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     direction.normalize();
 
     const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-    if (isTopOrBottomSeat) return null;
+    if (isTopOrBottomSeat) {
+      const baseView = cameraTurnStateRef.current.baseTurnView;
+      if (!baseView) return null;
+      return {
+        position: baseView.position.clone(),
+        target: player === 0 ? baseView.target.clone() : target
+      };
+    }
 
     const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
     if (boardToCamera.lengthSq() > 1e-6) {
@@ -5057,6 +5068,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
     cancelCameraViewAnimation();
     if (isCamera2d) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (player === 0 && camera && controls) {
+      cameraTurnStateRef.current.baseTurnView = {
+        position: camera.position.clone(),
+        target: controls.target.clone()
+      };
+    }
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
     animateCameraPose(nextView.target, nextView.position, duration);
@@ -5078,7 +5097,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         nextTarget = object.getWorldPosition(new THREE.Vector3());
         nextTarget.y = (arenaRef.current?.tableInfo?.surfaceY ?? nextTarget.y) + offset;
       } else {
-        nextTarget = resolveTurnLookTarget(state.turn, offset);
+        const turnView = resolveTurnCameraState(state.turn, offset);
+        if (turnView) {
+          nextTarget = turnView.target.clone();
+        } else {
+          nextTarget = resolveTurnLookTarget(state.turn, offset);
+        }
       }
       if (!nextTarget) return;
 
@@ -5107,7 +5131,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }, Math.max(0, ttl * 1000));
       }
     },
-    [animateCameraPose, isCamera2d, resolveFocusCameraState, resolveTurnLookTarget]
+    [animateCameraPose, isCamera2d, resolveFocusCameraState, resolveTurnCameraState, resolveTurnLookTarget]
   );
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
@@ -6167,8 +6191,8 @@ async function buildLudoBoard(
     const baseEmissive = mat?.emissive?.clone?.() ?? new THREE.Color(0x000000);
     const baseIntensity = mat?.emissiveIntensity ?? 0;
     const baseColor = mat?.color?.clone?.() ?? new THREE.Color(0xffffff);
-    const highlightColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.16).offsetHSL(0.01, 0.22, 0.06);
-    const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
+    const highlightColor = baseColor.clone().offsetHSL(0.01, 0.35, 0.02);
+    const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.72);
     mesh.userData = {
       ...mesh.userData,
       boardTile: {
@@ -6177,7 +6201,7 @@ async function buildLudoBoard(
         baseEmissive,
         baseIntensity,
         highlightEmissive,
-        highlightIntensity: Math.max(baseIntensity + 0.85, 0.9)
+        highlightIntensity: Math.max(baseIntensity + 1.05, 1.12)
       }
     };
   };
