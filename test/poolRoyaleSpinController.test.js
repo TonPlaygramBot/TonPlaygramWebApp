@@ -36,4 +36,22 @@ describe('Pool Royale spin controller mapping', () => {
     expect(inner).toBeGreaterThan(0);
     expect(outer).toBeGreaterThan(inner);
   });
+
+  it('applies progressive spin response so outer hits gain more effective spin', () => {
+    const nearCenter = mapSpinForPhysics({ x: 0, y: 0.35 });
+    const mid = mapSpinForPhysics({ x: 0, y: 0.6 });
+    const outer = mapSpinForPhysics({ x: 0, y: 1 });
+    const nearMag = Math.abs(nearCenter.y);
+    const midMag = Math.abs(mid.y);
+    const outerMag = Math.abs(outer.y);
+    expect(midMag - nearMag).toBeGreaterThan(0.1);
+    expect(outerMag - midMag).toBeGreaterThan(0.12);
+  });
+
+  it('reduces side-spin efficiency when strong top/back spin is also requested', () => {
+    const pureSide = Math.abs(mapSpinForPhysics({ x: 1, y: 0 }).x);
+    const mixedSide = Math.abs(mapSpinForPhysics({ x: 1, y: 1 }).x);
+    expect(mixedSide).toBeLessThan(pureSide);
+  });
+
 });
