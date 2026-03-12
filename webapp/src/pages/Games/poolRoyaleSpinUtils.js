@@ -86,32 +86,6 @@ export const clampToUnitCircle = (x, y) => {
   return { x: x * scale, y: y * scale };
 };
 
-// Radial stick response adapted from open-source gamepad deadzone approaches
-// used by Godot and SDL communities (MIT-style implementations):
-// keep a deadzone near center, then remap remaining travel smoothly to the edge.
-export const mapRadialJoystickInput = (
-  x,
-  y,
-  options = {}
-) => {
-  const deadzone = clamp(options.deadzone ?? 0.09, 0, 0.95);
-  const exponent = clamp(options.exponent ?? 1.28, 0.6, 3);
-  const unit = clampToUnitCircle(x, y);
-  const magnitude = Math.hypot(unit.x, unit.y);
-  if (magnitude <= deadzone) {
-    return { x: 0, y: 0 };
-  }
-  const availableRange = Math.max(1 - deadzone, 1e-6);
-  const normalizedMagnitude = clamp((magnitude - deadzone) / availableRange, 0, 1);
-  const curvedMagnitude = Math.pow(normalizedMagnitude, exponent);
-  if (magnitude <= 1e-6) return { x: 0, y: 0 };
-  const inv = 1 / magnitude;
-  return {
-    x: unit.x * inv * curvedMagnitude,
-    y: unit.y * inv * curvedMagnitude
-  };
-};
-
 export const clampToMaxOffset = (x, y, maxOffset = MAX_SPIN_OFFSET) => {
   const length = Math.hypot(x, y);
   if (!Number.isFinite(length) || length <= maxOffset) {
