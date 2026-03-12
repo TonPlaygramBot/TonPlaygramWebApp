@@ -31278,14 +31278,21 @@ const powerRef = useRef(hud.power);
     let lastTime = null;
     const spinState = {
       current: { x: 0, y: 0 },
-      target: { x: 0, y: 0 },
-      velocity: { x: 0, y: 0 }
+      raw: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 },
+      dragging: false
     };
 
-    const SMOOTH_TIME = 0.085;
-    const MAX_SPEED = 6;
+    // Joystick response follows the same deadzone remapping used by many
+    // open-source game controllers (e.g. Unity's StickDeadzoneProcessor):
+    // normalize(v) * ((|v| - deadzone) / (1 - deadzone)).
+    const STICK_DEADZONE = 0.12;
+    const RESPONSE_EXPONENT = 1.3;
+    const DRAG_FOLLOW_RATE = 34;
+    const RELEASE_RETURN_RATE = 19;
+    const RELEASE_DAMPING = 0.76;
     const MAX_STEP_SECONDS = 0.04;
-    const SETTLE_EPS = 0.0015;
+    const SETTLE_EPS = 0.0018;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -31341,20 +31348,25 @@ const powerRef = useRef(hud.power);
       updateSpinDotPosition(clamped, legality.blocked);
     };
 
-    const applySnapTarget = () => {
-      const snapped = computeQuantizedOffsetScaled(
-        spinState.target.x,
-        spinState.target.y
+    const shapeStickInput = (nx, ny) => {
+      const magnitude = Math.hypot(nx, ny);
+      if (magnitude <= STICK_DEADZONE) return { x: 0, y: 0 };
+      const normX = nx / Math.max(magnitude, 1e-6);
+      const normY = ny / Math.max(magnitude, 1e-6);
+      const remapped = clamp(
+        (magnitude - STICK_DEADZONE) / (1 - STICK_DEADZONE),
+        0,
+        1
       );
-      spinState.target = clampToPlayable(snapped.x, snapped.y);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
+      const curved = Math.pow(remapped, RESPONSE_EXPONENT);
+      return { x: normX * curved, y: normY * curved };
     };
 
     const resetSpin = () => {
       spinState.current = { x: 0, y: 0 };
-      spinState.target = { x: 0, y: 0 };
+      spinState.raw = { x: 0, y: 0 };
       spinState.velocity = { x: 0, y: 0 };
+      spinState.dragging = false;
       applySpin(0, 0);
     };
     resetSpin();
@@ -31366,9 +31378,12 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      spinState.target = clampToPlayable(nx, ny);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
+      const clamped = clampToPlayable(nx, ny);
+      const shaped = shapeStickInput(clamped.x, clamped.y);
+      spinState.raw = { ...clamped };
+      spinState.current = { ...shaped };
+      spinRequestRef.current = { ...shaped };
+      applySpin(shaped.x, shaped.y, { updateRequest: false });
     };
 
     const scaleBox = (value) => {
@@ -31392,12 +31407,12 @@ const powerRef = useRef(hud.power);
       }
     };
 
-    const startSpring = () => {
+    const startMotion = () => {
       if (rafId) return;
-      rafId = requestAnimationFrame(stepSpring);
+      rafId = requestAnimationFrame(stepMotion);
     };
 
-    const stepSpring = (timestamp) => {
+    const stepMotion = (timestamp) => {
       if (!showSpinController) {
         rafId = null;
         return;
@@ -31405,42 +31420,36 @@ const powerRef = useRef(hud.power);
       if (!lastTime) lastTime = timestamp;
       const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
       lastTime = timestamp;
-      const { current, target, velocity } = spinState;
-      const nextX = smoothDamp(
-        current.x,
-        target.x,
-        velocity.x,
-        SMOOTH_TIME,
-        MAX_SPEED,
-        dt
-      );
-      const nextY = smoothDamp(
-        current.y,
-        target.y,
-        velocity.y,
-        SMOOTH_TIME,
-        MAX_SPEED,
-        dt
-      );
-      current.x = nextX.value;
-      current.y = nextY.value;
-      velocity.x = nextX.velocity;
-      velocity.y = nextY.velocity;
-      applySpin(current.x, current.y, { updateRequest: false });
-      const dx = target.x - current.x;
-      const dy = target.y - current.y;
-      const settled =
-        Math.abs(dx) < SETTLE_EPS &&
-        Math.abs(dy) < SETTLE_EPS &&
-        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
-      if (settled) {
-        spinState.current = { ...target };
-        spinState.velocity = { x: 0, y: 0 };
-      }
-      const shouldContinue = activePointer !== null || !settled;
-      if (shouldContinue) {
-        rafId = requestAnimationFrame(stepSpring);
+      const { current, raw, velocity, dragging } = spinState;
+      if (!dragging) {
+        const returnRate = 1 - Math.exp(-RELEASE_RETURN_RATE * dt);
+        current.x += (0 - current.x) * returnRate + velocity.x * dt;
+        current.y += (0 - current.y) * returnRate + velocity.y * dt;
+        velocity.x *= RELEASE_DAMPING;
+        velocity.y *= RELEASE_DAMPING;
       } else {
+        const follow = 1 - Math.exp(-DRAG_FOLLOW_RATE * dt);
+        const shaped = shapeStickInput(raw.x, raw.y);
+        const prevX = current.x;
+        const prevY = current.y;
+        current.x += (shaped.x - current.x) * follow;
+        current.y += (shaped.y - current.y) * follow;
+        velocity.x = (current.x - prevX) / Math.max(dt, 1e-6);
+        velocity.y = (current.y - prevY) / Math.max(dt, 1e-6);
+      }
+      const clamped = clampToPlayable(current.x, current.y);
+      current.x = clamped.x;
+      current.y = clamped.y;
+      applySpin(current.x, current.y, { updateRequest: false });
+
+      const settled =
+        Math.hypot(current.x, current.y) < SETTLE_EPS &&
+        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
+      const shouldContinue = dragging || !settled;
+      if (shouldContinue) {
+        rafId = requestAnimationFrame(stepMotion);
+      } else {
+        applySpin(0, 0);
         rafId = null;
         lastTime = null;
       }
@@ -31449,11 +31458,13 @@ const powerRef = useRef(hud.power);
     const handlePointerDown = (e) => {
       if (activePointer !== null) releasePointer();
       activePointer = e.pointerId;
+      spinState.dragging = true;
       moved = false;
       clearTimer();
-      scaleBox(1.35);
+      scaleBox(1.2);
       updateSpin(e.clientX, e.clientY);
       box.setPointerCapture(activePointer);
+      startMotion();
       revertTimer = window.setTimeout(() => {
         if (!moved) scaleBox(1);
       }, 1500);
@@ -31474,16 +31485,18 @@ const powerRef = useRef(hud.power);
 
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
+      spinState.dragging = false;
       finishInteraction(50);
-      applySnapTarget();
+      startMotion();
     };
 
     const handlePointerCancel = (e) => {
       if (activePointer !== e.pointerId) return;
+      spinState.dragging = false;
       releasePointer();
       clearTimer();
       scaleBox(1);
-      applySnapTarget();
+      startMotion();
     };
 
     if (showPlayerControls) {
