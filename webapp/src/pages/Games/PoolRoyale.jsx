@@ -106,6 +106,7 @@ import {
   mapSpinForPhysics,
   normalizeSpinInput,
   smoothDamp,
+  STRAIGHT_SPIN_DEADZONE,
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 import {
@@ -1674,10 +1675,10 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
-const POCKET_GLOW_ENABLED = false;
-const POCKET_GLOW_RADIUS = BALL_R * 1.32;
-const POCKET_GLOW_LIFT = BALL_R * 0.78;
-const POCKET_GLOW_OPACITY = 0.62;
+const POCKET_GLOW_ENABLED = true;
+const POCKET_GLOW_RADIUS = BALL_R * 1.55;
+const POCKET_GLOW_LIFT = BALL_R * 0.56;
+const POCKET_GLOW_OPACITY = 0.9;
 const POCKET_GLOW_COLORS = Object.freeze({
   good: 0x2eea73,
   foul: 0xff4b4b
@@ -5307,7 +5308,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.2; // thinner guides for cue/target direction lines with better clarity
+const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.32; // slightly thicken cue/target/cue-ball direction guides for improved readability
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -6197,6 +6198,26 @@ const formatBallLabel = (colorId) => {
   if (!colorId) return '';
   return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
 };
+const resolvePottedGlowColor = (colorId) => {
+  switch ((colorId || '').toUpperCase()) {
+    case 'RED':
+      return 0xd32232;
+    case 'YELLOW':
+      return 0xffc52c;
+    case 'GREEN':
+      return 0x0a8f4b;
+    case 'BROWN':
+      return 0x7b451b;
+    case 'BLUE':
+      return 0x0a58ff;
+    case 'PINK':
+      return 0xff7fc3;
+    case 'BLACK':
+      return 0x111111;
+    default:
+      return 0x2eea73;
+  }
+};
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
@@ -7050,7 +7071,14 @@ function resolveCueFollowPreview({
   const topspinWeight = Math.max(0, spinY);
   const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
   const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
-  const previewDir = spinAdjusted.clone();
+  const straightSpinOnly =
+    Math.abs(spinX) <= STRAIGHT_SPIN_DEADZONE &&
+    Math.abs(spinY) > STRAIGHT_SPIN_DEADZONE;
+  const previewDir = straightSpinOnly
+    ? spinY < 0
+      ? aimVec.clone().multiplyScalar(-1)
+      : aimVec.clone()
+    : spinAdjusted.clone();
   const backwards = aimVec.clone().multiplyScalar(-1);
   const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
   const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
@@ -7070,10 +7098,12 @@ function resolveCueFollowPreview({
     previewDir.lerp(aimVec, followBlend);
   }
   const sideInfluence =
-    Math.min(Math.abs(spinX), 1) *
-    (0.18 + impactPower * 0.22) *
-    (1 - cutPenalty * 0.3);
-  if (sideInfluence > 1e-4) {
+    straightSpinOnly
+      ? 0
+      : Math.min(Math.abs(spinX), 1) *
+        (0.18 + impactPower * 0.22) *
+        (1 - cutPenalty * 0.3);
+  if (!straightSpinOnly && sideInfluence > 1e-4) {
     const sideBasis = aimVec.lengthSq() > 1e-8 ? aimVec : previewDir;
     const perp = new THREE.Vector3(-sideBasis.z, 0, sideBasis.x);
     if (perp.lengthSq() > 1e-8) {
@@ -7082,10 +7112,10 @@ function resolveCueFollowPreview({
     }
   }
   const physicsFollowInfluence = THREE.MathUtils.clamp(0.35 + impactPower * 0.45, 0.25, 0.9);
-  if (Math.abs(spinY) > 1e-4) {
+  if (!straightSpinOnly && Math.abs(spinY) > 1e-4) {
     previewDir.addScaledVector(aimVec, spinY * physicsFollowInfluence);
   }
-  if (Math.abs(spinX) > 1e-4) {
+  if (!straightSpinOnly && Math.abs(spinX) > 1e-4) {
     const sideDir = new THREE.Vector3(-aimVec.z, 0, aimVec.x);
     if (sideDir.lengthSq() > 1e-8) {
       sideDir.normalize();
@@ -8422,6 +8452,18 @@ export function Table3D(
   };
   const setPocketGlowTone = (entry, tone = 'good') => {
     if (!entry?.glowMesh) return;
+    if (entry.ballGlowColor != null) {
+      entry.glowMesh.material = new THREE.MeshBasicMaterial({
+        color: entry.ballGlowColor,
+        transparent: true,
+        opacity: POCKET_GLOW_OPACITY,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      entry.glowTone = tone;
+      return;
+    }
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
     if (material) entry.glowMesh.material = material;
     entry.glowTone = tone;
@@ -25081,10 +25123,7 @@ const powerRef = useRef(hud.power);
             isBreakShot ||
             (!isShortShot &&
               (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
-          const allowLongShotCameraSwitch =
-            (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
-            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
-            allowRailOverheadActionView;
+          const allowLongShotCameraSwitch = false; // disable dynamic action camera transitions; keep pocket-focused camera turns only
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
@@ -29051,7 +29090,7 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
-            spin: aimPreviewSpin,
+            spin: physicsSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength
@@ -30462,6 +30501,29 @@ const powerRef = useRef(hud.power);
                   b.mesh.scale.set(1, 1, 1);
                   b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
                 }
+                if (POCKET_GLOW_ENABLED && pocketGlowGeometry && table) {
+                  const mappedColor = toBallColorId(b.id);
+                  const glowColor = resolvePottedGlowColor(
+                    mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : '')
+                  );
+                  const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: glowColor,
+                    transparent: true,
+                    opacity: POCKET_GLOW_OPACITY,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                  });
+                  const glowMesh = new THREE.Mesh(pocketGlowGeometry, glowMaterial);
+                  glowMesh.rotation.x = -Math.PI / 2;
+                  glowMesh.renderOrder = 3;
+                  glowMesh.castShadow = false;
+                  glowMesh.receiveShadow = false;
+                  glowMesh.position.set(c.x, BALL_CENTER_Y + POCKET_GLOW_LIFT, c.y);
+                  table.add(glowMesh);
+                  dropEntry.glowMesh = glowMesh;
+                  dropEntry.ballGlowColor = glowColor;
+                }
                 pocketDropRef.current.set(b.id, dropEntry);
               } else {
                 removePocketDropEntry(b.id);
@@ -30633,6 +30695,14 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
+                if (entry.glowMesh) {
+                  entry.glowMesh.visible = true;
+                  entry.glowMesh.position.set(
+                    entry.fromX ?? entry.toX ?? runFromX,
+                    (entry.targetY ?? targetY) + POCKET_GLOW_LIFT,
+                    entry.fromZ ?? entry.toZ ?? runFromZ
+                  );
+                }
                 return;
               }
               entry.velocityY =
@@ -30666,6 +30736,14 @@ const powerRef = useRef(hud.power);
                 }
               }
               mesh.position.set(posX, entry.currentY, posZ);
+              if (entry.glowMesh) {
+                entry.glowMesh.visible = true;
+                entry.glowMesh.position.set(
+                  entry.fromX ?? posX,
+                  (entry.targetY ?? targetY) + POCKET_GLOW_LIFT,
+                  entry.fromZ ?? posZ
+                );
+              }
             });
           }
           if (pocketPopupRef.current.length > 0) {
