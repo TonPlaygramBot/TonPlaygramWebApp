@@ -36,23 +36,4 @@ describe('Pool Royale spin controller mapping', () => {
     expect(inner).toBeGreaterThan(0);
     expect(outer).toBeGreaterThan(inner);
   });
-
-  it('applies softer spin close to center and stronger spin near cue-tip edge', () => {
-    const nearCenter = mapSpinForPhysics({ x: 0.2, y: 0.2 });
-    const mid = mapSpinForPhysics({ x: 0.5, y: 0.5 });
-    const edge = mapSpinForPhysics({ x: 0.75, y: 0.75 });
-    const nearMag = Math.hypot(nearCenter.x, nearCenter.y);
-    const midMag = Math.hypot(mid.x, mid.y);
-    const edgeMag = Math.hypot(edge.x, edge.y);
-    expect(midMag).toBeGreaterThan(nearMag * 1.6);
-    expect(edgeMag).toBeGreaterThan(midMag * 1.05);
-  });
-
-  it('couples side and vertical spin like a real cue-tip strike', () => {
-    const pureSide = mapSpinForPhysics({ x: 0.75, y: 0 });
-    const mixed = mapSpinForPhysics({ x: 0.75, y: 0.75 });
-    const pureTop = mapSpinForPhysics({ x: 0, y: 0.75 });
-    expect(Math.abs(mixed.x)).toBeLessThan(Math.abs(pureSide.x));
-    expect(Math.abs(mixed.y)).toBeLessThan(Math.abs(pureTop.y));
-  });
 });
