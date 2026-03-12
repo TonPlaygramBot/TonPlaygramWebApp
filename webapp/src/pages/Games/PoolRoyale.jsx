@@ -25130,7 +25130,7 @@ const powerRef = useRef(hud.power);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
-            DISABLE_DYNAMIC_CAMERA || broadcastSystem?.avoidPocketCameras;
+            broadcastSystem?.avoidPocketCameras;
           const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
@@ -30032,7 +30032,6 @@ const powerRef = useRef(hud.power);
           }
         }
         const suppressPocketCameras =
-          DISABLE_DYNAMIC_CAMERA ||
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
         const earlyPocketIntent = pocketSwitchIntentRef.current;
