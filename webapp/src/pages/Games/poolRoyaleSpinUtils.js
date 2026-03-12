@@ -11,11 +11,6 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = -0.012;
-const REALISTIC_SPIN_CURVE = 1.35;
-const REALISTIC_SPIN_BLEND = 0.82;
-const REALISTIC_SIDE_REDUCTION_BY_VERTICAL = 0.3;
-const REALISTIC_VERTICAL_REDUCTION_BY_SIDE = 0.12;
-
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -191,27 +186,10 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     y: clamp(spin?.y ?? 0, -1, 1)
   };
   const quantized = normalizeSpinInput(adjusted);
-  const magnitude = clamp(Math.hypot(quantized.x, quantized.y), 0, MAX_SPIN_OFFSET);
-  const normalizedMagnitude = magnitude / Math.max(MAX_SPIN_OFFSET, 1e-6);
-  const curvedMagnitude = Math.pow(normalizedMagnitude, REALISTIC_SPIN_CURVE);
-  const blendedMagnitude =
-    normalizedMagnitude * (1 - REALISTIC_SPIN_BLEND) + curvedMagnitude * REALISTIC_SPIN_BLEND;
-  const scale =
-    magnitude > 1e-6 ? (blendedMagnitude * MAX_SPIN_OFFSET) / magnitude : 0;
-  const shaped = {
-    x: quantized.x * scale,
-    y: quantized.y * scale
-  };
-  const verticalCoupling = 1 - REALISTIC_SIDE_REDUCTION_BY_VERTICAL * Math.abs(shaped.y) / MAX_SPIN_OFFSET;
-  const lateralCoupling = 1 - REALISTIC_VERTICAL_REDUCTION_BY_SIDE * Math.abs(shaped.x) / MAX_SPIN_OFFSET;
-  const realistic = {
-    x: shaped.x * clamp(verticalCoupling, 0.6, 1),
-    y: shaped.y * clamp(lateralCoupling, 0.75, 1)
-  };
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    -realistic.x,
-    realistic.y,
+    -quantized.x,
+    quantized.y,
     cameraRight,
     cameraUp,
     cueForward

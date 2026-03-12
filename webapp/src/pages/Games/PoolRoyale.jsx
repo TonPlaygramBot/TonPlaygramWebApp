@@ -1478,14 +1478,13 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.08,
+  restitution: 0.985,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 0.6,
+  airSpinDecay: 6.0,
   maxTipOffsetRatio: 0.9
 });
-const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.995;
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1499,20 +1498,22 @@ const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.014;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.012;
-const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.35;
+const STOP_EPS = 0.02;
+const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // disable max-power bounce lift (never reaches this)
+const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
+const MAX_POWER_SPIN_LATERAL_THROW = 0; // remove max-power lateral throw from side spin
+const MAX_POWER_SPIN_LIFT_BONUS = 0; // remove max-power spin-driven lift bonus
 const JUMP_SHOT_POWER_THRESHOLD = 0.7;
 const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
@@ -1894,14 +1895,14 @@ const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
+const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 2.6;
+const BACKSPIN_MULTIPLIER = 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
