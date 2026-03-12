@@ -3689,7 +3689,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     diceTransitionRef.current = null;
   };
 
-  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04, onComplete } = {}) => {
+  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04 } = {}) => {
     if (!dice || !destination) return;
     const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
     stopDiceTransition();
@@ -3717,9 +3717,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         requestAnimationFrame(step);
       } else {
         dice.position.copy(target);
-        if (typeof onComplete === 'function') {
-          onComplete(target.clone());
-        }
         if (diceTransitionRef.current === handle) {
           diceTransitionRef.current = null;
         }
@@ -3737,37 +3734,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (immediate) {
       stopDiceTransition();
       dice.position.copy(target);
-      setCameraFocus({
-        target,
-        follow: false,
-        ttl: 0.55,
-        priority: 2,
-        force: true,
-        offset: CAMERA_TARGET_LIFT + 0.02
-      });
       return;
     }
-    setCameraFocus({
-      object: dice,
-      follow: true,
-      priority: 3,
-      force: true,
-      offset: CAMERA_TARGET_LIFT + 0.03
-    });
-    animateDicePosition(dice, target, {
-      duration: 520,
-      lift: 0.05,
-      onComplete: (landingTarget) => {
-        setCameraFocus({
-          target: landingTarget,
-          follow: false,
-          ttl: 0.8,
-          priority: 2,
-          force: true,
-          offset: CAMERA_TARGET_LIFT + 0.02
-        });
-      }
-    });
+    animateDicePosition(dice, target, { duration: 520, lift: 0.05 });
   };
 
   const updateTurnIndicator = (player, immediate = false) => {
@@ -5039,7 +5008,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!baseView) return null;
       return {
         position: baseView.position.clone(),
-        target: baseView.target.clone()
+        target: player === 0 ? baseView.target.clone() : target
       };
     }
 
