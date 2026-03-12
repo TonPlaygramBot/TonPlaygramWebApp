@@ -374,6 +374,7 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
+const CAMERA_BROADCAST_DISTANCE_MULTIPLIER = 1.14;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.82,
   forwardOffset: 0.6,
@@ -5011,7 +5012,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const target = boardLookTarget.clone().lerp(seatWorld, CAMERA_TURN_PLAYER_LERP);
     target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
 
-    const currentDistance = camera.position.distanceTo(boardLookTarget);
+    const currentDistance = camera.position.distanceTo(boardLookTarget) * CAMERA_BROADCAST_DISTANCE_MULTIPLIER;
     const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
     if (direction.lengthSq() < 1e-6) return null;
     direction.normalize();
@@ -5050,7 +5051,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const target = focusTarget.clone();
     target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
 
-    const currentDistance = camera.position.distanceTo(boardLookTarget);
+    const currentDistance = camera.position.distanceTo(boardLookTarget) * CAMERA_BROADCAST_DISTANCE_MULTIPLIER;
     const direction = camera.position.clone().sub(boardLookTarget).setY(0);
     if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
     direction.normalize();
