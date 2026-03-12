@@ -2514,6 +2514,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     currentTarget: null,
     activePriority: -Infinity,
     followObject: null,
+    followOffset: null,
     baseTurnView: null
   });
   const humanSelectionRef = useRef(null);
@@ -4773,6 +4774,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
           controls.target.lerp(liftedTarget.target, 0.28);
+          const followOffset = cameraTurnStateRef.current.followOffset;
+          if (camera && followOffset?.isVector3) {
+            const desiredPosition = liftedTarget.target.clone().add(followOffset);
+            camera.position.lerp(desiredPosition, 0.22);
+          }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
       }
@@ -4931,6 +4937,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     cameraTurnStateRef.current.activePriority = -Infinity;
     cameraTurnStateRef.current.followObject = null;
+    cameraTurnStateRef.current.followOffset = null;
   }, []);
 
   const cancelCameraViewAnimation = useCallback(() => {
@@ -5008,7 +5015,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!baseView) return null;
       return {
         position: baseView.position.clone(),
-        target: player === 0 ? baseView.target.clone() : target
+        target: baseView.target.clone()
       };
     }
 
@@ -5111,6 +5118,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const nextFocusState = resolveFocusCameraState(nextTarget, offset);
       if (nextFocusState) {
+        if (cameraTurnStateRef.current.followObject) {
+          const camera = cameraRef.current;
+          cameraTurnStateRef.current.followOffset = camera
+            ? camera.position.clone().sub(nextFocusState.target)
+            : null;
+        } else {
+          cameraTurnStateRef.current.followOffset = null;
+        }
         animateCameraPose(nextFocusState.target, nextFocusState.position, 280);
       }
       if (ttl > 0) {
@@ -5121,6 +5136,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           cameraFocusTimeoutRef.current = null;
           cameraTurnStateRef.current.activePriority = -Infinity;
           cameraTurnStateRef.current.followObject = null;
+          cameraTurnStateRef.current.followOffset = null;
           const returnTarget = resolveTurnLookTarget(stateRef.current?.turn ?? 0, CAMERA_TARGET_LIFT);
           if (returnTarget) {
             const restoreFocusState = resolveFocusCameraState(returnTarget, CAMERA_TARGET_LIFT);
