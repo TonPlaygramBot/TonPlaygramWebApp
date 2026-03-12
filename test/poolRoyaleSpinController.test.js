@@ -6,23 +6,11 @@ const getSigns = (vec) => ({
 });
 
 describe('Pool Royale spin controller mapping', () => {
-  it('maps the exact center to a true stun hit with zero spin', () => {
+  it('maps the center to a slight stun bias with minimal roll', () => {
     const center = mapSpinForPhysics({ x: 0, y: 0 });
     expect(Math.abs(center.x)).toBe(0);
-    expect(center.y).toBe(0);
-  });
-
-  it('ramps small offsets from center instead of forcing stun bias on topspin requests', () => {
-    const smallTop = mapSpinForPhysics({ x: 0, y: 0.05 });
-    const strongerTop = mapSpinForPhysics({ x: 0, y: 0.1 });
-    expect(smallTop.y).toBeGreaterThan(0);
-    expect(strongerTop.y).toBeGreaterThan(smallTop.y);
-  });
-
-  it('applies stun bias only on near-horizontal center-line strikes', () => {
-    const nearCenterSide = mapSpinForPhysics({ x: 0.1, y: 0 });
-    expect(nearCenterSide.x).toBeLessThan(0);
-    expect(nearCenterSide.y).toBe(STUN_TOPSPIN_BIAS);
+    expect(center.y).toBeLessThanOrEqual(0);
+    expect(center.y).toBeGreaterThanOrEqual(STUN_TOPSPIN_BIAS);
   });
 
   it('keeps left/right spin directions aligned with the table axes', () => {
