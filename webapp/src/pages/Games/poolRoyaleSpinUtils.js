@@ -9,8 +9,8 @@ export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
-export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.012;
+export const CENTER_STUN_RADIUS = 0.008;
+export const MIN_DIRECTIONAL_SPIN = 0.018;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -110,22 +110,32 @@ export const computeQuantizedOffsetScaled = (
   const level2Mag = options.level2Mag ?? SPIN_LEVEL2_MAG;
   const level3Mag = options.level3Mag ?? SPIN_LEVEL3_MAG;
   const angleStep = options.angleStepRad ?? Math.PI / 4;
+  const quantizeMagnitude = options.quantizeMagnitude ?? false;
 
   const raw = clampToMaxOffset(rawX, rawY, maxOffset);
   const distance = Math.hypot(raw.x, raw.y);
-  let mag = level3Mag;
-  if (distance <= stunRadius) {
-    mag = level0Mag;
-  } else if (distance <= ring1Radius) {
-    mag = level1Mag;
-  } else if (distance <= ring2Radius) {
-    mag = level2Mag;
-  } else if (distance <= ring3Radius) {
-    mag = level3Mag;
-  }
-  if (mag === 0 || distance <= 1e-6) {
+  if (distance <= 1e-6) {
     return { x: 0, y: 0 };
   }
+
+  let mag = distance;
+  if (quantizeMagnitude) {
+    mag = level3Mag;
+    if (distance <= stunRadius) {
+      mag = level0Mag;
+    } else if (distance <= ring1Radius) {
+      mag = level1Mag;
+    } else if (distance <= ring2Radius) {
+      mag = level2Mag;
+    } else if (distance <= ring3Radius) {
+      mag = level3Mag;
+    }
+  }
+
+  if (mag <= 1e-6) {
+    return { x: 0, y: 0 };
+  }
+
   const angle = Math.atan2(raw.y, raw.x);
   const snappedAngle = angleStep > 0
     ? Math.round(angle / angleStep) * angleStep
@@ -137,16 +147,34 @@ export const computeQuantizedOffsetScaled = (
 };
 
 export const normalizeSpinInput = (spin) => {
-  let x = clamp(spin?.x ?? 0, -1, 1);
-  let y = clamp(spin?.y ?? 0, -1, 1);
-  const distance = Math.hypot(x, y);
-  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
-    if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
-      return { x: 0, y: 0 };
-    }
-    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
+  const clamped = clampToMaxOffset(
+    clamp(spin?.x ?? 0, -1, 1),
+    clamp(spin?.y ?? 0, -1, 1),
+    MAX_SPIN_OFFSET
+  );
+  const distance = Math.hypot(clamped.x, clamped.y);
+
+  if (distance <= CENTER_STUN_RADIUS) {
+    return { x: 0, y: 0 };
   }
-  return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+
+  if (distance <= SPIN_STUN_RADIUS) {
+    const inv = 1 / Math.max(distance, 1e-6);
+    const dirX = clamped.x * inv;
+    const dirY = clamped.y * inv;
+    const t = (distance - CENTER_STUN_RADIUS)
+      / Math.max(SPIN_STUN_RADIUS - CENTER_STUN_RADIUS, 1e-6);
+    const smooth = t * t * (3 - 2 * t);
+    const magnitude =
+      MIN_DIRECTIONAL_SPIN + (SPIN_STUN_RADIUS - MIN_DIRECTIONAL_SPIN) * smooth;
+
+    return {
+      x: dirX * magnitude,
+      y: dirY * magnitude
+    };
+  }
+
+  return clamped;
 };
 
 export const mapUiOffsetToCueFrame = (
