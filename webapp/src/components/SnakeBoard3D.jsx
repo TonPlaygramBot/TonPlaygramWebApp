@@ -3813,7 +3813,9 @@ export default function SnakeBoard3D({
   appearance = {},
   appearanceKey,
   frameRate = 90,
-  cameraViewMode = '3d'
+  cameraViewMode = '3d',
+  camera2dTilt = 0.2,
+  onCameraTiltChange
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -3838,6 +3840,7 @@ export default function SnakeBoard3D({
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
   const frameAccumulatorRef = useRef(0);
+  const cameraTiltRef = useRef(clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2));
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
@@ -3851,6 +3854,9 @@ export default function SnakeBoard3D({
     cameraViewModeRef.current = cameraViewMode;
   }, [cameraViewMode]);
 
+  useEffect(() => {
+    cameraTiltRef.current = clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2);
+  }, [camera2dTilt]);
 
   useEffect(() => {
     frameRateRef.current = Math.max(30, frameRate || 90);
@@ -3896,63 +3902,67 @@ export default function SnakeBoard3D({
     const boardLookTarget = board?.boardLookTarget;
     if (!board || !camera || !controls || !boardLookTarget) return;
 
-    const topDownPolar = 0.001;
+    const min2dTilt = 0.001;
+    const max2dTilt = 0.42;
+    const tiltRatio = clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2);
+    const topDownPolar = THREE.MathUtils.lerp(min2dTilt, max2dTilt, tiltRatio);
     if (cameraViewMode === '2d') {
       if (!cameraRestoreRef.current) {
         cameraRestoreRef.current = {
           position: camera.position.clone(),
           target: controls.target.clone(),
-          enableZoom: controls.enableZoom,
           enableRotate: controls.enableRotate,
-          enablePan: controls.enablePan,
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
           minAzimuthAngle: controls.minAzimuthAngle,
-          maxAzimuthAngle: controls.maxAzimuthAngle,
-          minDistance: controls.minDistance,
-          maxDistance: controls.maxDistance
+          maxAzimuthAngle: controls.maxAzimuthAngle
         };
       }
-      removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-      removeAnimationsByType(animationsRef.current, 'cameraTokenFocus');
-      turnCameraStateRef.current = null;
-      cinematicRestoreRef.current = null;
-      const topDownDistance = clamp(CAM.maxR, CAM.minR, CAM.maxR);
-      camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
+      const topDownDistance = clamp(CAM.minR * 2.25, CAM.minR * 1.55, CAM.maxR * 0.96);
+      const verticalDistance = Math.cos(topDownPolar) * topDownDistance;
+      const forwardDistance = Math.sin(topDownPolar) * topDownDistance;
+      camera.position.set(
+        boardLookTarget.x,
+        boardLookTarget.y + verticalDistance,
+        boardLookTarget.z + forwardDistance
+      );
       controls.target.copy(boardLookTarget);
-      controls.enableZoom = true;
       controls.enableRotate = false;
       controls.enablePan = false;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.minDistance = CAM.minR;
-      controls.maxDistance = CAM.maxR;
-      controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+      controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY_PAN };
       controls.update();
       return;
+    }
+
+    const desiredPolar = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, tiltRatio);
+    const offset = camera.position.clone().sub(controls.target);
+    if (offset.lengthSq() > 0.000001) {
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      spherical.phi = clamp(desiredPolar, CAM.phiMin, CAM.phiMax);
+      offset.setFromSpherical(spherical);
+      camera.position.copy(controls.target).add(offset);
+      controls.update();
     }
 
     if (cameraRestoreRef.current) {
       const restore = cameraRestoreRef.current;
       camera.position.copy(restore.position);
       controls.target.copy(restore.target);
-      controls.enableZoom = restore.enableZoom;
       controls.enableRotate = restore.enableRotate;
-      controls.enablePan = restore.enablePan;
+      controls.enablePan = false;
       controls.minPolarAngle = restore.minPolarAngle;
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
       controls.maxAzimuthAngle = restore.maxAzimuthAngle;
-      controls.minDistance = restore.minDistance;
-      controls.maxDistance = restore.maxDistance;
       controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
       controls.update();
       cameraRestoreRef.current = null;
     }
-  }, [cameraViewMode]);
+  }, [cameraViewMode, camera2dTilt]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -4059,6 +4069,15 @@ export default function SnakeBoard3D({
       dragState.lastY = event.clientY;
       const absX = Math.abs(deltaX);
       const absY = Math.abs(deltaY);
+
+      if (absY >= absX && absY >= 0.25 && typeof onCameraTiltChange === 'function') {
+        const nextTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
+        if (Math.abs(nextTilt - cameraTiltRef.current) > 0.0001) {
+          cameraTiltRef.current = nextTilt;
+          onCameraTiltChange(nextTilt);
+        }
+        return;
+      }
 
       if (cameraViewModeRef.current === '2d') return;
       if (absX < 0.25) return;
