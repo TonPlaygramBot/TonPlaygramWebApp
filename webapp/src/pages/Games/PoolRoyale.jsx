@@ -1750,7 +1750,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 900;
 const POCKET_VIEW_EARLY_HOLD_MS = 160;
-const SPIN_GLOBAL_SCALE = 0.66; // mirror Snooker Royale spin strength so cue-ball response matches exactly
+const SPIN_GLOBAL_SCALE = 1.15; // boost total cue-ball spin response so all controller directions apply stronger english
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1903,9 +1903,9 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
-const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 1.5;
-const TOPSPIN_MULTIPLIER = 1.5;
+const SIDE_SPIN_MULTIPLIER = 1.8;
+const BACKSPIN_MULTIPLIER = 1.8;
+const TOPSPIN_MULTIPLIER = 1.8;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -6961,6 +6961,14 @@ function resolvePowerLineColor(powerStrength) {
 function resolveAimPreviewSpin(spin) {
   const normalized = normalizeSpinInput(spin);
   return { x: normalized?.x ?? 0, y: normalized?.y ?? 0 };
+}
+
+function scalePhysicsSpin(spin, scale = SPIN_GLOBAL_SCALE) {
+  const safeScale = Number.isFinite(scale) ? Math.max(0, scale) : 1;
+  return {
+    x: (spin?.x ?? 0) * safeScale,
+    y: (spin?.y ?? 0) * safeScale
+  };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -24998,7 +25006,7 @@ const powerRef = useRef(hud.power);
         };
         const liftAngle = resolveUserCueLift();
         const liftStrength = normalizeCueLift(liftAngle);
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const physicsSpin = scalePhysicsSpin(mapSpinForPhysics(appliedSpin));
         const swerveActive = false;
         const guideAimDir2D = resolveSwerveAimDir(
           aimDir.clone(),
@@ -28733,7 +28741,7 @@ const powerRef = useRef(hud.power);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const aimPreviewSpin = resolveAimPreviewSpin(appliedSpin);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const physicsSpin = scalePhysicsSpin(mapSpinForPhysics(appliedSpin));
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -29093,7 +29101,7 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
-            spin: aimPreviewSpin,
+            spin: physicsSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength
@@ -29341,7 +29349,7 @@ const powerRef = useRef(hud.power);
           const remoteSpinNormalized = normalizeSpinInput(remoteSpin);
           const aimPreviewSpin = resolveAimPreviewSpin(remoteSpinNormalized);
           const remoteSwerveActive = false;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpinNormalized);
+          const remotePhysicsSpin = scalePhysicsSpin(mapSpinForPhysics(remoteSpinNormalized));
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remotePhysicsSpin,
@@ -29410,7 +29418,7 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: baseDir,
-            spin: mapSpinForPhysics(remoteSpinNormalized),
+            spin: remotePhysicsSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength: 0
