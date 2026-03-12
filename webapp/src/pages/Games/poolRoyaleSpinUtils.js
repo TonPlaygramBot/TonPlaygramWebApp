@@ -10,10 +10,7 @@ export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const CENTER_STUN_RADIUS = 0.008;
-export const MIN_DIRECTIONAL_SPIN = 0.015;
-export const STUN_TOPSPIN_BIAS = -0.01;
-export const SPIN_PROGRESSIVE_CURVE = 1.8;
+export const STUN_TOPSPIN_BIAS = -0.012;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -142,25 +139,14 @@ export const computeQuantizedOffsetScaled = (
 export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
-  const clamped = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
-  const distance = Math.hypot(clamped.x, clamped.y);
-  if (distance <= CENTER_STUN_RADIUS) {
-    return { x: 0, y: STUN_TOPSPIN_BIAS };
+  const distance = Math.hypot(x, y);
+  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
+    if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
+      return { x: 0, y: 0 };
+    }
+    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
   }
-
-  const blendDenominator = Math.max(1e-6, MAX_SPIN_OFFSET - CENTER_STUN_RADIUS);
-  const blend = clamp((distance - CENTER_STUN_RADIUS) / blendDenominator, 0, 1);
-  const easedBlend = blend * blend * (3 - 2 * blend);
-  const progressiveBlend = Math.pow(easedBlend, SPIN_PROGRESSIVE_CURVE);
-  const magnitude =
-    MIN_DIRECTIONAL_SPIN +
-    (MAX_SPIN_OFFSET - MIN_DIRECTIONAL_SPIN) * progressiveBlend;
-  const directionScale = 1 / Math.max(distance, 1e-6);
-
-  return {
-    x: clamped.x * directionScale * magnitude,
-    y: clamped.y * directionScale * magnitude
-  };
+  return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
 };
 
 export const mapUiOffsetToCueFrame = (
