@@ -622,25 +622,35 @@ public class BilliardsSolver
         if (!airborne)
         {
             Vec2 dir = b.Velocity.Normalized();
-            if (b.ForwardSpin > 0)
-            {
-                var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin;
-                b.Velocity += dir * forwardAccel * dt;
-            }
+            double naturalRollSpin = speed * PhysicsConstants.RollingSpinRatio;
+            double forwardSlip = b.ForwardSpin - naturalRollSpin;
+
+            // Draw/follow logic from slip ratio:
+            // - top spin (positive slip) keeps pushing the ball forward
+            // - back spin (negative slip) first brakes, then can reverse after contact in full simulation
+            var slipAccel = PhysicsConstants.SlipToLinearAccel * forwardSlip;
+            b.Velocity += dir * slipAccel * dt;
+
+            // Cloth friction drives the ball toward natural rolling over time.
+            b.ForwardSpin += (-forwardSlip * PhysicsConstants.SpinToRollCoupling) * dt;
 
             var lateral = new Vec2(-dir.Y, dir.X);
-            double speedFactor = 1.0;
+            double speedFactor = Smoothstep(PhysicsConstants.SwerveMinSpeed, PhysicsConstants.SwervePeakSpeed, speed);
             if (speed > PhysicsConstants.SwerveSpeedCutoff)
             {
                 double excess = speed - PhysicsConstants.SwerveSpeedCutoff;
-                speedFactor = Math.Max(0.0, 1.0 - excess / PhysicsConstants.SwerveSpeedFadeRange);
+                speedFactor *= Math.Max(0.0, 1.0 - excess / PhysicsConstants.SwerveSpeedFadeRange);
             }
             var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor;
             b.Velocity += lateral * swerveAccel * dt;
 
-            double decay = Math.Exp(-PhysicsConstants.SpinDecay * dt);
-            b.SideSpin *= decay;
-            b.ForwardSpin *= decay;
+            // Side spin bleeds off via cloth contact and faster motion.
+            double sideDecayRate =
+                PhysicsConstants.SideSpinDecayBase
+                + PhysicsConstants.SideSpinDecayBySpeed * speed
+                + PhysicsConstants.SideSpinDecayBySlip * Math.Abs(b.SideSpin);
+            double sideDecay = Math.Exp(-sideDecayRate * dt);
+            b.SideSpin *= sideDecay;
         }
         else
         {
