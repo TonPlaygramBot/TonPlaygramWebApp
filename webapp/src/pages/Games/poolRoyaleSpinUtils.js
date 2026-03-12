@@ -1,7 +1,7 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const MAX_SPIN_OFFSET = 0.75;
-export const SPIN_STUN_RADIUS = 0.12;
+export const SPIN_STUN_RADIUS = 0.02;
 export const SPIN_RING1_RADIUS = 0.33;
 export const SPIN_RING2_RADIUS = 0.66;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
@@ -10,7 +10,6 @@ export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.012;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -95,6 +94,19 @@ export const clampToMaxOffset = (x, y, maxOffset = MAX_SPIN_OFFSET) => {
   return { x: x * scale, y: y * scale };
 };
 
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+const remapSpinMagnitude = (
+  distance,
+  deadzone = STRAIGHT_SPIN_DEADZONE,
+  maxOffset = MAX_SPIN_OFFSET
+) => {
+  if (!Number.isFinite(distance) || distance <= deadzone) return 0;
+  if (maxOffset <= deadzone) return Math.max(0, distance);
+  const t = clamp((distance - deadzone) / (maxOffset - deadzone), 0, 1);
+  return easeOutCubic(t) * maxOffset;
+};
+
 export const computeQuantizedOffsetScaled = (
   rawX,
   rawY,
@@ -102,34 +114,22 @@ export const computeQuantizedOffsetScaled = (
 ) => {
   const maxOffset = options.maxOffset ?? MAX_SPIN_OFFSET;
   const stunRadius = options.stunRadius ?? SPIN_STUN_RADIUS;
-  const ring1Radius = options.ring1Radius ?? SPIN_RING1_RADIUS;
-  const ring2Radius = options.ring2Radius ?? SPIN_RING2_RADIUS;
-  const ring3Radius = options.ring3Radius ?? SPIN_RING3_RADIUS;
-  const level0Mag = options.level0Mag ?? SPIN_LEVEL0_MAG;
-  const level1Mag = options.level1Mag ?? SPIN_LEVEL1_MAG;
-  const level2Mag = options.level2Mag ?? SPIN_LEVEL2_MAG;
-  const level3Mag = options.level3Mag ?? SPIN_LEVEL3_MAG;
   const angleStep = options.angleStepRad ?? Math.PI / 4;
 
   const raw = clampToMaxOffset(rawX, rawY, maxOffset);
   const distance = Math.hypot(raw.x, raw.y);
-  let mag = level3Mag;
-  if (distance <= stunRadius) {
-    mag = level0Mag;
-  } else if (distance <= ring1Radius) {
-    mag = level1Mag;
-  } else if (distance <= ring2Radius) {
-    mag = level2Mag;
-  } else if (distance <= ring3Radius) {
-    mag = level3Mag;
-  }
-  if (mag === 0 || distance <= 1e-6) {
+  if (distance <= Math.max(stunRadius, STRAIGHT_SPIN_DEADZONE) || distance <= 1e-6) {
     return { x: 0, y: 0 };
   }
+
+  const mag = remapSpinMagnitude(distance, Math.max(stunRadius, STRAIGHT_SPIN_DEADZONE), maxOffset);
+  if (mag <= 1e-6) return { x: 0, y: 0 };
+
   const angle = Math.atan2(raw.y, raw.x);
   const snappedAngle = angleStep > 0
     ? Math.round(angle / angleStep) * angleStep
     : angle;
+
   return {
     x: Math.cos(snappedAngle) * mag,
     y: Math.sin(snappedAngle) * mag
@@ -139,14 +139,21 @@ export const computeQuantizedOffsetScaled = (
 export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
-  const distance = Math.hypot(x, y);
-  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
-    if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
-      return { x: 0, y: 0 };
-    }
-    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
+
+  const limited = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+  const distance = Math.hypot(limited.x, limited.y);
+  const deadzone = Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE);
+  const mag = remapSpinMagnitude(distance, deadzone, MAX_SPIN_OFFSET);
+
+  if (mag <= 1e-6 || distance <= 1e-6) {
+    return { x: 0, y: 0 };
   }
-  return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+
+  const inv = 1 / distance;
+  return {
+    x: limited.x * inv * mag,
+    y: limited.y * inv * mag
+  };
 };
 
 export const mapUiOffsetToCueFrame = (
