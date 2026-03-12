@@ -1193,7 +1193,6 @@ export default function SnakeAndLadder() {
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const [cameraViewMode, setCameraViewMode] = useState('3d');
-  const [camera2dTilt, setCamera2dTilt] = useState(0.2);
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -3502,8 +3501,6 @@ export default function SnakeAndLadder() {
           appearanceKey={appearanceKey}
           frameRate={frameRateValue}
           cameraViewMode={cameraViewMode}
-          camera2dTilt={camera2dTilt}
-          onCameraTiltChange={setCamera2dTilt}
         />
       </div>
       <div
