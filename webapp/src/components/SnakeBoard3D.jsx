@@ -236,6 +236,7 @@ const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const BOARD_ROTATION_DRAG_SPEED = 0.0065;
+const CAMERA_EXTRA_LIFT = 0.12;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -1628,17 +1629,6 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   return { position, target };
 }
 
-function rotateCameraLookTarget(camera, controls, yawDelta) {
-  if (!camera || !controls || !Number.isFinite(yawDelta) || Math.abs(yawDelta) <= 1e-6) return;
-  const currentTarget = controls.target?.clone?.() ?? new THREE.Vector3();
-  const lookVector = currentTarget.sub(camera.position);
-  if (lookVector.lengthSq() <= 1e-6) return;
-  lookVector.applyAxisAngle(WORLD_UP, yawDelta);
-  controls.target.copy(camera.position.clone().add(lookVector));
-  camera.lookAt(controls.target);
-  controls.update();
-}
-
 function computeDiceCameraFocusState(board, camera) {
   if (!board || !camera) return null;
   const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
@@ -2563,7 +2553,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const cameraSeatAngle = Math.PI / 2;
   const cameraBackOffset = isPortrait ? 1.48 : 0.95;
   const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-  const cameraHeightOffset = isPortrait ? 1.64 : 1.23;
+  const cameraHeightOffset = (isPortrait ? 1.64 : 1.23) + CAMERA_EXTRA_LIFT;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
@@ -4091,7 +4081,9 @@ export default function SnakeBoard3D({
 
       if (cameraViewModeRef.current === '2d') return;
       if (absX < 0.25) return;
-      rotateCameraLookTarget(cameraRef.current, boardRef.current?.controls, deltaX * BOARD_ROTATION_DRAG_SPEED);
+      if (boardRotationRoot) {
+        boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
+      }
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
