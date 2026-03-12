@@ -236,6 +236,9 @@ const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const BOARD_ROTATION_DRAG_SPEED = 0.0065;
+const BOARD_ROTATION_MIN_VIEW_MODE = '3d';
+const CAMERA_3D_EXTRA_UP_TILT = 0.08;
+const CAMERA_3D_MIN_POLAR_ANGLE = Math.max(0.2, CAM.phiMin - CAMERA_3D_EXTRA_UP_TILT);
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -244,6 +247,8 @@ const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const TEMP_SEAT_VECTOR = new THREE.Vector3();
 const TEMP_NDC_VECTOR = new THREE.Vector3();
 const DICE_CENTER_VECTOR = new THREE.Vector3();
+const POINTER_NDC = new THREE.Vector2();
+const POINTER_RAYCASTER = new THREE.Raycaster();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
 const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
 
@@ -1628,6 +1633,11 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   return { position, target };
 }
 
+function rotateBoardYaw(boardRotationRoot, yawDelta) {
+  if (!boardRotationRoot || !Number.isFinite(yawDelta) || Math.abs(yawDelta) <= 1e-6) return;
+  boardRotationRoot.rotation.y += yawDelta;
+}
+
 function rotateCameraLookTarget(camera, controls, yawDelta) {
   if (!camera || !controls || !Number.isFinite(yawDelta) || Math.abs(yawDelta) <= 1e-6) return;
   const currentTarget = controls.target?.clone?.() ?? new THREE.Vector3();
@@ -1637,6 +1647,19 @@ function rotateCameraLookTarget(camera, controls, yawDelta) {
   controls.target.copy(camera.position.clone().add(lookVector));
   camera.lookAt(controls.target);
   controls.update();
+}
+
+function isPointerOnBoardSurface(event, rendererDomElement, camera, boardRoot) {
+  if (!event || !rendererDomElement || !camera || !boardRoot) return false;
+  const rect = rendererDomElement.getBoundingClientRect();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+  POINTER_NDC.set(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  POINTER_RAYCASTER.setFromCamera(POINTER_NDC, camera);
+  const intersections = POINTER_RAYCASTER.intersectObject(boardRoot, true);
+  return intersections.length > 0;
 }
 
 function computeDiceCameraFocusState(board, camera) {
@@ -2584,7 +2607,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
-  controls.minPolarAngle = CAM.phiMin;
+  controls.minPolarAngle = CAMERA_3D_MIN_POLAR_ANGLE;
   controls.maxPolarAngle = CAM.phiMax;
   controls.target.copy(boardLookTarget);
   controls.update();
@@ -3948,11 +3971,11 @@ export default function SnakeBoard3D({
       return;
     }
 
-    const desiredPolar = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, tiltRatio);
+    const desiredPolar = THREE.MathUtils.lerp(CAMERA_3D_MIN_POLAR_ANGLE, CAM.phiMax, tiltRatio);
     const offset = camera.position.clone().sub(controls.target);
     if (offset.lengthSq() > 0.000001) {
       const spherical = new THREE.Spherical().setFromVector3(offset);
-      spherical.phi = clamp(desiredPolar, CAM.phiMin, CAM.phiMax);
+      spherical.phi = clamp(desiredPolar, CAMERA_3D_MIN_POLAR_ANGLE, CAM.phiMax);
       offset.setFromSpherical(spherical);
       camera.position.copy(controls.target).add(offset);
       controls.update();
@@ -4062,13 +4085,19 @@ export default function SnakeBoard3D({
     const dragState = {
       pointerId: null,
       lastX: 0,
-      lastY: 0
+      lastY: 0,
+      mode: 'camera'
     };
     const onPointerDown = (event) => {
       if (event.button !== 0 && event.pointerType !== 'touch') return;
       dragState.pointerId = event.pointerId;
       dragState.lastX = event.clientX;
       dragState.lastY = event.clientY;
+      dragState.mode =
+        cameraViewModeRef.current === BOARD_ROTATION_MIN_VIEW_MODE &&
+        isPointerOnBoardSurface(event, renderer.domElement, cameraRef.current, boardRef.current?.root)
+          ? 'board'
+          : 'camera';
       renderer.domElement.setPointerCapture?.(event.pointerId);
     };
     const onPointerMove = (event) => {
@@ -4089,14 +4118,19 @@ export default function SnakeBoard3D({
         return;
       }
 
-      if (cameraViewModeRef.current === '2d') return;
+      if (cameraViewModeRef.current !== BOARD_ROTATION_MIN_VIEW_MODE) return;
       if (absX < 0.25) return;
-      rotateCameraLookTarget(cameraRef.current, boardRef.current?.controls, deltaX * BOARD_ROTATION_DRAG_SPEED);
+      if (dragState.mode === 'board') {
+        rotateBoardYaw(boardRotationRoot, deltaX * BOARD_ROTATION_DRAG_SPEED);
+      } else {
+        rotateCameraLookTarget(cameraRef.current, boardRef.current?.controls, deltaX * BOARD_ROTATION_DRAG_SPEED);
+      }
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
       dragState.pointerId = null;
+      dragState.mode = 'camera';
     };
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
