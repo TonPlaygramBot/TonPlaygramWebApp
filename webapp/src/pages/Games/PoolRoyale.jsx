@@ -29028,7 +29028,7 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
-            spin: physicsSpin,
+            spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength
