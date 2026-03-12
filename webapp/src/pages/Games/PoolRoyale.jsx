@@ -24994,7 +24994,15 @@ const powerRef = useRef(hud.power);
         );
         // Keep first-contact aiming locked to the visible guide line. Spin remains
         // active only for post-impact cue/target behavior.
-        const shotAimDir = aimDir.clone();
+        const shotAimDir = guideAimDir2D?.clone?.() ?? aimDir.clone();
+        if (shotAimDir.lengthSq() < 1e-6) {
+          shotAimDir.copy(aimDir);
+        }
+        if (shotAimDir.lengthSq() < 1e-6) {
+          shotAimDir.set(0, 1);
+        } else {
+          shotAimDir.normalize();
+        }
         const prediction = calcTarget(cue, shotAimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
