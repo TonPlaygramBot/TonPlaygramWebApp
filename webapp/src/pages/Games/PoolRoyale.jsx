@@ -1762,6 +1762,8 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
+const TOPSPIN_ROLL_BOOST = 1.35;
+const CUE_TOPSPIN_ROLL_BOOST = 3.4;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // mirror Snooker Royale cushion throw from side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
@@ -5919,6 +5921,13 @@ const resolveBackspinPreviewLerp = (backSpinWeight) => {
   return Math.min(1, Math.max(eased, minimum));
 };
 
+const resolveTopspinPreviewLerp = (topSpinWeight) => {
+  if (!Number.isFinite(topSpinWeight) || topSpinWeight <= 1e-4) return 0;
+  const eased = Math.min(1, Math.pow(topSpinWeight, 0.75));
+  const minimum = Math.min(0.24, topSpinWeight * 0.4 + 0.05);
+  return Math.min(1, Math.max(eased, minimum));
+};
+
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   if (!cueBall || !cueBall.pos) {
     return { blocked: false, reason: '' };
@@ -6833,6 +6842,10 @@ function applySpinController(ball, stepScale, airborne = false) {
       const backspinBoost =
         ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
       rollAccel *= backspinBoost;
+    } else if (forwardSpin > 0) {
+      const topspinBoost =
+        ball.id === 'cue' && ball.impacted ? CUE_TOPSPIN_ROLL_BOOST : TOPSPIN_ROLL_BOOST;
+      rollAccel *= topspinBoost;
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
@@ -7046,7 +7059,7 @@ function resolveCueFollowPreview({
   const backspinWeight = Math.max(0, -spinY);
   const topspinWeight = Math.max(0, spinY);
   const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
-  const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
+  const topspinLerp = resolveTopspinPreviewLerp(topspinWeight);
   const previewDir = spinAdjusted.clone();
   const backwards = aimVec.clone().multiplyScalar(-1);
   const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
@@ -7090,7 +7103,8 @@ function resolveCueFollowPreview({
     length *= 1 + backspinWeight * backBoost;
   }
   if (topspinWeight > 1e-4) {
-    length *= 1 + topspinWeight * 0.15 * power;
+    const topBoost = 0.4 + 0.6 * power;
+    length *= 1 + topspinWeight * topBoost;
   }
   return {
     dir: previewDir,
