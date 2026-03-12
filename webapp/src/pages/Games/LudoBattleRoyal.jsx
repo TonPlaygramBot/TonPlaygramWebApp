@@ -329,6 +329,7 @@ const AI_EXTRA_TURN_DELAY_MS = 1100;
 const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
+const TURN_CAMERA_SYNC_DURATION_MS = 520;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -2515,7 +2516,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     activePriority: -Infinity,
     followObject: null,
     followOffset: null,
-    baseTurnView: null
+    baseTurnView: null,
+    initialTurnView: null
   });
   const humanSelectionRef = useRef(null);
   const fitRef = useRef(() => {});
@@ -4437,6 +4439,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     fitRef.current = fit;
     fit();
+    cameraTurnStateRef.current.initialTurnView = {
+      position: camera.position.clone(),
+      target: controls.target.clone()
+    };
+    cameraTurnStateRef.current.baseTurnView = {
+      position: camera.position.clone(),
+      target: controls.target.clone()
+    };
     applyCameraViewMode(false);
 
     const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
@@ -5009,13 +5019,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (direction.lengthSq() < 1e-6) return null;
     direction.normalize();
 
-    const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-    if (isTopOrBottomSeat) {
-      const baseView = cameraTurnStateRef.current.baseTurnView;
-      if (!baseView) return null;
+    const viewState = cameraTurnStateRef.current;
+    const initialView = viewState.initialTurnView;
+    const baseView = viewState.baseTurnView ?? initialView;
+    if (!baseView) return null;
+
+    if (seatIndex === 0) {
       return {
-        position: baseView.position.clone(),
-        target: baseView.target.clone()
+        position: initialView?.position?.clone?.() ?? baseView.position.clone(),
+        target: initialView?.target?.clone?.() ?? baseView.target.clone()
+      };
+    }
+
+    if (seatIndex === 2) {
+      const mirroredPosition = baseView.position.clone();
+      mirroredPosition.x = boardLookTarget.x - (mirroredPosition.x - boardLookTarget.x);
+      mirroredPosition.z = boardLookTarget.z - (mirroredPosition.z - boardLookTarget.z);
+      return {
+        position: mirroredPosition,
+        target: target.clone()
       };
     }
 
@@ -5075,14 +5097,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
     cancelCameraViewAnimation();
     if (isCamera2d) return;
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    if (player === 0 && camera && controls) {
-      cameraTurnStateRef.current.baseTurnView = {
-        position: camera.position.clone(),
-        target: controls.target.clone()
-      };
-    }
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
     animateCameraPose(nextView.target, nextView.position, duration);
@@ -5421,7 +5435,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
       setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
-      setCameraViewForTurn(nextTurn);
+      setCameraViewForTurn(nextTurn, TURN_CAMERA_SYNC_DURATION_MS);
       updated = true;
       const status =
         nextTurn === 0
@@ -5639,6 +5653,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
     playDiceSound();
     const landingFocus = baseTarget.clone();
+    const turnCameraDuration = resolveFrameSyncedDuration(TURN_CAMERA_SYNC_DURATION_MS, { min: 260, max: 840 });
+    setCameraViewForTurn(player, turnCameraDuration);
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
       targetPosition: baseTarget,
