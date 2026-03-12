@@ -9,8 +9,9 @@ export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
-export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.012;
+export const CENTER_STUN_EPSILON = 0.003;
+export const MIN_DIRECTIONAL_SPIN = 0.012;
+export const SPIN_RESPONSE_CURVE = 1.35;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -137,16 +138,39 @@ export const computeQuantizedOffsetScaled = (
 };
 
 export const normalizeSpinInput = (spin) => {
-  let x = clamp(spin?.x ?? 0, -1, 1);
-  let y = clamp(spin?.y ?? 0, -1, 1);
-  const distance = Math.hypot(x, y);
-  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
-    if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
-      return { x: 0, y: 0 };
-    }
-    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
+  const clamped = clampToMaxOffset(
+    clamp(spin?.x ?? 0, -1, 1),
+    clamp(spin?.y ?? 0, -1, 1),
+    MAX_SPIN_OFFSET
+  );
+
+  const distance = Math.hypot(clamped.x, clamped.y);
+  if (distance <= CENTER_STUN_EPSILON) {
+    return { x: 0, y: 0 };
   }
-  return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+
+  const dirX = clamped.x / Math.max(distance, 1e-6);
+  const dirY = clamped.y / Math.max(distance, 1e-6);
+  const normalizedDistance = clamp(distance / MAX_SPIN_OFFSET, 0, 1);
+  const curvedDistance = Math.pow(normalizedDistance, SPIN_RESPONSE_CURVE);
+
+  const nearCenterBand = Math.max(SPIN_STUN_RADIUS - CENTER_STUN_EPSILON, 1e-6);
+  const nearCenterFactor = clamp(
+    (distance - CENTER_STUN_EPSILON) / nearCenterBand,
+    0,
+    1
+  );
+
+  const minDirectional = MIN_DIRECTIONAL_SPIN * nearCenterFactor;
+  const scaledMagnitude =
+    minDirectional +
+    (MAX_SPIN_OFFSET - minDirectional) * curvedDistance;
+  const magnitude = clamp(scaledMagnitude, 0, MAX_SPIN_OFFSET);
+
+  return {
+    x: dirX * magnitude,
+    y: dirY * magnitude
+  };
 };
 
 export const mapUiOffsetToCueFrame = (
