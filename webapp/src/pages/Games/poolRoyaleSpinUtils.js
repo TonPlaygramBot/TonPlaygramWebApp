@@ -140,14 +140,11 @@ export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
   const distance = Math.hypot(x, y);
-  if (distance <= STRAIGHT_SPIN_DEADZONE) {
-    return { x: 0, y: 0 };
-  }
-  if (distance <= SPIN_STUN_RADIUS) {
+  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
     if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
-      return { x, y: STUN_TOPSPIN_BIAS };
+      return { x: 0, y: 0 };
     }
-    return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
   }
   return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
 };
