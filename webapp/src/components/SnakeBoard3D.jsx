@@ -1608,13 +1608,6 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
     : Number(turnIndex);
   const seatIndex = Math.trunc(rawSeatIndex);
   if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
-  const startCameraState = board.startCameraState;
-  if (seatIndex === 0 && startCameraState?.position && startCameraState?.target) {
-    return {
-      position: startCameraState.position.clone(),
-      target: startCameraState.target.clone()
-    };
-  }
   const anchor = anchors[seatIndex];
   const boardLookTarget = board.boardLookTarget;
   if (!anchor || !boardLookTarget) return null;
@@ -1628,7 +1621,9 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
 
-  const position = startCameraState?.position?.clone() ?? camera.position.clone();
+  // Keep the camera exactly where the player left it (including manual zoom distance)
+  // and only rotate the look target for turn-focus cues.
+  const position = camera.position.clone();
 
   return { position, target };
 }
