@@ -12,9 +12,6 @@ export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const CENTER_STUN_RADIUS = 0.008;
 export const MIN_DIRECTIONAL_SPIN = 0.015;
-export const STUN_TOPSPIN_BIAS = -0.01;
-export const SPIN_RESPONSE_GAIN = 1.28;
-export const MAX_EFFECTIVE_SPIN = 0.95;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -146,7 +143,7 @@ export const normalizeSpinInput = (spin) => {
   const clamped = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
   const distance = Math.hypot(clamped.x, clamped.y);
   if (distance <= CENTER_STUN_RADIUS) {
-    return { x: 0, y: STUN_TOPSPIN_BIAS };
+    return { x: 0, y: 0 };
   }
 
   const blendDenominator = Math.max(1e-6, MAX_SPIN_OFFSET - CENTER_STUN_RADIUS);
@@ -157,15 +154,10 @@ export const normalizeSpinInput = (spin) => {
     (MAX_SPIN_OFFSET - MIN_DIRECTIONAL_SPIN) * easedBlend;
   const directionScale = 1 / Math.max(distance, 1e-6);
 
-  const scaled = {
+  return {
     x: clamped.x * directionScale * magnitude,
     y: clamped.y * directionScale * magnitude
   };
-  const gained = {
-    x: scaled.x * SPIN_RESPONSE_GAIN,
-    y: scaled.y * SPIN_RESPONSE_GAIN
-  };
-  return clampToMaxOffset(gained.x, gained.y, MAX_EFFECTIVE_SPIN);
 };
 
 export const mapUiOffsetToCueFrame = (
@@ -207,7 +199,7 @@ export const mapSpinForPhysics = (spin, options = {}) => {
   const quantized = normalizeSpinInput(adjusted);
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    quantized.x,
+    -quantized.x,
     quantized.y,
     cameraRight,
     cameraUp,
