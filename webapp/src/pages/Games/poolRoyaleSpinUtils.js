@@ -11,6 +11,12 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = -0.012;
+const SPIN_RESPONSE_GAMMA = 1.35;
+const SIDE_SPIN_POWER = 1.08;
+const TOP_BACK_POWER = 1.15;
+const SIDE_TO_FORWARD_LOSS = 0.22;
+const VERTICAL_TO_SIDE_LOSS = 0.18;
+const BACKSPIN_SIDE_DRAG = 0.12;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -187,10 +193,38 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     y: clamp(spin?.y ?? 0, -1, 1)
   };
   const quantized = normalizeSpinInput(adjusted);
+  const magnitude = Math.hypot(quantized.x, quantized.y);
+  if (magnitude <= 1e-6) {
+    return { x: 0, y: 0 };
+  }
+
+  // Real cue-tip strikes are non-linear: small offsets around center produce much
+  // softer spin while edge strikes accelerate quickly toward maximum rpm.
+  const normalizedMagnitude = clamp(magnitude / MAX_SPIN_OFFSET, 0, 1);
+  const responseMagnitude = Math.pow(normalizedMagnitude, SPIN_RESPONSE_GAMMA);
+  const scaled = {
+    x: (quantized.x / magnitude) * responseMagnitude * MAX_SPIN_OFFSET,
+    y: (quantized.y / magnitude) * responseMagnitude * MAX_SPIN_OFFSET
+  };
+
+  const sideBase = Math.sign(scaled.x) * Math.pow(Math.abs(scaled.x), SIDE_SPIN_POWER);
+  const forwardBase = Math.sign(scaled.y) * Math.pow(Math.abs(scaled.y), TOP_BACK_POWER);
+  const sidePenalty = clamp(1 - Math.abs(forwardBase) * VERTICAL_TO_SIDE_LOSS, 0.72, 1);
+  const forwardPenalty = clamp(1 - Math.abs(sideBase) * SIDE_TO_FORWARD_LOSS, 0.68, 1);
+
+  // Backspin carries a little extra cloth drag that weakens side-spin retention.
+  const backspinDrag = scaled.y < 0
+    ? clamp(1 - Math.abs(scaled.y) * BACKSPIN_SIDE_DRAG, 0.78, 1)
+    : 1;
+
+  const realisticOffset = {
+    x: sideBase * sidePenalty * backspinDrag,
+    y: forwardBase * forwardPenalty
+  };
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    -quantized.x,
-    quantized.y,
+    -realisticOffset.x,
+    realisticOffset.y,
     cameraRight,
     cameraUp,
     cueForward
