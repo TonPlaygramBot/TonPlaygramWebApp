@@ -102,10 +102,9 @@ import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.j
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   clampToUnitCircle,
-  computeQuantizedOffsetScaled,
+  mapRadialJoystickInput,
   mapSpinForPhysics,
   normalizeSpinInput,
-  smoothDamp,
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 import {
@@ -31274,18 +31273,9 @@ const powerRef = useRef(hud.power);
     let revertTimer = null;
     let activePointer = null;
     let moved = false;
-    let rafId = null;
-    let lastTime = null;
-    const spinState = {
-      current: { x: 0, y: 0 },
-      target: { x: 0, y: 0 },
-      velocity: { x: 0, y: 0 }
-    };
 
-    const SMOOTH_TIME = 0.085;
-    const MAX_SPEED = 6;
-    const MAX_STEP_SECONDS = 0.04;
-    const SETTLE_EPS = 0.0015;
+    const SPIN_STICK_DEADZONE = 0.085;
+    const SPIN_STICK_EXPONENT = 1.3;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -31341,20 +31331,7 @@ const powerRef = useRef(hud.power);
       updateSpinDotPosition(clamped, legality.blocked);
     };
 
-    const applySnapTarget = () => {
-      const snapped = computeQuantizedOffsetScaled(
-        spinState.target.x,
-        spinState.target.y
-      );
-      spinState.target = clampToPlayable(snapped.x, snapped.y);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
-    };
-
     const resetSpin = () => {
-      spinState.current = { x: 0, y: 0 };
-      spinState.target = { x: 0, y: 0 };
-      spinState.velocity = { x: 0, y: 0 };
       applySpin(0, 0);
     };
     resetSpin();
@@ -31364,11 +31341,13 @@ const powerRef = useRef(hud.power);
       const rect = box.getBoundingClientRect();
       const cx = clientX ?? rect.left + rect.width / 2;
       const cy = clientY ?? rect.top + rect.height / 2;
-      let nx = ((cx - rect.left) / rect.width) * 2 - 1;
-      let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      spinState.target = clampToPlayable(nx, ny);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
+      const nx = ((cx - rect.left) / rect.width) * 2 - 1;
+      const ny = -(((cy - rect.top) / rect.height) * 2 - 1);
+      const curved = mapRadialJoystickInput(nx, ny, {
+        deadzone: SPIN_STICK_DEADZONE,
+        exponent: SPIN_STICK_EXPONENT
+      });
+      applySpin(curved.x, curved.y);
     };
 
     const scaleBox = (value) => {
@@ -31392,59 +31371,6 @@ const powerRef = useRef(hud.power);
       }
     };
 
-    const startSpring = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(stepSpring);
-    };
-
-    const stepSpring = (timestamp) => {
-      if (!showSpinController) {
-        rafId = null;
-        return;
-      }
-      if (!lastTime) lastTime = timestamp;
-      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
-      lastTime = timestamp;
-      const { current, target, velocity } = spinState;
-      const nextX = smoothDamp(
-        current.x,
-        target.x,
-        velocity.x,
-        SMOOTH_TIME,
-        MAX_SPEED,
-        dt
-      );
-      const nextY = smoothDamp(
-        current.y,
-        target.y,
-        velocity.y,
-        SMOOTH_TIME,
-        MAX_SPEED,
-        dt
-      );
-      current.x = nextX.value;
-      current.y = nextY.value;
-      velocity.x = nextX.velocity;
-      velocity.y = nextY.velocity;
-      applySpin(current.x, current.y, { updateRequest: false });
-      const dx = target.x - current.x;
-      const dy = target.y - current.y;
-      const settled =
-        Math.abs(dx) < SETTLE_EPS &&
-        Math.abs(dy) < SETTLE_EPS &&
-        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
-      if (settled) {
-        spinState.current = { ...target };
-        spinState.velocity = { x: 0, y: 0 };
-      }
-      const shouldContinue = activePointer !== null || !settled;
-      if (shouldContinue) {
-        rafId = requestAnimationFrame(stepSpring);
-      } else {
-        rafId = null;
-        lastTime = null;
-      }
-    };
 
     const handlePointerDown = (e) => {
       if (activePointer !== null) releasePointer();
@@ -31475,7 +31401,6 @@ const powerRef = useRef(hud.power);
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
       finishInteraction(50);
-      applySnapTarget();
     };
 
     const handlePointerCancel = (e) => {
@@ -31483,7 +31408,6 @@ const powerRef = useRef(hud.power);
       releasePointer();
       clearTimer();
       scaleBox(1);
-      applySnapTarget();
     };
 
     if (showPlayerControls) {
@@ -31497,10 +31421,6 @@ const powerRef = useRef(hud.power);
       spinDotElRef.current = null;
       releasePointer();
       clearTimer();
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
