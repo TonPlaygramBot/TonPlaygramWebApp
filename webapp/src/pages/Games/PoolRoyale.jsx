@@ -1761,11 +1761,6 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const SPIN_CLOTH_LONGITUDINAL_GAIN = 1.45;
-const SPIN_CLOTH_LATERAL_GAIN = 0.42;
-const SPIN_CLOTH_FRICTION_MULTIPLIER = 0.92;
-const SPIN_CLOTH_CURVE_SPEED_FALLOFF = SHOT_BASE_SPEED * 0.72;
-const SPIN_POST_IMPACT_CURVE_SCALE = 1.22;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // mirror Snooker Royale cushion throw from side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
@@ -6830,44 +6825,16 @@ function applySpinController(ball, stepScale, airborne = false) {
   }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
-    const forwardSpin = ball.spin.y || 0;
-    const sideSpin = ball.spin.x || 0;
+    let forwardSpin = ball.spin.y || 0;
     const powerScale = resolveSpinPowerScale(speed);
-    const clothGrip =
-      SPIN_CLOTH_FRICTION_MULTIPLIER * PHYSICS_PROFILE.rollFriction * SPIN_GRAVITY;
-    let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale * clothGrip;
+    let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale;
     if (forwardSpin < 0) {
       const backspinBoost =
         ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
       rollAccel *= backspinBoost;
     }
-
-    // Professional cloth model: spin drives the cue ball toward pure rolling,
-    // so follow/draw are strongest when there is slip and naturally fade as slip closes.
-    if (Math.abs(forwardSpin) > 1e-8 || Math.abs(sideSpin) > 1e-8) {
-      const speedRef = Math.max(SHOT_BASE_SPEED, 1e-6);
-      const normalizedSpeed = clamp(speed / speedRef, 0, 1.5);
-      const longitudinalSlip =
-        forwardSpin * SPIN_CLOTH_LONGITUDINAL_GAIN - normalizedSpeed;
-      if (Math.abs(longitudinalSlip) > 1e-6) {
-        ball.vel.addScaledVector(forward, longitudinalSlip * rollAccel);
-      }
-
-      // Side spin keeps current controller directions but curves less at high speed,
-      // and curves more after first impact like real cue-ball running english.
-      if (Math.abs(sideSpin) > 1e-6) {
-        const lateral = TMP_VEC2_A.set(-forward.y, forward.x);
-        const speedFalloff = 1 / (1 + speed / Math.max(SPIN_CLOTH_CURVE_SPEED_FALLOFF, 1e-6));
-        const impactBoost =
-          ball.id === 'cue' && ball.impacted ? SPIN_POST_IMPACT_CURVE_SCALE : 1;
-        const sideCurve =
-          sideSpin *
-          SPIN_CLOTH_LATERAL_GAIN *
-          rollAccel *
-          speedFalloff *
-          impactBoost;
-        ball.vel.addScaledVector(lateral, sideCurve);
-      }
+    if (Math.abs(forwardSpin) > 1e-8) {
+      ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
     }
   }
   return decaySpin(ball, stepScale, airborne);
@@ -6878,6 +6845,7 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
+  const preImpactSpin = ball.spin.clone();
   const worldSpin = resolveSpinWorldVector(ball, TMP_VEC2_LIMIT);
   if (!worldSpin) return;
   const throwFactor = Math.max(
@@ -6889,19 +6857,7 @@ function applyRailSpinResponse(ball, impact) {
     const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
     ball.vel.addScaledVector(tangent, throwStrength);
   }
-  const spinAlongNormal = worldSpin.dot(normal);
-  if (Math.abs(spinAlongNormal) > 1e-6) {
-    const normalSpinKick = spinAlongNormal * RAIL_SPIN_THROW_SCALE * 0.28;
-    ball.vel.addScaledVector(normal, -normalSpinKick);
-  }
-  // Running/reverse english conversion on cushion contact.
-  // Keep UI directions identical while producing more life-like rebound spin states.
-  const reflectedWorldSpin = worldSpin
-    .clone()
-    .addScaledVector(normal, -(1 + RAIL_SPIN_NORMAL_FLIP) * spinAlongNormal);
-  const postSide = reflectedWorldSpin.dot(tangent);
-  const postForward = reflectedWorldSpin.dot(normal);
-  ball.spin.set(clamp(postSide, -1, 1), clamp(postForward, -1, 1));
+  ball.spin.copy(preImpactSpin);
   decaySpin(ball, 0.6, false);
 }
 
