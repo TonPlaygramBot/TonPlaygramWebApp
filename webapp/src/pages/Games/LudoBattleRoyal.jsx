@@ -374,6 +374,7 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
+const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.82,
   forwardOffset: 0.6,
@@ -5008,10 +5009,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const boardLookTarget = arena.boardLookTarget;
     const seatWorld = new THREE.Vector3();
     anchor.getWorldPosition(seatWorld);
-    const target = boardLookTarget.clone().lerp(seatWorld, CAMERA_TURN_PLAYER_LERP);
+    const target = boardLookTarget
+      .clone()
+      .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * CAMERA_BROADCAST_TARGET_BLEND);
     target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
-
-    const currentDistance = camera.position.distanceTo(boardLookTarget);
     const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
     if (direction.lengthSq() < 1e-6) return null;
     direction.normalize();
@@ -5021,7 +5022,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const baseView = cameraTurnStateRef.current.baseTurnView;
       if (!baseView) return null;
       return {
-        position: baseView.position.clone(),
+        position: camera.position.clone(),
         target: baseView.target.clone()
       };
     }
@@ -5036,10 +5037,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const orbitDirection = boardToCamera.lengthSq() > 1e-6
       ? boardToCamera.clone().lerp(desiredOrbitDirection, 0.8).normalize()
       : desiredOrbitDirection;
-    const position = target.clone().addScaledVector(orbitDirection, currentDistance);
-    position.y = camera.position.y;
+    if (!orbitDirection.lengthSq()) return null;
 
-    return { position, target };
+    return {
+      position: camera.position.clone(),
+      target
+    };
   }, []);
 
   const resolveFocusCameraState = useCallback((focusTarget, offset = CAMERA_TARGET_LIFT) => {
@@ -5047,16 +5050,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const arena = arenaRef.current;
     if (!camera || !arena?.boardLookTarget || !focusTarget?.isVector3) return null;
     const boardLookTarget = arena.boardLookTarget;
-    const target = focusTarget.clone();
+    const target = boardLookTarget.clone().lerp(focusTarget, CAMERA_BROADCAST_TARGET_BLEND);
     target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
 
-    const currentDistance = camera.position.distanceTo(boardLookTarget);
-    const direction = camera.position.clone().sub(boardLookTarget).setY(0);
-    if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-    direction.normalize();
-    const position = target.clone().addScaledVector(direction, currentDistance);
-    position.y = camera.position.y;
-    return { position, target };
+    return { position: camera.position.clone(), target };
   }, []);
 
   const resolveTurnLookTarget = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
@@ -5082,8 +5079,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
     cancelCameraViewAnimation();
     if (isCamera2d) return;
-    return;
-    // Keep the camera fixed in 3D mode (no turn-based camera moves).
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (player === 0) {
@@ -5117,8 +5112,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       const controls = controlsRef.current;
       if (!state || !controls || isCamera2d) return;
-      return;
-      // Keep the camera fixed in 3D mode (no gameplay-driven focus changes).
       const { object, target, follow = false, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
 
