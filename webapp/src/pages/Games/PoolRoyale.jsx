@@ -6958,8 +6958,8 @@ function resolvePowerLineColor(powerStrength) {
 }
 
 function resolveAimPreviewSpin(spin) {
-  const normalized = normalizeSpinInput(spin);
-  return { x: normalized?.x ?? 0, y: normalized?.y ?? 0 };
+  const mapped = mapSpinForPhysics(spin);
+  return { x: mapped?.x ?? 0, y: mapped?.y ?? 0 };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
