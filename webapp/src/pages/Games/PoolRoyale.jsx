@@ -1762,6 +1762,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
+const CUE_TOPSPIN_ROLL_BOOST = 2.6;
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // mirror Snooker Royale cushion throw from side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
@@ -6833,6 +6834,8 @@ function applySpinController(ball, stepScale, airborne = false) {
       const backspinBoost =
         ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
       rollAccel *= backspinBoost;
+    } else if (forwardSpin > 0 && ball.id === 'cue' && ball.impacted) {
+      rollAccel *= CUE_TOPSPIN_ROLL_BOOST;
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
@@ -7060,7 +7063,7 @@ function resolveCueFollowPreview({
     previewDir.lerp(backwards, drawBlend);
   } else if (topspinLerp > 1e-4) {
     const followBlend = THREE.MathUtils.clamp(
-      topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
+      topspinLerp * (1.05 + impactPower * 0.45) * (1 - cutPenalty * 0.35),
       0,
       1
     );
@@ -7078,6 +7081,17 @@ function resolveCueFollowPreview({
       previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
     }
   }
+  const physicsFollowInfluence = THREE.MathUtils.clamp(0.35 + impactPower * 0.45, 0.25, 0.9);
+  if (Math.abs(spinY) > 1e-4) {
+    previewDir.addScaledVector(aimVec, spinY * physicsFollowInfluence);
+  }
+  if (Math.abs(spinX) > 1e-4) {
+    const sideDir = new THREE.Vector3(-aimVec.z, 0, aimVec.x);
+    if (sideDir.lengthSq() > 1e-8) {
+      sideDir.normalize();
+      previewDir.addScaledVector(sideDir, spinX * physicsFollowInfluence * 0.6);
+    }
+  }
   if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
   const power = clampedPower;
   const cuePower = clampedCuePower;
@@ -7090,7 +7104,8 @@ function resolveCueFollowPreview({
     length *= 1 + backspinWeight * backBoost;
   }
   if (topspinWeight > 1e-4) {
-    length *= 1 + topspinWeight * 0.15 * power;
+    const topBoost = 0.45 + 0.65 * power;
+    length *= 1 + topspinWeight * topBoost;
   }
   return {
     dir: previewDir,
@@ -23296,11 +23311,13 @@ const powerRef = useRef(hud.power);
       }
 
       // Aiming visuals
-      const aimMat = new THREE.LineBasicMaterial({
-        color: 0xe8f6ff,
+      const aimMat = new THREE.LineDashedMaterial({
+        color: 0x9cecff,
         linewidth: AIM_LINE_WIDTH,
+        dashSize: BALL_R * 0.7,
+        gapSize: BALL_R * 0.35,
         transparent: true,
-        opacity: 0.58,
+        opacity: 0.72,
         depthTest: false,
         depthWrite: false
       });
@@ -23334,11 +23351,13 @@ const powerRef = useRef(hud.power);
       ]);
       const cueAfter = new THREE.Line(
         cueAfterGeom,
-        new THREE.LineBasicMaterial({
+        new THREE.LineDashedMaterial({
           color: 0x7ce7ff,
           linewidth: AIM_LINE_WIDTH,
+          dashSize: BALL_R * 0.58,
+          gapSize: BALL_R * 0.32,
           transparent: true,
-          opacity: 0.68,
+          opacity: 0.76,
           depthTest: false,
           depthWrite: false
         })
@@ -23384,11 +23403,13 @@ const powerRef = useRef(hud.power);
       ]);
       const target = new THREE.Line(
         targetGeom,
-        new THREE.LineBasicMaterial({
+        new THREE.LineDashedMaterial({
           color: 0xffe3a1,
           linewidth: AIM_LINE_WIDTH,
+          dashSize: BALL_R * 0.62,
+          gapSize: BALL_R * 0.38,
           transparent: true,
-          opacity: 0.72,
+          opacity: 0.82,
           depthTest: false,
           depthWrite: false
         })
@@ -28927,10 +28948,11 @@ const powerRef = useRef(hud.power);
             liftStrength
           );
           aimGeom.setFromPoints(aimPoints);
+          aim.computeLineDistances();
           aim.visible = true;
           const powerColor = resolvePowerLineColor(powerStrength);
           aimPower.material.color.copy(powerColor);
-          aimPower.material.opacity = 0.45 + 0.45 * powerStrength;
+          aimPower.material.opacity = 0.5 + 0.45 * powerStrength;
           aimPower.visible = updatePowerLinePoints(
             aimPowerGeom,
             start,
@@ -29222,7 +29244,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
             target.visible = true;
             targetPower.material.color.copy(resolvePowerLineColor(targetPowerStrength));
-            targetPower.material.opacity = 0.4 + 0.5 * targetPowerStrength;
+            targetPower.material.opacity = 0.46 + 0.5 * targetPowerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               targetStart,
@@ -29243,7 +29265,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.3 + 0.45 * powerStrength;
+            targetPower.material.opacity = 0.38 + 0.45 * powerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               end,
@@ -29322,12 +29344,13 @@ const powerRef = useRef(hud.power);
             remoteSwerveActive
           );
           aimGeom.setFromPoints(aimPoints);
+          aim.computeLineDistances();
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
           const powerColor = resolvePowerLineColor(powerStrength);
           aimPower.material.color.copy(powerColor);
-          aimPower.material.opacity = 0.45 + 0.45 * powerStrength;
+          aimPower.material.opacity = 0.5 + 0.45 * powerStrength;
           aimPower.visible = updatePowerLinePoints(
             aimPowerGeom,
             start,
@@ -29433,7 +29456,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
             target.visible = true;
             targetPower.material.color.copy(resolvePowerLineColor(targetPowerStrength));
-            targetPower.material.opacity = 0.4 + 0.5 * targetPowerStrength;
+            targetPower.material.opacity = 0.46 + 0.5 * targetPowerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               targetStart,
@@ -29454,7 +29477,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.3 + 0.45 * powerStrength;
+            targetPower.material.opacity = 0.38 + 0.45 * powerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               end,
