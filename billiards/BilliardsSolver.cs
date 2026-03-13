@@ -77,7 +77,7 @@ public class BilliardsSolver
         double sideJawInset = PhysicsConstants.SideJawInset;
         double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8) * PhysicsConstants.SideJawDepthScale;
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
-        double mouthGuardInset = Math.Max(0.0, PhysicsConstants.PocketMouthGuardInset);
+        double sideMouthGuardInset = Math.Max(0.0, PhysicsConstants.SidePocketMouthGuardInset);
 
         // Straight cushion spans (long rails)
         AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
@@ -169,47 +169,29 @@ public class BilliardsSolver
             new Vec2(width - sideJawInset, height / 2 + sideCut),
             new Vec2(-1, 0));
 
-        AddPocketMouthGuard(
-            new Vec2(cornerCut, 0),
-            new Vec2(0, cornerCut),
-            new Vec2(1, 1),
-            mouthGuardInset);
-        AddPocketMouthGuard(
-            new Vec2(width - cornerCut, 0),
-            new Vec2(width, cornerCut),
-            new Vec2(-1, 1),
-            mouthGuardInset);
-        AddPocketMouthGuard(
-            new Vec2(width, height - cornerCut),
-            new Vec2(width - cornerCut, height),
-            new Vec2(-1, -1),
-            mouthGuardInset);
-        AddPocketMouthGuard(
-            new Vec2(0, height - cornerCut),
-            new Vec2(cornerCut, height),
-            new Vec2(1, -1),
-            mouthGuardInset);
+        // Corner mouth helpers were causing double-contact anomalies between
+        // corner jaws and angle cuts, so keep corners on jaw/cut geometry only.
 
         AddPocketMouthGuard(
             new Vec2(width / 2 - sideCut, 0),
             new Vec2(width / 2 + sideCut, 0),
             new Vec2(0, 1),
-            mouthGuardInset);
+            sideMouthGuardInset);
         AddPocketMouthGuard(
             new Vec2(width / 2 - sideCut, height),
             new Vec2(width / 2 + sideCut, height),
             new Vec2(0, -1),
-            mouthGuardInset);
+            sideMouthGuardInset);
         AddPocketMouthGuard(
             new Vec2(0, height / 2 - sideCut),
             new Vec2(0, height / 2 + sideCut),
             new Vec2(1, 0),
-            mouthGuardInset);
+            sideMouthGuardInset);
         AddPocketMouthGuard(
             new Vec2(width, height / 2 - sideCut),
             new Vec2(width, height / 2 + sideCut),
             new Vec2(-1, 0),
-            mouthGuardInset);
+            sideMouthGuardInset);
 
         double baseCapture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
         double cornerCapture = Math.Max(PhysicsConstants.BallRadius * 1.05, baseCapture * cornerScale);
