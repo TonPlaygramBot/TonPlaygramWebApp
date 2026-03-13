@@ -363,6 +363,7 @@ public class BilliardsSolver
         public Vec2 Point;
         public Vec2 CueVelocity;
         public Vec2? TargetVelocity;
+        public double TargetThrowAngleDeg;
     }
 
     /// <summary>Integrates positions and handles cushion reflections for one step.</summary>
@@ -714,8 +715,14 @@ public class BilliardsSolver
                     if (t <= dt)
                     {
                         cue.Position += cue.Velocity * t;
-                        Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
-                        impact = new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
+                        ResolveBallBallWithSpin(cue, b, out var cuePost, out var targetPost, out var throwAngleDeg);
+                        impact = new Impact
+                        {
+                            Point = cue.Position,
+                            CueVelocity = cuePost,
+                            TargetVelocity = targetPost,
+                            TargetThrowAngleDeg = throwAngleDeg
+                        };
                         return true;
                     }
                 }
@@ -773,6 +780,44 @@ public class BilliardsSolver
 
         impact = new Impact();
         return false;
+    }
+
+    private static void ResolveBallBallWithSpin(Ball cue, Ball target, out Vec2 cuePost, out Vec2 targetPost, out double throwAngleDeg)
+    {
+        Collision.ResolveBallBall(cue.Position, cue.Velocity, target.Position, target.Velocity, out cuePost, out targetPost);
+
+        throwAngleDeg = 0;
+        var targetSpeed = targetPost.Length;
+        if (targetSpeed < PhysicsConstants.Epsilon)
+            return;
+
+        var normal = (target.Position - cue.Position).Normalized();
+        if (normal.Length < PhysicsConstants.Epsilon)
+            return;
+
+        double normalizedSide = Math.Clamp(cue.SideSpin / PhysicsConstants.MaxTipOffsetRatio, -1.0, 1.0);
+        double normalizedForward = Math.Clamp(cue.ForwardSpin / PhysicsConstants.MaxTipOffsetRatio, -1.0, 1.0);
+        double throwScale = Math.Clamp(
+            normalizedSide * PhysicsConstants.SpinThrowSideFactor
+            + normalizedForward * PhysicsConstants.SpinThrowForwardFactor,
+            -1.0,
+            1.0);
+
+        double throwAngleRad = (PhysicsConstants.SpinThrowMaxAngleDeg * throwScale) * Math.PI / 180.0;
+        throwAngleDeg = throwAngleRad * 180.0 / Math.PI;
+        if (Math.Abs(throwAngleRad) < PhysicsConstants.Epsilon)
+            return;
+
+        double cos = Math.Cos(throwAngleRad);
+        double sin = Math.Sin(throwAngleRad);
+        Vec2 rotatedTargetDir = new Vec2(
+            normal.X * cos - normal.Y * sin,
+            normal.X * sin + normal.Y * cos);
+        targetPost = rotatedTargetDir.Normalized() * targetSpeed;
+
+        // cue ball receives opposite tangent component to preserve a believable split.
+        var tangent = new Vec2(-normal.Y, normal.X);
+        cuePost += tangent * (-throwScale) * targetSpeed * PhysicsConstants.SpinCueDeflectionFactor;
     }
 
     private static void AppendPathPoint(List<Vec2> path, Vec2 point, ref Vec2 lastSample, bool force)
