@@ -27980,8 +27980,70 @@ const powerRef = useRef(hud.power);
           }
           trainingOutOfAttempts = remainingTrainingShots <= 0;
         }
-        // Preserve variant rule outcomes for turn handling (8-ball / 9-ball) as returned by PoolRoyaleRules.
-        // Do not override break, foul, or scratch turn transitions here.
+        const shooterPlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
+        const otherPlayer = shooterPlayer === 'B' ? 'A' : 'B';
+        const safeMetaState =
+          safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
+        const currentMetaState =
+          currentState && typeof currentState.meta === 'object' ? currentState.meta.state : null;
+        const openingBreakInProgress =
+          Boolean(safeMetaState?.breakInProgress || currentMetaState?.breakInProgress) ||
+          (currentState?.currentBreak ?? 0) === 0;
+        if (!isTraining && openingBreakInProgress && !cueBallPotted && !safeState?.foul) {
+          const breakPotCount = potted.filter(
+            (entry) => String(entry?.id || '').toLowerCase() !== 'cue'
+          ).length;
+          const breakNextPlayer = breakPotCount > 0 ? shooterPlayer : otherPlayer;
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: breakNextPlayer,
+              ballInHand: false
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: breakNextPlayer,
+            meta: nextMeta ?? safeState.meta
+          };
+        }
+        if (!isTraining && cueBallPotted) {
+          const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: nextPlayer,
+              ballInHand: true
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: nextPlayer,
+            foul: safeState?.foul ?? { points: 0, reason: 'scratch' },
+            meta: nextMeta ?? safeState.meta
+          };
+        }
+        if (!isTraining && safeState?.foul) {
+          const foulNextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: foulNextPlayer,
+              ballInHand: true
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: foulNextPlayer,
+            meta: nextMeta ?? safeState.meta
+          };
+        }
         if (shotRecording) {
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
