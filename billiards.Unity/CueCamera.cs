@@ -193,6 +193,9 @@ public class CueCamera : MonoBehaviour
     public float pocketCameraMiddleZone = 0.32f;
     // Radius around each corner pocket used to start the dedicated pocket camera.
     public float cornerPocketCameraRadius = 0.24f;
+    // Extra trigger radius while the object ball is travelling so we can cut to
+    // the pocket camera before the ball reaches the jaw and gets potted.
+    public float cornerPocketApproachRadius = 0.1f;
     // Depth below the rail lip that counts as the ball having dropped into the
     // pocket before we cut back to the rail broadcast view.
     public float pocketDropDepth = 0.05f;
@@ -727,9 +730,18 @@ public class CueCamera : MonoBehaviour
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
         Vector3 cornerPocket;
+        float dynamicPocketRadius = Mathf.Max(0.01f, cornerPocketCameraRadius);
+        if (TargetBall != null)
+        {
+            Rigidbody targetRb = TargetBall.GetComponent<Rigidbody>();
+            if (targetRb != null && targetRb.velocity.sqrMagnitude > velocityThreshold)
+            {
+                dynamicPocketRadius += Mathf.Max(0f, cornerPocketApproachRadius);
+            }
+        }
         bool shouldUsePocketCamera = TargetBall != null
             && TargetBall.gameObject.activeInHierarchy
-            && TryGetCornerPocketForBall(TargetBall.position, out cornerPocket);
+            && TryGetCornerPocketForBall(TargetBall.position, dynamicPocketRadius, out cornerPocket);
         if (shouldUsePocketCamera)
         {
             usingTargetCamera = true;
@@ -1369,10 +1381,10 @@ public class CueCamera : MonoBehaviour
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
     }
 
-    private bool TryGetCornerPocketForBall(Vector3 ballPosition, out Vector3 pocket)
+    private bool TryGetCornerPocketForBall(Vector3 ballPosition, float triggerRadius, out Vector3 pocket)
     {
         pocket = Vector3.zero;
-        float radius = Mathf.Max(0.01f, cornerPocketCameraRadius);
+        float radius = Mathf.Max(0.01f, triggerRadius);
         float radiusSq = radius * radius;
 
         Vector3 min = tableBounds.min;
