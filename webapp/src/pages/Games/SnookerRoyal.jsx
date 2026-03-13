@@ -1613,15 +1613,13 @@ const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
-const CUE_PULL_DISTANCE_SCALE = 0.5;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
-const CUE_PULL_RETURN_PUSH = 0.97; // push the cue forward to contact more decisively after pullback
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -19175,19 +19173,7 @@ const powerRef = useRef(hud.power);
               x: 0,
               y: 0
             };
-            const viewClamped = clampSpinToVisibleHemisphere(
-              requested,
-              aimVec,
-              cueBall,
-              activeCamera
-            );
-            if (
-              viewClamped.x !== requested.x ||
-              viewClamped.y !== requested.y
-            ) {
-              spinRequestRef.current = { ...viewClamped };
-            }
-            legality = checkSpinLegality2D(cueBall, viewClamped, ballsList, {
+            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
               axes,
               view: viewVec
                 ? { x: viewVec.x, y: viewVec.y }
@@ -21432,7 +21418,7 @@ const powerRef = useRef(hud.power);
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
-        { instant = false, preserveLarger = false, smoothingOverride = null } = {}
+        { instant = false, preserveLarger = false } = {}
       ) => {
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
@@ -21443,27 +21429,11 @@ const powerRef = useRef(hud.power);
           : pullTarget ?? 0;
         const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
         const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
-        const smoothing = instant || dragging
-          ? 1
-          : Number.isFinite(smoothingOverride)
-            ? THREE.MathUtils.clamp(smoothingOverride, 0.04, 1)
-            : CUE_PULL_SMOOTHING;
-        const isReturning =
-          !dragging &&
-          !instant &&
-          clampedTarget <= 0 &&
-          (cuePullCurrentRef.current ?? 0) > 0;
-        const returnSmoothing = isReturning
-          ? Math.max(smoothing, CUE_PULL_RETURN_PUSH)
-          : smoothing;
+        const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
-          returnSmoothing >= 1
+          smoothing >= 1
             ? clampedTarget
-            : THREE.MathUtils.lerp(
-                cuePullCurrentRef.current ?? 0,
-                clampedTarget,
-                returnSmoothing
-              );
+            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
         cuePullTargetRef.current = clampedTarget;
         cuePullCurrentRef.current = nextPull;
         return nextPull;
@@ -21508,8 +21478,8 @@ const powerRef = useRef(hud.power);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const pullVisualScale = amplifiedMax * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
-        const target = Math.max(CUE_LOGIC_PULL_EASE_RANGE * easedRatio, pullVisualScale * easedRatio);
+        const logicTarget = CUE_LOGIC_PULL_EASE_RANGE * easedRatio;
+        const target = Math.max(logicTarget, amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER);
         return Math.min(target, visualMax);
       };
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
