@@ -25180,12 +25180,13 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          applyShotAtImpact({
+          const shotImpactPayload = {
             base,
             aimDir: shotAimDir,
             physicsSpin,
-            clampedPower
-          });
+            clampedPower,
+            applied: false
+          };
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25439,12 +25440,15 @@ const powerRef = useRef(hud.power);
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
               strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
+              shotApplied: false,
+              onImpact: () => applyShotAtImpact(shotImpactPayload),
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
             };
           } else {
+            applyShotAtImpact(shotImpactPayload);
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
