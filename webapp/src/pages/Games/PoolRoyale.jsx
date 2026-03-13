@@ -6647,37 +6647,6 @@ function reflectRails(ball) {
       ball.lastRailHitType = bestImpact.type;
       return { ...bestImpact, preImpactVel };
     }
-    for (let i = 0; i < centers.length; i++) {
-      const center = centers[i];
-      if (!center) continue;
-      const captureRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
-      const jawBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-      const jawRadius = jawBaseRadius * POCKET_VISUAL_EXPANSION;
-      TMP_VEC2_A.copy(ball.pos).sub(center);
-      const distSq = TMP_VEC2_A.lengthSq();
-      if (distSq <= 1e-10) continue;
-      const dist = Math.sqrt(distSq);
-      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
-      TMP_VEC2_A.multiplyScalar(1 / dist);
-      const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      if (velocityToward <= 0) continue;
-      const penetration = jawRadius + railRadius - dist;
-      if (penetration <= 0) continue;
-      ball.pos.addScaledVector(TMP_VEC2_A, penetration);
-      preImpactVel = ball.vel.clone();
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'jaw';
-      return {
-        type: 'jaw',
-        normal: TMP_VEC2_A.clone(),
-        tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
-      };
-    }
     const boundaryFallback = resolveBoundaryFallback();
     if (boundaryFallback) return boundaryFallback;
   }
@@ -29189,8 +29158,19 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const tDir =
+            const baseTargetDir =
               rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : dir.clone();
+            const spinAdjustedTargetDir = resolveTargetSpinDeflection(
+              baseTargetDir,
+              cueFollowPreview?.dir ?? dir,
+              aimPreviewSpin,
+              targetPowerStrength,
+              liftStrength
+            );
+            const tDir =
+              spinAdjustedTargetDir && spinAdjustedTargetDir.lengthSq() > 1e-8
+                ? spinAdjustedTargetDir.normalize()
+                : baseTargetDir;
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
@@ -29401,8 +29381,19 @@ const powerRef = useRef(hud.power);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + targetPowerStrength * 22);
             const rawTargetDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
-            const tDir =
+            const baseTargetDir =
               rawTargetDir.lengthSq() > 1e-8 ? rawTargetDir.normalize() : baseDir.clone();
+            const spinAdjustedTargetDir = resolveTargetSpinDeflection(
+              baseTargetDir,
+              cueFollowPreview?.dir ?? baseDir,
+              aimPreviewSpin,
+              targetPowerStrength,
+              0
+            );
+            const tDir =
+              spinAdjustedTargetDir && spinAdjustedTargetDir.lengthSq() > 1e-8
+                ? spinAdjustedTargetDir.normalize()
+                : baseTargetDir;
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
               BALL_CENTER_Y,
