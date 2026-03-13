@@ -24851,7 +24851,7 @@ const powerRef = useRef(hud.power);
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
-        const { base, aimDir, physicsSpin, clampedPower, liftStrength } = payload;
+        const { base, aimDir, physicsSpin, clampedPower } = payload;
         const offsetScaled = {
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
@@ -24871,6 +24871,12 @@ const powerRef = useRef(hud.power);
         if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
         const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
         if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
+        // Unity-style cue strike transfer:
+        // 1) linear impulse from cue direction and shot speed
+        // 2) angular impulse from cue-tip offset (r x J)
+        // This keeps the current on-screen spin controller while moving the
+        // shot model to the same rigidbody pattern used by open-source Unity
+        // pool projects.
         const rOffset = TMP_VEC3_E
           .copy(sideAxis)
           .multiplyScalar(offsetScaled.x * BALL_R)
@@ -25174,33 +25180,13 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
+          const shotImpactPayload = {
+            base,
+            aimDir: shotAimDir,
+            physicsSpin,
+            clampedPower,
+            applied: false
+          };
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25299,6 +25285,24 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
+          const impactThreshold = THREE.MathUtils.clamp(
+            strokeProfile.impactThreshold ?? 0.9,
+            0,
+            1
+          );
+          const expectedImpactTime =
+            startTime +
+            Math.max(0, pullbackDuration) +
+            Math.max(1, strikeDuration) *
+              (strokeProfile.forwardOnly ? impactThreshold : 1);
+          const triggerShotImpact = () => {
+            applyShotAtImpact(shotImpactPayload);
+            pendingImpactRef.current = null;
+          };
+          pendingImpactRef.current = {
+            time: expectedImpactTime,
+            apply: triggerShotImpact
+          };
           const impactPos = idlePos.clone();
           // Match the reference cue-stick behavior for spin:
           // topspin adds a tiny forward follow-through after contact,
@@ -25457,14 +25461,18 @@ const powerRef = useRef(hud.power);
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: true,
+              onImpact: triggerShotImpact,
+              shotApplied: false
             };
           } else {
+            triggerShotImpact();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
+            pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
