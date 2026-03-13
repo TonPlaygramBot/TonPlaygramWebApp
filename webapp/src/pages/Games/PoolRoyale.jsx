@@ -6638,12 +6638,20 @@ function reflectRails(ball) {
     const pocketGuardClearance =
       nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
     const inGuardZone = nearestPocketDist < pocketGuardClearance;
+    const nearestPocketIsCorner = nearestPocketIndex < 4;
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
       if (nearPocket && segment.type === 'rail') continue;
-      if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
+      if (
+        inCaptureZone &&
+        inGuardZone &&
+        segment.type === 'cut' &&
+        !nearestPocketIsCorner
+      ) {
+        continue;
+      }
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
@@ -18980,6 +18988,39 @@ const powerRef = useRef(hud.power);
           };
         };
 
+        const maybeForceCornerPocketView = (ball) => {
+          if (!ball?.active) return;
+          TMP_VEC2_VIEW.set(ball.vel?.x ?? 0, ball.vel?.y ?? 0);
+          if (TMP_VEC2_VIEW.lengthSq() < 1e-6 && ball.launchDir) {
+            TMP_VEC2_VIEW.copy(ball.launchDir);
+          }
+          if (TMP_VEC2_VIEW.lengthSq() < 1e-6) return;
+          const speed = TMP_VEC2_VIEW.length();
+          if (speed < STOP_EPS) return;
+          const nearestCorner = findNearestCornerPocketAlongDirection(ball.pos, TMP_VEC2_VIEW);
+          const pocketId = nearestCorner?.pocketId;
+          const pocketCenter = nearestCorner?.pocketCenter;
+          if (!pocketId || !pocketCenter) return;
+          const toPocket = pocketCenter.clone().sub(ball.pos);
+          const distance = toPocket.length();
+          if (!Number.isFinite(distance) || distance <= 0 || distance > POCKET_CAM_EARLY_TRIGGER_DIST) return;
+          toPocket.normalize();
+          const toward = TMP_VEC2_VIEW.clone().normalize().dot(toPocket);
+          if (toward < 0.8) return;
+          const now = performance.now();
+          const currentIntent = pocketSwitchIntentRef.current;
+          if (currentIntent?.ballId === ball.id && currentIntent.preferredPocketId === pocketId) {
+            return;
+          }
+          pocketSwitchIntentRef.current = {
+            ballId: ball.id,
+            forced: true,
+            allowEarly: true,
+            preferredPocketId: pocketId,
+            createdAt: now
+          };
+        };
+
         const getMaxOrbitRadius = () =>
           topViewRef.current
             ? CAMERA.maxR
@@ -26744,8 +26785,8 @@ const powerRef = useRef(hud.power);
           const sideSpin = decision.spin?.side ?? 0;
           const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
           const spin = {
-            x: THREE.MathUtils.clamp(sideSpin, -0.6, 0.6),
-            y: THREE.MathUtils.clamp(verticalSpin, -0.6, 0.6)
+            x: THREE.MathUtils.clamp(sideSpin, -0.85, 0.85),
+            y: THREE.MathUtils.clamp(verticalSpin, -0.85, 0.85)
           };
           const quality = Number.isFinite(decision.quality) ? decision.quality : 0;
           const isSafety =
@@ -29950,6 +29991,7 @@ const powerRef = useRef(hud.power);
             if (activeShotView.axis === 'short') {
               maybeForceShortRailPocketView(cueBall);
             }
+            maybeForceCornerPocketView(cueBall);
             if (cueBall.vel.lengthSq() > 1e-6) {
               activeShotView.lastCueDir = cueBall.vel.clone().normalize();
             }
@@ -29960,6 +30002,9 @@ const powerRef = useRef(hud.power);
                   : null;
               if (activeShotView.axis === 'short' && targetBall) {
                 maybeForceShortRailPocketView(targetBall);
+              }
+              if (targetBall) {
+                maybeForceCornerPocketView(targetBall);
               }
               if (!targetBall?.active) {
                 activeShotView.exitAfterHold = true;
@@ -30069,6 +30114,9 @@ const powerRef = useRef(hud.power);
             const movingBalls = ballsList.filter(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
+            movingBalls.forEach((ball) => {
+              maybeForceCornerPocketView(ball);
+            });
             const movingCount = movingBalls.length;
             const lastPocketBall = lastPocketBallRef.current;
             let bestPocketView = null;
@@ -30289,7 +30337,6 @@ const powerRef = useRef(hud.power);
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
                 const shouldForceCornerPocketView =
-                  !suppressPocketCameras &&
                   !topViewRef.current &&
                   pocketIndex < 4;
                 if (shouldForceCornerPocketView) {
@@ -30477,7 +30524,6 @@ const powerRef = useRef(hud.power);
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
               const shouldForceCornerPocketView =
-                !suppressPocketCameras &&
                 !topViewRef.current &&
                 pocketIndex < 4;
               if (shouldForceCornerPocketView) {
