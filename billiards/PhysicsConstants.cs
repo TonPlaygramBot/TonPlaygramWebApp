@@ -53,10 +53,10 @@ public static class PhysicsConstants
     public const double CornerPocketMouth = 0.1014984; // scaled with table reduction
     public const double SidePocketMouth = 0.1116013;    // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
-    public const double CornerPocketScale = 0.965;      // slightly tighten corner pocket/cutout radius
-    public const double PocketAngleCutScale = 1.035;    // extend angle cut slightly for truer mouth mapping
-    public const double CornerJawRadiusScale = 0.94;
-    public const double CornerJawInset = 0.006;
+    public const double CornerPocketScale = 0.985;      // align corner acceptance closer to side-pocket behaviour
+    public const double PocketAngleCutScale = 1.0;      // keep corner angle-cut neutral to avoid over-snapping
+    public const double CornerJawRadiusScale = 0.98;    // round corner jaws so cut shots deflect more naturally
+    public const double CornerJawInset = 0.004;
     public const double SideJawInset = 0.006;
     public const double SideJawDepthScale = 1.08;
     // Shift the pocket capture center outward for the chrome plate cut.
