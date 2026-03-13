@@ -25180,13 +25180,12 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          const shotImpactPayload = {
+          applyShotAtImpact({
             base,
             aimDir: shotAimDir,
             physicsSpin,
-            clampedPower,
-            applied: false
-          };
+            clampedPower
+          });
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25285,24 +25284,6 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          const impactThreshold = THREE.MathUtils.clamp(
-            strokeProfile.impactThreshold ?? 0.9,
-            0,
-            1
-          );
-          const expectedImpactTime =
-            startTime +
-            Math.max(0, pullbackDuration) +
-            Math.max(1, strikeDuration) *
-              (strokeProfile.forwardOnly ? impactThreshold : 1);
-          const triggerShotImpact = () => {
-            applyShotAtImpact(shotImpactPayload);
-            pendingImpactRef.current = null;
-          };
-          pendingImpactRef.current = {
-            time: expectedImpactTime,
-            apply: triggerShotImpact
-          };
           const impactPos = idlePos.clone();
           // Match the reference cue-stick behavior for spin:
           // topspin adds a tiny forward follow-through after contact,
@@ -25461,18 +25442,14 @@ const powerRef = useRef(hud.power);
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true,
-              onImpact: triggerShotImpact,
-              shotApplied: false
+              releaseStartsFromCurrentPull: true
             };
           } else {
-            triggerShotImpact();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
-            pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
