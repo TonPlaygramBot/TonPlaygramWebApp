@@ -1514,6 +1514,9 @@ const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_GLOBAL_SCALE = 0.66; // increase overall spin impact by 10%
+const CUE_LOGIC_STRIKE_TIME_MS = 120;
+const CUE_LOGIC_HOLD_TIME_MS = 50;
+const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -18719,7 +18722,7 @@ const powerRef = useRef(hud.power);
                 );
                 cueStick.position.lerpVectors(impactPos, idlePos, easeInOutQuad(t));
               } else {
-                cueStick.position.copy(idlePos);
+                cueStick.position.copy(pullPos);
               }
             }
             return;
@@ -21471,10 +21474,12 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+        const easedRatio = 1 - Math.pow(1 - ratio, 3);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER;
+        const logicTarget = CUE_LOGIC_PULL_EASE_RANGE * easedRatio;
+        const target = Math.max(logicTarget, amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER);
         return Math.min(target, visualMax);
       };
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -21937,17 +21942,8 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-          const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const forwardDuration = isAiStroke
-            ? AI_CUE_FORWARD_DURATION_MS
-            : THREE.MathUtils.lerp(
-                PLAYER_CUE_FORWARD_MAX_MS,
-                PLAYER_CUE_FORWARD_MIN_MS,
-                forwardBlend
-              );
-          const pullbackDuration = isAiStroke
-            ? AI_CUE_PULLBACK_DURATION_MS
-            : Math.max(120, forwardDuration * 0.65);
+          const forwardDuration = CUE_LOGIC_STRIKE_TIME_MS;
+          const pullbackDuration = 0;
           const followThroughBase = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
             CUE_FOLLOW_THROUGH_MAX,
@@ -21960,19 +21956,8 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_THROUGH_MAX
           );
           const impactPos = buildCuePosition(-followThrough);
-          const settlePos = buildCuePosition(-followThrough * 0.45);
-          const followSpeed = THREE.MathUtils.lerp(
-            CUE_FOLLOW_SPEED_MIN,
-            CUE_FOLLOW_SPEED_MAX,
-            powerStrength
-          );
-          const settleDuration = isAiStroke
-            ? 120
-            : THREE.MathUtils.clamp(
-                (followThrough / Math.max(followSpeed, 1e-6)) * 1000,
-                CUE_FOLLOW_MIN_MS,
-                CUE_FOLLOW_MAX_MS
-              );
+          const settlePos = impactPos.clone();
+          const settleDuration = CUE_LOGIC_HOLD_TIME_MS;
           cueStick.visible = true;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
@@ -22041,24 +22026,14 @@ const powerRef = useRef(hud.power);
               cuePullTargetRef.current = 0;
               return;
             }
-            if (now <= pullEndTime) {
-              const t = pullbackDuration > 0
-                ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1)
-                : 1;
-              const eased = easeInOutQuad(t);
-              cueStick.position.lerpVectors(idlePos, pullPos, eased);
-            } else if (now <= impactTime) {
+            if (now <= impactTime) {
               const t = forwardDuration > 0
-                ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1)
+                ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1)
                 : 1;
-              const eased = easeOutQuad(t);
+              const eased = easeOutCubic(t);
               cueStick.position.lerpVectors(pullPos, impactPos, eased);
             } else if (now <= settleTime) {
-              const t = settleDuration > 0
-                ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1)
-                : 1;
-              const eased = easeOutQuad(t);
-              cueStick.position.lerpVectors(impactPos, settlePos, eased);
+              cueStick.position.copy(settlePos);
             } else {
               cueStick.visible = false;
               cueAnimating = false;
@@ -26215,12 +26190,19 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-      fireRef.current?.();
-      requestAnimationFrame(() => {
-        slider.set(slider.min, { animate: true });
-        applyPower(0);
-      });
+      onCommit: (value) => {
+        const releasedPower = clamp((value ?? 0) / 100, 0, 1);
+        fireRef.current?.();
+        const start = performance.now();
+        const from = releasedPower;
+        const tick = () => {
+          const t = clamp((performance.now() - start) / 160, 0, 1);
+          const next = THREE.MathUtils.lerp(from, 0, 1 - Math.pow(1 - t, 3));
+          slider.set(next * 100, { animate: false });
+          applyPower(next);
+          if (t < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
       }
     });
     sliderInstanceRef.current = slider;
@@ -26269,18 +26251,6 @@ const powerRef = useRef(hud.power);
     let revertTimer = null;
     let activePointer = null;
     let moved = false;
-    let rafId = null;
-    let lastTime = null;
-    const spinState = {
-      current: { x: 0, y: 0 },
-      target: { x: 0, y: 0 },
-      velocity: { x: 0, y: 0 }
-    };
-
-    const SMOOTH_TIME = 0.085;
-    const MAX_SPEED = 6;
-    const MAX_STEP_SECONDS = 0.04;
-    const SETTLE_EPS = 0.0015;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -26336,20 +26306,7 @@ const powerRef = useRef(hud.power);
       updateSpinDotPosition(clamped, legality.blocked);
     };
 
-    const applySnapTarget = () => {
-      const snapped = computeQuantizedOffsetScaled(
-        spinState.target.x,
-        spinState.target.y
-      );
-      spinState.target = clampToPlayable(snapped.x, snapped.y);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
-    };
-
     const resetSpin = () => {
-      spinState.current = { x: 0, y: 0 };
-      spinState.target = { x: 0, y: 0 };
-      spinState.velocity = { x: 0, y: 0 };
       applySpin(0, 0);
     };
     resetSpin();
@@ -26359,11 +26316,10 @@ const powerRef = useRef(hud.power);
       const rect = box.getBoundingClientRect();
       const cx = clientX ?? rect.left + rect.width / 2;
       const cy = clientY ?? rect.top + rect.height / 2;
-      let nx = ((cx - rect.left) / rect.width) * 2 - 1;
-      let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      spinState.target = clampToPlayable(nx, ny);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
+      const nx = ((cx - rect.left) / rect.width) * 2 - 1;
+      const ny = ((cy - rect.top) / rect.height) * 2 - 1;
+      const clamped = clampToPlayable(nx, -ny);
+      applySpin(clamped.x, clamped.y);
     };
 
     const scaleBox = (value) => {
@@ -26384,60 +26340,6 @@ const powerRef = useRef(hud.power);
           box.releasePointerCapture(activePointer);
         } catch {}
         activePointer = null;
-      }
-    };
-
-    const startSpring = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(stepSpring);
-    };
-
-    const stepSpring = (timestamp) => {
-      if (!showSpinController) {
-        rafId = null;
-        return;
-      }
-      if (!lastTime) lastTime = timestamp;
-      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
-      lastTime = timestamp;
-      const { current, target, velocity } = spinState;
-      const nextX = smoothDamp(
-        current.x,
-        target.x,
-        velocity.x,
-        SMOOTH_TIME,
-        MAX_SPEED,
-        dt
-      );
-      const nextY = smoothDamp(
-        current.y,
-        target.y,
-        velocity.y,
-        SMOOTH_TIME,
-        MAX_SPEED,
-        dt
-      );
-      current.x = nextX.value;
-      current.y = nextY.value;
-      velocity.x = nextX.velocity;
-      velocity.y = nextY.velocity;
-      applySpin(current.x, current.y, { updateRequest: false });
-      const dx = target.x - current.x;
-      const dy = target.y - current.y;
-      const settled =
-        Math.abs(dx) < SETTLE_EPS &&
-        Math.abs(dy) < SETTLE_EPS &&
-        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
-      if (settled) {
-        spinState.current = { ...target };
-        spinState.velocity = { x: 0, y: 0 };
-      }
-      const shouldContinue = activePointer !== null || !settled;
-      if (shouldContinue) {
-        rafId = requestAnimationFrame(stepSpring);
-      } else {
-        rafId = null;
-        lastTime = null;
       }
     };
 
@@ -26470,7 +26372,6 @@ const powerRef = useRef(hud.power);
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
       finishInteraction(50);
-      applySnapTarget();
     };
 
     const handlePointerCancel = (e) => {
@@ -26478,7 +26379,6 @@ const powerRef = useRef(hud.power);
       releasePointer();
       clearTimer();
       scaleBox(1);
-      applySnapTarget();
     };
 
     if (showPlayerControls) {
@@ -26492,10 +26392,6 @@ const powerRef = useRef(hud.power);
       spinDotElRef.current = null;
       releasePointer();
       clearTimer();
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
