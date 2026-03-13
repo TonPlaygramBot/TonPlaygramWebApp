@@ -20469,6 +20469,14 @@ const powerRef = useRef(hud.power);
         return { obstructionTilt, obstructionLift, obstructionTiltFromLift };
       };
 
+      const applyCueObstructionLift = (tipTarget, liftAmount) => {
+        if (!tipTarget || !Number.isFinite(liftAmount) || liftAmount <= 0) {
+          return tipTarget;
+        }
+        tipTarget.y += liftAmount;
+        return tipTarget;
+      };
+
       const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
       const initialIndex =
@@ -21888,18 +21896,15 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
-          const pullVisibilityBoost = isAiStroke
-            ? AI_CUE_PULL_VISIBILITY_BOOST
-            : PLAYER_CUE_PULL_VISIBILITY_BOOST;
-          const pullTarget = computePullTargetFromPower(clampedPower, maxPull) * pullVisibilityBoost;
-          const pull = computeCuePull(pullTarget, maxPull, {
-            instant: true,
-            preserveLarger: true
-          });
-          const visualPull = applyVisualPullCompensation(pull, dir);
-          cuePullCurrentRef.current = pull;
-          cuePullTargetRef.current = pull;
+          // Mirror the reference stroke pullback curve exactly:
+          // pull = pullRange * easeOutCubic(power), then push forward on strike.
+          const pullRange = 0.24;
+          const pullTarget = pullRange * easeOutCubic(clampedPower);
+          const pulledNow = cuePullCurrentRef.current ?? pullTarget;
+          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
+          const visualPull = applyVisualPullCompensation(startPull, dir);
+          cuePullCurrentRef.current = startPull;
+          cuePullTargetRef.current = startPull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
           const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
@@ -21914,10 +21919,10 @@ const powerRef = useRef(hud.power);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(
             dir,
-            pull,
+            startPull,
             activeRenderCameraRef.current ?? cameraRef.current ?? camera
           );
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
@@ -21933,6 +21938,7 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
             const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            applyCueObstructionLift(tipTarget, obstructionLift);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -21944,22 +21950,32 @@ const powerRef = useRef(hud.power);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardDuration = CUE_LOGIC_STRIKE_TIME_MS;
           const pullbackDuration = 0;
-          const followThroughBase = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            powerStrength
+          const impactPos = idlePos.clone();
+          // Match the reference cue-stick behavior for spin:
+          // topspin adds a tiny forward follow-through after contact,
+          // while backspin keeps a clean stop at impact.
+          const topspinFactor = THREE.MathUtils.clamp(
+            Math.max(0, appliedSpin?.y ?? 0) * powerStrength,
+            0,
+            1
           );
-          const followThroughBoost = topSpinWeight * clampedPower * BALL_R * 0.35;
-          const followThrough = THREE.MathUtils.clamp(
-            Math.max(followThroughBase, followThroughBoost),
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX
+          const followExtra = THREE.MathUtils.clamp(
+            topspinFactor * BALL_R * 0.32,
+            0,
+            BALL_R * 0.34
           );
-          const impactPos = buildCuePosition(-followThrough);
-          const settlePos = impactPos.clone();
+          const followPos = impactPos.clone();
+          if (followExtra > 1e-6) {
+            TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
+            if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_FOLLOW_DIR.normalize();
+              followPos.addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
+            }
+          }
+          const settlePos = followPos.clone();
           const settleDuration = CUE_LOGIC_HOLD_TIME_MS;
           cueStick.visible = true;
-          cueStick.position.copy(idlePos);
+          cueStick.position.copy(pullPos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -26174,7 +26190,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive;
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -26190,19 +26206,12 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: (value) => {
-        const releasedPower = clamp((value ?? 0) / 100, 0, 1);
+      onCommit: () => {
         fireRef.current?.();
-        const start = performance.now();
-        const from = releasedPower;
-        const tick = () => {
-          const t = clamp((performance.now() - start) / 160, 0, 1);
-          const next = THREE.MathUtils.lerp(from, 0, 1 - Math.pow(1 - t, 3));
-          slider.set(next * 100, { animate: false });
-          applyPower(next);
-          if (t < 1) requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
@@ -26251,6 +26260,18 @@ const powerRef = useRef(hud.power);
     let revertTimer = null;
     let activePointer = null;
     let moved = false;
+    let rafId = null;
+    let lastTime = null;
+    const spinState = {
+      current: { x: 0, y: 0 },
+      target: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 }
+    };
+
+    const SMOOTH_TIME = 0.085;
+    const MAX_SPEED = 6;
+    const MAX_STEP_SECONDS = 0.04;
+    const SETTLE_EPS = 0.0015;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -26306,7 +26327,20 @@ const powerRef = useRef(hud.power);
       updateSpinDotPosition(clamped, legality.blocked);
     };
 
+    const applySnapTarget = () => {
+      const snapped = computeQuantizedOffsetScaled(
+        spinState.target.x,
+        spinState.target.y
+      );
+      spinState.target = clampToPlayable(snapped.x, snapped.y);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
+    };
+
     const resetSpin = () => {
+      spinState.current = { x: 0, y: 0 };
+      spinState.target = { x: 0, y: 0 };
+      spinState.velocity = { x: 0, y: 0 };
       applySpin(0, 0);
     };
     resetSpin();
@@ -26316,10 +26350,11 @@ const powerRef = useRef(hud.power);
       const rect = box.getBoundingClientRect();
       const cx = clientX ?? rect.left + rect.width / 2;
       const cy = clientY ?? rect.top + rect.height / 2;
-      const nx = ((cx - rect.left) / rect.width) * 2 - 1;
-      const ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      const clamped = clampToPlayable(nx, -ny);
-      applySpin(clamped.x, clamped.y);
+      let nx = ((cx - rect.left) / rect.width) * 2 - 1;
+      let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
+      spinState.target = clampToPlayable(nx, ny);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const scaleBox = (value) => {
@@ -26340,6 +26375,60 @@ const powerRef = useRef(hud.power);
           box.releasePointerCapture(activePointer);
         } catch {}
         activePointer = null;
+      }
+    };
+
+    const startSpring = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(stepSpring);
+    };
+
+    const stepSpring = (timestamp) => {
+      if (!showSpinController) {
+        rafId = null;
+        return;
+      }
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
+      lastTime = timestamp;
+      const { current, target, velocity } = spinState;
+      const nextX = smoothDamp(
+        current.x,
+        target.x,
+        velocity.x,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      const nextY = smoothDamp(
+        current.y,
+        target.y,
+        velocity.y,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      current.x = nextX.value;
+      current.y = nextY.value;
+      velocity.x = nextX.velocity;
+      velocity.y = nextY.velocity;
+      applySpin(current.x, current.y, { updateRequest: false });
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const settled =
+        Math.abs(dx) < SETTLE_EPS &&
+        Math.abs(dy) < SETTLE_EPS &&
+        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
+      if (settled) {
+        spinState.current = { ...target };
+        spinState.velocity = { x: 0, y: 0 };
+      }
+      const shouldContinue = activePointer !== null || !settled;
+      if (shouldContinue) {
+        rafId = requestAnimationFrame(stepSpring);
+      } else {
+        rafId = null;
+        lastTime = null;
       }
     };
 
@@ -26372,6 +26461,7 @@ const powerRef = useRef(hud.power);
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
       finishInteraction(50);
+      applySnapTarget();
     };
 
     const handlePointerCancel = (e) => {
@@ -26379,6 +26469,7 @@ const powerRef = useRef(hud.power);
       releasePointer();
       clearTimer();
       scaleBox(1);
+      applySnapTarget();
     };
 
     if (showPlayerControls) {
@@ -26392,6 +26483,10 @@ const powerRef = useRef(hud.power);
       spinDotElRef.current = null;
       releasePointer();
       clearTimer();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
