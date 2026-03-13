@@ -1,10 +1,21 @@
 using System.Collections;
+using System;
 using UnityEngine;
 
 namespace Aiming
 {
     public class CueController : MonoBehaviour
     {
+        [Serializable]
+        public struct CueShotReplayFrame
+        {
+            public Vector3 cuePosition;
+            public Quaternion cueRotation;
+            public float normalizedStroke;
+            public bool isCharging;
+            public bool isStriking;
+        }
+
         public AdaptiveAimingEngine aiming;
         public Transform cueTip;
         public Transform cueBall, objectBall, pocket;
@@ -24,14 +35,22 @@ namespace Aiming
 
         [Header("Strike feel")]
         public float strikeDuration = 0.055f;
+        public float forwardStrikeDistance = 0.018f;
         public float recoilDistance = 0.015f;
         public float recoilDuration = 0.04f;
+        public float postStrikeHoldDuration = 0.02f;
         public float baseStrikeImpulse = 1.8f;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("How close to idle pullback the cue must be before applying the strike impulse.")]
         public float strikeContactPullbackThreshold = 0.001f;
+        [Tooltip("How close the cue tip must be to the cue-ball surface before applying the shot impulse.")]
+        public float cueTipContactDistance = 0.003f;
         public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
         public AnimationCurve strikeEaseIn = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+        [Header("Cue tip alignment")]
+        [Tooltip("Legacy mode. Keep disabled for visible forward stroke animation.")]
+        public bool lockCueTipToIdleGap;
 
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
@@ -47,6 +66,9 @@ namespace Aiming
         float _lastRequestedPower;
         bool _charging;
         bool _striking;
+
+        public event Action<CueShotReplayFrame> OnCueReplayFrame;
+        public event Action<float> OnCueImpulseApplied;
 
         void Update()
         {
@@ -148,10 +170,12 @@ namespace Aiming
             transform.position = cueBall.position - _aimDirection * cueDistance;
             transform.rotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
 
-            if (cueTip != null)
+            if (cueTip != null && lockCueTipToIdleGap)
             {
                 cueTip.position = cueBall.position - _aimDirection * idleTipGap;
             }
+
+            EmitReplayFrame();
         }
 
         ShotSolution BuildAimSolution()
@@ -191,10 +215,10 @@ namespace Aiming
                 float t = Mathf.Clamp01(elapsed / Mathf.Max(strikeDuration, 0.001f));
                 float eased = strikeEaseIn.Evaluate(t);
 
-                _currentPullback = Mathf.Lerp(startPullback, 0f, eased);
+                _currentPullback = Mathf.Lerp(startPullback, -forwardStrikeDistance, eased);
                 UpdateCuePose();
 
-                if (!didStrike && _currentPullback <= strikeContactPullbackThreshold)
+                if (!didStrike && ShouldApplyStrikeImpulse())
                 {
                     didStrike = true;
                     ApplyStrikeImpulse(strikeDirection, shotPower);
@@ -206,6 +230,11 @@ namespace Aiming
             if (!didStrike)
             {
                 ApplyStrikeImpulse(strikeDirection, shotPower);
+            }
+
+            if (postStrikeHoldDuration > 0f)
+            {
+                yield return new WaitForSeconds(postStrikeHoldDuration);
             }
 
             _currentPullback = recoilDistance;
@@ -229,6 +258,42 @@ namespace Aiming
 
             float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(shotPower));
             strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, spinInput, ballRadius);
+            OnCueImpulseApplied?.Invoke(shotPower);
+        }
+
+        bool ShouldApplyStrikeImpulse()
+        {
+            if (_currentPullback <= strikeContactPullbackThreshold)
+            {
+                return true;
+            }
+
+            if (cueTip == null || cueBall == null)
+            {
+                return false;
+            }
+
+            float tipToCenter = Vector3.Distance(cueTip.position, cueBall.position);
+            float distanceToSurface = Mathf.Max(0f, tipToCenter - ballRadius);
+            return distanceToSurface <= cueTipContactDistance;
+        }
+
+        void EmitReplayFrame()
+        {
+            if (OnCueReplayFrame == null)
+            {
+                return;
+            }
+
+            float normalizedStroke = Mathf.InverseLerp(-forwardStrikeDistance, maxPullbackDistance, _currentPullback);
+            OnCueReplayFrame.Invoke(new CueShotReplayFrame
+            {
+                cuePosition = transform.position,
+                cueRotation = transform.rotation,
+                normalizedStroke = Mathf.Clamp01(normalizedStroke),
+                isCharging = _charging,
+                isStriking = _striking
+            });
         }
     }
 }
