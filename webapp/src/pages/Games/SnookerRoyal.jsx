@@ -1612,9 +1612,6 @@ const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull eve
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
-const POWER_PULL_RANGE_FACTOR = 0.34;
-const POWER_RELEASE_DURATION_MS = 160;
-const SHOT_COMMIT_THRESHOLD = 0.02;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
@@ -13170,11 +13167,6 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const powerReleaseRafRef = useRef(0);
-const shotPowerRef = useRef(0);
-const liveSpinRef = useRef({ x: 0, y: 0 });
-const shotSpinRef = useRef({ x: 0, y: 0 });
-const shotControllerStateRef = useRef('idle');
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -13186,15 +13178,6 @@ const shotControllerStateRef = useRef('idle');
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
-  useEffect(
-    () => () => {
-      if (powerReleaseRafRef.current) {
-        cancelAnimationFrame(powerReleaseRafRef.current);
-        powerReleaseRafRef.current = 0;
-      }
-    },
-    []
-  );
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -21491,9 +21474,7 @@ const shotControllerStateRef = useRef('idle');
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const easedRatio = 1 - Math.pow(1 - ratio, 3);
-        const pullRange = POWER_PULL_RANGE_FACTOR * amplifiedMax;
-        const target = pullRange * easedRatio * CUE_PULL_VISUAL_MULTIPLIER;
+        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER;
         return Math.min(target, visualMax);
       };
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -21640,8 +21621,6 @@ const shotControllerStateRef = useRef('idle');
           }
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
-          shotPowerRef.current = clampedPower;
-          shotSpinRef.current = { ...liveSpinRef.current };
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           powerImpactHoldRef.current = isMaxPowerShot
@@ -21654,8 +21633,8 @@ const shotControllerStateRef = useRef('idle');
             );
           }
           const spinMagnitude = Math.hypot(
-            shotSpinRef.current?.x ?? spinRef.current?.x ?? 0,
-            shotSpinRef.current?.y ?? spinRef.current?.y ?? 0
+            spinRef.current?.x ?? 0,
+            spinRef.current?.y ?? 0
           );
           const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
@@ -26232,56 +26211,16 @@ const shotControllerStateRef = useRef('idle');
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => {
-        const normalizedPower = THREE.MathUtils.clamp((v ?? 0) / 100, 0, 1);
-        shotControllerStateRef.current = 'dragging';
-        shotPowerRef.current = normalizedPower;
-        applyPower(normalizedPower);
-      },
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
         captureCueStickAnchor();
-        shotSpinRef.current = { ...liveSpinRef.current };
-        shotControllerStateRef.current = 'dragging';
-        if (powerReleaseRafRef.current) {
-          cancelAnimationFrame(powerReleaseRafRef.current);
-          powerReleaseRafRef.current = 0;
-        }
       },
       onCommit: () => {
-        const committedPower = THREE.MathUtils.clamp(
-          shotPowerRef.current ?? powerRef.current ?? 0,
-          0,
-          1
-        );
-        shotControllerStateRef.current =
-          committedPower > SHOT_COMMIT_THRESHOLD ? 'striking' : 'idle';
-        if (committedPower > SHOT_COMMIT_THRESHOLD) {
-          fireRef.current?.();
-        }
-        const releaseStart = performance.now();
-        const releaseFrom = powerRef.current;
-        const animateRelease = () => {
-          const t = THREE.MathUtils.clamp(
-            (performance.now() - releaseStart) / POWER_RELEASE_DURATION_MS,
-            0,
-            1
-          );
-          const eased = 1 - Math.pow(1 - t, 3);
-          applyPower(THREE.MathUtils.lerp(releaseFrom, 0, eased));
-          if (t < 1) {
-            powerReleaseRafRef.current = requestAnimationFrame(animateRelease);
-            return;
-          }
-          powerReleaseRafRef.current = 0;
-          shotPowerRef.current = 0;
-          shotControllerStateRef.current = 'idle';
-          slider.set(slider.min, { animate: true });
-        };
-        if (powerReleaseRafRef.current) {
-          cancelAnimationFrame(powerReleaseRafRef.current);
-          powerReleaseRafRef.current = 0;
-        }
-        powerReleaseRafRef.current = requestAnimationFrame(animateRelease);
+      fireRef.current?.();
+      requestAnimationFrame(() => {
+        slider.set(slider.min, { animate: true });
+        applyPower(0);
+      });
       }
     });
     sliderInstanceRef.current = slider;
@@ -26314,7 +26253,6 @@ const shotControllerStateRef = useRef('idle');
       spinDotElRef.current = null;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
-      liveSpinRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
       return;
     }
@@ -26331,9 +26269,18 @@ const shotControllerStateRef = useRef('idle');
     let revertTimer = null;
     let activePointer = null;
     let moved = false;
+    let rafId = null;
+    let lastTime = null;
     const spinState = {
-      current: { x: 0, y: 0 }
+      current: { x: 0, y: 0 },
+      target: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 }
     };
+
+    const SMOOTH_TIME = 0.085;
+    const MAX_SPEED = 6;
+    const MAX_STEP_SECONDS = 0.04;
+    const SETTLE_EPS = 0.0015;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -26366,7 +26313,6 @@ const shotControllerStateRef = useRef('idle');
       }
       const normalized = normalizeSpinInput(clamped);
       spinRef.current = normalized;
-      liveSpinRef.current = { ...normalized };
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -26390,9 +26336,20 @@ const shotControllerStateRef = useRef('idle');
       updateSpinDotPosition(clamped, legality.blocked);
     };
 
+    const applySnapTarget = () => {
+      const snapped = computeQuantizedOffsetScaled(
+        spinState.target.x,
+        spinState.target.y
+      );
+      spinState.target = clampToPlayable(snapped.x, snapped.y);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
+    };
+
     const resetSpin = () => {
       spinState.current = { x: 0, y: 0 };
-      liveSpinRef.current = { x: 0, y: 0 };
+      spinState.target = { x: 0, y: 0 };
+      spinState.velocity = { x: 0, y: 0 };
       applySpin(0, 0);
     };
     resetSpin();
@@ -26404,8 +26361,9 @@ const shotControllerStateRef = useRef('idle');
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
-      spinState.current = clampToPlayable(nx, ny);
-      applySpin(spinState.current.x, spinState.current.y);
+      spinState.target = clampToPlayable(nx, ny);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const scaleBox = (value) => {
@@ -26426,6 +26384,60 @@ const shotControllerStateRef = useRef('idle');
           box.releasePointerCapture(activePointer);
         } catch {}
         activePointer = null;
+      }
+    };
+
+    const startSpring = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(stepSpring);
+    };
+
+    const stepSpring = (timestamp) => {
+      if (!showSpinController) {
+        rafId = null;
+        return;
+      }
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
+      lastTime = timestamp;
+      const { current, target, velocity } = spinState;
+      const nextX = smoothDamp(
+        current.x,
+        target.x,
+        velocity.x,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      const nextY = smoothDamp(
+        current.y,
+        target.y,
+        velocity.y,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      current.x = nextX.value;
+      current.y = nextY.value;
+      velocity.x = nextX.velocity;
+      velocity.y = nextY.velocity;
+      applySpin(current.x, current.y, { updateRequest: false });
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const settled =
+        Math.abs(dx) < SETTLE_EPS &&
+        Math.abs(dy) < SETTLE_EPS &&
+        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
+      if (settled) {
+        spinState.current = { ...target };
+        spinState.velocity = { x: 0, y: 0 };
+      }
+      const shouldContinue = activePointer !== null || !settled;
+      if (shouldContinue) {
+        rafId = requestAnimationFrame(stepSpring);
+      } else {
+        rafId = null;
+        lastTime = null;
       }
     };
 
@@ -26458,6 +26470,7 @@ const shotControllerStateRef = useRef('idle');
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
       finishInteraction(50);
+      applySnapTarget();
     };
 
     const handlePointerCancel = (e) => {
@@ -26465,6 +26478,7 @@ const shotControllerStateRef = useRef('idle');
       releasePointer();
       clearTimer();
       scaleBox(1);
+      applySnapTarget();
     };
 
     if (showPlayerControls) {
@@ -26478,9 +26492,12 @@ const shotControllerStateRef = useRef('idle');
       spinDotElRef.current = null;
       releasePointer();
       clearTimer();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
-      liveSpinRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
