@@ -10,7 +10,7 @@ export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const STUN_TOPSPIN_BIAS = -0.012;
+export const SPIN_RESPONSE_EXPONENT = 1.45;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -139,14 +139,28 @@ export const computeQuantizedOffsetScaled = (
 export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
-  const distance = Math.hypot(x, y);
-  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
-    if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) {
-      return { x: 0, y: 0 };
-    }
-    return { x: 0, y: Math.sign(y) * STUN_TOPSPIN_BIAS };
+
+  // Keep straight high/low and left/right shots easier to select by gently
+  // snapping near-axis drag noise to the principal axis.
+  if (Math.abs(x) <= STRAIGHT_SPIN_DEADZONE) x = 0;
+  if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) y = 0;
+
+  const clamped = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+  const distance = Math.hypot(clamped.x, clamped.y);
+  const deadzone = Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE);
+  if (distance <= deadzone) {
+    return { x: 0, y: 0 };
   }
-  return clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
+
+  const activeSpan = Math.max(MAX_SPIN_OFFSET - deadzone, 1e-6);
+  const normalized = clamp((distance - deadzone) / activeSpan, 0, 1);
+  const shaped = normalized ** SPIN_RESPONSE_EXPONENT;
+  const magnitude = deadzone + shaped * activeSpan;
+  const scale = magnitude / Math.max(distance, 1e-6);
+  return {
+    x: clamped.x * scale,
+    y: clamped.y * scale
+  };
 };
 
 export const mapUiOffsetToCueFrame = (

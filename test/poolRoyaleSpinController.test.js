@@ -1,4 +1,4 @@
-import { mapSpinForPhysics, STUN_TOPSPIN_BIAS } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
+import { mapSpinForPhysics } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
 
 const getSigns = (vec) => ({
   x: Math.sign(vec.x),
@@ -6,11 +6,10 @@ const getSigns = (vec) => ({
 });
 
 describe('Pool Royale spin controller mapping', () => {
-  it('maps the center to a slight stun bias with minimal roll', () => {
+  it('maps the center to true stun (no spin)', () => {
     const center = mapSpinForPhysics({ x: 0, y: 0 });
     expect(Math.abs(center.x)).toBe(0);
-    expect(center.y).toBeLessThanOrEqual(0);
-    expect(center.y).toBeGreaterThanOrEqual(STUN_TOPSPIN_BIAS);
+    expect(Math.abs(center.y)).toBe(0);
   });
 
   it('keeps left/right spin directions aligned with the table axes', () => {
