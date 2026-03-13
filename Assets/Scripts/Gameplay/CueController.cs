@@ -33,11 +33,6 @@ namespace Aiming
         public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
         public AnimationCurve strikeEaseIn = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
-        [Header("Spin input")]
-        [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
-        public Vector2 spinInput;
-        public CueStrikePhysics strikePhysics = new CueStrikePhysics();
-
         Vector3 _aimDirection = Vector3.forward;
         Vector3 _targetDirection = Vector3.forward;
         float _currentPullback;
@@ -83,11 +78,6 @@ namespace Aiming
         public void BeginCharge()
         {
             _charging = true;
-        }
-
-        public void SetSpinInput(Vector2 normalizedSpin)
-        {
-            spinInput = Vector2.ClampMagnitude(normalizedSpin, 1f);
         }
 
         public void CancelCharge()
@@ -164,7 +154,7 @@ namespace Aiming
                 ballRadius = ballRadius,
                 tableBounds = tableBounds,
                 requiresPower = false,
-                highSpin = spinInput.sqrMagnitude > 0.0001f,
+                highSpin = false,
                 collisionMask = aiming.config ? aiming.config.collisionMask : default
             };
             return aiming.GetAimSolution(ctx);
@@ -228,7 +218,7 @@ namespace Aiming
             }
 
             float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(shotPower));
-            strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, spinInput, ballRadius);
+            cueBallBody.AddForce(strikeDirection * impulseMagnitude, ForceMode.Impulse);
         }
     }
 }
