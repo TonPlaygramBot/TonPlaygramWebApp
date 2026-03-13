@@ -105,6 +105,7 @@ import {
   computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
+  smoothDamp,
   SPIN_STUN_RADIUS
 } from './poolRoyaleSpinUtils.js';
 import {
@@ -31274,14 +31275,17 @@ const powerRef = useRef(hud.power);
     let activePointer = null;
     let moved = false;
     let rafId = null;
+    let lastTime = null;
     const spinState = {
-      current: { x: 0, y: 0 }
+      current: { x: 0, y: 0 },
+      target: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 }
     };
 
-    // Virtual-joystick style mapping adapted from the open-source nipplejs control model (MIT):
-    // direct pointer vector -> clamped radial force with dead-zone + smooth edge response.
-    const JOYSTICK_DEADZONE = 0.08;
-    const RELEASE_ANIM_MS = 110;
+    const SMOOTH_TIME = 0.085;
+    const MAX_SPEED = 6;
+    const MAX_STEP_SECONDS = 0.04;
+    const SETTLE_EPS = 0.0015;
 
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -31339,41 +31343,32 @@ const powerRef = useRef(hud.power);
 
     const applySnapTarget = () => {
       const snapped = computeQuantizedOffsetScaled(
-        spinState.current.x,
-        spinState.current.y
+        spinState.target.x,
+        spinState.target.y
       );
-      const target = clampToPlayable(snapped.x, snapped.y);
-      animateSpinTo(target.x, target.y);
+      spinState.target = clampToPlayable(snapped.x, snapped.y);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const resetSpin = () => {
       spinState.current = { x: 0, y: 0 };
+      spinState.target = { x: 0, y: 0 };
+      spinState.velocity = { x: 0, y: 0 };
       applySpin(0, 0);
     };
     resetSpin();
     resetSpinRef.current = resetSpin;
 
-    const mapPointerToSpin = (clientX, clientY) => {
+    const updateSpin = (clientX, clientY) => {
       const rect = box.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const radius = Math.max(1, rect.width / 2);
-      const px = (clientX ?? centerX) - centerX;
-      const py = centerY - (clientY ?? centerY);
-      const distance = Math.hypot(px, py);
-      const clampedDistance = Math.min(distance, radius);
-      const nxRaw = clampedDistance > 0 ? (px / distance) * (clampedDistance / radius) : 0;
-      const nyRaw = clampedDistance > 0 ? (py / distance) * (clampedDistance / radius) : 0;
-      const magnitude = Math.min(1, Math.hypot(nxRaw, nyRaw));
-      if (magnitude <= JOYSTICK_DEADZONE) {
-        return { x: 0, y: 0 };
-      }
-      const scaled = (magnitude - JOYSTICK_DEADZONE) / (1 - JOYSTICK_DEADZONE);
-      const smooth = scaled * scaled * (3 - 2 * scaled);
-      return {
-        x: (nxRaw / magnitude) * smooth,
-        y: (nyRaw / magnitude) * smooth
-      };
+      const cx = clientX ?? rect.left + rect.width / 2;
+      const cy = clientY ?? rect.top + rect.height / 2;
+      let nx = ((cx - rect.left) / rect.width) * 2 - 1;
+      let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
+      spinState.target = clampToPlayable(nx, ny);
+      spinRequestRef.current = { ...spinState.target };
+      startSpring();
     };
 
     const scaleBox = (value) => {
@@ -31397,36 +31392,58 @@ const powerRef = useRef(hud.power);
       }
     };
 
-    const animateSpinTo = (targetX, targetY) => {
-      if (rafId) cancelAnimationFrame(rafId);
-      const start = performance.now();
-      const from = { ...spinState.current };
-      const to = clampToPlayable(targetX, targetY);
-      const tick = (now) => {
-        const t = Math.min(1, (now - start) / RELEASE_ANIM_MS);
-        const easeOut = 1 - Math.pow(1 - t, 3);
-        const x = THREE.MathUtils.lerp(from.x, to.x, easeOut);
-        const y = THREE.MathUtils.lerp(from.y, to.y, easeOut);
-        spinState.current = { x, y };
-        applySpin(x, y);
-        if (t < 1) {
-          rafId = requestAnimationFrame(tick);
-        } else {
-          rafId = null;
-        }
-      };
-      rafId = requestAnimationFrame(tick);
+    const startSpring = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(stepSpring);
     };
 
-    const updateSpin = (clientX, clientY) => {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
+    const stepSpring = (timestamp) => {
+      if (!showSpinController) {
         rafId = null;
+        return;
       }
-      const pointerSpin = mapPointerToSpin(clientX, clientY);
-      const clamped = clampToPlayable(pointerSpin.x, pointerSpin.y);
-      spinState.current = { ...clamped };
-      applySpin(clamped.x, clamped.y);
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, MAX_STEP_SECONDS);
+      lastTime = timestamp;
+      const { current, target, velocity } = spinState;
+      const nextX = smoothDamp(
+        current.x,
+        target.x,
+        velocity.x,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      const nextY = smoothDamp(
+        current.y,
+        target.y,
+        velocity.y,
+        SMOOTH_TIME,
+        MAX_SPEED,
+        dt
+      );
+      current.x = nextX.value;
+      current.y = nextY.value;
+      velocity.x = nextX.velocity;
+      velocity.y = nextY.velocity;
+      applySpin(current.x, current.y, { updateRequest: false });
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const settled =
+        Math.abs(dx) < SETTLE_EPS &&
+        Math.abs(dy) < SETTLE_EPS &&
+        Math.hypot(velocity.x, velocity.y) < SETTLE_EPS;
+      if (settled) {
+        spinState.current = { ...target };
+        spinState.velocity = { x: 0, y: 0 };
+      }
+      const shouldContinue = activePointer !== null || !settled;
+      if (shouldContinue) {
+        rafId = requestAnimationFrame(stepSpring);
+      } else {
+        rafId = null;
+        lastTime = null;
+      }
     };
 
     const handlePointerDown = (e) => {
