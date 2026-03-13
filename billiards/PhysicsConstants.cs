@@ -6,10 +6,10 @@ public static class PhysicsConstants
     public const double BallRadius = 0.028575;        // metres (57.15 mm diameter)
     public const double Restitution = 0.915;           // elastic coefficient (clean cushion hits 0.85–0.92)
     public const double CushionRestitution = 0.93; // slightly livelier cushions for a touch more bounce
-    // connectors retain only a quarter of the cushion bounce (lose ~75% of speed)
-    public const double ConnectorRestitution = CushionRestitution * 0.25;
-    // pocket edges fully absorb balls (no bounce)
-    public const double PocketRestitution = 0.0;
+    // connectors are lively enough to avoid unnaturally funneling balls into pockets.
+    public const double ConnectorRestitution = CushionRestitution * 0.82;
+    // pocket jaw faces still bounce; actual pocketing is handled by capture zones.
+    public const double PocketRestitution = CushionRestitution * 0.68;
     public const double Mu = 0.2;                      // linear damping (m/s^2)
     public const double Gravity = 9.81;                // m/s^2
     public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)
@@ -40,6 +40,10 @@ public static class PhysicsConstants
     public const double MaxCueElevationDegrees = 85.0; // clamp to UI upper bound
     public const double MaxTipOffsetRatio = 0.9;       // max cue tip offset as a fraction of radius
     public const double PreviewPointSpacing = BallRadius * 0.85; // spacing for curved aim preview
+    public const double SpinThrowMaxAngleDeg = 5.0;    // max object-ball throw from side spin on impact
+    public const double SpinThrowSideFactor = 0.9;     // side-spin contribution to throw
+    public const double SpinThrowForwardFactor = 0.28; // follow/draw contribution to throw
+    public const double SpinCueDeflectionFactor = 0.16; // cue-ball tangent deflection from spin transfer
     public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
     public const double TableHeight = 1.07707;
     public const double FixedDt = 1.0 / 120.0;         // simulation step
@@ -52,7 +56,7 @@ public static class PhysicsConstants
     // Pocket geometry derived from WPA spec (metres)
     public const double CornerPocketMouth = 0.1014984; // scaled with table reduction
     public const double SidePocketMouth = 0.1116013;    // scaled with table reduction
-    public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
+    public const double PocketCaptureRadius = 0.0815;  // tightened to reduce magnetic pocket captures
     public const double CornerPocketScale = 0.965;      // slightly tighten corner pocket/cutout radius
     public const double PocketAngleCutScale = 1.035;    // extend angle cut slightly for truer mouth mapping
     public const double CornerJawRadiusScale = 0.94;
@@ -61,11 +65,11 @@ public static class PhysicsConstants
     public const double SideJawDepthScale = 1.08;
     // Shift the pocket capture center outward for the chrome plate cut.
     public const double SidePocketOutset = 0.006;
-    // Offset pocket mouth guards to stop balls slipping between jaws and cushions.
-    public const double PocketMouthGuardInset = BallRadius * 0.35;
+    // Keep guards minimal so jaws/cushions bounce naturally at the pocket lips.
+    public const double PocketMouthGuardInset = BallRadius * 0.12;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 40;
     public const int SideJawSegments = 30;
-    public const int JawCushionSegments = 3;           // how many segments nearest the rails behave as cushions
+    public const int JawCushionSegments = 7;           // wider cushion band around jaw lips for natural rebounds
 }

@@ -221,3 +221,71 @@ public class SpinActivationTests
         Assert.That(ball.SpinEffectsEnabled, Is.True);
     }
 }
+
+
+public class SpinPreviewDirectionTests
+{
+    [Test]
+    public void SpinPreviewMatchesRuntimeForPostImpactDirections()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        var start = new Vec2(0.3, 0.5);
+        var target = new List<BilliardsSolver.Ball> { new BilliardsSolver.Ball { Position = new Vec2(1.15, 0.5) } };
+        var shot = new BilliardsSolver.ShotParams
+        {
+            Direction = new Vec2(1, 0),
+            Speed = 2.1,
+            Spin = new BilliardsSolver.ShotSpin { Side = 0.65, Top = 0.2, Back = 0 },
+            CueElevationDeg = 0
+        };
+
+        var preview = solver.PreviewShot(shot, start, target);
+        var runtime = solver.SimulateFirstImpact(shot, start, target);
+
+        Assert.That(preview.TargetPostVelocity.HasValue, Is.True);
+        Assert.That(runtime.TargetVelocity.HasValue, Is.True);
+        Assert.That((preview.ContactPoint - runtime.Point).Length, Is.LessThan(PhysicsConstants.BallRadius * 0.5));
+
+        var previewCue = preview.CuePostVelocity.Normalized();
+        var runtimeCue = runtime.CueVelocity.Normalized();
+        var previewTarget = preview.TargetPostVelocity!.Value.Normalized();
+        var runtimeTarget = runtime.TargetVelocity!.Value.Normalized();
+
+        Assert.That((previewCue - runtimeCue).Length, Is.LessThan(1e-6));
+        Assert.That((previewTarget - runtimeTarget).Length, Is.LessThan(1e-6));
+    }
+
+    [Test]
+    public void SideSpinChangesTargetDirectionComparedToNoSpin()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        var start = new Vec2(0.3, 0.5);
+        var target = new List<BilliardsSolver.Ball> { new BilliardsSolver.Ball { Position = new Vec2(1.1, 0.5) } };
+
+        var baseImpact = solver.SimulateFirstImpact(new BilliardsSolver.ShotParams
+        {
+            Direction = new Vec2(1, 0),
+            Speed = 2.0,
+            Spin = BilliardsSolver.ShotSpin.None,
+            CueElevationDeg = 0
+        }, start, target);
+
+        var spinImpact = solver.SimulateFirstImpact(new BilliardsSolver.ShotParams
+        {
+            Direction = new Vec2(1, 0),
+            Speed = 2.0,
+            Spin = new BilliardsSolver.ShotSpin { Side = 0.8, Top = 0.0, Back = 0.0 },
+            CueElevationDeg = 0
+        }, start, target);
+
+        Assert.That(baseImpact.TargetVelocity.HasValue, Is.True);
+        Assert.That(spinImpact.TargetVelocity.HasValue, Is.True);
+
+        var noSpinDir = baseImpact.TargetVelocity!.Value.Normalized();
+        var withSpinDir = spinImpact.TargetVelocity!.Value.Normalized();
+        Assert.That(Math.Abs(withSpinDir.Y), Is.GreaterThan(Math.Abs(noSpinDir.Y) + 1e-4));
+        Assert.That(Math.Abs(spinImpact.TargetThrowAngleDeg), Is.GreaterThan(0.1));
+    }
+}
