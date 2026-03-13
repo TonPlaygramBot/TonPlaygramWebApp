@@ -7482,7 +7482,6 @@ function updateCushionSegmentsFromTable(table) {
   const jawEntries = Array.isArray(table.userData.pocketJaws)
     ? table.userData.pocketJaws
     : [];
-  const jawEndpoints = [];
   jawEntries.forEach((jaw) => {
     if (!(jaw?.center instanceof THREE.Vector2)) return;
     if (!Number.isFinite(jaw?.outerRadius) || jaw.outerRadius <= MICRO_EPS) return;
@@ -7494,16 +7493,6 @@ function updateCushionSegmentsFromTable(table) {
     const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
     const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
     const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
-    jawEndpoints.push(
-      new THREE.Vector2(
-        jaw.center.x + Math.cos(startAngle) * mappingOuterRadius,
-        jaw.center.y + Math.sin(startAngle) * mappingOuterRadius
-      ),
-      new THREE.Vector2(
-        jaw.center.x + Math.cos(endAngle) * mappingOuterRadius,
-        jaw.center.y + Math.sin(endAngle) * mappingOuterRadius
-      )
-    );
     let prev = null;
     for (let i = 0; i <= steps; i += 1) {
       const t = steps === 0 ? 0 : i / steps;
@@ -7530,29 +7519,6 @@ function updateCushionSegmentsFromTable(table) {
       prev = point;
     }
   });
-  if (jawEndpoints.length > 0) {
-    const cutEndpoints = segments
-      .filter((segment) => segment?.type === 'cut' && segment.start && segment.end)
-      .flatMap((segment) => [segment.start, segment.end]);
-    const maxGap = CUSHION_CUT_CONTACT_RADIUS * 1.15;
-    jawEndpoints.forEach((endpoint) => {
-      let best = null;
-      let bestDist = Infinity;
-      cutEndpoints.forEach((cutPoint) => {
-        const dist = endpoint.distanceTo(cutPoint);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = cutPoint;
-        }
-      });
-      if (!best || bestDist <= MICRO_EPS || bestDist > maxGap) return;
-      segments.push({
-        start: best.clone(),
-        end: endpoint.clone(),
-        type: 'cut'
-      });
-    });
-  }
   const tableCenter = new THREE.Vector2(0, 0);
   segments.forEach((segment) => {
     if (segment.normal) return;
