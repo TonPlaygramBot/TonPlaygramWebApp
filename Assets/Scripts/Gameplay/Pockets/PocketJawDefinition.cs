@@ -13,7 +13,7 @@ namespace Aiming.Pockets
 
         [Header("Jaw contact")]
         [SerializeField, Min(0f)] private float jawRadius = 0.012f;
-        [SerializeField, Range(0f, 1f)] private float jawRestitution = 0.2f;
+        [SerializeField, Range(0f, 1f)] private float jawRestitution = 0.24f;
         [SerializeField, Range(0f, 1f)] private float jawFriction = 0.35f;
 
         public FiniteJawSegment Segment => new FiniteJawSegment { start = start, end = end };

@@ -1478,13 +1478,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.985,
+  restitution: 1.08,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 6.0,
+  airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
-const FRICTION = 0.993;
+const PHYSICS_BASE_STEP = 1 / 60;
+const FRICTION = 0.995;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1498,22 +1499,20 @@ const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.014;
 const BALL_BALL_FRICTION = 0.18;
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.45;
+const STOP_EPS = 0.012;
+const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
+const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // disable max-power bounce lift (never reaches this)
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
-const MAX_POWER_SPIN_LATERAL_THROW = 0; // remove max-power lateral throw from side spin
-const MAX_POWER_SPIN_LIFT_BONUS = 0; // remove max-power spin-driven lift bonus
 const JUMP_SHOT_POWER_THRESHOLD = 0.7;
 const JUMP_SHOT_LIFT_THRESHOLD = 0.32;
 const JUMP_SHOT_TOPSPIN_THRESHOLD = 0.55;
@@ -1674,7 +1673,7 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
-const POCKET_GLOW_ENABLED = true;
+const POCKET_GLOW_ENABLED = false;
 const POCKET_GLOW_RADIUS = BALL_R * 1.32;
 const POCKET_GLOW_LIFT = BALL_R * 0.78;
 const POCKET_GLOW_OPACITY = 0.62;
@@ -1749,7 +1748,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 900;
 const POCKET_VIEW_EARLY_HOLD_MS = 160;
-const SPIN_GLOBAL_SCALE = 0.66; // mirror Snooker Royale spin strength so cue-ball response matches exactly
+const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1762,17 +1761,19 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const CUE_TOPSPIN_ROLL_BOOST = 2.6;
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // mirror Snooker Royale cushion throw from side spin
+const RAIL_SPIN_THROW_SCALE = 0; // keep spin active while preventing spin-based rail deflection from shifting cue-ball target line
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Pool Royale now mirrors Snooker Royale shot-force tuning to keep cue-ball travel identical.
+// Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
+// Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
-const SHOT_POWER_INCREASE = 1.5;
+const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
+const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
+const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1782,7 +1783,9 @@ const SHOT_FORCE_BOOST =
   0.85 *
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_INCREASE;
+  SHOT_POWER_INCREASE *
+  SHOT_POWER_ADJUSTMENT *
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1896,15 +1899,16 @@ const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET;
+const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
-const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
-const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 1.5;
-const TOPSPIN_MULTIPLIER = 1.5;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
+const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5307,7 +5311,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1.45, BALL_R * 0.17) * 1.2; // make aim/target/cue-direction guides slightly thicker for clearer mobile visibility
+const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.2; // thinner guides for cue/target direction lines with better clarity
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -5768,7 +5772,6 @@ const TMP_VEC3_CUE_SAMPLE_POINT = new THREE.Vector3();
 const TMP_VEC3_OBSTRUCTION_TARGET = new THREE.Vector3();
 const TMP_VEC3_POWER = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
-const TMP_VEC3_FOLLOW_DIR = new THREE.Vector3();
 const TMP_COLOR_POWER = new THREE.Color();
 const POWER_LINE_COLOR_LOW = new THREE.Color(0xf9d648);
 const POWER_LINE_COLOR_MID = new THREE.Color(0xf59e0b);
@@ -5821,9 +5824,17 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
+const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
+const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = -1; // allow full 360° spin input so every controller side stays responsive
+const SPIN_CUSHION_EPS = BALL_R * 0.6;
+const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
+
+const resolveTopspinPowerScale = (power) => {
+  if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
+  const cappedPower = Math.min(power, TOPSPIN_POWER_SOFT_CAP);
+  return 0.55 + cappedPower * 0.45;
+};
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -5855,12 +5866,36 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
-const clampSpinToVisibleHemisphere = (spinInput, _aimDir, _cueBall, _camera) => {
-  // Keep controller input 1:1 with the user's chosen strike direction on screen.
-  // Do not remap to the camera-facing hemisphere; it made some sides feel unresponsive.
-  return spinInput;
+const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
+  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
+  const viewVec = computeCueViewVector(cueBall, camera);
+  if (!viewVec) return spinInput;
+  const axes = prepareSpinAxes(aimDir);
+  TMP_VEC2_SPIN.set(0, 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
+  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
+  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
+  if (viewDot >= 0) return spinInput;
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
+  return {
+    x: TMP_VEC2_SPIN.dot(axes.perp),
+    y: TMP_VEC2_SPIN.dot(axes.axis)
+  };
 };
-
 
 const resolveCameraBasis = (camera) => {
   if (!camera) return null;
@@ -6834,8 +6869,6 @@ function applySpinController(ball, stepScale, airborne = false) {
       const backspinBoost =
         ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
       rollAccel *= backspinBoost;
-    } else if (forwardSpin > 0 && ball.id === 'cue' && ball.impacted) {
-      rollAccel *= CUE_TOPSPIN_ROLL_BOOST;
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
@@ -6958,8 +6991,8 @@ function resolvePowerLineColor(powerStrength) {
 }
 
 function resolveAimPreviewSpin(spin) {
-  const mapped = mapSpinForPhysics(spin);
-  return { x: mapped?.x ?? 0, y: mapped?.y ?? 0 };
+  const normalized = normalizeSpinInput(spin);
+  return { x: -(normalized?.x ?? 0), y: normalized?.y ?? 0 };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -7045,7 +7078,6 @@ function resolveCueFollowPreview({
     ) ?? baseDir ?? aimVec;
   const spinX = normalizedSpin?.x ?? 0;
   const spinY = normalizedSpin?.y ?? 0;
-  const straightSpinOnly = Math.abs(spinX) <= 0.03 && Math.abs(spinY) > 0.03;
   const spinMagnitude = Math.hypot(spinX, spinY);
   const backspinWeight = Math.max(0, -spinY);
   const topspinWeight = Math.max(0, spinY);
@@ -7055,11 +7087,7 @@ function resolveCueFollowPreview({
   const backwards = aimVec.clone().multiplyScalar(-1);
   const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
   const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
-  if (straightSpinOnly && spinY < 0) {
-    previewDir.copy(backwards);
-  } else if (straightSpinOnly && spinY > 0) {
-    previewDir.copy(aimVec);
-  } else if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
+  if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
     const drawBlend = THREE.MathUtils.clamp(
       backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
       0,
@@ -7068,7 +7096,7 @@ function resolveCueFollowPreview({
     previewDir.lerp(backwards, drawBlend);
   } else if (topspinLerp > 1e-4) {
     const followBlend = THREE.MathUtils.clamp(
-      topspinLerp * (1.05 + impactPower * 0.45) * (1 - cutPenalty * 0.35),
+      topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
       0,
       1
     );
@@ -7079,22 +7107,10 @@ function resolveCueFollowPreview({
     (0.18 + impactPower * 0.22) *
     (1 - cutPenalty * 0.3);
   if (sideInfluence > 1e-4) {
-    const sideBasis = aimVec.lengthSq() > 1e-8 ? aimVec : previewDir;
-    const perp = new THREE.Vector3(-sideBasis.z, 0, sideBasis.x);
+    const perp = new THREE.Vector3(-previewDir.z, 0, previewDir.x);
     if (perp.lengthSq() > 1e-8) {
       perp.normalize();
       previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
-    }
-  }
-  const physicsFollowInfluence = THREE.MathUtils.clamp(0.35 + impactPower * 0.45, 0.25, 0.9);
-  if (!straightSpinOnly && Math.abs(spinY) > 1e-4) {
-    previewDir.addScaledVector(aimVec, spinY * physicsFollowInfluence);
-  }
-  if (!straightSpinOnly && Math.abs(spinX) > 1e-4) {
-    const sideDir = new THREE.Vector3(-aimVec.z, 0, aimVec.x);
-    if (sideDir.lengthSq() > 1e-8) {
-      sideDir.normalize();
-      previewDir.addScaledVector(sideDir, spinX * physicsFollowInfluence * 0.6);
     }
   }
   if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
@@ -7109,8 +7125,7 @@ function resolveCueFollowPreview({
     length *= 1 + backspinWeight * backBoost;
   }
   if (topspinWeight > 1e-4) {
-    const topBoost = 0.45 + 0.65 * power;
-    length *= 1 + topspinWeight * topBoost;
+    length *= 1 + topspinWeight * 0.15 * power;
   }
   return {
     dir: previewDir,
@@ -8414,28 +8429,9 @@ export function Table3D(
         })
       }
     : {};
-  const pocketGlowBallMaterials = new Map();
-  const resolvePocketGlowBallMaterial = (colorHex) => {
-    if (!POCKET_GLOW_ENABLED || !Number.isFinite(colorHex)) return null;
-    const key = Number(colorHex);
-    if (pocketGlowBallMaterials.has(key)) return pocketGlowBallMaterials.get(key);
-    const mat = new THREE.MeshBasicMaterial({
-      color: key,
-      transparent: true,
-      opacity: Math.min(0.92, POCKET_GLOW_OPACITY + 0.18),
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    pocketGlowBallMaterials.set(key, mat);
-    return mat;
-  };
-  const createPocketGlowMesh = (tone = 'good', colorHex = null) => {
+  const createPocketGlowMesh = (tone = 'good') => {
     if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
-    const material =
-      resolvePocketGlowBallMaterial(colorHex) ||
-      pocketGlowMaterials[tone] ||
-      pocketGlowMaterials.good;
+    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
     if (!material) return null;
     const glow = new THREE.Mesh(pocketGlowGeometry, material);
     glow.rotation.x = -Math.PI / 2;
@@ -8444,12 +8440,9 @@ export function Table3D(
     glow.receiveShadow = false;
     return glow;
   };
-  const setPocketGlowTone = (entry, tone = 'good', colorHex = null) => {
+  const setPocketGlowTone = (entry, tone = 'good') => {
     if (!entry?.glowMesh) return;
-    const material =
-      resolvePocketGlowBallMaterial(colorHex) ||
-      pocketGlowMaterials[tone] ||
-      pocketGlowMaterials.good;
+    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
     if (material) entry.glowMesh.material = material;
     entry.glowTone = tone;
   };
@@ -20829,6 +20822,7 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -22193,9 +22187,10 @@ const powerRef = useRef(hud.power);
         const clampSpinToLimits = (input) => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = input || spinRequestRef.current || spinRef.current || { x: 0, y: 0 };
+          const maxTopspin = Math.min(limits.maxY, MAX_TOPSPIN_INPUT);
           return {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
-            y: clamp(current.y ?? 0, limits.minY, limits.maxY)
+            y: clamp(current.y ?? 0, limits.minY, maxTopspin)
           };
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
@@ -23337,13 +23332,11 @@ const powerRef = useRef(hud.power);
       }
 
       // Aiming visuals
-      const aimMat = new THREE.LineDashedMaterial({
-        color: 0x9cecff,
+      const aimMat = new THREE.LineBasicMaterial({
+        color: 0xe8f6ff,
         linewidth: AIM_LINE_WIDTH,
-        dashSize: BALL_R * 0.7,
-        gapSize: BALL_R * 0.35,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.58,
         depthTest: false,
         depthWrite: false
       });
@@ -23377,13 +23370,11 @@ const powerRef = useRef(hud.power);
       ]);
       const cueAfter = new THREE.Line(
         cueAfterGeom,
-        new THREE.LineDashedMaterial({
+        new THREE.LineBasicMaterial({
           color: 0x7ce7ff,
           linewidth: AIM_LINE_WIDTH,
-          dashSize: BALL_R * 0.58,
-          gapSize: BALL_R * 0.32,
           transparent: true,
-          opacity: 0.76,
+          opacity: 0.68,
           depthTest: false,
           depthWrite: false
         })
@@ -23429,13 +23420,11 @@ const powerRef = useRef(hud.power);
       ]);
       const target = new THREE.Line(
         targetGeom,
-        new THREE.LineDashedMaterial({
+        new THREE.LineBasicMaterial({
           color: 0xffe3a1,
           linewidth: AIM_LINE_WIDTH,
-          dashSize: BALL_R * 0.62,
-          gapSize: BALL_R * 0.38,
           transparent: true,
-          opacity: 0.82,
+          opacity: 0.72,
           depthTest: false,
           depthWrite: false
         })
@@ -24851,7 +24840,7 @@ const powerRef = useRef(hud.power);
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
-        const { base, aimDir, physicsSpin, clampedPower } = payload;
+        const { base, aimDir, physicsSpin, clampedPower, liftStrength } = payload;
         const offsetScaled = {
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
@@ -24871,12 +24860,6 @@ const powerRef = useRef(hud.power);
         if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
         const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
         if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
-        // Unity-style cue strike transfer:
-        // 1) linear impulse from cue direction and shot speed
-        // 2) angular impulse from cue-tip offset (r x J)
-        // This keeps the current on-screen spin controller while moving the
-        // shot model to the same rigidbody pattern used by open-source Unity
-        // pool projects.
         const rOffset = TMP_VEC3_E
           .copy(sideAxis)
           .multiplyScalar(offsetScaled.x * BALL_R)
@@ -25000,15 +24983,7 @@ const powerRef = useRef(hud.power);
         );
         // Keep first-contact aiming locked to the visible guide line. Spin remains
         // active only for post-impact cue/target behavior.
-        const shotAimDir = guideAimDir2D?.clone?.() ?? aimDir.clone();
-        if (shotAimDir.lengthSq() < 1e-6) {
-          shotAimDir.copy(aimDir);
-        }
-        if (shotAimDir.lengthSq() < 1e-6) {
-          shotAimDir.set(0, 1);
-        } else {
-          shotAimDir.normalize();
-        }
+        const shotAimDir = aimDir.clone();
         const prediction = calcTarget(cue, shotAimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
@@ -25180,12 +25155,55 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          applyShotAtImpact({
-            base,
-            aimDir: shotAimDir,
-            physicsSpin,
-            clampedPower
-          });
+          const ranges = spinRangeRef.current || {};
+          const powerSpinScale = 0.55 + clampedPower * 0.45;
+          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
+          const scaledSpin = {
+            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
+            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
+          };
+          const baseSide = scaledSpin.x * (ranges.side ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (scaledSpin.y < 0) {
+            spinTop *= BACKSPIN_MULTIPLIER;
+          } else if (scaledSpin.y > 0) {
+            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
+            spinTop *= TOPSPIN_MULTIPLIER;
+            if (Math.abs(baseSide) > 1e-6) {
+              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
+            }
+          }
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = shotAimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25285,27 +25303,7 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          // Match the reference cue-stick behavior for spin:
-          // topspin adds a tiny forward follow-through after contact,
-          // while backspin keeps a clean stop at impact.
-          const topspinFactor = THREE.MathUtils.clamp(
-            Math.max(0, appliedSpin?.y ?? 0) * clampedPower,
-            0,
-            1
-          );
-          const followExtra = THREE.MathUtils.clamp(
-            topspinFactor * BALL_R * 0.32,
-            0,
-            BALL_R * 0.34
-          );
           const followPos = impactPos.clone();
-          if (followExtra > 1e-6) {
-            TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
-            if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
-              TMP_VEC3_FOLLOW_DIR.normalize();
-              followPos.addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-            }
-          }
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -28160,11 +28158,7 @@ const powerRef = useRef(hud.power);
           potted.forEach((entry) => {
             const dropEntry = pocketDropRef.current.get(entry.id);
             if (dropEntry?.glowMesh) {
-              setPocketGlowTone(
-                dropEntry,
-                shotWasFoul ? 'foul' : 'good',
-                dropEntry.glowColorHex
-              );
+              setPocketGlowTone(dropEntry, shotWasFoul ? 'foul' : 'good');
             }
           });
         }
@@ -28971,11 +28965,10 @@ const powerRef = useRef(hud.power);
             liftStrength
           );
           aimGeom.setFromPoints(aimPoints);
-          aim.computeLineDistances();
           aim.visible = true;
           const powerColor = resolvePowerLineColor(powerStrength);
           aimPower.material.color.copy(powerColor);
-          aimPower.material.opacity = 0.5 + 0.45 * powerStrength;
+          aimPower.material.opacity = 0.45 + 0.45 * powerStrength;
           aimPower.visible = updatePowerLinePoints(
             aimPowerGeom,
             start,
@@ -29079,15 +29072,10 @@ const powerRef = useRef(hud.power);
             cuePowerStrength,
             liftStrength
           });
-          const cueFollowStart = end
-            .clone()
-            .add(cueFollowPreview.dir.clone().multiplyScalar(BALL_R * 0.08));
-          const followEnd = cueFollowStart
+          const followEnd = end
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
-          cueFollowStart.y = BALL_CENTER_Y + BALL_R * 0.02;
-          followEnd.y = cueFollowStart.y;
-          cueAfterGeom.setFromPoints([cueFollowStart, followEnd]);
+          cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
@@ -29267,7 +29255,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
             target.visible = true;
             targetPower.material.color.copy(resolvePowerLineColor(targetPowerStrength));
-            targetPower.material.opacity = 0.46 + 0.5 * targetPowerStrength;
+            targetPower.material.opacity = 0.4 + 0.5 * targetPowerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               targetStart,
@@ -29288,7 +29276,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.38 + 0.45 * powerStrength;
+            targetPower.material.opacity = 0.3 + 0.45 * powerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               end,
@@ -29367,13 +29355,12 @@ const powerRef = useRef(hud.power);
             remoteSwerveActive
           );
           aimGeom.setFromPoints(aimPoints);
-          aim.computeLineDistances();
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
           const powerColor = resolvePowerLineColor(powerStrength);
           aimPower.material.color.copy(powerColor);
-          aimPower.material.opacity = 0.5 + 0.45 * powerStrength;
+          aimPower.material.opacity = 0.45 + 0.45 * powerStrength;
           aimPower.visible = updatePowerLinePoints(
             aimPowerGeom,
             start,
@@ -29391,20 +29378,15 @@ const powerRef = useRef(hud.power);
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: baseDir,
-            spin: mapSpinForPhysics(remoteSpinNormalized),
+            spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
             liftStrength: 0
           });
-          const cueFollowStart = end
-            .clone()
-            .add(cueFollowPreview.dir.clone().multiplyScalar(BALL_R * 0.08));
-          const followEnd = cueFollowStart
+          const followEnd = end
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
-          cueFollowStart.y = BALL_CENTER_Y + BALL_R * 0.02;
-          followEnd.y = cueFollowStart.y;
-          cueAfterGeom.setFromPoints([cueFollowStart, followEnd]);
+          cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
@@ -29479,7 +29461,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
             target.visible = true;
             targetPower.material.color.copy(resolvePowerLineColor(targetPowerStrength));
-            targetPower.material.opacity = 0.46 + 0.5 * targetPowerStrength;
+            targetPower.material.opacity = 0.4 + 0.5 * targetPowerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               targetStart,
@@ -29500,7 +29482,7 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.38 + 0.45 * powerStrength;
+            targetPower.material.opacity = 0.3 + 0.45 * powerStrength;
             targetPower.visible = updatePowerLinePoints(
               targetPowerGeom,
               end,
@@ -30478,17 +30460,8 @@ const powerRef = useRef(hud.power);
                   rollStartAt: null,
                   rollProgress: 0,
                   pocketId,
-                  resting: false,
-                  glowColorHex: Number.isFinite(b.color) ? b.color : null
+                  resting: false
                 };
-                if (table && POCKET_GLOW_ENABLED) {
-                  const glowMesh = createPocketGlowMesh('good', dropEntry.glowColorHex);
-                  if (glowMesh) {
-                    glowMesh.position.set(c.x, BALL_CENTER_Y + POCKET_GLOW_LIFT, c.y);
-                    table.add(glowMesh);
-                    dropEntry.glowMesh = glowMesh;
-                  }
-                }
                 if (b.mesh) {
                   b.mesh.visible = true;
                   b.mesh.scale.set(1, 1, 1);
@@ -31235,7 +31208,6 @@ const powerRef = useRef(hud.power);
     },
     []
   );
-
 
   // Spin controller interactions
   useEffect(() => {
