@@ -1077,7 +1077,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // match Pool Royale rail/cushion top height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs identical to Pool Royale jaw geometry
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
@@ -1200,7 +1200,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
+const POCKET_INTERIOR_TOP_SCALE = 1; // match Pool Royale pocket interior rim diameter
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_CENTER_OUTWARD_SHIFT = TABLE.THICK * 0.045; // shift pocket centers outward to keep the pocket stack aligned away from the playfield
 const CORNER_POCKET_CENTER_INSET = Math.max(
@@ -1233,7 +1233,7 @@ const CLOTH_LIFT = (() => {
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
+const CLOTH_DROP = BALL_R * 0.268; // match Pool Royale cloth drop mapping
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
@@ -1290,7 +1290,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
+const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // match Pool Royale: disable max-power bounce lift path
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
@@ -1342,8 +1342,8 @@ const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wra
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
-const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
-const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
+const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // match Pool Royale cushion-cut rebound energy
+const CUSHION_CUT_FRICTION_SCALE = 1.12; // match Pool Royale cushion-cut friction damping
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.03; // lift the cushion base slightly so the lip sits higher above the cloth
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.16; // trim the cushion tops a touch less so they sit higher than before
@@ -1463,8 +1463,8 @@ const ACTION_CAM = Object.freeze({
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
   heightOffset: BALL_R * 9.2,
-  smoothingTime: 0.32,
-  followSmoothingTime: 0.24,
+  smoothingTime: 0.24,
+  followSmoothingTime: 0.18,
   followDistance: BALL_R * 54,
   followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
@@ -5024,11 +5024,11 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the standing view dip slightly lower while still staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view lower sweep
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0148; // pull the standing + cue orbit a touch closer to the cloth for a tighter gameplay view
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // match Pool Royale standing/cue camera distance
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -5043,8 +5043,8 @@ const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
   nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
   landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
-  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
+  portrait: Object.freeze({ cue: 0.82, broadcast: 1, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 1, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -5100,7 +5100,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12; // mirror Pool Royale rail padding so balls cannot slip outside table limits
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.04;
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -5108,10 +5108,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.16; // lift the top view a touch more so the full table stays in frame on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.26; // raise the 2D camera a little more so portrait framing sits slightly higher
+const TOP_VIEW_MARGIN = 1.14; // match Pool Royale top-view framing
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // match Pool Royale 2D top-view distance
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.26; // raise the 2D camera a little more so portrait framing sits slightly higher
+const TOP_VIEW_RADIUS_SCALE = 1.11; // match Pool Royale top-view camera scale
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006,
@@ -5122,7 +5122,7 @@ const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.07 // nudge overhead framing so the table appears a little higher on portrait screens
 });
 const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.1; // lift rail-overhead camera a little more for clearer bottom-pocket visibility
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // match Pool Royale rail-overhead framing scale
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.01; // keep overhead framing close to 2D while adding a slight broadcast tilt
@@ -5175,7 +5175,7 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
-const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.064; // tilt rail-overhead aim view slightly more downward so lower pockets remain readable
+const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // match Pool Royale rail-overhead aim tilt
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens so both near short-rail pockets stay in frame on portrait
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
