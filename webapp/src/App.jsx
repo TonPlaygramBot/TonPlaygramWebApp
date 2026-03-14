@@ -27,8 +27,6 @@ import MiningTransactions from './pages/MiningTransactions.jsx';
 import SpinPage from './pages/spin.tsx';
 import GoalRush from './pages/Games/GoalRush.jsx';
 import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
-import GoKart from './pages/Games/GoKart.jsx';
-import GoKartLobby from './pages/Games/GoKartLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
@@ -143,8 +141,6 @@ export default function App() {
             <Route path="/games/snake" element={<SnakeAndLadder />} />
             <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
             <Route path="/games/snake/results" element={<SnakeResults />} />
-            <Route path="/games/gokart/lobby" element={<GoKartLobby />} />
-            <Route path="/games/gokart" element={<GoKart />} />
             <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
             <Route path="/games/goalrush" element={<GoalRush />} />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />

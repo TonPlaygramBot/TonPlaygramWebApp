@@ -8,10 +8,6 @@ export const ONLINE_CONTRACT_CHECKS = Object.freeze({
 });
 
 export const ONLINE_READINESS_BY_GAME = Object.freeze({
-  gokart: {
-    checks: { lobby: true, runtime: false, backend: false, security: true },
-    label: 'Beta'
-  },
   poolroyale: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'

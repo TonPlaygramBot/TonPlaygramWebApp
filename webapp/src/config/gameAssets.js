@@ -11,7 +11,6 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
-  gokart: '/assets/icons/supertuxkart-gokart.svg',
   texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
   'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
@@ -32,10 +31,6 @@ const buildLobbyIconSet = (keys, icon) =>
   }, {});
 
 export const lobbyOptionIcons = {
-  gokart: buildLobbyIconSet(
-    ['mode-solo', 'mode-online', 'track-grasslands', 'track-snowpeak', 'track-volcano'],
-    '/assets/icons/supertuxkart-gokart.svg'
-  ),
   texasholdem: buildLobbyIconSet(
     [
       'mode-local',
