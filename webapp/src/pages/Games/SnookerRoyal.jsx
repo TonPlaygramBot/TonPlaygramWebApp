@@ -1068,8 +1068,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
-  // Match Pool Royale field mapping exactly so ball placement/collision lanes stay 1:1.
-  const TABLE_SIZE_MULTIPLIER = 1;
+  const TABLE_SIZE_MULTIPLIER = 3569 / 2540;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
     H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
@@ -1078,7 +1077,7 @@ const ENABLE_TABLE_MAPPING_LINES = false;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.9; // keep cushion stack height identical to Pool Royale
+const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs identical to Pool Royale jaw geometry
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
@@ -1134,7 +1133,7 @@ const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; 
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   // Match the Pool Royale pocket layout and ball size for consistent sizing.
-  const WIDTH_REF = 1981.2;
+  const WIDTH_REF = 2540;
   const HEIGHT_REF = 1270;
   const BALL_D_REF = 57.15;
   const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (25")
@@ -1291,7 +1290,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // mirror Pool Royale max-power bounce gating
+const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
@@ -1343,11 +1342,11 @@ const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wra
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
-const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // mirror Pool Royale jaw rebound energy
-const CUSHION_CUT_FRICTION_SCALE = 1.12; // mirror Pool Royale angled-cushion grip
+const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.148; // align cushion elevation with Pool Royale
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // match Pool Royale cushion top trim
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.03; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.16; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5020,7 +5019,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.88; // lower the standing camera angle on screen for closer portrait framing
+const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing camera tilt
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5036,7 +5035,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.32; // pull standing camera closer to the table
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing camera distance
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5161,8 +5160,8 @@ const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
-const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.4; // strengthen dynamic camera travel during aim transitions
-const CAMERA_LOW_VIEW_PULL_RANGE = CAMERA.minR * 0.1;
+const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.32;
+const CAMERA_LOW_VIEW_PULL_RANGE = CAMERA.minR * 0.08;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
