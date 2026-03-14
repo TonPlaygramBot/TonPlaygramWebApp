@@ -1,4 +1,5 @@
 import React, {
+  Component,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -33662,6 +33663,66 @@ const powerRef = useRef(hud.power);
   );
 }
 
+class PoolRoyaleErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: '', stack: '' };
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      hasError: true,
+      message:
+        typeof error?.message === 'string'
+          ? error.message
+          : 'Pool Royale encountered an unexpected error.',
+      stack: typeof error?.stack === 'string' ? error.stack : ''
+    };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('Pool Royale crashed', error, info);
+  }
+
+  render() {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+    return (
+      <div className="min-h-screen w-full bg-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-2xl border border-white/20 bg-slate-900/90 p-5 space-y-3">
+          <h2 className="text-xl font-semibold">Pool Royale hit a runtime error</h2>
+          <p className="text-sm text-slate-300">
+            We prevented a full app crash so you can safely return to the lobby.
+          </p>
+          <p className="text-xs break-words text-amber-300">{this.state.message}</p>
+          {this.state.stack ? (
+            <pre className="max-h-32 overflow-auto rounded bg-black/50 p-2 text-[10px] leading-tight text-slate-300 whitespace-pre-wrap">
+              {this.state.stack}
+            </pre>
+          ) : null}
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => window.location.assign('/games/poolroyale/lobby')}
+              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium hover:bg-blue-500"
+            >
+              Back to lobby
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg border border-white/25 px-3 py-2 text-sm font-medium hover:bg-white/10"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 export default function PoolRoyale() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -33800,19 +33861,21 @@ export default function PoolRoyale() {
     return params.get('opponentAvatar') || '';
   }, [location.search]);
   return (
-    <PoolRoyaleGame
-      variantKey={variantKey}
-      ballSetKey={ballSetKey}
-      tableSizeKey={tableSizeKey}
-      playType={playType}
-      mode={mode}
-      accountId={accountId}
-      tgId={tgId}
-      playerName={playerName}
-      playerAvatar={playerAvatar}
-      opponentName={opponentName}
-      opponentAvatar={opponentAvatar}
-      initialTrainingLevel={initialTrainingLevel}
-    />
+    <PoolRoyaleErrorBoundary>
+      <PoolRoyaleGame
+        variantKey={variantKey}
+        ballSetKey={ballSetKey}
+        tableSizeKey={tableSizeKey}
+        playType={playType}
+        mode={mode}
+        accountId={accountId}
+        tgId={tgId}
+        playerName={playerName}
+        playerAvatar={playerAvatar}
+        opponentName={opponentName}
+        opponentAvatar={opponentAvatar}
+        initialTrainingLevel={initialTrainingLevel}
+      />
+    </PoolRoyaleErrorBoundary>
   );
 }
