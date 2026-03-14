@@ -144,7 +144,7 @@ function applyTablePhysicsSpec(meta) {
   const restitution = Number.isFinite(meta?.cushionRestitution)
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
-  CUSHION_RESTITUTION = Math.min(0.999, restitution * 1.006);
+  CUSHION_RESTITUTION = restitution;
 }
 
 function detectCoarsePointer() {
@@ -1079,7 +1079,7 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.28; // raise rails slightly so the cushions sit higher
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 0.97; // tighten the collision arc so the jaw meets the cushion cut and seals the pocket gap
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs identical to Pool Royale jaw geometry
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1116,8 +1116,8 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.085; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // match Pool Royale middle-pocket jaw vertical offset
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // match Pool Royale middle-pocket jaw outward placement
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.78; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1273,18 +1273,18 @@ if (BALL_SHADOW_MATERIAL) {
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.985,
+  restitution: 1.08,
   mu: 0.421,
   spinDecay: 2.0,
-  airSpinDecay: 6.0,
+  airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
-const FRICTION = 0.993;
+const FRICTION = 0.995;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.45;
+const STOP_EPS = 0.012;
+const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -1307,14 +1307,16 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
-const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
+const CAPTURE_R =
+  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.12; // widen the capture bowl so firm/spun shots still drop like Pool Royale
+const SIDE_CAPTURE_R =
+  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
+const POCKET_GUARD_RADIUS = Math.max(0, CAPTURE_R - BALL_R * 0.08); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
+  SIDE_CAPTURE_R - BALL_R * 0.12; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
@@ -1513,7 +1515,7 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_GLOBAL_SCALE = 0.66; // increase overall spin impact by 10%
+const SPIN_GLOBAL_SCALE = 0.9; // match Pool Royale spin controller scaling
 const CUE_LOGIC_STRIKE_TIME_MS = 120;
 const CUE_LOGIC_HOLD_TIME_MS = 50;
 const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
@@ -1529,7 +1531,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
+const RAIL_SPIN_THROW_SCALE = 0; // match Pool Royale rail spin throw behavior
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
