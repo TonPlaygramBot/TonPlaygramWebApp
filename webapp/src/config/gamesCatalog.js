@@ -1,12 +1,5 @@
 const gamesCatalog = [
   {
-    name: 'GoKart',
-    route: '/games/gokart/lobby',
-    slug: 'gokart',
-    image: '/assets/icons/supertuxkart-gokart.svg',
-    description: 'Open-source kart racing lobby powered by SuperTuxKart.'
-  },
-  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
