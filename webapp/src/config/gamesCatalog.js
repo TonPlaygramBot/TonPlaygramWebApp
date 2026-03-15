@@ -78,6 +78,13 @@ const gamesCatalog = [
     description: 'Fast 3D table-tennis rallies with royal visuals.'
   },
   {
+    name: 'SuperTuxKart Mobile',
+    route: '/games/supertuxkart/lobby',
+    slug: 'supertuxkart',
+    image: '/assets/icons/futuristic_racing_car.webp',
+    description: 'Open-source kart racing adapted for portrait mobile sessions.'
+  },
+  {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
