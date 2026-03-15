@@ -21,7 +21,6 @@ export const gameThumbnails = {
   murlanroyale: '/assets/icons/Murlan%20Royal%20logo.png',
   chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   checkersbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
-  tavullbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   tabletennisroyal: '/assets/icons/table-tennis-royale.svg'
 };
@@ -131,10 +130,6 @@ export const lobbyOptionIcons = {
     '/assets/icons/chess-royale.svg'
   ),
   checkersbattleroyal: buildLobbyIconSet(
-    ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
-    '/assets/icons/chess-royale.svg'
-  ),
-  tavullbattleroyal: buildLobbyIconSet(
     ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
     '/assets/icons/chess-royale.svg'
   ),
