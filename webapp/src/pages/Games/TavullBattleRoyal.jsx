@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js'
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js'
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js'
 import { getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js'
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js'
 import Dice from '../../components/Dice.jsx'
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
@@ -34,10 +39,101 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE
 const ARM_DEPTH = SEAT_DEPTH * 0.75
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE
 const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS_SCALED * 0.85
+const CAMERA_2D_POSITION = new THREE.Vector3(0, 8.4, 0.01)
+const CAMERA_3D_POSITION = new THREE.Vector3(0, 4.9, 5.6)
+const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT, 0)
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/'
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
+const BACKGAMMON_BOARD_GLTF_URLS = Object.freeze([
+  'https://raw.githubusercontent.com/KenneyNL/boardgame-kit/main/Models/GLTF/boardgame-kit.glb',
+  'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
+])
+const BACKGAMMON_HDRI_URLS = Object.freeze([
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr',
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr',
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/colorful_studio_1k.hdr'
+])
+let sharedKtx2Loader = null
+let hasDetectedKtx2Support = false
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
   { left: '50%', top: '82%' }
 ]
+
+function ensureKtx2SupportDetection(renderer = null) {
+  if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return
+  try {
+    sharedKtx2Loader.detectSupport(renderer)
+    hasDetectedKtx2Support = true
+  } catch (error) {
+    console.warn('Failed to detect KTX2 support for Tavull loader', error)
+  }
+}
+
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader()
+  loader.setCrossOrigin?.('anonymous')
+  const draco = new DRACOLoader()
+  draco.setDecoderPath(DRACO_DECODER_PATH)
+  loader.setDRACOLoader(draco)
+  loader.setMeshoptDecoder?.(MeshoptDecoder)
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader()
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH)
+  }
+  ensureKtx2SupportDetection(renderer)
+  loader.setKTX2Loader(sharedKtx2Loader)
+  return loader
+}
+
+function prepareLoadedModel(model) {
+  model?.traverse?.((obj) => {
+    if (!obj?.isMesh) return
+    obj.castShadow = true
+    obj.receiveShadow = true
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
+    materials.forEach((material) => {
+      if (!material) return
+      if (material.map) applySRGBColorSpace(material.map)
+      if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap)
+    })
+  })
+}
+
+async function loadBackgammonBoardModel(renderer) {
+  const loader = createConfiguredGLTFLoader(renderer)
+  for (const url of BACKGAMMON_BOARD_GLTF_URLS) {
+    try {
+      const gltf = await loader.loadAsync(url)
+      const root = gltf?.scene || gltf?.scenes?.[0]
+      if (!root) continue
+      prepareLoadedModel(root)
+      return root
+    } catch (error) {
+      console.warn('Failed to load Tavull open-source board model', url, error)
+    }
+  }
+  return null
+}
+
+function loadHdriEnvironment(scene) {
+  const rgbe = new RGBELoader()
+  const tryNext = (index = 0) => {
+    if (index >= BACKGAMMON_HDRI_URLS.length) return
+    rgbe.load(
+      BACKGAMMON_HDRI_URLS[index],
+      (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping
+        applySRGBColorSpace(texture)
+        scene.environment = texture
+      },
+      undefined,
+      () => tryNext(index + 1)
+    )
+  }
+  tryNext(0)
+}
 
 const initialBoard = () => {
   const points = Array.from({ length: 24 }, () => ({ color: null, count: 0 }))
@@ -299,6 +395,7 @@ export default function TavullBattleRoyal() {
   const [message, setMessage] = useState('Roll to start. You are White.')
   const [aiThinking, setAiThinking] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('3d')
   const playerName = getTelegramFirstName() || 'Player'
   const playerAvatar = getTelegramPhotoUrl()
 
@@ -337,9 +434,10 @@ export default function TavullBattleRoyal() {
     scene.background = new THREE.Color('#090f1f')
 
     const camera = new THREE.PerspectiveCamera(42, host.clientWidth / host.clientHeight, 0.1, 120)
-    camera.position.set(0, 4.9, 5.6)
+    camera.position.copy(CAMERA_3D_POSITION)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' })
+    applyRendererSRGB(renderer)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.setSize(host.clientWidth, host.clientHeight)
     renderer.shadowMap.enabled = true
@@ -351,7 +449,30 @@ export default function TavullBattleRoyal() {
     controls.maxPolarAngle = Math.PI * 0.48
     controls.minDistance = 4.4
     controls.maxDistance = 7.4
-    controls.target.set(0, TABLE_HEIGHT, 0)
+    controls.target.copy(CAMERA_TARGET)
+
+    const applyViewMode = (mode) => {
+      if (mode === '2d') {
+        camera.position.copy(CAMERA_2D_POSITION)
+        camera.lookAt(CAMERA_TARGET)
+        controls.minPolarAngle = 0.02
+        controls.maxPolarAngle = Math.PI * 0.08
+        controls.enableRotate = false
+        controls.minDistance = 5.8
+        controls.maxDistance = 10
+      } else {
+        camera.position.copy(CAMERA_3D_POSITION)
+        camera.lookAt(CAMERA_TARGET)
+        controls.minPolarAngle = 0.4
+        controls.maxPolarAngle = Math.PI * 0.48
+        controls.enableRotate = true
+        controls.minDistance = 4.4
+        controls.maxDistance = 7.4
+      }
+      controls.target.copy(CAMERA_TARGET)
+      controls.update()
+    }
+    applyViewMode(viewMode)
 
     scene.add(new THREE.AmbientLight('#ffffff', 0.5))
     const key = new THREE.DirectionalLight('#ffffff', 1.15)
@@ -363,15 +484,7 @@ export default function TavullBattleRoyal() {
     fill.position.set(-4, 4.5, -3)
     scene.add(fill)
 
-    new RGBELoader().load(
-      'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/colorful_studio_1k.hdr',
-      (texture) => {
-        texture.mapping = THREE.EquirectangularReflectionMapping
-        scene.environment = texture
-      },
-      undefined,
-      () => {}
-    )
+    loadHdriEnvironment(scene)
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT })
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[0])
@@ -386,6 +499,7 @@ export default function TavullBattleRoyal() {
 
     const boardRoot = new THREE.Group()
     scene.add(boardRoot)
+    let loadedBoardModel = null
 
     const boardBase = new THREE.Mesh(
       new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2),
@@ -408,17 +522,13 @@ export default function TavullBattleRoyal() {
     bar.position.y = BOARD_Y + 0.11
     boardRoot.add(bar)
 
-    const makeTriangle = (x, z, top, dark) => {
+    const makeTriangle = (x, top, dark) => {
+      const baseZ = top ? -BOARD_HALF_Z + 0.01 : BOARD_HALF_Z - 0.01
+      const apex = top ? -0.56 : 0.56
       const shape = new THREE.Shape()
-      if (top) {
-        shape.moveTo(-0.08, 0)
-        shape.lineTo(0.08, 0)
-        shape.lineTo(0, 0.72)
-      } else {
-        shape.moveTo(-0.08, 0)
-        shape.lineTo(0.08, 0)
-        shape.lineTo(0, -0.72)
-      }
+      shape.moveTo(-0.08, 0)
+      shape.lineTo(0.08, 0)
+      shape.lineTo(0, apex)
       shape.closePath()
       const geom = new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false })
       geom.rotateX(-Math.PI / 2)
@@ -426,14 +536,33 @@ export default function TavullBattleRoyal() {
         geom,
         new THREE.MeshStandardMaterial({ color: dark ? '#7a2f1d' : '#d8b07d', roughness: 0.72, metalness: 0.05 })
       )
-      tri.position.set(x, BOARD_Y + 0.13, z)
+      tri.position.set(x, BOARD_Y + 0.13, baseZ)
       boardRoot.add(tri)
     }
 
     for (let i = 0; i < 24; i += 1) {
       const p = pointBasePosition(i)
-      makeTriangle(p.x, p.z, p.top, i % 2 === 0)
+      makeTriangle(p.x, p.top, i % 2 === 0)
     }
+
+    void loadBackgammonBoardModel(renderer).then((model) => {
+      if (!model) return
+      loadedBoardModel = model
+      const box = new THREE.Box3().setFromObject(model)
+      const size = box.getSize(new THREE.Vector3())
+      const maxXZ = Math.max(size.x, size.z)
+      const targetDiameter = TABLE_RADIUS * 1.68
+      const scale = maxXZ > 0 ? targetDiameter / maxXZ : 1
+      model.scale.multiplyScalar(scale)
+      const scaledBox = new THREE.Box3().setFromObject(model)
+      const center = scaledBox.getCenter(new THREE.Vector3())
+      model.position.set(-center.x, TABLE_HEIGHT + 0.01 - scaledBox.min.y, -center.z)
+      model.traverse((child) => {
+        if (!child?.isMesh) return
+        child.renderOrder = -1
+      })
+      scene.add(model)
+    })
 
     const chipGroup = new THREE.Group()
     scene.add(chipGroup)
@@ -456,17 +585,26 @@ export default function TavullBattleRoyal() {
     }
     tick()
 
-    sceneBundleRef.current = { scene, camera, renderer, controls, chipGroup }
+    sceneBundleRef.current = { scene, camera, renderer, controls, chipGroup, applyViewMode }
 
     return () => {
       window.cancelAnimationFrame(raf)
       window.removeEventListener('resize', resize)
       controls.dispose()
       renderer.dispose()
+      if (loadedBoardModel) {
+        scene.remove(loadedBoardModel)
+      }
       host.removeChild(renderer.domElement)
       sceneBundleRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const bundle = sceneBundleRef.current
+    if (!bundle?.applyViewMode) return
+    bundle.applyViewMode(viewMode)
+  }, [viewMode])
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
@@ -584,6 +722,13 @@ export default function TavullBattleRoyal() {
 
       <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
         <div className="pointer-events-auto flex flex-col items-end gap-3">
+          <button
+            type="button"
+            onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+            className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+          >
+            {viewMode === '3d' ? '2D' : '3D'}
+          </button>
           <BottomLeftIcons
             showInfo={false}
             showChat={false}
