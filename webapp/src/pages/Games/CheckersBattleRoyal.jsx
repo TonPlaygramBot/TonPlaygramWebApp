@@ -10,8 +10,13 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import { getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
+import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import {
   CHESS_CHAIR_OPTIONS,
   CHESS_TABLE_OPTIONS,
@@ -22,6 +27,9 @@ import {
   POOL_ROYALE_HDRI_VARIANTS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
+import { chatBeep } from '../../assets/soundData.js';
+import { getGameVolume } from '../../utils/sound.js';
+import { giftSounds } from '../../utils/giftSounds.js';
 import { chessBattleAccountId, getChessBattleInventory } from '../../utils/chessBattleInventory.js';
 
 const SIZE = 8;
@@ -60,6 +68,11 @@ const CHIP_SETS = [
   { id: 'rose-ice', label: 'Rose/Ice', light: '#fb7185', dark: '#67e8f9' }
 ];
 
+const FALLBACK_SEAT_POSITIONS = [
+  { left: '50%', top: '18%' },
+  { left: '50%', top: '82%' }
+];
+
 const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
   for (let r = 0; r < 3; r += 1) for (let c = 0; c < SIZE; c += 1) if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
@@ -68,6 +81,8 @@ const createInitial = () => {
 };
 
 const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+const copyBoard = (board) => board.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
+
 const getMoves = (board, r, c) => {
   const piece = board[r][c];
   if (!piece) return [];
@@ -166,8 +181,11 @@ export default function CheckersBattleRoyal() {
   const selectedRef = useRef(null);
   const piecesGroupRef = useRef(null);
   const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
+  const replayStateRef = useRef(null);
 
   const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
   const envRef = useRef({ map: null, skybox: null });
@@ -175,6 +193,12 @@ export default function CheckersBattleRoyal() {
   const [turn, setTurn] = useState('light');
   const [status, setStatus] = useState('Loading arena…');
   const [showAppearance, setShowAppearance] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('3d');
+  const [showGift, setShowGift] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [canReplay, setCanReplay] = useState(false);
 
   const inv = useMemo(() => {
     const inventory = getChessBattleInventory(chessBattleAccountId());
@@ -190,6 +214,13 @@ export default function CheckersBattleRoyal() {
   const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
 
   const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
+  const playerName = getTelegramFirstName() || 'Player';
+  const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
+
+  const players = [
+    { index: 0, name: 'Rival', photoUrl: '/assets/icons/profile.svg', color: '#f43f5e', isTurn: turn === 'dark' },
+    { index: 1, name: playerName, photoUrl: playerPhotoUrl, color: '#38bdf8', isTurn: turn === 'light' }
+  ];
 
   const renderPieces = useMemo(
     () => () => {
@@ -254,6 +285,8 @@ export default function CheckersBattleRoyal() {
       ARENA_CAMERA_DEFAULTS.near,
       ARENA_CAMERA_DEFAULTS.far
     );
+    cameraRef.current = camera;
+
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
     const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
@@ -267,6 +300,7 @@ export default function CheckersBattleRoyal() {
     );
 
     const controls = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, TABLE_HEIGHT, 0);
@@ -276,9 +310,6 @@ export default function CheckersBattleRoyal() {
     controls.maxDistance = TABLE_RADIUS * 4.9;
     controls.minPolarAngle = THREE.MathUtils.degToRad(28);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.rotateSpeed = 0.85;
-    controls.zoomSpeed = 0.7;
-    controls.panSpeed = 0.6;
 
     scene.add(new THREE.AmbientLight('#ffffff', 0.5));
     const key = new THREE.DirectionalLight('#ffffff', 1.08);
@@ -306,6 +337,7 @@ export default function CheckersBattleRoyal() {
       const moves = getMoves(board, selected.r, selected.c);
       const move = moves.find((m) => m.r === r && m.c === c);
       if (!move) return;
+      const beforeBoard = copyBoard(board);
       const next = board.map((row) => row.slice());
       const moving = { ...next[selected.r][selected.c] };
       next[selected.r][selected.c] = null;
@@ -315,7 +347,10 @@ export default function CheckersBattleRoyal() {
       next[r][c] = moving;
       boardRef.current = next;
       selectedRef.current = null;
-      setTurn((prev) => (prev === 'light' ? 'dark' : 'light'));
+      const nextTurn = turn === 'light' ? 'dark' : 'light';
+      replayStateRef.current = { beforeBoard, afterBoard: copyBoard(next), beforeTurn: turn, afterTurn: nextTurn };
+      setCanReplay(true);
+      setTurn(nextTurn);
     };
 
     const onPointerUp = (event) => {
@@ -343,16 +378,8 @@ export default function CheckersBattleRoyal() {
         }
       };
 
-      // 1) Table always present (fallback-safe)
       try {
-        const tableTheme = CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) || CHESS_TABLE_OPTIONS[0];
-        const table = createMurlanStyleTable({
-          arena: scene,
-          renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT
-        });
-        table.group.position.set(0, 0, 0);
+        const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
         const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
         tableRef.current = table;
@@ -360,7 +387,6 @@ export default function CheckersBattleRoyal() {
         console.error('Checkers table load failed:', error);
       }
 
-      // 2) Chairs always present (fallback-safe)
       try {
         const chairOption = CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
         const chairColor = chairOption?.primary || chairOption?.seatColor || '#8b0000';
@@ -371,8 +397,6 @@ export default function CheckersBattleRoyal() {
           const back = new THREE.Mesh(new THREE.BoxGeometry(1.316, 1.0, 0.185), chairMat);
           seat.position.y = 0;
           back.position.set(0, 0.56, -0.6);
-          seat.castShadow = true;
-          back.castShadow = true;
           g.add(seat, back);
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
@@ -384,7 +408,6 @@ export default function CheckersBattleRoyal() {
         console.error('Checkers chairs load failed:', error);
       }
 
-      // 3) Board: try ABeautifulGame, fallback to procedural checkerboard plane
       try {
         const boardRoot = await loadBeautifulBoard(createConfiguredGLTFLoader(renderer));
         const boardVisualGroup = new THREE.Group();
@@ -393,113 +416,66 @@ export default function CheckersBattleRoyal() {
         scene.add(boardVisualGroup);
         boardRoot.scale.setScalar(BOARD_SCALE);
         boardRoot.position.set(0, TABLE_HEIGHT, 0);
-        boardRoot.traverse((child) => {
-          if (!child.isMesh) return;
-          const n = `${child.name || ''}`.toLowerCase();
-          if (/(pawn|rook|knight|bishop|queen|king)/.test(n)) child.visible = false;
-          child.castShadow = true;
-          child.receiveShadow = true;
-        });
+
         const bbox = new THREE.Box3().setFromObject(boardRoot);
         const center = bbox.getCenter(new THREE.Vector3());
         boardOriginRef.current = { x: center.x, y: bbox.max.y + 0.05, z: center.z, tile: 2.65 };
-      } catch (error) {
-        console.error('Checkers board load failed, using fallback board:', error);
-        const boardGroup = new THREE.Group();
+      } catch {
         const tile = 2.65;
-        const darkMat = new THREE.MeshStandardMaterial({ color: '#6d4c41', roughness: 0.62, metalness: 0.12 });
-        const lightMat = new THREE.MeshStandardMaterial({ color: '#e8dcc6', roughness: 0.66, metalness: 0.1 });
+        const lightMat = new THREE.MeshStandardMaterial({ color: '#d1d5db', roughness: 0.4, metalness: 0.2 });
+        const darkMat = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.45, metalness: 0.35 });
         for (let r = 0; r < SIZE; r += 1) {
           for (let c = 0; c < SIZE; c += 1) {
             const sq = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.24, tile), (r + c) % 2 ? darkMat : lightMat);
             sq.position.set((c - 3.5) * tile, 0.72, (r - 3.5) * tile);
-            sq.receiveShadow = true;
-            boardGroup.add(sq);
+            scene.add(sq);
           }
         }
-        scene.add(boardGroup);
         boardOriginRef.current = { x: 0, y: 0.9, z: 0, tile };
       }
 
       setupPickTiles();
+      renderPieces();
+      setStatus('Tap your piece, then a highlighted square to move.');
+    };
 
-      // 4) HDRI optional: if fails keep lit fallback background (avoid black screen)
-      try {
-        const hdriVariant = POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) ||
-          POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === POOL_ROYALE_DEFAULT_HDRI_ID) ||
-          POOL_ROYALE_HDRI_VARIANTS[0];
-        const hdriUrl = await resolveHdriUrl(hdriVariant);
-        const loaderEnv = hdriUrl.toLowerCase().endsWith('.exr') ? new EXRLoader() : new RGBELoader();
-        const envMap = await loaderEnv.loadAsync(hdriUrl);
-        envMap.mapping = THREE.EquirectangularReflectionMapping;
-        scene.environment = envMap;
-        scene.background = envMap;
-        const cameraHeight = Math.max(
-          hdriVariant?.cameraHeightM ?? 1.5,
-          MIN_HDRI_CAMERA_HEIGHT_M
-        ) * HDRI_UNITS_PER_METER;
-        const radiusMultiplier = typeof hdriVariant?.groundRadiusMultiplier === 'number'
-          ? hdriVariant.groundRadiusMultiplier
-          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
-        const groundRadius = Math.max(TABLE_RADIUS * HDRI_UNITS_PER_METER * radiusMultiplier, MIN_HDRI_RADIUS);
-        const skyboxResolution = Math.max(16, Math.floor(hdriVariant?.groundResolution ?? DEFAULT_HDRI_GROUNDED_RESOLUTION));
-        const skybox = new GroundedSkybox(envMap, cameraHeight, groundRadius, skyboxResolution);
-        skybox.position.y = cameraHeight;
-        if (typeof hdriVariant?.rotationY === 'number') skybox.rotation.y = hdriVariant.rotationY;
-        scene.add(skybox);
-        envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
-      } catch (error) {
-        console.error('Checkers HDRI load failed, keeping fallback background:', error);
-        envRef.current = { map: null, skybox: null, hdriId: null };
-      }
+    void buildSceneAssets();
+
+    const onResize = () => {
+      if (!mount) return;
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      camera.aspect = mount.clientWidth / mount.clientHeight;
+      camera.updateProjectionMatrix();
     };
 
     renderer.domElement.addEventListener('pointerup', onPointerUp);
-
-    void buildSceneAssets()
-      .then(() => {
-        renderPieces();
-        setStatus('Ready');
-      })
-      .catch((error) => {
-        console.error('Checkers scene boot error:', error);
-        setStatus('Failed to load board/table/chairs/HDRI.');
-      });
+    window.addEventListener('resize', onResize);
 
     let raf = 0;
-    const animate = () => {
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
       controls.update();
       renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
     };
-    animate();
-
-    const onResize = () => {
-      camera.aspect = mount.clientWidth / mount.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(mount.clientWidth, mount.clientHeight);
-    };
-    window.addEventListener('resize', onResize);
+    loop();
 
     return () => {
       cancelAnimationFrame(raf);
-      renderer.domElement.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', onResize);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.dispose();
-      mount.removeChild(renderer.domElement);
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+      cameraRef.current = null;
+      controlsRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  }, [renderPieces, appearance.chairId, appearance.tableFinish]);
 
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    if (tableRef.current?.parts) {
-      const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
-      applyTableMaterials(tableRef.current.parts, finish);
-    }
+    const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
+    if (tableRef.current?.parts) applyTableMaterials(tableRef.current.parts, finish);
 
     const chairOption = CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
     const nextChairColor = new THREE.Color(chairOption?.primary || chairOption?.seatColor || '#8b0000');
@@ -512,30 +488,11 @@ export default function CheckersBattleRoyal() {
       });
     });
 
-    const activeTableTheme = CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) || CHESS_TABLE_OPTIONS[0];
-    if (tableRef.current?.group?.userData?.tableThemeId !== activeTableTheme?.id) {
-      if (tableRef.current?.group) scene.remove(tableRef.current.group);
-      const nextTable = createMurlanStyleTable({
-        arena: scene,
-        renderer: null,
-        tableRadius: TABLE_RADIUS,
-        tableHeight: TABLE_HEIGHT
-      });
-      nextTable.group.position.set(0, 0, 0);
-      nextTable.group.userData = { ...(nextTable.group.userData || {}), tableThemeId: activeTableTheme?.id };
-      const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
-      applyTableMaterials(nextTable.parts, finish);
-      tableRef.current = nextTable;
-    }
-
-    const currentHdriId = envRef.current?.hdriId;
-    if (currentHdriId === appearance.hdriId) return;
+    if (envRef.current?.hdriId === appearance.hdriId) return;
 
     const applyHdri = async () => {
       try {
-        const variant = POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) ||
-          POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === POOL_ROYALE_DEFAULT_HDRI_ID) ||
-          POOL_ROYALE_HDRI_VARIANTS[0];
+        const variant = POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) || POOL_ROYALE_HDRI_VARIANTS[0];
         const url = await resolveHdriUrl(variant);
         const loaderEnv = url.toLowerCase().endsWith('.exr') ? new EXRLoader() : new RGBELoader();
         const envMap = await loaderEnv.loadAsync(url);
@@ -544,9 +501,7 @@ export default function CheckersBattleRoyal() {
         scene.background = envMap;
         if (envRef.current?.skybox) scene.remove(envRef.current.skybox);
         const cameraHeight = Math.max(variant?.cameraHeightM ?? 1.5, MIN_HDRI_CAMERA_HEIGHT_M) * HDRI_UNITS_PER_METER;
-        const radiusMultiplier = typeof variant?.groundRadiusMultiplier === 'number'
-          ? variant.groundRadiusMultiplier
-          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const radiusMultiplier = typeof variant?.groundRadiusMultiplier === 'number' ? variant.groundRadiusMultiplier : DEFAULT_HDRI_RADIUS_MULTIPLIER;
         const groundRadius = Math.max(TABLE_RADIUS * HDRI_UNITS_PER_METER * radiusMultiplier, MIN_HDRI_RADIUS);
         const skyboxResolution = Math.max(16, Math.floor(variant?.groundResolution ?? DEFAULT_HDRI_GROUNDED_RESOLUTION));
         const skybox = new GroundedSkybox(envMap, cameraHeight, groundRadius, skyboxResolution);
@@ -562,27 +517,136 @@ export default function CheckersBattleRoyal() {
     void applyHdri();
   }, [appearance]);
 
+  useEffect(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+
+    const target = new THREE.Vector3(0, TABLE_HEIGHT, 0);
+    if (viewMode === '2d') {
+      camera.position.set(0, TABLE_HEIGHT + 9.2, 0.001);
+      controls.enableRotate = false;
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = 0;
+    } else {
+      const cameraSeatAngle = Math.PI / 2;
+      const cameraRadius = CHAIR_DISTANCE + 2.7;
+      camera.position.set(Math.cos(cameraSeatAngle) * cameraRadius, TABLE_HEIGHT + 1.72, Math.sin(cameraSeatAngle) * cameraRadius);
+      controls.enableRotate = true;
+      controls.minPolarAngle = THREE.MathUtils.degToRad(28);
+      controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
+    }
+    controls.target.copy(target);
+    controls.update();
+  }, [viewMode]);
+
+  const replayLastMove = () => {
+    if (!replayStateRef.current) return;
+    const replay = replayStateRef.current;
+    boardRef.current = copyBoard(replay.beforeBoard);
+    setTurn(replay.beforeTurn);
+    renderPieces();
+    setTimeout(() => {
+      boardRef.current = copyBoard(replay.afterBoard);
+      setTurn(replay.afterTurn);
+      renderPieces();
+    }, 700);
+  };
+
   const optionButton = (active) => `rounded-lg border px-2 py-1 text-[11px] ${active ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`;
 
   return (
-    <div className="min-h-screen bg-[#050814] text-white">
-      <div className="flex items-center justify-between px-4 py-3 text-xs">
-        <button onClick={() => navigate('/games/checkersbattleroyal/lobby')} className="rounded bg-white/10 px-3 py-1">Lobby</button>
-        <div>Checkers Battle Royal • Turn: {turn}</div>
-        <button onClick={() => setShowAppearance((v) => !v)} className="rounded bg-white/10 px-3 py-1">Appearance</button>
+    <div className="fixed inset-0 bg-[#050814] text-white">
+      <div ref={mountRef} className="h-full w-full" />
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => setConfigOpen((open) => !open)}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100"
+          >
+            <span className="text-base leading-none">☰</span>
+            <span className="leading-none">Menu</span>
+          </button>
+        </div>
+
+        <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
+          <div className="pointer-events-auto flex flex-col items-end gap-3">
+            <button type="button" onClick={replayLastMove} disabled={!canReplay} className={`icon-only-button flex h-10 w-10 items-center justify-center text-[1.4rem] ${canReplay ? 'text-white/90' : 'text-white/40'}`}>↺</button>
+            <button type="button" onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))} className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90">{viewMode === '3d' ? '2D' : '3D'}</button>
+          </div>
+          {configOpen && (
+            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl">
+              <div className="mb-2 text-xs font-semibold">Checkers Battle Royal</div>
+              <button onClick={() => navigate('/games/checkersbattleroyal/lobby')} className="mb-2 w-full rounded bg-white/10 px-3 py-2">Lobby</button>
+              <button onClick={() => setShowAppearance((v) => !v)} className="w-full rounded bg-white/10 px-3 py-2">Appearance</button>
+            </div>
+          )}
+        </div>
+
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onGift={() => setShowGift(true)}
+            showInfo={false}
+            showChat={false}
+            showMute={false}
+            className="fixed right-3 bottom-28 z-50 flex flex-col gap-4"
+            buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90"
+            iconClassName="text-[1.65rem] leading-none"
+            labelClassName="sr-only"
+            giftIcon="🎁"
+            order={['gift']}
+          />
+          <BottomLeftIcons
+            onChat={() => setShowChat(true)}
+            showInfo={false}
+            showGift={false}
+            showMute={false}
+            className="fixed left-3 bottom-28 z-50 flex flex-col"
+            buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90"
+            iconClassName="text-[1.65rem] leading-none"
+            labelClassName="sr-only"
+            chatIcon="💬"
+            order={['chat']}
+          />
+        </div>
+
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {players.map((player) => (
+            <div key={`checkers-seat-${player.index}`} className="absolute pointer-events-auto flex flex-col items-center" data-player-index={player.index} style={{ left: FALLBACK_SEAT_POSITIONS[player.index].left, top: FALLBACK_SEAT_POSITIONS[player.index].top, transform: 'translate(-50%, -50%)' }}>
+              <AvatarTimer
+                index={player.index}
+                photoUrl={player.photoUrl}
+                active={player.isTurn}
+                isTurn={player.isTurn}
+                timerPct={1}
+                name={player.name}
+                color={player.color}
+                size={1}
+              />
+              <span className="mt-1 text-[0.65rem] font-semibold text-white">{player.name}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
+            {status} • Turn: {turn}
+          </div>
+        </div>
       </div>
 
-      <div className="px-4 pb-2 text-[11px] text-white/70">
-        Board: ABeautifulGame • Table: {appearance.tableId} • Chair: {appearance.chairId} • HDRI: {CHESS_BATTLE_OPTION_LABELS.environmentHdri?.[appearance.hdriId] || appearance.hdriId}
-      </div>
-
-      <div ref={mountRef} className="h-[70vh] w-full" />
-      <div className="px-4 py-2 text-center text-xs text-white/70">{status}</div>
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
 
       {showAppearance && (
-        <div className="mx-3 mb-4 rounded-2xl border border-white/15 bg-[#0b1324]/95 p-3">
+        <div className="absolute left-3 right-3 bottom-20 rounded-2xl border border-white/15 bg-[#0b1324]/95 p-3 max-h-[46vh] overflow-y-auto">
           <div className="mb-2 text-xs font-semibold">Checkers Arena Setup (Chess Battle Royal style)</div>
-          <div className="mb-2 text-[11px] text-white/60">Use same option sets as Chess Battle Royal. (These controls are synced to the same inventory categories.)</div>
+          <div className="mb-2 text-[11px] text-white/60">Board: ABeautifulGame • Table: {appearance.tableId} • Chair: {appearance.chairId} • HDRI: {CHESS_BATTLE_OPTION_LABELS.environmentHdri?.[appearance.hdriId] || appearance.hdriId}</div>
 
           <div className="mb-2 text-[11px] text-white/70">Chips</div>
           <div className="mb-3 flex flex-wrap gap-2">
@@ -594,56 +658,61 @@ export default function CheckersBattleRoyal() {
           <div className="mb-2 text-[11px] text-white/70">Tables</div>
           <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
             {CHESS_TABLE_OPTIONS.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setAppearance((prev) => ({ ...prev, tableId: opt.id }))}
-                className={optionButton(appearance.tableId === opt.id)}
-              >
-                {opt.label}
-              </button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, tableId: opt.id }))} className={optionButton(appearance.tableId === opt.id)}>{opt.label}</button>
             ))}
           </div>
 
           <div className="mb-2 text-[11px] text-white/70">Chairs</div>
           <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
             {CHESS_CHAIR_OPTIONS.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setAppearance((prev) => ({ ...prev, chairId: opt.id }))}
-                className={optionButton(appearance.chairId === opt.id)}
-              >
-                {opt.label}
-              </button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, chairId: opt.id }))} className={optionButton(appearance.chairId === opt.id)}>{opt.label}</button>
             ))}
           </div>
 
           <div className="mb-2 text-[11px] text-white/70">Table Finish</div>
           <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
             {MURLAN_TABLE_FINISHES.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setAppearance((prev) => ({ ...prev, tableFinish: opt.id }))}
-                className={optionButton(appearance.tableFinish === opt.id)}
-              >
-                {opt.label}
-              </button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, tableFinish: opt.id }))} className={optionButton(appearance.tableFinish === opt.id)}>{opt.label}</button>
             ))}
           </div>
 
           <div className="mb-2 text-[11px] text-white/70">HDRI</div>
           <div className="flex max-h-24 flex-wrap gap-2 overflow-auto">
             {POOL_ROYALE_HDRI_VARIANTS.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setAppearance((prev) => ({ ...prev, hdriId: opt.id }))}
-                className={optionButton(appearance.hdriId === opt.id)}
-              >
-                {opt.name}
-              </button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, hdriId: opt.id }))} className={optionButton(appearance.hdriId === opt.id)}>{opt.name}</button>
             ))}
           </div>
         </div>
       )}
+
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          title="Quick Chat"
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: playerPhotoUrl }]);
+            const audio = new Audio(chatBeep);
+            audio.volume = getGameVolume();
+            audio.play().catch(() => {});
+            setTimeout(() => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)), 1800);
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          onGiftSent={({ gift }) => {
+            const giftSound = giftSounds[gift.id];
+            if (!giftSound) return;
+            const audio = new Audio(giftSound);
+            audio.volume = getGameVolume();
+            audio.play().catch(() => {});
+          }}
+        />
+      </div>
     </div>
   );
 }
