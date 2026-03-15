@@ -78,11 +78,11 @@ const BASIS_TRANSCODER_PATH =
 
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
-const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+const CHESS_BOARD_GLTF_URLS = [
+  'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
+  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
 ];
 
 const CHAIR_MODEL_URLS = [
@@ -126,6 +126,11 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
   { left: '50%', top: '82%' }
 ];
+const RULE_SUMMARY =
+  'Forced captures are ON. Chain captures are mandatory. Reach the far rank to crown a king.';
+const HUMAN_SIDE = 'light';
+const AI_SIDE = 'dark';
+const AI_SEARCH_DEPTH = 6;
 
 const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
@@ -142,25 +147,29 @@ const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
 const copyBoard = (board) =>
   board.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
 
-const getMoves = (board, r, c) => {
-  const piece = board[r][c];
-  if (!piece) return [];
-  const dirs = piece.king
+const getPieceDirs = (piece) => {
+  if (piece.king)
+    return [
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1]
+    ];
+  return piece.side === 'light'
     ? [
-        [1, 1],
-        [1, -1],
         [-1, 1],
         [-1, -1]
       ]
-    : piece.side === 'light'
-      ? [
-          [-1, 1],
-          [-1, -1]
-        ]
-      : [
-          [1, 1],
-          [1, -1]
-        ];
+    : [
+        [1, 1],
+        [1, -1]
+      ];
+};
+
+const getMoves = (board, r, c) => {
+  const piece = board[r][c];
+  if (!piece) return [];
+  const dirs = getPieceDirs(piece);
   const captures = [];
   const normals = [];
   dirs.forEach(([dr, dc]) => {
@@ -178,17 +187,173 @@ const getMoves = (board, r, c) => {
   return captures.length ? captures : normals;
 };
 
-async function loadBeautifulBoard(loader) {
+const getMovesForSide = (board, side) => {
+  const captures = [];
+  const normals = [];
+  for (let r = 0; r < SIZE; r += 1) {
+    for (let c = 0; c < SIZE; c += 1) {
+      const piece = board[r][c];
+      if (!piece || piece.side !== side) continue;
+      getMoves(board, r, c).forEach((move) => {
+        const payload = { from: { r, c }, ...move };
+        if (move.capture) captures.push(payload);
+        else normals.push(payload);
+      });
+    }
+  }
+  return captures.length ? captures : normals;
+};
+
+const applyMoveToBoard = (board, move) => {
+  const next = copyBoard(board);
+  const moving = next[move.from.r][move.from.c];
+  if (!moving) return null;
+  next[move.from.r][move.from.c] = null;
+  if (move.capture) next[move.capture[0]][move.capture[1]] = null;
+  const movedPiece = { ...moving };
+  if (movedPiece.side === 'light' && move.r === 0) movedPiece.king = true;
+  if (movedPiece.side === 'dark' && move.r === SIZE - 1) movedPiece.king = true;
+  next[move.r][move.c] = movedPiece;
+  return {
+    board: next,
+    piece: movedPiece,
+    chainCaptures: move.capture
+      ? getMoves(next, move.r, move.c).filter((m) => m.capture)
+      : []
+  };
+};
+
+const evaluateBoard = (board, side) => {
+  let score = 0;
+  for (let r = 0; r < SIZE; r += 1) {
+    for (let c = 0; c < SIZE; c += 1) {
+      const piece = board[r][c];
+      if (!piece) continue;
+      const centerBonus = 3.5 - Math.abs(c - 3.5);
+      const advancement = piece.side === 'dark' ? r : SIZE - 1 - r;
+      const value =
+        (piece.king ? 180 : 100) + advancement * 6 + centerBonus * 3;
+      score += piece.side === side ? value : -value;
+    }
+  }
+  score +=
+    (getMovesForSide(board, side).length -
+      getMovesForSide(board, side === 'dark' ? 'light' : 'dark').length) *
+    4;
+  return score;
+};
+
+const searchBestMove = (
+  board,
+  side,
+  depth,
+  alpha = -Infinity,
+  beta = Infinity
+) => {
+  const moves = getMovesForSide(board, side);
+  const enemy = side === 'dark' ? 'light' : 'dark';
+  if (!moves.length) return { score: -99999 + depth, move: null };
+  if (depth <= 0) return { score: evaluateBoard(board, AI_SIDE), move: null };
+
+  let bestMove = null;
+  const ordered = [...moves].sort(
+    (a, b) => Number(Boolean(b.capture)) - Number(Boolean(a.capture))
+  );
+
+  if (side === AI_SIDE) {
+    let bestScore = -Infinity;
+    for (const move of ordered) {
+      const applied = applyMoveToBoard(board, move);
+      if (!applied) continue;
+      let score;
+      if (move.capture && applied.chainCaptures.length) {
+        const chained = applied.chainCaptures.map((m) => ({
+          from: { r: move.r, c: move.c },
+          ...m
+        }));
+        let chainBest = -Infinity;
+        for (const cm of chained) {
+          const nextApplied = applyMoveToBoard(applied.board, cm);
+          if (!nextApplied) continue;
+          const branch = searchBestMove(
+            nextApplied.board,
+            nextApplied.chainCaptures.length ? side : enemy,
+            depth - 1,
+            alpha,
+            beta
+          );
+          chainBest = Math.max(chainBest, branch.score);
+        }
+        score = chainBest;
+      } else {
+        score = searchBestMove(
+          applied.board,
+          enemy,
+          depth - 1,
+          alpha,
+          beta
+        ).score;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+      alpha = Math.max(alpha, score);
+      if (beta <= alpha) break;
+    }
+    return { score: bestScore, move: bestMove };
+  }
+
+  let bestScore = Infinity;
+  for (const move of ordered) {
+    const applied = applyMoveToBoard(board, move);
+    if (!applied) continue;
+    const score = searchBestMove(
+      applied.board,
+      enemy,
+      depth - 1,
+      alpha,
+      beta
+    ).score;
+    if (score < bestScore) {
+      bestScore = score;
+      bestMove = move;
+    }
+    beta = Math.min(beta, score);
+    if (beta <= alpha) break;
+  }
+  return { score: bestScore, move: bestMove };
+};
+
+async function loadCheckersBoardModel(loader) {
   let err = null;
-  for (const url of BEAUTIFUL_GAME_URLS) {
+  for (const url of CHESS_BOARD_GLTF_URLS) {
     try {
       const gltf = await loader.loadAsync(url);
-      if (gltf?.scene) return gltf.scene;
+      if (gltf?.scene) {
+        const root = gltf.scene.clone(true);
+        let foundBoardLikeMesh = false;
+        root.traverse((obj) => {
+          if (!obj?.isMesh) return;
+          const label =
+            `${obj.name || ''} ${obj.parent?.name || ''}`.toLowerCase();
+          const boardLike = /board|chessboard|tile|square|tabletop|plane/.test(
+            label
+          );
+          obj.visible = boardLike;
+          if (boardLike) {
+            foundBoardLikeMesh = true;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+          }
+        });
+        if (foundBoardLikeMesh) return root;
+      }
     } catch (e) {
       err = e;
     }
   }
-  throw err || new Error('ABeautifulGame failed to load');
+  throw err || new Error('Checkers board GLTF failed to load');
 }
 
 function ensureKtx2SupportDetection(renderer = null) {
@@ -394,13 +559,14 @@ export default function CheckersBattleRoyal() {
   const envRef = useRef({ map: null, skybox: null });
 
   const [turn, setTurn] = useState('light');
-  const [status, setStatus] = useState('Loading arena…');
+  const [status, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
   const [showGift, setShowGift] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [canReplay, setCanReplay] = useState(false);
+  const aiBusyRef = useRef(false);
 
   const inv = useMemo(() => {
     const inventory = getChessBattleInventory(chessBattleAccountId());
@@ -521,7 +687,16 @@ export default function CheckersBattleRoyal() {
       );
       selection.position.copy(toPosition(selected.r, selected.c));
       group.add(selection);
-      getMoves(board, selected.r, selected.c).forEach((move) => {
+      const sideMoves = getMovesForSide(board, turn);
+      const forcedCaptures = sideMoves.filter((move) => move.capture);
+      const allowedMoves = forcedCaptures.length
+        ? forcedCaptures
+            .filter(
+              (move) => move.from.r === selected.r && move.from.c === selected.c
+            )
+            .map(({ r, c, capture }) => ({ r, c, capture }))
+        : getMoves(board, selected.r, selected.c);
+      allowedMoves.forEach((move) => {
         const isCapture = Array.isArray(move.capture);
         const marker = new THREE.Mesh(
           new THREE.CylinderGeometry(
@@ -542,7 +717,7 @@ export default function CheckersBattleRoyal() {
         group.add(marker);
       });
     },
-    []
+    [turn]
   );
 
   useEffect(() => {
@@ -620,36 +795,86 @@ export default function CheckersBattleRoyal() {
     const applyMove = (r, c) => {
       const board = boardRef.current;
       const selected = selectedRef.current;
+      const sideMoves = getMovesForSide(board, turn);
+      if (!sideMoves.length) {
+        setStatus(
+          `${turn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${turn === HUMAN_SIDE ? 'AI' : 'You'} win.`
+        );
+        return;
+      }
+
       const piece = board[r][c];
       if (piece && piece.side === turn) {
+        if (turn === AI_SIDE) return;
+        const forcedCaptures = sideMoves.filter((move) => move.capture);
+        if (
+          forcedCaptures.length &&
+          !forcedCaptures.some((move) => move.from.r === r && move.from.c === c)
+        ) {
+          setStatus(
+            'Capture is mandatory. Choose a highlighted capturing piece.'
+          );
+          return;
+        }
         selectedRef.current = { r, c };
         renderHighlights();
         return;
       }
       if (!selected) return;
-      const moves = getMoves(board, selected.r, selected.c);
-      const move = moves.find((m) => m.r === r && m.c === c);
+      const forcedCaptures = sideMoves.filter((move) => move.capture);
+      const legalMoves = forcedCaptures.length
+        ? forcedCaptures.filter(
+            (move) => move.from.r === selected.r && move.from.c === selected.c
+          )
+        : sideMoves.filter(
+            (move) => move.from.r === selected.r && move.from.c === selected.c
+          );
+      const move = legalMoves.find((m) => m.r === r && m.c === c);
       if (!move) return;
       const beforeBoard = copyBoard(board);
-      const next = board.map((row) => row.slice());
-      const moving = { ...next[selected.r][selected.c] };
-      next[selected.r][selected.c] = null;
-      if (move.capture) next[move.capture[0]][move.capture[1]] = null;
-      if (moving.side === 'light' && r === 0) moving.king = true;
-      if (moving.side === 'dark' && r === SIZE - 1) moving.king = true;
-      next[r][c] = moving;
-      boardRef.current = next;
-      selectedRef.current = null;
+      const applied = applyMoveToBoard(board, {
+        from: { ...selected },
+        ...move
+      });
+      if (!applied) return;
+
+      boardRef.current = applied.board;
       moveSoundRef.current?.play().catch(() => {});
-      const nextTurn = turn === 'light' ? 'dark' : 'light';
+      renderPieces();
+
+      if (move.capture && applied.chainCaptures.length) {
+        selectedRef.current = { r, c };
+        replayStateRef.current = {
+          beforeBoard,
+          afterBoard: copyBoard(applied.board),
+          beforeTurn: turn,
+          afterTurn: turn
+        };
+        setCanReplay(true);
+        setStatus(
+          turn === HUMAN_SIDE
+            ? 'Chain capture required. Continue capturing.'
+            : 'AI continues a capture chain…'
+        );
+        renderHighlights();
+        return;
+      }
+
+      selectedRef.current = null;
+      const nextTurn = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
       replayStateRef.current = {
         beforeBoard,
-        afterBoard: copyBoard(next),
+        afterBoard: copyBoard(applied.board),
         beforeTurn: turn,
         afterTurn: nextTurn
       };
       setCanReplay(true);
       setTurn(nextTurn);
+      setStatus(
+        nextTurn === HUMAN_SIDE
+          ? 'Your turn. Forced captures are enabled.'
+          : 'AI is thinking…'
+      );
       renderHighlights();
     };
 
@@ -784,7 +1009,7 @@ export default function CheckersBattleRoyal() {
       addVisibleBoardBase();
 
       try {
-        const boardRoot = await loadBeautifulBoard(
+        const boardRoot = await loadCheckersBoardModel(
           createConfiguredGLTFLoader(renderer)
         );
         const boardVisualGroup = new THREE.Group();
@@ -805,7 +1030,9 @@ export default function CheckersBattleRoyal() {
       setupPickTiles();
       renderPieces();
       renderHighlights();
-      setStatus('Tap your piece, then a highlighted square to move.');
+      setStatus(
+        `Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`
+      );
     };
 
     void buildSceneAssets();
@@ -841,6 +1068,86 @@ export default function CheckersBattleRoyal() {
       controlsRef.current = null;
     };
   }, [renderPieces, appearance.chairId, appearance.tableFinish]);
+
+  useEffect(() => {
+    if (turn !== AI_SIDE || aiBusyRef.current) return;
+    aiBusyRef.current = true;
+    setStatus('AI is thinking…');
+    const timer = window.setTimeout(() => {
+      const board = boardRef.current;
+      const sideMoves = getMovesForSide(board, AI_SIDE);
+      if (!sideMoves.length) {
+        setStatus('AI has no legal moves. You win!');
+        aiBusyRef.current = false;
+        return;
+      }
+      const chosen =
+        searchBestMove(board, AI_SIDE, AI_SEARCH_DEPTH).move || sideMoves[0];
+      const applied = applyMoveToBoard(board, chosen);
+      if (!applied) {
+        aiBusyRef.current = false;
+        return;
+      }
+      const beforeBoard = copyBoard(board);
+      boardRef.current = applied.board;
+      moveSoundRef.current?.play().catch(() => {});
+      renderPieces();
+
+      if (chosen.capture && applied.chainCaptures.length) {
+        let chainBoard = applied.board;
+        let chainBefore = beforeBoard;
+        let chainCaptureMoves = applied.chainCaptures;
+        let currentFrom = { r: chosen.r, c: chosen.c };
+        while (chainCaptureMoves.length) {
+          const bestChain = searchBestMove(
+            chainBoard,
+            AI_SIDE,
+            Math.max(2, AI_SEARCH_DEPTH - 2)
+          ).move;
+          const forced = chainCaptureMoves.map((m) => ({
+            from: { ...currentFrom },
+            ...m
+          }));
+          const selectedChainMove =
+            forced.find(
+              (m) => bestChain && m.r === bestChain.r && m.c === bestChain.c
+            ) || forced[0];
+          const nextChain = applyMoveToBoard(chainBoard, selectedChainMove);
+          if (!nextChain) break;
+          chainBoard = nextChain.board;
+          currentFrom = { r: selectedChainMove.r, c: selectedChainMove.c };
+          chainCaptureMoves = nextChain.chainCaptures;
+        }
+        boardRef.current = chainBoard;
+        renderPieces();
+        replayStateRef.current = {
+          beforeBoard: chainBefore,
+          afterBoard: copyBoard(chainBoard),
+          beforeTurn: AI_SIDE,
+          afterTurn: HUMAN_SIDE
+        };
+      } else {
+        replayStateRef.current = {
+          beforeBoard,
+          afterBoard: copyBoard(applied.board),
+          beforeTurn: AI_SIDE,
+          afterTurn: HUMAN_SIDE
+        };
+      }
+
+      setCanReplay(true);
+      selectedRef.current = null;
+      setTurn(HUMAN_SIDE);
+      setStatus('Your turn. Forced captures are enabled.');
+      renderHighlights();
+      aiBusyRef.current = false;
+    }, 420);
+
+    return () => {
+      window.clearTimeout(timer);
+      aiBusyRef.current = false;
+    };
+  }, [turn, renderHighlights, renderPieces]);
 
   useEffect(() => {
     const scene = sceneRef.current;
