@@ -186,7 +186,7 @@ export default function App() {
             <Route
               path="/games/tavullbattleroyal/lobby"
               element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Tavull Lobby…</div>}>
+                <Suspense fallback={<div className="p-4 text-center">Loading Backgammon Lobby…</div>}>
                   <TavullBattleRoyalLobby />
                 </Suspense>
               )}
@@ -194,7 +194,7 @@ export default function App() {
             <Route
               path="/games/tavullbattleroyal"
               element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Tavull Battle Royal…</div>}>
+                <Suspense fallback={<div className="p-4 text-center">Loading Backgammon Royal…</div>}>
                   <TavullBattleRoyal />
                 </Suspense>
               )}

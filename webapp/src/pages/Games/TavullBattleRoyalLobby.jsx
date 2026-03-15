@@ -228,7 +228,7 @@ export default function TavullBattleRoyalLobby() {
       'seatTable',
       {
         accountId: trackedAccountId || accountId,
-        gameType: 'checkers',
+        gameType: 'backgammon',
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         playerName: friendlyName,
@@ -257,7 +257,7 @@ export default function TavullBattleRoyalLobby() {
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader
           slug="tavullbattleroyal"
-          title="Tavull Battle Royal Lobby"
+          title="Backgammon Royal Lobby"
           badge={onlineCount != null ? `${onlineCount} online` : 'Syncing…'}
         />
 
