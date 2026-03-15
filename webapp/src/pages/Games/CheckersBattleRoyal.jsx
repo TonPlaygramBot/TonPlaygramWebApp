@@ -9,6 +9,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
@@ -44,6 +45,15 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.0576;
 const BOARD_VISUAL_Y_OFFSET = -0.08;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const HDRI_UNITS_PER_METER = 10;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.4;
 const MIN_HDRI_RADIUS = 28;
@@ -60,6 +70,21 @@ const BEAUTIFUL_GAME_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
+
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
+const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
+  selection: '#ff8e6e',
+  move: '#7ef9a1',
+  capture: '#ff8e6e'
+});
 
 const CHIP_SETS = [
   { id: 'ruby-cyan', label: 'Ruby/Cyan', light: '#ef4444', dark: '#06b6d4' },
@@ -148,6 +173,85 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    model.scale.multiplyScalar(targetMax / currentMax);
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  model.position.add(
+    new THREE.Vector3(
+      -scaledCenter.x,
+      TARGET_CHAIR_MIN_Y - scaledBox.min.y,
+      TARGET_CHAIR_CENTER_Z - scaledCenter.z
+    )
+  );
+}
+
+async function buildChessMappedChairTemplate() {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  let gltf = null;
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) throw lastError || new Error('Failed to load mapped chair');
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) throw new Error('Missing chair model scene');
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (mat?.map) applySRGBColorSpace(mat.map);
+      if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+    });
+  });
+  fitChairModelToFootprint(model);
+  return model;
+}
+
+function createProceduralChairFallback(chairColor, legColor) {
+  const seatMaterial = new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.42, metalness: 0.18 });
+  const legMaterial = new THREE.MeshStandardMaterial({ color: legColor, roughness: 0.55, metalness: 0.38 });
+  const chair = new THREE.Group();
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS_SCALED, SEAT_DEPTH), seatMaterial);
+  seatMesh.position.y = SEAT_THICKNESS_SCALED / 2;
+  const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS), seatMaterial);
+  backMesh.position.set(0, SEAT_THICKNESS_SCALED / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
+  const armOffsetY = SEAT_THICKNESS_SCALED / 2 + ARM_HEIGHT / 2;
+  const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
+  const leftArm = new THREE.Mesh(armGeometry, seatMaterial);
+  leftArm.position.set(-armOffsetX, armOffsetY, armOffsetZ);
+  const rightArm = new THREE.Mesh(armGeometry, seatMaterial);
+  rightArm.position.set(armOffsetX, armOffsetY, armOffsetZ);
+  const legMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18), legMaterial);
+  legMesh.position.y = -SEAT_THICKNESS_SCALED / 2 - BASE_COLUMN_HEIGHT / 2;
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24), legMaterial);
+  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  [seatMesh, backMesh, leftArm, rightArm, legMesh, foot].forEach((mesh) => {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    chair.add(mesh);
+  });
+  return chair;
+}
+
 async function resolveHdriUrl(variant) {
   const fallbackRes = variant?.fallbackResolution || '4k';
   const fallback = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${variant?.assetId || 'colorful_studio'}_${fallbackRes}.hdr`;
@@ -182,6 +286,8 @@ export default function CheckersBattleRoyal() {
   const piecesGroupRef = useRef(null);
   const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
   const replayStateRef = useRef(null);
+  const highlightGroupRef = useRef(null);
+  const moveSoundRef = useRef(null);
 
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
@@ -234,7 +340,7 @@ export default function CheckersBattleRoyal() {
           const piece = board[r][c];
           if (!piece) continue;
           const chip = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.9, 0.9, 0.34, 40),
+            new THREE.CylinderGeometry(tile * 0.28, tile * 0.28, tile * 0.13, 40),
             new THREE.MeshStandardMaterial({
               color: piece.side === 'light' ? chipSet.light : chipSet.dark,
               roughness: 0.25,
@@ -242,14 +348,15 @@ export default function CheckersBattleRoyal() {
             })
           );
           chip.castShadow = true;
-          chip.position.set(x + (c - 3.5) * tile, y + 0.2, z + (r - 3.5) * tile);
+          chip.position.set(x + (c - 3.5) * tile, y + tile * 0.075, z + (r - 3.5) * tile);
+          chip.userData = { r, c, side: piece.side };
           if (piece.king) {
             const ring = new THREE.Mesh(
-              new THREE.TorusGeometry(0.5, 0.11, 12, 30),
+              new THREE.TorusGeometry(tile * 0.17, tile * 0.04, 12, 30),
               new THREE.MeshStandardMaterial({ color: '#f8fafc', metalness: 0.92, roughness: 0.18 })
             );
             ring.rotation.x = Math.PI / 2;
-            ring.position.y = 0.23;
+            ring.position.y = tile * 0.09;
             chip.add(ring);
           }
           group.add(chip);
@@ -263,6 +370,39 @@ export default function CheckersBattleRoyal() {
     renderPieces();
   }, [renderPieces, turn]);
 
+  const renderHighlights = useMemo(
+    () => () => {
+      const group = highlightGroupRef.current;
+      if (!group) return;
+      group.clear();
+      const selected = selectedRef.current;
+      if (!selected) return;
+      const board = boardRef.current;
+      const { x, y, z, tile } = boardOriginRef.current;
+      const toPosition = (r, c) => new THREE.Vector3(x + (c - 3.5) * tile, y + tile * 0.02, z + (r - 3.5) * tile);
+      const selection = new THREE.Mesh(
+        new THREE.CylinderGeometry(tile * 0.3, tile * 0.3, Math.max(0.07, tile * 0.03), 20),
+        new THREE.MeshBasicMaterial({ color: CHECKERS_HIGHLIGHT_COLORS.selection, transparent: true, opacity: 0.9 })
+      );
+      selection.position.copy(toPosition(selected.r, selected.c));
+      group.add(selection);
+      getMoves(board, selected.r, selected.c).forEach((move) => {
+        const isCapture = Array.isArray(move.capture);
+        const marker = new THREE.Mesh(
+          new THREE.CylinderGeometry(tile * 0.26, tile * 0.26, Math.max(0.06, tile * 0.03), 20),
+          new THREE.MeshBasicMaterial({
+            color: isCapture ? CHECKERS_HIGHLIGHT_COLORS.capture : CHECKERS_HIGHLIGHT_COLORS.move,
+            transparent: true,
+            opacity: 0.9
+          })
+        );
+        marker.position.copy(toPosition(move.r, move.c));
+        group.add(marker);
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -275,7 +415,7 @@ export default function CheckersBattleRoyal() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    applyRendererSRGB(renderer);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
 
@@ -320,6 +460,12 @@ export default function CheckersBattleRoyal() {
     const piecesGroup = new THREE.Group();
     piecesGroupRef.current = piecesGroup;
     scene.add(piecesGroup);
+    const highlightGroup = new THREE.Group();
+    highlightGroupRef.current = highlightGroup;
+    scene.add(highlightGroup);
+
+    moveSoundRef.current = new Audio(MOVE_SOUND_URL);
+    moveSoundRef.current.volume = getGameVolume();
 
     const pickTiles = [];
     const raycaster = new THREE.Raycaster();
@@ -331,6 +477,7 @@ export default function CheckersBattleRoyal() {
       const piece = board[r][c];
       if (piece && piece.side === turn) {
         selectedRef.current = { r, c };
+        renderHighlights();
         return;
       }
       if (!selected) return;
@@ -347,10 +494,12 @@ export default function CheckersBattleRoyal() {
       next[r][c] = moving;
       boardRef.current = next;
       selectedRef.current = null;
+      moveSoundRef.current?.play().catch(() => {});
       const nextTurn = turn === 'light' ? 'dark' : 'light';
       replayStateRef.current = { beforeBoard, afterBoard: copyBoard(next), beforeTurn: turn, afterTurn: nextTurn };
       setCanReplay(true);
       setTurn(nextTurn);
+      renderHighlights();
     };
 
     const onPointerUp = (event) => {
@@ -390,14 +539,17 @@ export default function CheckersBattleRoyal() {
       try {
         const chairOption = CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
         const chairColor = chairOption?.primary || chairOption?.seatColor || '#8b0000';
-        const chairMat = new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.42, metalness: 0.22 });
+        const chairTemplate = await buildChessMappedChairTemplate();
         const makeChair = (z, ry) => {
-          const g = new THREE.Group();
-          const seat = new THREE.Mesh(new THREE.BoxGeometry(1.316, 0.197, 1.389), chairMat);
-          const back = new THREE.Mesh(new THREE.BoxGeometry(1.316, 1.0, 0.185), chairMat);
-          seat.position.y = 0;
-          back.position.set(0, 0.56, -0.6);
-          g.add(seat, back);
+          const g = chairTemplate.clone(true);
+          g.traverse((obj) => {
+            if (!obj.isMesh) return;
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach((mat) => {
+              if (mat?.color) mat.color.set(chairColor);
+              mat.needsUpdate = true;
+            });
+          });
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
@@ -405,7 +557,18 @@ export default function CheckersBattleRoyal() {
         };
         chairsRef.current = [makeChair(CHAIR_DISTANCE, Math.PI), makeChair(-CHAIR_DISTANCE, 0)];
       } catch (error) {
-        console.error('Checkers chairs load failed:', error);
+        console.error('Checkers chairs load failed, using fallback:', error);
+        const chairOption = CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
+        const chairColor = chairOption?.primary || chairOption?.seatColor || '#8b0000';
+        const legColor = chairOption?.legColor || '#111827';
+        const makeFallback = (z, ry) => {
+          const g = createProceduralChairFallback(chairColor, legColor);
+          g.position.set(0, CHAIR_BASE_HEIGHT, z);
+          g.rotation.y = ry;
+          scene.add(g);
+          return g;
+        };
+        chairsRef.current = [makeFallback(CHAIR_DISTANCE, Math.PI), makeFallback(-CHAIR_DISTANCE, 0)];
       }
 
       try {
@@ -419,7 +582,9 @@ export default function CheckersBattleRoyal() {
 
         const bbox = new THREE.Box3().setFromObject(boardRoot);
         const center = bbox.getCenter(new THREE.Vector3());
-        boardOriginRef.current = { x: center.x, y: bbox.max.y + 0.05, z: center.z, tile: 2.65 };
+        const span = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z);
+        const tile = Number.isFinite(span) && span > 0 ? span / SIZE : 2.65;
+        boardOriginRef.current = { x: center.x, y: bbox.max.y + tile * 0.05, z: center.z, tile };
       } catch {
         const tile = 2.65;
         const lightMat = new THREE.MeshStandardMaterial({ color: '#d1d5db', roughness: 0.4, metalness: 0.2 });
@@ -427,15 +592,16 @@ export default function CheckersBattleRoyal() {
         for (let r = 0; r < SIZE; r += 1) {
           for (let c = 0; c < SIZE; c += 1) {
             const sq = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.24, tile), (r + c) % 2 ? darkMat : lightMat);
-            sq.position.set((c - 3.5) * tile, 0.72, (r - 3.5) * tile);
+            sq.position.set((c - 3.5) * tile, TABLE_HEIGHT, (r - 3.5) * tile);
             scene.add(sq);
           }
         }
-        boardOriginRef.current = { x: 0, y: 0.9, z: 0, tile };
+        boardOriginRef.current = { x: 0, y: TABLE_HEIGHT + tile * 0.08, z: 0, tile };
       }
 
       setupPickTiles();
       renderPieces();
+      renderHighlights();
       setStatus('Tap your piece, then a highlighted square to move.');
     };
 
@@ -464,6 +630,8 @@ export default function CheckersBattleRoyal() {
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.dispose();
+      moveSoundRef.current?.pause();
+      moveSoundRef.current = null;
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
       cameraRef.current = null;
       controlsRef.current = null;
@@ -577,9 +745,9 @@ export default function CheckersBattleRoyal() {
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl">
-              <div className="mb-2 text-xs font-semibold">Checkers Battle Royal</div>
-              <button onClick={() => navigate('/games/checkersbattleroyal/lobby')} className="mb-2 w-full rounded bg-white/10 px-3 py-2">Lobby</button>
-              <button onClick={() => setShowAppearance((v) => !v)} className="w-full rounded bg-white/10 px-3 py-2">Appearance</button>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">Checkers Battle Royal</div>
+              <button type="button" onClick={() => setShowAppearance((v) => !v)} className="mb-2 w-full rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Appearance</button>
+              <button type="button" onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))} className="w-full rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">{viewMode === '3d' ? '2D View' : '3D View'}</button>
             </div>
           )}
         </div>
@@ -655,24 +823,33 @@ export default function CheckersBattleRoyal() {
             ))}
           </div>
 
-          <div className="mb-2 text-[11px] text-white/70">Tables</div>
-          <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Tables</div>
+          <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
             {CHESS_TABLE_OPTIONS.map((opt) => (
-              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, tableId: opt.id }))} className={optionButton(appearance.tableId === opt.id)}>{opt.label}</button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, tableId: opt.id }))} className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.tableId === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}>
+                {opt.thumbnail ? <img src={opt.thumbnail} alt={`${opt.label} thumbnail`} className="mb-1 h-10 w-full rounded object-cover" /> : null}
+                {opt.label}
+              </button>
             ))}
           </div>
 
-          <div className="mb-2 text-[11px] text-white/70">Chairs</div>
-          <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Chairs</div>
+          <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
             {CHESS_CHAIR_OPTIONS.map((opt) => (
-              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, chairId: opt.id }))} className={optionButton(appearance.chairId === opt.id)}>{opt.label}</button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, chairId: opt.id }))} className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.chairId === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}>
+                {opt.thumbnail ? <img src={opt.thumbnail} alt={`${opt.label} thumbnail`} className="mb-1 h-10 w-full rounded object-cover" /> : null}
+                {opt.label}
+              </button>
             ))}
           </div>
 
-          <div className="mb-2 text-[11px] text-white/70">Table Finish</div>
-          <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Table Finish</div>
+          <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
             {MURLAN_TABLE_FINISHES.map((opt) => (
-              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, tableFinish: opt.id }))} className={optionButton(appearance.tableFinish === opt.id)}>{opt.label}</button>
+              <button key={opt.id} onClick={() => setAppearance((prev) => ({ ...prev, tableFinish: opt.id }))} className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.tableFinish === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}>
+                {opt.thumbnail ? <img src={opt.thumbnail} alt={`${opt.label} thumbnail`} className="mb-1 h-10 w-full rounded object-cover" /> : null}
+                {opt.label}
+              </button>
             ))}
           </div>
 
