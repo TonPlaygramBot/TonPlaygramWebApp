@@ -13542,7 +13542,7 @@ function PoolRoyaleGame({
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
   const sharedHudLiftPx = portraitViewport ? 20 : 30;
-  const spinControllerLiftPx = portraitViewport ? 8 : 14;
+  const spinControllerLiftPx = portraitViewport ? 12 : 14;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -32726,6 +32726,7 @@ const powerRef = useRef(hud.power);
               L{currentTrainingInfo.level} • {completedTrainingCount}/{TRAINING_LEVEL_COUNT} done • ❤️ {trainingShotsRemaining}
             </div>
           ) : (
+            !isPortrait && (
             <button
               type="button"
               onClick={handlePracticeRestart}
@@ -32735,6 +32736,7 @@ const powerRef = useRef(hud.power);
             >
               ↻
             </button>
+            )
           )}
         </div>
       )}
@@ -33085,10 +33087,10 @@ const powerRef = useRef(hud.power);
           ref={leftControlsRef}
           className={`pointer-events-none absolute z-50 flex flex-col gap-2.5 ${(replayActive || shotBroadcastActive) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          right: `${rightHudShiftPx}px`,
+          left: `${rightHudShiftPx}px`,
           bottom: `${sideControlsBottomPx + rightControlsLiftPx + sideActionButtonsLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
-          transformOrigin: 'bottom right'
+          transformOrigin: 'bottom left'
         }}
       >
         {!isTopDownView && (
@@ -33202,19 +33204,21 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {isPortrait && !replayActive && !isFreePractice && !hideNonEssentialHud && (
+      {isPortrait && !replayActive && !hideNonEssentialHud && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
           style={{ top: `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM}rem)` }}
         >
-          <button
-            type="button"
-            onClick={() => setShowGift(true)}
-            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-            aria-label="Open gifts"
-          >
-            <span aria-hidden="true">🎁</span>
-          </button>
+          {!isFreePractice && (
+            <button
+              type="button"
+              onClick={() => setShowGift(true)}
+              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+              aria-label="Open gifts"
+            >
+              <span aria-hidden="true">🎁</span>
+            </button>
+          )}
           <button
             ref={configButtonRef}
             type="button"
@@ -33226,14 +33230,26 @@ const powerRef = useRef(hud.power);
           >
             <span aria-hidden="true">☰</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setShowChat(true)}
-            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-            aria-label="Open chat"
-          >
-            <span aria-hidden="true">💬</span>
-          </button>
+          {isFreePractice ? (
+            <button
+              type="button"
+              onClick={handlePracticeRestart}
+              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+              aria-label="Restart practice"
+              title="Restart practice"
+            >
+              <span aria-hidden="true">↻</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowChat(true)}
+              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+              aria-label="Open chat"
+            >
+              <span aria-hidden="true">💬</span>
+            </button>
+          )}
         </div>
       )}
 
