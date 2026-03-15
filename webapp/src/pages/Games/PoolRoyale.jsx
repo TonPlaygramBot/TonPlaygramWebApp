@@ -1541,8 +1541,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // increase jaw rebound energy so cushion cuts feel a bit bouncier
-const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
+const CUSHION_CUT_RESTITUTION_SCALE = 1.02; // nudge jaw rebound energy up so angle-cut returns feel closer to a real table
+const CUSHION_CUT_FRICTION_SCALE = 1.05; // keep a natural grab profile so the extra rebound stays controlled
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -13479,6 +13479,7 @@ function PoolRoyaleGame({
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [tournamentProgressPopup, setTournamentProgressPopup] = useState(null);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
   const accountIdRef = useRef(accountId || '');
@@ -15398,7 +15399,10 @@ const powerRef = useRef(hud.power);
   );
   const handlePlayAgain = useCallback(() => {
     if (tournamentMode) {
-      window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+      setTournamentProgressPopup({
+        title: 'Tournament progress',
+        message: 'Tournament stays loaded on the table. Use Continue tournament to jump directly into the next match.'
+      });
       return;
     }
     if (isOnlineMatch) {
@@ -15406,7 +15410,7 @@ const powerRef = useRef(hud.power);
       return;
     }
     resetMatchState();
-  }, [isOnlineMatch, location.search, resetMatchState, sendRematchInvite, tournamentMode]);
+  }, [isOnlineMatch, resetMatchState, sendRematchInvite, tournamentMode]);
   const continueTournament = useCallback(() => {
     if (!tournamentMode) return;
     try {
@@ -15441,12 +15445,16 @@ const powerRef = useRef(hud.power);
         pendingMatch.pair[0] === userSeed ? pendingMatch.pair[1] : pendingMatch.pair[0];
       window.localStorage.setItem(tournamentOppKey, JSON.stringify(st.seedToPlayer?.[opponentSeed] || null));
       window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
-      window.location.assign(`/games/poolroyale${location.search || ''}`);
+      setTournamentProgressPopup({
+        title: 'Tournament progress',
+        message: 'Next bracket match prepared. Starting directly from this table without reloading.'
+      });
+      resetMatchState();
     } catch (err) {
       console.warn('Pool Royale continue tournament failed', err);
       window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
     }
-  }, [location.search, tournamentMode, tournamentOppKey, tournamentStateKey]);
+  }, [location.search, resetMatchState, tournamentMode, tournamentOppKey, tournamentStateKey]);
   useEffect(() => () => clearRematchTimers(), [clearRematchTimers]);
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
@@ -31657,7 +31665,7 @@ const powerRef = useRef(hud.power);
   const hudGapClass = usePortraitHudLayout ? 'gap-5' : 'gap-7';
   const bottomHudLayoutClass = usePortraitHudLayout ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
-    'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
+    'fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-[1px]';
   const chatGiftPanelClass =
     'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
   const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
@@ -32087,7 +32095,7 @@ const powerRef = useRef(hud.power);
         </>
       )}
 
-      {(!isPortrait || (isPortrait && configOpen && !isFreePractice && !hideNonEssentialHud)) && (
+      {(!isPortrait || (isPortrait && configOpen && !hideNonEssentialHud)) && (
       <div
         className={`${isPortrait ? 'fixed left-1/2 -translate-x-1/2 items-center' : 'absolute items-start'} z-50 flex flex-col gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
@@ -33230,26 +33238,14 @@ const powerRef = useRef(hud.power);
           >
             <span aria-hidden="true">☰</span>
           </button>
-          {isFreePractice ? (
-            <button
-              type="button"
-              onClick={handlePracticeRestart}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Restart practice"
-              title="Restart practice"
-            >
-              <span aria-hidden="true">↻</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowChat(true)}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Open chat"
-            >
-              <span aria-hidden="true">💬</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowChat(true)}
+            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+            aria-label="Open chat"
+          >
+            <span aria-hidden="true">💬</span>
+          </button>
         </div>
       )}
 
@@ -33533,6 +33529,23 @@ const powerRef = useRef(hud.power);
           />
         </div>
       )}
+
+
+      {tournamentProgressPopup ? (
+        <div className="absolute inset-0 z-[125] flex items-center justify-center bg-black/55 px-4">
+          <div className="w-[min(92vw,24rem)] rounded-2xl border border-emerald-300/55 bg-slate-950/90 p-4 text-center text-white shadow-[0_18px_40px_rgba(0,0,0,0.55)] backdrop-blur">
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">{tournamentProgressPopup.title}</p>
+            <p className="mt-2 text-sm text-white/85">{tournamentProgressPopup.message}</p>
+            <button
+              type="button"
+              onClick={() => setTournamentProgressPopup(null)}
+              className="mt-4 rounded-full border border-emerald-300 bg-emerald-300 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-black"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {err && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
