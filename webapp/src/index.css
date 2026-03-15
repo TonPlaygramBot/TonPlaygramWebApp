@@ -1706,10 +1706,9 @@ input:focus {
 }
 
 .pool-royale-chat-bubble {
-  left: 50%;
-  top: 50%;
-  bottom: auto;
-  transform: translate(-50%, -50%);
+  left: calc(0.75rem + 3.15rem + 0.5rem);
+  bottom: calc(0.75rem + 5.35rem);
+  transform: none;
 }
 
 .texas-holdem-chat-bubble {
