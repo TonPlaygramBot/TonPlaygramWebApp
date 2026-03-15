@@ -49,8 +49,6 @@ import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
 import TableTennisRoyalLobby from './pages/Games/TableTennisRoyalLobby.jsx';
-import GoKartLobby from './pages/Games/GoKartLobby.jsx';
-import GoKart from './pages/Games/GoKart.jsx';
 
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
@@ -223,8 +221,6 @@ export default function App() {
               element={<TableTennisRoyalLobby />}
             />
             <Route path="/games/tabletennisroyal" element={<TableTennisRoyal />} />
-            <Route path="/games/gokart/lobby" element={<GoKartLobby />} />
-            <Route path="/games/gokart" element={<GoKart />} />
             <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}
