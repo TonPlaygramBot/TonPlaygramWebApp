@@ -9,3 +9,5 @@
 !variants/pool-royale/*.svg
 !chess-battle-royal/
 !chess-battle-royal/**
+!baduk-battle-royal/
+!baduk-battle-royal/**
