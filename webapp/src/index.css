@@ -38,21 +38,33 @@ body {
 }
 
 body.telegram-fullscreen {
-  min-height: var(--tg-viewport-stable-height, var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh)));
-  padding-top: max(env(safe-area-inset-top), var(--app-viewport-offset-top, 0px));
+  min-height: var(
+    --tg-viewport-stable-height,
+    var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh))
+  );
+  padding-top: max(
+    env(safe-area-inset-top),
+    var(--app-viewport-offset-top, 0px)
+  );
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
 
 body.mobile-fullscreen {
-  min-height: var(--tg-viewport-stable-height, var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh)));
+  min-height: var(
+    --tg-viewport-stable-height,
+    var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh))
+  );
   padding: 0;
 }
 
 body.telegram-fullscreen #root,
 body.mobile-fullscreen #root {
-  min-height: var(--tg-viewport-stable-height, var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh)));
+  min-height: var(
+    --tg-viewport-stable-height,
+    var(--app-viewport-stable-height, var(--app-viewport-height, 100dvh))
+  );
 }
 
 .app-bottom-nav {
@@ -290,7 +302,8 @@ input:focus {
     0 0 20px rgba(250, 204, 21, 0.8),
     0 12px 20px rgba(0, 0, 0, 0.35);
   transform: translateY(6px) scale(0.8);
-  animation: roulettePrizePop 0.6s ease-out forwards,
+  animation:
+    roulettePrizePop 0.6s ease-out forwards,
     roulettePrizeFloat 2.4s ease-in-out infinite 0.6s;
 }
 
@@ -357,15 +370,9 @@ input:focus {
 
 .lucky-card-back {
   background:
-    url('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp')
-      center/90% no-repeat,
-    repeating-linear-gradient(
-      45deg,
-      #233,
-      #233 6px,
-      #122 6px,
-      #122 12px
-    );
+    url('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp') center/90%
+      no-repeat,
+    repeating-linear-gradient(45deg, #233, #233 6px, #122 6px, #122 12px);
   border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
@@ -405,7 +412,9 @@ input:focus {
   @apply relative w-12 h-12 rounded-xl;
   background: linear-gradient(140deg, #f5f5f5 0%, #d5d5d5 45%, #b0b0b0 100%);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.25),
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.6),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.25),
     0 10px 18px rgba(0, 0, 0, 0.45);
   transform-style: preserve-3d;
   transition: transform 0.5s;
@@ -413,23 +422,41 @@ input:focus {
 
 .dice-face {
   @apply absolute w-full h-full flex items-center justify-center rounded-xl;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(180, 180, 180, 0.95));
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.95),
+    rgba(180, 180, 180, 0.95)
+  );
   border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.5), inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.3);
 }
 
 .dice-face .dot {
   @apply relative w-3 h-3 rounded-full;
-  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.75), rgba(35, 35, 35, 0.95) 55%, rgba(0, 0, 0, 0.95));
-  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.25), inset 0 -3px 5px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.75),
+    rgba(35, 35, 35, 0.95) 55%,
+    rgba(0, 0, 0, 0.95)
+  );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.25),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .dice-face .dot::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  background: radial-gradient(
+    circle at 25% 25%,
+    rgba(255, 255, 255, 0.7),
+    rgba(255, 255, 255, 0)
+  );
   mix-blend-mode: screen;
   pointer-events: none;
 }
@@ -524,10 +551,16 @@ input:focus {
 }
 
 .token-dice .dice-face {
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(180, 180, 180, 0.95));
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.95),
+    rgba(180, 180, 180, 0.95)
+  );
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 0.5rem;
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.5), inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.3);
 }
 
 .token-dice .dice-face .dot {
@@ -1706,9 +1739,10 @@ input:focus {
 }
 
 .pool-royale-chat-bubble {
-  left: calc(0.75rem + 3.15rem + 0.5rem);
-  bottom: calc(0.75rem + 5.35rem);
-  transform: none;
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
 }
 
 .texas-holdem-chat-bubble {
@@ -1720,7 +1754,6 @@ input:focus {
 .chess-battle-chat-bubble {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 5.6rem);
 }
-
 
 /* Rolling dice animation */
 .dice-screen-animation {
@@ -1822,7 +1855,7 @@ input:focus {
 }
 
 /* Ensure TPC icon appears slightly larger across the site */
-img[alt="TPC"] {
+img[alt='TPC'] {
   min-width: 3rem;
   min-height: 3rem;
 }
