@@ -40,8 +40,6 @@ import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
 
 const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
-const CheckersBattleRoyal = React.lazy(() => import('./pages/Games/CheckersBattleRoyal.jsx'));
-const CheckersBattleRoyalLobby = React.lazy(() => import('./pages/Games/CheckersBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
@@ -163,24 +161,6 @@ export default function App() {
                 </Suspense>
               )}
             />
-
-            <Route
-              path="/games/checkersbattleroyal/lobby"
-              element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Checkers Lobby…</div>}>
-                  <CheckersBattleRoyalLobby />
-                </Suspense>
-              )}
-            />
-            <Route
-              path="/games/checkersbattleroyal"
-              element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Checkers Battle Royal…</div>}>
-                  <CheckersBattleRoyal />
-                </Suspense>
-              )}
-            />
-
             <Route
               path="/games/ludobattleroyal/lobby"
               element={<LudoBattleRoyalLobby />}
