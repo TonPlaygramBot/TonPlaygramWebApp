@@ -166,7 +166,7 @@ public class CushionGeometryTests
         var solver = new BilliardsSolver();
         solver.InitStandardTable();
         var preview = solver.PreviewShot(new Vec2(0.45, 0.45), new Vec2(-1, -1), 2.0, new List<BilliardsSolver.Ball>());
-        double expected = PhysicsConstants.CornerPocketMouth / Math.Sqrt(2.0);
+        double expected = PhysicsConstants.CornerPocketMouth * PhysicsConstants.CornerPocketScale / Math.Sqrt(2.0);
         Assert.That(Math.Abs(preview.ContactPoint.X - expected), Is.LessThan(0.001));
         Assert.That(Math.Abs(preview.ContactPoint.Y - expected), Is.LessThan(0.001));
     }
@@ -219,5 +219,34 @@ public class SpinActivationTests
         solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.2);
 
         Assert.That(ball.SpinEffectsEnabled, Is.True);
+    }
+}
+
+public class PocketMouthGuardGeometryTests
+{
+    [Test]
+    public void CornerAndSidePocketMouthGuardsUseSameInsetDistance()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+
+        double sideTargetY = PhysicsConstants.SidePocketMouthGuardInset;
+        double cornerDiag = PhysicsConstants.CornerPocketMouthGuardInset / Math.Sqrt(2.0);
+
+        Assert.That(
+            solver.PocketEdges.Exists(e =>
+                Math.Abs(e.A.Y - sideTargetY) < 1e-9 &&
+                Math.Abs(e.B.Y - sideTargetY) < 1e-9 &&
+                Math.Abs(e.Normal.X) < 1e-9 &&
+                e.Normal.Y > 0.99),
+            Is.True,
+            "Expected top side-pocket mouth guard inset was not generated.");
+
+        Assert.That(
+            solver.PocketEdges.Exists(e =>
+                Math.Abs(e.A.X + e.A.Y - (PhysicsConstants.CornerPocketMouth * PhysicsConstants.CornerPocketScale / Math.Sqrt(2.0) + cornerDiag)) < 1e-9 &&
+                Math.Abs(e.B.X + e.B.Y - (PhysicsConstants.CornerPocketMouth * PhysicsConstants.CornerPocketScale / Math.Sqrt(2.0) + cornerDiag)) < 1e-9),
+            Is.True,
+            "Expected top-left corner mouth guard inset was not generated.");
     }
 }

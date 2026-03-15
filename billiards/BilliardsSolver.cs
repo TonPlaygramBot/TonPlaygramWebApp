@@ -78,6 +78,7 @@ public class BilliardsSolver
         double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8) * PhysicsConstants.SideJawDepthScale;
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
         double sideMouthGuardInset = Math.Max(0.0, PhysicsConstants.SidePocketMouthGuardInset);
+        double cornerMouthGuardInset = Math.Max(0.0, PhysicsConstants.CornerPocketMouthGuardInset);
 
         // Straight cushion spans (long rails)
         AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
@@ -169,8 +170,26 @@ public class BilliardsSolver
             new Vec2(width - sideJawInset, height / 2 + sideCut),
             new Vec2(-1, 0));
 
-        // Corner mouth helpers were causing double-contact anomalies between
-        // corner jaws and angle cuts, so keep corners on jaw/cut geometry only.
+        AddPocketMouthGuard(
+            new Vec2(cornerCut, 0),
+            new Vec2(0, cornerCut),
+            new Vec2(1, 1),
+            cornerMouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(width - cornerCut, 0),
+            new Vec2(width, cornerCut),
+            new Vec2(-1, 1),
+            cornerMouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(width, height - cornerCut),
+            new Vec2(width - cornerCut, height),
+            new Vec2(-1, -1),
+            cornerMouthGuardInset);
+        AddPocketMouthGuard(
+            new Vec2(cornerCut, height),
+            new Vec2(0, height - cornerCut),
+            new Vec2(1, -1),
+            cornerMouthGuardInset);
 
         AddPocketMouthGuard(
             new Vec2(width / 2 - sideCut, 0),
