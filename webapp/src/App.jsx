@@ -40,6 +40,8 @@ import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
 
 const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
+const CheckersBattleRoyal = React.lazy(() => import('./pages/Games/CheckersBattleRoyal.jsx'));
+const CheckersBattleRoyalLobby = React.lazy(() => import('./pages/Games/CheckersBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
@@ -61,6 +63,41 @@ import useReferralClaim from './hooks/useReferralClaim.js';
 import useNativePushNotifications from './hooks/useNativePushNotifications.js';
 import { BOT_USERNAME } from './utils/constants.js';
 import { isTelegramWebView } from './utils/telegram.js';
+
+
+class RouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.error('Route crashed:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mx-4 mt-8 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-center text-white">
+          <p className="text-sm font-semibold">This game page failed to load.</p>
+          <p className="mt-1 text-xs text-white/70">Please go back to the lobby and try again.</p>
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="mt-3 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20"
+          >
+            Back
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -160,6 +197,22 @@ export default function App() {
               element={(
                 <Suspense fallback={<div className="p-4 text-center">Loading Chess Battle Royal…</div>}>
                   <ChessBattleRoyal />
+                </Suspense>
+              )}
+            />
+            <Route
+              path="/games/checkersbattleroyal/lobby"
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Checkers Lobby…</div>}>
+                  <RouteErrorBoundary><CheckersBattleRoyalLobby /></RouteErrorBoundary>
+                </Suspense>
+              )}
+            />
+            <Route
+              path="/games/checkersbattleroyal"
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Checkers Battle Royal…</div>}>
+                  <RouteErrorBoundary><CheckersBattleRoyal /></RouteErrorBoundary>
                 </Suspense>
               )}
             />
