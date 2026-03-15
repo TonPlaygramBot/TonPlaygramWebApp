@@ -257,11 +257,14 @@ export default function TavullBattleRoyalLobby() {
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader
           slug="tavullbattleroyal"
-          title="Tavull Battle Royal Lobby"
+          title="Backgammon Royal Lobby"
           badge={onlineCount != null ? `${onlineCount} online` : 'Syncing…'}
         />
 
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+          <p className="mb-2 text-xs text-cyan-200/90">
+            Tavull Battle Royal has been upgraded to Backgammon Royal with a dedicated backgammon board and dice loop.
+          </p>
           <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
