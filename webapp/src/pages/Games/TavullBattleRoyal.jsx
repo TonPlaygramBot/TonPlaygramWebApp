@@ -14,7 +14,6 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.j
 import Dice from '../../components/Dice.jsx'
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
-import { getGameVolume, isGameMuted } from '../../utils/sound.js'
 
 const WHITE = 'white'
 const BLACK = 'black'
@@ -46,8 +45,8 @@ const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT, 0)
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/'
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
 const BACKGAMMON_BOARD_GLTF_URLS = Object.freeze([
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
+  'https://raw.githubusercontent.com/KenneyNL/boardgame-kit/main/Models/GLTF/boardgame-kit.glb',
+  'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
 ])
 const BACKGAMMON_HDRI_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr',
@@ -56,28 +55,9 @@ const BACKGAMMON_HDRI_URLS = Object.freeze([
 ])
 let sharedKtx2Loader = null
 let hasDetectedKtx2Support = false
-const CHAIR_MODEL_URLS = Object.freeze([
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  '/assets/models/chair/chair.glb',
-  '/assets/models/chair/chair.gltf'
-])
-const CHAIR_THEMES = Object.freeze([
-  { id: 'royal-red', label: 'Royal Red', primary: '#8b1d2c', leg: '#111827' },
-  { id: 'emerald', label: 'Emerald', primary: '#0f766e', leg: '#0f172a' },
-  { id: 'violet', label: 'Violet', primary: '#4c1d95', leg: '#111827' }
-])
-const QUALITY_OPTIONS = Object.freeze([
-  { id: 'performance', label: 'Performance', pixelRatio: 1, shadows: false },
-  { id: 'balanced', label: 'Balanced', pixelRatio: 1.5, shadows: true },
-  { id: 'ultra', label: 'Ultra', pixelRatio: 2, shadows: true }
-])
-const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
-const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
-  { left: '50%', top: '73%' }
+  { left: '50%', top: '82%' }
 ]
 
 function ensureKtx2SupportDetection(renderer = null) {
@@ -137,16 +117,12 @@ async function loadBackgammonBoardModel(renderer) {
   return null
 }
 
-function loadHdriEnvironment(scene, preferredIndex = 0) {
+function loadHdriEnvironment(scene) {
   const rgbe = new RGBELoader()
-  const ordered = [
-    BACKGAMMON_HDRI_URLS[preferredIndex],
-    ...BACKGAMMON_HDRI_URLS.filter((_, idx) => idx !== preferredIndex)
-  ].filter(Boolean)
   const tryNext = (index = 0) => {
-    if (index >= ordered.length) return
+    if (index >= BACKGAMMON_HDRI_URLS.length) return
     rgbe.load(
-      ordered[index],
+      BACKGAMMON_HDRI_URLS[index],
       (texture) => {
         texture.mapping = THREE.EquirectangularReflectionMapping
         applySRGBColorSpace(texture)
@@ -335,27 +311,7 @@ const scorePosition = (state, color) => {
 const pickAiSequence = (state, dice) => {
   const sequences = collectTurnSequences(state, BLACK, dice)
   if (!sequences.length) return null
-
-  const outcomes = []
-  for (let d1 = 1; d1 <= 6; d1 += 1) {
-    for (let d2 = 1; d2 <= 6; d2 += 1) outcomes.push(d1 === d2 ? [d1, d1, d1, d1] : [d1, d2])
-  }
-
-  const expectedScoreFor = (afterAi) => {
-    let total = 0
-    outcomes.forEach((dicePair) => {
-      const whiteSeq = collectTurnSequences(afterAi, WHITE, dicePair)
-      if (!whiteSeq.length) {
-        total += scorePosition(afterAi, BLACK)
-        return
-      }
-      const whiteBest = whiteSeq.reduce((best, seq) => (scorePosition(seq.resultingState, WHITE) > scorePosition(best.resultingState, WHITE) ? seq : best), whiteSeq[0])
-      total += scorePosition(whiteBest.resultingState, BLACK)
-    })
-    return total / outcomes.length
-  }
-
-  return sequences.reduce((best, seq) => (expectedScoreFor(seq.resultingState) > expectedScoreFor(best.resultingState) ? seq : best), sequences[0])
+  return sequences.reduce((best, seq) => (scorePosition(seq.resultingState, BLACK) > scorePosition(best.resultingState, BLACK) ? seq : best), sequences[0])
 }
 
 function createArenaChairFallback(chairColor = '#8b1d2c', legColor = '#111827') {
@@ -410,52 +366,6 @@ function createArenaChairFallback(chairColor = '#8b1d2c', legColor = '#111827') 
   return chair
 }
 
-async function loadMappedChair(renderer, theme) {
-  const loader = createConfiguredGLTFLoader(renderer)
-  let loaded = null
-  for (const url of CHAIR_MODEL_URLS) {
-    try {
-      const gltf = await loader.loadAsync(url)
-      loaded = gltf?.scene || gltf?.scenes?.[0]
-      if (loaded) break
-    } catch (error) {
-      console.warn('Failed to load Backgammon chair model', url, error)
-    }
-  }
-  if (!loaded) return createArenaChairFallback(theme.primary, theme.leg)
-
-  const model = loaded.clone(true)
-  prepareLoadedModel(model)
-  const tint = new THREE.Color(theme.primary)
-  const legTint = new THREE.Color(theme.leg)
-  model.traverse((node) => {
-    if (!node?.isMesh) return
-    const mats = Array.isArray(node.material) ? node.material : [node.material]
-    mats.forEach((mat) => {
-      if (!mat) return
-      const label = `${mat.name || ''} ${node.name || ''}`.toLowerCase()
-      const hasMappedTexture = Boolean(mat.map)
-      if (!hasMappedTexture) {
-        if (/leg|base|metal|foot/.test(label)) mat.color?.lerp(legTint, 0.7)
-        else mat.color?.lerp(tint, 0.55)
-      }
-      if (mat.map) applySRGBColorSpace(mat.map)
-      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap)
-      mat.needsUpdate = true
-    })
-  })
-  const box = new THREE.Box3().setFromObject(model)
-  const size = box.getSize(new THREE.Vector3())
-  const currentMax = Math.max(size.x, size.y, size.z)
-  const targetMax = Math.max(SEAT_WIDTH, BACK_HEIGHT * 1.2, SEAT_DEPTH)
-  if (currentMax > 0) model.scale.multiplyScalar(targetMax / currentMax)
-  const scaledBox = new THREE.Box3().setFromObject(model)
-  const center = scaledBox.getCenter(new THREE.Vector3())
-  model.position.set(-center.x, -scaledBox.min.y, -center.z)
-  return model
-}
-
-
 const pointBasePosition = (index) => {
   if (index <= 11) {
     const col = index < 6 ? index : index + 1
@@ -486,11 +396,6 @@ export default function TavullBattleRoyal() {
   const [aiThinking, setAiThinking] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
   const [viewMode, setViewMode] = useState('3d')
-  const [isRollingDice, setIsRollingDice] = useState(false)
-  const [tableFinishIdx, setTableFinishIdx] = useState(0)
-  const [chairThemeIdx, setChairThemeIdx] = useState(0)
-  const [hdriIdx, setHdriIdx] = useState(0)
-  const [qualityIdx, setQualityIdx] = useState(1)
   const playerName = getTelegramFirstName() || 'Player'
   const playerAvatar = getTelegramPhotoUrl()
 
@@ -521,15 +426,6 @@ export default function TavullBattleRoyal() {
     return starts
   }, [available])
 
-  const playSfx = (url, volumeScale = 1) => {
-    if (isGameMuted()) return
-    try {
-      const audio = new Audio(url)
-      audio.volume = Math.min(1, getGameVolume() * volumeScale)
-      void audio.play().catch(() => {})
-    } catch {}
-  }
-
   useEffect(() => {
     if (!canvasHostRef.current) return undefined
 
@@ -542,10 +438,9 @@ export default function TavullBattleRoyal() {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' })
     applyRendererSRGB(renderer)
-    const initialQuality = QUALITY_OPTIONS[qualityIdx] || QUALITY_OPTIONS[1]
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, initialQuality.pixelRatio))
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.setSize(host.clientWidth, host.clientHeight)
-    renderer.shadowMap.enabled = Boolean(initialQuality.shadows)
+    renderer.shadowMap.enabled = true
     host.appendChild(renderer.domElement)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -553,7 +448,7 @@ export default function TavullBattleRoyal() {
     controls.enableDamping = true
     controls.maxPolarAngle = Math.PI * 0.48
     controls.minDistance = 4.4
-    controls.maxDistance = 8.6
+    controls.maxDistance = 7.4
     controls.target.copy(CAMERA_TARGET)
 
     const applyViewMode = (mode) => {
@@ -564,7 +459,7 @@ export default function TavullBattleRoyal() {
         controls.maxPolarAngle = Math.PI * 0.08
         controls.enableRotate = false
         controls.minDistance = 5.8
-        controls.maxDistance = 11.5
+        controls.maxDistance = 10
       } else {
         camera.position.copy(CAMERA_3D_POSITION)
         camera.lookAt(CAMERA_TARGET)
@@ -572,7 +467,7 @@ export default function TavullBattleRoyal() {
         controls.maxPolarAngle = Math.PI * 0.48
         controls.enableRotate = true
         controls.minDistance = 4.4
-        controls.maxDistance = 8.6
+        controls.maxDistance = 7.4
       }
       controls.target.copy(CAMERA_TARGET)
       controls.update()
@@ -589,28 +484,18 @@ export default function TavullBattleRoyal() {
     fill.position.set(-4, 4.5, -3)
     scene.add(fill)
 
-    loadHdriEnvironment(scene, hdriIdx)
+    loadHdriEnvironment(scene)
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT })
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[0])
 
-    const chairRootA = new THREE.Group()
-    chairRootA.position.set(0, CHAIR_BASE_HEIGHT, CHAIR_DISTANCE)
-    chairRootA.rotation.y = Math.PI
-    scene.add(chairRootA)
-    const chairRootB = new THREE.Group()
-    chairRootB.position.set(0, CHAIR_BASE_HEIGHT, -CHAIR_DISTANCE)
-    scene.add(chairRootB)
-    const setChairs = async (themeIndex) => {
-      const theme = CHAIR_THEMES[themeIndex] || CHAIR_THEMES[0]
-      const a = await loadMappedChair(renderer, theme)
-      const b = a.clone(true)
-      chairRootA.clear()
-      chairRootB.clear()
-      chairRootA.add(a)
-      chairRootB.add(b)
-    }
-    void setChairs(chairThemeIdx)
+    const chairA = createArenaChairFallback('#8b1d2c', '#111827')
+    chairA.position.set(0, CHAIR_BASE_HEIGHT, CHAIR_DISTANCE)
+    chairA.rotation.y = Math.PI
+    scene.add(chairA)
+    const chairB = createArenaChairFallback('#8b1d2c', '#111827')
+    chairB.position.set(0, CHAIR_BASE_HEIGHT, -CHAIR_DISTANCE)
+    scene.add(chairB)
 
     const boardRoot = new THREE.Group()
     scene.add(boardRoot)
@@ -700,23 +585,7 @@ export default function TavullBattleRoyal() {
     }
     tick()
 
-    sceneBundleRef.current = {
-      scene,
-      camera,
-      renderer,
-      controls,
-      chipGroup,
-      applyViewMode,
-      applyTableFinish: (idx) => applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[idx] || MURLAN_TABLE_FINISHES[0]),
-      applyHdri: (idx) => loadHdriEnvironment(scene, idx),
-      applyQuality: (idx) => {
-        const quality = QUALITY_OPTIONS[idx] || QUALITY_OPTIONS[1]
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio))
-        renderer.shadowMap.enabled = Boolean(quality.shadows)
-        renderer.shadowMap.needsUpdate = true
-      },
-      applyChairs: setChairs
-    }
+    sceneBundleRef.current = { scene, camera, renderer, controls, chipGroup, applyViewMode }
 
     return () => {
       window.cancelAnimationFrame(raf)
@@ -736,35 +605,6 @@ export default function TavullBattleRoyal() {
     if (!bundle?.applyViewMode) return
     bundle.applyViewMode(viewMode)
   }, [viewMode])
-
-  useEffect(() => {
-    const bundle = sceneBundleRef.current
-    if (!bundle?.applyTableFinish) return
-    bundle.applyTableFinish(tableFinishIdx)
-  }, [tableFinishIdx])
-
-  useEffect(() => {
-    const bundle = sceneBundleRef.current
-    if (!bundle?.applyHdri) return
-    bundle.applyHdri(hdriIdx)
-  }, [hdriIdx])
-
-  useEffect(() => {
-    const bundle = sceneBundleRef.current
-    if (!bundle?.applyQuality) return
-    bundle.applyQuality(qualityIdx)
-  }, [qualityIdx])
-
-  useEffect(() => {
-    const bundle = sceneBundleRef.current
-    if (!bundle?.applyChairs) return
-    void bundle.applyChairs(chairThemeIdx)
-  }, [chairThemeIdx])
-
-  useEffect(() => {
-    if (!winner) return
-    playSfx(WIN_SOUND_URL, 0.9)
-  }, [winner])
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
@@ -819,11 +659,9 @@ export default function TavullBattleRoyal() {
     const d2 = 1 + Math.floor(Math.random() * 6)
     const aiDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
     setMessage(`AI rolled ${d1} and ${d2}.`)
-    setIsRollingDice(true)
     setAiThinking(true)
 
     setTimeout(() => {
-      setIsRollingDice(false)
       const choice = pickAiSequence(stateAfterPlayer, aiDice)
       if (!choice || !choice.line.length) {
         setMessage(`AI rolled ${d1}/${d2} but had no legal move. Your turn.`)
@@ -833,7 +671,6 @@ export default function TavullBattleRoyal() {
         return
       }
       setGame(choice.resultingState)
-      playSfx(MOVE_SOUND_URL, 0.65)
       setMessage(`AI played ${choice.line.length} move(s). Your turn.`)
       setAiThinking(false)
       setDice([])
@@ -843,23 +680,18 @@ export default function TavullBattleRoyal() {
 
   const roll = () => {
     if (aiThinking || winner || available.length > 0) return
-    setIsRollingDice(true)
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
     const useDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
-    setTimeout(() => {
-      setIsRollingDice(false)
-      playSfx(MOVE_SOUND_URL, 0.45)
-      const seq = collectTurnSequences(game, WHITE, useDice)
-      setDice(useDice)
-      setAvailable(seq)
-      if (!seq.length || !seq.some((s) => s.line.length)) {
-        setMessage(`You rolled ${d1}/${d2} but no legal move. AI turn.`)
-        playAi(game)
-        return
-      }
-      setMessage('Tap a highlighted point button below to play your legal turn.')
-    }, 650)
+    const seq = collectTurnSequences(game, WHITE, useDice)
+    setDice(useDice)
+    setAvailable(seq)
+    if (!seq.length || !seq.some((s) => s.line.length)) {
+      setMessage(`You rolled ${d1}/${d2} but no legal move. AI turn.`)
+      playAi(game)
+      return
+    }
+    setMessage('Tap a highlighted point button below to play your legal turn.')
   }
 
   const handlePoint = (index) => {
@@ -867,7 +699,6 @@ export default function TavullBattleRoyal() {
     const matching = available.find((s) => String(s.line[0]?.from) === String(index))
     if (!matching) return
     setGame(matching.resultingState)
-    playSfx(MOVE_SOUND_URL, 0.65)
     setAvailable([])
     setDice([])
     setMessage('You played. AI is thinking…')
@@ -914,23 +745,9 @@ export default function TavullBattleRoyal() {
       </div>
 
       {configOpen && (
-        <div className="absolute top-32 right-4 z-30 pointer-events-auto mt-2 w-80 max-w-[86vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+        <div className="absolute top-32 right-4 z-30 pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
           <div className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Backgammon Settings</div>
           <div className="mt-2 text-white/70">Roll, select highlighted points, and bear off all 15 checkers to win.</div>
-          <div className="mt-3 grid gap-2">
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setTableFinishIdx((v) => (v + 1) % MURLAN_TABLE_FINISHES.length)}>
-              Table: {MURLAN_TABLE_FINISHES[tableFinishIdx]?.name || 'Default'}
-            </button>
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setChairThemeIdx((v) => (v + 1) % CHAIR_THEMES.length)}>
-              Chairs: {CHAIR_THEMES[chairThemeIdx]?.label || 'Royal Red'}
-            </button>
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setHdriIdx((v) => (v + 1) % BACKGAMMON_HDRI_URLS.length)}>
-              HDRI: {hdriIdx + 1}/{BACKGAMMON_HDRI_URLS.length}
-            </button>
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setQualityIdx((v) => (v + 1) % QUALITY_OPTIONS.length)}>
-              Graphics: {QUALITY_OPTIONS[qualityIdx]?.label || 'Balanced'}
-            </button>
-          </div>
         </div>
       )}
 
@@ -938,8 +755,8 @@ export default function TavullBattleRoyal() {
         <div ref={canvasHostRef} className="h-full w-full" />
       </div>
 
-      <div className="absolute top-[52%] left-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-wrap items-center justify-center gap-2 pointer-events-none">
-        {dice.length > 0 || isRollingDice ? <Dice values={dice.length ? dice : [1, 1]} rolling={isRollingDice} transparent /> : null}
+      <div className="absolute bottom-36 left-1/2 z-20 flex -translate-x-1/2 flex-wrap items-center justify-center gap-2">
+        {dice.length > 0 ? <Dice values={dice} rolling={false} /> : null}
       </div>
 
 
@@ -956,14 +773,21 @@ export default function TavullBattleRoyal() {
         ))}
       </div>
 
-      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2">
+      <div className="absolute bottom-3 left-1/2 z-20 flex w-[94vw] max-w-sm -translate-x-1/2 gap-2">
+        <button type="button" onClick={roll} disabled={aiThinking || winner || available.length > 0} className="flex-1 rounded-xl bg-cyan-400 px-4 py-2 font-bold text-black disabled:opacity-50">
+          Roll Dice
+        </button>
         <button
           type="button"
-          onClick={roll}
-          disabled={aiThinking || winner || available.length > 0}
-          className="rounded-xl border border-white/30 bg-transparent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          onClick={() => {
+            setGame({ points: initialBoard(), bar: { white: 0, black: 0 }, off: { white: 0, black: 0 } })
+            setDice([])
+            setAvailable([])
+            setMessage('New game started. Roll to begin.')
+          }}
+          className="rounded-xl border border-white/30 px-4 py-2"
         >
-          Roll Dice
+          Reset
         </button>
       </div>
 
@@ -973,7 +797,7 @@ export default function TavullBattleRoyal() {
           showInfo={false}
           showChat={false}
           showMute={false}
-          className="fixed right-3 bottom-48 z-50 flex flex-col gap-4"
+          className="fixed right-3 bottom-28 z-50 flex flex-col gap-4"
           buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
           iconClassName="text-[1.65rem] leading-none"
           labelClassName="sr-only"
@@ -985,7 +809,7 @@ export default function TavullBattleRoyal() {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-3 bottom-48 z-50 flex flex-col"
+          className="fixed left-3 bottom-28 z-50 flex flex-col"
           buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
           iconClassName="text-[1.65rem] leading-none"
           labelClassName="sr-only"
@@ -1027,7 +851,7 @@ export default function TavullBattleRoyal() {
         })}
       </div>
 
-      <div className="absolute top-[61%] left-1/2 -translate-x-1/2 pointer-events-none">
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
         <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
           {winner ? `${winner === WHITE ? 'You' : 'AI'} win!` : message}
         </div>
