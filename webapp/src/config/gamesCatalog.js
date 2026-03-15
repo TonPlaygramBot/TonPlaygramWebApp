@@ -69,6 +69,14 @@ const gamesCatalog = [
     image: '/assets/icons/Pool%20Royal%20game%20logo.png',
     description: 'Fast 3D table-tennis rallies with royal visuals.'
   },
+
+  {
+    name: 'GoKart',
+    route: '/games/gokart/lobby',
+    slug: 'gokart',
+    image: 'https://raw.githubusercontent.com/supertuxkart/stk-code/8067e13f5bd2d08ad9aadb506ae704df4698fb26/data/supertuxkart_256.png',
+    description: 'Arcade racing inspired by the open-source SuperTuxKart project.'
+  },
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
