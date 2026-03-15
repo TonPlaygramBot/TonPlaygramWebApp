@@ -55,10 +55,6 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
   tabletennisroyal: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
-  },
-  supertuxkart: {
-    checks: { lobby: true, runtime: true, backend: false, security: false },
-    label: 'Beta'
   }
 });
 
