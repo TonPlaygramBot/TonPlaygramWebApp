@@ -63,6 +63,13 @@ const gamesCatalog = [
     description: 'Strategic chess showdowns with royal flair.'
   },
   {
+    name: 'Checkers Battle Royal',
+    route: '/games/checkersbattleroyal/lobby',
+    slug: 'checkersbattleroyal',
+    image: '/assets/icons/checkers-royale.svg',
+    description: 'Classic checkers battles in the Battle Royal arena.'
+  },
+  {
     name: 'Table Tennis Royal',
     route: '/games/tabletennisroyal/lobby',
     slug: 'tabletennisroyal',

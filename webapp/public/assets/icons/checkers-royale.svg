@@ -1,0 +1,21 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="chessBg" x1="0" y1="0" x2="300" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="chessGlow" x1="70" y1="40" x2="230" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDE047"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="200" rx="28" fill="url(#chessBg)"/>
+  <path
+    d="M188 56C188 42.7 176.3 32 162 32C149.4 32 139 40.7 136.7 52.1C126.1 55.3 118.5 65.1 118.5 76.7C118.5 81.8 120.1 86.5 122.8 90.4L110 110H191.5L179.6 93.9C185.5 88.1 189 80.3 189 71.6C189 66.2 187.7 60.9 185.1 56.2L188 56Z"
+    fill="url(#chessGlow)"
+  />
+  <rect x="106" y="110" width="92" height="18" rx="9" fill="#FDE68A"/>
+  <rect x="94" y="128" width="116" height="22" rx="11" fill="#F97316"/>
+  <rect x="84" y="150" width="136" height="18" rx="9" fill="#111827" stroke="#F97316" stroke-width="3"/>
+  <circle cx="220" cy="60" r="18" fill="#FACC15" opacity="0.8"/>
+</svg>
