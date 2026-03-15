@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { getPlayerId, ensureAccountId } from '../utils/telegram.js';
+import { ensureAccountId } from '../utils/telegram.js';
 import { sendGift } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from './GiftIcon.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
 import { getGameVolume } from '../utils/sound.js';
-import ConfirmPopup from './ConfirmPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 
 
@@ -38,17 +37,11 @@ export default function GiftPopup({
   const validPlayers = players.filter((p) => p.id);
   const [selected, setSelected] = useState(NFT_GIFTS[0]);
   const [target, setTarget] = useState(validPlayers[0]?.index || 0);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
-  const [pendingGift, setPendingGift] = useState(null);
   const resolvedTitle = title ?? 'Send Gift';
 
   const handleInfoClose = () => {
     setInfoMsg('');
-    if (pendingGift) {
-      onGiftSent && onGiftSent(pendingGift);
-      setPendingGift(null);
-    }
   };
   useEffect(() => {
     if (validPlayers.length > 0 && !validPlayers.some((p) => p.index === target)) {
@@ -60,7 +53,6 @@ export default function GiftPopup({
 
   const handleSend = async () => {
     if (!recipient) return;
-    setConfirmOpen(false);
     try {
       const fromId = await ensureAccountId();
       const res = await sendGift(fromId, recipient.id, selected.id);
@@ -94,8 +86,8 @@ export default function GiftPopup({
           }, 5000);
         }
       }
-      setInfoMsg(`Sent ${selected.name} to ${recipient.name}`);
-      setPendingGift({ from: senderIndex, to: target, gift: selected });
+      onGiftSent && onGiftSent({ from: senderIndex, to: target, gift: selected });
+      setInfoMsg('Gift sent.');
     } catch {
       setInfoMsg('Failed to send gift');
     }
@@ -168,7 +160,7 @@ export default function GiftPopup({
           </div>
           <button
             className={sendButtonClassName}
-            onClick={() => setConfirmOpen(true)}
+            onClick={handleSend}
           >
             Send <GiftIcon icon={selected.icon} className="w-4 h-4 inline" /> {selected.name}
           </button>
@@ -177,12 +169,6 @@ export default function GiftPopup({
           </p>
         </div>
       </div>
-      <ConfirmPopup
-        open={confirmOpen}
-        message="10% charge and the amount of the gift will be deducted from your balance. Continue?"
-        onConfirm={handleSend}
-        onCancel={() => setConfirmOpen(false)}
-      />
       <InfoPopup
         open={Boolean(infoMsg)}
         onClose={handleInfoClose}
