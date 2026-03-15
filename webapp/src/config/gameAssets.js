@@ -20,7 +20,6 @@ export const gameThumbnails = {
   snake: '/assets/icons/Snake%20and%20ladder%20game%20logo.png',
   murlanroyale: '/assets/icons/Murlan%20Royal%20logo.png',
   chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
-  checkersbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   tabletennisroyal: '/assets/icons/table-tennis-royale.svg',
   gokart: 'https://raw.githubusercontent.com/supertuxkart/stk-code/8067e13f5bd2d08ad9aadb506ae704df4698fb26/data/supertuxkart_256.png'
@@ -127,10 +126,6 @@ export const lobbyOptionIcons = {
     '/assets/icons/murlan-royale.svg'
   ),
   chessbattleroyal: buildLobbyIconSet(
-    ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
-    '/assets/icons/chess-royale.svg'
-  ),
-  checkersbattleroyal: buildLobbyIconSet(
     ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
     '/assets/icons/chess-royale.svg'
   ),
