@@ -43,8 +43,17 @@ import {
   chessBattleAccountId,
   getChessBattleInventory
 } from '../../utils/chessBattleInventory.js';
+import {
+  CHECKERS_SIZE,
+  createInitialBoard,
+  copyBoard,
+  getLegalMoves,
+  applyMove,
+  getGameState,
+  getBestAIMove
+} from '../../utils/checkersEngine.js';
 
-const SIZE = 8;
+const SIZE = CHECKERS_SIZE;
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
@@ -78,11 +87,11 @@ const BASIS_TRANSCODER_PATH =
 
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
-const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+const CHECKERS_BOARD_GLTF_URLS = [
+  'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
+  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
 ];
 
 const CHAIR_MODEL_URLS = [
@@ -127,60 +136,9 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '82%' }
 ];
 
-const createInitial = () => {
-  const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
-  for (let r = 0; r < 3; r += 1)
-    for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
-  for (let r = 5; r < SIZE; r += 1)
-    for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
-  return board;
-};
-
-const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
-const copyBoard = (board) =>
-  board.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
-
-const getMoves = (board, r, c) => {
-  const piece = board[r][c];
-  if (!piece) return [];
-  const dirs = piece.king
-    ? [
-        [1, 1],
-        [1, -1],
-        [-1, 1],
-        [-1, -1]
-      ]
-    : piece.side === 'light'
-      ? [
-          [-1, 1],
-          [-1, -1]
-        ]
-      : [
-          [1, 1],
-          [1, -1]
-        ];
-  const captures = [];
-  const normals = [];
-  dirs.forEach(([dr, dc]) => {
-    const nr = r + dr;
-    const nc = c + dc;
-    if (!inBounds(nr, nc)) return;
-    if (!board[nr][nc]) normals.push({ r: nr, c: nc });
-    else if (board[nr][nc].side !== piece.side) {
-      const jr = nr + dr;
-      const jc = nc + dc;
-      if (inBounds(jr, jc) && !board[jr][jc])
-        captures.push({ r: jr, c: jc, capture: [nr, nc] });
-    }
-  });
-  return captures.length ? captures : normals;
-};
-
 async function loadBeautifulBoard(loader) {
   let err = null;
-  for (const url of BEAUTIFUL_GAME_URLS) {
+  for (const url of CHECKERS_BOARD_GLTF_URLS) {
     try {
       const gltf = await loader.loadAsync(url);
       if (gltf?.scene) return gltf.scene;
@@ -188,7 +146,7 @@ async function loadBeautifulBoard(loader) {
       err = e;
     }
   }
-  throw err || new Error('ABeautifulGame failed to load');
+  throw err || new Error('Checkers board GLTF failed to load');
 }
 
 function ensureKtx2SupportDetection(renderer = null) {
@@ -378,7 +336,8 @@ export default function CheckersBattleRoyal() {
   const navigate = useNavigate();
   const mountRef = useRef(null);
 
-  const boardRef = useRef(createInitial());
+  const boardRef = useRef(createInitialBoard());
+  const forcedPieceRef = useRef(null);
   const selectedRef = useRef(null);
   const piecesGroupRef = useRef(null);
   const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
@@ -394,6 +353,7 @@ export default function CheckersBattleRoyal() {
   const envRef = useRef({ map: null, skybox: null });
 
   const [turn, setTurn] = useState('light');
+  const [thinking, setThinking] = useState(false);
   const [status, setStatus] = useState('Loading arena…');
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
@@ -521,7 +481,10 @@ export default function CheckersBattleRoyal() {
       );
       selection.position.copy(toPosition(selected.r, selected.c));
       group.add(selection);
-      getMoves(board, selected.r, selected.c).forEach((move) => {
+      const legalMoves = getLegalMoves(board, turn, forcedPieceRef.current);
+      legalMoves
+        .filter((move) => move.from.r === selected.r && move.from.c === selected.c)
+        .forEach((move) => {
         const isCapture = Array.isArray(move.capture);
         const marker = new THREE.Mesh(
           new THREE.CylinderGeometry(
@@ -538,11 +501,11 @@ export default function CheckersBattleRoyal() {
             opacity: 0.9
           })
         );
-        marker.position.copy(toPosition(move.r, move.c));
+        marker.position.copy(toPosition(move.to.r, move.to.c));
         group.add(marker);
-      });
+        });
     },
-    []
+    [turn]
   );
 
   useEffect(() => {
@@ -617,40 +580,71 @@ export default function CheckersBattleRoyal() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
-    const applyMove = (r, c) => {
+    const applyPlayerMove = (r, c) => {
       const board = boardRef.current;
+      if (turn !== 'light') return;
+
+      const game = getGameState(board, turn, forcedPieceRef.current);
+      if (game.finished) {
+        setStatus(game.winner === 'light' ? 'You won! Match finished.' : 'Rival won.');
+        return;
+      }
+
       const selected = selectedRef.current;
       const piece = board[r][c];
       if (piece && piece.side === turn) {
+        if (
+          forcedPieceRef.current &&
+          (forcedPieceRef.current.r !== r || forcedPieceRef.current.c !== c)
+        ) {
+          setStatus('Mandatory capture: continue with same checker.');
+          return;
+        }
         selectedRef.current = { r, c };
         renderHighlights();
         return;
       }
+
       if (!selected) return;
-      const moves = getMoves(board, selected.r, selected.c);
-      const move = moves.find((m) => m.r === r && m.c === c);
+      const legalMoves = getLegalMoves(board, turn, forcedPieceRef.current);
+      const move = legalMoves.find(
+        (entry) =>
+          entry.from.r === selected.r &&
+          entry.from.c === selected.c &&
+          entry.to.r === r &&
+          entry.to.c === c
+      );
       if (!move) return;
+
       const beforeBoard = copyBoard(board);
-      const next = board.map((row) => row.slice());
-      const moving = { ...next[selected.r][selected.c] };
-      next[selected.r][selected.c] = null;
-      if (move.capture) next[move.capture[0]][move.capture[1]] = null;
-      if (moving.side === 'light' && r === 0) moving.king = true;
-      if (moving.side === 'dark' && r === SIZE - 1) moving.king = true;
-      next[r][c] = moving;
-      boardRef.current = next;
-      selectedRef.current = null;
+      const beforeForced = forcedPieceRef.current
+        ? { ...forcedPieceRef.current }
+        : null;
+      const applied = applyMove(board, move);
+
+      boardRef.current = applied.board;
+      forcedPieceRef.current = applied.mustContinue ? applied.forcedPiece : null;
+      selectedRef.current = applied.mustContinue ? applied.forcedPiece : null;
       moveSoundRef.current?.play().catch(() => {});
-      const nextTurn = turn === 'light' ? 'dark' : 'light';
+      renderPieces();
+      renderHighlights();
+
+      const nextTurn = applied.mustContinue ? 'light' : 'dark';
       replayStateRef.current = {
         beforeBoard,
-        afterBoard: copyBoard(next),
+        afterBoard: copyBoard(applied.board),
         beforeTurn: turn,
-        afterTurn: nextTurn
+        afterTurn: nextTurn,
+        beforeForced,
+        afterForced: forcedPieceRef.current ? { ...forcedPieceRef.current } : null
       };
       setCanReplay(true);
       setTurn(nextTurn);
-      renderHighlights();
+      setStatus(
+        applied.mustContinue
+          ? 'Combo capture: move the same checker again.'
+          : 'Rival is thinking…'
+      );
     };
 
     const onPointerUp = (event) => {
@@ -660,7 +654,7 @@ export default function CheckersBattleRoyal() {
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(pickTiles, false)[0];
       if (hit?.object?.userData)
-        applyMove(hit.object.userData.r, hit.object.userData.c);
+        applyPlayerMove(hit.object.userData.r, hit.object.userData.c);
     };
 
     const buildSceneAssets = async () => {
@@ -791,8 +785,20 @@ export default function CheckersBattleRoyal() {
         boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
         boardVisualGroup.add(boardRoot);
         scene.add(boardVisualGroup);
-        boardRoot.scale.setScalar(BOARD_SCALE);
+        boardRoot.scale.setScalar(BOARD_SCALE * 1.15);
         boardRoot.position.set(0, TABLE_HEIGHT, 0);
+        boardRoot.traverse((node) => {
+          if (!node.isMesh) return;
+          node.castShadow = true;
+          node.receiveShadow = true;
+          const mats = Array.isArray(node.material)
+            ? node.material
+            : [node.material];
+          mats.forEach((mat) => {
+            if (mat?.map) applySRGBColorSpace(mat.map);
+            if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+          });
+        });
       } catch {}
 
       boardOriginRef.current = {
@@ -805,7 +811,7 @@ export default function CheckersBattleRoyal() {
       setupPickTiles();
       renderPieces();
       renderHighlights();
-      setStatus('Tap your piece, then a highlighted square to move.');
+      setStatus('Your turn: select a checker and play a legal move.');
     };
 
     void buildSceneAssets();
@@ -920,6 +926,55 @@ export default function CheckersBattleRoyal() {
   }, [appearance]);
 
   useEffect(() => {
+    if (turn !== 'dark') return;
+    const game = getGameState(boardRef.current, 'dark', forcedPieceRef.current);
+    if (game.finished) {
+      setStatus('You won! Rival has no legal moves.');
+      return;
+    }
+
+    setThinking(true);
+    const timer = window.setTimeout(() => {
+      const move = getBestAIMove(
+        boardRef.current,
+        'dark',
+        forcedPieceRef.current,
+        6
+      );
+      if (!move) {
+        setThinking(false);
+        setStatus('You won! Rival has no legal moves.');
+        return;
+      }
+      const applied = applyMove(boardRef.current, move);
+      boardRef.current = applied.board;
+      forcedPieceRef.current = applied.mustContinue ? applied.forcedPiece : null;
+      selectedRef.current = null;
+      renderPieces();
+      renderHighlights();
+      moveSoundRef.current?.play().catch(() => {});
+
+      if (applied.mustContinue) {
+        setThinking(false);
+        setTurn('dark');
+        setStatus('Rival performs a combo capture…');
+        return;
+      }
+
+      setThinking(false);
+      setTurn('light');
+      const nextState = getGameState(boardRef.current, 'light', null);
+      setStatus(
+        nextState.finished
+          ? 'Rival won. You have no legal moves.'
+          : 'Your turn: select a checker and play a legal move.'
+      );
+    }, 420);
+
+    return () => window.clearTimeout(timer);
+  }, [turn, renderPieces, renderHighlights]);
+
+  useEffect(() => {
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (!camera || !controls) return;
@@ -950,12 +1005,16 @@ export default function CheckersBattleRoyal() {
     if (!replayStateRef.current) return;
     const replay = replayStateRef.current;
     boardRef.current = copyBoard(replay.beforeBoard);
+    forcedPieceRef.current = replay.beforeForced || null;
     setTurn(replay.beforeTurn);
     renderPieces();
+    renderHighlights();
     setTimeout(() => {
       boardRef.current = copyBoard(replay.afterBoard);
+      forcedPieceRef.current = replay.afterForced || null;
       setTurn(replay.afterTurn);
       renderPieces();
+      renderHighlights();
     }, 700);
   };
 
@@ -1177,7 +1236,7 @@ export default function CheckersBattleRoyal() {
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
-            {status} • Turn: {turn}
+            {status} • Turn: {turn}{thinking ? " • AI…" : ""}
           </div>
         </div>
       </div>
