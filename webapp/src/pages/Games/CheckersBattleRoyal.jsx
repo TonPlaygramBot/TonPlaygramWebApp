@@ -4535,7 +4535,8 @@ async function resolveBeautifulGameAssets(targetBoardSize) {
 
   if (boardAssets) return boardAssets;
 
-  throw new Error('Checkers Battle Royal: failed to load ABeautifulGame assets');
+  console.warn('Checkers Battle Royal: ABeautifulGame assets unavailable, using procedural fallback');
+  return buildBeautifulGameFallback(targetBoardSize);
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
