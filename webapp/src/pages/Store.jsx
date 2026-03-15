@@ -432,6 +432,7 @@ const PREVIEW_BY_TYPE = {
 const PREVIEW_BY_SLUG = {
   chessbattleroyal: 'chess-royals',
   checkersbattleroyal: 'chess-royals',
+  badukbattleroyal: 'chess-royals',
   tavullbattleroyal: 'chess-royals',
   'domino-royal': 'domino'
 };
@@ -687,6 +688,14 @@ const storeMeta = {
     typeLabels: CHESS_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
+  badukbattleroyal: {
+    name: 'Baduk Battle Royal',
+    items: CHESS_BATTLE_STORE_ITEMS,
+    defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
+    labels: CHESS_BATTLE_OPTION_LABELS,
+    typeLabels: CHESS_TYPE_LABELS,
+    accountId: CHESS_STORE_ACCOUNT_ID
+  },
   tavullbattleroyal: {
     name: 'Backgammon Royal',
     items: CHESS_BATTLE_STORE_ITEMS,
@@ -914,6 +923,7 @@ export default function Store() {
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
       checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'checkersbattleroyal' })),
+      badukbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'badukbattleroyal' })),
       tavullbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tavullbattleroyal' })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
@@ -932,6 +942,7 @@ export default function Store() {
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       checkersbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
+      badukbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       tavullbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
@@ -950,6 +961,7 @@ export default function Store() {
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      badukbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       tavullbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -967,6 +979,7 @@ export default function Store() {
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHESS_TYPE_LABELS,
+      badukbattleroyal: CHESS_TYPE_LABELS,
       tavullbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
@@ -1509,7 +1522,7 @@ export default function Store() {
         for (const entry of group.items) {
           if (slug === 'airhockey') {
             setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal' || slug === 'tavullbattleroyal') {
+          } else if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal' || slug === 'badukbattleroyal' || slug === 'tavullbattleroyal') {
             setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'ludobattleroyal') {
             setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));

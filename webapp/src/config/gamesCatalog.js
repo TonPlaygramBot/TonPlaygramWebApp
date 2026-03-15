@@ -70,6 +70,15 @@ const gamesCatalog = [
     image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
     description: 'Classic checkers duels with royal 3D presentation.'
   },
+
+  {
+    name: 'Baduk Battle Royal',
+    route: '/games/badukbattleroyal/lobby',
+    slug: 'badukbattleroyal',
+    image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+    description: 'Go/Baduk strategy on the shared Battle Royal 3D arena.'
+  },
+
   {
     name: 'Backgammon Royal',
     route: '/games/tavullbattleroyal/lobby',
