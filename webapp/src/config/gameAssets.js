@@ -22,7 +22,8 @@ export const gameThumbnails = {
   chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   checkersbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
-  tabletennisroyal: '/assets/icons/table-tennis-royale.svg'
+  tabletennisroyal: '/assets/icons/table-tennis-royale.svg',
+  gokart: 'https://raw.githubusercontent.com/supertuxkart/stk-code/8067e13f5bd2d08ad9aadb506ae704df4698fb26/data/supertuxkart_256.png'
 };
 
 const buildLobbyIconSet = (keys, icon) =>
@@ -157,6 +158,10 @@ export const lobbyOptionIcons = {
       'ai-3'
     ],
     '/assets/icons/ludo-royale.svg'
+  ),
+  gokart: buildLobbyIconSet(
+    ['mode-solo', 'mode-time-attack'],
+    'https://raw.githubusercontent.com/supertuxkart/stk-code/8067e13f5bd2d08ad9aadb506ae704df4698fb26/data/supertuxkart_256.png'
   )
 };
 
