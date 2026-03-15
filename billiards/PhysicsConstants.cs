@@ -62,8 +62,9 @@ public static class PhysicsConstants
     // Shift the pocket capture center outward for the chrome plate cut.
     public const double SidePocketOutset = 0.006;
     // Offset side-pocket mouth guards to stop balls slipping between jaws and cushions.
-    // Corner pockets intentionally do not use helper guards (jaw + angle-cut only).
     public const double SidePocketMouthGuardInset = BallRadius * 0.35;
+    // Mirror side-pocket jaw behavior so corner jaws react consistently at the mouth.
+    public const double CornerPocketMouthGuardInset = BallRadius * 0.35;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 40;
