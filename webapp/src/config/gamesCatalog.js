@@ -56,6 +56,13 @@ const gamesCatalog = [
     description: 'Card-based tactics with a competitive twist.'
   },
   {
+    name: 'Checkers Battle Royal',
+    route: '/games/checkersbattleroyal/lobby',
+    slug: 'checkersbattleroyal',
+    image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+    description: 'Fast 3D checkers duels with royal table styling.'
+  },
+  {
     name: 'Chess Battle Royal',
     route: '/games/chessbattleroyal/lobby',
     slug: 'chessbattleroyal',
