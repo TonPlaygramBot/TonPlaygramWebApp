@@ -23,7 +23,8 @@ export const gameThumbnails = {
   checkersbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   tavullbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
-  tabletennisroyal: '/assets/icons/table-tennis-royale.svg'
+  tabletennisroyal: '/assets/icons/table-tennis-royale.svg',
+  supertuxkart: '/assets/icons/futuristic_racing_car.webp'
 };
 
 const buildLobbyIconSet = (keys, icon) =>
@@ -149,6 +150,11 @@ export const lobbyOptionIcons = {
     'graphics-medium': '/assets/icons/table-tennis-graphics-medium.svg',
     'graphics-high': '/assets/icons/table-tennis-graphics-high.svg'
   },
+
+  supertuxkart: buildLobbyIconSet(
+    ['mode-ai', 'mode-online'],
+    '/assets/icons/futuristic_racing_car.webp'
+  ),
   ludobattleroyal: buildLobbyIconSet(
     [
       'queue-instant',
