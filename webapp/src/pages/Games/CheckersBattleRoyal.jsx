@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
@@ -22,6 +25,27 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { chessBattleAccountId, getChessBattleInventory } from '../../utils/chessBattleInventory.js';
 
 const SIZE = 8;
+const MODEL_SCALE = 0.75;
+const STOOL_SCALE = 1.5 * 1.3;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
+const BOARD_SCALE = 0.0576;
+const BOARD_VISUAL_Y_OFFSET = -0.08;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
+const HDRI_UNITS_PER_METER = 10;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.4;
+const MIN_HDRI_RADIUS = 28;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 4;
+const DEFAULT_HDRI_GROUNDED_RESOLUTION = 112;
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+
+let sharedKtx2Loader = null;
+let hasDetectedKtx2Support = false;
 const BEAUTIFUL_GAME_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -79,6 +103,34 @@ async function loadBeautifulBoard(loader) {
     }
   }
   throw err || new Error('ABeautifulGame failed to load');
+}
+
+function ensureKtx2SupportDetection(renderer = null) {
+  if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
+  try {
+    sharedKtx2Loader.detectSupport(renderer);
+    hasDetectedKtx2Support = true;
+  } catch (error) {
+    console.warn('Checkers Battle Royal: KTX2 support detection failed', error);
+  }
+}
+
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin?.('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
+
+  ensureKtx2SupportDetection(renderer);
+  loader.setKTX2Loader(sharedKtx2Loader);
+  return loader;
 }
 
 async function resolveHdriUrl(variant) {
@@ -188,7 +240,7 @@ export default function CheckersBattleRoyal() {
     scene.background = new THREE.Color('#0b1220');
     sceneRef.current = scene;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -202,15 +254,31 @@ export default function CheckersBattleRoyal() {
       ARENA_CAMERA_DEFAULTS.near,
       ARENA_CAMERA_DEFAULTS.far
     );
-    camera.position.set(0, 36, 42);
+    const isPortrait = mount.clientHeight > mount.clientWidth;
+    const cameraSeatAngle = Math.PI / 2;
+    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
+    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
+    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraRadius = CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius,
+      TABLE_HEIGHT + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius
+    );
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0, 0);
-    controls.enablePan = false;
-    controls.minDistance = 22;
-    controls.maxDistance = 70;
-    controls.minPolarAngle = 0.42;
-    controls.maxPolarAngle = Math.PI * 0.47;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, TABLE_HEIGHT, 0);
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    controls.minDistance = TABLE_RADIUS * 1.85;
+    controls.maxDistance = TABLE_RADIUS * 4.9;
+    controls.minPolarAngle = THREE.MathUtils.degToRad(28);
+    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
+    controls.rotateSpeed = 0.85;
+    controls.zoomSpeed = 0.7;
+    controls.panSpeed = 0.6;
 
     scene.add(new THREE.AmbientLight('#ffffff', 0.5));
     const key = new THREE.DirectionalLight('#ffffff', 1.08);
@@ -278,8 +346,13 @@ export default function CheckersBattleRoyal() {
       // 1) Table always present (fallback-safe)
       try {
         const tableTheme = CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) || CHESS_TABLE_OPTIONS[0];
-        const table = createMurlanStyleTable({ arena: scene, renderer });
-        table.group.position.set(0, -0.6, 0);
+        const table = createMurlanStyleTable({
+          arena: scene,
+          renderer,
+          tableRadius: TABLE_RADIUS,
+          tableHeight: TABLE_HEIGHT
+        });
+        table.group.position.set(0, 0, 0);
         const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
         tableRef.current = table;
@@ -294,28 +367,32 @@ export default function CheckersBattleRoyal() {
         const chairMat = new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.42, metalness: 0.22 });
         const makeChair = (z, ry) => {
           const g = new THREE.Group();
-          const seat = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.5, 5.4), chairMat);
-          const back = new THREE.Mesh(new THREE.BoxGeometry(5.6, 4.8, 1.3), chairMat);
-          seat.position.y = 0.75;
-          back.position.set(0, 3.1, -2);
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(1.316, 0.197, 1.389), chairMat);
+          const back = new THREE.Mesh(new THREE.BoxGeometry(1.316, 1.0, 0.185), chairMat);
+          seat.position.y = 0;
+          back.position.set(0, 0.56, -0.6);
           seat.castShadow = true;
           back.castShadow = true;
           g.add(seat, back);
-          g.position.set(0, -0.3, z);
+          g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
           return g;
         };
-        chairsRef.current = [makeChair(18.4, Math.PI), makeChair(-18.4, 0)];
+        chairsRef.current = [makeChair(CHAIR_DISTANCE, Math.PI), makeChair(-CHAIR_DISTANCE, 0)];
       } catch (error) {
         console.error('Checkers chairs load failed:', error);
       }
 
       // 3) Board: try ABeautifulGame, fallback to procedural checkerboard plane
       try {
-        const boardRoot = await loadBeautifulBoard(new GLTFLoader());
-        boardRoot.scale.setScalar(0.125);
-        boardRoot.position.set(0, 0.72, 0);
+        const boardRoot = await loadBeautifulBoard(createConfiguredGLTFLoader(renderer));
+        const boardVisualGroup = new THREE.Group();
+        boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+        boardVisualGroup.add(boardRoot);
+        scene.add(boardVisualGroup);
+        boardRoot.scale.setScalar(BOARD_SCALE);
+        boardRoot.position.set(0, TABLE_HEIGHT, 0);
         boardRoot.traverse((child) => {
           if (!child.isMesh) return;
           const n = `${child.name || ''}`.toLowerCase();
@@ -323,8 +400,6 @@ export default function CheckersBattleRoyal() {
           child.castShadow = true;
           child.receiveShadow = true;
         });
-        scene.add(boardRoot);
-
         const bbox = new THREE.Box3().setFromObject(boardRoot);
         const center = bbox.getCenter(new THREE.Vector3());
         boardOriginRef.current = { x: center.x, y: bbox.max.y + 0.05, z: center.z, tile: 2.65 };
@@ -359,7 +434,18 @@ export default function CheckersBattleRoyal() {
         envMap.mapping = THREE.EquirectangularReflectionMapping;
         scene.environment = envMap;
         scene.background = envMap;
-        const skybox = new GroundedSkybox(envMap, 1.5, 40, 128);
+        const cameraHeight = Math.max(
+          hdriVariant?.cameraHeightM ?? 1.5,
+          MIN_HDRI_CAMERA_HEIGHT_M
+        ) * HDRI_UNITS_PER_METER;
+        const radiusMultiplier = typeof hdriVariant?.groundRadiusMultiplier === 'number'
+          ? hdriVariant.groundRadiusMultiplier
+          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const groundRadius = Math.max(TABLE_RADIUS * HDRI_UNITS_PER_METER * radiusMultiplier, MIN_HDRI_RADIUS);
+        const skyboxResolution = Math.max(16, Math.floor(hdriVariant?.groundResolution ?? DEFAULT_HDRI_GROUNDED_RESOLUTION));
+        const skybox = new GroundedSkybox(envMap, cameraHeight, groundRadius, skyboxResolution);
+        skybox.position.y = cameraHeight;
+        if (typeof hdriVariant?.rotationY === 'number') skybox.rotation.y = hdriVariant.rotationY;
         scene.add(skybox);
         envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
       } catch (error) {
@@ -429,8 +515,13 @@ export default function CheckersBattleRoyal() {
     const activeTableTheme = CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) || CHESS_TABLE_OPTIONS[0];
     if (tableRef.current?.group?.userData?.tableThemeId !== activeTableTheme?.id) {
       if (tableRef.current?.group) scene.remove(tableRef.current.group);
-      const nextTable = createMurlanStyleTable({ arena: scene, renderer: null });
-      nextTable.group.position.set(0, -0.6, 0);
+      const nextTable = createMurlanStyleTable({
+        arena: scene,
+        renderer: null,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT
+      });
+      nextTable.group.position.set(0, 0, 0);
       nextTable.group.userData = { ...(nextTable.group.userData || {}), tableThemeId: activeTableTheme?.id };
       const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
       applyTableMaterials(nextTable.parts, finish);
@@ -452,7 +543,15 @@ export default function CheckersBattleRoyal() {
         scene.environment = envMap;
         scene.background = envMap;
         if (envRef.current?.skybox) scene.remove(envRef.current.skybox);
-        const skybox = new GroundedSkybox(envMap, 1.5, 40, 128);
+        const cameraHeight = Math.max(variant?.cameraHeightM ?? 1.5, MIN_HDRI_CAMERA_HEIGHT_M) * HDRI_UNITS_PER_METER;
+        const radiusMultiplier = typeof variant?.groundRadiusMultiplier === 'number'
+          ? variant.groundRadiusMultiplier
+          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const groundRadius = Math.max(TABLE_RADIUS * HDRI_UNITS_PER_METER * radiusMultiplier, MIN_HDRI_RADIUS);
+        const skyboxResolution = Math.max(16, Math.floor(variant?.groundResolution ?? DEFAULT_HDRI_GROUNDED_RESOLUTION));
+        const skybox = new GroundedSkybox(envMap, cameraHeight, groundRadius, skyboxResolution);
+        skybox.position.y = cameraHeight;
+        if (typeof variant?.rotationY === 'number') skybox.rotation.y = variant.rotationY;
         scene.add(skybox);
         envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
       } catch (error) {
