@@ -688,7 +688,7 @@ const storeMeta = {
     accountId: CHESS_STORE_ACCOUNT_ID
   },
   tavullbattleroyal: {
-    name: 'Backgammon Royal',
+    name: 'Tavull Battle Royal',
     items: CHESS_BATTLE_STORE_ITEMS,
     defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
     labels: CHESS_BATTLE_OPTION_LABELS,
