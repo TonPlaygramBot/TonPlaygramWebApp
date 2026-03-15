@@ -45,9 +45,6 @@ const CAMERA_3D_POSITION = new THREE.Vector3(0, 4.9, 5.6)
 const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT, 0)
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/'
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
-const BACKGAMMON_BOARD_GLTF_URLS = Object.freeze([
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
-])
 const BACKGAMMON_HDRI_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr',
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr',
@@ -117,22 +114,6 @@ function prepareLoadedModel(model) {
       if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap)
     })
   })
-}
-
-async function loadBackgammonBoardModel(renderer) {
-  const loader = createConfiguredGLTFLoader(renderer)
-  for (const url of BACKGAMMON_BOARD_GLTF_URLS) {
-    try {
-      const gltf = await loader.loadAsync(url)
-      const root = gltf?.scene || gltf?.scenes?.[0]
-      if (!root) continue
-      prepareLoadedModel(root)
-      return root
-    } catch (error) {
-      console.warn('Failed to load Tavull open-source board model', url, error)
-    }
-  }
-  return null
 }
 
 function loadHdriEnvironment(scene, preferredIndex = 0) {
@@ -612,7 +593,6 @@ export default function TavullBattleRoyal() {
 
     const boardRoot = new THREE.Group()
     scene.add(boardRoot)
-    let loadedBoardModel = null
 
     const boardBase = new THREE.Mesh(
       new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2),
@@ -658,25 +638,6 @@ export default function TavullBattleRoyal() {
       makeTriangle(p.x, p.top, i % 2 === 0)
     }
 
-    void loadBackgammonBoardModel(renderer).then((model) => {
-      if (!model) return
-      loadedBoardModel = model
-      const box = new THREE.Box3().setFromObject(model)
-      const size = box.getSize(new THREE.Vector3())
-      const maxXZ = Math.max(size.x, size.z)
-      const targetDiameter = TABLE_RADIUS * 1.68
-      const scale = maxXZ > 0 ? targetDiameter / maxXZ : 1
-      model.scale.multiplyScalar(scale)
-      const scaledBox = new THREE.Box3().setFromObject(model)
-      const center = scaledBox.getCenter(new THREE.Vector3())
-      model.position.set(-center.x, TABLE_HEIGHT + 0.01 - scaledBox.min.y, -center.z)
-      model.traverse((child) => {
-        if (!child?.isMesh) return
-        child.renderOrder = -1
-      })
-      scene.add(model)
-    })
-
     const chipGroup = new THREE.Group()
     scene.add(chipGroup)
 
@@ -721,9 +682,6 @@ export default function TavullBattleRoyal() {
       window.removeEventListener('resize', resize)
       controls.dispose()
       renderer.dispose()
-      if (loadedBoardModel) {
-        scene.remove(loadedBoardModel)
-      }
       host.removeChild(renderer.domElement)
       sceneBundleRef.current = null
     }
