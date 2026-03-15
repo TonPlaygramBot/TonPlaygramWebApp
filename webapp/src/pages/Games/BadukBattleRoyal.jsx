@@ -5,42 +5,32 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
-import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
-  BADUK_CHAIR_OPTIONS,
-  BADUK_TABLE_OPTIONS,
-  BADUK_BATTLE_DEFAULT_LOADOUT
-} from '../../config/badukBattleInventoryConfig.js';
+  CHESS_CHAIR_OPTIONS,
+  CHESS_TABLE_OPTIONS,
+  CHESS_BATTLE_DEFAULT_LOADOUT
+} from '../../config/chessBattleInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
-import AvatarTimer from '../../components/AvatarTimer.jsx';
-import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
+import { chessBattleAccountId, getChessBattleInventory } from '../../utils/chessBattleInventory.js';
 
 const BOARD_SIZES = [9, 13, 16, 19];
 
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
-const CARD_SCALE = 0.95;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
-const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
-const CHAIR_DISTANCE = TABLE_RADIUS + AI_CHAIR_GAP + SEAT_DEPTH * 0.52;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 
 const DEFAULT_TARGET_FPS = 120;
 const MIN_TARGET_FPS = 50;
@@ -102,26 +92,26 @@ async function resolveHdriUrl(variant) {
 function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   const group = new THREE.Group();
   const seat = new THREE.Mesh(
-    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
+    new THREE.BoxGeometry(0.68, 0.12, 0.68),
     new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.5 })
   );
-  seat.position.y = CHAIR_BASE_HEIGHT;
+  seat.position.y = STOOL_HEIGHT;
   group.add(seat);
 
   const back = new THREE.Mesh(
-    new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
+    new THREE.BoxGeometry(0.68, 0.52, 0.1),
     new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.55 })
   );
-  back.position.set(0, CHAIR_BASE_HEIGHT + BACK_HEIGHT * 0.5 - SEAT_THICKNESS * 0.15, -SEAT_DEPTH * 0.45);
+  back.position.set(0, STOOL_HEIGHT + 0.26, -0.29);
   group.add(back);
 
   const legGeo = new THREE.CylinderGeometry(0.045, 0.05, STOOL_HEIGHT, 20);
   const legMat = new THREE.MeshStandardMaterial({ color: legColor, metalness: 0.35, roughness: 0.45 });
   [
-    [-SEAT_WIDTH * 0.36, STOOL_HEIGHT / 2, -SEAT_DEPTH * 0.36],
-    [SEAT_WIDTH * 0.36, STOOL_HEIGHT / 2, -SEAT_DEPTH * 0.36],
-    [-SEAT_WIDTH * 0.36, STOOL_HEIGHT / 2, SEAT_DEPTH * 0.36],
-    [SEAT_WIDTH * 0.36, STOOL_HEIGHT / 2, SEAT_DEPTH * 0.36]
+    [-0.25, STOOL_HEIGHT / 2, -0.25],
+    [0.25, STOOL_HEIGHT / 2, -0.25],
+    [-0.25, STOOL_HEIGHT / 2, 0.25],
+    [0.25, STOOL_HEIGHT / 2, 0.25]
   ].forEach(([x, y, z]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(x, y, z);
@@ -156,19 +146,17 @@ export default function BadukBattleRoyal() {
   const requestedSize = Number(params.get('boardSize'));
   const boardSize = BOARD_SIZES.includes(requestedSize) ? requestedSize : 19;
   const accountId = params.get('accountId') || '';
-  const avatar = params.get('avatar') || getTelegramPhotoUrl();
-  const username = params.get('username') || getTelegramUsername() || 'Player';
 
   const inventory = useMemo(
-    () => getBadukBattleInventory(badukBattleAccountId(accountId || undefined)),
+    () => getChessBattleInventory(chessBattleAccountId(accountId || undefined)),
     [accountId]
   );
 
   const [appearance, setAppearance] = useState(() => ({
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
-    tableId: inventory.tables?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.tables?.[0] || BADUK_TABLE_OPTIONS[0]?.id,
-    chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || BADUK_CHAIR_OPTIONS[0]?.id,
-    hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID
+    tableId: inventory.tables?.[0] || CHESS_BATTLE_DEFAULT_LOADOUT.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
+    chairId: inventory.chairColor?.[0] || CHESS_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
+    hdriId: inventory.environmentHdri?.[0] || CHESS_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID
   }));
 
   const [board, setBoard] = useState(() => createBoard(boardSize));
@@ -192,15 +180,6 @@ export default function BadukBattleRoyal() {
     () => GRAPHICS_OPTIONS.find((opt) => opt.id === graphicsId) || GRAPHICS_OPTIONS[3],
     [graphicsId]
   );
-
-  useEffect(() => {
-    setBoard(createBoard(boardSize));
-    setTurn('black');
-    setCaptures({ black: 0, white: 0 });
-    setPassCount(0);
-    setLastMove(null);
-    setStatus(`Loaded ${boardSize}×${boardSize} board. Black to play.`);
-  }, [boardSize]);
 
   useEffect(() => {
     try {
@@ -272,7 +251,7 @@ export default function BadukBattleRoyal() {
     sceneRef.current = scene;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    applyRendererSRGB(renderer);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.setSize(mount.clientWidth, mount.clientHeight);
@@ -314,7 +293,7 @@ export default function BadukBattleRoyal() {
     applyTableMaterials(table.parts, finish);
     tableRef.current = table;
 
-    const chairOption = BADUK_CHAIR_OPTIONS.find((opt) => opt.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairOption = CHESS_CHAIR_OPTIONS.find((opt) => opt.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
     const chairs = [Math.PI / 2, -Math.PI / 2].map((angle) => {
       const chair = createChair(chairOption?.primary || chairOption?.seatColor || '#7f1d1d', chairOption?.legColor || '#111827');
       chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
@@ -342,11 +321,37 @@ export default function BadukBattleRoyal() {
     boardGroup.add(boardPlane);
     boardMeshRef.current = boardPlane;
 
-    const boardTexture = new THREE.TextureLoader().load(`/assets/game-art/baduk-battle-royal/boards/${boardSize}x${boardSize}.svg`);
-    applySRGBColorSpace(boardTexture);
-    boardTexture.anisotropy = 8;
-    boardPlane.material.map = boardTexture;
-    boardPlane.material.needsUpdate = true;
+    const lineMat = new THREE.LineBasicMaterial({ color: '#2f1b0c' });
+    const lines = new THREE.Group();
+    const ext = 2.04;
+    for (let i = 0; i < boardSize; i += 1) {
+      const t = (i / (boardSize - 1)) * ext - ext / 2;
+      const geoV = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(t, TABLE_HEIGHT + 0.048, -ext / 2),
+        new THREE.Vector3(t, TABLE_HEIGHT + 0.048, ext / 2)
+      ]);
+      const geoH = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-ext / 2, TABLE_HEIGHT + 0.048, t),
+        new THREE.Vector3(ext / 2, TABLE_HEIGHT + 0.048, t)
+      ]);
+      lines.add(new THREE.Line(geoV, lineMat));
+      lines.add(new THREE.Line(geoH, lineMat));
+    }
+    boardGroup.add(lines);
+
+    const starMat = new THREE.MeshBasicMaterial({ color: '#1f1209' });
+    const starPointsBySize = {
+      9: [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]],
+      13: [[3, 3], [3, 9], [9, 3], [9, 9], [6, 6]],
+      16: [[3, 3], [3, 12], [12, 3], [12, 12], [7, 7], [7, 8], [8, 7], [8, 8]],
+      19: [[3, 3], [3, 9], [3, 15], [9, 3], [9, 9], [9, 15], [15, 3], [15, 9], [15, 15]]
+    };
+    (starPointsBySize[boardSize] || []).forEach(([r, c]) => {
+      const [x, z] = worldFromCell(r, c);
+      const star = new THREE.Mesh(new THREE.SphereGeometry(0.013, 10, 8), starMat);
+      star.position.set(x, TABLE_HEIGHT + 0.049, z);
+      boardGroup.add(star);
+    });
 
     const stonesGroup = new THREE.Group();
     stonesGroupRef.current = stonesGroup;
@@ -400,7 +405,7 @@ export default function BadukBattleRoyal() {
   }, [appearance.tableFinish]);
 
   useEffect(() => {
-    const next = BADUK_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const next = CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
     const chairColor = new THREE.Color(next?.primary || next?.seatColor || '#7f1d1d');
     chairsRef.current.forEach((chair) => {
       chair.traverse((node) => {
@@ -551,7 +556,6 @@ export default function BadukBattleRoyal() {
           </div>
           <p className="mt-2 text-xs text-white/75">Board {boardSize}×{boardSize} • Turn: {turn} • B:{blackStones} W:{whiteStones} • Captures B:{captures.black} W:{captures.white}</p>
           <p className="mt-1 text-xs text-cyan-100/90">{status}</p>
-          <p className="mt-1 text-[11px] text-white/60">Tap an intersection to place a stone. Two passes end the game.</p>
         </div>
       </div>
 
@@ -616,7 +620,7 @@ export default function BadukBattleRoyal() {
 
               <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Tables</div>
               <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                {BADUK_TABLE_OPTIONS.map((opt) => (
+                {CHESS_TABLE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     onClick={() => setAppearance((prev) => ({ ...prev, tableId: opt.id }))}
@@ -629,7 +633,7 @@ export default function BadukBattleRoyal() {
 
               <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Chairs</div>
               <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                {BADUK_CHAIR_OPTIONS.map((opt) => (
+                {CHESS_CHAIR_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     onClick={() => setAppearance((prev) => ({ ...prev, chairId: opt.id }))}
@@ -657,46 +661,10 @@ export default function BadukBattleRoyal() {
                 onClick={() => navigate('/store/badukbattleroyal')}
                 className="mt-3 w-full rounded-xl border border-cyan-300/40 bg-cyan-400/20 px-3 py-2 text-xs font-semibold text-cyan-100"
               >
-                Open Store (Baduk items)
+                Open Store (shared Chess/Checkers items)
               </button>
             </div>
           )}
-        </div>
-      </div>
-
-      <div className="pointer-events-auto">
-        <BottomLeftIcons
-          onGift={() => setStatus('Gift interactions are aligned with Chess Battle Royal UI.')}
-          showInfo={false}
-          showChat={false}
-          showMute={false}
-          className="fixed right-3 bottom-28 z-50 flex flex-col gap-4"
-          buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-          iconClassName="text-[1.65rem] leading-none"
-          labelClassName="sr-only"
-          giftIcon="🎁"
-          order={['gift']}
-        />
-        <BottomLeftIcons
-          onChat={() => setStatus('Quick chat coming soon for Baduk multiplayer.')}
-          showInfo={false}
-          showGift={false}
-          showMute={false}
-          className="fixed left-3 bottom-28 z-50 flex flex-col"
-          buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
-          iconClassName="text-[1.65rem] leading-none"
-          labelClassName="sr-only"
-          chatIcon="💬"
-          order={['chat']}
-        />
-      </div>
-
-      <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[12%] -translate-x-1/2">
-          <AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'white'} size={1} />
-        </div>
-        <div className="absolute left-1/2 top-[85%] -translate-x-1/2">
-          <AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'black'} size={1} />
         </div>
       </div>
     </div>
