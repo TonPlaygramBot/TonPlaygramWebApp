@@ -42,6 +42,8 @@ const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
 const CheckersBattleRoyal = React.lazy(() => import('./pages/Games/CheckersBattleRoyal.jsx'));
 const CheckersBattleRoyalLobby = React.lazy(() => import('./pages/Games/CheckersBattleRoyalLobby.jsx'));
+const TavullBattleRoyal = React.lazy(() => import('./pages/Games/TavullBattleRoyal.jsx'));
+const TavullBattleRoyalLobby = React.lazy(() => import('./pages/Games/TavullBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
@@ -177,6 +179,22 @@ export default function App() {
               element={(
                 <Suspense fallback={<div className="p-4 text-center">Loading Checkers Battle Royal…</div>}>
                   <CheckersBattleRoyal />
+                </Suspense>
+              )}
+            />
+            <Route
+              path="/games/tavullbattleroyal/lobby"
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Tavull Lobby…</div>}>
+                  <TavullBattleRoyalLobby />
+                </Suspense>
+              )}
+            />
+            <Route
+              path="/games/tavullbattleroyal"
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Tavull Battle Royal…</div>}>
+                  <TavullBattleRoyal />
                 </Suspense>
               )}
             />
