@@ -71,11 +71,11 @@ const gamesCatalog = [
     description: 'Classic checkers duels with royal 3D presentation.'
   },
   {
-    name: 'Tavull Battle Royal',
+    name: 'Backgammon Royal',
     route: '/games/tavullbattleroyal/lobby',
     slug: 'tavullbattleroyal',
     image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
-    description: 'Tavull tables with royal arena visuals and fast matches.'
+    description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
   {
     name: 'Table Tennis Royal',
