@@ -1524,13 +1524,17 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.12; // widen the capture bowl so firm/spun shots still drop like the prior tuning
+  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // match corner-pocket capture gain to middle pockets so both jaw types accept shots the same way
 const SIDE_CAPTURE_R =
   SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
-const POCKET_GUARD_RADIUS = Math.max(0, CAPTURE_R - BALL_R * 0.08); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
+const POCKET_GUARD_RADIUS =
+  CAPTURE_R - BALL_R * 0.12; // mirror the middle-pocket guard inset so corner jaws reject/accept on the same threshold
+const POCKET_GUARD_CLEARANCE = Math.max(
+  0,
+  POCKET_GUARD_RADIUS - BALL_R * 0.04
+); // keep corner jaw clearance aligned with middle-pocket jaw clearance to avoid corner-only dead zones
 const CORNER_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
+  POCKET_VIS_R * 1.6 * POCKET_VISUAL_EXPANSION; // use the same depth multiplier as middle pockets for consistent jaw reflection behavior
 const SIDE_POCKET_GUARD_RADIUS =
   SIDE_CAPTURE_R - BALL_R * 0.12; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
