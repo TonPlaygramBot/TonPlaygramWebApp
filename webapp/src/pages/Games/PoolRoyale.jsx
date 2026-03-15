@@ -1541,8 +1541,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // increase jaw rebound energy so cushion cuts feel a bit bouncier
-const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
+const CUSHION_CUT_RESTITUTION_SCALE = 0.96; // boost jaw rebound energy so angle-cut returns feel closer to real-table physics
+const CUSHION_CUT_FRICTION_SCALE = 1.08; // ease jaw grab so rebound carries naturally after angle-cut contact
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -12222,6 +12222,7 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const [showTournamentProgressPopup, setShowTournamentProgressPopup] = useState(false);
   const [finalPotLabel, setFinalPotLabel] = useState('');
   const [rematchStatus, setRematchStatus] = useState(null);
   const [incomingRematch, setIncomingRematch] = useState(null);
@@ -15398,7 +15399,7 @@ const powerRef = useRef(hud.power);
   );
   const handlePlayAgain = useCallback(() => {
     if (tournamentMode) {
-      window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+      setShowTournamentProgressPopup(true);
       return;
     }
     if (isOnlineMatch) {
@@ -15412,12 +15413,12 @@ const powerRef = useRef(hud.power);
     try {
       const raw = window.localStorage.getItem(tournamentStateKey);
       if (!raw) {
-        window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+        setShowTournamentProgressPopup(true);
         return;
       }
       const st = JSON.parse(raw);
       if (!st || st.complete) {
-        window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+        setShowTournamentProgressPopup(true);
         return;
       }
       const round = st.currentRound || 0;
@@ -15433,7 +15434,7 @@ const powerRef = useRef(hud.power);
         break;
       }
       if (!pendingMatch) {
-        window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+        setShowTournamentProgressPopup(true);
         return;
       }
       st.pendingMatch = pendingMatch;
@@ -15441,12 +15442,12 @@ const powerRef = useRef(hud.power);
         pendingMatch.pair[0] === userSeed ? pendingMatch.pair[1] : pendingMatch.pair[0];
       window.localStorage.setItem(tournamentOppKey, JSON.stringify(st.seedToPlayer?.[opponentSeed] || null));
       window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
-      window.location.assign(`/games/poolroyale${location.search || ''}`);
+      resetMatchState();
     } catch (err) {
       console.warn('Pool Royale continue tournament failed', err);
-      window.location.assign(`/pool-royale-bracket.html${location.search || ''}`);
+      setShowTournamentProgressPopup(true);
     }
-  }, [location.search, tournamentMode, tournamentOppKey, tournamentStateKey]);
+  }, [location.search, resetMatchState, tournamentMode, tournamentOppKey, tournamentStateKey]);
   useEffect(() => () => clearRematchTimers(), [clearRematchTimers]);
   const simulateRoundAI = useCallback((st, round) => {
     const next = st.rounds[round + 1];
@@ -15486,12 +15487,12 @@ const powerRef = useRef(hud.power);
       try {
         const raw = window.localStorage.getItem(tournamentStateKey);
         if (!raw) {
-          window.location.assign(`/pool-royale-bracket.html${location.search}`);
+          setShowTournamentProgressPopup(true);
           return { unlocks: [], complete: false, nftReward: null };
         }
         const st = JSON.parse(raw);
         if (!st?.pendingMatch) {
-          window.location.assign(`/pool-royale-bracket.html${location.search}`);
+          setShowTournamentProgressPopup(true);
           return { unlocks: [], complete: false, nftReward: null };
         }
         const r = st.pendingMatch.round;
@@ -15569,6 +15570,7 @@ const powerRef = useRef(hud.power);
       tournamentLastResultKey,
       tournamentAiFlagStorageKey,
       tournamentMode,
+      setShowTournamentProgressPopup,
       tournamentOppKey,
       tournamentPlayers,
       tournamentStateKey,
@@ -31657,9 +31659,9 @@ const powerRef = useRef(hud.power);
   const hudGapClass = usePortraitHudLayout ? 'gap-5' : 'gap-7';
   const bottomHudLayoutClass = usePortraitHudLayout ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
-    'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
+    'fixed inset-0 z-50 flex items-center justify-center bg-transparent';
   const chatGiftPanelClass =
-    'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
+    'w-[min(340px,88vw)] rounded-2xl border border-[#233050]/70 bg-[#0b1220]/45 p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.38)] backdrop-blur-md';
   const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
   const chatGiftTitleClass = 'text-sm font-semibold tracking-[0.04em] text-white';
   const chatGiftCloseButtonClass =
@@ -31776,6 +31778,28 @@ const powerRef = useRef(hud.power);
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">One match decides the champion.</p>
         </div>
       )}
+      {showTournamentProgressPopup && tournamentMode ? (
+        <div className="absolute inset-0 z-[122] flex items-center justify-center bg-black/65 px-4">
+          <div className="w-[min(94vw,56rem)] rounded-2xl border border-emerald-300/50 bg-slate-950/92 p-3 shadow-[0_22px_54px_rgba(0,0,0,0.6)]">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100">Tournament progress</p>
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-2 py-1 text-xs text-white/80"
+                onClick={() => setShowTournamentProgressPopup(false)}
+              >
+                Close
+              </button>
+            </div>
+            <iframe
+              title="Pool Royale tournament bracket"
+              src={`/pool-royale-bracket.html${location.search ? `${location.search}&embed=1` : '?embed=1'}`}
+              className="h-[68vh] w-full rounded-xl border border-white/10 bg-black/40"
+            />
+          </div>
+        </div>
+      ) : null}
+
       {winnerOverlay && (
         <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/70 px-4">
           <div className="flex flex-col items-center gap-4 text-center">
@@ -32087,7 +32111,7 @@ const powerRef = useRef(hud.power);
         </>
       )}
 
-      {(!isPortrait || (isPortrait && configOpen && !isFreePractice && !hideNonEssentialHud)) && (
+      {(!isPortrait || (isPortrait && configOpen && !hideNonEssentialHud)) && (
       <div
         className={`${isPortrait ? 'fixed left-1/2 -translate-x-1/2 items-center' : 'absolute items-start'} z-50 flex flex-col gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
