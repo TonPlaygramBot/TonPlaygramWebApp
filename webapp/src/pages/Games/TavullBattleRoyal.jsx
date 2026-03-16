@@ -91,7 +91,7 @@ const BACKGAMMON_BOARD_MODEL_URLS = Object.freeze([
   '/assets/models/backgammon/backgammon-board.glb',
   '/assets/models/backgammon/backgammon-board.gltf'
 ])
-const BACKGAMMON_DIE_SIZE = 0.1
+const BACKGAMMON_DIE_SIZE = 0.116
 const BACKGAMMON_DIE_CORNER_RADIUS = BACKGAMMON_DIE_SIZE * 0.18
 const BACKGAMMON_DIE_PIP_RADIUS = BACKGAMMON_DIE_SIZE * 0.093
 const BACKGAMMON_DIE_PIP_DEPTH = BACKGAMMON_DIE_SIZE * 0.018
@@ -100,6 +100,70 @@ const BACKGAMMON_DIE_PIP_RIM_OUTER = BACKGAMMON_DIE_PIP_RADIUS * 1.08
 const BACKGAMMON_DIE_PIP_RIM_OFFSET = BACKGAMMON_DIE_SIZE * 0.0048
 const BACKGAMMON_DIE_PIP_SPREAD = BACKGAMMON_DIE_SIZE * 0.3
 const BACKGAMMON_DIE_FACE_INSET = BACKGAMMON_DIE_SIZE * 0.064
+
+const BACKGAMMON_DOUBLE_CUBE_SIZE = BACKGAMMON_DIE_SIZE * 1.06
+const BACKGAMMON_DOUBLE_CUBE_VALUES = Object.freeze([2, 4, 8, 16, 32, 64])
+
+function makeBackgammonDoubleCube(topValue = 64) {
+  const cube = new THREE.Group()
+  const cubeSize = BACKGAMMON_DOUBLE_CUBE_SIZE
+  const faceTone = '#f5efe2'
+  const edgeTone = '#0f172a'
+
+  const makeFaceTexture = (label) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 256
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.fillStyle = faceTone
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = '#d4c4a8'
+    ctx.lineWidth = 16
+    ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16)
+    ctx.fillStyle = edgeTone
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '700 112px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+    ctx.fillText(String(label), canvas.width / 2, canvas.height / 2)
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.needsUpdate = true
+    return texture
+  }
+
+  const faceMaterials = BACKGAMMON_DOUBLE_CUBE_VALUES.map((value) =>
+    new THREE.MeshStandardMaterial({
+      map: makeFaceTexture(value),
+      roughness: 0.42,
+      metalness: 0.12,
+      color: '#ffffff'
+    })
+  )
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize), faceMaterials)
+  body.castShadow = true
+  body.receiveShadow = true
+  cube.add(body)
+
+  const topFaceByValue = {
+    2: new THREE.Euler(-Math.PI / 2, 0, 0),
+    4: new THREE.Euler(0, 0, 0),
+    8: new THREE.Euler(0, Math.PI / 2, 0),
+    16: new THREE.Euler(0, -Math.PI / 2, 0),
+    32: new THREE.Euler(Math.PI / 2, 0, 0),
+    64: new THREE.Euler(Math.PI, 0, 0)
+  }
+
+  cube.userData.setTopValue = (value) => {
+    cube.userData.topValue = value
+    const euler = topFaceByValue[value] || topFaceByValue[64]
+    cube.quaternion.setFromEuler(euler)
+  }
+
+  cube.userData.setTopValue(topValue)
+  return cube
+}
 
 function getDieOrientationQuaternion(val) {
   const orientations = {
@@ -650,13 +714,17 @@ export default function TavullBattleRoyal() {
     const diceGroup = new THREE.Group()
     scene.add(diceGroup)
     const diceAnimationState = { entries: [] }
-    const maxDice = 4
+    const maxDice = 2
 
     const diceMeshes = Array.from({ length: maxDice }, () => {
       const mesh = makeRoyalDie()
       diceGroup.add(mesh)
       return mesh
     })
+
+    const doubleCube = makeBackgammonDoubleCube(64)
+    doubleCube.position.set(0, BOARD_Y + 0.19, 0)
+    scene.add(doubleCube)
 
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
@@ -735,7 +803,7 @@ export default function TavullBattleRoyal() {
       controls,
       chipGroup,
       animateDiceThrow: (values = [], seat = 0) => {
-        const diceValues = Array.isArray(values) && values.length ? values : [1, 1]
+        const diceValues = (Array.isArray(values) && values.length ? values : [1, 1]).slice(0, maxDice)
         const startZ = seat === 0 ? BOARD_HALF_Z - 0.05 : -BOARD_HALF_Z + 0.05
         const endZ = seat === 0 ? BOARD_HALF_Z * 0.18 : -BOARD_HALF_Z * 0.18
         const spacing = 0.16
@@ -748,6 +816,7 @@ export default function TavullBattleRoyal() {
           mesh.visible = true
           const dieValue = Number(diceValues[index]) || 1
           mesh.userData.setValue?.(dieValue)
+          diceAnimationState.entries = diceAnimationState.entries.filter((entry) => entry.mesh !== mesh)
           const x = (index - centerOffset) * spacing
           const startPos = new THREE.Vector3(x, BOARD_Y + 0.24, startZ)
           const endPos = new THREE.Vector3(x * 0.75, BOARD_Y + 0.17, endZ)
@@ -941,12 +1010,13 @@ export default function TavullBattleRoyal() {
   const playAi = (stateAfterPlayer) => {
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
-    const aiDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
+    const visibleAiDice = [d1, d2]
+    const aiDice = d1 === d2 ? [d1, d1, d1, d1] : visibleAiDice
     setMessage(`AI rolled ${d1} and ${d2}.`)
     setIsRollingDice(true)
     setAiThinking(true)
     setSelectedPoint(null)
-    sceneBundleRef.current?.animateDiceThrow?.(aiDice, 1)
+    sceneBundleRef.current?.animateDiceThrow?.(visibleAiDice, 1)
     playSfx(DICE_ROLL_SOUND_URL, 0.75)
 
     const timeoutId = window.setTimeout(() => {
@@ -981,8 +1051,9 @@ export default function TavullBattleRoyal() {
     setSelectedPoint(null)
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
-    const useDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
-    sceneBundleRef.current?.animateDiceThrow?.(useDice, 0)
+    const visibleDice = [d1, d2]
+    const useDice = d1 === d2 ? [d1, d1, d1, d1] : visibleDice
+    sceneBundleRef.current?.animateDiceThrow?.(visibleDice, 0)
     playSfx(DICE_ROLL_SOUND_URL, 0.75)
     const timeoutId = window.setTimeout(() => {
       if (!isMountedRef.current) return
@@ -994,7 +1065,7 @@ export default function TavullBattleRoyal() {
       } catch (error) {
         console.error('Backgammon player turn evaluation crashed.', error)
       }
-      setDice(useDice)
+      setDice(visibleDice)
       setAvailable(seq)
       if (!seq.length || !seq.some((s) => s.line.length)) {
         setMessage(`You rolled ${d1}/${d2} but no legal move. AI turn.`)
