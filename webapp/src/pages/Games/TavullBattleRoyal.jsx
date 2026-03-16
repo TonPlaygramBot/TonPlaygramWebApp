@@ -81,9 +81,10 @@ const QUALITY_OPTIONS = Object.freeze([
 const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
 const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
 const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3'
+const DICE_ICON_URL = '/assets/icons/file_000000009160620a96f728f463de1c3f.webp'
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '18%' },
-  { left: '50%', top: '73%' }
+  { left: '50%', top: '73%' },
+  { left: '50%', top: '18%' }
 ]
 const BACKGAMMON_BOARD_MODEL_URLS = Object.freeze([
   '/assets/models/backgammon/backgammon-board.glb',
@@ -304,6 +305,7 @@ export default function TavullBattleRoyal() {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [inventoryVersion, setInventoryVersion] = useState(0)
   const [activeMoveHighlight, setActiveMoveHighlight] = useState(null)
+  const [selectedPoint, setSelectedPoint] = useState(null)
   const accountId = chessBattleAccountId()
   const chessInventory = useMemo(() => getChessBattleInventory(accountId), [accountId, inventoryVersion])
   const playerName = getTelegramFirstName() || 'Player'
@@ -549,6 +551,38 @@ export default function TavullBattleRoyal() {
       return mesh
     })
 
+    const raycaster = new THREE.Raycaster()
+    const pointer = new THREE.Vector2()
+    const boardPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(BOARD_Y + 0.16))
+    const hitPoint = new THREE.Vector3()
+    const resolveNearestPoint = (x, z) => {
+      let nearest = null
+      let minDist = Infinity
+      for (let i = 0; i < 24; i += 1) {
+        const base = pointBasePosition(i)
+        const dx = x - base.x
+        const dz = z - base.z
+        const dist = Math.hypot(dx, dz)
+        if (dist < minDist) {
+          minDist = dist
+          nearest = i
+        }
+      }
+      if (minDist > 0.22) return null
+      return nearest
+    }
+    const onBoardTap = (event) => {
+      const rect = renderer.domElement.getBoundingClientRect()
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(pointer, camera)
+      if (!raycaster.ray.intersectPlane(boardPlane, hitPoint)) return
+      const nearest = resolveNearestPoint(hitPoint.x, hitPoint.z)
+      if (nearest == null) return
+      window.dispatchEvent(new CustomEvent('tavullPointTap', { detail: { point: nearest } }))
+    }
+    renderer.domElement.addEventListener('pointerdown', onBoardTap)
+
     const resize = () => {
       if (!host) return
       const width = host.clientWidth
@@ -563,6 +597,7 @@ export default function TavullBattleRoyal() {
     const tick = () => {
       const now = performance.now()
       diceAnimationState.entries = diceAnimationState.entries.filter((entry) => {
+        if (now < entry.start) return true
         const elapsed = now - entry.start
         const t = Math.min(1, elapsed / entry.duration)
         const eased = 1 - (1 - t) ** 3
@@ -609,7 +644,7 @@ export default function TavullBattleRoyal() {
           diceAnimationState.entries.push({
             mesh,
             start: performance.now() + index * 60,
-            duration: 720,
+            duration: 980,
             startPos,
             endPos
           })
@@ -632,6 +667,7 @@ export default function TavullBattleRoyal() {
       window.removeEventListener('resize', resize)
       controls.dispose()
       renderer.dispose()
+      renderer.domElement.removeEventListener('pointerdown', onBoardTap)
       if (host.contains(renderer.domElement)) host.removeChild(renderer.domElement)
       sceneBundleRef.current = null
       isMountedRef.current = false
@@ -777,13 +813,13 @@ export default function TavullBattleRoyal() {
       playSfx(MOVE_SOUND_URL, 0.65)
       idx += 1
       if (idx < line.length) {
-        const timeoutId = window.setTimeout(runStep, 320)
+        const timeoutId = window.setTimeout(runStep, 460)
         pendingTimeoutsRef.current.push(timeoutId)
       } else {
         const timeoutId = window.setTimeout(() => {
           setActiveMoveHighlight(null)
           onDone?.(currentState)
-        }, 220)
+        }, 320)
         pendingTimeoutsRef.current.push(timeoutId)
       }
     }
@@ -797,6 +833,7 @@ export default function TavullBattleRoyal() {
     setMessage(`AI rolled ${d1} and ${d2}.`)
     setIsRollingDice(true)
     setAiThinking(true)
+    setSelectedPoint(null)
     sceneBundleRef.current?.animateDiceThrow?.(aiDice, 1)
     playSfx(DICE_ROLL_SOUND_URL, 0.75)
 
@@ -822,13 +859,14 @@ export default function TavullBattleRoyal() {
         setDice([])
         setAvailable([])
       })
-    }, 700)
+    }, 850)
     pendingTimeoutsRef.current.push(timeoutId)
   }
 
   const roll = () => {
     if (aiThinking || winner || available.length > 0) return
     setIsRollingDice(true)
+    setSelectedPoint(null)
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
     const useDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
@@ -851,8 +889,8 @@ export default function TavullBattleRoyal() {
         playAi(game)
         return
       }
-      setMessage('Pick one legal turn from the move list.')
-    }, 650)
+      setMessage('Tap a checker/point to move, or choose a legal turn from the list.')
+    }, 820)
     pendingTimeoutsRef.current.push(timeoutId)
   }
 
@@ -863,10 +901,51 @@ export default function TavullBattleRoyal() {
     setDice([])
     setMessage('Moving checkers…')
     animateSequence(game, WHITE, sequence, (stateAfterPlayer) => {
+      setSelectedPoint(null)
       setMessage('You played. AI is thinking…')
       playAi(stateAfterPlayer)
     })
   }
+
+  useEffect(() => {
+    if (!available.length) {
+      setSelectedPoint(null)
+      return
+    }
+    const onPointTap = (event) => {
+      const point = event?.detail?.point
+      if (typeof point !== 'number' || aiThinking || winner) return
+      const candidates = available.filter((seq) => seq?.line?.some((move) => move.from === point || move.to === point))
+      if (!candidates.length) return
+      if (candidates.length === 1) {
+        handleSequence(candidates[0])
+        return
+      }
+
+      if (selectedPoint == null || selectedPoint === point) {
+        setSelectedPoint(point)
+        setMessage('Selected point. Tap destination or tap a legal line below.')
+        return
+      }
+
+      const narrowed = candidates.filter((seq) =>
+        seq?.line?.some((move) =>
+          (move.from === selectedPoint && move.to === point) || (move.from === point && move.to === selectedPoint)
+        )
+      )
+
+      if (narrowed.length === 1) {
+        handleSequence(narrowed[0])
+        return
+      }
+
+      setSelectedPoint(point)
+      setMessage('Multiple options here. Tap a legal line below to choose the exact move.')
+    }
+
+    window.addEventListener('tavullPointTap', onPointTap)
+    return () => window.removeEventListener('tavullPointTap', onPointTap)
+  }, [available, aiThinking, winner, selectedPoint])
 
   return (
     <div className="fixed inset-0 bg-[#060b16] px-3 py-3 text-white touch-none select-none">
@@ -876,7 +955,7 @@ export default function TavullBattleRoyal() {
           onClick={() => setConfigOpen((open) => !open)}
           aria-expanded={configOpen}
           aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
-          className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white"
+          className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
           <span className="text-base leading-none" aria-hidden="true">☰</span>
           <span className="leading-none">Menu</span>
@@ -908,23 +987,27 @@ export default function TavullBattleRoyal() {
       </div>
 
       {configOpen && (
-        <div className="absolute top-32 right-4 z-30 pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
+        <div className="absolute top-20 right-4 z-30 pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Backgammon Settings</p>
-              <p className="mt-1 text-[0.7rem] text-white/70">Royal menu with the same options flow as Chess Battle Royal.</p>
+              <p className="mt-1 text-[0.7rem] text-white/70">Personalize the chairs and table finish.</p>
             </div>
             <button
               type="button"
               onClick={() => setConfigOpen(false)}
-              className="rounded-full p-1 text-white/70 transition hover:text-white"
+              className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
               aria-label="Close settings"
-            >✕</button>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+              </svg>
+            </button>
           </div>
           <div className="mt-4 space-y-3">
             <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
               <span>Sound effects</span>
-              <input type="checkbox" className="h-4 w-4" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} />
+              <input type="checkbox" className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} />
             </label>
             <button
               type="button"
@@ -934,8 +1017,24 @@ export default function TavullBattleRoyal() {
               Open Store
             </button>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-              <p className="mt-1 text-[0.7rem] text-white/60">Only owned items are shown here.</p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                  <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTableFinishIdx(0)
+                    setChairThemeIdx(0)
+                    setHdriIdx(0)
+                    setQualityIdx(1)
+                  }}
+                  className="rounded-lg border border-white/15 px-2 py-1 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/30 hover:text-white"
+                >
+                  Reset
+                </button>
+              </div>
               <div className="mt-3 grid gap-2">
                 <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setTableFinishIdx((v) => (v + 1) % Math.max(1, ownedFinishOptions.length))}>
                   Table Finish: {ownedFinishOptions[tableFinishIdx]?.label || ownedFinishOptions[0]?.label || 'Default'}
@@ -964,7 +1063,16 @@ export default function TavullBattleRoyal() {
           <div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-cyan-200">Legal turns</div>
           <div className="max-h-28 space-y-1 overflow-y-auto">
             {available.map((seq, idx) => (
-              <button key={`seq-${idx}`} type="button" onClick={() => handleSequence(seq)} className="block w-full rounded border border-cyan-300/40 bg-cyan-500/10 px-2 py-1 text-left">
+              <button
+                key={`seq-${idx}`}
+                type="button"
+                onClick={() => handleSequence(seq)}
+                className={`block w-full rounded border px-2 py-1 text-left ${
+                  selectedPoint != null && seq.line.some((move) => move.from === selectedPoint || move.to === selectedPoint)
+                    ? 'border-amber-300/70 bg-amber-500/20'
+                    : 'border-cyan-300/40 bg-cyan-500/10'
+                }`}
+              >
                 {seq.line.map((move) => formatMove(move)).join(' • ')}
               </button>
             ))}
@@ -972,7 +1080,17 @@ export default function TavullBattleRoyal() {
         </div>
       )}
 
-      <div className="absolute left-1/2 top-[73%] z-20 flex translate-x-5 -translate-y-1/2">
+      <div className="absolute left-1/2 top-[75%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+        {!!dice.length && (
+          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1">
+            {dice.map((value, index) => (
+              <div key={`dice-ui-${index}`} className="relative h-8 w-8 overflow-hidden rounded-md border border-white/30">
+                <img src={DICE_ICON_URL} alt="dice" className="h-full w-full object-cover" />
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">{value}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           onClick={roll}
