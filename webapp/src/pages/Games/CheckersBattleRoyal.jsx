@@ -57,7 +57,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.0576;
-const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
+const BOARD_TILE_SIZE = 4.2 * BOARD_SCALE;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -113,60 +113,59 @@ const resolveHdriVariant = (value) => {
 const CHECKERS_BOARD_THEMES = Object.freeze([
   {
     id: 'classic',
-    preserveOriginalMaterials: true,
-    light: '#e7e2d3',
-    dark: '#776a5a',
-    frameLight: '#d2b48c',
-    frameDark: '#3a2d23'
+    light: '#eee8d5',
+    dark: '#2b2f36',
+    frameLight: '#c8b89a',
+    frameDark: '#1f2329'
   },
   {
     id: 'ivorySlate',
-    light: '#ece5d6',
-    dark: '#4b5563',
-    frameLight: '#d6c8a9',
+    light: '#e5e7eb',
+    dark: '#111827',
+    frameLight: '#d4d8de',
     frameDark: '#111827'
   },
   {
     id: 'forest',
-    light: '#e7f6dc',
-    dark: '#1f4d36',
-    frameLight: '#9fbe8e',
-    frameDark: '#163525'
+    light: '#a7f3d0',
+    dark: '#065f46',
+    frameLight: '#74c6a9',
+    frameDark: '#054637'
   },
   {
     id: 'sand',
-    light: '#f7dfbe',
-    dark: '#8a5a3c',
-    frameLight: '#d5a779',
+    light: '#ddd0b8',
+    dark: '#6b4f3a',
+    frameLight: '#d0b08d',
     frameDark: '#422313'
   },
   {
     id: 'ocean',
-    light: '#dceef6',
-    dark: '#1e3a8a',
-    frameLight: '#a6c8db',
-    frameDark: '#172554'
+    light: '#a4c8e1',
+    dark: '#1e3a5f',
+    frameLight: '#8eb4ce',
+    frameDark: '#182f4c'
   },
   {
     id: 'violet',
-    light: '#efe8ff',
-    dark: '#5b3a82',
-    frameLight: '#c3a7ea',
-    frameDark: '#312040'
+    light: '#ddd6fe',
+    dark: '#3b2a6e',
+    frameLight: '#b7a8e7',
+    frameDark: '#2c1f52'
   },
   {
     id: 'chrome',
-    light: '#ecf2f8',
-    dark: '#334155',
-    frameLight: '#d1dae5',
-    frameDark: '#0f172a'
+    light: '#b0b0b0',
+    dark: '#6e6e6e',
+    frameLight: '#c9c9c9',
+    frameDark: '#585858'
   },
   {
     id: 'nebulaGlass',
-    light: '#dbeafe',
-    dark: '#1e1b4b',
+    light: '#e0f2fe',
+    dark: '#0b1024',
     frameLight: '#a5b4fc',
-    frameDark: '#111827'
+    frameDark: '#0a0d14'
   }
 ]);
 
@@ -527,11 +526,11 @@ async function loadCheckersBoardModel(renderer = null) {
       const boardModel = source.clone(true);
       boardModel.name = 'ABeautifulGameBoard';
       boardModel.userData = {
-        ...(boardModel.userData || {}),
-        forceOriginalTextures: true
+        ...(boardModel.userData || {})
       };
 
-      const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
+      const pieceTokens =
+        /\b(pawn|rook|knight|bishop|queen|king|piece|white[_\s-]?set|black[_\s-]?set|figure)\b/i;
       const prune = [];
       boardModel.traverse((node) => {
         if (!node?.isObject3D) return;
@@ -614,8 +613,6 @@ function applyCheckersBoardTheme(
   if (!boardModel) return;
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
-
-  if (boardModel?.userData?.forceOriginalTextures) return;
 
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
