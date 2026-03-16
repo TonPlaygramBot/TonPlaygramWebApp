@@ -510,6 +510,24 @@ async function loadCheckersBoardModel(renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
   let lastError = null;
 
+  const isChessPieceNode = (node) => {
+    const pieceTypePattern = /(king|queen|rook|bishop|knight|pawn)/i;
+    let current = node;
+    for (let depth = 0; current && depth < 6; depth += 1) {
+      if (pieceTypePattern.test(`${current.name || ''}`)) return true;
+      current = current.parent;
+    }
+    return false;
+  };
+
+  const findPieceRoot = (node) => {
+    let current = node;
+    while (current?.parent && isChessPieceNode(current.parent)) {
+      current = current.parent;
+    }
+    return current;
+  };
+
   for (const url of BEAUTIFUL_GAME_BOARD_URLS) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
@@ -531,12 +549,12 @@ async function loadCheckersBoardModel(renderer = null) {
         forceOriginalTextures: true
       };
 
-      const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
-      const prune = [];
+      const prune = new Set();
       boardModel.traverse((node) => {
         if (!node?.isObject3D) return;
-        const name = `${node.name || ''}`.toLowerCase();
-        if (pieceTokens.test(name)) prune.push(node);
+        if (isChessPieceNode(node)) {
+          prune.add(findPieceRoot(node));
+        }
         if (!node?.isMesh) return;
         node.castShadow = true;
         node.receiveShadow = true;
@@ -549,7 +567,7 @@ async function loadCheckersBoardModel(renderer = null) {
           mat.needsUpdate = true;
         });
       });
-      prune.forEach((node) => node.parent?.remove(node));
+      prune.forEach((node) => node?.parent?.remove(node));
 
       const box = new THREE.Box3().setFromObject(boardModel);
       const size = box.getSize(new THREE.Vector3());
