@@ -105,13 +105,6 @@ const resolveHdriVariant = (value) => {
       );
   return POOL_ROYALE_HDRI_VARIANTS[idx] || POOL_ROYALE_HDRI_VARIANTS[0];
 };
-const CHESS_BOARD_GLTF_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
-];
-
 const CHECKERS_BOARD_THEMES = Object.freeze([
   {
     id: 'classic',
@@ -422,106 +415,91 @@ const searchBestMove = (
   return { score: bestScore, move: bestMove };
 };
 
-async function loadCheckersBoardModel(loader) {
-  let err = null;
+async function loadCheckersBoardModel() {
   const targetBoardSize = BOARD_TILE_SIZE * SIZE;
-  const boardMeshNamePattern =
-    /\b(board|chessboard|checker|checkers|tile|squares?)\b/i;
-  for (const url of CHESS_BOARD_GLTF_URLS) {
-    try {
-      const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
+  const boardModel = new THREE.Group();
+  boardModel.name = 'ChessBattleRoyalBoard';
+  const boardBaseY = TABLE_HEIGHT - 0.2;
+
+  const frameSize = targetBoardSize * 1.14;
+  const frameHeight = 0.14;
+  const topHeight = 0.04;
+  const tileSize = targetBoardSize / SIZE;
+
+  const frameDarkMat = new THREE.MeshStandardMaterial({
+    color: '#3a2d23',
+    roughness: 0.78,
+    metalness: 0.2
+  });
+  const frameLightMat = new THREE.MeshStandardMaterial({
+    color: '#d2b48c',
+    roughness: 0.7,
+    metalness: 0.15
+  });
+  const lightMat = new THREE.MeshStandardMaterial({
+    color: '#e7e2d3',
+    roughness: 0.36,
+    metalness: 0.16
+  });
+  const darkMat = new THREE.MeshStandardMaterial({
+    color: '#776a5a',
+    roughness: 0.4,
+    metalness: 0.2
+  });
+
+  const frameBase = new THREE.Mesh(
+    new THREE.BoxGeometry(frameSize, frameHeight, frameSize),
+    frameDarkMat
+  );
+  frameBase.userData = {
+    ...(frameBase.userData || {}),
+    boardPart: 'frameDark'
+  };
+  frameBase.position.y = boardBaseY + frameHeight / 2;
+  frameBase.castShadow = true;
+  frameBase.receiveShadow = true;
+  boardModel.add(frameBase);
+
+  const frameTop = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      targetBoardSize * 1.04,
+      topHeight,
+      targetBoardSize * 1.04
+    ),
+    frameLightMat
+  );
+  frameTop.userData = { ...(frameTop.userData || {}), boardPart: 'frameLight' };
+  frameTop.position.y = boardBaseY + frameHeight + topHeight / 2;
+  frameTop.castShadow = true;
+  frameTop.receiveShadow = true;
+  boardModel.add(frameTop);
+
+  const tileGroup = new THREE.Group();
+  tileGroup.position.y = boardBaseY + frameHeight + topHeight;
+  for (let r = 0; r < SIZE; r += 1) {
+    for (let c = 0; c < SIZE; c += 1) {
+      const isDark = (r + c) % 2 === 1;
+      const tileMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(tileSize, 0.04, tileSize),
+        isDark ? darkMat : lightMat
       );
-      const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-      loader.setResourcePath(resourcePath);
-      loader.setPath(isAbsolute ? '' : resourcePath);
-      const gltf = await loader.loadAsync(resolvedUrl);
-      if (gltf?.scene) {
-        const root = gltf.scene.clone(true);
-        const pieceLike = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
-        const meshSamples = [];
-        root.traverse((obj) => {
-          if (!obj) return;
-          if (!obj?.isMesh) return;
-
-          const meshBounds = new THREE.Box3().setFromObject(obj);
-          const meshSize = meshBounds.getSize(new THREE.Vector3());
-          meshSamples.push({ obj, meshSize });
-
-          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-          mats.forEach((mat) => {
-            if (!mat) return;
-            if (mat.map) applySRGBColorSpace(mat.map);
-            if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-            mat.needsUpdate = true;
-          });
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-        });
-
-        const maxBoardSpan = meshSamples.reduce(
-          (acc, sample) => Math.max(acc, sample.meshSize.x, sample.meshSize.z),
-          1
-        );
-        const keepMeshes = new Set(
-          meshSamples
-            .filter(({ obj, meshSize }) => {
-              const name = `${obj.name || ''} ${obj.parent?.name || ''}`;
-              if (boardMeshNamePattern.test(name)) return true;
-              if (pieceLike.test(name)) return false;
-
-              const wideEnough =
-                meshSize.x >= maxBoardSpan * 0.45 && meshSize.z >= maxBoardSpan * 0.45;
-              const isFlat =
-                meshSize.y <= Math.max(meshSize.x, meshSize.z) * 0.35;
-              return wideEnough && isFlat;
-            })
-            .map(({ obj }) => obj)
-        );
-
-        if (!keepMeshes.size && meshSamples.length) {
-          meshSamples
-            .sort(
-              (a, b) =>
-                b.meshSize.x * b.meshSize.z - a.meshSize.x * a.meshSize.z
-            )
-            .slice(0, 3)
-            .forEach(({ obj }) => keepMeshes.add(obj));
-        }
-
-        root.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          obj.visible = keepMeshes.has(obj);
-        });
-
-        const box = new THREE.Box3().setFromObject(root);
-        const size = box.getSize(new THREE.Vector3());
-        const span = Math.max(size.x || 1, size.z || 1);
-        const scale = targetBoardSize / span;
-        root.scale.multiplyScalar(scale);
-
-        const scaledBox = new THREE.Box3().setFromObject(root);
-        const center = scaledBox.getCenter(new THREE.Vector3());
-        root.position.set(
-          -center.x,
-          TABLE_HEIGHT - scaledBox.min.y,
-          -center.z
-        );
-        root.userData = {
-          ...(root.userData || {}),
-          forceOriginalTextures: true
-        };
-        return root;
-      }
-    } catch (e) {
-      err = e;
+      tileMesh.userData = {
+        ...(tileMesh.userData || {}),
+        boardPart: isDark ? 'tileDark' : 'tileLight'
+      };
+      tileMesh.position.set(
+        (c - (SIZE - 1) / 2) * tileSize,
+        0.02,
+        (r - (SIZE - 1) / 2) * tileSize
+      );
+      tileMesh.castShadow = true;
+      tileMesh.receiveShadow = true;
+      tileGroup.add(tileMesh);
     }
   }
-  throw err || new Error('Checkers board GLTF failed to load');
+  boardModel.add(tileGroup);
+  return boardModel;
 }
-
 
 function snapshotBoardMaterials(boardModel) {
   if (!boardModel || BOARD_MATERIAL_CACHE.has(boardModel)) return;
@@ -550,25 +528,54 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
-function applyCheckersBoardTheme(boardModel, option = CHECKERS_BOARD_THEME_OPTIONS[0]) {
+function applyCheckersBoardTheme(
+  boardModel,
+  option = CHECKERS_BOARD_THEME_OPTIONS[0]
+) {
   if (!boardModel) return;
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
 
-  if (option?.preserveOriginalMaterials || boardModel?.userData?.forceOriginalTextures) return;
+  if (boardModel?.userData?.forceOriginalTextures) return;
 
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
   const light = new THREE.Color(option?.light || '#e7e2d3');
   const dark = new THREE.Color(option?.dark || '#776a5a');
 
-  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const luminance = (color) =>
+    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
   const toArray = (value) => (Array.isArray(value) ? value : [value]);
 
   boardModel.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''} ${node.parent?.name || ''}`.toLowerCase();
     const mats = toArray(node.material);
+
+    const taggedPart = node.userData?.boardPart;
+    if (taggedPart) {
+      const taggedColor =
+        taggedPart === 'frameDark'
+          ? frameDark
+          : taggedPart === 'frameLight'
+            ? frameLight
+            : taggedPart === 'tileDark'
+              ? dark
+              : light;
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat?.map) mat.map = null;
+        if (mat?.color?.copy) mat.color.copy(taggedColor);
+        if ('roughness' in mat)
+          mat.roughness = /frame/.test(taggedPart) ? 0.78 : 0.4;
+        if ('metalness' in mat)
+          mat.metalness = /frame/.test(taggedPart) ? 0.18 : 0.2;
+        mat.needsUpdate = true;
+      });
+      node.castShadow = true;
+      node.receiveShadow = true;
+      return;
+    }
 
     let avgLum = 0;
     let count = 0;
@@ -581,8 +588,12 @@ function applyCheckersBoardTheme(boardModel, option = CHECKERS_BOARD_THEME_OPTIO
 
     const isFrame = /frame|border|rim|base|stand/.test(name);
     const targetColor = isFrame
-      ? (baseIsLight ? frameLight : frameDark)
-      : (baseIsLight ? light : dark);
+      ? baseIsLight
+        ? frameLight
+        : frameDark
+      : baseIsLight
+        ? light
+        : dark;
 
     mats.forEach((mat) => {
       if (!mat) return;
@@ -767,7 +778,9 @@ const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
     if (entry?.hdr) return entry.hdr;
     if (entry?.exr) return entry.exr;
   }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+  const fallback = Object.values(json).find(
+    (value) => value?.hdr || value?.exr
+  );
   if (!fallback) return null;
   return fallback.hdr || fallback.exr || null;
 };
@@ -860,7 +873,8 @@ export default function CheckersBattleRoyal() {
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
-      boardTheme: inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id
+      boardTheme:
+        inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id
     };
   }, []);
 
@@ -1303,9 +1317,7 @@ export default function CheckersBattleRoyal() {
       const proceduralBoard = addVisibleBoardBase();
 
       try {
-        const boardRoot = await loadCheckersBoardModel(
-          createConfiguredGLTFLoader(renderer)
-        );
+        const boardRoot = await loadCheckersBoardModel();
         const boardVisualGroup = new THREE.Group();
         boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
         boardVisualGroup.add(boardRoot);
@@ -1473,20 +1485,26 @@ export default function CheckersBattleRoyal() {
     });
 
     const boardTheme =
-      CHECKERS_BOARD_THEME_OPTIONS.find((theme) => theme.id === appearance.boardTheme) ||
-      CHECKERS_BOARD_THEME_OPTIONS[0];
+      CHECKERS_BOARD_THEME_OPTIONS.find(
+        (theme) => theme.id === appearance.boardTheme
+      ) || CHECKERS_BOARD_THEME_OPTIONS[0];
     boardThemeRef.current = boardTheme;
     const boardMats = proceduralBoardRef.current;
-    if (boardMats.lightMat?.color) boardMats.lightMat.color.set(boardTheme.light);
+    if (boardMats.lightMat?.color)
+      boardMats.lightMat.color.set(boardTheme.light);
     if (boardMats.darkMat?.color) boardMats.darkMat.color.set(boardTheme.dark);
-    if (gltfBoardRef.current) applyCheckersBoardTheme(gltfBoardRef.current, boardTheme);
+    if (gltfBoardRef.current)
+      applyCheckersBoardTheme(gltfBoardRef.current, boardTheme);
 
     if (envRef.current?.hdriId === appearance.hdriId) return;
 
     const applyHdri = async () => {
       try {
         const variant = resolveHdriVariant(appearance.hdriId);
-        const envResult = await loadPolyHavenHdriEnvironment(rendererRef.current, variant);
+        const envResult = await loadPolyHavenHdriEnvironment(
+          rendererRef.current,
+          variant
+        );
         if (!envResult?.envMap) return;
         const { envMap, skyboxMap } = envResult;
         scene.environment = envMap;
@@ -1499,8 +1517,10 @@ export default function CheckersBattleRoyal() {
         }
         if (envRef.current?.skybox) scene.remove(envRef.current.skybox);
         const cameraHeight =
-          Math.max(variant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
-          HDRI_UNITS_PER_METER;
+          Math.max(
+            variant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
+            MIN_HDRI_CAMERA_HEIGHT_M
+          ) * HDRI_UNITS_PER_METER;
         const radiusMultiplier =
           typeof variant?.groundRadiusMultiplier === 'number'
             ? variant.groundRadiusMultiplier
@@ -1686,7 +1706,10 @@ export default function CheckersBattleRoyal() {
                     <button
                       key={opt.id}
                       onClick={() =>
-                        setAppearance((prev) => ({ ...prev, boardTheme: opt.id }))
+                        setAppearance((prev) => ({
+                          ...prev,
+                          boardTheme: opt.id
+                        }))
                       }
                       className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.boardTheme === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
                     >
