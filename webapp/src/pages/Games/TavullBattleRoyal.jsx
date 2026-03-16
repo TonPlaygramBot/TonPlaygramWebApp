@@ -12,7 +12,6 @@ import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanT
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js'
 import { getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js'
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js'
-import Dice from '../../components/Dice.jsx'
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
 import { getGameVolume, isGameMuted } from '../../utils/sound.js'
@@ -28,6 +27,7 @@ import { chessBattleAccountId, getChessBattleInventory, isChessOptionUnlocked } 
 import {
   BLACK,
   WHITE,
+  applyMove,
   collectTurnSequences,
   formatMove,
   initialBoard,
@@ -80,6 +80,7 @@ const QUALITY_OPTIONS = Object.freeze([
 ])
 const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
 const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
+const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3'
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
   { left: '50%', top: '73%' }
@@ -302,6 +303,7 @@ export default function TavullBattleRoyal() {
   const [chatBubbles, setChatBubbles] = useState([])
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [inventoryVersion, setInventoryVersion] = useState(0)
+  const [activeMoveHighlight, setActiveMoveHighlight] = useState(null)
   const accountId = chessBattleAccountId()
   const chessInventory = useMemo(() => getChessBattleInventory(accountId), [accountId, inventoryVersion])
   const playerName = getTelegramFirstName() || 'Player'
@@ -527,6 +529,25 @@ export default function TavullBattleRoyal() {
 
     const chipGroup = new THREE.Group()
     scene.add(chipGroup)
+    const diceGroup = new THREE.Group()
+    scene.add(diceGroup)
+    const diceAnimationState = { entries: [] }
+    const maxDice = 4
+
+    const makeDie = () => {
+      const die = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.1, 0.1),
+        new THREE.MeshStandardMaterial({ color: '#f5efe2', roughness: 0.4, metalness: 0.08 })
+      )
+      die.visible = false
+      die.castShadow = true
+      return die
+    }
+    const diceMeshes = Array.from({ length: maxDice }, () => {
+      const mesh = makeDie()
+      diceGroup.add(mesh)
+      return mesh
+    })
 
     const resize = () => {
       if (!host) return
@@ -540,6 +561,23 @@ export default function TavullBattleRoyal() {
 
     let raf = 0
     const tick = () => {
+      const now = performance.now()
+      diceAnimationState.entries = diceAnimationState.entries.filter((entry) => {
+        const elapsed = now - entry.start
+        const t = Math.min(1, elapsed / entry.duration)
+        const eased = 1 - (1 - t) ** 3
+        const arc = Math.sin(Math.PI * t) * 0.18
+        entry.mesh.position.lerpVectors(entry.startPos, entry.endPos, eased)
+        entry.mesh.position.y += arc
+        entry.mesh.rotation.x += 0.42
+        entry.mesh.rotation.y += 0.37
+        entry.mesh.rotation.z += 0.25
+        if (t >= 1) {
+          entry.mesh.rotation.set((Math.random() - 0.5) * 0.2, Math.random() * Math.PI, (Math.random() - 0.5) * 0.2)
+          return false
+        }
+        return true
+      })
       controls.update()
       renderer.render(scene, camera)
       raf = window.requestAnimationFrame(tick)
@@ -552,6 +590,31 @@ export default function TavullBattleRoyal() {
       renderer,
       controls,
       chipGroup,
+      animateDiceThrow: (values = [], seat = 0) => {
+        const diceValues = Array.isArray(values) && values.length ? values : [1, 1]
+        const startZ = seat === 0 ? BOARD_HALF_Z - 0.05 : -BOARD_HALF_Z + 0.05
+        const endZ = seat === 0 ? BOARD_HALF_Z * 0.18 : -BOARD_HALF_Z * 0.18
+        const spacing = 0.16
+        const centerOffset = (diceValues.length - 1) / 2
+        diceMeshes.forEach((mesh, index) => {
+          if (index >= diceValues.length) {
+            mesh.visible = false
+            return
+          }
+          mesh.visible = true
+          const x = (index - centerOffset) * spacing
+          const startPos = new THREE.Vector3(x, BOARD_Y + 0.24, startZ)
+          const endPos = new THREE.Vector3(x * 0.75, BOARD_Y + 0.17, endZ)
+          mesh.position.copy(startPos)
+          diceAnimationState.entries.push({
+            mesh,
+            start: performance.now() + index * 60,
+            duration: 720,
+            startPos,
+            endPos
+          })
+        })
+      },
       applyViewMode,
       applyTableFinish: (idx) => applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[idx] || MURLAN_TABLE_FINISHES[0]),
       applyHdri: (idx) => loadHdriEnvironment(scene, idx),
@@ -641,6 +704,18 @@ export default function TavullBattleRoyal() {
       return mesh
     }
 
+    const highlightTargets = new Set()
+    available.forEach((sequence) => {
+      sequence?.line?.forEach((move) => {
+        if (typeof move?.from === 'number') highlightTargets.add(move.from)
+        if (typeof move?.to === 'number') highlightTargets.add(move.to)
+      })
+    })
+    if (activeMoveHighlight) {
+      if (typeof activeMoveHighlight.from === 'number') highlightTargets.add(activeMoveHighlight.from)
+      if (typeof activeMoveHighlight.to === 'number') highlightTargets.add(activeMoveHighlight.to)
+    }
+
     for (let i = 0; i < 24; i += 1) {
       const point = game.points[i]
       if (!point.color || point.count <= 0) continue
@@ -656,6 +731,21 @@ export default function TavullBattleRoyal() {
         )
         chipGroup.add(chip)
       }
+      if (highlightTargets.has(i)) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.11, 0.012, 8, 28),
+          new THREE.MeshStandardMaterial({
+            color: activeMoveHighlight ? '#f59e0b' : '#22d3ee',
+            emissive: activeMoveHighlight ? '#7c2d12' : '#164e63',
+            emissiveIntensity: 1.2,
+            roughness: 0.3,
+            metalness: 0.2
+          })
+        )
+        ring.rotation.x = Math.PI / 2
+        ring.position.set(base.x, BOARD_Y + 0.145, base.z + (base.top ? -0.06 : 0.06))
+        chipGroup.add(ring)
+      }
     }
 
     const makeBarChips = (count, color, zSign) => {
@@ -668,7 +758,37 @@ export default function TavullBattleRoyal() {
 
     makeBarChips(game.bar.white, WHITE, -1)
     makeBarChips(game.bar.black, BLACK, 1)
-  }, [game])
+  }, [game, available, activeMoveHighlight])
+
+  const animateSequence = (state, color, sequence, onDone) => {
+    const line = sequence?.line || []
+    if (!line.length) {
+      onDone?.(state)
+      return
+    }
+    let idx = 0
+    let currentState = state
+    const runStep = () => {
+      if (!isMountedRef.current) return
+      const move = line[idx]
+      setActiveMoveHighlight({ from: move.from, to: move.to, color })
+      currentState = applyMove(currentState, color, move)
+      setGame(currentState)
+      playSfx(MOVE_SOUND_URL, 0.65)
+      idx += 1
+      if (idx < line.length) {
+        const timeoutId = window.setTimeout(runStep, 320)
+        pendingTimeoutsRef.current.push(timeoutId)
+      } else {
+        const timeoutId = window.setTimeout(() => {
+          setActiveMoveHighlight(null)
+          onDone?.(currentState)
+        }, 220)
+        pendingTimeoutsRef.current.push(timeoutId)
+      }
+    }
+    runStep()
+  }
 
   const playAi = (stateAfterPlayer) => {
     const d1 = 1 + Math.floor(Math.random() * 6)
@@ -677,6 +797,8 @@ export default function TavullBattleRoyal() {
     setMessage(`AI rolled ${d1} and ${d2}.`)
     setIsRollingDice(true)
     setAiThinking(true)
+    sceneBundleRef.current?.animateDiceThrow?.(aiDice, 1)
+    playSfx(DICE_ROLL_SOUND_URL, 0.75)
 
     const timeoutId = window.setTimeout(() => {
       if (!isMountedRef.current) return
@@ -694,12 +816,12 @@ export default function TavullBattleRoyal() {
         setAvailable([])
         return
       }
-      setGame(choice.resultingState)
-      playSfx(MOVE_SOUND_URL, 0.65)
-      setMessage(`AI played ${choice.line.length} move(s). Your turn.`)
-      setAiThinking(false)
-      setDice([])
-      setAvailable([])
+      animateSequence(stateAfterPlayer, BLACK, choice, () => {
+        setMessage(`AI played ${choice.line.length} move(s). Your turn.`)
+        setAiThinking(false)
+        setDice([])
+        setAvailable([])
+      })
     }, 700)
     pendingTimeoutsRef.current.push(timeoutId)
   }
@@ -710,6 +832,8 @@ export default function TavullBattleRoyal() {
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
     const useDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
+    sceneBundleRef.current?.animateDiceThrow?.(useDice, 0)
+    playSfx(DICE_ROLL_SOUND_URL, 0.75)
     const timeoutId = window.setTimeout(() => {
       if (!isMountedRef.current) return
       setIsRollingDice(false)
@@ -735,12 +859,13 @@ export default function TavullBattleRoyal() {
   const handleSequence = (sequence) => {
     if (!available.length || aiThinking || winner) return
     if (!sequence?.line?.length) return
-    setGame(sequence.resultingState)
-    playSfx(MOVE_SOUND_URL, 0.65)
     setAvailable([])
     setDice([])
-    setMessage('You played. AI is thinking…')
-    playAi(sequence.resultingState)
+    setMessage('Moving checkers…')
+    animateSequence(game, WHITE, sequence, (stateAfterPlayer) => {
+      setMessage('You played. AI is thinking…')
+      playAi(stateAfterPlayer)
+    })
   }
 
   return (
@@ -832,10 +957,6 @@ export default function TavullBattleRoyal() {
 
       <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-black/30">
         <div ref={canvasHostRef} className="h-full w-full" />
-      </div>
-
-      <div className="absolute top-[52%] left-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-wrap items-center justify-center gap-2 pointer-events-none">
-        {dice.length > 0 || isRollingDice ? <Dice values={dice.length ? dice : [1, 1]} rolling={isRollingDice} transparent /> : null}
       </div>
 
       {available.length > 0 && (
