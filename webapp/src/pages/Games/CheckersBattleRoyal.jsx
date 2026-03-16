@@ -526,6 +526,10 @@ async function loadCheckersBoardModel(renderer = null) {
 
       const boardModel = source.clone(true);
       boardModel.name = 'ABeautifulGameBoard';
+      boardModel.userData = {
+        ...(boardModel.userData || {}),
+        forceOriginalTextures: true
+      };
 
       const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
       const prune = [];
@@ -551,17 +555,6 @@ async function loadCheckersBoardModel(renderer = null) {
       const size = box.getSize(new THREE.Vector3());
       const largest = Math.max(size.x, size.z, 0.001);
       const targetSize = BOARD_TILE_SIZE * SIZE;
-
-      // Keep Checkers board footprint aligned with Chess Battle Royal.
-      // If the imported GLTF includes extra scenery (field/stadium),
-      // prefer procedural board fallback for stable gameplay sizing.
-      if (largest > targetSize * 3) {
-        console.warn(
-          'Checkers Battle Royal: imported board model includes extra geometry; using fallback board for consistent sizing.'
-        );
-        continue;
-      }
-
       const scale = targetSize / largest;
       boardModel.scale.multiplyScalar(scale);
 
@@ -621,6 +614,8 @@ function applyCheckersBoardTheme(
   if (!boardModel) return;
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
+
+  if (boardModel?.userData?.forceOriginalTextures) return;
 
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
