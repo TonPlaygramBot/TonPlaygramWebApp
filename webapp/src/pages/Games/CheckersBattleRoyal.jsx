@@ -309,10 +309,10 @@ const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
   for (let r = 0; r < 3; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 0) board[r][c] = { side: 'dark', king: false };
+      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
   for (let r = 5; r < SIZE; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 0) board[r][c] = { side: 'light', king: false };
+      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
   return board;
 };
 
