@@ -715,7 +715,9 @@ export default function TavullBattleRoyal() {
         entry.mesh.rotation.y += 0.37
         entry.mesh.rotation.z += 0.25
         if (t >= 1) {
-          entry.mesh.rotation.set((Math.random() - 0.5) * 0.2, Math.random() * Math.PI, (Math.random() - 0.5) * 0.2)
+          if (entry.targetQuaternion) {
+            entry.mesh.setRotationFromQuaternion(entry.targetQuaternion)
+          }
           return false
         }
         return true
@@ -744,7 +746,8 @@ export default function TavullBattleRoyal() {
             return
           }
           mesh.visible = true
-          mesh.userData.setValue?.(Number(diceValues[index]) || 1)
+          const dieValue = Number(diceValues[index]) || 1
+          mesh.userData.setValue?.(dieValue)
           const x = (index - centerOffset) * spacing
           const startPos = new THREE.Vector3(x, BOARD_Y + 0.24, startZ)
           const endPos = new THREE.Vector3(x * 0.75, BOARD_Y + 0.17, endZ)
@@ -754,7 +757,8 @@ export default function TavullBattleRoyal() {
             start: performance.now() + index * 60,
             duration: 980,
             startPos,
-            endPos
+            endPos,
+            targetQuaternion: getDieOrientationQuaternion(dieValue)
           })
         })
       },
