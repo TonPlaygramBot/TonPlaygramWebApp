@@ -15,6 +15,10 @@ import Dice from '../../components/Dice.jsx'
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
 import { getGameVolume, isGameMuted } from '../../utils/sound.js'
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx'
+import GiftPopup from '../../components/GiftPopup.jsx'
+import { CHESS_BATTLE_STORE_ITEMS, CHESS_CHAIR_OPTIONS, CHESS_TABLE_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
+import { POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js'
 
 const WHITE = 'white'
 const BLACK = 'black'
@@ -59,9 +63,7 @@ const CHAIR_MODEL_URLS = Object.freeze([
   '/assets/models/chair/chair.gltf'
 ])
 const CHAIR_THEMES = Object.freeze([
-  { id: 'royal-red', label: 'Royal Red', primary: '#8b1d2c', leg: '#111827' },
-  { id: 'emerald', label: 'Emerald', primary: '#0f766e', leg: '#0f172a' },
-  { id: 'violet', label: 'Violet', primary: '#4c1d95', leg: '#111827' }
+  ...CHESS_CHAIR_OPTIONS
 ])
 const QUALITY_OPTIONS = Object.freeze([
   { id: 'performance', label: 'Performance', pixelRatio: 1, shadows: false },
@@ -74,6 +76,10 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
   { left: '50%', top: '73%' }
 ]
+const BACKGAMMON_BOARD_MODEL_URLS = Object.freeze([
+  '/assets/models/backgammon/backgammon-board.glb',
+  '/assets/models/backgammon/backgammon-board.gltf'
+])
 
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return
@@ -470,6 +476,10 @@ export default function TavullBattleRoyal() {
   const [chairThemeIdx, setChairThemeIdx] = useState(0)
   const [hdriIdx, setHdriIdx] = useState(0)
   const [qualityIdx, setQualityIdx] = useState(1)
+  const [showChat, setShowChat] = useState(false)
+  const [showGift, setShowGift] = useState(false)
+  const [chatBubbles, setChatBubbles] = useState([])
+  const [menuTab, setMenuTab] = useState('settings')
   const playerName = getTelegramFirstName() || 'Player'
   const playerAvatar = getTelegramPhotoUrl()
 
@@ -478,6 +488,7 @@ export default function TavullBattleRoyal() {
   const players = [
     {
       index: 0,
+      id: 'self-player',
       name: playerName,
       photoUrl: playerAvatar || '/assets/icons/profile.svg',
       color: 'white',
@@ -485,6 +496,7 @@ export default function TavullBattleRoyal() {
     },
     {
       index: 1,
+      id: 'ai-royal',
       name: 'AI Royal',
       photoUrl: '/assets/icons/profile.svg',
       color: 'black',
@@ -594,28 +606,50 @@ export default function TavullBattleRoyal() {
     const boardRoot = new THREE.Group()
     scene.add(boardRoot)
 
-    const boardBase = new THREE.Mesh(
-      new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2),
-      new THREE.MeshStandardMaterial({ color: '#744225', roughness: 0.5, metalness: 0.16 })
-    )
-    boardBase.position.y = BOARD_Y
-    boardRoot.add(boardBase)
+    const loadBackgammonBoardModel = async () => {
+      const loader = createConfiguredGLTFLoader(renderer)
+      for (const url of BACKGAMMON_BOARD_MODEL_URLS) {
+        try {
+          const gltf = await loader.loadAsync(url)
+          const model = gltf?.scene || gltf?.scenes?.[0]
+          if (!model) continue
+          prepareLoadedModel(model)
+          model.position.set(0, BOARD_Y + 0.1, 0)
+          model.scale.setScalar(0.85)
+          boardRoot.add(model)
+          return true
+        } catch {
+          // Try next URL and fallback to procedural board.
+        }
+      }
+      return false
+    }
 
-    const felt = new THREE.Mesh(
-      new THREE.BoxGeometry(BOARD_HALF_X * 1.94, 0.03, BOARD_HALF_Z * 1.92),
-      new THREE.MeshStandardMaterial({ color: '#174a32', roughness: 0.9, metalness: 0.02 })
-    )
-    felt.position.y = BOARD_Y + 0.1
-    boardRoot.add(felt)
+    void loadBackgammonBoardModel().then((loaded) => {
+      if (loaded) return
 
-    const bar = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.06, BOARD_HALF_Z * 1.88),
-      new THREE.MeshStandardMaterial({ color: '#5e3018', roughness: 0.6, metalness: 0.08 })
-    )
-    bar.position.y = BOARD_Y + 0.11
-    boardRoot.add(bar)
+      const boardBase = new THREE.Mesh(
+        new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2),
+        new THREE.MeshStandardMaterial({ color: '#744225', roughness: 0.5, metalness: 0.16 })
+      )
+      boardBase.position.y = BOARD_Y
+      boardRoot.add(boardBase)
 
-    const makeTriangle = (x, top, dark) => {
+      const felt = new THREE.Mesh(
+        new THREE.BoxGeometry(BOARD_HALF_X * 1.94, 0.03, BOARD_HALF_Z * 1.92),
+        new THREE.MeshStandardMaterial({ color: '#174a32', roughness: 0.9, metalness: 0.02 })
+      )
+      felt.position.y = BOARD_Y + 0.1
+      boardRoot.add(felt)
+
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.06, BOARD_HALF_Z * 1.88),
+        new THREE.MeshStandardMaterial({ color: '#5e3018', roughness: 0.6, metalness: 0.08 })
+      )
+      bar.position.y = BOARD_Y + 0.11
+      boardRoot.add(bar)
+
+      const makeTriangle = (x, top, dark) => {
       const baseZ = top ? -BOARD_HALF_Z + 0.01 : BOARD_HALF_Z - 0.01
       const apex = top ? -0.56 : 0.56
       const shape = new THREE.Shape()
@@ -631,12 +665,13 @@ export default function TavullBattleRoyal() {
       )
       tri.position.set(x, BOARD_Y + 0.13, baseZ)
       boardRoot.add(tri)
-    }
+      }
 
-    for (let i = 0; i < 24; i += 1) {
-      const p = pointBasePosition(i)
-      makeTriangle(p.x, p.top, i % 2 === 0)
-    }
+      for (let i = 0; i < 24; i += 1) {
+        const p = pointBasePosition(i)
+        makeTriangle(p.x, p.top, i % 2 === 0)
+      }
+    })
 
     const chipGroup = new THREE.Group()
     scene.add(chipGroup)
@@ -872,13 +907,20 @@ export default function TavullBattleRoyal() {
       {configOpen && (
         <div className="absolute top-32 right-4 z-30 pointer-events-auto mt-2 w-80 max-w-[86vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
           <div className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Backgammon Settings</div>
-          <div className="mt-2 text-white/70">Roll, select highlighted points, and bear off all 15 checkers to win.</div>
-          <div className="mt-3 grid gap-2">
+          <div className="mt-2 flex gap-2 text-[11px] uppercase tracking-[0.2em]">
+            {['settings', 'inventory', 'store'].map((tab) => (
+              <button key={tab} type="button" onClick={() => setMenuTab(tab)} className={`rounded px-2 py-1 ${menuTab === tab ? 'bg-white/20' : 'bg-white/10'}`}>
+                {tab}
+              </button>
+            ))}
+          </div>
+          {menuTab === 'settings' && <div className="mt-2 text-white/70">Roll, select highlighted points, and bear off all 15 checkers to win.</div>}
+          {menuTab === 'settings' && <div className="mt-3 grid gap-2">
             <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setTableFinishIdx((v) => (v + 1) % MURLAN_TABLE_FINISHES.length)}>
               Table: {MURLAN_TABLE_FINISHES[tableFinishIdx]?.name || 'Default'}
             </button>
             <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setChairThemeIdx((v) => (v + 1) % CHAIR_THEMES.length)}>
-              Chairs: {CHAIR_THEMES[chairThemeIdx]?.label || 'Royal Red'}
+              Chairs: {CHAIR_THEMES[chairThemeIdx]?.label || 'Royal'}
             </button>
             <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setHdriIdx((v) => (v + 1) % BACKGAMMON_HDRI_URLS.length)}>
               HDRI: {hdriIdx + 1}/{BACKGAMMON_HDRI_URLS.length}
@@ -886,7 +928,18 @@ export default function TavullBattleRoyal() {
             <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setQualityIdx((v) => (v + 1) % QUALITY_OPTIONS.length)}>
               Graphics: {QUALITY_OPTIONS[qualityIdx]?.label || 'Balanced'}
             </button>
-          </div>
+          </div>}
+          {menuTab === 'inventory' && <div className="mt-3 max-h-52 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
+            <div className="text-white/70">Tables ({CHESS_TABLE_OPTIONS.length}), Chairs ({CHAIR_THEMES.length}), HDRIs ({POOL_ROYALE_HDRI_VARIANTS.length})</div>
+            {CHESS_TABLE_OPTIONS.map((item) => <div key={item.id} className="rounded border border-white/15 px-2 py-1">Table: {item.label}</div>)}
+            {CHAIR_THEMES.map((item) => <div key={item.id} className="rounded border border-white/15 px-2 py-1">Chair: {item.label}</div>)}
+            {POOL_ROYALE_HDRI_VARIANTS.map((item) => <div key={item.id} className="rounded border border-white/15 px-2 py-1">HDRI: {item.name}</div>)}
+          </div>}
+          {menuTab === 'store' && <div className="mt-3 max-h-52 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
+            {CHESS_BATTLE_STORE_ITEMS.filter((item) => ['tables', 'chairColor', 'environmentHdri', 'tableFinish'].includes(item.type)).map((item) => (
+              <div key={item.id} className="rounded border border-white/15 px-2 py-1">{item.name} · {item.price} TPC</div>
+            ))}
+          </div>}
         </div>
       )}
 
@@ -912,7 +965,7 @@ export default function TavullBattleRoyal() {
         ))}
       </div>
 
-      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2">
+      <div className="absolute left-1/2 top-[73%] z-20 flex translate-x-5 -translate-y-1/2">
         <button
           type="button"
           onClick={roll}
@@ -925,7 +978,7 @@ export default function TavullBattleRoyal() {
 
       <div className="pointer-events-auto">
         <BottomLeftIcons
-          onGift={() => {}}
+          onGift={() => setShowGift(true)}
           showInfo={false}
           showChat={false}
           showMute={false}
@@ -937,7 +990,7 @@ export default function TavullBattleRoyal() {
           order={['gift']}
         />
         <BottomLeftIcons
-          onChat={() => {}}
+          onChat={() => setShowChat(true)}
           showInfo={false}
           showGift={false}
           showMute={false}
@@ -949,6 +1002,31 @@ export default function TavullBattleRoyal() {
           order={['chat']}
         />
       </div>
+
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+
+      <QuickMessagePopup
+        open={showChat}
+        onClose={() => setShowChat(false)}
+        title="Quick Chat"
+        onSend={(text) => {
+          const id = Date.now()
+          setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: playerAvatar || '/assets/icons/profile.svg' }])
+          setTimeout(() => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)), 3000)
+        }}
+      />
+
+      <GiftPopup
+        open={showGift}
+        onClose={() => setShowGift(false)}
+        players={players}
+        senderIndex={0}
+      />
 
       <div className="absolute inset-0 z-10 pointer-events-none">
         {players.map((player) => {
