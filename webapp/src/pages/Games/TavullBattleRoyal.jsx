@@ -19,7 +19,11 @@ import { getGameVolume, isGameMuted } from '../../utils/sound.js'
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx'
 import GiftPopup from '../../components/GiftPopup.jsx'
 import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
-import { POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js'
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_HDRI_VARIANT_MAP
+} from '../../config/poolRoyaleInventoryConfig.js'
 import { chessBattleAccountId, getChessBattleInventory, isChessOptionUnlocked } from '../../utils/chessBattleInventory.js'
 import {
   BLACK,
@@ -56,11 +60,8 @@ const CAMERA_3D_POSITION = new THREE.Vector3(0, 4.9, 5.6)
 const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT, 0)
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/'
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
-const BACKGAMMON_HDRI_URLS = Object.freeze([
-  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr',
-  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr',
-  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/colorful_studio_1k.hdr'
-])
+const DEFAULT_HDRI_ASSET =
+  POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] || POOL_ROYALE_HDRI_VARIANTS[0] || null
 let sharedKtx2Loader = null
 let hasDetectedKtx2Support = false
 const CHAIR_MODEL_URLS = Object.freeze([
@@ -129,19 +130,28 @@ function prepareLoadedModel(model) {
   })
 }
 
+function resolveHdriUrlsByVariantIndex(preferredIndex = 0) {
+  const variant = POOL_ROYALE_HDRI_VARIANTS[preferredIndex] || DEFAULT_HDRI_ASSET
+  if (!variant?.assetId) {
+    return ['https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/colorful_studio_2k.hdr']
+  }
+  const resolutions = Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+    ? variant.preferredResolutions
+    : ['2k']
+  const ordered = [...resolutions, variant.fallbackResolution, '2k', '1k'].filter(Boolean)
+  const unique = [...new Set(ordered)]
+  return unique.map((resolution) => `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${resolution}/${variant.assetId}_${resolution}.hdr`)
+}
+
 function loadHdriEnvironment(scene, preferredIndex = 0) {
   const rgbe = new RGBELoader()
-  const ordered = [
-    BACKGAMMON_HDRI_URLS[preferredIndex],
-    ...BACKGAMMON_HDRI_URLS.filter((_, idx) => idx !== preferredIndex)
-  ].filter(Boolean)
+  const ordered = resolveHdriUrlsByVariantIndex(preferredIndex)
   const tryNext = (index = 0) => {
     if (index >= ordered.length) return
     rgbe.load(
       ordered[index],
       (texture) => {
         texture.mapping = THREE.EquirectangularReflectionMapping
-        applySRGBColorSpace(texture)
         scene.environment = texture
       },
       undefined,
@@ -272,6 +282,8 @@ export default function TavullBattleRoyal() {
   useTelegramBackButton()
   const canvasHostRef = useRef(null)
   const sceneBundleRef = useRef(null)
+  const isMountedRef = useRef(true)
+  const pendingTimeoutsRef = useRef([])
 
   const [game, setGame] = useState({ points: initialBoard(), bar: { white: 0, black: 0 }, off: { white: 0, black: 0 } })
   const [dice, setDice] = useState([])
@@ -289,7 +301,6 @@ export default function TavullBattleRoyal() {
   const [showGift, setShowGift] = useState(false)
   const [chatBubbles, setChatBubbles] = useState([])
   const [soundEnabled, setSoundEnabled] = useState(true)
-  const [showHighlights, setShowHighlights] = useState(true)
   const [inventoryVersion, setInventoryVersion] = useState(0)
   const accountId = chessBattleAccountId()
   const chessInventory = useMemo(() => getChessBattleInventory(accountId), [accountId, inventoryVersion])
@@ -317,14 +328,6 @@ export default function TavullBattleRoyal() {
     }
   ]
 
-  const legalStarts = useMemo(() => {
-    if (!showHighlights) return new Set()
-    const starts = new Set()
-    available.forEach((seq) => {
-      if (seq.line[0]) starts.add(String(seq.line[0].from))
-    })
-    return starts
-  }, [available, showHighlights])
 
   const ownedChairOptions = useMemo(
     () => CHAIR_THEMES.filter((option) => isChessOptionUnlocked('chairColor', option.id, chessInventory)),
@@ -370,6 +373,7 @@ export default function TavullBattleRoyal() {
   }
 
   useEffect(() => {
+    isMountedRef.current = true
     if (!canvasHostRef.current) return undefined
 
     const host = canvasHostRef.current
@@ -565,9 +569,16 @@ export default function TavullBattleRoyal() {
       window.removeEventListener('resize', resize)
       controls.dispose()
       renderer.dispose()
-      host.removeChild(renderer.domElement)
+      if (host.contains(renderer.domElement)) host.removeChild(renderer.domElement)
       sceneBundleRef.current = null
+      isMountedRef.current = false
     }
+  }, [])
+
+  useEffect(() => () => {
+    pendingTimeoutsRef.current.forEach((id) => window.clearTimeout(id))
+    pendingTimeoutsRef.current = []
+    isMountedRef.current = false
   }, [])
 
   useEffect(() => {
@@ -667,9 +678,15 @@ export default function TavullBattleRoyal() {
     setIsRollingDice(true)
     setAiThinking(true)
 
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!isMountedRef.current) return
       setIsRollingDice(false)
-      const choice = pickAiSequence(stateAfterPlayer, aiDice)
+      let choice = null
+      try {
+        choice = pickAiSequence(stateAfterPlayer, aiDice)
+      } catch (error) {
+        console.error('Backgammon AI turn crashed, skipping turn safely.', error)
+      }
       if (!choice || !choice.line.length) {
         setMessage(`AI rolled ${d1}/${d2} but had no legal move. Your turn.`)
         setAiThinking(false)
@@ -684,6 +701,7 @@ export default function TavullBattleRoyal() {
       setDice([])
       setAvailable([])
     }, 700)
+    pendingTimeoutsRef.current.push(timeoutId)
   }
 
   const roll = () => {
@@ -692,10 +710,16 @@ export default function TavullBattleRoyal() {
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
     const useDice = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2]
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!isMountedRef.current) return
       setIsRollingDice(false)
       playSfx(MOVE_SOUND_URL, 0.45)
-      const seq = collectTurnSequences(game, WHITE, useDice)
+      let seq = []
+      try {
+        seq = collectTurnSequences(game, WHITE, useDice)
+      } catch (error) {
+        console.error('Backgammon player turn evaluation crashed.', error)
+      }
       setDice(useDice)
       setAvailable(seq)
       if (!seq.length || !seq.some((s) => s.line.length)) {
@@ -705,6 +729,7 @@ export default function TavullBattleRoyal() {
       }
       setMessage('Pick one legal turn from the move list.')
     }, 650)
+    pendingTimeoutsRef.current.push(timeoutId)
   }
 
   const handleSequence = (sequence) => {
@@ -776,10 +801,6 @@ export default function TavullBattleRoyal() {
               <span>Sound effects</span>
               <input type="checkbox" className="h-4 w-4" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} />
             </label>
-            <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-              <span>Show legal starts</span>
-              <input type="checkbox" className="h-4 w-4" checked={showHighlights} onChange={(event) => setShowHighlights(event.target.checked)} />
-            </label>
             <button
               type="button"
               onClick={() => navigate('/store/tavullbattleroyal')}
@@ -817,23 +838,6 @@ export default function TavullBattleRoyal() {
         {dice.length > 0 || isRollingDice ? <Dice values={dice.length ? dice : [1, 1]} rolling={isRollingDice} transparent /> : null}
       </div>
 
-
-      <div className="absolute bottom-20 left-1/2 z-20 grid w-[94vw] max-w-md -translate-x-1/2 grid-cols-6 gap-1">
-        {Array.from({ length: 24 }, (_, i) => (
-          <button
-            key={`point-${i}`}
-            type="button"
-            onClick={() => {
-              const first = available.find((seq) => Number(seq.line?.[0]?.from) === i)
-              if (first) handleSequence(first)
-            }}
-            className={`rounded-lg border px-1 py-1 text-[10px] ${legalStarts.has(String(i)) ? 'border-cyan-300 bg-cyan-500/20' : 'border-white/15 bg-white/5'}`}
-          >
-            P{i + 1}
-          </button>
-        ))}
-      </div>
-
       {available.length > 0 && (
         <div className="absolute bottom-32 left-1/2 z-30 w-[94vw] max-w-md -translate-x-1/2 rounded-xl border border-white/15 bg-black/70 p-2 text-[10px] backdrop-blur">
           <div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-cyan-200">Legal turns</div>
@@ -864,7 +868,7 @@ export default function TavullBattleRoyal() {
           showInfo={false}
           showChat={false}
           showMute={false}
-          className="fixed right-3 bottom-48 z-50 flex flex-col gap-4"
+          className="fixed right-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-50 flex flex-col gap-4"
           buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
           iconClassName="text-[1.65rem] leading-none"
           labelClassName="sr-only"
@@ -876,7 +880,7 @@ export default function TavullBattleRoyal() {
           showInfo={false}
           showGift={false}
           showMute={false}
-          className="fixed left-3 bottom-48 z-50 flex flex-col"
+          className="fixed left-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-50 flex flex-col"
           buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
           iconClassName="text-[1.65rem] leading-none"
           labelClassName="sr-only"
