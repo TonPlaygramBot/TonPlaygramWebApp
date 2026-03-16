@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
@@ -17,11 +18,17 @@ import AvatarTimer from '../../components/AvatarTimer.jsx'
 import { getGameVolume, isGameMuted } from '../../utils/sound.js'
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx'
 import GiftPopup from '../../components/GiftPopup.jsx'
-import { CHESS_BATTLE_STORE_ITEMS, CHESS_CHAIR_OPTIONS, CHESS_TABLE_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
+import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
 import { POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js'
-
-const WHITE = 'white'
-const BLACK = 'black'
+import { chessBattleAccountId, getChessBattleInventory, isChessOptionUnlocked } from '../../utils/chessBattleInventory.js'
+import {
+  BLACK,
+  WHITE,
+  collectTurnSequences,
+  formatMove,
+  initialBoard,
+  pickAiSequence
+} from '../../utils/tavullEngine.js'
 
 const TABLE_RADIUS = 2.55
 const TABLE_HEIGHT = 1.16
@@ -144,205 +151,6 @@ function loadHdriEnvironment(scene, preferredIndex = 0) {
   tryNext(0)
 }
 
-const initialBoard = () => {
-  const points = Array.from({ length: 24 }, () => ({ color: null, count: 0 }))
-  const set = (i, color, count) => {
-    points[i] = { color, count }
-  }
-  set(23, WHITE, 2)
-  set(12, WHITE, 5)
-  set(7, WHITE, 3)
-  set(5, WHITE, 5)
-  set(0, BLACK, 2)
-  set(11, BLACK, 5)
-  set(16, BLACK, 3)
-  set(18, BLACK, 5)
-  return points
-}
-
-const cloneState = (state) => ({
-  points: state.points.map((p) => ({ ...p })),
-  bar: { ...state.bar },
-  off: { ...state.off }
-})
-
-const other = (color) => (color === WHITE ? BLACK : WHITE)
-const dirFor = (color) => (color === WHITE ? -1 : 1)
-const homeRange = (color) => (color === WHITE ? [0, 5] : [18, 23])
-const canLand = (point, color) => !point.color || point.color === color || point.count === 1
-
-const canBearOff = (state, color) => {
-  if (state.bar[color] > 0) return false
-  const [start, end] = homeRange(color)
-  for (let i = 0; i < 24; i += 1) {
-    if (i < start || i > end) {
-      const p = state.points[i]
-      if (p.color === color && p.count > 0) return false
-    }
-  }
-  return true
-}
-
-const hasHigherHomeChecker = (state, color, from) => {
-  if (color === WHITE) {
-    for (let i = from + 1; i <= 5; i += 1) {
-      const p = state.points[i]
-      if (p.color === WHITE && p.count > 0) return true
-    }
-    return false
-  }
-  for (let i = from - 1; i >= 18; i -= 1) {
-    const p = state.points[i]
-    if (p.color === BLACK && p.count > 0) return true
-  }
-  return false
-}
-
-const destinationForBar = (color, die) => (color === WHITE ? 24 - die : die - 1)
-
-const getSingleDieMoves = (state, color, die) => {
-  const moves = []
-  if (state.bar[color] > 0) {
-    const dest = destinationForBar(color, die)
-    if (dest >= 0 && dest < 24 && canLand(state.points[dest], color)) {
-      moves.push({ from: 'bar', to: dest, die })
-    }
-    return moves
-  }
-
-  const direction = dirFor(color)
-  const canOff = canBearOff(state, color)
-
-  for (let i = 0; i < 24; i += 1) {
-    const p = state.points[i]
-    if (p.color !== color || p.count <= 0) continue
-    const dest = i + direction * die
-
-    if (dest >= 0 && dest < 24) {
-      if (canLand(state.points[dest], color)) moves.push({ from: i, to: dest, die })
-      continue
-    }
-
-    if (!canOff) continue
-    if (color === WHITE && dest < 0) {
-      const exact = i - die === -1
-      if (exact || !hasHigherHomeChecker(state, color, i)) moves.push({ from: i, to: 'off', die })
-    }
-    if (color === BLACK && dest > 23) {
-      const exact = i + die === 24
-      if (exact || !hasHigherHomeChecker(state, color, i)) moves.push({ from: i, to: 'off', die })
-    }
-  }
-
-  return moves
-}
-
-const applyMove = (state, color, move) => {
-  const next = cloneState(state)
-  if (move.from === 'bar') {
-    next.bar[color] -= 1
-  } else {
-    const fromPoint = next.points[move.from]
-    fromPoint.count -= 1
-    if (fromPoint.count === 0) fromPoint.color = null
-  }
-
-  if (move.to === 'off') {
-    next.off[color] += 1
-    return next
-  }
-
-  const toPoint = next.points[move.to]
-  if (toPoint.color === other(color) && toPoint.count === 1) {
-    toPoint.color = color
-    toPoint.count = 1
-    next.bar[other(color)] += 1
-    return next
-  }
-
-  if (!toPoint.color) toPoint.color = color
-  toPoint.count += 1
-  return next
-}
-
-const permutationsForDice = (dice) => {
-  if (dice.length !== 2 || dice[0] === dice[1]) return [dice]
-  return [dice, [dice[1], dice[0]]]
-}
-
-const collectTurnSequences = (state, color, dice) => {
-  const sequences = []
-  const recurse = (currentState, diceLeft, line = [], used = []) => {
-    if (!diceLeft.length) {
-      sequences.push({ line, usedDice: used, resultingState: currentState })
-      return
-    }
-    const [die, ...rest] = diceLeft
-    const options = getSingleDieMoves(currentState, color, die)
-    if (!options.length) {
-      sequences.push({ line, usedDice: used, resultingState: currentState })
-      return
-    }
-    options.forEach((mv) => recurse(applyMove(currentState, color, mv), rest, [...line, mv], [...used, die]))
-  }
-
-  permutationsForDice(dice).forEach((order) => recurse(state, order))
-
-  const maxUsed = sequences.reduce((max, s) => Math.max(max, s.usedDice.length), 0)
-  let filtered = sequences.filter((s) => s.usedDice.length === maxUsed)
-
-  if (maxUsed === 1 && dice.length === 2 && dice[0] !== dice[1]) {
-    const higher = Math.max(...dice)
-    if (getSingleDieMoves(state, color, higher).length > 0) {
-      filtered = filtered.filter((s) => s.usedDice[0] === higher)
-    }
-  }
-
-  return filtered
-}
-
-const scorePosition = (state, color) => {
-  const opp = other(color)
-  const pip = (player) => {
-    let total = state.bar[player] * 25
-    for (let i = 0; i < 24; i += 1) {
-      const p = state.points[i]
-      if (p.color !== player) continue
-      const distance = player === WHITE ? i + 1 : 24 - i
-      total += p.count * distance
-    }
-    return total
-  }
-
-  return (pip(opp) - pip(color)) + (state.off[color] - state.off[opp]) * 20 - state.bar[color] * 8 + state.bar[opp] * 8
-}
-
-const pickAiSequence = (state, dice) => {
-  const sequences = collectTurnSequences(state, BLACK, dice)
-  if (!sequences.length) return null
-
-  const outcomes = []
-  for (let d1 = 1; d1 <= 6; d1 += 1) {
-    for (let d2 = 1; d2 <= 6; d2 += 1) outcomes.push(d1 === d2 ? [d1, d1, d1, d1] : [d1, d2])
-  }
-
-  const expectedScoreFor = (afterAi) => {
-    let total = 0
-    outcomes.forEach((dicePair) => {
-      const whiteSeq = collectTurnSequences(afterAi, WHITE, dicePair)
-      if (!whiteSeq.length) {
-        total += scorePosition(afterAi, BLACK)
-        return
-      }
-      const whiteBest = whiteSeq.reduce((best, seq) => (scorePosition(seq.resultingState, WHITE) > scorePosition(best.resultingState, WHITE) ? seq : best), whiteSeq[0])
-      total += scorePosition(whiteBest.resultingState, BLACK)
-    })
-    return total / outcomes.length
-  }
-
-  return sequences.reduce((best, seq) => (expectedScoreFor(seq.resultingState) > expectedScoreFor(best.resultingState) ? seq : best), sequences[0])
-}
-
 function createArenaChairFallback(chairColor = '#8b1d2c', legColor = '#111827') {
   const seatMaterial = new THREE.MeshStandardMaterial({
     color: chairColor,
@@ -460,6 +268,7 @@ const pointBasePosition = (index) => {
 }
 
 export default function TavullBattleRoyal() {
+  const navigate = useNavigate()
   useTelegramBackButton()
   const canvasHostRef = useRef(null)
   const sceneBundleRef = useRef(null)
@@ -479,7 +288,11 @@ export default function TavullBattleRoyal() {
   const [showChat, setShowChat] = useState(false)
   const [showGift, setShowGift] = useState(false)
   const [chatBubbles, setChatBubbles] = useState([])
-  const [menuTab, setMenuTab] = useState('settings')
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [showHighlights, setShowHighlights] = useState(true)
+  const [inventoryVersion, setInventoryVersion] = useState(0)
+  const accountId = chessBattleAccountId()
+  const chessInventory = useMemo(() => getChessBattleInventory(accountId), [accountId, inventoryVersion])
   const playerName = getTelegramFirstName() || 'Player'
   const playerAvatar = getTelegramPhotoUrl()
 
@@ -505,15 +318,50 @@ export default function TavullBattleRoyal() {
   ]
 
   const legalStarts = useMemo(() => {
+    if (!showHighlights) return new Set()
     const starts = new Set()
     available.forEach((seq) => {
       if (seq.line[0]) starts.add(String(seq.line[0].from))
     })
     return starts
-  }, [available])
+  }, [available, showHighlights])
+
+  const ownedChairOptions = useMemo(
+    () => CHAIR_THEMES.filter((option) => isChessOptionUnlocked('chairColor', option.id, chessInventory)),
+    [chessInventory]
+  )
+  const ownedHdriOptions = useMemo(
+    () => POOL_ROYALE_HDRI_VARIANTS.filter((option) => isChessOptionUnlocked('environmentHdri', option.id, chessInventory)),
+    [chessInventory]
+  )
+  const ownedFinishOptions = useMemo(
+    () => MURLAN_TABLE_FINISHES.filter((option) => isChessOptionUnlocked('tableFinish', option.id, chessInventory)),
+    [chessInventory]
+  )
+
+  useEffect(() => {
+    const onInventoryUpdate = () => setInventoryVersion((v) => v + 1)
+    window.addEventListener('chessBattleInventoryUpdate', onInventoryUpdate)
+    return () => window.removeEventListener('chessBattleInventoryUpdate', onInventoryUpdate)
+  }, [])
+
+  useEffect(() => {
+    if (!ownedFinishOptions.length) return
+    if (!ownedFinishOptions[tableFinishIdx]) setTableFinishIdx(0)
+  }, [ownedFinishOptions, tableFinishIdx])
+
+  useEffect(() => {
+    if (!ownedChairOptions.length) return
+    if (!ownedChairOptions[chairThemeIdx]) setChairThemeIdx(0)
+  }, [ownedChairOptions, chairThemeIdx])
+
+  useEffect(() => {
+    if (!ownedHdriOptions.length) return
+    if (!ownedHdriOptions[hdriIdx]) setHdriIdx(0)
+  }, [ownedHdriOptions, hdriIdx])
 
   const playSfx = (url, volumeScale = 1) => {
-    if (isGameMuted()) return
+    if (isGameMuted() || !soundEnabled) return
     try {
       const audio = new Audio(url)
       audio.volume = Math.min(1, getGameVolume() * volumeScale)
@@ -580,7 +428,7 @@ export default function TavullBattleRoyal() {
     fill.position.set(-4, 4.5, -3)
     scene.add(fill)
 
-    loadHdriEnvironment(scene, hdriIdx)
+    loadHdriEnvironment(scene, 0)
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT })
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[0])
@@ -731,14 +579,18 @@ export default function TavullBattleRoyal() {
   useEffect(() => {
     const bundle = sceneBundleRef.current
     if (!bundle?.applyTableFinish) return
-    bundle.applyTableFinish(tableFinishIdx)
-  }, [tableFinishIdx])
+    const selected = ownedFinishOptions[tableFinishIdx] || ownedFinishOptions[0]
+    const globalIdx = MURLAN_TABLE_FINISHES.findIndex((option) => option.id === selected?.id)
+    bundle.applyTableFinish(globalIdx >= 0 ? globalIdx : 0)
+  }, [tableFinishIdx, ownedFinishOptions])
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
     if (!bundle?.applyHdri) return
-    bundle.applyHdri(hdriIdx)
-  }, [hdriIdx])
+    const selected = ownedHdriOptions[hdriIdx] || ownedHdriOptions[0]
+    const globalIdx = POOL_ROYALE_HDRI_VARIANTS.findIndex((option) => option.id === selected?.id)
+    bundle.applyHdri(globalIdx >= 0 ? globalIdx : 0)
+  }, [hdriIdx, ownedHdriOptions])
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
@@ -749,8 +601,10 @@ export default function TavullBattleRoyal() {
   useEffect(() => {
     const bundle = sceneBundleRef.current
     if (!bundle?.applyChairs) return
-    void bundle.applyChairs(chairThemeIdx)
-  }, [chairThemeIdx])
+    const selected = ownedChairOptions[chairThemeIdx] || ownedChairOptions[0]
+    const globalIdx = CHAIR_THEMES.findIndex((option) => option.id === selected?.id)
+    void bundle.applyChairs(globalIdx >= 0 ? globalIdx : 0)
+  }, [chairThemeIdx, ownedChairOptions])
 
   useEffect(() => {
     if (!winner) return
@@ -849,20 +703,19 @@ export default function TavullBattleRoyal() {
         playAi(game)
         return
       }
-      setMessage('Tap a highlighted point button below to play your legal turn.')
+      setMessage('Pick one legal turn from the move list.')
     }, 650)
   }
 
-  const handlePoint = (index) => {
+  const handleSequence = (sequence) => {
     if (!available.length || aiThinking || winner) return
-    const matching = available.find((s) => String(s.line[0]?.from) === String(index))
-    if (!matching) return
-    setGame(matching.resultingState)
+    if (!sequence?.line?.length) return
+    setGame(sequence.resultingState)
     playSfx(MOVE_SOUND_URL, 0.65)
     setAvailable([])
     setDice([])
     setMessage('You played. AI is thinking…')
-    playAi(matching.resultingState)
+    playAi(sequence.resultingState)
   }
 
   return (
@@ -905,41 +758,54 @@ export default function TavullBattleRoyal() {
       </div>
 
       {configOpen && (
-        <div className="absolute top-32 right-4 z-30 pointer-events-auto mt-2 w-80 max-w-[86vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
-          <div className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Backgammon Settings</div>
-          <div className="mt-2 flex gap-2 text-[11px] uppercase tracking-[0.2em]">
-            {['settings', 'inventory', 'store'].map((tab) => (
-              <button key={tab} type="button" onClick={() => setMenuTab(tab)} className={`rounded px-2 py-1 ${menuTab === tab ? 'bg-white/20' : 'bg-white/10'}`}>
-                {tab}
-              </button>
-            ))}
+        <div className="absolute top-32 right-4 z-30 pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Backgammon Settings</p>
+              <p className="mt-1 text-[0.7rem] text-white/70">Royal menu with the same options flow as Chess Battle Royal.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfigOpen(false)}
+              className="rounded-full p-1 text-white/70 transition hover:text-white"
+              aria-label="Close settings"
+            >✕</button>
           </div>
-          {menuTab === 'settings' && <div className="mt-2 text-white/70">Roll, select highlighted points, and bear off all 15 checkers to win.</div>}
-          {menuTab === 'settings' && <div className="mt-3 grid gap-2">
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setTableFinishIdx((v) => (v + 1) % MURLAN_TABLE_FINISHES.length)}>
-              Table: {MURLAN_TABLE_FINISHES[tableFinishIdx]?.name || 'Default'}
+          <div className="mt-4 space-y-3">
+            <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+              <span>Sound effects</span>
+              <input type="checkbox" className="h-4 w-4" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} />
+            </label>
+            <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+              <span>Show legal starts</span>
+              <input type="checkbox" className="h-4 w-4" checked={showHighlights} onChange={(event) => setShowHighlights(event.target.checked)} />
+            </label>
+            <button
+              type="button"
+              onClick={() => navigate('/store/tavullbattleroyal')}
+              className="w-full rounded-lg border border-emerald-300/60 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100"
+            >
+              Open Store
             </button>
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setChairThemeIdx((v) => (v + 1) % CHAIR_THEMES.length)}>
-              Chairs: {CHAIR_THEMES[chairThemeIdx]?.label || 'Royal'}
-            </button>
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setHdriIdx((v) => (v + 1) % BACKGAMMON_HDRI_URLS.length)}>
-              HDRI: {hdriIdx + 1}/{BACKGAMMON_HDRI_URLS.length}
-            </button>
-            <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setQualityIdx((v) => (v + 1) % QUALITY_OPTIONS.length)}>
-              Graphics: {QUALITY_OPTIONS[qualityIdx]?.label || 'Balanced'}
-            </button>
-          </div>}
-          {menuTab === 'inventory' && <div className="mt-3 max-h-52 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
-            <div className="text-white/70">Tables ({CHESS_TABLE_OPTIONS.length}), Chairs ({CHAIR_THEMES.length}), HDRIs ({POOL_ROYALE_HDRI_VARIANTS.length})</div>
-            {CHESS_TABLE_OPTIONS.map((item) => <div key={item.id} className="rounded border border-white/15 px-2 py-1">Table: {item.label}</div>)}
-            {CHAIR_THEMES.map((item) => <div key={item.id} className="rounded border border-white/15 px-2 py-1">Chair: {item.label}</div>)}
-            {POOL_ROYALE_HDRI_VARIANTS.map((item) => <div key={item.id} className="rounded border border-white/15 px-2 py-1">HDRI: {item.name}</div>)}
-          </div>}
-          {menuTab === 'store' && <div className="mt-3 max-h-52 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
-            {CHESS_BATTLE_STORE_ITEMS.filter((item) => ['tables', 'chairColor', 'environmentHdri', 'tableFinish'].includes(item.type)).map((item) => (
-              <div key={item.id} className="rounded border border-white/15 px-2 py-1">{item.name} · {item.price} TPC</div>
-            ))}
-          </div>}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+              <p className="mt-1 text-[0.7rem] text-white/60">Only owned items are shown here.</p>
+              <div className="mt-3 grid gap-2">
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setTableFinishIdx((v) => (v + 1) % Math.max(1, ownedFinishOptions.length))}>
+                  Table Finish: {ownedFinishOptions[tableFinishIdx]?.label || ownedFinishOptions[0]?.label || 'Default'}
+                </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setChairThemeIdx((v) => (v + 1) % Math.max(1, ownedChairOptions.length))}>
+                  Chair Theme: {ownedChairOptions[chairThemeIdx]?.label || ownedChairOptions[0]?.label || 'Royal'}
+                </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setHdriIdx((v) => (v + 1) % Math.max(1, ownedHdriOptions.length))}>
+                  Environment: {ownedHdriOptions[hdriIdx]?.name || ownedHdriOptions[0]?.name || 'Studio'}
+                </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setQualityIdx((v) => (v + 1) % QUALITY_OPTIONS.length)}>
+                  Graphics: {QUALITY_OPTIONS[qualityIdx]?.label || 'Balanced'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -957,13 +823,29 @@ export default function TavullBattleRoyal() {
           <button
             key={`point-${i}`}
             type="button"
-            onClick={() => handlePoint(i)}
+            onClick={() => {
+              const first = available.find((seq) => Number(seq.line?.[0]?.from) === i)
+              if (first) handleSequence(first)
+            }}
             className={`rounded-lg border px-1 py-1 text-[10px] ${legalStarts.has(String(i)) ? 'border-cyan-300 bg-cyan-500/20' : 'border-white/15 bg-white/5'}`}
           >
             P{i + 1}
           </button>
         ))}
       </div>
+
+      {available.length > 0 && (
+        <div className="absolute bottom-32 left-1/2 z-30 w-[94vw] max-w-md -translate-x-1/2 rounded-xl border border-white/15 bg-black/70 p-2 text-[10px] backdrop-blur">
+          <div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-cyan-200">Legal turns</div>
+          <div className="max-h-28 space-y-1 overflow-y-auto">
+            {available.map((seq, idx) => (
+              <button key={`seq-${idx}`} type="button" onClick={() => handleSequence(seq)} className="block w-full rounded border border-cyan-300/40 bg-cyan-500/10 px-2 py-1 text-left">
+                {seq.line.map((move) => formatMove(move)).join(' • ')}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="absolute left-1/2 top-[73%] z-20 flex translate-x-5 -translate-y-1/2">
         <button
