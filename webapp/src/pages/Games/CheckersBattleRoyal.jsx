@@ -59,7 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.14;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -607,17 +607,6 @@ async function loadCheckersBoardModel(renderer = null) {
     return current;
   };
 
-  const loadWithTimeout = async (resolvedUrl, timeoutMs = 600) =>
-    await Promise.race([
-      loader.loadAsync(resolvedUrl),
-      new Promise((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error(`Board load timed out: ${resolvedUrl}`)),
-          timeoutMs
-        );
-      })
-    ]);
-
   for (const url of BEAUTIFUL_GAME_BOARD_URLS) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
@@ -628,7 +617,7 @@ async function loadCheckersBoardModel(renderer = null) {
       loader.setResourcePath(resourcePath);
       loader.setPath('');
       // eslint-disable-next-line no-await-in-loop
-      const gltf = await loadWithTimeout(resolvedUrl);
+      const gltf = await loader.loadAsync(resolvedUrl);
       const source = gltf?.scene || gltf?.scenes?.[0];
       if (!source) continue;
 
@@ -888,20 +877,9 @@ async function buildChessMappedChairTemplate() {
   loader.setDRACOLoader(draco);
   let gltf = null;
   let lastError = null;
-  const loadChairWithTimeout = async (url, timeoutMs = 600) =>
-    await Promise.race([
-      loader.loadAsync(url),
-      new Promise((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error(`Chair load timed out: ${url}`)),
-          timeoutMs
-        );
-      })
-    ]);
-
   for (const url of CHAIR_MODEL_URLS) {
     try {
-      gltf = await loadChairWithTimeout(url);
+      gltf = await loader.loadAsync(url);
       break;
     } catch (error) {
       lastError = error;
