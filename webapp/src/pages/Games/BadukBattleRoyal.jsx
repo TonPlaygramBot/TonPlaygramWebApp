@@ -26,13 +26,14 @@ import AvatarTimer from '../../components/AvatarTimer.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
-import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const BOARD_SIZES = [9, 13, 16, 19];
 const BOARD_TEXTURE_SIZE = 2048;
 const BOARD_GRID_MIN = 86;
 const BOARD_GRID_MAX = 938;
 const BOARD_GRID_RANGE_RATIO = (BOARD_GRID_MAX - BOARD_GRID_MIN) / BOARD_TEXTURE_SIZE;
+const BOARD_WORLD_EXTENT = 2.04;
 
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -144,6 +145,51 @@ const optionButton = (active) =>
     active ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'
   }`;
 
+function createBadukTileBoard(boardSize, boardTheme) {
+  const group = new THREE.Group();
+  const playableExtent = BOARD_WORLD_EXTENT * BOARD_GRID_RANGE_RATIO;
+  const step = playableExtent / Math.max(boardSize - 1, 1);
+  const tileSize = step * 0.9;
+  const tileHeight = 0.04;
+  const start = -playableExtent / 2;
+  const boardTint = new THREE.Color(boardTheme?.tint || '#d7a359');
+  const lightTileColor = boardTint.clone().offsetHSL(0.012, 0.08, 0.08);
+  const darkTileColor = boardTint.clone().offsetHSL(-0.008, -0.04, -0.08);
+  const tileGeometry = new THREE.BoxGeometry(tileSize, tileHeight, tileSize);
+
+  for (let r = 0; r < boardSize - 1; r += 1) {
+    for (let c = 0; c < boardSize - 1; c += 1) {
+      const isDark = (r + c) % 2 === 0;
+      const tile = new THREE.Mesh(
+        tileGeometry,
+        new THREE.MeshStandardMaterial({
+          color: isDark ? darkTileColor : lightTileColor,
+          roughness: 0.75,
+          metalness: 0.03
+        })
+      );
+      tile.position.set(start + c * step + step / 2, TABLE_HEIGHT + 0.046, start + r * step + step / 2);
+      tile.castShadow = true;
+      tile.receiveShadow = true;
+      group.add(tile);
+    }
+  }
+
+  const gridColor = new THREE.Color(boardTheme?.grid || '#4d2f2d');
+  const gridMaterial = new THREE.LineBasicMaterial({ color: gridColor, transparent: true, opacity: 0.82 });
+  const points = [];
+  for (let i = 0; i < boardSize; i += 1) {
+    const p = start + i * step;
+    points.push(new THREE.Vector3(start, TABLE_HEIGHT + 0.068, p), new THREE.Vector3(-start, TABLE_HEIGHT + 0.068, p));
+    points.push(new THREE.Vector3(p, TABLE_HEIGHT + 0.068, start), new THREE.Vector3(p, TABLE_HEIGHT + 0.068, -start));
+  }
+  const gridGeometry = new THREE.BufferGeometry().setFromPoints(points);
+  const grid = new THREE.LineSegments(gridGeometry, gridMaterial);
+  group.add(grid);
+
+  return group;
+}
+
 export default function BadukBattleRoyal() {
   useTelegramBackButton();
   const mountRef = useRef(null);
@@ -223,7 +269,7 @@ export default function BadukBattleRoyal() {
   }, [graphicsId]);
 
   const worldFromCell = (r, c) => {
-    const boardExtent = 2.04;
+    const boardExtent = BOARD_WORLD_EXTENT;
     const playableExtent = boardExtent * BOARD_GRID_RANGE_RATIO;
     const step = playableExtent / (boardSize - 1);
     const start = -playableExtent / 2;
@@ -233,7 +279,7 @@ export default function BadukBattleRoyal() {
   };
 
   const cellFromWorld = (x, z) => {
-    const boardExtent = 2.04;
+    const boardExtent = BOARD_WORLD_EXTENT;
     const playableExtent = boardExtent * BOARD_GRID_RANGE_RATIO;
     const halfPlayable = playableExtent / 2;
     const normalizedX = clamp((x + halfPlayable) / playableExtent, 0, 1);
@@ -355,25 +401,25 @@ export default function BadukBattleRoyal() {
     boardBase.position.y = TABLE_HEIGHT + 0.02;
     boardGroup.add(boardBase);
 
+    const boardTheme = BADUK_BOARD_THEMES.find((theme) => theme.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
+    const boardTiles = createBadukTileBoard(boardSize, boardTheme);
+    boardGroup.add(boardTiles);
+
     const boardPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.04, 2.04),
-      new THREE.MeshStandardMaterial({ color: '#d7a359', roughness: 0.78, metalness: 0 })
+      new THREE.PlaneGeometry(BOARD_WORLD_EXTENT, BOARD_WORLD_EXTENT),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      })
     );
     boardPlane.rotation.x = -Math.PI / 2;
-    boardPlane.position.y = TABLE_HEIGHT + 0.046;
+    boardPlane.position.y = TABLE_HEIGHT + 0.09;
     boardPlane.name = 'baduk-board-click-plane';
     boardGroup.add(boardPlane);
     boardMeshRef.current = boardPlane;
-
-    const boardTexture = new THREE.TextureLoader().load(`/assets/game-art/baduk-battle-royal/boards/${boardSize}x${boardSize}.svg`);
-    applySRGBColorSpace(boardTexture);
-    boardTexture.anisotropy = 16;
-    boardTexture.minFilter = THREE.LinearMipmapLinearFilter;
-    boardTexture.magFilter = THREE.LinearFilter;
-    boardPlane.material.map = boardTexture;
-    const boardTheme = BADUK_BOARD_THEMES.find((theme) => theme.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
-    boardPlane.material.color = new THREE.Color(boardTheme?.tint || '#d7a359');
-    boardPlane.material.needsUpdate = true;
 
     const stonesGroup = new THREE.Group();
     stonesGroupRef.current = stonesGroup;
