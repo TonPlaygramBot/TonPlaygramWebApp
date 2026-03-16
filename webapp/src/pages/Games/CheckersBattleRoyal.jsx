@@ -56,11 +56,8 @@ const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD = { N: 8, tile: 4.2, rim: 3 };
 const BOARD_SCALE = 0.0576;
-const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_TILE_SIZE = BOARD_DISPLAY_SIZE / SIZE;
+const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -116,91 +113,60 @@ const resolveHdriVariant = (value) => {
 const CHECKERS_BOARD_THEMES = Object.freeze([
   {
     id: 'classic',
-    light: '#eee8d5',
-    dark: '#2b2f36',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    preserveOriginalMaterials: true,
+    light: '#e7e2d3',
+    dark: '#776a5a',
+    frameLight: '#d2b48c',
+    frameDark: '#3a2d23'
   },
   {
     id: 'ivorySlate',
-    light: '#e5e7eb',
-    dark: '#111827',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#ece5d6',
+    dark: '#4b5563',
+    frameLight: '#d6c8a9',
+    frameDark: '#111827'
   },
   {
     id: 'forest',
-    light: '#a7f3d0',
-    dark: '#065f46',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#e7f6dc',
+    dark: '#1f4d36',
+    frameLight: '#9fbe8e',
+    frameDark: '#163525'
   },
   {
     id: 'sand',
-    light: '#ddd0b8',
-    dark: '#6b4f3a',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#f7dfbe',
+    dark: '#8a5a3c',
+    frameLight: '#d5a779',
+    frameDark: '#422313'
   },
   {
     id: 'ocean',
-    light: '#a4c8e1',
-    dark: '#1e3a5f',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#dceef6',
+    dark: '#1e3a8a',
+    frameLight: '#a6c8db',
+    frameDark: '#172554'
   },
   {
     id: 'violet',
-    light: '#ddd6fe',
-    dark: '#3b2a6e',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#efe8ff',
+    dark: '#5b3a82',
+    frameLight: '#c3a7ea',
+    frameDark: '#312040'
   },
   {
     id: 'chrome',
-    light: '#b0b0b0',
-    dark: '#6e6e6e',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#ecf2f8',
+    dark: '#334155',
+    frameLight: '#d1dae5',
+    frameDark: '#0f172a'
   },
   {
     id: 'nebulaGlass',
-    light: '#e0f2fe',
-    dark: '#0b1024',
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14
+    light: '#dbeafe',
+    dark: '#1e1b4b',
+    frameLight: '#a5b4fc',
+    frameDark: '#111827'
   }
 ]);
 
@@ -560,7 +526,12 @@ async function loadCheckersBoardModel(renderer = null) {
 
       const boardModel = source.clone(true);
       boardModel.name = 'ABeautifulGameBoard';
-      const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king|piece|whitepiece|blackpiece)\b/i;
+      boardModel.userData = {
+        ...(boardModel.userData || {}),
+        forceOriginalTextures: true
+      };
+
+      const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
       const prune = [];
       boardModel.traverse((node) => {
         if (!node?.isObject3D) return;
@@ -644,6 +615,8 @@ function applyCheckersBoardTheme(
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
 
+  if (boardModel?.userData?.forceOriginalTextures) return;
+
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
   const light = new THREE.Color(option?.light || '#e7e2d3');
@@ -673,13 +646,9 @@ function applyCheckersBoardTheme(
         if (mat?.map) mat.map = null;
         if (mat?.color?.copy) mat.color.copy(taggedColor);
         if ('roughness' in mat)
-          mat.roughness = /frame/.test(taggedPart)
-            ? option?.frameRoughness ?? 0.74
-            : option?.surfaceRoughness ?? 0.62;
+          mat.roughness = /frame/.test(taggedPart) ? 0.78 : 0.4;
         if ('metalness' in mat)
-          mat.metalness = /frame/.test(taggedPart)
-            ? option?.frameMetalness ?? 0.14
-            : option?.surfaceMetalness ?? 0.12;
+          mat.metalness = /frame/.test(taggedPart) ? 0.18 : 0.2;
         mat.needsUpdate = true;
       });
       node.castShadow = true;
@@ -709,14 +678,8 @@ function applyCheckersBoardTheme(
       if (!mat) return;
       if (mat?.map) mat.map = null;
       if (mat?.color?.copy) mat.color.copy(targetColor);
-      if ('roughness' in mat)
-        mat.roughness = isFrame
-          ? option?.frameRoughness ?? 0.74
-          : option?.surfaceRoughness ?? 0.62;
-      if ('metalness' in mat)
-        mat.metalness = isFrame
-          ? option?.frameMetalness ?? 0.14
-          : option?.surfaceMetalness ?? 0.12;
+      if ('roughness' in mat) mat.roughness = isFrame ? 0.8 : 0.62;
+      if ('metalness' in mat) mat.metalness = isFrame ? 0.2 : 0.08;
       mat.needsUpdate = true;
     });
     node.castShadow = true;
