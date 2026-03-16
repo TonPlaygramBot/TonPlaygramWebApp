@@ -57,7 +57,6 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.0576;
-const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -80,6 +79,12 @@ const DRACO_DECODER_PATH =
   'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const BEAUTIFUL_GAME_BOARD_URLS = Object.freeze([
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+]);
 
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
@@ -415,7 +420,7 @@ const searchBestMove = (
   return { score: bestScore, move: bestMove };
 };
 
-async function loadCheckersBoardModel() {
+function buildFallbackCheckersBoardModel() {
   const targetBoardSize = BOARD_TILE_SIZE * SIZE;
   const boardModel = new THREE.Group();
   boardModel.name = 'ChessBattleRoyalBoard';
@@ -499,6 +504,80 @@ async function loadCheckersBoardModel() {
   }
   boardModel.add(tileGroup);
   return boardModel;
+}
+
+async function loadCheckersBoardModel(renderer = null) {
+  const loader = createConfiguredGLTFLoader(renderer);
+  let lastError = null;
+
+  for (const url of BEAUTIFUL_GAME_BOARD_URLS) {
+    try {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const resourcePath = resolvedUrl.substring(
+        0,
+        resolvedUrl.lastIndexOf('/') + 1
+      );
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
+      // eslint-disable-next-line no-await-in-loop
+      const gltf = await loader.loadAsync(resolvedUrl);
+      const source = gltf?.scene || gltf?.scenes?.[0];
+      if (!source) continue;
+
+      const boardModel = source.clone(true);
+      boardModel.name = 'ABeautifulGameBoard';
+      boardModel.userData = {
+        ...(boardModel.userData || {}),
+        forceOriginalTextures: true
+      };
+
+      const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
+      const prune = [];
+      boardModel.traverse((node) => {
+        if (!node?.isObject3D) return;
+        const name = `${node.name || ''}`.toLowerCase();
+        if (pieceTokens.test(name)) prune.push(node);
+        if (!node?.isMesh) return;
+        node.castShadow = true;
+        node.receiveShadow = true;
+        const mats = Array.isArray(node.material)
+          ? node.material
+          : [node.material];
+        mats.forEach((mat) => {
+          if (mat?.map) applySRGBColorSpace(mat.map);
+          if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+          mat.needsUpdate = true;
+        });
+      });
+      prune.forEach((node) => node.parent?.remove(node));
+
+      const box = new THREE.Box3().setFromObject(boardModel);
+      const size = box.getSize(new THREE.Vector3());
+      const largest = Math.max(size.x, size.z, 0.001);
+      const targetSize = BOARD_TILE_SIZE * SIZE;
+      const scale = targetSize / largest;
+      boardModel.scale.multiplyScalar(scale);
+
+      const scaledBox = new THREE.Box3().setFromObject(boardModel);
+      const center = scaledBox.getCenter(new THREE.Vector3());
+      boardModel.position.set(
+        -center.x,
+        TABLE_HEIGHT + 0.01 - scaledBox.min.y,
+        -center.z
+      );
+      return boardModel;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) {
+    console.warn(
+      'Checkers Battle Royal: failed to load chess board GLTF, using fallback.',
+      lastError
+    );
+  }
+  return buildFallbackCheckersBoardModel();
 }
 
 function snapshotBoardMaterials(boardModel) {
@@ -1317,11 +1396,8 @@ export default function CheckersBattleRoyal() {
       const proceduralBoard = addVisibleBoardBase();
 
       try {
-        const boardRoot = await loadCheckersBoardModel();
-        const boardVisualGroup = new THREE.Group();
-        boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
-        boardVisualGroup.add(boardRoot);
-        scene.add(boardVisualGroup);
+        const boardRoot = await loadCheckersBoardModel(renderer);
+        scene.add(boardRoot);
         gltfBoardRef.current = boardRoot;
         applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
         proceduralBoard.visible = false;
