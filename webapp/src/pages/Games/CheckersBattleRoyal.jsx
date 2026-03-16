@@ -57,8 +57,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.0576;
-const BOARD_TILE_SIZE = 4.2 * BOARD_SCALE;
-const BOARD_DISPLAY_SIZE = (SIZE * 4.2 + 3 * 2) * BOARD_SCALE;
+const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -422,7 +421,7 @@ const searchBestMove = (
 };
 
 function buildFallbackCheckersBoardModel() {
-  const targetBoardSize = BOARD_DISPLAY_SIZE;
+  const targetBoardSize = BOARD_TILE_SIZE * SIZE;
   const boardModel = new THREE.Group();
   boardModel.name = 'ChessBattleRoyalBoard';
   const boardBaseY = TABLE_HEIGHT - 0.2;
@@ -430,7 +429,7 @@ function buildFallbackCheckersBoardModel() {
   const frameSize = targetBoardSize * 1.14;
   const frameHeight = 0.14;
   const topHeight = 0.04;
-  const tileSize = BOARD_TILE_SIZE;
+  const tileSize = targetBoardSize / SIZE;
 
   const frameDarkMat = new THREE.MeshStandardMaterial({
     color: '#3a2d23',
@@ -527,6 +526,10 @@ async function loadCheckersBoardModel(renderer = null) {
 
       const boardModel = source.clone(true);
       boardModel.name = 'ABeautifulGameBoard';
+      boardModel.userData = {
+        ...(boardModel.userData || {}),
+        forceOriginalTextures: true
+      };
 
       const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
       const prune = [];
@@ -551,7 +554,7 @@ async function loadCheckersBoardModel(renderer = null) {
       const box = new THREE.Box3().setFromObject(boardModel);
       const size = box.getSize(new THREE.Vector3());
       const largest = Math.max(size.x, size.z, 0.001);
-      const targetSize = BOARD_DISPLAY_SIZE;
+      const targetSize = BOARD_TILE_SIZE * SIZE;
       const scale = targetSize / largest;
       boardModel.scale.multiplyScalar(scale);
 
@@ -612,6 +615,7 @@ function applyCheckersBoardTheme(
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
 
+  if (boardModel?.userData?.forceOriginalTextures) return;
 
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
