@@ -28,6 +28,8 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import {
+  CHESS_BATTLE_OPTION_LABELS,
+  CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_CHAIR_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
@@ -84,6 +86,76 @@ const CHESS_BOARD_GLTF_URLS = [
   'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
   'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
 ];
+
+const CHECKERS_BOARD_THEMES = Object.freeze([
+  {
+    id: 'classic',
+    preserveOriginalMaterials: true,
+    light: '#e7e2d3',
+    dark: '#776a5a',
+    frameLight: '#d2b48c',
+    frameDark: '#3a2d23'
+  },
+  {
+    id: 'ivorySlate',
+    light: '#ece5d6',
+    dark: '#4b5563',
+    frameLight: '#d6c8a9',
+    frameDark: '#111827'
+  },
+  {
+    id: 'forest',
+    light: '#e7f6dc',
+    dark: '#1f4d36',
+    frameLight: '#9fbe8e',
+    frameDark: '#163525'
+  },
+  {
+    id: 'sand',
+    light: '#f7dfbe',
+    dark: '#8a5a3c',
+    frameLight: '#d5a779',
+    frameDark: '#422313'
+  },
+  {
+    id: 'ocean',
+    light: '#dceef6',
+    dark: '#1e3a8a',
+    frameLight: '#a6c8db',
+    frameDark: '#172554'
+  },
+  {
+    id: 'violet',
+    light: '#efe8ff',
+    dark: '#5b3a82',
+    frameLight: '#c3a7ea',
+    frameDark: '#312040'
+  },
+  {
+    id: 'chrome',
+    light: '#ecf2f8',
+    dark: '#334155',
+    frameLight: '#d1dae5',
+    frameDark: '#0f172a'
+  },
+  {
+    id: 'nebulaGlass',
+    light: '#dbeafe',
+    dark: '#1e1b4b',
+    frameLight: '#a5b4fc',
+    frameDark: '#111827'
+  }
+]);
+
+const CHECKERS_BOARD_THEME_OPTIONS = Object.freeze(
+  CHECKERS_BOARD_THEMES.map((theme) => ({
+    ...theme,
+    label: CHESS_BATTLE_OPTION_LABELS.boardTheme[theme.id] || theme.id,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme[theme.id]
+  }))
+);
+
+const BOARD_MATERIAL_CACHE = new WeakMap();
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -356,6 +428,81 @@ async function loadCheckersBoardModel(loader) {
   throw err || new Error('Checkers board GLTF failed to load');
 }
 
+
+
+function snapshotBoardMaterials(boardModel) {
+  if (!boardModel || BOARD_MATERIAL_CACHE.has(boardModel)) return;
+  const cache = new Map();
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material)
+      ? node.material.map((mat) => (mat?.clone ? mat.clone() : mat))
+      : [node.material?.clone ? node.material.clone() : node.material];
+    cache.set(node.uuid, mats);
+  });
+  BOARD_MATERIAL_CACHE.set(boardModel, cache);
+}
+
+function restoreBoardMaterials(boardModel) {
+  const cache = BOARD_MATERIAL_CACHE.get(boardModel);
+  if (!boardModel || !cache) return;
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = cache.get(node.uuid);
+    if (!mats) return;
+    const cloned = mats.map((mat) => (mat?.clone ? mat.clone() : mat));
+    node.material = Array.isArray(node.material) ? cloned : cloned[0];
+    node.castShadow = true;
+    node.receiveShadow = true;
+  });
+}
+
+function applyCheckersBoardTheme(boardModel, option = CHECKERS_BOARD_THEME_OPTIONS[0]) {
+  if (!boardModel) return;
+  snapshotBoardMaterials(boardModel);
+  restoreBoardMaterials(boardModel);
+
+  if (option?.preserveOriginalMaterials) return;
+
+  const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
+  const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
+  const light = new THREE.Color(option?.light || '#e7e2d3');
+  const dark = new THREE.Color(option?.dark || '#776a5a');
+
+  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const toArray = (value) => (Array.isArray(value) ? value : [value]);
+
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''} ${node.parent?.name || ''}`.toLowerCase();
+    const mats = toArray(node.material);
+
+    let avgLum = 0;
+    let count = 0;
+    mats.forEach((mat) => {
+      if (!mat?.color) return;
+      avgLum += luminance(mat.color);
+      count += 1;
+    });
+    const baseIsLight = count ? avgLum / count >= 0.5 : true;
+
+    const isFrame = /frame|border|rim|base|stand/.test(name);
+    const targetColor = isFrame
+      ? (baseIsLight ? frameLight : frameDark)
+      : (baseIsLight ? light : dark);
+
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat?.map) mat.map = null;
+      if (mat?.color?.copy) mat.color.copy(targetColor);
+      if ('roughness' in mat) mat.roughness = isFrame ? 0.8 : 0.62;
+      if ('metalness' in mat) mat.metalness = isFrame ? 0.2 : 0.08;
+      mat.needsUpdate = true;
+    });
+    node.castShadow = true;
+    node.receiveShadow = true;
+  });
+}
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
   try {
@@ -557,6 +704,9 @@ export default function CheckersBattleRoyal() {
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
   const envRef = useRef({ map: null, skybox: null });
+  const boardThemeRef = useRef(CHECKERS_BOARD_THEME_OPTIONS[0]);
+  const gltfBoardRef = useRef(null);
+  const proceduralBoardRef = useRef({ lightMat: null, darkMat: null });
 
   const [turn, setTurn] = useState('light');
   const [status, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
@@ -574,7 +724,8 @@ export default function CheckersBattleRoyal() {
       tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
-      hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID
+      hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
+      boardTheme: inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id
     };
   }, []);
 
@@ -978,16 +1129,22 @@ export default function CheckersBattleRoyal() {
 
       const addVisibleBoardBase = () => {
         const boardBase = new THREE.Group();
+        const boardTheme =
+          CHECKERS_BOARD_THEME_OPTIONS.find(
+            (theme) => theme.id === appearance.boardTheme
+          ) || CHECKERS_BOARD_THEME_OPTIONS[0];
+        boardThemeRef.current = boardTheme;
         const lightMat = new THREE.MeshStandardMaterial({
-          color: '#d1d5db',
+          color: boardTheme.light,
           roughness: 0.34,
           metalness: 0.22
         });
         const darkMat = new THREE.MeshStandardMaterial({
-          color: '#1f2937',
+          color: boardTheme.dark,
           roughness: 0.4,
           metalness: 0.28
         });
+        proceduralBoardRef.current = { lightMat, darkMat };
         for (let r = 0; r < SIZE; r += 1) {
           for (let c = 0; c < SIZE; c += 1) {
             const sq = new THREE.Mesh(
@@ -1018,6 +1175,8 @@ export default function CheckersBattleRoyal() {
         scene.add(boardVisualGroup);
         boardRoot.scale.setScalar(BOARD_SCALE);
         boardRoot.position.set(0, TABLE_HEIGHT, 0);
+        gltfBoardRef.current = boardRoot;
+        applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
       } catch {}
 
       boardOriginRef.current = {
@@ -1067,7 +1226,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [renderPieces, appearance.chairId, appearance.tableFinish]);
+  }, [renderPieces, appearance.chairId, appearance.tableFinish, appearance.boardTheme]);
 
   useEffect(() => {
     if (turn !== AI_SIDE || aiBusyRef.current) return;
@@ -1173,6 +1332,15 @@ export default function CheckersBattleRoyal() {
         }
       });
     });
+
+    const boardTheme =
+      CHECKERS_BOARD_THEME_OPTIONS.find((theme) => theme.id === appearance.boardTheme) ||
+      CHECKERS_BOARD_THEME_OPTIONS[0];
+    boardThemeRef.current = boardTheme;
+    const boardMats = proceduralBoardRef.current;
+    if (boardMats.lightMat?.color) boardMats.lightMat.color.set(boardTheme.light);
+    if (boardMats.darkMat?.color) boardMats.darkMat.color.set(boardTheme.dark);
+    if (gltfBoardRef.current) applyCheckersBoardTheme(gltfBoardRef.current, boardTheme);
 
     if (envRef.current?.hdriId === appearance.hdriId) return;
 
@@ -1357,6 +1525,30 @@ export default function CheckersBattleRoyal() {
                         setAppearance((prev) => ({ ...prev, tableId: opt.id }))
                       }
                       className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.tableId === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                    >
+                      {opt.thumbnail ? (
+                        <img
+                          src={opt.thumbnail}
+                          alt={`${opt.label} thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                        />
+                      ) : null}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
+                  Board
+                </div>
+                <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                  {CHECKERS_BOARD_THEME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() =>
+                        setAppearance((prev) => ({ ...prev, boardTheme: opt.id }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.boardTheme === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
                     >
                       {opt.thumbnail ? (
                         <img
