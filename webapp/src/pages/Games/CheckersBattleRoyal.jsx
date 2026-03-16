@@ -59,7 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -793,34 +793,6 @@ function resolveCheckersPlayableTileSize(boardModel) {
       ? BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO
       : CHECKERS_PLAYABLE_MAPPING_RATIO;
   return span / ratio / SIZE;
-}
-
-function resolveCheckersBoardOrigin(boardModel) {
-  const tile = resolveCheckersPlayableTileSize(boardModel);
-  if (!boardModel) {
-    return {
-      x: 0,
-      y: TABLE_HEIGHT + 0.08,
-      z: 0,
-      tile
-    };
-  }
-  const bounds = new THREE.Box3().setFromObject(boardModel);
-  if (bounds.isEmpty()) {
-    return {
-      x: 0,
-      y: TABLE_HEIGHT + 0.08,
-      z: 0,
-      tile
-    };
-  }
-  const center = bounds.getCenter(new THREE.Vector3());
-  return {
-    x: center.x,
-    y: bounds.max.y + Math.max(0.09, tile * 0.35),
-    z: center.z,
-    tile
-  };
 }
 
 function createCheckerMaterial(style, headPreset) {
@@ -1585,9 +1557,12 @@ export default function CheckersBattleRoyal() {
         proceduralBoard.visible = true;
       }
 
-      boardOriginRef.current = resolveCheckersBoardOrigin(
-        gltfBoardRef.current || proceduralBoard
-      );
+      boardOriginRef.current = {
+        x: 0,
+        y: TABLE_HEIGHT + 0.08,
+        z: 0,
+        tile: resolveCheckersPlayableTileSize(gltfBoardRef.current || proceduralBoard)
+      };
 
       setupPickTiles();
       renderPieces();
