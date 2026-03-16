@@ -29,10 +29,6 @@ import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/baduk
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const BOARD_SIZES = [9, 13, 16, 19];
-const BOARD_TEXTURE_SIZE = 2048;
-const BOARD_GRID_MIN = 86;
-const BOARD_GRID_MAX = 938;
-const BOARD_GRID_RANGE_RATIO = (BOARD_GRID_MAX - BOARD_GRID_MIN) / BOARD_TEXTURE_SIZE;
 const BOARD_WORLD_EXTENT = 2.04;
 
 const MODEL_SCALE = 0.75;
@@ -147,7 +143,7 @@ const optionButton = (active) =>
 
 function createBadukTileBoard(boardSize, boardTheme) {
   const group = new THREE.Group();
-  const playableExtent = BOARD_WORLD_EXTENT * BOARD_GRID_RANGE_RATIO;
+  const playableExtent = BOARD_WORLD_EXTENT;
   const step = playableExtent / Math.max(boardSize - 1, 1);
   const tileSize = step * 0.9;
   const tileHeight = 0.04;
@@ -269,8 +265,7 @@ export default function BadukBattleRoyal() {
   }, [graphicsId]);
 
   const worldFromCell = (r, c) => {
-    const boardExtent = BOARD_WORLD_EXTENT;
-    const playableExtent = boardExtent * BOARD_GRID_RANGE_RATIO;
+    const playableExtent = BOARD_WORLD_EXTENT;
     const step = playableExtent / (boardSize - 1);
     const start = -playableExtent / 2;
     const x = start + c * step;
@@ -279,8 +274,7 @@ export default function BadukBattleRoyal() {
   };
 
   const cellFromWorld = (x, z) => {
-    const boardExtent = BOARD_WORLD_EXTENT;
-    const playableExtent = boardExtent * BOARD_GRID_RANGE_RATIO;
+    const playableExtent = BOARD_WORLD_EXTENT;
     const halfPlayable = playableExtent / 2;
     const normalizedX = clamp((x + halfPlayable) / playableExtent, 0, 1);
     const normalizedZ = clamp((z + halfPlayable) / playableExtent, 0, 1);
