@@ -523,7 +523,6 @@ async function loadCheckersBoardModel(loader) {
 }
 
 
-
 function snapshotBoardMaterials(boardModel) {
   if (!boardModel || BOARD_MATERIAL_CACHE.has(boardModel)) return;
   const cache = new Map();
@@ -1366,7 +1365,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [renderPieces, appearance.chairId, appearance.tableFinish, appearance.boardTheme]);
+  }, [renderPieces]);
 
   useEffect(() => {
     if (turn !== AI_SIDE || aiBusyRef.current) return;
