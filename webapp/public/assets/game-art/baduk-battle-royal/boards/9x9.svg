@@ -1,15 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <filter id="boardShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.28"/>
-    </filter>
+    <linearGradient id="woodTint" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#efc987" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#9a642e" stop-opacity="0.22"/>
+    </linearGradient>
+    <pattern id="grain" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M0 12h24" stroke="#4f2f15" stroke-opacity="0.06" stroke-width="1"/>
+      <path d="M0 6h24" stroke="#fff" stroke-opacity="0.04" stroke-width="0.8"/>
+    </pattern>
     <style>
-      .g { stroke:#2f1808; stroke-linecap:round; stroke-opacity:.86; }
-      .s { fill:#251208; opacity:.95; }
+      .g { stroke:#2a1507; stroke-linecap:round; stroke-opacity:.9; }
+      .s { fill:#241105; opacity:.96; }
     </style>
   </defs>
   <image href="/assets/game-art/baduk-battle-royal/boards/ogs-anime-board.svg" x="0" y="0" width="1024" height="1024" preserveAspectRatio="none"/>
-  <rect x="80" y="80" width="864" height="864" fill="none" stroke="#6e4724" stroke-opacity="0.45" stroke-width="2.4" filter="url(#boardShadow)"/>
-  <line x1="86.00" y1="86" x2="86.00" y2="938" class="g" stroke-width="3.2"/><line x1="86" y1="86.00" x2="938" y2="86.00" class="g" stroke-width="3.2"/><line x1="192.50" y1="86" x2="192.50" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="192.50" x2="938" y2="192.50" class="g" stroke-width="2.4"/><line x1="299.00" y1="86" x2="299.00" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="299.00" x2="938" y2="299.00" class="g" stroke-width="2.4"/><line x1="405.50" y1="86" x2="405.50" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="405.50" x2="938" y2="405.50" class="g" stroke-width="2.4"/><line x1="512.00" y1="86" x2="512.00" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="512.00" x2="938" y2="512.00" class="g" stroke-width="2.4"/><line x1="618.50" y1="86" x2="618.50" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="618.50" x2="938" y2="618.50" class="g" stroke-width="2.4"/><line x1="725.00" y1="86" x2="725.00" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="725.00" x2="938" y2="725.00" class="g" stroke-width="2.4"/><line x1="831.50" y1="86" x2="831.50" y2="938" class="g" stroke-width="2.4"/><line x1="86" y1="831.50" x2="938" y2="831.50" class="g" stroke-width="2.4"/><line x1="938.00" y1="86" x2="938.00" y2="938" class="g" stroke-width="3.2"/><line x1="86" y1="938.00" x2="938" y2="938.00" class="g" stroke-width="3.2"/>
-  <circle cx="299.00" cy="299.00" r="6.8" class="s"/><circle cx="725.00" cy="299.00" r="6.8" class="s"/><circle cx="299.00" cy="725.00" r="6.8" class="s"/><circle cx="725.00" cy="725.00" r="6.8" class="s"/><circle cx="512.00" cy="512.00" r="6.8" class="s"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#woodTint)"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#grain)"/>
+  <line x1="86.0000" y1="86" x2="86.0000" y2="938" class="g" stroke-width="3.2"/>
+  <line x1="86" y1="86.0000" x2="938" y2="86.0000" class="g" stroke-width="3.2"/>
+  <line x1="192.5000" y1="86" x2="192.5000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="192.5000" x2="938" y2="192.5000" class="g" stroke-width="2.2"/>
+  <line x1="299.0000" y1="86" x2="299.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="299.0000" x2="938" y2="299.0000" class="g" stroke-width="2.2"/>
+  <line x1="405.5000" y1="86" x2="405.5000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="405.5000" x2="938" y2="405.5000" class="g" stroke-width="2.2"/>
+  <line x1="512.0000" y1="86" x2="512.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="512.0000" x2="938" y2="512.0000" class="g" stroke-width="2.2"/>
+  <line x1="618.5000" y1="86" x2="618.5000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="618.5000" x2="938" y2="618.5000" class="g" stroke-width="2.2"/>
+  <line x1="725.0000" y1="86" x2="725.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="725.0000" x2="938" y2="725.0000" class="g" stroke-width="2.2"/>
+  <line x1="831.5000" y1="86" x2="831.5000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="831.5000" x2="938" y2="831.5000" class="g" stroke-width="2.2"/>
+  <line x1="938.0000" y1="86" x2="938.0000" y2="938" class="g" stroke-width="3.2"/>
+  <line x1="86" y1="938.0000" x2="938" y2="938.0000" class="g" stroke-width="3.2"/>
+  <circle cx="299.0000" cy="299.0000" r="6.6" class="s"/>
+  <circle cx="725.0000" cy="299.0000" r="6.6" class="s"/>
+  <circle cx="299.0000" cy="725.0000" r="6.6" class="s"/>
+  <circle cx="725.0000" cy="725.0000" r="6.6" class="s"/>
+  <circle cx="512.0000" cy="512.0000" r="6.6" class="s"/>
 </svg>
