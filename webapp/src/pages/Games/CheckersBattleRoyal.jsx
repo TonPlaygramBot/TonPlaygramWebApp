@@ -425,6 +425,8 @@ const searchBestMove = (
 async function loadCheckersBoardModel(loader) {
   let err = null;
   const targetBoardSize = BOARD_TILE_SIZE * SIZE;
+  const boardMeshNamePattern =
+    /\b(board|chessboard|checker|checkers|tile|squares?)\b/i;
   for (const url of CHESS_BOARD_GLTF_URLS) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
@@ -439,13 +441,15 @@ async function loadCheckersBoardModel(loader) {
       if (gltf?.scene) {
         const root = gltf.scene.clone(true);
         const pieceLike = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
-        const nodesToCull = [];
+        const meshSamples = [];
         root.traverse((obj) => {
           if (!obj) return;
-          if (pieceLike.test(obj.name || '')) {
-            nodesToCull.push(obj);
-          }
           if (!obj?.isMesh) return;
+
+          const meshBounds = new THREE.Box3().setFromObject(obj);
+          const meshSize = meshBounds.getSize(new THREE.Vector3());
+          meshSamples.push({ obj, meshSize });
+
           const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
           mats.forEach((mat) => {
             if (!mat) return;
@@ -456,7 +460,41 @@ async function loadCheckersBoardModel(loader) {
           obj.castShadow = true;
           obj.receiveShadow = true;
         });
-        nodesToCull.forEach((obj) => obj.parent?.remove(obj));
+
+        const maxBoardSpan = meshSamples.reduce(
+          (acc, sample) => Math.max(acc, sample.meshSize.x, sample.meshSize.z),
+          1
+        );
+        const keepMeshes = new Set(
+          meshSamples
+            .filter(({ obj, meshSize }) => {
+              const name = `${obj.name || ''} ${obj.parent?.name || ''}`;
+              if (boardMeshNamePattern.test(name)) return true;
+              if (pieceLike.test(name)) return false;
+
+              const wideEnough =
+                meshSize.x >= maxBoardSpan * 0.45 && meshSize.z >= maxBoardSpan * 0.45;
+              const isFlat =
+                meshSize.y <= Math.max(meshSize.x, meshSize.z) * 0.35;
+              return wideEnough && isFlat;
+            })
+            .map(({ obj }) => obj)
+        );
+
+        if (!keepMeshes.size && meshSamples.length) {
+          meshSamples
+            .sort(
+              (a, b) =>
+                b.meshSize.x * b.meshSize.z - a.meshSize.x * a.meshSize.z
+            )
+            .slice(0, 3)
+            .forEach(({ obj }) => keepMeshes.add(obj));
+        }
+
+        root.traverse((obj) => {
+          if (!obj?.isMesh) return;
+          obj.visible = keepMeshes.has(obj);
+        });
 
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
