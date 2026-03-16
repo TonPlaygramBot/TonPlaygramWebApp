@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="woodTint" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b9c2d0" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#4b5563" stop-opacity="0.22"/>
+    </linearGradient>
+    <pattern id="grain" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M0 12h24" stroke="#334155" stroke-opacity="0.06" stroke-width="1"/>
+      <path d="M0 6h24" stroke="#f8fafc" stroke-opacity="0.04" stroke-width="0.8"/>
+    </pattern>
+    <style>
+      .g { stroke:#0f172a; stroke-linecap:round; stroke-opacity:.9; }
+      .s { fill:#0b1120; opacity:.96; }
+    </style>
+  </defs>
+  <image href="/assets/game-art/baduk-battle-royal/boards/ogs-anime-board.svg" x="0" y="0" width="1024" height="1024" preserveAspectRatio="none"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#woodTint)"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#grain)"/>
+  <line x1="86.0000" y1="86" x2="86.0000" y2="938" class="g" stroke-width="3.2"/>
+  <line x1="86" y1="86.0000" x2="938" y2="86.0000" class="g" stroke-width="3.2"/>
+  <line x1="157.0000" y1="86" x2="157.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="157.0000" x2="938" y2="157.0000" class="g" stroke-width="2.2"/>
+  <line x1="228.0000" y1="86" x2="228.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="228.0000" x2="938" y2="228.0000" class="g" stroke-width="2.2"/>
+  <line x1="299.0000" y1="86" x2="299.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="299.0000" x2="938" y2="299.0000" class="g" stroke-width="2.2"/>
+  <line x1="370.0000" y1="86" x2="370.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="370.0000" x2="938" y2="370.0000" class="g" stroke-width="2.2"/>
+  <line x1="441.0000" y1="86" x2="441.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="441.0000" x2="938" y2="441.0000" class="g" stroke-width="2.2"/>
+  <line x1="512.0000" y1="86" x2="512.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="512.0000" x2="938" y2="512.0000" class="g" stroke-width="2.2"/>
+  <line x1="583.0000" y1="86" x2="583.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="583.0000" x2="938" y2="583.0000" class="g" stroke-width="2.2"/>
+  <line x1="654.0000" y1="86" x2="654.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="654.0000" x2="938" y2="654.0000" class="g" stroke-width="2.2"/>
+  <line x1="725.0000" y1="86" x2="725.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="725.0000" x2="938" y2="725.0000" class="g" stroke-width="2.2"/>
+  <line x1="796.0000" y1="86" x2="796.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="796.0000" x2="938" y2="796.0000" class="g" stroke-width="2.2"/>
+  <line x1="867.0000" y1="86" x2="867.0000" y2="938" class="g" stroke-width="2.2"/>
+  <line x1="86" y1="867.0000" x2="938" y2="867.0000" class="g" stroke-width="2.2"/>
+  <line x1="938.0000" y1="86" x2="938.0000" y2="938" class="g" stroke-width="3.2"/>
+  <line x1="86" y1="938.0000" x2="938" y2="938.0000" class="g" stroke-width="3.2"/>
+  <circle cx="299.0000" cy="299.0000" r="6.6" class="s"/>
+  <circle cx="725.0000" cy="299.0000" r="6.6" class="s"/>
+  <circle cx="299.0000" cy="725.0000" r="6.6" class="s"/>
+  <circle cx="725.0000" cy="725.0000" r="6.6" class="s"/>
+  <circle cx="512.0000" cy="512.0000" r="6.6" class="s"/>
+</svg>
