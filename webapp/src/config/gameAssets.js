@@ -20,11 +20,11 @@ export const gameThumbnails = {
   snake: '/assets/icons/Snake%20and%20ladder%20game%20logo.png',
   murlanroyale: '/assets/icons/Murlan%20Royal%20logo.png',
   chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
-  checkersbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
-  badukbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
-  tavullbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+  checkersbattleroyal: '/assets/icons/Checkersbattleroyallogo.png',
+  badukbattleroyal: '/assets/icons/Badukbattleroyallogo.png',
+  tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
-  tabletennisroyal: '/assets/icons/table-tennis-royale.svg'
+  tabletennisroyal: '/assets/icons/Tabletennisroyallogo.png'
 };
 
 const buildLobbyIconSet = (keys, icon) =>
