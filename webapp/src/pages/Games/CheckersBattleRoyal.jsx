@@ -57,7 +57,8 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.0576;
-const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
+const BOARD = { tile: 4.2, rim: 3 };
+const BOARD_TILE_SIZE = ((SIZE * BOARD.tile + BOARD.rim * 2) * BOARD_SCALE) / SIZE;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -526,18 +527,20 @@ async function loadCheckersBoardModel(renderer = null) {
 
       const boardModel = source.clone(true);
       boardModel.name = 'ABeautifulGameBoard';
-      boardModel.userData = {
-        ...(boardModel.userData || {}),
-        forceOriginalTextures: true
-      };
 
-      const pieceTokens = /\b(pawn|rook|knight|bishop|queen|king)\b/i;
+      const pieceTokens =
+        /\b(pawn|rook|knight|bishop|queen|king|piece|checker|draught|white|black)\b/i;
       const prune = [];
+      const meshBounds = [];
       boardModel.traverse((node) => {
         if (!node?.isObject3D) return;
         const name = `${node.name || ''}`.toLowerCase();
         if (pieceTokens.test(name)) prune.push(node);
         if (!node?.isMesh) return;
+        const box = new THREE.Box3().setFromObject(node);
+        if (Number.isFinite(box.min.x) && Number.isFinite(box.max.x)) {
+          meshBounds.push({ node, box, name });
+        }
         node.castShadow = true;
         node.receiveShadow = true;
         const mats = Array.isArray(node.material)
@@ -549,6 +552,23 @@ async function loadCheckersBoardModel(renderer = null) {
           mat.needsUpdate = true;
         });
       });
+
+      const globalMeshBounds = new THREE.Box3();
+      meshBounds.forEach(({ box }) => globalMeshBounds.union(box));
+      const span = globalMeshBounds.getSize(new THREE.Vector3());
+      const elevationThreshold = globalMeshBounds.min.y + span.y * 0.18;
+      const smallFootprintThreshold = Math.max(span.x, span.z) * 0.22;
+
+      meshBounds.forEach(({ node, box, name }) => {
+        if (!node?.parent) return;
+        const size = box.getSize(new THREE.Vector3());
+        const footprint = Math.max(size.x, size.z);
+        const elevated = box.min.y > elevationThreshold;
+        const smallFootprint = footprint < smallFootprintThreshold;
+        const explicitPieceName = pieceTokens.test(name);
+        if (explicitPieceName || (elevated && smallFootprint)) prune.push(node);
+      });
+
       prune.forEach((node) => node.parent?.remove(node));
 
       const box = new THREE.Box3().setFromObject(boardModel);
@@ -614,8 +634,6 @@ function applyCheckersBoardTheme(
   if (!boardModel) return;
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
-
-  if (boardModel?.userData?.forceOriginalTextures) return;
 
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
