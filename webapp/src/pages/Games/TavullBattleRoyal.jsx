@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
@@ -90,6 +91,121 @@ const BACKGAMMON_BOARD_MODEL_URLS = Object.freeze([
   '/assets/models/backgammon/backgammon-board.glb',
   '/assets/models/backgammon/backgammon-board.gltf'
 ])
+const BACKGAMMON_DIE_SIZE = 0.1
+const BACKGAMMON_DIE_CORNER_RADIUS = BACKGAMMON_DIE_SIZE * 0.18
+const BACKGAMMON_DIE_PIP_RADIUS = BACKGAMMON_DIE_SIZE * 0.093
+const BACKGAMMON_DIE_PIP_DEPTH = BACKGAMMON_DIE_SIZE * 0.018
+const BACKGAMMON_DIE_PIP_RIM_INNER = BACKGAMMON_DIE_PIP_RADIUS * 0.78
+const BACKGAMMON_DIE_PIP_RIM_OUTER = BACKGAMMON_DIE_PIP_RADIUS * 1.08
+const BACKGAMMON_DIE_PIP_RIM_OFFSET = BACKGAMMON_DIE_SIZE * 0.0048
+const BACKGAMMON_DIE_PIP_SPREAD = BACKGAMMON_DIE_SIZE * 0.3
+const BACKGAMMON_DIE_FACE_INSET = BACKGAMMON_DIE_SIZE * 0.064
+
+function getDieOrientationQuaternion(val) {
+  const orientations = {
+    1: new THREE.Euler(0, 0, 0),
+    2: new THREE.Euler(-Math.PI / 2, 0, 0),
+    3: new THREE.Euler(0, 0, Math.PI / 2),
+    4: new THREE.Euler(0, 0, -Math.PI / 2),
+    5: new THREE.Euler(Math.PI / 2, 0, 0),
+    6: new THREE.Euler(Math.PI, 0, 0)
+  }
+  return new THREE.Quaternion().setFromEuler(orientations[val] || orientations[1])
+}
+
+function makeRoyalDie() {
+  const die = new THREE.Group()
+  const bodyMaterial = new THREE.MeshPhysicalMaterial({
+    color: '#ffffff',
+    metalness: 0.25,
+    roughness: 0.35,
+    clearcoat: 1,
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.75,
+    envMapIntensity: 1.4
+  })
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
+    color: '#0a0a0a',
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1,
+    emissive: '#0f172a',
+    emissiveIntensity: 0.35
+  })
+  const rimMaterial = new THREE.MeshPhysicalMaterial({
+    color: '#ffd700',
+    emissive: '#3a2a00',
+    emissiveIntensity: 0.55,
+    metalness: 1,
+    roughness: 0.18,
+    reflectivity: 1,
+    envMapIntensity: 1.35,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  })
+
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(BACKGAMMON_DIE_SIZE, BACKGAMMON_DIE_SIZE, BACKGAMMON_DIE_SIZE, 6, BACKGAMMON_DIE_CORNER_RADIUS),
+    bodyMaterial
+  )
+  body.castShadow = true
+  body.receiveShadow = true
+  die.add(body)
+
+  const pipGeo = new THREE.SphereGeometry(BACKGAMMON_DIE_PIP_RADIUS, 36, 24, 0, Math.PI * 2, 0, Math.PI)
+  pipGeo.rotateX(Math.PI)
+  pipGeo.computeVertexNormals()
+  const pipRimGeo = new THREE.RingGeometry(BACKGAMMON_DIE_PIP_RIM_INNER, BACKGAMMON_DIE_PIP_RIM_OUTER, 64)
+  const faceDepth = BACKGAMMON_DIE_SIZE / 2 - BACKGAMMON_DIE_FACE_INSET * 0.6
+  const spread = BACKGAMMON_DIE_PIP_SPREAD
+  const faces = [
+    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
+    { normal: new THREE.Vector3(0, 0, 1), points: [[-spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(1, 0, 0), points: [[-spread, -spread], [0, 0], [spread, spread]] },
+    { normal: new THREE.Vector3(-1, 0, 0), points: [[-spread, -spread], [-spread, spread], [spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(0, 0, -1), points: [[-spread, -spread], [-spread, spread], [0, 0], [spread, -spread], [spread, spread]] },
+    { normal: new THREE.Vector3(0, -1, 0), points: [[-spread, -spread], [-spread, 0], [-spread, spread], [spread, -spread], [spread, 0], [spread, spread]] }
+  ]
+
+  faces.forEach(({ normal, points }) => {
+    const n = normal.clone().normalize()
+    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0)
+    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize()
+    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize()
+    points.forEach(([gx, gy]) => {
+      const base = new THREE.Vector3()
+        .addScaledVector(xAxis, gx)
+        .addScaledVector(yAxis, gy)
+        .addScaledVector(n, faceDepth - BACKGAMMON_DIE_PIP_DEPTH * 0.5)
+
+      const pip = new THREE.Mesh(pipGeo, pipMaterial)
+      pip.castShadow = true
+      pip.receiveShadow = true
+      pip.position.copy(base).addScaledVector(n, BACKGAMMON_DIE_PIP_DEPTH)
+      pip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n)
+      die.add(pip)
+
+      const rim = new THREE.Mesh(pipRimGeo, rimMaterial)
+      rim.receiveShadow = true
+      rim.renderOrder = 6
+      rim.position.copy(base).addScaledVector(n, BACKGAMMON_DIE_PIP_RIM_OFFSET)
+      rim.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n)
+      die.add(rim)
+    })
+  })
+
+  die.visible = false
+  die.userData.setValue = (value) => {
+    die.userData.currentValue = value
+    die.quaternion.copy(getDieOrientationQuaternion(value))
+  }
+  die.userData.setValue(1)
+  return die
+}
 
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return
@@ -536,17 +652,8 @@ export default function TavullBattleRoyal() {
     const diceAnimationState = { entries: [] }
     const maxDice = 4
 
-    const makeDie = () => {
-      const die = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.1, 0.1),
-        new THREE.MeshStandardMaterial({ color: '#f5efe2', roughness: 0.4, metalness: 0.08 })
-      )
-      die.visible = false
-      die.castShadow = true
-      return die
-    }
     const diceMeshes = Array.from({ length: maxDice }, () => {
-      const mesh = makeDie()
+      const mesh = makeRoyalDie()
       diceGroup.add(mesh)
       return mesh
     })
@@ -637,6 +744,7 @@ export default function TavullBattleRoyal() {
             return
           }
           mesh.visible = true
+          mesh.userData.setValue?.(Number(diceValues[index]) || 1)
           const x = (index - centerOffset) * spacing
           const startPos = new THREE.Vector3(x, BOARD_Y + 0.24, startZ)
           const endPos = new THREE.Vector3(x * 0.75, BOARD_Y + 0.17, endZ)
