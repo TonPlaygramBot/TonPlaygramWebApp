@@ -10,6 +10,8 @@ import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
   BADUK_CHAIR_OPTIONS,
+  BADUK_BOARD_THEMES,
+  BADUK_STONE_STYLES,
   BADUK_TABLE_OPTIONS,
   BADUK_BATTLE_DEFAULT_LOADOUT
 } from '../../config/badukBattleInventoryConfig.js';
@@ -27,7 +29,7 @@ import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/baduk
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
 const BOARD_SIZES = [9, 13, 16, 19];
-const BOARD_TEXTURE_SIZE = 1024;
+const BOARD_TEXTURE_SIZE = 2048;
 const BOARD_GRID_MIN = 86;
 const BOARD_GRID_MAX = 938;
 const BOARD_GRID_RANGE_RATIO = (BOARD_GRID_MAX - BOARD_GRID_MIN) / BOARD_TEXTURE_SIZE;
@@ -173,6 +175,8 @@ export default function BadukBattleRoyal() {
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
     tableId: inventory.tables?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.tables?.[0] || BADUK_TABLE_OPTIONS[0]?.id,
     chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || BADUK_CHAIR_OPTIONS[0]?.id,
+    boardTheme: inventory.boardTheme?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardTheme?.[0] || BADUK_BOARD_THEMES[0]?.id,
+    stoneStyle: inventory.stoneStyle?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] || BADUK_STONE_STYLES[0]?.id,
     hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID
   }));
 
@@ -244,9 +248,18 @@ export default function BadukBattleRoyal() {
     if (!group) return;
     group.clear();
 
+    const stoneStyle = BADUK_STONE_STYLES.find((style) => style.id === appearance.stoneStyle) || BADUK_STONE_STYLES[0];
     const stoneGeo = new THREE.SphereGeometry(0.045, 22, 16);
-    const blackMat = new THREE.MeshStandardMaterial({ color: '#0b0b0d', roughness: 0.28, metalness: 0.06 });
-    const whiteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.2, metalness: 0.03 });
+    const blackMat = new THREE.MeshStandardMaterial({
+      color: stoneStyle?.black || '#0b0b0d',
+      roughness: stoneStyle?.blackRoughness ?? 0.28,
+      metalness: 0.06
+    });
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: stoneStyle?.white || '#f8fafc',
+      roughness: stoneStyle?.whiteRoughness ?? 0.2,
+      metalness: 0.03
+    });
     const markerGeo = new THREE.SphereGeometry(0.014, 14, 10);
     const markerMat = new THREE.MeshBasicMaterial({ color: '#34d399' });
 
@@ -272,7 +285,7 @@ export default function BadukBattleRoyal() {
 
   useEffect(() => {
     renderStones(board, lastMove);
-  }, [board, lastMove]);
+  }, [appearance.stoneStyle, board, lastMove]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -354,8 +367,12 @@ export default function BadukBattleRoyal() {
 
     const boardTexture = new THREE.TextureLoader().load(`/assets/game-art/baduk-battle-royal/boards/${boardSize}x${boardSize}.svg`);
     applySRGBColorSpace(boardTexture);
-    boardTexture.anisotropy = 8;
+    boardTexture.anisotropy = 16;
+    boardTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    boardTexture.magFilter = THREE.LinearFilter;
     boardPlane.material.map = boardTexture;
+    const boardTheme = BADUK_BOARD_THEMES.find((theme) => theme.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
+    boardPlane.material.color = new THREE.Color(boardTheme?.tint || '#d7a359');
     boardPlane.material.needsUpdate = true;
 
     const stonesGroup = new THREE.Group();
@@ -402,7 +419,7 @@ export default function BadukBattleRoyal() {
         }
       });
     };
-  }, [boardSize, appearance.chairId, graphicsOption.fps, graphicsOption.pixelRatioCap, graphicsOption.renderScale]);
+  }, [boardSize, appearance.boardTheme, appearance.chairId, graphicsOption.fps, graphicsOption.pixelRatioCap, graphicsOption.renderScale]);
 
   useEffect(() => {
     const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
@@ -647,6 +664,32 @@ export default function BadukBattleRoyal() {
                     key={opt.id}
                     onClick={() => setAppearance((prev) => ({ ...prev, chairId: opt.id }))}
                     className={optionButton(appearance.chairId === opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Baduk Boards</div>
+              <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                {BADUK_BOARD_THEMES.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setAppearance((prev) => ({ ...prev, boardTheme: opt.id }))}
+                    className={optionButton(appearance.boardTheme === opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">Stone Sets</div>
+              <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                {BADUK_STONE_STYLES.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setAppearance((prev) => ({ ...prev, stoneStyle: opt.id }))}
+                    className={optionButton(appearance.stoneStyle === opt.id)}
                   >
                     {opt.label}
                   </button>
