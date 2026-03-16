@@ -202,22 +202,98 @@ const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   capture: '#ff8e6e'
 });
 
-const CHIP_SETS = [
-  { id: 'ruby-cyan', label: 'Ruby/Cyan', light: '#ef4444', dark: '#06b6d4' },
+const CHECKERS_CHIP_STYLES = Object.freeze([
   {
-    id: 'emerald-violet',
-    label: 'Emerald/Violet',
-    light: '#10b981',
-    dark: '#8b5cf6'
+    id: 'marble',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.marble || 'Marble',
+    color: '#f5f5f5',
+    roughness: 0.34,
+    metalness: 0.18,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.15,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble
   },
   {
-    id: 'amber-slate',
-    label: 'Amber/Slate',
-    light: '#f59e0b',
-    dark: '#334155'
+    id: 'darkForest',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.darkForest || 'Dark Forest',
+    color: '#1f5d3a',
+    roughness: 0.38,
+    metalness: 0.16,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.18,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.darkForest
   },
-  { id: 'rose-ice', label: 'Rose/Ice', light: '#fb7185', dark: '#67e8f9' }
-];
+  {
+    id: 'amberGlow',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.amberGlow || 'Amber Glow',
+    color: '#f59e0b',
+    roughness: 0.22,
+    metalness: 0.22,
+    clearcoat: 0.36,
+    clearcoatRoughness: 0.1,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amberGlow
+  },
+  {
+    id: 'mintVale',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.mintVale || 'Mint Vale',
+    color: '#10b981',
+    roughness: 0.24,
+    metalness: 0.2,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.1,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.mintVale
+  },
+  {
+    id: 'royalWave',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.royalWave || 'Royal Wave',
+    color: '#3b82f6',
+    roughness: 0.28,
+    metalness: 0.2,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.12,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.royalWave
+  },
+  {
+    id: 'roseMist',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.roseMist || 'Rose Mist',
+    color: '#ef4444',
+    roughness: 0.26,
+    metalness: 0.2,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.11,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.roseMist
+  },
+  {
+    id: 'amethyst',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.amethyst || 'Amethyst',
+    color: '#8b5cf6',
+    roughness: 0.27,
+    metalness: 0.2,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.11,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amethyst
+  },
+  {
+    id: 'cinderBlaze',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.cinderBlaze || 'Cinder Blaze',
+    color: '#ff6b35',
+    roughness: 0.23,
+    metalness: 0.24,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.1,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.cinderBlaze
+  },
+  {
+    id: 'arcticDrift',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.arcticDrift || 'Arctic Drift',
+    color: '#bcd7ff',
+    roughness: 0.31,
+    metalness: 0.2,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.14,
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.arcticDrift
+  }
+]);
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
@@ -233,10 +309,10 @@ const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
   for (let r = 0; r < 3; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
+      if ((r + c) % 2 === 0) board[r][c] = { side: 'dark', king: false };
   for (let r = 5; r < SIZE; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
+      if ((r + c) % 2 === 0) board[r][c] = { side: 'light', king: false };
   return board;
 };
 
@@ -719,16 +795,17 @@ function resolveCheckersPlayableTileSize(boardModel) {
   return span / ratio / SIZE;
 }
 
-function createCheckerMaterial(sideColor, headPreset) {
+function createCheckerMaterial(style, headPreset) {
+  const resolvedStyle = style || {};
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(sideColor),
-    roughness: headPreset?.roughness ?? 0.08,
-    metalness: headPreset?.metalness ?? 0,
-    transmission: headPreset?.transmission ?? 0.95,
+    color: new THREE.Color(resolvedStyle.color || '#f59e0b'),
+    roughness: resolvedStyle.roughness ?? 0.26,
+    metalness: resolvedStyle.metalness ?? 0.2,
+    transmission: headPreset?.transmission ?? 0.08,
     ior: headPreset?.ior ?? 1.5,
-    thickness: headPreset?.thickness ?? 0.5,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.08,
+    thickness: headPreset?.thickness ?? 0.22,
+    clearcoat: resolvedStyle.clearcoat ?? 0.32,
+    clearcoatRoughness: resolvedStyle.clearcoatRoughness ?? 0.12,
     specularIntensity: 0.9
   });
 }
@@ -1000,14 +1077,27 @@ export default function CheckersBattleRoyal() {
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
-      headStyle: inventory.headStyle?.[0] || 'current'
+      headStyle: inventory.headStyle?.[0] || 'current',
+      sideColors: {
+        light: inventory.sideColor?.[0] || 'amberGlow',
+        dark: inventory.sideColor?.[1] || inventory.sideColor?.[0] || 'mintVale'
+      }
     };
   }, []);
 
   const [appearance, setAppearance] = useState(inv);
-  const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
+  const [chipStyleIds, setChipStyleIds] = useState(() => ({
+    light: inv.sideColors?.light || CHECKERS_CHIP_STYLES[2]?.id || CHECKERS_CHIP_STYLES[0].id,
+    dark: inv.sideColors?.dark || CHECKERS_CHIP_STYLES[3]?.id || CHECKERS_CHIP_STYLES[1]?.id || CHECKERS_CHIP_STYLES[0].id
+  }));
 
-  const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
+  const lightChipStyle =
+    CHECKERS_CHIP_STYLES.find((style) => style.id === chipStyleIds.light) ||
+    CHECKERS_CHIP_STYLES[0];
+  const darkChipStyle =
+    CHECKERS_CHIP_STYLES.find((style) => style.id === chipStyleIds.dark) ||
+    CHECKERS_CHIP_STYLES[1] ||
+    CHECKERS_CHIP_STYLES[0];
   const checkerHeadPreset = useMemo(() => {
     const headId = inv?.headStyle || 'current';
     if (headId === 'headChrome') {
@@ -1063,7 +1153,7 @@ export default function CheckersBattleRoyal() {
               40
             ),
             createCheckerMaterial(
-              piece.side === 'light' ? chipSet.light : chipSet.dark,
+              piece.side === 'light' ? lightChipStyle : darkChipStyle,
               checkerHeadPreset
             )
           );
@@ -1091,7 +1181,7 @@ export default function CheckersBattleRoyal() {
         }
       }
     },
-    [checkerHeadPreset, chipSet.dark, chipSet.light]
+    [checkerHeadPreset, darkChipStyle, lightChipStyle]
   );
 
   useEffect(() => {
@@ -1902,15 +1992,52 @@ export default function CheckersBattleRoyal() {
                   ))}
                 </div>
 
-                <div className="mb-2 text-[11px] text-white/70">Chips</div>
-                <div className="flex flex-wrap gap-2">
-                  {CHIP_SETS.map((set) => (
+                <div className="mb-2 text-[11px] text-white/70">Light Side Chips</div>
+                <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                  {CHECKERS_CHIP_STYLES.map((style) => (
                     <button
-                      key={set.id}
-                      onClick={() => setChipSetId(set.id)}
-                      className={optionButton(chipSetId === set.id)}
+                      key={`light-${style.id}`}
+                      onClick={() =>
+                        setChipStyleIds((prev) => ({
+                          ...prev,
+                          light: style.id
+                        }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${chipStyleIds.light === style.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
                     >
-                      {set.label}
+                      {style.thumbnail ? (
+                        <img
+                          src={style.thumbnail}
+                          alt={`${style.label} thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                        />
+                      ) : null}
+                      {style.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-2 text-[11px] text-white/70">Dark Side Chips</div>
+                <div className="grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                  {CHECKERS_CHIP_STYLES.map((style) => (
+                    <button
+                      key={`dark-${style.id}`}
+                      onClick={() =>
+                        setChipStyleIds((prev) => ({
+                          ...prev,
+                          dark: style.id
+                        }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${chipStyleIds.dark === style.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                    >
+                      {style.thumbnail ? (
+                        <img
+                          src={style.thumbnail}
+                          alt={`${style.label} thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                        />
+                      ) : null}
+                      {style.label}
                     </button>
                   ))}
                 </div>
