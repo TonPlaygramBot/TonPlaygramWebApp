@@ -59,6 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -636,7 +637,7 @@ function applyCheckersBoardTheme(
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
 
-  if (boardModel?.userData?.forceOriginalTextures) return;
+  if (option?.preserveOriginalMaterials) return;
 
   const frameLight = new THREE.Color(option?.frameLight || '#d2b48c');
   const frameDark = new THREE.Color(option?.frameDark || '#3a2d23');
@@ -664,7 +665,6 @@ function applyCheckersBoardTheme(
               : light;
       mats.forEach((mat) => {
         if (!mat) return;
-        if (mat?.map) mat.map = null;
         if (mat?.color?.copy) mat.color.copy(taggedColor);
         if ('roughness' in mat)
           mat.roughness = /frame/.test(taggedPart) ? 0.78 : 0.4;
@@ -697,7 +697,6 @@ function applyCheckersBoardTheme(
 
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat?.map) mat.map = null;
       if (mat?.color?.copy) mat.color.copy(targetColor);
       if ('roughness' in mat) mat.roughness = isFrame ? 0.8 : 0.62;
       if ('metalness' in mat) mat.metalness = isFrame ? 0.2 : 0.08;
@@ -705,6 +704,32 @@ function applyCheckersBoardTheme(
     });
     node.castShadow = true;
     node.receiveShadow = true;
+  });
+}
+
+function resolveCheckersPlayableTileSize(boardModel) {
+  if (!boardModel) return BOARD_TILE_SIZE;
+  const bounds = new THREE.Box3().setFromObject(boardModel);
+  const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z);
+  if (!Number.isFinite(span) || span <= 0) return BOARD_TILE_SIZE;
+  const ratio =
+    boardModel?.name === 'ChessBattleRoyalBoard'
+      ? BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO
+      : CHECKERS_PLAYABLE_MAPPING_RATIO;
+  return span / ratio / SIZE;
+}
+
+function createCheckerMaterial(sideColor, headPreset) {
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(sideColor),
+    roughness: headPreset?.roughness ?? 0.08,
+    metalness: headPreset?.metalness ?? 0,
+    transmission: headPreset?.transmission ?? 0.95,
+    ior: headPreset?.ior ?? 1.5,
+    thickness: headPreset?.thickness ?? 0.5,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.08,
+    specularIntensity: 0.9
   });
 }
 function ensureKtx2SupportDetection(renderer = null) {
@@ -974,7 +999,8 @@ export default function CheckersBattleRoyal() {
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
-        inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id
+        inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
+      headStyle: inventory.headStyle?.[0] || 'current'
     };
   }, []);
 
@@ -982,6 +1008,22 @@ export default function CheckersBattleRoyal() {
   const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
 
   const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
+  const checkerHeadPreset = useMemo(() => {
+    const headId = inv?.headStyle || 'current';
+    if (headId === 'headChrome') {
+      return { roughness: 0.12, metalness: 0.95, transmission: 0.1, ior: 2.1, thickness: 0.22 };
+    }
+    if (headId === 'headGold') {
+      return { roughness: 0.16, metalness: 0.92, transmission: 0.06, ior: 1.85, thickness: 0.28 };
+    }
+    if (headId === 'headSapphire') {
+      return { roughness: 0.08, metalness: 0.05, transmission: 0.9, ior: 1.8, thickness: 0.7 };
+    }
+    if (headId === 'headRuby') {
+      return { roughness: 0.08, metalness: 0.05, transmission: 0.92, ior: 2.4, thickness: 0.6 };
+    }
+    return { roughness: 0.05, metalness: 0, transmission: 0.95, ior: 1.5, thickness: 0.5 };
+  }, [inv?.headStyle]);
   const playerName = getTelegramFirstName() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
 
@@ -1020,11 +1062,10 @@ export default function CheckersBattleRoyal() {
               tile * 0.13,
               40
             ),
-            new THREE.MeshStandardMaterial({
-              color: piece.side === 'light' ? chipSet.light : chipSet.dark,
-              roughness: 0.25,
-              metalness: 0.52
-            })
+            createCheckerMaterial(
+              piece.side === 'light' ? chipSet.light : chipSet.dark,
+              checkerHeadPreset
+            )
           );
           chip.castShadow = true;
           chip.position.set(
@@ -1050,7 +1091,7 @@ export default function CheckersBattleRoyal() {
         }
       }
     },
-    [chipSet.dark, chipSet.light]
+    [checkerHeadPreset, chipSet.dark, chipSet.light]
   );
 
   useEffect(() => {
@@ -1430,7 +1471,7 @@ export default function CheckersBattleRoyal() {
         x: 0,
         y: TABLE_HEIGHT + 0.08,
         z: 0,
-        tile: BOARD_TILE_SIZE
+        tile: resolveCheckersPlayableTileSize(gltfBoardRef.current || proceduralBoard)
       };
 
       setupPickTiles();
