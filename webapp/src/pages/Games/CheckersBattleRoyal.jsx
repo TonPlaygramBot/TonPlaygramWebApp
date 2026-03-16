@@ -35,8 +35,7 @@ import {
 } from '../../config/chessBattleInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_HDRI_VARIANT_MAP
+  POOL_ROYALE_HDRI_VARIANTS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { chatBeep } from '../../assets/soundData.js';
@@ -69,13 +68,11 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
-const HDRI_UNITS_PER_METER = 1;
-const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
+const HDRI_UNITS_PER_METER = 10;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.4;
 const MIN_HDRI_RADIUS = 28;
-const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
-const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 4;
+const DEFAULT_HDRI_GROUNDED_RESOLUTION = 112;
 const DRACO_DECODER_PATH =
   'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -83,33 +80,11 @@ const BASIS_TRANSCODER_PATH =
 
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
-const resolveHdriVariant = (value) => {
-  if (typeof value === 'string') {
-    return (
-      POOL_ROYALE_HDRI_VARIANT_MAP[value] ||
-      POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === value) ||
-      POOL_ROYALE_HDRI_VARIANTS.find(
-        (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
-      ) ||
-      POOL_ROYALE_HDRI_VARIANTS[0]
-    );
-  }
-  const max = POOL_ROYALE_HDRI_VARIANTS.length - 1;
-  const idx = Number.isFinite(value)
-    ? Math.max(0, Math.min(max, Math.round(value)))
-    : Math.max(
-        0,
-        POOL_ROYALE_HDRI_VARIANTS.findIndex(
-          (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
-        )
-      );
-  return POOL_ROYALE_HDRI_VARIANTS[idx] || POOL_ROYALE_HDRI_VARIANTS[0];
-};
 const CHESS_BOARD_GLTF_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
+  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
 ];
 
 const CHECKERS_BOARD_THEMES = Object.freeze([
@@ -426,15 +401,7 @@ async function loadCheckersBoardModel(loader) {
   let err = null;
   for (const url of CHESS_BOARD_GLTF_URLS) {
     try {
-      const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
-      );
-      const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-      loader.setResourcePath(resourcePath);
-      loader.setPath(isAbsolute ? '' : resourcePath);
-      const gltf = await loader.loadAsync(resolvedUrl);
+      const gltf = await loader.loadAsync(url);
       if (gltf?.scene) {
         const root = gltf.scene.clone(true);
         let foundBoardLikeMesh = false;
@@ -442,7 +409,7 @@ async function loadCheckersBoardModel(loader) {
           if (!obj?.isMesh) return;
           const label =
             `${obj.name || ''} ${obj.parent?.name || ''}`.toLowerCase();
-          const boardLike = /board|chessboard|tile|square|tabletop|plane|floor|pitch/.test(
+          const boardLike = /board|chessboard|tile|square|tabletop|plane/.test(
             label
           );
           obj.visible = boardLike;
@@ -548,25 +515,15 @@ function ensureKtx2SupportDetection(renderer = null) {
 
 function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
-  loader.setCrossOrigin('anonymous');
+  loader.setCrossOrigin?.('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
 
   if (!sharedKtx2Loader) {
     sharedKtx2Loader = new KTX2Loader();
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    const supportRenderer =
-      renderer ||
-      (typeof document !== 'undefined'
-        ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
-        : null);
-    if (supportRenderer) {
-      sharedKtx2Loader.detectSupport(supportRenderer);
-      if (!renderer) supportRenderer.dispose();
-      hasDetectedKtx2Support = true;
-    }
   }
 
   ensureKtx2SupportDetection(renderer);
@@ -696,67 +653,36 @@ function createProceduralChairFallback(chairColor, legColor) {
   return chair;
 }
 
-const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
-  if (!json || typeof json !== 'object') return null;
-  const resolutions =
-    Array.isArray(preferred) && preferred.length
-      ? preferred
-      : DEFAULT_HDRI_RESOLUTIONS;
-  for (const res of resolutions) {
-    const entry = json[res];
-    if (entry?.hdr) return entry.hdr;
-    if (entry?.exr) return entry.exr;
-  }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
-  if (!fallback) return null;
-  return fallback.hdr || fallback.exr || null;
-};
-
 async function resolveHdriUrl(variant) {
-  const preferred =
-    Array.isArray(variant?.preferredResolutions) &&
-    variant.preferredResolutions.length
-      ? variant.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = variant?.fallbackResolution || preferred[0] || '4k';
+  const fallbackRes = variant?.fallbackResolution || '4k';
   const fallback = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${variant?.assetId || 'colorful_studio'}_${fallbackRes}.hdr`;
-  if (!variant?.assetId || typeof fetch !== 'function') return fallback;
+  if (!variant?.assetId) return fallback;
   try {
     const res = await fetch(
       `https://api.polyhaven.com/files/${encodeURIComponent(variant.assetId)}`
     );
     if (!res.ok) return fallback;
     const data = await res.json();
-    return pickPolyHavenHdriUrl(data, preferred) || fallback;
+    const urls = [];
+    const walk = (value) => {
+      if (!value) return;
+      if (typeof value === 'string') {
+        const low = value.toLowerCase();
+        if (
+          value.startsWith('http') &&
+          (low.endsWith('.hdr') || low.endsWith('.exr'))
+        )
+          urls.push(value);
+      } else if (Array.isArray(value)) value.forEach(walk);
+      else if (typeof value === 'object') Object.values(value).forEach(walk);
+    };
+    walk(data);
+    return (
+      urls.find((u) => u.includes(`/${fallbackRes}/`)) || urls[0] || fallback
+    );
   } catch {
     return fallback;
   }
-}
-
-async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
-  if (!renderer) return null;
-  const url = await resolveHdriUrl(variant);
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : new RGBELoader();
-  loader.setCrossOrigin?.('anonymous');
-  return new Promise((resolve) => {
-    loader.load(
-      url,
-      (texture) => {
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        const skyboxMap = texture;
-        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
-        skyboxMap.needsUpdate = true;
-        pmrem.dispose();
-        resolve({ envMap, skyboxMap });
-      },
-      undefined,
-      () => resolve(null)
-    );
-  });
 }
 
 export default function CheckersBattleRoyal() {
@@ -773,7 +699,6 @@ export default function CheckersBattleRoyal() {
   const moveSoundRef = useRef(null);
 
   const sceneRef = useRef(null);
-  const rendererRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
   const tableRef = useRef(null);
@@ -958,7 +883,6 @@ export default function CheckersBattleRoyal() {
       antialias: true,
       powerPreference: 'high-performance'
     });
-    rendererRef.current = renderer;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1237,10 +1161,9 @@ export default function CheckersBattleRoyal() {
           }
         }
         scene.add(boardBase);
-        return boardBase;
       };
 
-      const proceduralBoard = addVisibleBoardBase();
+      addVisibleBoardBase();
 
       try {
         const boardRoot = await loadCheckersBoardModel(
@@ -1254,10 +1177,7 @@ export default function CheckersBattleRoyal() {
         boardRoot.position.set(0, TABLE_HEIGHT, 0);
         gltfBoardRef.current = boardRoot;
         applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
-        proceduralBoard.visible = false;
-      } catch {
-        proceduralBoard.visible = true;
-      }
+      } catch {}
 
       boardOriginRef.current = {
         x: 0,
@@ -1299,7 +1219,6 @@ export default function CheckersBattleRoyal() {
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.dispose();
-      rendererRef.current = null;
       moveSoundRef.current?.pause();
       moveSoundRef.current = null;
       if (mount.contains(renderer.domElement))
@@ -1427,21 +1346,20 @@ export default function CheckersBattleRoyal() {
 
     const applyHdri = async () => {
       try {
-        const variant = resolveHdriVariant(appearance.hdriId);
-        const envResult = await loadPolyHavenHdriEnvironment(rendererRef.current, variant);
-        if (!envResult?.envMap) return;
-        const { envMap, skyboxMap } = envResult;
+        const variant =
+          POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) ||
+          POOL_ROYALE_HDRI_VARIANTS[0];
+        const url = await resolveHdriUrl(variant);
+        const loaderEnv = url.toLowerCase().endsWith('.exr')
+          ? new EXRLoader()
+          : new RGBELoader();
+        const envMap = await loaderEnv.loadAsync(url);
+        envMap.mapping = THREE.EquirectangularReflectionMapping;
         scene.environment = envMap;
-        scene.background = null;
-        if (typeof variant?.environmentIntensity === 'number') {
-          scene.environmentIntensity = variant.environmentIntensity;
-        }
-        if (typeof variant?.exposure === 'number' && rendererRef.current) {
-          rendererRef.current.toneMappingExposure = variant.exposure;
-        }
+        scene.background = envMap;
         if (envRef.current?.skybox) scene.remove(envRef.current.skybox);
         const cameraHeight =
-          Math.max(variant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
+          Math.max(variant?.cameraHeightM ?? 1.5, MIN_HDRI_CAMERA_HEIGHT_M) *
           HDRI_UNITS_PER_METER;
         const radiusMultiplier =
           typeof variant?.groundRadiusMultiplier === 'number'
@@ -1458,7 +1376,7 @@ export default function CheckersBattleRoyal() {
           )
         );
         const skybox = new GroundedSkybox(
-          skyboxMap || envMap,
+          envMap,
           cameraHeight,
           groundRadius,
           skyboxResolution
