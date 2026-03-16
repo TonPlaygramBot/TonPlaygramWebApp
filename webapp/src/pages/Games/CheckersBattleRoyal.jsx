@@ -56,8 +56,9 @@ const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD_SCALE = 0.0576;
+const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
+const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -511,7 +512,8 @@ async function loadCheckersBoardModel(renderer = null) {
   let lastError = null;
 
   const isChessPieceNode = (node) => {
-    const pieceTypePattern = /(king|queen|rook|bishop|knight|pawn)/i;
+    const pieceTypePattern =
+      /(king|queen|rook|bishop|knight|pawn|castle|tower|tour)/i;
     let current = node;
     for (let depth = 0; current && depth < 6; depth += 1) {
       if (pieceTypePattern.test(`${current.name || ''}`)) return true;
@@ -572,7 +574,8 @@ async function loadCheckersBoardModel(renderer = null) {
       const box = new THREE.Box3().setFromObject(boardModel);
       const size = box.getSize(new THREE.Vector3());
       const largest = Math.max(size.x, size.z, 0.001);
-      const targetSize = BOARD_TILE_SIZE * SIZE;
+      const targetSize =
+        BOARD_TILE_SIZE * SIZE * BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO;
       const scale = targetSize / largest;
       boardModel.scale.multiplyScalar(scale);
 
