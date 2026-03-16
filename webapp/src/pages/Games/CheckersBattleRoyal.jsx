@@ -788,8 +788,11 @@ function resolveCheckersPlayableTileSize(boardModel) {
   const bounds = new THREE.Box3().setFromObject(boardModel);
   const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z);
   if (!Number.isFinite(span) || span <= 0) return BOARD_TILE_SIZE;
+  const isMappedGltfBoard =
+    boardModel?.name === 'ChessBattleRoyalBoard' ||
+    boardModel?.name === 'ABeautifulGameBoard';
   const ratio =
-    boardModel?.name === 'ChessBattleRoyalBoard'
+    isMappedGltfBoard
       ? BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO
       : CHECKERS_PLAYABLE_MAPPING_RATIO;
   return span / ratio / SIZE;
