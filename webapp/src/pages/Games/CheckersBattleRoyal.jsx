@@ -44,8 +44,7 @@ import { getGameVolume } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import {
   chessBattleAccountId,
-  getChessBattleInventory,
-  isChessOptionUnlocked
+  getChessBattleInventory
 } from '../../utils/chessBattleInventory.js';
 
 const SIZE = 8;
@@ -60,7 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.14;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -203,26 +202,22 @@ const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   capture: '#ff8e6e'
 });
 
-const CHECKERS_SIDE_COLOR_HEX = Object.freeze({
-  marble: '#ffffff',
-  darkForest: '#ffffff',
-  amberGlow: '#f59e0b',
-  mintVale: '#10b981',
-  royalWave: '#3b82f6',
-  roseMist: '#ef4444',
-  amethyst: '#8b5cf6',
-  cinderBlaze: '#ff6b35',
-  arcticDrift: '#bcd7ff'
-});
-
-const CHECKERS_SIDE_COLOR_OPTIONS = Object.freeze(
-  Object.entries(CHESS_BATTLE_OPTION_LABELS.sideColor).map(([id, label]) => ({
-    id,
-    label,
-    color: CHECKERS_SIDE_COLOR_HEX[id] || '#f8fafc',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[id]
-  }))
-);
+const CHIP_SETS = [
+  { id: 'ruby-cyan', label: 'Ruby/Cyan', light: '#ef4444', dark: '#06b6d4' },
+  {
+    id: 'emerald-violet',
+    label: 'Emerald/Violet',
+    light: '#10b981',
+    dark: '#8b5cf6'
+  },
+  {
+    id: 'amber-slate',
+    label: 'Amber/Slate',
+    light: '#f59e0b',
+    dark: '#334155'
+  },
+  { id: 'rose-ice', label: 'Rose/Ice', light: '#fb7185', dark: '#67e8f9' }
+];
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
@@ -238,10 +233,10 @@ const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
   for (let r = 0; r < 3; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 0) board[r][c] = { side: 'dark', king: false };
+      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
   for (let r = 5; r < SIZE; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 0) board[r][c] = { side: 'light', king: false };
+      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
   return board;
 };
 
@@ -490,7 +485,7 @@ function buildFallbackCheckersBoardModel() {
   tileGroup.position.y = boardBaseY + frameHeight + topHeight;
   for (let r = 0; r < SIZE; r += 1) {
     for (let c = 0; c < SIZE; c += 1) {
-      const isDark = (r + c) % 2 === 0;
+      const isDark = (r + c) % 2 === 1;
       const tileMesh = new THREE.Mesh(
         new THREE.BoxGeometry(tileSize, 0.04, tileSize),
         isDark ? darkMat : lightMat
@@ -998,13 +993,6 @@ export default function CheckersBattleRoyal() {
 
   const inv = useMemo(() => {
     const inventory = getChessBattleInventory(chessBattleAccountId());
-    const availableSideColors = CHECKERS_SIDE_COLOR_OPTIONS.filter((option) =>
-      isChessOptionUnlocked('sideColor', option.id, inventory)
-    );
-    const defaultLightSide =
-      inventory.sideColor?.[0] || availableSideColors[0]?.id || 'amberGlow';
-    const defaultDarkSide =
-      inventory.sideColor?.[1] || availableSideColors[1]?.id || 'mintVale';
     return {
       tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
@@ -1012,31 +1000,16 @@ export default function CheckersBattleRoyal() {
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
-      headStyle: inventory.headStyle?.[0] || 'current',
-      lightSideColor: defaultLightSide,
-      darkSideColor: defaultDarkSide
+      headStyle: inventory.headStyle?.[0] || 'current'
     };
   }, []);
 
   const [appearance, setAppearance] = useState(inv);
+  const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
 
-  const unlockedSideColors = useMemo(() => {
-    const inventory = getChessBattleInventory(chessBattleAccountId());
-    const options = CHECKERS_SIDE_COLOR_OPTIONS.filter((option) =>
-      isChessOptionUnlocked('sideColor', option.id, inventory)
-    );
-    return options.length ? options : CHECKERS_SIDE_COLOR_OPTIONS;
-  }, []);
-
-  const lightChipColor =
-    CHECKERS_SIDE_COLOR_OPTIONS.find((option) => option.id === appearance.lightSideColor)?.color ||
-    CHECKERS_SIDE_COLOR_HEX.amberGlow;
-  const darkChipColor =
-    CHECKERS_SIDE_COLOR_OPTIONS.find((option) => option.id === appearance.darkSideColor)?.color ||
-    CHECKERS_SIDE_COLOR_HEX.mintVale;
-
+  const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
   const checkerHeadPreset = useMemo(() => {
-    const headId = appearance?.headStyle || 'current';
+    const headId = inv?.headStyle || 'current';
     if (headId === 'headChrome') {
       return { roughness: 0.12, metalness: 0.95, transmission: 0.1, ior: 2.1, thickness: 0.22 };
     }
@@ -1050,7 +1023,7 @@ export default function CheckersBattleRoyal() {
       return { roughness: 0.08, metalness: 0.05, transmission: 0.92, ior: 2.4, thickness: 0.6 };
     }
     return { roughness: 0.05, metalness: 0, transmission: 0.95, ior: 1.5, thickness: 0.5 };
-  }, [appearance?.headStyle]);
+  }, [inv?.headStyle]);
   const playerName = getTelegramFirstName() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
 
@@ -1090,7 +1063,7 @@ export default function CheckersBattleRoyal() {
               40
             ),
             createCheckerMaterial(
-              piece.side === 'light' ? lightChipColor : darkChipColor,
+              piece.side === 'light' ? chipSet.light : chipSet.dark,
               checkerHeadPreset
             )
           );
@@ -1118,7 +1091,7 @@ export default function CheckersBattleRoyal() {
         }
       }
     },
-    [checkerHeadPreset, darkChipColor, lightChipColor]
+    [checkerHeadPreset, chipSet.dark, chipSet.light]
   );
 
   useEffect(() => {
@@ -1929,52 +1902,15 @@ export default function CheckersBattleRoyal() {
                   ))}
                 </div>
 
-                <div className="mb-2 text-[11px] text-white/70">Your Pieces</div>
-                <div className="mb-3 grid max-h-28 grid-cols-2 gap-2 overflow-auto">
-                  {unlockedSideColors.map((option) => (
+                <div className="mb-2 text-[11px] text-white/70">Chips</div>
+                <div className="flex flex-wrap gap-2">
+                  {CHIP_SETS.map((set) => (
                     <button
-                      key={`light-${option.id}`}
-                      onClick={() =>
-                        setAppearance((prev) => ({
-                          ...prev,
-                          lightSideColor: option.id
-                        }))
-                      }
-                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.lightSideColor === option.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                      key={set.id}
+                      onClick={() => setChipSetId(set.id)}
+                      className={optionButton(chipSetId === set.id)}
                     >
-                      {option.thumbnail ? (
-                        <img
-                          src={option.thumbnail}
-                          alt={`${option.label} piece thumbnail`}
-                          className="mb-1 h-10 w-full rounded object-cover"
-                        />
-                      ) : null}
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mb-2 text-[11px] text-white/70">Rival Pieces</div>
-                <div className="grid max-h-28 grid-cols-2 gap-2 overflow-auto">
-                  {unlockedSideColors.map((option) => (
-                    <button
-                      key={`dark-${option.id}`}
-                      onClick={() =>
-                        setAppearance((prev) => ({
-                          ...prev,
-                          darkSideColor: option.id
-                        }))
-                      }
-                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.darkSideColor === option.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
-                    >
-                      {option.thumbnail ? (
-                        <img
-                          src={option.thumbnail}
-                          alt={`${option.label} piece thumbnail`}
-                          className="mb-1 h-10 w-full rounded object-cover"
-                        />
-                      ) : null}
-                      {option.label}
+                      {set.label}
                     </button>
                   ))}
                 </div>
