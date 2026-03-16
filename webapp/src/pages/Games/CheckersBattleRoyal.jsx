@@ -59,7 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.34;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -309,10 +309,10 @@ const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
   for (let r = 0; r < 3; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
+      if ((r + c) % 2 === 0) board[r][c] = { side: 'dark', king: false };
   for (let r = 5; r < SIZE; r += 1)
     for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
+      if ((r + c) % 2 === 0) board[r][c] = { side: 'light', king: false };
   return board;
 };
 
