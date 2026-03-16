@@ -67,7 +67,7 @@ const gamesCatalog = [
     name: 'Checkers Battle Royal',
     route: '/games/checkersbattleroyal/lobby',
     slug: 'checkersbattleroyal',
-    image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+    image: '/assets/icons/Checkersbattleroyallogo.png',
     description: 'Classic checkers duels with royal 3D presentation.'
   },
 
@@ -75,7 +75,7 @@ const gamesCatalog = [
     name: 'Baduk Battle Royal',
     route: '/games/badukbattleroyal/lobby',
     slug: 'badukbattleroyal',
-    image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+    image: '/assets/icons/Badukbattleroyallogo.png',
     description: 'Go/Baduk strategy on the shared Battle Royal 3D arena.'
   },
 
@@ -83,14 +83,14 @@ const gamesCatalog = [
     name: 'Backgammon Royal',
     route: '/games/tavullbattleroyal/lobby',
     slug: 'tavullbattleroyal',
-    image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+    image: '/assets/icons/Backgammonroyallogo.png',
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
   {
     name: 'Table Tennis Royal',
     route: '/games/tabletennisroyal/lobby',
     slug: 'tabletennisroyal',
-    image: '/assets/icons/Pool%20Royal%20game%20logo.png',
+    image: '/assets/icons/Tabletennisroyallogo.png',
     description: 'Fast 3D table-tennis rallies with royal visuals.'
   },
   {
