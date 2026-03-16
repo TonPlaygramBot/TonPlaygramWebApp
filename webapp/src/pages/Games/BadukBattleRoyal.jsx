@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
@@ -21,10 +21,16 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
 const BOARD_SIZES = [9, 13, 16, 19];
+const BOARD_TEXTURE_SIZE = 1024;
+const BOARD_GRID_MIN = 86;
+const BOARD_GRID_MAX = 938;
+const BOARD_GRID_RANGE_RATIO = (BOARD_GRID_MAX - BOARD_GRID_MIN) / BOARD_TEXTURE_SIZE;
 
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -138,7 +144,6 @@ const optionButton = (active) =>
 
 export default function BadukBattleRoyal() {
   useTelegramBackButton();
-  const navigate = useNavigate();
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
@@ -187,6 +192,9 @@ export default function BadukBattleRoyal() {
       return DEFAULT_GRAPHICS_ID;
     }
   });
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
 
   const graphicsOption = useMemo(
     () => GRAPHICS_OPTIONS.find((opt) => opt.id === graphicsId) || GRAPHICS_OPTIONS[3],
@@ -212,8 +220,9 @@ export default function BadukBattleRoyal() {
 
   const worldFromCell = (r, c) => {
     const boardExtent = 2.04;
-    const step = boardExtent / (boardSize - 1);
-    const start = -boardExtent / 2;
+    const playableExtent = boardExtent * BOARD_GRID_RANGE_RATIO;
+    const step = playableExtent / (boardSize - 1);
+    const start = -playableExtent / 2;
     const x = start + c * step;
     const z = start + r * step;
     return [x, z];
@@ -221,9 +230,10 @@ export default function BadukBattleRoyal() {
 
   const cellFromWorld = (x, z) => {
     const boardExtent = 2.04;
-    const half = boardExtent / 2;
-    const normalizedX = clamp((x + half) / boardExtent, 0, 1);
-    const normalizedZ = clamp((z + half) / boardExtent, 0, 1);
+    const playableExtent = boardExtent * BOARD_GRID_RANGE_RATIO;
+    const halfPlayable = playableExtent / 2;
+    const normalizedX = clamp((x + halfPlayable) / playableExtent, 0, 1);
+    const normalizedZ = clamp((z + halfPlayable) / playableExtent, 0, 1);
     const c = Math.round(normalizedX * (boardSize - 1));
     const r = Math.round(normalizedZ * (boardSize - 1));
     return [r, c];
@@ -527,30 +537,42 @@ export default function BadukBattleRoyal() {
     });
   };
 
-  const onRestart = () => {
-    setBoard(createBoard(boardSize));
-    setTurn('black');
-    setCaptures({ black: 0, white: 0 });
-    setPassCount(0);
-    setLastMove(null);
-    setStatus('Board reset. Black to play.');
-  };
-
   const blackStones = board.flat().filter((s) => s === 'black').length;
   const whiteStones = board.flat().filter((s) => s === 'white').length;
+  const chatGiftOverlayClass = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
+  const chatGiftPanelClass = 'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
+  const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
+  const chatGiftTitleClass = 'text-sm font-semibold tracking-[0.04em] text-white';
+  const chatGiftCloseButtonClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 hover:bg-white/20';
+  const chatGiftOptionClass = 'text-[11px] font-semibold border border-white/15 rounded-[10px] px-2 py-1 bg-[#0f172a]/60 text-white/85';
+  const chatGiftOptionActiveClass = 'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
+  const chatGiftActionButtonClass = 'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
+
+  const giftPlayers = [
+    { index: 0, id: badukBattleAccountId(accountId || undefined), name: username, photoUrl: avatar || '/assets/icons/profile.svg' },
+    { index: 1, id: 'baduk-ai-rival', name: 'AI Rival', photoUrl: '/assets/icons/bot.webp' }
+  ];
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-white">
       <div ref={mountRef} className="absolute inset-0" />
 
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 p-3">
-        <div className="pointer-events-auto mx-auto max-w-[27rem] rounded-2xl border border-white/15 bg-black/60 p-3 backdrop-blur">
-          <div className="flex items-center justify-between gap-2">
+        <div className="pointer-events-none absolute top-20 left-4 z-20 flex flex-col items-start gap-3">
+          <button
+            type="button"
+            onClick={() => setConfigOpen((open) => !open)}
+            aria-expanded={configOpen}
+            aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            <span className="text-base leading-none" aria-hidden="true">☰</span>
+            <span className="leading-none">Menu</span>
+          </button>
+          <div className="pointer-events-auto max-w-[27rem] rounded-2xl border border-white/15 bg-black/60 p-3 backdrop-blur">
             <h1 className="text-sm font-semibold uppercase tracking-[0.18em]">Baduk Battle Royal</h1>
-            <button onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-lg border border-white/20 px-2 py-1 text-xs">Lobby</button>
+            <p className="mt-2 text-xs text-white/75">Board {boardSize}×{boardSize} • Turn: {turn} • B:{blackStones} W:{whiteStones} • Captures B:{captures.black} W:{captures.white}</p>
           </div>
-          <p className="mt-2 text-xs text-white/75">Board {boardSize}×{boardSize} • Turn: {turn} • B:{blackStones} W:{whiteStones} • Captures B:{captures.black} W:{captures.white}</p>
-          <p className="mt-1 text-xs text-cyan-100/90">{status}</p>
         </div>
       </div>
 
@@ -565,7 +587,6 @@ export default function BadukBattleRoyal() {
               ⚙
             </button>
             <button onClick={onPass} className="rounded-xl border border-amber-300/40 bg-amber-400/30 px-3 py-2 text-xs font-semibold">Pass</button>
-            <button onClick={onRestart} className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs">Restart</button>
           </div>
 
           {configOpen && (
@@ -682,7 +703,7 @@ export default function BadukBattleRoyal() {
 
       <div className="pointer-events-auto">
         <BottomLeftIcons
-          onGift={() => setStatus('Gift interactions are aligned with Chess Battle Royal UI.')}
+          onGift={() => setShowGift(true)}
           showInfo={false}
           showChat={false}
           showMute={false}
@@ -694,7 +715,7 @@ export default function BadukBattleRoyal() {
           order={['gift']}
         />
         <BottomLeftIcons
-          onChat={() => setStatus('Quick chat coming soon for Baduk multiplayer.')}
+          onChat={() => setShowChat(true)}
           showInfo={false}
           showGift={false}
           showMute={false}
@@ -708,13 +729,92 @@ export default function BadukBattleRoyal() {
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[12%] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[12%] -translate-x-1/2" data-player-index={1}>
           <AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'white'} size={1} />
         </div>
-        <div className="absolute left-1/2 top-[85%] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[85%] -translate-x-1/2" data-player-index={0}>
           <AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'black'} size={1} />
         </div>
+        <div className="absolute left-1/2 top-[77%] -translate-x-1/2">
+          <div className="px-4 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-xs font-semibold backdrop-blur text-cyan-100/90">
+            {status}
+          </div>
+        </div>
       </div>
+
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+
+      <QuickMessagePopup
+        open={showChat}
+        onClose={() => setShowChat(false)}
+        title="Quick Chat"
+        headerClassName={chatGiftHeaderClass}
+        titleClassName={chatGiftTitleClass}
+        closeButtonClassName={chatGiftCloseButtonClass}
+        showCloseButton
+        overlayClassName={chatGiftOverlayClass}
+        panelClassName={chatGiftPanelClass}
+        messageGridClassName="grid grid-cols-2 gap-[0.45rem] max-h-48 overflow-y-auto"
+        messageButtonClassName={chatGiftOptionClass}
+        messageButtonActiveClassName={chatGiftOptionActiveClass}
+        sendButtonClassName={chatGiftActionButtonClass}
+        onSend={(text) => {
+          const id = Date.now();
+          setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: avatar || '/assets/icons/profile.svg' }]);
+          setTimeout(() => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)), 3000);
+        }}
+      />
+
+      <GiftPopup
+        open={showGift}
+        onClose={() => setShowGift(false)}
+        players={giftPlayers}
+        senderIndex={0}
+        overlayClassName={chatGiftOverlayClass}
+        panelClassName={chatGiftPanelClass}
+        title="Send Gift"
+        headerClassName={chatGiftHeaderClass}
+        titleClassName={chatGiftTitleClass}
+        closeButtonClassName={chatGiftCloseButtonClass}
+        showCloseButton
+        playerListClassName="flex flex-col gap-[0.4rem] max-h-[8.5rem] overflow-y-auto"
+        tierGroupClassName="flex flex-col gap-[0.35rem]"
+        giftGridClassName="grid grid-cols-2 gap-[0.4rem]"
+        playerButtonClassName={`${chatGiftOptionClass} flex items-center gap-2 text-left`}
+        playerButtonActiveClassName={chatGiftOptionActiveClass}
+        tierTitleClassName="text-[11px] uppercase tracking-[0.18em] text-white/70"
+        giftButtonClassName={`${chatGiftOptionClass} flex items-center justify-center gap-2`}
+        giftButtonActiveClassName={chatGiftOptionActiveClass}
+        costClassName="text-[11px] uppercase tracking-[0.18em] text-white/70 mt-2 flex items-center justify-center gap-2"
+        sendButtonClassName={chatGiftActionButtonClass}
+        noteClassName="text-[10px] uppercase tracking-[0.18em] text-white/60 text-center"
+        onGiftSent={({ from, to, gift }) => {
+          const start = document.querySelector(`[data-player-index="${from}"]`);
+          const end = document.querySelector(`[data-player-index="${to}"]`);
+          if (!start || !end) return;
+          const s = start.getBoundingClientRect();
+          const e = end.getBoundingClientRect();
+          const icon = document.createElement('div');
+          icon.textContent = gift.icon;
+          icon.style.position = 'fixed';
+          icon.style.left = '0px';
+          icon.style.top = '0px';
+          icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px)`;
+          icon.style.transition = 'transform 1s ease-in-out';
+          icon.style.fontSize = '24px';
+          icon.style.zIndex = '70';
+          document.body.appendChild(icon);
+          requestAnimationFrame(() => {
+            icon.style.transform = `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px)`;
+          });
+          setTimeout(() => icon.remove(), 1200);
+        }}
+      />
     </div>
   );
 }
