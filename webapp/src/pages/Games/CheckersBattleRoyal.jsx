@@ -59,7 +59,11 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.36;
+const CHECKERS_PLAYABLE_CENTER_OFFSET_TILES = Object.freeze({
+  x: 0.08,
+  z: 0.2
+});
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -793,6 +797,15 @@ function resolveCheckersPlayableTileSize(boardModel) {
       ? BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO
       : CHECKERS_PLAYABLE_MAPPING_RATIO;
   return span / ratio / SIZE;
+}
+
+function resolveCheckersPlayableCenterOffset(boardModel, tileSize) {
+  if (!boardModel || boardModel?.name === 'ChessBattleRoyalBoard')
+    return { x: 0, z: 0 };
+  return {
+    x: tileSize * CHECKERS_PLAYABLE_CENTER_OFFSET_TILES.x,
+    z: tileSize * CHECKERS_PLAYABLE_CENTER_OFFSET_TILES.z
+  };
 }
 
 function createCheckerMaterial(style, headPreset) {
@@ -1557,11 +1570,18 @@ export default function CheckersBattleRoyal() {
         proceduralBoard.visible = true;
       }
 
+      const activeBoardModel = gltfBoardRef.current || proceduralBoard;
+      const playableTile = resolveCheckersPlayableTileSize(activeBoardModel);
+      const playableOffset = resolveCheckersPlayableCenterOffset(
+        activeBoardModel,
+        playableTile
+      );
+
       boardOriginRef.current = {
-        x: 0,
+        x: playableOffset.x,
         y: TABLE_HEIGHT + 0.08,
-        z: 0,
-        tile: resolveCheckersPlayableTileSize(gltfBoardRef.current || proceduralBoard)
+        z: playableOffset.z,
+        tile: playableTile
       };
 
       setupPickTiles();
