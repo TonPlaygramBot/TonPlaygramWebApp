@@ -32,7 +32,8 @@ import {
   collectTurnSequences,
   formatMove,
   initialBoard,
-  pickAiSequence
+  pickAiSequence,
+  scorePosition
 } from '../../utils/tavullEngine.js'
 
 const TABLE_RADIUS = 2.55
@@ -103,6 +104,13 @@ const BACKGAMMON_DIE_FACE_INSET = BACKGAMMON_DIE_SIZE * 0.064
 
 const BACKGAMMON_DOUBLE_CUBE_SIZE = BACKGAMMON_DIE_SIZE * 1.06
 const BACKGAMMON_DOUBLE_CUBE_VALUES = Object.freeze([2, 4, 8, 16, 32, 64])
+
+const nextDoubleCubeValue = (current) => {
+  if (current >= 64) return 64
+  return Math.min(64, Math.max(2, current * 2))
+}
+
+const cubeTopValueForStake = (stake) => (stake <= 1 ? 64 : Math.min(64, stake))
 
 function makeBackgammonDoubleCube(topValue = 64) {
   const cube = new THREE.Group()
@@ -468,6 +476,9 @@ export default function TavullBattleRoyal() {
   const pendingTimeoutsRef = useRef([])
 
   const [game, setGame] = useState({ points: initialBoard(), bar: { white: 0, black: 0 }, off: { white: 0, black: 0 } })
+  const [cubeValue, setCubeValue] = useState(1)
+  const [cubeOwner, setCubeOwner] = useState(null)
+  const [forcedWinner, setForcedWinner] = useState(null)
   const [dice, setDice] = useState([])
   const [available, setAvailable] = useState([])
   const [message, setMessage] = useState('Roll to start. You are White.')
@@ -491,7 +502,7 @@ export default function TavullBattleRoyal() {
   const playerName = getTelegramFirstName() || 'Player'
   const playerAvatar = getTelegramPhotoUrl()
 
-  const winner = game.off.white >= 15 ? WHITE : game.off.black >= 15 ? BLACK : null
+  const winner = forcedWinner || (game.off.white >= 15 ? WHITE : game.off.black >= 15 ? BLACK : null)
 
   const players = [
     {
@@ -831,6 +842,9 @@ export default function TavullBattleRoyal() {
           })
         })
       },
+      setDoubleCubeValue: (stake = 1) => {
+        doubleCube.userData.setTopValue?.(cubeTopValueForStake(stake))
+      },
       applyViewMode,
       applyTableFinish: (idx) => applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[idx] || MURLAN_TABLE_FINISHES[0]),
       applyHdri: (idx) => loadHdriEnvironment(scene, idx),
@@ -866,6 +880,10 @@ export default function TavullBattleRoyal() {
     if (!bundle?.applyViewMode) return
     bundle.applyViewMode(viewMode)
   }, [viewMode])
+
+  useEffect(() => {
+    sceneBundleRef.current?.setDoubleCubeValue?.(cubeValue)
+  }, [cubeValue])
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
@@ -1007,7 +1025,63 @@ export default function TavullBattleRoyal() {
     runStep()
   }
 
-  const playAi = (stateAfterPlayer) => {
+  const finishByDoubleDrop = (color, note) => {
+    setForcedWinner(color)
+    setAiThinking(false)
+    setIsRollingDice(false)
+    setAvailable([])
+    setDice([])
+    if (note) setMessage(note)
+  }
+
+  const applyAcceptedDouble = (offeredBy) => {
+    const nextValue = nextDoubleCubeValue(cubeValue)
+    setCubeValue(nextValue)
+    setCubeOwner(offeredBy)
+    return nextValue
+  }
+
+  const canPlayerOfferDouble = !winner && !aiThinking && !isRollingDice && available.length === 0 && (cubeOwner == null || cubeOwner === WHITE)
+
+  const offerDoubleByPlayer = () => {
+    if (!canPlayerOfferDouble) return
+    const blackScore = scorePosition(game, BLACK)
+    setMessage('You offered Double. AI is deciding…')
+    setAiThinking(true)
+    const timeoutId = window.setTimeout(() => {
+      if (!isMountedRef.current) return
+      if (blackScore < -80) {
+        finishByDoubleDrop(WHITE, 'AI passed your Double. You win the game.')
+        return
+      }
+      const nextValue = applyAcceptedDouble(WHITE)
+      setAiThinking(false)
+      setMessage(`AI accepted. Cube is now ${nextValue}. Roll dice.`)
+    }, 620)
+    pendingTimeoutsRef.current.push(timeoutId)
+  }
+
+  const playAi = (stateAfterPlayer, allowDoubleOffer = true) => {
+    const canAiOfferDouble = allowDoubleOffer && !winner && cubeValue < 64 && (cubeOwner == null || cubeOwner === BLACK)
+    if (canAiOfferDouble && scorePosition(stateAfterPlayer, BLACK) > 55) {
+      setAiThinking(true)
+      setMessage('AI offers Double. Evaluating your position…')
+      const timeoutId = window.setTimeout(() => {
+        if (!isMountedRef.current) return
+        const whiteScore = scorePosition(stateAfterPlayer, WHITE)
+        if (whiteScore < -85) {
+          finishByDoubleDrop(BLACK, 'You passed the Double. AI wins this game.')
+          return
+        }
+        const nextValue = applyAcceptedDouble(BLACK)
+        setMessage(`You accepted. Cube is now ${nextValue}. AI is rolling…`)
+        setAiThinking(false)
+        playAi(stateAfterPlayer, false)
+      }, 720)
+      pendingTimeoutsRef.current.push(timeoutId)
+      return
+    }
+
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
     const visibleAiDice = [d1, d2]
@@ -1029,14 +1103,14 @@ export default function TavullBattleRoyal() {
         console.error('Backgammon AI turn crashed, skipping turn safely.', error)
       }
       if (!choice || !choice.line.length) {
-        setMessage(`AI rolled ${d1}/${d2} but had no legal move. Your turn.`)
+        setMessage(`AI rolled ${d1}/${d2} but had no legal move. Your turn. Cube ${cubeValue}.`)
         setAiThinking(false)
         setDice([])
         setAvailable([])
         return
       }
       animateSequence(stateAfterPlayer, BLACK, choice, () => {
-        setMessage(`AI played ${choice.line.length} move(s). Your turn.`)
+        setMessage(`AI played ${choice.line.length} move(s). Your turn. Cube ${cubeValue}.`)
         setAiThinking(false)
         setDice([])
         setAvailable([])
@@ -1065,14 +1139,14 @@ export default function TavullBattleRoyal() {
       } catch (error) {
         console.error('Backgammon player turn evaluation crashed.', error)
       }
-      setDice(visibleDice)
+      setDice(useDice)
       setAvailable(seq)
       if (!seq.length || !seq.some((s) => s.line.length)) {
         setMessage(`You rolled ${d1}/${d2} but no legal move. AI turn.`)
         playAi(game)
         return
       }
-      setMessage('Tap a checker/point to move, or choose a legal turn from the list.')
+      setMessage(`Tap a checker/point to move, or choose a legal turn from the list. Cube ${cubeValue}.`)
     }, 820)
     pendingTimeoutsRef.current.push(timeoutId)
   }
@@ -1264,6 +1338,9 @@ export default function TavullBattleRoyal() {
       )}
 
       <div className="absolute left-1/2 top-[75%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+        <div className="rounded-full border border-amber-300/40 bg-black/45 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber-100">
+          Cube {cubeValue}
+        </div>
         {!!dice.length && (
           <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1">
             {dice.map((value, index) => (
@@ -1277,10 +1354,18 @@ export default function TavullBattleRoyal() {
         <button
           type="button"
           onClick={roll}
-          disabled={aiThinking || winner || available.length > 0}
+          disabled={aiThinking || winner || available.length > 0 || isRollingDice}
           className="rounded-xl border border-white/30 bg-transparent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
           Roll Dice
+        </button>
+        <button
+          type="button"
+          onClick={offerDoubleByPlayer}
+          disabled={!canPlayerOfferDouble || cubeValue >= 64}
+          className="rounded-xl border border-amber-300/45 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50"
+        >
+          Double
         </button>
       </div>
 
