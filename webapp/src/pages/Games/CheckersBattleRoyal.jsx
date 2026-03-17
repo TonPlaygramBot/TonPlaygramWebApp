@@ -203,10 +203,6 @@ const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
-const TAP_MAX_DISTANCE_PX = 16;
-const TAP_MAX_DURATION_MS = 340;
-const TOUCH_TAP_MAX_DISTANCE_PX = 30;
-const TOUCH_TAP_MAX_DURATION_MS = 560;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -981,7 +977,6 @@ export default function CheckersBattleRoyal() {
   const highlightGroupRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
-  const pointerDownRef = useRef(null);
 
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -1384,53 +1379,24 @@ export default function CheckersBattleRoyal() {
       renderHighlights();
     };
 
-    const onPointerDown = (event) => {
-      if (!event.isPrimary) return;
-      pointerDownRef.current = {
-        id: event.pointerId,
-        x: event.clientX,
-        y: event.clientY,
-        at: performance.now(),
-        pointerType: event.pointerType || 'mouse'
-      };
-      renderer.domElement.setPointerCapture?.(event.pointerId);
-    };
-
-    const onPointerCancel = (event) => {
-      const pointerDown = pointerDownRef.current;
-      if (!pointerDown || pointerDown.id !== event.pointerId) return;
-      pointerDownRef.current = null;
-    };
-
-    const onPointerUp = (event) => {
-      const pointerDown = pointerDownRef.current;
-      pointerDownRef.current = null;
-      if (!pointerDown || pointerDown.id !== event.pointerId) return;
-
-      renderer.domElement.releasePointerCapture?.(event.pointerId);
-
-      const isTouchPointer =
-        pointerDown.pointerType === 'touch' || pointerDown.pointerType === 'pen';
-      const maxDuration = isTouchPointer
-        ? TOUCH_TAP_MAX_DURATION_MS
-        : TAP_MAX_DURATION_MS;
-      const maxDistance = isTouchPointer
-        ? TOUCH_TAP_MAX_DISTANCE_PX
-        : TAP_MAX_DISTANCE_PX;
-
-      if (pointerDown) {
-        const dt = performance.now() - pointerDown.at;
-        const dx = event.clientX - pointerDown.x;
-        const dy = event.clientY - pointerDown.y;
-        const dist = Math.hypot(dx, dy);
-        if (dt > maxDuration || dist > maxDistance) return;
-      }
+    const pickTileFromEvent = (event) => {
+      const touch = event.changedTouches?.[0] ?? event.touches?.[0] ?? null;
+      const clientX = event.clientX ?? touch?.clientX;
+      const clientY = event.clientY ?? touch?.clientY;
+      if (clientX == null || clientY == null) return null;
       const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(pickTiles, false)[0];
-      if (hit?.object?.userData) applyMove(hit.object.userData.r, hit.object.userData.c);
+      if (!hit?.object?.userData) return null;
+      return hit.object.userData;
+    };
+
+    const onBoardTap = (event) => {
+      const tile = pickTileFromEvent(event);
+      if (!tile) return;
+      applyMove(tile.r, tile.c);
     };
 
     const buildSceneAssets = async () => {
@@ -1595,11 +1561,8 @@ export default function CheckersBattleRoyal() {
     };
 
     renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.addEventListener('pointerdown', onPointerDown, {
-      passive: true
-    });
-    renderer.domElement.addEventListener('pointerup', onPointerUp);
-    renderer.domElement.addEventListener('pointercancel', onPointerCancel);
+    renderer.domElement.addEventListener('click', onBoardTap);
+    renderer.domElement.addEventListener('touchend', onBoardTap);
     window.addEventListener('resize', onResize);
 
     let raf = 0;
@@ -1613,9 +1576,8 @@ export default function CheckersBattleRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      renderer.domElement.removeEventListener('pointerup', onPointerUp);
-      renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
+      renderer.domElement.removeEventListener('click', onBoardTap);
+      renderer.domElement.removeEventListener('touchend', onBoardTap);
       renderer.dispose();
       rendererRef.current = null;
       moveSoundRef.current?.pause();
