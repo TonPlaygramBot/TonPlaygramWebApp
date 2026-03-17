@@ -206,7 +206,7 @@ const MOVE_SOUND_URL =
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
 const TOUCH_TAP_MAX_DISTANCE_PX = 40;
-const TOUCH_TAP_MAX_DURATION_MS = 650;
+const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
@@ -723,7 +723,10 @@ function applyCheckersBoardTheme(
 function resolveCheckersPlayableTileSize(boardModel) {
   if (!boardModel) return BOARD_TILE_SIZE;
   const bounds = new THREE.Box3().setFromObject(boardModel);
-  const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z);
+  const span = Math.max(
+    bounds.max.x - bounds.min.x,
+    bounds.max.z - bounds.min.z
+  );
   if (!Number.isFinite(span) || span <= 0) return BOARD_TILE_SIZE;
   const ratio =
     boardModel?.name === 'ChessBattleRoyalBoard'
@@ -1005,6 +1008,10 @@ export default function CheckersBattleRoyal() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [canReplay, setCanReplay] = useState(false);
   const [gameOver, setGameOver] = useState(null);
+  const [capturedBySide, setCapturedBySide] = useState({
+    light: [],
+    dark: []
+  });
   const aiBusyRef = useRef(false);
 
   const inv = useMemo(() => {
@@ -1027,18 +1034,48 @@ export default function CheckersBattleRoyal() {
   const checkerHeadPreset = useMemo(() => {
     const headId = inv?.headStyle || 'current';
     if (headId === 'headChrome') {
-      return { roughness: 0.12, metalness: 0.95, transmission: 0.1, ior: 2.1, thickness: 0.22 };
+      return {
+        roughness: 0.12,
+        metalness: 0.95,
+        transmission: 0.1,
+        ior: 2.1,
+        thickness: 0.22
+      };
     }
     if (headId === 'headGold') {
-      return { roughness: 0.16, metalness: 0.92, transmission: 0.06, ior: 1.85, thickness: 0.28 };
+      return {
+        roughness: 0.16,
+        metalness: 0.92,
+        transmission: 0.06,
+        ior: 1.85,
+        thickness: 0.28
+      };
     }
     if (headId === 'headSapphire') {
-      return { roughness: 0.08, metalness: 0.05, transmission: 0.9, ior: 1.8, thickness: 0.7 };
+      return {
+        roughness: 0.08,
+        metalness: 0.05,
+        transmission: 0.9,
+        ior: 1.8,
+        thickness: 0.7
+      };
     }
     if (headId === 'headRuby') {
-      return { roughness: 0.08, metalness: 0.05, transmission: 0.92, ior: 2.4, thickness: 0.6 };
+      return {
+        roughness: 0.08,
+        metalness: 0.05,
+        transmission: 0.92,
+        ior: 2.4,
+        thickness: 0.6
+      };
     }
-    return { roughness: 0.18, metalness: 0.35, transmission: 0.18, ior: 1.6, thickness: 0.44 };
+    return {
+      roughness: 0.18,
+      metalness: 0.35,
+      transmission: 0.18,
+      ior: 1.6,
+      thickness: 0.44
+    };
   }, [inv?.headStyle]);
   const playerName = getTelegramFirstName() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
@@ -1092,7 +1129,12 @@ export default function CheckersBattleRoyal() {
           pieceGroup.add(chip);
 
           const topCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(tile * 0.264, tile * 0.292, tile * 0.064, 48),
+            new THREE.CylinderGeometry(
+              tile * 0.264,
+              tile * 0.292,
+              tile * 0.064,
+              48
+            ),
             baseMaterial.clone()
           );
           topCap.position.y = tile * 0.106;
@@ -1336,8 +1378,21 @@ export default function CheckersBattleRoyal() {
       });
       if (!applied) return;
 
+      if (Array.isArray(move.capture)) {
+        const [captureR, captureC] = move.capture;
+        const capturedPiece = beforeBoard[captureR]?.[captureC];
+        if (capturedPiece?.side) {
+          setCapturedBySide((prev) => ({
+            ...prev,
+            [turn]: [...prev[turn], capturedPiece]
+          }));
+        }
+      }
+
       boardRef.current = applied.board;
-      const moveAudio = move.capture ? captureSoundRef.current : moveSoundRef.current;
+      const moveAudio = move.capture
+        ? captureSoundRef.current
+        : moveSoundRef.current;
       if (moveAudio) moveAudio.currentTime = 0;
       moveAudio?.play().catch(() => {});
       renderPieces();
@@ -1374,7 +1429,9 @@ export default function CheckersBattleRoyal() {
         const winnerSide = turn;
         setGameOver(winnerSide);
         setTurn(nextTurn);
-        setStatus(`${nextTurn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win!`);
+        setStatus(
+          `${nextTurn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win!`
+        );
       } else {
         setTurn(nextTurn);
         setStatus(
@@ -1386,16 +1443,71 @@ export default function CheckersBattleRoyal() {
       renderHighlights();
     };
 
+    const resolveBoardCellFromEvent = (event, isTouchPointer) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+
+      const boardOrigin = boardOriginRef.current;
+      if (boardOrigin) {
+        const boardPlane = new THREE.Plane(
+          new THREE.Vector3(0, 1, 0),
+          -boardOrigin.y
+        );
+        const worldPoint = new THREE.Vector3();
+        const hitOnPlane = raycaster.ray.intersectPlane(boardPlane, worldPoint);
+        if (hitOnPlane) {
+          const localC =
+            (worldPoint.x - boardOrigin.x) / boardOrigin.tile + 3.5;
+          const localR =
+            (worldPoint.z - boardOrigin.z) / boardOrigin.tile + 3.5;
+          const nearestC = Math.round(localC);
+          const nearestR = Math.round(localR);
+          const pickRadius = isTouchPointer
+            ? TOUCH_PICK_RADIUS_IN_TILES
+            : MOUSE_PICK_RADIUS_IN_TILES;
+          if (
+            nearestR >= 0 &&
+            nearestR < SIZE &&
+            nearestC >= 0 &&
+            nearestC < SIZE &&
+            Math.abs(localR - nearestR) <= pickRadius &&
+            Math.abs(localC - nearestC) <= pickRadius
+          ) {
+            return { r: nearestR, c: nearestC };
+          }
+        }
+      }
+
+      const hit = raycaster.intersectObjects(pickTiles, false)[0];
+      if (hit?.object?.userData) {
+        return { r: hit.object.userData.r, c: hit.object.userData.c };
+      }
+      return null;
+    };
+
     const onPointerDown = (event) => {
       if (!event.isPrimary) return;
+      const isTouchPointer =
+        event.pointerType === 'touch' || event.pointerType === 'pen';
       pointerDownRef.current = {
         id: event.pointerId,
         x: event.clientX,
         y: event.clientY,
         at: performance.now(),
-        pointerType: event.pointerType || 'mouse'
+        pointerType: event.pointerType || 'mouse',
+        handledOnDown: false
       };
       renderer.domElement.setPointerCapture?.(event.pointerId);
+
+      if (isTouchPointer) {
+        const cell = resolveBoardCellFromEvent(event, true);
+        if (cell) {
+          applyMove(cell.r, cell.c);
+          pointerDownRef.current.handledOnDown = true;
+        }
+      }
     };
 
     const onPointerCancel = (event) => {
@@ -1408,11 +1520,16 @@ export default function CheckersBattleRoyal() {
       const pointerDown = pointerDownRef.current;
       pointerDownRef.current = null;
       if (!pointerDown || pointerDown.id !== event.pointerId) return;
+      if (pointerDown.handledOnDown) {
+        renderer.domElement.releasePointerCapture?.(event.pointerId);
+        return;
+      }
 
       renderer.domElement.releasePointerCapture?.(event.pointerId);
 
       const isTouchPointer =
-        pointerDown.pointerType === 'touch' || pointerDown.pointerType === 'pen';
+        pointerDown.pointerType === 'touch' ||
+        pointerDown.pointerType === 'pen';
       const maxDuration = isTouchPointer
         ? TOUCH_TAP_MAX_DURATION_MS
         : TAP_MAX_DURATION_MS;
@@ -1427,50 +1544,8 @@ export default function CheckersBattleRoyal() {
         const dist = Math.hypot(dx, dy);
         if (dt > maxDuration || dist > maxDistance) return;
       }
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-
-      const resolveBoardCellFromPointer = () => {
-        const boardOrigin = boardOriginRef.current;
-        if (!boardOrigin) return null;
-        const boardPlane = new THREE.Plane(
-          new THREE.Vector3(0, 1, 0),
-          -boardOrigin.y
-        );
-        const worldPoint = new THREE.Vector3();
-        const hitOnPlane = raycaster.ray.intersectPlane(boardPlane, worldPoint);
-        if (!hitOnPlane) return null;
-
-        const localC = (worldPoint.x - boardOrigin.x) / boardOrigin.tile + 3.5;
-        const localR = (worldPoint.z - boardOrigin.z) / boardOrigin.tile + 3.5;
-        const nearestC = Math.round(localC);
-        const nearestR = Math.round(localR);
-        const pickRadius = isTouchPointer
-          ? TOUCH_PICK_RADIUS_IN_TILES
-          : MOUSE_PICK_RADIUS_IN_TILES;
-        if (
-          nearestR < 0 ||
-          nearestR >= SIZE ||
-          nearestC < 0 ||
-          nearestC >= SIZE ||
-          Math.abs(localR - nearestR) > pickRadius ||
-          Math.abs(localC - nearestC) > pickRadius
-        ) {
-          return null;
-        }
-        return { r: nearestR, c: nearestC };
-      };
-
-      const planeCell = resolveBoardCellFromPointer();
-      if (planeCell) {
-        applyMove(planeCell.r, planeCell.c);
-        return;
-      }
-
-      const hit = raycaster.intersectObjects(pickTiles, false)[0];
-      if (hit?.object?.userData) applyMove(hit.object.userData.r, hit.object.userData.c);
+      const cell = resolveBoardCellFromEvent(event, isTouchPointer);
+      if (cell) applyMove(cell.r, cell.c);
     };
 
     const buildSceneAssets = async () => {
@@ -1614,7 +1689,9 @@ export default function CheckersBattleRoyal() {
         x: 0,
         y: TABLE_HEIGHT + 0.08,
         z: 0,
-        tile: resolveCheckersPlayableTileSize(gltfBoardRef.current || proceduralBoard)
+        tile: resolveCheckersPlayableTileSize(
+          gltfBoardRef.current || proceduralBoard
+        )
       };
 
       setupPickTiles();
@@ -1690,8 +1767,20 @@ export default function CheckersBattleRoyal() {
         return;
       }
       const beforeBoard = copyBoard(board);
+      if (Array.isArray(chosen.capture)) {
+        const [captureR, captureC] = chosen.capture;
+        const capturedPiece = beforeBoard[captureR]?.[captureC];
+        if (capturedPiece?.side) {
+          setCapturedBySide((prev) => ({
+            ...prev,
+            [AI_SIDE]: [...prev[AI_SIDE], capturedPiece]
+          }));
+        }
+      }
       boardRef.current = applied.board;
-      const moveAudio = chosen.capture ? captureSoundRef.current : moveSoundRef.current;
+      const moveAudio = chosen.capture
+        ? captureSoundRef.current
+        : moveSoundRef.current;
       if (moveAudio) moveAudio.currentTime = 0;
       moveAudio?.play().catch(() => {});
       renderPieces();
@@ -1715,6 +1804,16 @@ export default function CheckersBattleRoyal() {
             forced.find(
               (m) => bestChain && m.r === bestChain.r && m.c === bestChain.c
             ) || forced[0];
+          if (Array.isArray(selectedChainMove.capture)) {
+            const [captureR, captureC] = selectedChainMove.capture;
+            const capturedPiece = chainBoard[captureR]?.[captureC];
+            if (capturedPiece?.side) {
+              setCapturedBySide((prev) => ({
+                ...prev,
+                [AI_SIDE]: [...prev[AI_SIDE], capturedPiece]
+              }));
+            }
+          }
           const nextChain = applyMoveToBoard(chainBoard, selectedChainMove);
           if (!nextChain) break;
           chainBoard = nextChain.board;
@@ -1880,15 +1979,19 @@ export default function CheckersBattleRoyal() {
     replayStateRef.current = null;
     setCanReplay(false);
     setGameOver(null);
+    setCapturedBySide({ light: [], dark: [] });
     setTurn(HUMAN_SIDE);
-    setStatus(`Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`);
+    setStatus(
+      `Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`
+    );
     renderPieces();
     renderHighlights();
   };
 
   useEffect(() => {
     if (!gameOver) return;
-    const winnerAvatar = gameOver === HUMAN_SIDE ? playerPhotoUrl : '/assets/icons/profile.svg';
+    const winnerAvatar =
+      gameOver === HUMAN_SIDE ? playerPhotoUrl : '/assets/icons/profile.svg';
     coinConfetti(60, winnerAvatar);
   }, [gameOver, playerPhotoUrl]);
 
@@ -1903,6 +2006,32 @@ export default function CheckersBattleRoyal() {
       setTurn(replay.afterTurn);
       renderPieces();
     }, 700);
+  };
+
+  const capturedPanel = (side, label) => {
+    const captured = capturedBySide[side] || [];
+    return (
+      <div className="rounded-xl border border-white/20 bg-black/55 px-2 py-1 text-[10px] text-white/85 backdrop-blur">
+        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/60">
+          {label}
+        </div>
+        <div className="flex min-h-[1.1rem] flex-wrap gap-1">
+          {captured.length ? (
+            captured.map((piece, idx) => (
+              <span
+                key={`${side}-captured-${idx}`}
+                className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${piece.side === 'light' ? 'bg-red-400/90 text-red-950' : 'bg-cyan-300/90 text-cyan-950'}`}
+                title={piece.king ? 'King' : 'Piece'}
+              >
+                {piece.king ? '♛' : '●'}
+              </span>
+            ))
+          ) : (
+            <span className="text-[9px] text-white/45">—</span>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const optionButton = (active) =>
@@ -2120,6 +2249,12 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute inset-0 z-10 pointer-events-none">
+          <div className="absolute left-3 top-[24%] z-20">
+            {capturedPanel('dark', 'Rival captures')}
+          </div>
+          <div className="absolute right-3 bottom-[23%] z-20">
+            {capturedPanel('light', 'Your captures')}
+          </div>
           {players.map((player) => (
             <div
               key={`checkers-seat-${player.index}`}
@@ -2157,13 +2292,21 @@ export default function CheckersBattleRoyal() {
         {gameOver ? (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/65 p-4">
             <div className="w-full max-w-xs rounded-2xl border border-yellow-300/40 bg-slate-950/90 p-4 text-center shadow-2xl">
-              <p className="text-xs uppercase tracking-[0.2em] text-yellow-300">Winner</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-yellow-300">
+                Winner
+              </p>
               <img
-                src={gameOver === HUMAN_SIDE ? playerPhotoUrl : '/assets/icons/profile.svg'}
+                src={
+                  gameOver === HUMAN_SIDE
+                    ? playerPhotoUrl
+                    : '/assets/icons/profile.svg'
+                }
                 alt="winner avatar"
                 className="mx-auto mt-3 h-20 w-20 rounded-full border-4 border-yellow-300/70 object-cover"
               />
-              <p className="mt-2 text-lg font-bold text-white">{gameOver === HUMAN_SIDE ? playerName : 'Rival'}</p>
+              <p className="mt-2 text-lg font-bold text-white">
+                {gameOver === HUMAN_SIDE ? playerName : 'Rival'}
+              </p>
               <div className="mt-4 flex gap-2">
                 <button
                   onClick={restartGame}
