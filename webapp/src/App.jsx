@@ -188,7 +188,7 @@ export default function App() {
             <Route
               path="/games/badukbattleroyal/lobby"
               element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Baduk Lobby…</div>}>
+                <Suspense fallback={<div className="p-4 text-center">Loading 4 in a Row Lobby…</div>}>
                   <BadukBattleRoyalLobby />
                 </Suspense>
               )}
@@ -196,7 +196,7 @@ export default function App() {
             <Route
               path="/games/badukbattleroyal"
               element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Baduk Battle Royal…</div>}>
+                <Suspense fallback={<div className="p-4 text-center">Loading 4 in a Row…</div>}>
                   <BadukBattleRoyal />
                 </Suspense>
               )}

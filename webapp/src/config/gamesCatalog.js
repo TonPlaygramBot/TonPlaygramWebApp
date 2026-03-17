@@ -72,11 +72,11 @@ const gamesCatalog = [
   },
 
   {
-    name: 'Baduk Battle Royal',
+    name: '4 in a Row',
     route: '/games/badukbattleroyal/lobby',
     slug: 'badukbattleroyal',
     image: '/assets/icons/Badukbattleroyallogo.png',
-    description: 'Go/Baduk strategy on the shared Battle Royal 3D arena.'
+    description: 'Vertical 4 in a Row strategy on the shared Battle Royal 3D arena.'
   },
 
   {

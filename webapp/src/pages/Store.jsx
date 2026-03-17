@@ -173,7 +173,8 @@ const BADUK_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
-  boardTheme: 'Baduk Boards',
+  boardTheme: 'Board Skins',
+  boardLayout: 'Board Sizes',
   stoneStyle: 'Stone Sets',
   environmentHdri: 'HDR Environments'
 };
@@ -710,7 +711,7 @@ const storeMeta = {
     accountId: CHESS_STORE_ACCOUNT_ID
   },
   badukbattleroyal: {
-    name: 'Baduk Battle Royal',
+    name: '4 in a Row',
     items: BADUK_BATTLE_STORE_ITEMS,
     defaults: BADUK_BATTLE_DEFAULT_LOADOUT,
     labels: BADUK_BATTLE_OPTION_LABELS,

@@ -19,6 +19,12 @@ const mapStoolThemeToChair = (theme) => ({
 export const BADUK_CHAIR_OPTIONS = Object.freeze([...MURLAN_STOOL_THEMES.map(mapStoolThemeToChair)])
 export const BADUK_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES])
 
+export const BADUK_BOARD_LAYOUTS = Object.freeze([
+  { id: 'classic7x6', label: 'Classic 7×6', rows: 6, cols: 7 },
+  { id: 'arena8x7', label: 'Arena 8×7', rows: 7, cols: 8 }
+])
+
+
 export const BADUK_BOARD_THEMES = Object.freeze([
   { id: 'classicKaya', label: 'Classic Kaya', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/classicKaya.svg', tint: '#e2ae68', grid: '#2a1709' },
   { id: 'midnightBamboo', label: 'Midnight Bamboo', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/midnightBamboo.svg', tint: '#a4773f', grid: '#201309' },
@@ -40,6 +46,7 @@ export const BADUK_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [BADUK_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
   boardTheme: [BADUK_BOARD_THEMES[0]?.id],
+  boardLayout: [BADUK_BOARD_LAYOUTS[0]?.id],
   stoneStyle: [BADUK_STONE_STYLES[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID]
 })
@@ -49,6 +56,7 @@ export const BADUK_BATTLE_OPTION_LABELS = Object.freeze({
   tables: Object.freeze(BADUK_TABLE_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tableFinish: Object.freeze(MURLAN_TABLE_FINISHES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardTheme: Object.freeze(BADUK_BOARD_THEMES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
+  boardLayout: Object.freeze(BADUK_BOARD_LAYOUTS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   stoneStyle: Object.freeze(BADUK_STONE_STYLES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   environmentHdri: Object.freeze(POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => ({ ...acc, [variant.id]: `${variant.name} HDRI` }), {}))
 })
@@ -83,9 +91,19 @@ export const BADUK_BATTLE_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: option.price ?? 320 + idx * 20,
-    description: option.description || `${option.label} seating tuned for Baduk Battle Royal.`,
+    description: option.description || `${option.label} seating tuned for 4 in a Row.`,
     thumbnail: option.thumbnail,
     previewShape: 'chair'
+  })),
+  ...BADUK_BOARD_LAYOUTS.slice(1).map((layout, idx) => ({
+    id: `baduk-layout-${layout.id}`,
+    type: 'boardLayout',
+    optionId: layout.id,
+    name: layout.label,
+    price: 680 + idx * 80,
+    description: 'Expanded 4 in a Row board size unlock.',
+    thumbnail: swatchThumbnail(['#0ea5e9', '#1e293b']),
+    previewShape: 'board'
   })),
   ...BADUK_BOARD_THEMES.slice(1).map((theme, idx) => ({
     id: `baduk-board-${theme.id}`,
