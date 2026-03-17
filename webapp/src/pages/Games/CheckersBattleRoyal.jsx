@@ -708,21 +708,15 @@ function applyCheckersBoardTheme(
 }
 
 function resolveCheckersPlayableTileSize(boardModel) {
-  if (!boardModel)
-    return { tileX: BOARD_TILE_SIZE, tileZ: BOARD_TILE_SIZE, tileRadius: BOARD_TILE_SIZE };
+  if (!boardModel) return BOARD_TILE_SIZE;
   const bounds = new THREE.Box3().setFromObject(boardModel);
-  const spanX = bounds.max.x - bounds.min.x;
-  const spanZ = bounds.max.z - bounds.min.z;
-  if (!Number.isFinite(spanX) || !Number.isFinite(spanZ) || spanX <= 0 || spanZ <= 0) {
-    return { tileX: BOARD_TILE_SIZE, tileZ: BOARD_TILE_SIZE, tileRadius: BOARD_TILE_SIZE };
-  }
+  const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z);
+  if (!Number.isFinite(span) || span <= 0) return BOARD_TILE_SIZE;
   const ratio =
     boardModel?.name === 'ChessBattleRoyalBoard'
       ? BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO
       : CHECKERS_PLAYABLE_MAPPING_RATIO;
-  const tileX = spanX / ratio / SIZE;
-  const tileZ = spanZ / ratio / SIZE;
-  return { tileX, tileZ, tileRadius: Math.min(tileX, tileZ) };
+  return span / ratio / SIZE;
 }
 
 function createCheckerMaterial(sideColor, headPreset) {
@@ -971,14 +965,7 @@ export default function CheckersBattleRoyal() {
   const boardRef = useRef(createInitial());
   const selectedRef = useRef(null);
   const piecesGroupRef = useRef(null);
-  const boardOriginRef = useRef({
-    x: 0,
-    y: 0.75,
-    z: 0,
-    tileX: 2.65,
-    tileZ: 2.65,
-    tileRadius: 2.65
-  });
+  const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
   const replayStateRef = useRef(null);
   const highlightGroupRef = useRef(null);
   const moveSoundRef = useRef(null);
@@ -1063,16 +1050,16 @@ export default function CheckersBattleRoyal() {
       if (!group) return;
       group.clear();
       const board = boardRef.current;
-      const { x, y, z, tileX, tileZ, tileRadius } = boardOriginRef.current;
+      const { x, y, z, tile } = boardOriginRef.current;
       for (let r = 0; r < SIZE; r += 1) {
         for (let c = 0; c < SIZE; c += 1) {
           const piece = board[r][c];
           if (!piece) continue;
           const chip = new THREE.Mesh(
             new THREE.CylinderGeometry(
-              tileRadius * 0.28,
-              tileRadius * 0.28,
-              tileRadius * 0.13,
+              tile * 0.28,
+              tile * 0.28,
+              tile * 0.13,
               40
             ),
             createCheckerMaterial(
@@ -1082,19 +1069,14 @@ export default function CheckersBattleRoyal() {
           );
           chip.castShadow = true;
           chip.position.set(
-            x + (c - 3.5) * tileX,
-            y + tileRadius * 0.075,
-            z + (r - 3.5) * tileZ
+            x + (c - 3.5) * tile,
+            y + tile * 0.075,
+            z + (r - 3.5) * tile
           );
           chip.userData = { r, c, side: piece.side };
           if (piece.king) {
             const ring = new THREE.Mesh(
-              new THREE.TorusGeometry(
-                tileRadius * 0.17,
-                tileRadius * 0.04,
-                12,
-                30
-              ),
+              new THREE.TorusGeometry(tile * 0.17, tile * 0.04, 12, 30),
               new THREE.MeshStandardMaterial({
                 color: '#f8fafc',
                 metalness: 0.92,
@@ -1102,7 +1084,7 @@ export default function CheckersBattleRoyal() {
               })
             );
             ring.rotation.x = Math.PI / 2;
-            ring.position.y = tileRadius * 0.09;
+            ring.position.y = tile * 0.09;
             chip.add(ring);
           }
           group.add(chip);
@@ -1124,18 +1106,18 @@ export default function CheckersBattleRoyal() {
       const selected = selectedRef.current;
       if (!selected) return;
       const board = boardRef.current;
-      const { x, y, z, tileX, tileZ, tileRadius } = boardOriginRef.current;
+      const { x, y, z, tile } = boardOriginRef.current;
       const toPosition = (r, c) =>
         new THREE.Vector3(
-          x + (c - 3.5) * tileX,
-          y + tileRadius * 0.02,
-          z + (r - 3.5) * tileZ
+          x + (c - 3.5) * tile,
+          y + tile * 0.02,
+          z + (r - 3.5) * tile
         );
       const selection = new THREE.Mesh(
         new THREE.CylinderGeometry(
-          tileRadius * 0.3,
-          tileRadius * 0.3,
-          Math.max(0.07, tileRadius * 0.03),
+          tile * 0.3,
+          tile * 0.3,
+          Math.max(0.07, tile * 0.03),
           20
         ),
         new THREE.MeshBasicMaterial({
@@ -1159,9 +1141,9 @@ export default function CheckersBattleRoyal() {
         const isCapture = Array.isArray(move.capture);
         const marker = new THREE.Mesh(
           new THREE.CylinderGeometry(
-            tileRadius * 0.26,
-            tileRadius * 0.26,
-            Math.max(0.06, tileRadius * 0.03),
+            tile * 0.26,
+            tile * 0.26,
+            Math.max(0.06, tile * 0.03),
             20
           ),
           new THREE.MeshBasicMaterial({
@@ -1351,18 +1333,18 @@ export default function CheckersBattleRoyal() {
     const buildSceneAssets = async () => {
       const pickMaterial = new THREE.MeshBasicMaterial({ visible: false });
       const setupPickTiles = () => {
-        const { x, y, z, tileX, tileZ, tileRadius } = boardOriginRef.current;
+        const { x, y, z, tile } = boardOriginRef.current;
         if (pickTiles.length) return;
         for (let r = 0; r < SIZE; r += 1) {
           for (let c = 0; c < SIZE; c += 1) {
             const pick = new THREE.Mesh(
-              new THREE.BoxGeometry(tileX * 0.94, 0.25, tileZ * 0.94),
+              new THREE.BoxGeometry(tile * 0.94, 0.25, tile * 0.94),
               pickMaterial
             );
             pick.position.set(
-              x + (c - 3.5) * tileX,
-              y + Math.max(0.12, tileRadius * 0.06),
-              z + (r - 3.5) * tileZ
+              x + (c - 3.5) * tile,
+              y + 0.16,
+              z + (r - 3.5) * tile
             );
             pick.userData = { r, c };
             pickTiles.push(pick);
@@ -1485,16 +1467,11 @@ export default function CheckersBattleRoyal() {
         proceduralBoard.visible = true;
       }
 
-      const playable = resolveCheckersPlayableTileSize(
-        gltfBoardRef.current || proceduralBoard
-      );
       boardOriginRef.current = {
         x: 0,
         y: TABLE_HEIGHT + 0.08,
         z: 0,
-        tileX: playable.tileX,
-        tileZ: playable.tileZ,
-        tileRadius: playable.tileRadius
+        tile: resolveCheckersPlayableTileSize(gltfBoardRef.current || proceduralBoard)
       };
 
       setupPickTiles();
