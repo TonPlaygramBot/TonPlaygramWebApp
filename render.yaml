@@ -4,7 +4,7 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
+    buildCommand: npm install && npm --prefix ../webapp install && NODE_OPTIONS=--max-old-space-size=2048 npm --prefix ../webapp run build
     startCommand: npm start
     envVars:
       - key: MONGO_URI
@@ -26,4 +26,3 @@ services:
         fromSecret: CLAIM_WALLET_MNEMONIC
       - key: RPC_URL
         fromSecret: RPC_URL
-
