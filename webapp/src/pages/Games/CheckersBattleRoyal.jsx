@@ -62,7 +62,10 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
 // so the playable checker squares need a tighter mapping ratio to keep pieces
 // centered on the dark tiles across portrait/mobile camera angles.
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.36;
+// Tuned against the GLTF board in portrait 2D camera mode so starting chips
+// sit exactly on the playable dark squares instead of drifting toward the
+// decorative rim.
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
