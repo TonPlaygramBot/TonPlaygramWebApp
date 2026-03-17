@@ -46,6 +46,8 @@ const CONNECT4_PANEL = '#efe9d5';
 const CONNECT4_RED = '#e3342f';
 const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
+const DROP_BASE_DURATION = 0.2;
+const DROP_ROW_DURATION_STEP = 0.03;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -234,6 +236,10 @@ export default function BadukBattleRoyal() {
   const fallingPiecesRef = useRef([]);
   const animationClockRef = useRef(new THREE.Clock());
   const markerRef = useRef(null);
+  const hoverColRef = useRef(null);
+  const turnRef = useRef('player');
+  const winnerRef = useRef(null);
+  const winningCellsRef = useRef([]);
   const rendererRef = useRef(null);
   const perspectiveCameraRef = useRef(null);
   const controlsRef = useRef(null);
@@ -279,11 +285,27 @@ export default function BadukBattleRoyal() {
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
   const [winningCells, setWinningCells] = useState([]);
+  const [hoverCol, setHoverCol] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+
+  useEffect(() => {
+    hoverColRef.current = hoverCol;
+  }, [hoverCol]);
+
+  useEffect(() => {
+    turnRef.current = turn;
+  }, [turn]);
+
+  useEffect(() => {
+    winnerRef.current = winner;
+  }, [winner]);
+
+  useEffect(() => {
+    winningCellsRef.current = winningCells;
+  }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
-  const [hoverCol, setHoverCol] = useState(null);
 
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
@@ -386,9 +408,13 @@ export default function BadukBattleRoyal() {
     const controls = new OrbitControls(perspective, renderer.domElement);
     controls.enablePan = false;
     controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
     controls.target.set(0, TABLE_HEIGHT + 0.6, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
+    controls.rotateSpeed = 0.85;
+    controls.zoomSpeed = 0.7;
+    renderer.domElement.style.touchAction = 'none';
     controlsRef.current = controls;
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 0.9));
@@ -552,7 +578,7 @@ export default function BadukBattleRoyal() {
     let raf;
     const animate = () => {
       raf = requestAnimationFrame(animate);
-      const delta = Math.min(animationClockRef.current.getDelta(), 0.028);
+      const delta = Math.min(animationClockRef.current.getDelta(), 1 / 60);
       const elapsed = animationClockRef.current.elapsedTime;
 
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
@@ -581,7 +607,7 @@ export default function BadukBattleRoyal() {
         }
       }
 
-      winningCells.forEach(([r, c]) => {
+      winningCellsRef.current.forEach(([r, c]) => {
         const token = piecesMapRef.current.get(`${r}-${c}`);
         if (!token) return;
         const pulse = 1.08 + Math.sin(elapsed * 8) * 0.06;
@@ -589,8 +615,8 @@ export default function BadukBattleRoyal() {
       });
 
       controls.update();
-      if (markerRef.current && Number.isInteger(hoverCol) && turn === 'player' && !winner) {
-        const x = -boardWidth / 2 + (hoverCol + 0.5) * xStep;
+      if (markerRef.current && Number.isInteger(hoverColRef.current) && turnRef.current === 'player' && !winnerRef.current) {
+        const x = -boardWidth / 2 + (hoverColRef.current + 0.5) * xStep;
         markerRef.current.visible = true;
         markerRef.current.position.x = x;
       } else if (markerRef.current) {
@@ -607,7 +633,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep, winningCells]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -698,7 +724,7 @@ export default function BadukBattleRoyal() {
             elapsed: 0,
             phase: 'preview',
             previewDuration: DROP_PREVIEW_DELAY,
-            dropDuration: 0.2 + (rows - 1 - r) * 0.03
+            dropDuration: DROP_BASE_DURATION + (rows - 1 - r) * DROP_ROW_DURATION_STEP
           });
         } else if (!nextCell && currentCell) {
           const key = `${r}-${c}`;
