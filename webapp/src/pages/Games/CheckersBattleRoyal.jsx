@@ -205,8 +205,10 @@ const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
-const TOUCH_TAP_MAX_DISTANCE_PX = 30;
-const TOUCH_TAP_MAX_DURATION_MS = 560;
+const TOUCH_TAP_MAX_DISTANCE_PX = 40;
+const TOUCH_TAP_MAX_DURATION_MS = 650;
+const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
+const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -1429,6 +1431,44 @@ export default function CheckersBattleRoyal() {
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
+
+      const resolveBoardCellFromPointer = () => {
+        const boardOrigin = boardOriginRef.current;
+        if (!boardOrigin) return null;
+        const boardPlane = new THREE.Plane(
+          new THREE.Vector3(0, 1, 0),
+          -boardOrigin.y
+        );
+        const worldPoint = new THREE.Vector3();
+        const hitOnPlane = raycaster.ray.intersectPlane(boardPlane, worldPoint);
+        if (!hitOnPlane) return null;
+
+        const localC = (worldPoint.x - boardOrigin.x) / boardOrigin.tile + 3.5;
+        const localR = (worldPoint.z - boardOrigin.z) / boardOrigin.tile + 3.5;
+        const nearestC = Math.round(localC);
+        const nearestR = Math.round(localR);
+        const pickRadius = isTouchPointer
+          ? TOUCH_PICK_RADIUS_IN_TILES
+          : MOUSE_PICK_RADIUS_IN_TILES;
+        if (
+          nearestR < 0 ||
+          nearestR >= SIZE ||
+          nearestC < 0 ||
+          nearestC >= SIZE ||
+          Math.abs(localR - nearestR) > pickRadius ||
+          Math.abs(localC - nearestC) > pickRadius
+        ) {
+          return null;
+        }
+        return { r: nearestR, c: nearestC };
+      };
+
+      const planeCell = resolveBoardCellFromPointer();
+      if (planeCell) {
+        applyMove(planeCell.r, planeCell.c);
+        return;
+      }
+
       const hit = raycaster.intersectObjects(pickTiles, false)[0];
       if (hit?.object?.userData) applyMove(hit.object.userData.r, hit.object.userData.c);
     };
