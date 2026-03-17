@@ -14,7 +14,8 @@ import {
   BADUK_STONE_STYLES,
   BADUK_TABLE_OPTIONS,
   BADUK_BATTLE_DEFAULT_LOADOUT,
-  BADUK_BOARD_LAYOUTS
+  BADUK_BOARD_LAYOUTS,
+  BADUK_BATTLE_OPTION_LABELS
 } from '../../config/badukBattleInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
@@ -34,6 +35,12 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 
+const GRAPHICS_PRESETS = Object.freeze([
+  { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
+  { id: 'performance', label: 'Performance', pixelRatioScale: 0.85, shadowMapSize: 512 },
+  { id: 'cinematic', label: 'Cinematic', pixelRatioScale: 1.4, shadowMapSize: 2048 }
+]);
+
 const createBoard = (rows, cols) => Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
 const cloneBoard = (board) => board.map((row) => [...row]);
 const isFull = (board) => board.every((row) => row.every(Boolean));
@@ -45,7 +52,7 @@ const getDropRow = (board, col) => {
   return -1;
 };
 
-const checkWinner = (board, token) => {
+const getWinningCells = (board, token) => {
   const rows = board.length;
   const cols = board[0].length;
   const dirs = [[0, 1], [1, 0], [1, 1], [-1, 1]];
@@ -53,6 +60,7 @@ const checkWinner = (board, token) => {
     for (let c = 0; c < cols; c += 1) {
       if (board[r][c] !== token) continue;
       for (const [dr, dc] of dirs) {
+        const cells = [[r, c]];
         let ok = true;
         for (let i = 1; i < 4; i += 1) {
           const nr = r + dr * i;
@@ -61,13 +69,16 @@ const checkWinner = (board, token) => {
             ok = false;
             break;
           }
+          cells.push([nr, nc]);
         }
-        if (ok) return true;
+        if (ok) return cells;
       }
     }
   }
-  return false;
+  return null;
 };
+
+const checkWinner = (board, token) => Boolean(getWinningCells(board, token));
 
 const evaluateWindow = (window, aiToken, playerToken) => {
   const aiCount = window.filter((v) => v === aiToken).length;
@@ -141,7 +152,6 @@ const minimax = (board, depth, alpha, beta, maximizing, aiToken, playerToken) =>
   return best;
 };
 
-
 const chooseAiMove = (board, aiToken, playerToken, depth) => {
   const cols = board[0].length;
   const validCols = Array.from({ length: cols }, (_, i) => i).filter((col) => getDropRow(board, col) >= 0);
@@ -195,21 +205,31 @@ function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   return group;
 }
 
+const safeThumbnail = (value) => {
+  if (!value) return '/assets/icons/four-in-row-royale.svg';
+  if (value.startsWith('data:') || value.startsWith('/assets/') || value.startsWith('http')) return value;
+  return '/assets/icons/four-in-row-royale.svg';
+};
+
 export default function BadukBattleRoyal() {
   useTelegramBackButton();
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
-  const boardMeshRef = useRef(null);
-  const stonesRef = useRef(null);
-  const cameraRef = useRef(null);
-  const controlsRef = useRef(null);
+  const boardHitPlaneRef = useRef(null);
+  const piecesGroupRef = useRef(null);
+  const piecesMapRef = useRef(new Map());
+  const markerRef = useRef(null);
   const rendererRef = useRef(null);
+  const perspectiveCameraRef = useRef(null);
+  const topCameraRef = useRef(null);
+  const controlsRef = useRef(null);
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
+  const audioCtxRef = useRef(null);
+  const [params] = useSearchParams();
   const navigate = useNavigate();
 
-  const [params] = useSearchParams();
   const accountId = params.get('accountId') || '';
   const avatar = params.get('avatar') || getTelegramPhotoUrl();
   const username = params.get('username') || getTelegramUsername() || 'Player';
@@ -223,6 +243,11 @@ export default function BadukBattleRoyal() {
 
   const rows = selectedLayout.rows;
   const cols = selectedLayout.cols;
+  const boardWidth = 1.45 + cols * 0.22;
+  const boardHeight = 1.25 + rows * 0.24;
+  const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.24;
+  const xStep = boardWidth / cols;
+  const yStep = boardHeight / rows;
 
   const [appearance, setAppearance] = useState(() => ({
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
@@ -230,101 +255,131 @@ export default function BadukBattleRoyal() {
     chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || BADUK_CHAIR_OPTIONS[0]?.id,
     boardTheme: inventory.boardTheme?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardTheme?.[0] || BADUK_BOARD_THEMES[0]?.id,
     stoneStyle: inventory.stoneStyle?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] || BADUK_STONE_STYLES[0]?.id,
-    hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID
+    hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
+    graphics: GRAPHICS_PRESETS[0].id
   }));
 
   const [board, setBoard] = useState(() => createBoard(rows, cols));
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
+  const [winningCells, setWinningCells] = useState([]);
   const [status, setStatus] = useState('Drop pieces into columns. First to connect 4 in row/column/diagonal wins.');
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
+  const [hoverCol, setHoverCol] = useState(null);
 
-  const boardWidth = 1.75;
-  const boardHeight = 1.85;
-  const xStep = boardWidth / cols;
-  const yStep = boardHeight / rows;
+  const worldFromCell = (r, c) => [
+    -boardWidth / 2 + (c + 0.5) * xStep,
+    TABLE_HEIGHT + 0.2 + boardHeight / 2 - (r + 0.5) * yStep,
+    0
+  ];
+
+  const playTone = (frequency = 430, duration = 0.08, type = 'triangle', gain = 0.02) => {
+    const ACtx = window.AudioContext || window.webkitAudioContext;
+    if (!ACtx) return;
+    if (!audioCtxRef.current) audioCtxRef.current = new ACtx();
+    const ctx = audioCtxRef.current;
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
+    osc.frequency.value = frequency;
+    osc.type = type;
+    amp.gain.value = gain;
+    osc.connect(amp);
+    amp.connect(ctx.destination);
+    const now = ctx.currentTime;
+    amp.gain.setValueAtTime(gain, now);
+    amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.start(now);
+    osc.stop(now + duration);
+  };
+
+  const renderPieces = (boardState) => {
+    const group = piecesGroupRef.current;
+    if (!group) return;
+    group.clear();
+    piecesMapRef.current.clear();
+    const style = BADUK_STONE_STYLES.find((s) => s.id === appearance.stoneStyle) || BADUK_STONE_STYLES[0];
+    const playerMat = new THREE.MeshStandardMaterial({ color: style.white || '#f8fafc', roughness: style.whiteRoughness ?? 0.2, metalness: 0.05 });
+    const aiMat = new THREE.MeshStandardMaterial({ color: style.black || '#1f2937', roughness: style.blackRoughness ?? 0.18, metalness: 0.06 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.35, metalness: 0.1 });
+
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        if (!boardState[r][c]) continue;
+        const [x, y, z] = worldFromCell(r, c);
+        const token = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(slotRadius * 0.92, slotRadius * 0.92, 0.075, 42), boardState[r][c] === 'player' ? playerMat : aiMat);
+        const domeA = new THREE.Mesh(new THREE.SphereGeometry(slotRadius * 0.86, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2), boardState[r][c] === 'player' ? playerMat : aiMat);
+        domeA.rotation.x = Math.PI;
+        domeA.position.y = 0.038;
+        const domeB = domeA.clone();
+        domeB.position.y = -0.038;
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(slotRadius * 0.88, 0.01, 12, 36), rimMat);
+        rim.rotation.x = Math.PI / 2;
+        token.add(body, domeA, domeB, rim);
+        token.position.set(x, y, z + 0.08);
+        token.rotation.x = Math.PI / 2;
+        group.add(token);
+        piecesMapRef.current.set(`${r}-${c}`, token);
+      }
+    }
+  };
 
   useEffect(() => {
     setBoard(createBoard(rows, cols));
     setTurn('player');
     setWinner(null);
+    setWinningCells([]);
     setStatus(`Board ${cols}×${rows} loaded. First to connect 4 horizontally, vertically, or diagonally wins.`);
   }, [rows, cols]);
-
-  const worldFromCell = (r, c) => [
-    -boardWidth / 2 + (c + 0.5) * xStep,
-    TABLE_HEIGHT + 0.11 + boardHeight / 2 - (r + 0.5) * yStep,
-    0
-  ];
-
-  const renderPieces = (boardState) => {
-    const group = stonesRef.current;
-    if (!group) return;
-    group.clear();
-    const style = BADUK_STONE_STYLES.find((s) => s.id === appearance.stoneStyle) || BADUK_STONE_STYLES[0];
-    const pMat = new THREE.MeshStandardMaterial({ color: style.white || '#f8fafc', roughness: 0.3 });
-    const aiMat = new THREE.MeshStandardMaterial({ color: style.black || '#ca8a04', roughness: 0.25 });
-    const geo = new THREE.CylinderGeometry(0.115, 0.115, 0.08, 32);
-    for (let r = 0; r < rows; r += 1) {
-      for (let c = 0; c < cols; c += 1) {
-        if (!boardState[r][c]) continue;
-        const [x, y, z] = worldFromCell(r, c);
-        const mesh = new THREE.Mesh(geo, boardState[r][c] === 'player' ? pMat : aiMat);
-        mesh.position.set(x, y, z + 0.05);
-        mesh.rotation.x = Math.PI / 2;
-        group.add(mesh);
-      }
-    }
-  };
 
   useEffect(() => renderPieces(board), [board, appearance.stoneStyle, rows, cols]);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return undefined;
+
     const scene = new THREE.Scene();
     sceneRef.current = scene;
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     applyRendererSRGB(renderer);
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const camera = new THREE.PerspectiveCamera(47, mount.clientWidth / mount.clientHeight, 0.1, 200);
-    camera.position.set(0, TABLE_HEIGHT + 1.8, CHAIR_DISTANCE + 2.7);
-    cameraRef.current = camera;
+    const perspective = new THREE.PerspectiveCamera(47, 1, 0.1, 200);
+    perspective.position.set(0, TABLE_HEIGHT + 1.8, CHAIR_DISTANCE + 2.8);
+    perspectiveCameraRef.current = perspective;
 
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const topCamera = new THREE.OrthographicCamera(-boardWidth, boardWidth, boardHeight, -boardHeight, 0.1, 200);
+    topCamera.position.set(0, TABLE_HEIGHT + 6.8, 0.001);
+    topCamera.lookAt(0, TABLE_HEIGHT + 0.1, 0);
+    topCameraRef.current = topCamera;
+
+    const controls = new OrbitControls(perspective, renderer.domElement);
     controls.enablePan = false;
+    controls.enableDamping = true;
     controls.target.set(0, TABLE_HEIGHT + 0.6, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.enableDamping = true;
     controlsRef.current = controls;
 
-    if (viewMode === '2d') {
-      camera.position.set(0, TABLE_HEIGHT + 4.1, 0.08);
-      controls.target.set(0, TABLE_HEIGHT + 0.1, 0);
-      controls.minPolarAngle = 0;
-      controls.maxPolarAngle = 0;
-      controls.enableRotate = false;
-      controls.enableZoom = true;
-    }
-
     scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 0.9));
-    const key = new THREE.DirectionalLight(0xffffff, 1.1);
+    const key = new THREE.DirectionalLight(0xffffff, 1.05);
     key.position.set(2.2, 4.5, 1.6);
+    key.castShadow = true;
     scene.add(key);
 
-    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
-    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[0]);
+    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
+    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
+    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
     [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
-      const chair = createChair();
+      const chair = createChair(chairTheme.primary, chairTheme.legColor);
       chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
       chair.lookAt(0, TABLE_HEIGHT, 0);
       scene.add(chair);
@@ -332,51 +387,87 @@ export default function BadukBattleRoyal() {
 
     const boardGroup = new THREE.Group();
     const boardTheme = BADUK_BOARD_THEMES.find((theme) => theme.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.35, boardHeight + 0.35, 0.22), new THREE.MeshStandardMaterial({ color: boardTheme.tint || '#d7a359', roughness: 0.6 }));
-    frame.position.set(0, TABLE_HEIGHT + 0.11, 0);
+
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(boardWidth + 0.38, boardHeight + 0.38, 0.28),
+      new THREE.MeshStandardMaterial({ color: boardTheme.tint || '#d7a359', roughness: 0.35, metalness: 0.08 })
+    );
+    frame.position.set(0, TABLE_HEIGHT + 0.2, 0);
+    frame.castShadow = true;
     boardGroup.add(frame);
 
-    const boardFace = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), new THREE.MeshStandardMaterial({ color: boardTheme.grid || '#334155' }));
-    boardFace.position.set(0, TABLE_HEIGHT + 0.11, 0.11);
+    const boardFace = new THREE.Mesh(
+      new THREE.BoxGeometry(boardWidth, boardHeight, 0.18),
+      new THREE.MeshStandardMaterial({ color: boardTheme.grid || '#334155', roughness: 0.22, metalness: 0.14 })
+    );
+    boardFace.position.set(0, TABLE_HEIGHT + 0.2, 0.05);
+    boardFace.castShadow = true;
+    boardFace.receiveShadow = true;
     boardGroup.add(boardFace);
 
-    const holes = new THREE.Group();
-    const holeGeo = new THREE.TorusGeometry(0.12, 0.02, 8, 20);
-    const holeMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.2 });
+    const holeGeo = new THREE.CylinderGeometry(slotRadius, slotRadius, 0.08, 32);
+    const holeMat = new THREE.MeshStandardMaterial({ color: '#020617', roughness: 0.05, metalness: 0.3 });
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         const [x, y] = worldFromCell(r, c);
         const hole = new THREE.Mesh(holeGeo, holeMat);
-        hole.position.set(x, y, 0.12);
-        holes.add(hole);
+        hole.position.set(x, y, 0.11);
+        hole.rotation.x = Math.PI / 2;
+        boardGroup.add(hole);
       }
     }
-    boardGroup.add(holes);
 
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-    plane.position.set(0, TABLE_HEIGHT + 0.11, 0.18);
-    boardGroup.add(plane);
-    boardMeshRef.current = plane;
+    const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+    hitPlane.position.set(0, TABLE_HEIGHT + 0.2, 0.2);
+    boardGroup.add(hitPlane);
+    boardHitPlaneRef.current = hitPlane;
+
+    const marker = new THREE.Mesh(new THREE.RingGeometry(slotRadius * 1.1, slotRadius * 1.45, 24), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 }));
+    marker.position.set(0, TABLE_HEIGHT + boardHeight / 2 + 0.36, 0.2);
+    marker.visible = false;
+    markerRef.current = marker;
+    boardGroup.add(marker);
 
     const pieces = new THREE.Group();
-    stonesRef.current = pieces;
+    piecesGroupRef.current = pieces;
     boardGroup.add(pieces);
-
     scene.add(boardGroup);
 
     const onResize = () => {
-      camera.aspect = mount.clientWidth / mount.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      if (!mount) return;
+      const width = mount.clientWidth;
+      const height = mount.clientHeight;
+      const aspect = width / height;
+      perspective.aspect = aspect;
+      perspective.updateProjectionMatrix();
+      topCamera.left = -boardWidth * aspect * 0.58;
+      topCamera.right = boardWidth * aspect * 0.58;
+      topCamera.top = boardHeight * 0.86;
+      topCamera.bottom = -boardHeight * 0.86;
+      topCamera.updateProjectionMatrix();
+      const preset = GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) || GRAPHICS_PRESETS[0];
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2));
+      renderer.setSize(width, height);
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      key.shadow.mapSize.setScalar(preset.shadowMapSize);
     };
+    onResize();
 
     let raf;
     const animate = () => {
       raf = requestAnimationFrame(animate);
       controls.update();
-      renderer.render(scene, camera);
+      if (markerRef.current && Number.isInteger(hoverCol) && turn === 'player' && !winner) {
+        const x = -boardWidth / 2 + (hoverCol + 0.5) * xStep;
+        markerRef.current.visible = true;
+        markerRef.current.position.x = x;
+      } else if (markerRef.current) {
+        markerRef.current.visible = false;
+      }
+      renderer.render(scene, viewMode === '2d' ? topCamera : perspective);
     };
     animate();
+
     window.addEventListener('resize', onResize);
     return () => {
       cancelAnimationFrame(raf);
@@ -384,7 +475,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, viewMode]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, viewMode, hoverCol, turn, winner, boardWidth, boardHeight, slotRadius, xStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -408,20 +499,42 @@ export default function BadukBattleRoyal() {
     return () => { cancelled = true; };
   }, [appearance.hdriId]);
 
+  useEffect(() => {
+    if (!winningCells.length) return;
+    winningCells.forEach(([r, c], index) => {
+      const piece = piecesMapRef.current.get(`${r}-${c}`);
+      if (!piece) return;
+      piece.scale.setScalar(1.1);
+      setTimeout(() => {
+        if (piece) piece.scale.setScalar(1);
+      }, 300 + index * 60);
+    });
+  }, [winningCells]);
+
   const playColumn = (col, token) => {
     const row = getDropRow(board, col);
-    if (row < 0) return false;
+    if (row < 0) {
+      playTone(180, 0.05, 'sawtooth', 0.012);
+      return false;
+    }
     const next = cloneBoard(board);
     next[row][col] = token;
     setBoard(next);
-    if (checkWinner(next, token)) {
+    playTone(token === 'player' ? 520 : 300, 0.09, 'triangle', 0.03);
+
+    const winning = getWinningCells(next, token);
+    if (winning) {
       setWinner(token);
+      setWinningCells(winning);
       setStatus(token === 'player' ? 'You connected 4 and won.' : 'AI connected 4 and won.');
+      playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.03);
       return true;
     }
     if (isFull(next)) {
       setWinner('draw');
+      setWinningCells([]);
       setStatus('Board full. Draw game.');
+      playTone(200, 0.18, 'triangle', 0.02);
       return true;
     }
     setTurn(token === 'player' ? 'ai' : 'player');
@@ -431,24 +544,44 @@ export default function BadukBattleRoyal() {
 
   useEffect(() => {
     const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    const boardMesh = boardMeshRef.current;
+    const boardMesh = boardHitPlaneRef.current;
+    const camera = viewMode === '2d' ? topCameraRef.current : perspectiveCameraRef.current;
     if (!renderer || !camera || !boardMesh) return undefined;
-    const onPointer = (event) => {
-      if (turn !== 'player' || winner) return;
+
+    const getColumnFromEvent = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointerRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointerRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       rayRef.current.setFromCamera(pointerRef.current, camera);
       const hit = rayRef.current.intersectObject(boardMesh, false)[0];
-      if (!hit) return;
+      if (!hit) return null;
       const normalizedX = (hit.point.x + boardWidth / 2) / boardWidth;
-      const col = Math.min(cols - 1, Math.max(0, Math.floor(normalizedX * cols)));
-      playColumn(col, 'player');
+      return Math.min(cols - 1, Math.max(0, Math.floor(normalizedX * cols)));
     };
+
+    const updateHover = (event) => {
+      const col = getColumnFromEvent(event);
+      setHoverCol(col);
+    };
+
+    const onPointer = (event) => {
+      if (turn !== 'player' || winner) return;
+      const col = getColumnFromEvent(event);
+      setHoverCol(col);
+      if (Number.isInteger(col)) playColumn(col, 'player');
+    };
+
+    const onPointerLeave = () => setHoverCol(null);
+
+    renderer.domElement.addEventListener('pointermove', updateHover);
     renderer.domElement.addEventListener('pointerdown', onPointer);
-    return () => renderer.domElement.removeEventListener('pointerdown', onPointer);
-  }, [turn, winner, board, cols]);
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
+    return () => {
+      renderer.domElement.removeEventListener('pointermove', updateHover);
+      renderer.domElement.removeEventListener('pointerdown', onPointer);
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
+    };
+  }, [turn, winner, board, cols, viewMode, boardWidth]);
 
   useEffect(() => {
     if (turn !== 'ai' || winner) return;
@@ -456,16 +589,27 @@ export default function BadukBattleRoyal() {
       const depth = cols >= 8 ? 5 : 6;
       const col = chooseAiMove(board, 'ai', 'player', depth);
       if (Number.isInteger(col)) playColumn(col, 'ai');
-    }, 380);
+    }, 420);
     return () => clearTimeout(t);
   }, [turn, winner, board, cols]);
 
   const playerCount = board.flat().filter((x) => x === 'player').length;
   const aiCount = board.flat().filter((x) => x === 'ai').length;
 
+  const optionGroups = [
+    { key: 'tableId', label: 'Tables', options: BADUK_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'chairId', label: 'Chairs', options: BADUK_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'hdriId', label: 'HDRI', options: POOL_ROYALE_HDRI_VARIANTS.map((item) => ({ id: item.id, label: item.name, thumbnail: item.thumbnail })) },
+    { key: 'boardTheme', label: 'Board', options: BADUK_BOARD_THEMES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'stoneStyle', label: 'Pieces', options: BADUK_STONE_STYLES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'graphics', label: 'Graphics', options: GRAPHICS_PRESETS.map((item) => ({ id: item.id, label: item.label, thumbnail: '/assets/icons/four-in-row-royale.svg' })) }
+  ];
+
   return (
     <div className="relative min-h-screen bg-[#070b16] text-white">
       <div ref={mountRef} className="absolute inset-0" />
+
       <div className="absolute inset-0 pointer-events-none z-20">
         <div className="absolute top-20 left-4 flex flex-col items-start gap-3 pointer-events-none">
           <button
@@ -473,7 +617,7 @@ export default function BadukBattleRoyal() {
             onClick={() => setConfigOpen((open) => !open)}
             aria-expanded={configOpen}
             aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)]"
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100"
           >
             <span className="text-base leading-none" aria-hidden="true">☰</span>
             <span className="leading-none">Menu</span>
@@ -484,6 +628,7 @@ export default function BadukBattleRoyal() {
             <p className="mt-1 text-white/75">{status}</p>
           </div>
         </div>
+
         <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
             <BottomLeftIcons
@@ -507,14 +652,27 @@ export default function BadukBattleRoyal() {
             </button>
           </div>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
-              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">4 in a Row Rules</p>
-              <ol className="mt-3 list-decimal space-y-2 pl-4 text-white/80">
-                <li>Players alternate turns dropping one piece into any non-full column.</li>
-                <li>The piece always lands in the lowest empty slot of that column.</li>
-                <li>Win by connecting 4 of your pieces in a row, column, or diagonal.</li>
-                <li>If all cells are filled with no connect-4, the game is a draw.</li>
-              </ol>
+            <div className="pointer-events-auto mt-2 w-[min(90vw,32rem)] max-h-[72vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">4 in a Row Customization</p>
+              <p className="mt-2 text-white/70">Layout: {BADUK_BATTLE_OPTION_LABELS.boardLayout[selectedLayout.id] || selectedLayout.label}</p>
+              {optionGroups.map((group) => (
+                <div key={group.key} className="mt-4">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">{group.label}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {group.options.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setAppearance((prev) => ({ ...prev, [group.key]: option.id }))}
+                        className={`rounded-xl border p-2 text-left ${appearance[group.key] === option.id ? 'border-cyan-300/70 bg-cyan-400/20' : 'border-white/15 bg-white/5'}`}
+                      >
+                        <img src={safeThumbnail(option.thumbnail)} alt={option.label} className="h-12 w-full rounded-lg object-cover" />
+                        <p className="mt-1 truncate text-[10px] text-white/85">{option.label}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -527,7 +685,19 @@ export default function BadukBattleRoyal() {
 
       <div className="pointer-events-auto fixed bottom-4 right-3 z-50 flex gap-2">
         <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
-        <button type="button" onClick={() => { setBoard(createBoard(rows, cols)); setTurn('player'); setWinner(null); setStatus('New match started. Your move.'); }} className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold">Restart</button>
+        <button
+          type="button"
+          onClick={() => {
+            setBoard(createBoard(rows, cols));
+            setTurn('player');
+            setWinner(null);
+            setWinningCells([]);
+            setStatus('New match started. Your move.');
+          }}
+          className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
+        >
+          Restart
+        </button>
       </div>
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />

@@ -1,0 +1,35 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="40" y1="24" x2="472" y2="488" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="board" x1="120" y1="82" x2="392" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#7C2D12"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <rect x="102" y="74" width="308" height="364" rx="34" fill="url(#board)" stroke="#FDE68A" stroke-width="10"/>
+  <g fill="#0F172A">
+    <circle cx="152" cy="126" r="25"/><circle cx="205" cy="126" r="25"/><circle cx="258" cy="126" r="25"/><circle cx="311" cy="126" r="25"/><circle cx="364" cy="126" r="25"/>
+    <circle cx="152" cy="182" r="25"/><circle cx="205" cy="182" r="25"/><circle cx="258" cy="182" r="25"/><circle cx="311" cy="182" r="25"/><circle cx="364" cy="182" r="25"/>
+    <circle cx="152" cy="238" r="25"/><circle cx="205" cy="238" r="25"/><circle cx="258" cy="238" r="25"/><circle cx="311" cy="238" r="25"/><circle cx="364" cy="238" r="25"/>
+    <circle cx="152" cy="294" r="25"/><circle cx="205" cy="294" r="25"/><circle cx="258" cy="294" r="25"/><circle cx="311" cy="294" r="25"/><circle cx="364" cy="294" r="25"/>
+    <circle cx="152" cy="350" r="25"/><circle cx="205" cy="350" r="25"/><circle cx="258" cy="350" r="25"/><circle cx="311" cy="350" r="25"/><circle cx="364" cy="350" r="25"/>
+    <circle cx="152" cy="406" r="25"/><circle cx="205" cy="406" r="25"/><circle cx="258" cy="406" r="25"/><circle cx="311" cy="406" r="25"/><circle cx="364" cy="406" r="25"/>
+  </g>
+  <g>
+    <circle cx="152" cy="406" r="20" fill="#FDE047"/>
+    <circle cx="205" cy="406" r="20" fill="#FDE047"/>
+    <circle cx="258" cy="406" r="20" fill="#FDE047"/>
+    <circle cx="311" cy="406" r="20" fill="#FDE047"/>
+    <circle cx="311" cy="350" r="20" fill="#FDE047"/>
+    <circle cx="311" cy="294" r="20" fill="#FDE047"/>
+    <circle cx="311" cy="238" r="20" fill="#FDE047"/>
+    <circle cx="364" cy="406" r="20" fill="#E11D48"/>
+    <circle cx="364" cy="350" r="20" fill="#E11D48"/>
+    <circle cx="258" cy="350" r="20" fill="#E11D48"/>
+    <circle cx="205" cy="350" r="20" fill="#E11D48"/>
+  </g>
+</svg>
