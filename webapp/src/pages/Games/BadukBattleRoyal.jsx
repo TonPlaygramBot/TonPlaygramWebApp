@@ -233,6 +233,7 @@ export default function BadukBattleRoyal() {
   const fallingPiecesRef = useRef([]);
   const animationClockRef = useRef(new THREE.Clock());
   const markerRef = useRef(null);
+  const pileAnchorsRef = useRef({ player: new THREE.Vector3(), ai: new THREE.Vector3() });
   const rendererRef = useRef(null);
   const perspectiveCameraRef = useRef(null);
   const controlsRef = useRef(null);
@@ -283,6 +284,26 @@ export default function BadukBattleRoyal() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [hoverCol, setHoverCol] = useState(null);
+
+  const winnerMeta = useMemo(() => {
+    if (winner === 'player') {
+      return { title: `${username} wins!`, subtitle: '4 connected pieces! 🎉', avatarSrc: avatar || '/assets/icons/profile.svg' };
+    }
+    if (winner === 'ai') {
+      return { title: 'AI Rival wins!', subtitle: '4 connected pieces! 🤖', avatarSrc: '/assets/icons/bot.webp' };
+    }
+    if (winner === 'draw') {
+      return { title: 'Draw', subtitle: 'Board is full. Try again!', avatarSrc: '/assets/icons/four-in-row-royale.svg' };
+    }
+    return null;
+  }, [winner, username, avatar]);
+
+  const resetMatch = () => {
+    setBoard(createBoard(rows, cols));
+    setTurn('player');
+    setWinner(null);
+    setWinningCells([]);
+  };
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
@@ -508,6 +529,10 @@ export default function BadukBattleRoyal() {
       createChipStack(CONNECT4_RED, 'front', -0.2, 7),
       createChipStack(CONNECT4_BLUE, 'back', 0.2, 7)
     );
+    pileAnchorsRef.current = {
+      player: new THREE.Vector3(-0.2, TABLE_HEIGHT + 0.16, TABLE_RADIUS * 0.58),
+      ai: new THREE.Vector3(0.2, TABLE_HEIGHT + 0.16, -(TABLE_RADIUS * 0.58))
+    };
 
     const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight + yStep), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
     hitPlane.position.set(0, boardCenterY, 0.2);
@@ -614,7 +639,7 @@ export default function BadukBattleRoyal() {
 
   useEffect(() => {
     if (!winningCells.length) return;
-    winningCells.forEach(([r, c], index) => {
+      winningCells.forEach(([r, c], index) => {
       const piece = piecesMapRef.current.get(`${r}-${c}`);
       if (!piece) return;
       piece.scale.setScalar(1.1);
@@ -665,9 +690,7 @@ export default function BadukBattleRoyal() {
         if (nextCell && !currentCell) {
           const [targetX, targetY, targetZ] = worldFromCell(r, c);
           const dropX = -boardWidth / 2 + (c + 0.5) * xStep;
-          const source = nextCell === 'player'
-            ? new THREE.Vector3(-0.2, TABLE_HEIGHT + 0.16, TABLE_RADIUS * 0.58)
-            : new THREE.Vector3(0.2, TABLE_HEIGHT + 0.16, -(TABLE_RADIUS * 0.58));
+          const source = (nextCell === 'player' ? pileAnchorsRef.current.player : pileAnchorsRef.current.ai).clone();
           const columnTop = new THREE.Vector3(dropX, boardCenterY + boardHeight / 2 + yStep * 0.55, targetZ + 0.03);
           const target = new THREE.Vector3(targetX, targetY, targetZ + 0.03);
           const mesh = createTokenMesh(nextCell);
@@ -836,17 +859,36 @@ export default function BadukBattleRoyal() {
         <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
         <button
           type="button"
-          onClick={() => {
-            setBoard(createBoard(rows, cols));
-            setTurn('player');
-            setWinner(null);
-            setWinningCells([]);
-          }}
+          onClick={resetMatch}
           className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
         >
           Restart
         </button>
       </div>
+
+      {winnerMeta && (
+        <div className="pointer-events-auto fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-6 backdrop-blur-sm">
+          <div className="relative w-[min(92vw,24rem)] rounded-3xl border border-yellow-300/50 bg-[#131a2f]/95 px-6 pb-6 pt-7 text-center shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <span
+                key={`coin-${i}`}
+                className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 rounded-full bg-yellow-300 opacity-70"
+                style={{
+                  transform: `translate(-50%, -50%) rotate(${(360 / 14) * i}deg) translateY(-92px)`,
+                  animation: `ping 1.2s ease-out ${(i % 7) * 70}ms infinite`
+                }}
+              />
+            ))}
+            <img src={winnerMeta.avatarSrc} alt={winnerMeta.title} className="mx-auto h-20 w-20 rounded-full border-4 border-yellow-300/80 object-cover shadow-lg" />
+            <p className="mt-4 text-xl font-extrabold uppercase tracking-[0.14em] text-yellow-200">{winnerMeta.title}</p>
+            <p className="mt-1 text-sm text-white/80">{winnerMeta.subtitle}</p>
+            <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" onClick={resetMatch} className="rounded-xl border border-cyan-300/60 bg-cyan-300/20 px-4 py-2 text-sm font-semibold">Play Again</button>
+              <button type="button" onClick={() => navigate('/games')} className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold">Return Lobby</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />
       <BottomLeftIcons onChat={() => setShowChat(true)} showInfo={false} showGift={false} showMute={false} className="fixed left-3 bottom-28 z-50 flex flex-col" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" chatIcon="💬" order={['chat']} />
