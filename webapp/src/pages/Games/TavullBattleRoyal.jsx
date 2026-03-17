@@ -60,10 +60,11 @@ const TRIANGLE_HALF_BASE = POINT_WIDTH * 0.43
 const TRIANGLE_APEX_LENGTH = BOARD_HALF_Z * 0.73
 const CHIP_RADIUS = POINT_WIDTH * 0.36
 const CHIP_HEIGHT = 0.02
-const CHIP_STACK_STEP = CHIP_HEIGHT * 1.36
-const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.42
+const CHIP_ROW_SPACING = CHIP_RADIUS * 1.88
+const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.34
 const CHIP_POINT_INSET = POINT_WIDTH * 0.18
 const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.53
+const CHIP_MAX_PER_COLUMN = 5
 
 const MODEL_SCALE = 0.75
 const STOOL_SCALE = 1.5 * 1.3
@@ -943,14 +944,17 @@ export default function TavullBattleRoyal() {
       const point = game.points[i]
       if (!point.color || point.count <= 0) continue
       const base = pointBasePosition(i)
+      const totalColumns = Math.ceil(point.count / CHIP_MAX_PER_COLUMN)
+      const columnCenterOffset = (totalColumns - 1) * 0.5
+      const towardCenterSign = base.top ? 1 : -1
       for (let s = 0; s < point.count; s += 1) {
         const chip = createChip(point.color)
-        const stack = Math.floor(s / 5)
-        const layer = s % 5
+        const column = Math.floor(s / CHIP_MAX_PER_COLUMN)
+        const row = s % CHIP_MAX_PER_COLUMN
         chip.position.set(
-          base.x,
-          BOARD_Y + CHIP_BASE_Y_OFFSET + layer * CHIP_STACK_STEP,
-          base.z + (base.top ? 1 : -1) * (CHIP_POINT_INSET + CHIP_COLUMN_SPACING * stack)
+          base.x + (column - columnCenterOffset) * CHIP_COLUMN_SPACING,
+          BOARD_Y + CHIP_BASE_Y_OFFSET,
+          base.z + towardCenterSign * (CHIP_POINT_INSET + row * CHIP_ROW_SPACING)
         )
         chipGroup.add(chip)
       }
@@ -976,9 +980,17 @@ export default function TavullBattleRoyal() {
     }
 
     const makeBarChips = (count, color, zSign) => {
+      const totalColumns = Math.ceil(count / CHIP_MAX_PER_COLUMN)
+      const columnCenterOffset = (totalColumns - 1) * 0.5
       for (let s = 0; s < count; s += 1) {
         const chip = createChip(color)
-        chip.position.set(0, BOARD_Y + CHIP_BASE_Y_OFFSET + (s % 6) * CHIP_STACK_STEP, zSign * (BOARD_EDGE_MARGIN_Z * 0.7 + Math.floor(s / 6) * CHIP_COLUMN_SPACING))
+        const column = Math.floor(s / CHIP_MAX_PER_COLUMN)
+        const row = s % CHIP_MAX_PER_COLUMN
+        chip.position.set(
+          (column - columnCenterOffset) * CHIP_COLUMN_SPACING,
+          BOARD_Y + CHIP_BASE_Y_OFFSET,
+          zSign * (BOARD_EDGE_MARGIN_Z * 0.72 + row * CHIP_ROW_SPACING)
+        )
         chipGroup.add(chip)
       }
     }
