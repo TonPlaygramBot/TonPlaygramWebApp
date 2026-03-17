@@ -45,8 +45,7 @@ const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
 const CONNECT4_RED = '#e3342f';
 const CONNECT4_BLUE = '#2d79d8';
-const PLAYER_PILE_BASE = new THREE.Vector3(-0.2, TABLE_HEIGHT + 0.14, TABLE_RADIUS * 0.58);
-const AI_PILE_BASE = new THREE.Vector3(0.2, TABLE_HEIGHT + 0.14, -(TABLE_RADIUS * 0.58));
+const DROP_PREVIEW_DELAY = 0.09;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -349,7 +348,7 @@ export default function BadukBattleRoyal() {
         if (!boardState[r][c]) continue;
         const [x, y, z] = worldFromCell(r, c);
         const token = createTokenMesh(boardState[r][c]);
-        token.position.set(x, y, z + 0.03);
+        token.position.set(x, y, z);
         group.add(token);
         piecesMapRef.current.set(`${r}-${c}`, token);
       }
@@ -518,8 +517,8 @@ export default function BadukBattleRoyal() {
       createChipStack(CONNECT4_BLUE, 'back', 0.2, 7)
     );
 
-    const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight + yStep), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-    hitPlane.position.set(0, boardCenterY, 0.2);
+    const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight + yStep * 1.65), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+    hitPlane.position.set(0, boardCenterY + yStep * 0.28, 0.2);
     boardGroup.add(hitPlane);
     boardHitPlaneRef.current = hitPlane;
 
@@ -553,26 +552,29 @@ export default function BadukBattleRoyal() {
     let raf;
     const animate = () => {
       raf = requestAnimationFrame(animate);
-      const delta = Math.min(animationClockRef.current.getDelta(), 0.045);
+      const delta = Math.min(animationClockRef.current.getDelta(), 0.028);
       const elapsed = animationClockRef.current.elapsedTime;
 
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
         const entry = fallingPiecesRef.current[i];
         entry.elapsed += delta;
-        if (entry.phase === 'toColumn') {
-          const t = Math.min(1, entry.elapsed / entry.travelDuration);
-          const eased = 1 - ((1 - t) ** 3);
-          entry.mesh.position.lerpVectors(entry.start, entry.columnTop, eased);
+        if (entry.phase === 'preview') {
+          const t = Math.min(1, entry.elapsed / entry.previewDuration);
+          const pulse = 1 + Math.sin(t * Math.PI) * 0.04;
+          entry.mesh.scale.setScalar(pulse);
           if (t >= 1) {
             entry.phase = 'drop';
             entry.elapsed = 0;
+            entry.mesh.scale.setScalar(1);
           }
           continue;
         }
 
         const t = Math.min(1, entry.elapsed / entry.dropDuration);
-        const eased = 1 - ((1 - t) ** 3);
+        const eased = 1 - ((1 - t) ** 4);
         entry.mesh.position.y = THREE.MathUtils.lerp(entry.columnTop.y, entry.target.y, eased);
+        const wobble = Math.sin((1 - t) * Math.PI * 2.2) * 0.015 * (1 - t);
+        entry.mesh.position.z = entry.target.z + wobble;
         if (t >= 1) {
           entry.mesh.position.copy(entry.target);
           fallingPiecesRef.current.splice(i, 1);
@@ -675,12 +677,6 @@ export default function BadukBattleRoyal() {
     if (!group) return;
     const shown = displayedBoardRef.current;
 
-    const getPileSource = (token, tokenCountOnBoard) => {
-      const base = token === 'player' ? PLAYER_PILE_BASE : AI_PILE_BASE;
-      const remaining = Math.max(0, 7 - tokenCountOnBoard);
-      return base.clone().add(new THREE.Vector3(0, remaining * 0.02, 0));
-    };
-
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         const nextCell = board[r][c];
@@ -688,24 +684,21 @@ export default function BadukBattleRoyal() {
         if (nextCell && !currentCell) {
           const [targetX, targetY, targetZ] = worldFromCell(r, c);
           const dropX = -boardWidth / 2 + (c + 0.5) * xStep;
-          const tokenCountOnBoard = shown.flat().filter((cell) => cell === nextCell).length;
-          const source = getPileSource(nextCell, tokenCountOnBoard);
-          const columnTop = new THREE.Vector3(dropX, boardCenterY + boardHeight / 2 + yStep * 0.55, targetZ + 0.03);
-          const target = new THREE.Vector3(targetX, targetY, targetZ + 0.03);
+          const columnTop = new THREE.Vector3(dropX, boardCenterY + boardHeight / 2 + yStep * 0.62, targetZ);
+          const target = new THREE.Vector3(targetX, targetY, targetZ);
           const mesh = createTokenMesh(nextCell);
-          mesh.position.copy(source);
+          mesh.position.copy(columnTop);
           group.add(mesh);
           piecesMapRef.current.set(`${r}-${c}`, mesh);
           fallingPiecesRef.current.push({
             mesh,
             key: `${r}-${c}`,
-            start: source.clone(),
             columnTop,
             target,
             elapsed: 0,
-            phase: 'toColumn',
-            travelDuration: 0.3,
-            dropDuration: 0.26 + (rows - 1 - r) * 0.035
+            phase: 'preview',
+            previewDuration: DROP_PREVIEW_DELAY,
+            dropDuration: 0.2 + (rows - 1 - r) * 0.03
           });
         } else if (!nextCell && currentCell) {
           const key = `${r}-${c}`;
