@@ -205,7 +205,6 @@ const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
-const TAP_POINTER_GUARD_MS = 420;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -981,7 +980,6 @@ export default function CheckersBattleRoyal() {
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const pointerDownRef = useRef(null);
-  const lastTapTimeRef = useRef(0);
 
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -1222,7 +1220,6 @@ export default function CheckersBattleRoyal() {
     rendererRef.current = renderer;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.domElement.style.touchAction = 'none';
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     applyRendererSRGB(renderer);
     renderer.shadowMap.enabled = true;
@@ -1382,10 +1379,7 @@ export default function CheckersBattleRoyal() {
     };
 
     const onPointerDown = (event) => {
-      if (event.button != null && event.button !== 0) return;
-      if (event.isPrimary === false) return;
       pointerDownRef.current = {
-        id: event.pointerId,
         x: event.clientX,
         y: event.clientY,
         at: performance.now()
@@ -1395,35 +1389,13 @@ export default function CheckersBattleRoyal() {
     const onPointerUp = (event) => {
       const pointerDown = pointerDownRef.current;
       pointerDownRef.current = null;
-      if (!pointerDown) return;
-      if (event.isPrimary === false) return;
-      if (
-        Number.isFinite(pointerDown.id) &&
-        Number.isFinite(event.pointerId) &&
-        pointerDown.id !== event.pointerId
-      ) {
-        return;
+      if (pointerDown) {
+        const dt = performance.now() - pointerDown.at;
+        const dx = event.clientX - pointerDown.x;
+        const dy = event.clientY - pointerDown.y;
+        const dist = Math.hypot(dx, dy);
+        if (dt > TAP_MAX_DURATION_MS || dist > TAP_MAX_DISTANCE_PX) return;
       }
-      const dt = performance.now() - pointerDown.at;
-      const dx = event.clientX - pointerDown.x;
-      const dy = event.clientY - pointerDown.y;
-      const dist = Math.hypot(dx, dy);
-      if (dt > TAP_MAX_DURATION_MS || dist > TAP_MAX_DISTANCE_PX) return;
-      lastTapTimeRef.current = performance.now();
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(pickTiles, false)[0];
-      if (hit?.object?.userData) applyMove(hit.object.userData.r, hit.object.userData.c);
-    };
-
-    const onPointerCancel = () => {
-      pointerDownRef.current = null;
-    };
-
-    const onClickFallback = (event) => {
-      if (performance.now() - lastTapTimeRef.current <= TAP_POINTER_GUARD_MS) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1594,9 +1566,7 @@ export default function CheckersBattleRoyal() {
     };
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: true });
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerCancel);
-    renderer.domElement.addEventListener('click', onClickFallback);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
     window.addEventListener('resize', onResize);
 
     let raf = 0;
@@ -1611,9 +1581,7 @@ export default function CheckersBattleRoyal() {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerCancel);
-      renderer.domElement.removeEventListener('click', onClickFallback);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.dispose();
       rendererRef.current = null;
       moveSoundRef.current?.pause();
