@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-
-const BOARD_SIZES = [9, 13, 16, 19];
+import { BADUK_BOARD_LAYOUTS } from '../../config/badukBattleInventoryConfig.js';
+import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
 
 export default function BadukBattleRoyalLobby() {
   useTelegramBackButton();
   const navigate = useNavigate();
   const [mode, setMode] = useState('ai');
-  const [boardSize, setBoardSize] = useState(19);
+
+  const inventory = useMemo(() => getBadukBattleInventory(badukBattleAccountId()), []);
+  const ownedLayouts = inventory.boardLayout || [];
+  const [boardLayout, setBoardLayout] = useState(ownedLayouts[0] || BADUK_BOARD_LAYOUTS[0]?.id);
 
   const startGame = () => {
     const params = new URLSearchParams();
     params.set('mode', mode);
-    params.set('boardSize', String(boardSize));
+    params.set('boardLayout', boardLayout);
     navigate(`/games/badukbattleroyal?${params.toString()}`);
   };
 
@@ -26,16 +29,16 @@ export default function BadukBattleRoyalLobby() {
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader
           slug="badukbattleroyal"
-          title="Baduk Battle Royal Lobby"
-          subtitle="Same Chess/Checkers Battle Royal arena assets, now with a full Baduk board and rules."
+          title="4 in a Row Lobby"
+          subtitle="Same HDRI/table/chairs setup, redesigned as a vertical Connect-4 style battle board."
         />
 
         <section className="rounded-3xl border border-white/10 bg-black/25 p-4">
           <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">Match Mode</h2>
           <div className="mt-3 grid grid-cols-2 gap-3">
             {[
-              { id: 'ai', label: 'AI / Local', desc: 'Fast onboarding and practice.' },
-              { id: 'online', label: 'Online', desc: 'Lobby-ready flow for multiplayer start.' }
+              { id: 'ai', label: 'AI / Local', desc: 'Play against a strong AI.' },
+              { id: 'online', label: 'Online', desc: 'Lobby-ready multiplayer entry.' }
             ].map((item) => {
               const active = mode === item.id;
               return (
@@ -64,44 +67,38 @@ export default function BadukBattleRoyalLobby() {
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-black/25 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">Board Size</h2>
-          <p className="mt-2 text-xs text-white/60">Choose the standard Baduk board sizes (including 16x16 quick format).</p>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">Board Inventory</h2>
+          <p className="mt-2 text-xs text-white/60">Default board is 7×6. Unlock 8×7 in the store to use it here.</p>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            {BOARD_SIZES.map((size) => {
-              const active = boardSize === size;
+            {BADUK_BOARD_LAYOUTS.map((layout) => {
+              const active = boardLayout === layout.id;
+              const owned = ownedLayouts.includes(layout.id);
               return (
                 <button
-                  key={size}
+                  key={layout.id}
                   type="button"
-                  onClick={() => setBoardSize(size)}
-                  className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
+                  onClick={() => {
+                    if (owned) setBoardLayout(layout.id);
+                    else navigate('/store/badukbattleroyal');
+                  }}
+                  className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'} ${!owned ? 'opacity-70' : ''}`}
                 >
                   <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/35 via-orange-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon('badukbattleroyal', `size-${size}`)}
+                        src={getLobbyIcon('badukbattleroyal', `layout-${layout.id}`)}
                         fallback="🧩"
-                        alt={`${size} board`}
+                        alt={layout.label}
                         className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <p className="lobby-option-label">{size} × {size}</p>
-                  <p className="lobby-option-subtitle">Grid strategy and capture rules enabled.</p>
+                  <p className="lobby-option-label">{layout.label}</p>
+                  <p className="lobby-option-subtitle">{owned ? 'Owned' : 'Locked • Tap to open store'}</p>
                 </button>
               );
             })}
           </div>
-        </section>
-
-        <section className="rounded-3xl border border-white/10 bg-black/25 p-4 text-xs text-white/70">
-          <h3 className="text-sm font-semibold text-white">Rules enabled</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Alternate turns (Black starts first).</li>
-            <li>Capture groups with zero liberties.</li>
-            <li>Suicide moves are blocked.</li>
-            <li>Two consecutive passes end the game.</li>
-          </ul>
         </section>
 
         <button
@@ -109,7 +106,7 @@ export default function BadukBattleRoyalLobby() {
           onClick={startGame}
           className="w-full rounded-2xl bg-cyan-400 px-4 py-3 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/25"
         >
-          Start Baduk Battle Royal
+          Start 4 in a Row
         </button>
       </div>
     </div>
