@@ -34,6 +34,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
+const BOARD_CENTER_LIFT = 0.54;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -243,8 +244,9 @@ export default function BadukBattleRoyal() {
 
   const rows = selectedLayout.rows;
   const cols = selectedLayout.cols;
-  const boardWidth = 1.45 + cols * 0.22;
-  const boardHeight = 1.25 + rows * 0.24;
+  const boardWidth = 1.08 + cols * 0.19;
+  const boardHeight = 0.92 + rows * 0.2;
+  const boardCenterY = TABLE_HEIGHT + BOARD_CENTER_LIFT;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.24;
   const xStep = boardWidth / cols;
   const yStep = boardHeight / rows;
@@ -273,7 +275,7 @@ export default function BadukBattleRoyal() {
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
-    TABLE_HEIGHT + 0.2 + boardHeight / 2 - (r + 0.5) * yStep,
+    boardCenterY + boardHeight / 2 - (r + 0.5) * yStep,
     0
   ];
 
@@ -356,8 +358,8 @@ export default function BadukBattleRoyal() {
     perspectiveCameraRef.current = perspective;
 
     const topCamera = new THREE.OrthographicCamera(-boardWidth, boardWidth, boardHeight, -boardHeight, 0.1, 200);
-    topCamera.position.set(0, TABLE_HEIGHT + 6.8, 0.001);
-    topCamera.lookAt(0, TABLE_HEIGHT + 0.1, 0);
+    topCamera.position.set(0, boardCenterY, 7.2);
+    topCamera.lookAt(0, boardCenterY, 0);
     topCameraRef.current = topCamera;
 
     const controls = new OrbitControls(perspective, renderer.domElement);
@@ -392,7 +394,7 @@ export default function BadukBattleRoyal() {
       new THREE.BoxGeometry(boardWidth + 0.38, boardHeight + 0.38, 0.28),
       new THREE.MeshStandardMaterial({ color: boardTheme.tint || '#d7a359', roughness: 0.35, metalness: 0.08 })
     );
-    frame.position.set(0, TABLE_HEIGHT + 0.2, 0);
+    frame.position.set(0, boardCenterY, 0);
     frame.castShadow = true;
     boardGroup.add(frame);
 
@@ -400,30 +402,36 @@ export default function BadukBattleRoyal() {
       new THREE.BoxGeometry(boardWidth, boardHeight, 0.18),
       new THREE.MeshStandardMaterial({ color: boardTheme.grid || '#334155', roughness: 0.22, metalness: 0.14 })
     );
-    boardFace.position.set(0, TABLE_HEIGHT + 0.2, 0.05);
+    boardFace.position.set(0, boardCenterY, 0.04);
     boardFace.castShadow = true;
     boardFace.receiveShadow = true;
     boardGroup.add(boardFace);
 
-    const holeGeo = new THREE.CylinderGeometry(slotRadius, slotRadius, 0.08, 32);
-    const holeMat = new THREE.MeshStandardMaterial({ color: '#020617', roughness: 0.05, metalness: 0.3 });
+    const holeGeo = new THREE.CylinderGeometry(slotRadius * 0.86, slotRadius * 0.9, 0.16, 40);
+    const holeMat = new THREE.MeshStandardMaterial({ color: '#020617', roughness: 0.22, metalness: 0.1 });
+    const holeRimGeo = new THREE.TorusGeometry(slotRadius * 0.95, slotRadius * 0.11, 14, 40);
+    const holeRimMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.3, metalness: 0.24 });
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         const [x, y] = worldFromCell(r, c);
         const hole = new THREE.Mesh(holeGeo, holeMat);
-        hole.position.set(x, y, 0.11);
+        hole.position.set(x, y, 0.07);
         hole.rotation.x = Math.PI / 2;
         boardGroup.add(hole);
+        const rim = new THREE.Mesh(holeRimGeo, holeRimMat);
+        rim.position.set(x, y, 0.125);
+        rim.rotation.x = Math.PI / 2;
+        boardGroup.add(rim);
       }
     }
 
     const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-    hitPlane.position.set(0, TABLE_HEIGHT + 0.2, 0.2);
+    hitPlane.position.set(0, boardCenterY, 0.2);
     boardGroup.add(hitPlane);
     boardHitPlaneRef.current = hitPlane;
 
     const marker = new THREE.Mesh(new THREE.RingGeometry(slotRadius * 1.1, slotRadius * 1.45, 24), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 }));
-    marker.position.set(0, TABLE_HEIGHT + boardHeight / 2 + 0.36, 0.2);
+    marker.position.set(0, boardCenterY + boardHeight / 2 + 0.28, 0.2);
     marker.visible = false;
     markerRef.current = marker;
     boardGroup.add(marker);
@@ -440,10 +448,12 @@ export default function BadukBattleRoyal() {
       const aspect = width / height;
       perspective.aspect = aspect;
       perspective.updateProjectionMatrix();
-      topCamera.left = -boardWidth * aspect * 0.58;
-      topCamera.right = boardWidth * aspect * 0.58;
-      topCamera.top = boardHeight * 0.86;
-      topCamera.bottom = -boardHeight * 0.86;
+      const frustumWidth = Math.max(boardWidth * 1.22, boardHeight * aspect * 1.22);
+      const frustumHeight = frustumWidth / aspect;
+      topCamera.left = -frustumWidth / 2;
+      topCamera.right = frustumWidth / 2;
+      topCamera.top = frustumHeight / 2;
+      topCamera.bottom = -frustumHeight / 2;
       topCamera.updateProjectionMatrix();
       const preset = GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) || GRAPHICS_PRESETS[0];
       renderer.setPixelRatio(Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2));
@@ -475,7 +485,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, viewMode, hoverCol, turn, winner, boardWidth, boardHeight, slotRadius, xStep]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, viewMode, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
