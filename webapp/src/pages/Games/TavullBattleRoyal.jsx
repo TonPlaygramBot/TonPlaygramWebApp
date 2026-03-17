@@ -51,13 +51,13 @@ const POINT_START_X = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5
 
 const TRIANGLE_BASE_Y_OFFSET = 0.127
 const TRIANGLE_HEIGHT = 0.014
-const TRIANGLE_HALF_BASE = POINT_WIDTH * 0.29
-const TRIANGLE_APEX_LENGTH = BOARD_HALF_Z * 0.74
-const CHIP_RADIUS = POINT_WIDTH * 0.35
+const TRIANGLE_HALF_BASE = POINT_WIDTH * 0.43
+const TRIANGLE_APEX_LENGTH = BOARD_HALF_Z * 0.73
+const CHIP_RADIUS = POINT_WIDTH * 0.36
 const CHIP_HEIGHT = 0.02
 const CHIP_STACK_STEP = CHIP_HEIGHT * 1.36
-const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.45
-const CHIP_POINT_INSET = POINT_WIDTH * 0.12
+const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.42
+const CHIP_POINT_INSET = POINT_WIDTH * 0.1
 const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.53
 
 const MODEL_SCALE = 0.75
@@ -417,18 +417,27 @@ const pointColumnFromEdge = (x) => {
 }
 
 const pointBasePosition = (index) => {
+  const rightLaneOuterX = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5
+  const rightLaneInnerX = CENTER_BAR_WIDTH * 0.5 + POINT_WIDTH * 0.5
+  const leftLaneInnerX = -rightLaneInnerX
+  const leftLaneOuterX = -rightLaneOuterX
+
+  const laneStep = (rightLaneOuterX - rightLaneInnerX) / Math.max(1, POINT_COLUMNS - 1)
+  const bottomLane = [
+    ...Array.from({ length: POINT_COLUMNS }, (_, col) => rightLaneOuterX - col * laneStep),
+    ...Array.from({ length: POINT_COLUMNS }, (_, col) => leftLaneInnerX - col * laneStep)
+  ]
+
   if (index <= 11) {
-    const col = index < 6 ? index : index + 1
     return {
-      x: POINT_START_X - col * POINT_WIDTH,
+      x: bottomLane[index],
       z: BOARD_HALF_Z - BOARD_EDGE_MARGIN_Z,
       top: false
     }
   }
   const i = 23 - index
-  const col = i < 6 ? i : i + 1
   return {
-    x: -POINT_START_X + col * POINT_WIDTH,
+    x: bottomLane[i],
     z: -BOARD_HALF_Z + BOARD_EDGE_MARGIN_Z,
     top: true
   }
