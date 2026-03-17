@@ -284,13 +284,6 @@ export default function BadukBattleRoyal() {
   const [configOpen, setConfigOpen] = useState(false);
   const [hoverCol, setHoverCol] = useState(null);
 
-  const resetGame = () => {
-    setBoard(createBoard(rows, cols));
-    setTurn('player');
-    setWinner(null);
-    setWinningCells([]);
-  };
-
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
     boardCenterY + boardHeight / 2 - (r + 0.5) * yStep,
@@ -576,14 +569,6 @@ export default function BadukBattleRoyal() {
         }
       }
 
-      if (winningCells.length) {
-        const pulse = 1 + Math.sin(performance.now() * 0.012) * 0.08;
-        winningCells.forEach(([r, c]) => {
-          const piece = piecesMapRef.current.get(`${r}-${c}`);
-          if (piece) piece.scale.setScalar(pulse);
-        });
-      }
-
       controls.update();
       if (markerRef.current && Number.isInteger(hoverCol) && turn === 'player' && !winner) {
         const x = -boardWidth / 2 + (hoverCol + 0.5) * xStep;
@@ -603,7 +588,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, winningCells, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -638,29 +623,6 @@ export default function BadukBattleRoyal() {
       }, 300 + index * 60);
     });
   }, [winningCells]);
-
-  useEffect(() => {
-    const winningKeys = new Set(winningCells.map(([r, c]) => `${r}-${c}`));
-    piecesMapRef.current.forEach((piece, key) => {
-      const isWinner = winningKeys.has(key);
-      piece.traverse((child) => {
-        if (!child.isMesh || !child.material) return;
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat) => {
-            if (Object.prototype.hasOwnProperty.call(mat, 'emissiveIntensity')) {
-              mat.emissive.set(isWinner ? '#fef08a' : '#000000');
-              mat.emissiveIntensity = isWinner ? 0.55 : 0;
-            }
-          });
-          return;
-        }
-        if (Object.prototype.hasOwnProperty.call(child.material, 'emissiveIntensity')) {
-          child.material.emissive.set(isWinner ? '#fef08a' : '#000000');
-          child.material.emissiveIntensity = isWinner ? 0.55 : 0;
-        }
-      });
-    });
-  }, [winningCells, board]);
 
   const playColumn = (col, token) => {
     const row = getDropRow(board, col);
@@ -790,9 +752,6 @@ export default function BadukBattleRoyal() {
 
   const playerCount = board.flat().filter((x) => x === 'player').length;
   const aiCount = board.flat().filter((x) => x === 'ai').length;
-  const winnerProfile = winner === 'player'
-    ? { name: username, photo: avatar || '/assets/icons/profile.svg' }
-    : { name: 'AI Rival', photo: '/assets/icons/bot.webp' };
 
   const optionGroups = [
     { key: 'tableId', label: 'Tables', options: BADUK_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
@@ -877,58 +836,17 @@ export default function BadukBattleRoyal() {
         <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
         <button
           type="button"
-          onClick={resetGame}
+          onClick={() => {
+            setBoard(createBoard(rows, cols));
+            setTurn('player');
+            setWinner(null);
+            setWinningCells([]);
+          }}
           className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
         >
           Restart
         </button>
       </div>
-
-      {winner && (
-        <div className="pointer-events-auto fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="relative w-[min(90vw,24rem)] overflow-hidden rounded-3xl border border-yellow-300/40 bg-[#0f172acc] p-6 text-center shadow-2xl">
-            <div className="pointer-events-none absolute inset-0 opacity-85">
-              {Array.from({ length: 22 }).map((_, index) => (
-                <span
-                  key={`coin-${index}`}
-                  className="absolute text-yellow-300"
-                  style={{
-                    left: `${10 + (index % 6) * 16}%`,
-                    top: `${8 + Math.floor(index / 6) * 20}%`,
-                    animation: `coinBurst 1.1s ease-out ${index * 0.03}s infinite`
-                  }}
-                >
-                  🪙
-                </span>
-              ))}
-            </div>
-            {winner === 'draw' ? (
-              <>
-                <h2 className="relative text-3xl font-black text-white">It&apos;s a Draw</h2>
-                <p className="relative mt-2 text-sm text-white/80">Board is full. Ready for a rematch?</p>
-              </>
-            ) : (
-              <>
-                <img src={winnerProfile.photo} alt={winnerProfile.name} className="relative mx-auto h-24 w-24 rounded-full border-4 border-yellow-300/80 object-cover shadow-lg" />
-                <h2 className="relative mt-3 text-3xl font-black text-yellow-200">{winnerProfile.name} Wins!</h2>
-                <p className="relative mt-2 text-sm text-white/85">4 connected chips highlighted on board.</p>
-              </>
-            )}
-            <div className="relative mt-5 flex flex-col gap-2">
-              <button type="button" onClick={resetGame} className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950">Play Again</button>
-              <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white">Return Lobby</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes coinBurst {
-          0% { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
-          12% { opacity: 1; }
-          100% { transform: translate3d(0, -52px, 0) scale(1.2); opacity: 0; }
-        }
-      `}</style>
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />
       <BottomLeftIcons onChat={() => setShowChat(true)} showInfo={false} showGift={false} showMute={false} className="fixed left-3 bottom-28 z-50 flex flex-col" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" chatIcon="💬" order={['chat']} />
