@@ -241,6 +241,90 @@ const RULE_SUMMARY =
 const HUMAN_SIDE = 'light';
 const AI_SIDE = 'dark';
 const AI_SEARCH_DEPTH = 6;
+const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
+const CAPTURE_STRIP_PIECE_GAP = 0.82;
+
+const createCheckerMesh = ({
+  tile,
+  side,
+  king,
+  chipSet,
+  checkerHeadPreset
+}) => {
+  const pieceGroup = new THREE.Group();
+  const baseMaterial = createCheckerMaterial(
+    side === 'light' ? chipSet.light : chipSet.dark,
+    checkerHeadPreset
+  );
+  const chip = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      tile * 0.352,
+      tile * 0.332,
+      tile * 0.176,
+      56,
+      1,
+      false
+    ),
+    baseMaterial
+  );
+  chip.castShadow = true;
+  chip.receiveShadow = true;
+  pieceGroup.add(chip);
+
+  const topCap = new THREE.Mesh(
+    new THREE.CylinderGeometry(tile * 0.264, tile * 0.292, tile * 0.064, 48),
+    baseMaterial.clone()
+  );
+  topCap.position.y = tile * 0.106;
+  topCap.castShadow = true;
+  topCap.receiveShadow = true;
+  pieceGroup.add(topCap);
+
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(tile * 0.242, tile * 0.019, 16, 64),
+    new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      metalness: 0.88,
+      roughness: 0.25,
+      transparent: true,
+      opacity: 0.85
+    })
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = tile * 0.118;
+  pieceGroup.add(rim);
+
+  if (king) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(tile * 0.16, tile * 0.038, 12, 32),
+      new THREE.MeshStandardMaterial({
+        color: '#facc15',
+        metalness: 0.94,
+        roughness: 0.14,
+        emissive: '#9a6c00',
+        emissiveIntensity: 0.2
+      })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = tile * 0.13;
+    pieceGroup.add(ring);
+  }
+
+  return pieceGroup;
+};
+
+const disposeGroupMeshes = (group) => {
+  if (!group) return;
+  group.traverse((child) => {
+    if (!child?.isMesh) return;
+    child.geometry?.dispose?.();
+    if (Array.isArray(child.material)) {
+      child.material.forEach((mat) => mat?.dispose?.());
+      return;
+    }
+    child.material?.dispose?.();
+  });
+};
 
 const createInitial = () => {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
@@ -981,6 +1065,7 @@ export default function CheckersBattleRoyal() {
   const boardRef = useRef(createInitial());
   const selectedRef = useRef(null);
   const piecesGroupRef = useRef(null);
+  const capturedPiecesGroupRef = useRef(null);
   const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
   const replayStateRef = useRef(null);
   const highlightGroupRef = useRef(null);
@@ -1101,6 +1186,7 @@ export default function CheckersBattleRoyal() {
     () => () => {
       const group = piecesGroupRef.current;
       if (!group) return;
+      disposeGroupMeshes(group);
       group.clear();
       const board = boardRef.current;
       const { x, y, z, tile } = boardOriginRef.current;
@@ -1108,53 +1194,13 @@ export default function CheckersBattleRoyal() {
         for (let c = 0; c < SIZE; c += 1) {
           const piece = board[r][c];
           if (!piece) continue;
-          const pieceGroup = new THREE.Group();
-          const baseMaterial = createCheckerMaterial(
-            piece.side === 'light' ? chipSet.light : chipSet.dark,
+          const pieceGroup = createCheckerMesh({
+            tile,
+            side: piece.side,
+            king: piece.king,
+            chipSet,
             checkerHeadPreset
-          );
-          const chip = new THREE.Mesh(
-            new THREE.CylinderGeometry(
-              tile * 0.352,
-              tile * 0.332,
-              tile * 0.176,
-              56,
-              1,
-              false
-            ),
-            baseMaterial
-          );
-          chip.castShadow = true;
-          chip.receiveShadow = true;
-          pieceGroup.add(chip);
-
-          const topCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(
-              tile * 0.264,
-              tile * 0.292,
-              tile * 0.064,
-              48
-            ),
-            baseMaterial.clone()
-          );
-          topCap.position.y = tile * 0.106;
-          topCap.castShadow = true;
-          topCap.receiveShadow = true;
-          pieceGroup.add(topCap);
-
-          const rim = new THREE.Mesh(
-            new THREE.TorusGeometry(tile * 0.242, tile * 0.019, 16, 64),
-            new THREE.MeshStandardMaterial({
-              color: '#f8fafc',
-              metalness: 0.88,
-              roughness: 0.25,
-              transparent: true,
-              opacity: 0.85
-            })
-          );
-          rim.rotation.x = Math.PI / 2;
-          rim.position.y = tile * 0.118;
-          pieceGroup.add(rim);
+          });
 
           pieceGroup.position.set(
             x + (c - 3.5) * tile,
@@ -1162,21 +1208,6 @@ export default function CheckersBattleRoyal() {
             z + (r - 3.5) * tile
           );
           pieceGroup.userData = { r, c, side: piece.side };
-          if (piece.king) {
-            const ring = new THREE.Mesh(
-              new THREE.TorusGeometry(tile * 0.16, tile * 0.038, 12, 32),
-              new THREE.MeshStandardMaterial({
-                color: '#facc15',
-                metalness: 0.94,
-                roughness: 0.14,
-                emissive: '#9a6c00',
-                emissiveIntensity: 0.2
-              })
-            );
-            ring.rotation.x = Math.PI / 2;
-            ring.position.y = tile * 0.13;
-            pieceGroup.add(ring);
-          }
           group.add(pieceGroup);
         }
       }
@@ -1184,14 +1215,58 @@ export default function CheckersBattleRoyal() {
     [checkerHeadPreset, chipSet.dark, chipSet.light]
   );
 
+  const renderCapturedPieces = useMemo(
+    () => () => {
+      const group = capturedPiecesGroupRef.current;
+      if (!group) return;
+      disposeGroupMeshes(group);
+      group.clear();
+      const { x, y, z, tile } = boardOriginRef.current;
+      const maxPerRow = 12;
+
+      const placeCapturedForSide = (side, edge) => {
+        const captured = capturedBySide[side] || [];
+        captured.forEach((piece, idx) => {
+          const row = Math.floor(idx / maxPerRow);
+          const col = idx % maxPerRow;
+          const centered =
+            col -
+            (Math.min(captured.length - row * maxPerRow, maxPerRow) - 1) / 2;
+          const checker = createCheckerMesh({
+            tile: tile * 0.74,
+            side: piece.side,
+            king: piece.king,
+            chipSet,
+            checkerHeadPreset
+          });
+          checker.position.set(
+            x + centered * tile * CAPTURE_STRIP_PIECE_GAP,
+            y + tile * 0.09,
+            z + edge * (3.5 + CAPTURE_STRIP_OFFSET_ROWS + row * 0.74) * tile
+          );
+          group.add(checker);
+        });
+      };
+
+      placeCapturedForSide('dark', -1);
+      placeCapturedForSide('light', 1);
+    },
+    [capturedBySide, checkerHeadPreset, chipSet]
+  );
+
   useEffect(() => {
     renderPieces();
   }, [renderPieces, turn]);
+
+  useEffect(() => {
+    renderCapturedPieces();
+  }, [renderCapturedPieces]);
 
   const renderHighlights = useMemo(
     () => () => {
       const group = highlightGroupRef.current;
       if (!group) return;
+      disposeGroupMeshes(group);
       group.clear();
       const selected = selectedRef.current;
       if (!selected) return;
@@ -1317,6 +1392,9 @@ export default function CheckersBattleRoyal() {
     const piecesGroup = new THREE.Group();
     piecesGroupRef.current = piecesGroup;
     scene.add(piecesGroup);
+    const capturedPiecesGroup = new THREE.Group();
+    capturedPiecesGroupRef.current = capturedPiecesGroup;
+    scene.add(capturedPiecesGroup);
     const highlightGroup = new THREE.Group();
     highlightGroupRef.current = highlightGroup;
     scene.add(highlightGroup);
@@ -1696,6 +1774,7 @@ export default function CheckersBattleRoyal() {
 
       setupPickTiles();
       renderPieces();
+      renderCapturedPieces();
       renderHighlights();
       setStatus(
         `Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`
@@ -1733,6 +1812,12 @@ export default function CheckersBattleRoyal() {
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
+      disposeGroupMeshes(piecesGroupRef.current);
+      piecesGroupRef.current?.clear?.();
+      disposeGroupMeshes(capturedPiecesGroupRef.current);
+      capturedPiecesGroupRef.current?.clear?.();
+      disposeGroupMeshes(highlightGroupRef.current);
+      highlightGroupRef.current?.clear?.();
       renderer.dispose();
       rendererRef.current = null;
       moveSoundRef.current?.pause();
@@ -1744,7 +1829,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [renderPieces]);
+  }, [renderCapturedPieces, renderPieces]);
 
   useEffect(() => {
     if (turn !== AI_SIDE || aiBusyRef.current || gameOver) return;
