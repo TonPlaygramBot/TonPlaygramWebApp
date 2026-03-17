@@ -59,7 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.14;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -1840,8 +1840,8 @@ export default function CheckersBattleRoyal() {
           </button>
         </div>
 
-        <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-end gap-3">
+        <div className="absolute top-[82%] right-4 z-20 -translate-y-1/2 flex flex-col items-end gap-3 pointer-events-none">
+          <div className="pointer-events-auto flex flex-row items-center gap-3">
             <button
               type="button"
               onClick={replayLastMove}
