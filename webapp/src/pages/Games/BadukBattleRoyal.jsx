@@ -141,6 +141,31 @@ const minimax = (board, depth, alpha, beta, maximizing, aiToken, playerToken) =>
   return best;
 };
 
+
+const chooseAiMove = (board, aiToken, playerToken, depth) => {
+  const cols = board[0].length;
+  const validCols = Array.from({ length: cols }, (_, i) => i).filter((col) => getDropRow(board, col) >= 0);
+  if (!validCols.length) return null;
+
+  for (const col of validCols) {
+    const row = getDropRow(board, col);
+    const next = cloneBoard(board);
+    next[row][col] = aiToken;
+    if (checkWinner(next, aiToken)) return col;
+  }
+
+  for (const col of validCols) {
+    const row = getDropRow(board, col);
+    const next = cloneBoard(board);
+    next[row][col] = playerToken;
+    if (checkWinner(next, playerToken)) return col;
+  }
+
+  const ordered = [...validCols].sort((a, b) => Math.abs(a - cols / 2) - Math.abs(b - cols / 2));
+  const { col } = minimax(board, depth, -Infinity, Infinity, true, aiToken, playerToken);
+  return Number.isInteger(col) ? col : ordered[0];
+};
+
 async function resolveHdriUrl(variant) {
   const fallbackRes = variant?.maxResolution || '2k';
   const fallback = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${variant?.assetId || 'colorful_studio'}_${fallbackRes}.hdr`;
@@ -211,13 +236,15 @@ export default function BadukBattleRoyal() {
   const [board, setBoard] = useState(() => createBoard(rows, cols));
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
-  const [status, setStatus] = useState('4 in a Row started. Your move.');
+  const [status, setStatus] = useState('Drop pieces into columns. First to connect 4 in row/column/diagonal wins.');
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('3d');
 
-  const boardWidth = 2.1;
-  const boardHeight = 2.2;
+  const boardWidth = 1.75;
+  const boardHeight = 1.85;
   const xStep = boardWidth / cols;
   const yStep = boardHeight / rows;
 
@@ -225,12 +252,12 @@ export default function BadukBattleRoyal() {
     setBoard(createBoard(rows, cols));
     setTurn('player');
     setWinner(null);
-    setStatus(`Board ${cols}×${rows} loaded. Your move.`);
+    setStatus(`Board ${cols}×${rows} loaded. First to connect 4 horizontally, vertically, or diagonally wins.`);
   }, [rows, cols]);
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
-    TABLE_HEIGHT + 0.2 + boardHeight / 2 - (r + 0.5) * yStep,
+    TABLE_HEIGHT + 0.11 + boardHeight / 2 - (r + 0.5) * yStep,
     0
   ];
 
@@ -279,6 +306,15 @@ export default function BadukBattleRoyal() {
     controls.enableDamping = true;
     controlsRef.current = controls;
 
+    if (viewMode === '2d') {
+      camera.position.set(0, TABLE_HEIGHT + 4.1, 0.08);
+      controls.target.set(0, TABLE_HEIGHT + 0.1, 0);
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = 0;
+      controls.enableRotate = false;
+      controls.enableZoom = true;
+    }
+
     scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 0.9));
     const key = new THREE.DirectionalLight(0xffffff, 1.1);
     key.position.set(2.2, 4.5, 1.6);
@@ -297,11 +333,11 @@ export default function BadukBattleRoyal() {
     const boardGroup = new THREE.Group();
     const boardTheme = BADUK_BOARD_THEMES.find((theme) => theme.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
     const frame = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.35, boardHeight + 0.35, 0.22), new THREE.MeshStandardMaterial({ color: boardTheme.tint || '#d7a359', roughness: 0.6 }));
-    frame.position.set(0, TABLE_HEIGHT + 0.2, 0);
+    frame.position.set(0, TABLE_HEIGHT + 0.11, 0);
     boardGroup.add(frame);
 
     const boardFace = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), new THREE.MeshStandardMaterial({ color: boardTheme.grid || '#334155' }));
-    boardFace.position.set(0, TABLE_HEIGHT + 0.2, 0.11);
+    boardFace.position.set(0, TABLE_HEIGHT + 0.11, 0.11);
     boardGroup.add(boardFace);
 
     const holes = new THREE.Group();
@@ -318,7 +354,7 @@ export default function BadukBattleRoyal() {
     boardGroup.add(holes);
 
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-    plane.position.set(0, TABLE_HEIGHT + 0.2, 0.18);
+    plane.position.set(0, TABLE_HEIGHT + 0.11, 0.18);
     boardGroup.add(plane);
     boardMeshRef.current = plane;
 
@@ -348,7 +384,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme]);
+  }, [rows, cols, appearance.boardTheme, viewMode]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -417,9 +453,9 @@ export default function BadukBattleRoyal() {
   useEffect(() => {
     if (turn !== 'ai' || winner) return;
     const t = setTimeout(() => {
-      const depth = cols >= 8 ? 4 : 5;
-      const { col } = minimax(board, depth, -Infinity, Infinity, true, 'ai', 'player');
-      playColumn(col, 'ai');
+      const depth = cols >= 8 ? 5 : 6;
+      const col = chooseAiMove(board, 'ai', 'player', depth);
+      if (Number.isInteger(col)) playColumn(col, 'ai');
     }, 380);
     return () => clearTimeout(t);
   }, [turn, winner, board, cols]);
@@ -430,10 +466,58 @@ export default function BadukBattleRoyal() {
   return (
     <div className="relative min-h-screen bg-[#070b16] text-white">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-2xl border border-white/15 bg-black/60 p-3 text-xs">
-        <h1 className="text-sm font-semibold uppercase tracking-[0.18em]">4 in a Row</h1>
-        <p className="mt-1 text-white/80">Board: {cols}×{rows} • You:{playerCount} • AI:{aiCount}</p>
-        <p className="mt-1 text-white/75">{status}</p>
+      <div className="absolute inset-0 pointer-events-none z-20">
+        <div className="absolute top-20 left-4 flex flex-col items-start gap-3 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => setConfigOpen((open) => !open)}
+            aria-expanded={configOpen}
+            aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)]"
+          >
+            <span className="text-base leading-none" aria-hidden="true">☰</span>
+            <span className="leading-none">Menu</span>
+          </button>
+          <div className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 p-3 text-xs">
+            <h1 className="text-sm font-semibold uppercase tracking-[0.18em]">4 in a Row</h1>
+            <p className="mt-1 text-white/80">Board: {cols}×{rows} • You:{playerCount} • AI:{aiCount}</p>
+            <p className="mt-1 text-white/75">{status}</p>
+          </div>
+        </div>
+        <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
+          <div className="pointer-events-auto flex flex-col items-end gap-3">
+            <BottomLeftIcons
+              showInfo={false}
+              showChat={false}
+              showGift={false}
+              className="flex flex-col"
+              buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90"
+              iconClassName="text-[1.5rem] leading-none"
+              labelClassName="sr-only"
+              muteIconOn="🔇"
+              muteIconOff="🔊"
+              order={['mute']}
+            />
+            <button
+              type="button"
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90"
+            >
+              {viewMode === '3d' ? '2D' : '3D'}
+            </button>
+          </div>
+          {configOpen && (
+            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">4 in a Row Rules</p>
+              <ol className="mt-3 list-decimal space-y-2 pl-4 text-white/80">
+                <li>Players alternate turns dropping one piece into any non-full column.</li>
+                <li>The piece always lands in the lowest empty slot of that column.</li>
+                <li>Win by connecting 4 of your pieces in a row, column, or diagonal.</li>
+                <li>If all cells are filled with no connect-4, the game is a draw.</li>
+              </ol>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
