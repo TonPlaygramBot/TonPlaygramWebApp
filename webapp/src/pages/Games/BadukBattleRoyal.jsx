@@ -49,19 +49,6 @@ const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
 
-const createCheckerStyleMaterial = (color) =>
-  new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(color),
-    roughness: 0.08,
-    metalness: 0,
-    transmission: 0.95,
-    ior: 1.5,
-    thickness: 0.5,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.08,
-    specularIntensity: 0.9
-  });
-
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
   { id: 'performance', label: 'Performance', pixelRatioScale: 0.85, shadowMapSize: 512 },
@@ -363,32 +350,20 @@ export default function BadukBattleRoyal() {
   };
 
   const createTokenMesh = (token) => {
+    const playerMat = new THREE.MeshStandardMaterial({ color: CONNECT4_RED, roughness: 0.35, metalness: 0.03 });
+    const aiMat = new THREE.MeshStandardMaterial({ color: CONNECT4_BLUE, roughness: 0.3, metalness: 0.03 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: '#1f1a16', roughness: 0.5, metalness: 0.02 });
     const tokenMesh = new THREE.Group();
-    const tile = slotRadius / 0.352;
-    const baseMaterial = createCheckerStyleMaterial(token === 'player' ? CONNECT4_RED : CONNECT4_BLUE);
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(tile * 0.352, tile * 0.332, tile * 0.176, 56, 1, false),
-      baseMaterial
-    );
-    const topCap = new THREE.Mesh(
-      new THREE.CylinderGeometry(tile * 0.264, tile * 0.292, tile * 0.064, 48),
-      baseMaterial.clone()
-    );
-    topCap.position.y = tile * 0.106;
-    const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(tile * 0.242, tile * 0.019, 16, 64),
-      new THREE.MeshStandardMaterial({
-        color: '#f8fafc',
-        metalness: 0.88,
-        roughness: 0.25,
-        transparent: true,
-        opacity: 0.85
-      })
-    );
+    const material = token === 'player' ? playerMat : aiMat;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(slotRadius * 0.99, slotRadius * 0.99, 0.13, 42), material);
+    const domeA = new THREE.Mesh(new THREE.SphereGeometry(slotRadius * 0.93, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2), material);
+    domeA.rotation.x = Math.PI;
+    domeA.position.y = 0.038;
+    const domeB = domeA.clone();
+    domeB.position.y = -0.038;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(slotRadius * 0.96, 0.01, 12, 36), rimMat);
     rim.rotation.x = Math.PI / 2;
-    rim.position.y = tile * 0.118;
-
-    tokenMesh.add(body, topCap, rim);
+    tokenMesh.add(body, domeA, domeB, rim);
     tokenMesh.rotation.x = Math.PI / 2;
     return tokenMesh;
   };
