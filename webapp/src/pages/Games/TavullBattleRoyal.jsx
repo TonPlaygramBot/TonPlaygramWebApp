@@ -16,6 +16,7 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.j
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
 import { getGameVolume, isGameMuted } from '../../utils/sound.js'
+import { bombSound } from '../../assets/soundData.js'
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx'
 import GiftPopup from '../../components/GiftPopup.jsx'
 import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
@@ -43,6 +44,10 @@ const POINT_WIDTH = 0.19
 const BOARD_HALF_X = 1.28
 const BOARD_HALF_Z = 0.98
 const POINT_START_X = 0.08
+
+const TRIANGLE_BASE_Y_OFFSET = 0.125
+const TRIANGLE_HEIGHT = 0.02
+const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + 0.011
 
 const MODEL_SCALE = 0.75
 const STOOL_SCALE = 1.5 * 1.3
@@ -79,9 +84,10 @@ const QUALITY_OPTIONS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatio: 1.5, shadows: true },
   { id: 'ultra', label: 'Ultra', pixelRatio: 2, shadows: true }
 ])
-const MOVE_SOUND_URL = '/assets/sounds/Callraischip.mp3'
+const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
 const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
 const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3'
+const CAPTURE_SOUND_URL = bombSound
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
@@ -653,13 +659,13 @@ export default function TavullBattleRoyal() {
       shape.lineTo(0.08, 0)
       shape.lineTo(0, apex)
       shape.closePath()
-      const geom = new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false })
+      const geom = new THREE.ExtrudeGeometry(shape, { depth: TRIANGLE_HEIGHT, bevelEnabled: false })
       geom.rotateX(-Math.PI / 2)
       const tri = new THREE.Mesh(
         geom,
         new THREE.MeshStandardMaterial({ color: dark ? '#7a2f1d' : '#d8b07d', roughness: 0.72, metalness: 0.05 })
       )
-      tri.position.set(x, BOARD_Y + 0.13, baseZ)
+      tri.position.set(x, BOARD_Y + TRIANGLE_BASE_Y_OFFSET, baseZ)
       boardRoot.add(tri)
       }
 
@@ -870,7 +876,7 @@ export default function TavullBattleRoyal() {
       const baseMaterial = createCheckerMaterial(sideColor, CHECKERS_CHIP_HEAD_PRESET)
 
       const chip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.075, 0.071, 0.032, 56, 1, false),
+        new THREE.CylinderGeometry(0.075, 0.071, 0.02, 56, 1, false),
         baseMaterial
       )
       chip.castShadow = true
@@ -878,10 +884,10 @@ export default function TavullBattleRoyal() {
       pieceGroup.add(chip)
 
       const topCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.061, 0.012, 48),
+        new THREE.CylinderGeometry(0.055, 0.061, 0.008, 48),
         baseMaterial.clone()
       )
-      topCap.position.y = 0.018
+      topCap.position.y = 0.011
       topCap.castShadow = true
       topCap.receiveShadow = true
       pieceGroup.add(topCap)
@@ -897,7 +903,7 @@ export default function TavullBattleRoyal() {
         })
       )
       rim.rotation.x = Math.PI / 2
-      rim.position.y = 0.02
+      rim.position.y = 0.013
       pieceGroup.add(rim)
 
       return pieceGroup
@@ -925,8 +931,8 @@ export default function TavullBattleRoyal() {
         const layer = s % 5
         chip.position.set(
           base.x,
-          BOARD_Y + 0.145 + layer * 0.054,
-          base.z + (base.top ? 1 : -1) * (0.12 * stack)
+          BOARD_Y + CHIP_BASE_Y_OFFSET + layer * 0.032,
+          base.z + (base.top ? 1 : -1) * (0.098 * stack)
         )
         chipGroup.add(chip)
       }
@@ -942,7 +948,7 @@ export default function TavullBattleRoyal() {
           })
         )
         ring.rotation.x = Math.PI / 2
-        ring.position.set(base.x, BOARD_Y + 0.145, base.z + (base.top ? -0.06 : 0.06))
+        ring.position.set(base.x, BOARD_Y + CHIP_BASE_Y_OFFSET, base.z + (base.top ? -0.06 : 0.06))
         chipGroup.add(ring)
       }
     }
@@ -950,7 +956,7 @@ export default function TavullBattleRoyal() {
     const makeBarChips = (count, color, zSign) => {
       for (let s = 0; s < count; s += 1) {
         const chip = createChip(color)
-        chip.position.set(0, BOARD_Y + 0.145 + (s % 6) * 0.054, zSign * (0.08 + Math.floor(s / 6) * 0.12))
+        chip.position.set(0, BOARD_Y + CHIP_BASE_Y_OFFSET + (s % 6) * 0.032, zSign * (0.08 + Math.floor(s / 6) * 0.098))
         chipGroup.add(chip)
       }
     }
@@ -976,7 +982,7 @@ export default function TavullBattleRoyal() {
       currentState = applyMove(currentState, color, move)
       setGame(currentState)
       const wasCapture = currentState.bar[opponent] > previousOpponentBar
-      playSfx(MOVE_SOUND_URL, wasCapture ? 0.76 : 0.7)
+      playSfx(wasCapture ? CAPTURE_SOUND_URL : MOVE_SOUND_URL, wasCapture ? 0.76 : 0.7)
       idx += 1
       if (idx < line.length) {
         const timeoutId = window.setTimeout(runStep, 460)
