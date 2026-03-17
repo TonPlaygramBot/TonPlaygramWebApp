@@ -42,22 +42,23 @@ const CHAIR_DISTANCE = TABLE_RADIUS + 0.82
 const BOARD_Y = TABLE_HEIGHT + 0.08
 const BOARD_HALF_X = 1.28
 const BOARD_HALF_Z = 0.98
-const BOARD_EDGE_MARGIN_X = 0.082
-const BOARD_EDGE_MARGIN_Z = 0.126
-const CENTER_BAR_WIDTH = 0.11
+const BOARD_EDGE_MARGIN_X = 0.092
+const BOARD_EDGE_MARGIN_Z = 0.118
+const CENTER_BAR_WIDTH = 0.118
 const POINT_COLUMNS = 6
 const POINT_WIDTH = (BOARD_HALF_X * 2 - CENTER_BAR_WIDTH - BOARD_EDGE_MARGIN_X * 2) / (POINT_COLUMNS * 2)
 const POINT_START_X = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5
 
-const TRIANGLE_BASE_Y_OFFSET = 0.126
-const TRIANGLE_HEIGHT = 0.02
-const TRIANGLE_HALF_BASE = POINT_WIDTH * 0.31
-const TRIANGLE_APEX_LENGTH = BOARD_HALF_Z * 0.76
-const CHIP_RADIUS = POINT_WIDTH * 0.34
-const CHIP_HEIGHT = 0.022
-const CHIP_STACK_STEP = CHIP_HEIGHT * 1.45
-const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.52
-const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.56
+const TRIANGLE_BASE_Y_OFFSET = 0.127
+const TRIANGLE_HEIGHT = 0.014
+const TRIANGLE_HALF_BASE = POINT_WIDTH * 0.29
+const TRIANGLE_APEX_LENGTH = BOARD_HALF_Z * 0.74
+const CHIP_RADIUS = POINT_WIDTH * 0.35
+const CHIP_HEIGHT = 0.02
+const CHIP_STACK_STEP = CHIP_HEIGHT * 1.36
+const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.45
+const CHIP_POINT_INSET = POINT_WIDTH * 0.12
+const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.53
 
 const MODEL_SCALE = 0.75
 const STOOL_SCALE = 1.5 * 1.3
@@ -408,6 +409,13 @@ async function loadMappedChair(renderer, theme) {
 }
 
 
+
+const pointColumnFromEdge = (x) => {
+  const laneInnerEdge = BOARD_HALF_X - BOARD_EDGE_MARGIN_X
+  const distanceFromEdge = laneInnerEdge - Math.abs(x)
+  return Math.max(0, Math.min(POINT_COLUMNS - 1, Math.round(distanceFromEdge / POINT_WIDTH)))
+}
+
 const pointBasePosition = (index) => {
   if (index <= 11) {
     const col = index < 6 ? index : index + 1
@@ -653,22 +661,22 @@ export default function TavullBattleRoyal() {
 
     const makeTriangle = (x, top, dark) => {
       const baseZ = top ? -BOARD_HALF_Z + BOARD_EDGE_MARGIN_Z : BOARD_HALF_Z - BOARD_EDGE_MARGIN_Z
-      const apex = top ? -TRIANGLE_APEX_LENGTH : TRIANGLE_APEX_LENGTH
+      const apexZ = top ? baseZ + TRIANGLE_APEX_LENGTH : baseZ - TRIANGLE_APEX_LENGTH
       const shape = new THREE.Shape()
-      shape.moveTo(-TRIANGLE_HALF_BASE, 0)
-      shape.lineTo(TRIANGLE_HALF_BASE, 0)
-      shape.lineTo(0, apex)
+      shape.moveTo(-TRIANGLE_HALF_BASE, baseZ)
+      shape.lineTo(TRIANGLE_HALF_BASE, baseZ)
+      shape.lineTo(0, apexZ)
       shape.closePath()
       const geom = new THREE.ExtrudeGeometry(shape, { depth: TRIANGLE_HEIGHT, bevelEnabled: false })
       geom.rotateX(-Math.PI / 2)
       const tri = new THREE.Mesh(geom, dark ? pointDarkMaterial : pointLightMaterial)
-      tri.position.set(x, BOARD_Y + TRIANGLE_BASE_Y_OFFSET, baseZ)
+      tri.position.set(x, BOARD_Y + TRIANGLE_BASE_Y_OFFSET, 0)
       boardRoot.add(tri)
     }
 
     for (let i = 0; i < 24; i += 1) {
       const p = pointBasePosition(i)
-      makeTriangle(p.x, p.top, i % 2 === 0)
+      makeTriangle(p.x, p.top, pointColumnFromEdge(p.x) % 2 === 0)
     }
 
     const chipGroup = new THREE.Group()
@@ -928,7 +936,7 @@ export default function TavullBattleRoyal() {
         chip.position.set(
           base.x,
           BOARD_Y + CHIP_BASE_Y_OFFSET + layer * CHIP_STACK_STEP,
-          base.z + (base.top ? 1 : -1) * (CHIP_COLUMN_SPACING * stack)
+          base.z + (base.top ? 1 : -1) * (CHIP_POINT_INSET + CHIP_COLUMN_SPACING * stack)
         )
         chipGroup.add(chip)
       }
@@ -944,7 +952,11 @@ export default function TavullBattleRoyal() {
           })
         )
         ring.rotation.x = Math.PI / 2
-        ring.position.set(base.x, BOARD_Y + CHIP_BASE_Y_OFFSET, base.z + (base.top ? -CHIP_COLUMN_SPACING * 0.58 : CHIP_COLUMN_SPACING * 0.58))
+        ring.position.set(
+          base.x,
+          BOARD_Y + CHIP_BASE_Y_OFFSET,
+          base.z + (base.top ? -1 : 1) * (CHIP_POINT_INSET * 0.85)
+        )
         chipGroup.add(ring)
       }
     }
