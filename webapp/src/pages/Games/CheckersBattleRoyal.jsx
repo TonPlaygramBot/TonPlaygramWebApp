@@ -59,7 +59,10 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
+// ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
+// so the playable checker squares need a tighter mapping ratio to keep pieces
+// centered on the dark tiles across portrait/mobile camera angles.
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.36;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
