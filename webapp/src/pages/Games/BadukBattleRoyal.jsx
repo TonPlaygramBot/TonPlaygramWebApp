@@ -228,6 +228,8 @@ export default function BadukBattleRoyal() {
   const sceneRef = useRef(null);
   const boardHitPlaneRef = useRef(null);
   const piecesGroupRef = useRef(null);
+  const playerPileRef = useRef(null);
+  const aiPileRef = useRef(null);
   const piecesMapRef = useRef(new Map());
   const displayedBoardRef = useRef([]);
   const fallingPiecesRef = useRef([]);
@@ -283,6 +285,9 @@ export default function BadukBattleRoyal() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [hoverCol, setHoverCol] = useState(null);
+  const [coinBurstKey, setCoinBurstKey] = useState(0);
+
+  const maxTokensPerSide = Math.ceil((rows * cols) / 2);
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
@@ -328,6 +333,32 @@ export default function BadukBattleRoyal() {
     return tokenMesh;
   };
 
+  const createPileMesh = (token, count) => {
+    const pile = new THREE.Group();
+    for (let i = 0; i < count; i += 1) {
+      const chip = createTokenMesh(token);
+      chip.position.set(0, i * 0.022, 0);
+      chip.scale.setScalar(0.8);
+      pile.add(chip);
+    }
+    return pile;
+  };
+
+  const syncPileMeshes = (boardState) => {
+    const playerPile = playerPileRef.current;
+    const aiPile = aiPileRef.current;
+    if (!playerPile || !aiPile) return;
+    const playerUsed = boardState.flat().filter((x) => x === 'player').length;
+    const aiUsed = boardState.flat().filter((x) => x === 'ai').length;
+    const playerRemaining = Math.max(0, maxTokensPerSide - playerUsed);
+    const aiRemaining = Math.max(0, maxTokensPerSide - aiUsed);
+
+    playerPile.clear();
+    aiPile.clear();
+    playerPile.add(createPileMesh('player', playerRemaining));
+    aiPile.add(createPileMesh('ai', aiRemaining));
+  };
+
   const renderPieces = (boardState) => {
     const group = piecesGroupRef.current;
     if (!group) return;
@@ -357,6 +388,10 @@ export default function BadukBattleRoyal() {
   }, [rows, cols]);
 
   useEffect(() => renderPieces(board), [appearance.stoneStyle, rows, cols]);
+
+  useEffect(() => {
+    syncPileMeshes(board);
+  }, [board, rows, cols]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -523,6 +558,18 @@ export default function BadukBattleRoyal() {
     const pieces = new THREE.Group();
     piecesGroupRef.current = pieces;
     boardGroup.add(pieces);
+
+    const playerPile = new THREE.Group();
+    playerPile.position.set(-boardWidth * 0.68, TABLE_HEIGHT + 0.06, TABLE_RADIUS * 0.66);
+    playerPileRef.current = playerPile;
+    scene.add(playerPile);
+
+    const aiPile = new THREE.Group();
+    aiPile.position.set(boardWidth * 0.68, TABLE_HEIGHT + 0.06, -(TABLE_RADIUS * 0.66));
+    aiPileRef.current = aiPile;
+    scene.add(aiPile);
+
+    syncPileMeshes(board);
     scene.add(boardGroup);
 
     const onResize = () => {
@@ -569,6 +616,15 @@ export default function BadukBattleRoyal() {
         }
       }
 
+      if (winningCells.length) {
+        winningCells.forEach(([r, c], index) => {
+          const piece = piecesMapRef.current.get(`${r}-${c}`);
+          if (!piece) return;
+          const pulse = 1 + Math.sin((performance.now() / 120) + index * 0.7) * 0.09;
+          piece.scale.setScalar(pulse);
+        });
+      }
+
       controls.update();
       if (markerRef.current && Number.isInteger(hoverCol) && turn === 'player' && !winner) {
         const x = -boardWidth / 2 + (hoverCol + 0.5) * xStep;
@@ -588,7 +644,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep, winningCells]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -639,6 +695,7 @@ export default function BadukBattleRoyal() {
     if (winning) {
       setWinner(token);
       setWinningCells(winning);
+      setCoinBurstKey((k) => k + 1);
       playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.03);
       return true;
     }
@@ -665,9 +722,14 @@ export default function BadukBattleRoyal() {
         if (nextCell && !currentCell) {
           const [targetX, targetY, targetZ] = worldFromCell(r, c);
           const dropX = -boardWidth / 2 + (c + 0.5) * xStep;
+          const playerUsed = shown.flat().filter((x) => x === 'player').length;
+          const aiUsed = shown.flat().filter((x) => x === 'ai').length;
+          const playerRemaining = Math.max(0, maxTokensPerSide - playerUsed);
+          const aiRemaining = Math.max(0, maxTokensPerSide - aiUsed);
+          const pileTopOffset = 0.022;
           const source = nextCell === 'player'
-            ? new THREE.Vector3(-0.2, TABLE_HEIGHT + 0.16, TABLE_RADIUS * 0.58)
-            : new THREE.Vector3(0.2, TABLE_HEIGHT + 0.16, -(TABLE_RADIUS * 0.58));
+            ? new THREE.Vector3(-boardWidth * 0.68, TABLE_HEIGHT + 0.06 + Math.max(0, playerRemaining - 1) * pileTopOffset, TABLE_RADIUS * 0.66)
+            : new THREE.Vector3(boardWidth * 0.68, TABLE_HEIGHT + 0.06 + Math.max(0, aiRemaining - 1) * pileTopOffset, -(TABLE_RADIUS * 0.66));
           const columnTop = new THREE.Vector3(dropX, boardCenterY + boardHeight / 2 + yStep * 0.55, targetZ + 0.03);
           const target = new THREE.Vector3(targetX, targetY, targetZ + 0.03);
           const mesh = createTokenMesh(nextCell);
@@ -697,7 +759,7 @@ export default function BadukBattleRoyal() {
         shown[r][c] = nextCell;
       }
     }
-  }, [board, rows, cols, boardWidth, boardHeight, boardCenterY, xStep, yStep]);
+  }, [board, rows, cols, boardWidth, boardHeight, boardCenterY, xStep, yStep, maxTokensPerSide]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -832,6 +894,53 @@ export default function BadukBattleRoyal() {
         <div className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
       </div>
 
+      {winner && (
+        <div className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/65 px-4">
+          <div className="relative w-full max-w-sm rounded-3xl border border-yellow-300/40 bg-[#091428]/95 p-6 text-center shadow-2xl">
+            <div key={coinBurstKey} className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+              {Array.from({ length: 18 }, (_, i) => (
+                <span
+                  key={i}
+                  className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-yellow-300"
+                  style={{
+                    animation: `coin-burst 850ms ease-out forwards`,
+                    transform: `translate(-50%, -50%) rotate(${i * 20}deg) translateY(-${42 + (i % 5) * 10}px)`
+                  }}
+                />
+              ))}
+            </div>
+            <div className="relative z-10">
+              <div className="mx-auto h-24 w-24 overflow-hidden rounded-full border-4 border-yellow-300/70 bg-white/10">
+                <img src={winner === 'player' ? (avatar || '/assets/icons/profile.svg') : '/assets/icons/bot.webp'} alt="winner avatar" className="h-full w-full object-cover" />
+              </div>
+              <h2 className="mt-4 text-2xl font-black uppercase tracking-[0.15em] text-yellow-200">{winner === 'draw' ? 'Draw' : winner === 'player' ? 'You Win!' : 'AI Wins'}</h2>
+              <p className="mt-2 text-sm text-white/75">{winner === 'draw' ? 'No winner this round.' : '4 connected chips! Victory claimed.'}</p>
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBoard(createBoard(rows, cols));
+                    setTurn('player');
+                    setWinner(null);
+                    setWinningCells([]);
+                  }}
+                  className="flex-1 rounded-xl border border-cyan-300/50 bg-cyan-400/20 px-4 py-2 text-sm font-semibold"
+                >
+                  Play Again
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/games/badukbattleroyal/lobby')}
+                  className="flex-1 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm"
+                >
+                  Return Lobby
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pointer-events-auto fixed bottom-4 right-3 z-50 flex gap-2">
         <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
         <button
@@ -854,6 +963,7 @@ export default function BadukBattleRoyal() {
       <QuickMessagePopup open={showChat} onClose={() => setShowChat(false)} title="Quick Chat" onSend={(text) => { const id = Date.now(); setChatBubbles((b) => [...b, { id, text, photoUrl: avatar || '/assets/icons/profile.svg' }]); setTimeout(() => setChatBubbles((b) => b.filter((x) => x.id !== id)), 3000); }} />
       {chatBubbles.map((bubble) => <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble"><span>{bubble.text}</span><img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" /></div>)}
       <GiftPopup open={showGift} onClose={() => setShowGift(false)} players={[{ index: 0, id: badukBattleAccountId(accountId || undefined), name: username, photoUrl: avatar || '/assets/icons/profile.svg' }, { index: 1, id: 'ai-rival', name: 'AI Rival', photoUrl: '/assets/icons/bot.webp' }]} senderIndex={0} title="Send Gift" />
+      <style>{`@keyframes coin-burst { 0% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } }`}</style>
     </div>
   );
 }
