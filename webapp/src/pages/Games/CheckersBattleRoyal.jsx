@@ -1233,7 +1233,7 @@ export default function CheckersBattleRoyal() {
             col -
             (Math.min(captured.length - row * maxPerRow, maxPerRow) - 1) / 2;
           const checker = createCheckerMesh({
-            tile: tile * 0.74,
+            tile,
             side: piece.side,
             king: piece.king,
             chipSet,
@@ -1241,7 +1241,7 @@ export default function CheckersBattleRoyal() {
           });
           checker.position.set(
             x + centered * tile * CAPTURE_STRIP_PIECE_GAP,
-            y + tile * 0.09,
+            y + tile * 0.1,
             z + edge * (3.5 + CAPTURE_STRIP_OFFSET_ROWS + row * 0.74) * tile
           );
           group.add(checker);
@@ -1829,7 +1829,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [renderCapturedPieces, renderPieces]);
+  }, []);
 
   useEffect(() => {
     if (turn !== AI_SIDE || aiBusyRef.current || gameOver) return;
@@ -2093,32 +2093,6 @@ export default function CheckersBattleRoyal() {
     }, 700);
   };
 
-  const capturedPanel = (side, label) => {
-    const captured = capturedBySide[side] || [];
-    return (
-      <div className="rounded-xl border border-white/20 bg-black/55 px-2 py-1 text-[10px] text-white/85 backdrop-blur">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/60">
-          {label}
-        </div>
-        <div className="flex min-h-[1.1rem] flex-wrap gap-1">
-          {captured.length ? (
-            captured.map((piece, idx) => (
-              <span
-                key={`${side}-captured-${idx}`}
-                className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${piece.side === 'light' ? 'bg-red-400/90 text-red-950' : 'bg-cyan-300/90 text-cyan-950'}`}
-                title={piece.king ? 'King' : 'Piece'}
-              >
-                {piece.king ? '♛' : '●'}
-              </span>
-            ))
-          ) : (
-            <span className="text-[9px] text-white/45">—</span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const optionButton = (active) =>
     `rounded-lg border px-2 py-1 text-[11px] ${active ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`;
 
@@ -2334,12 +2308,6 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute inset-0 z-10 pointer-events-none">
-          <div className="absolute left-3 top-[24%] z-20">
-            {capturedPanel('dark', 'Rival captures')}
-          </div>
-          <div className="absolute right-3 bottom-[23%] z-20">
-            {capturedPanel('light', 'Your captures')}
-          </div>
           {players.map((player) => (
             <div
               key={`checkers-seat-${player.index}`}
