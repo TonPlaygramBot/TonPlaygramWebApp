@@ -47,7 +47,12 @@ const BOARD_EDGE_MARGIN_Z = 0.118
 const CENTER_BAR_WIDTH = 0.118
 const POINT_COLUMNS = 6
 const POINT_WIDTH = (BOARD_HALF_X * 2 - CENTER_BAR_WIDTH - BOARD_EDGE_MARGIN_X * 2) / (POINT_COLUMNS * 2)
-const POINT_START_X = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5
+const BOARD_BASE_THICKNESS = 0.16
+const FRAME_THICKNESS = 0.112
+const LANE_THICKNESS = 0.04
+const CENTER_BAR_THICKNESS = 0.062
+const POINT_INSET_X = POINT_WIDTH * 0.12
+const POINT_INSET_Z = POINT_WIDTH * 0.16
 
 const TRIANGLE_BASE_Y_OFFSET = 0.127
 const TRIANGLE_HEIGHT = 0.014
@@ -57,7 +62,7 @@ const CHIP_RADIUS = POINT_WIDTH * 0.36
 const CHIP_HEIGHT = 0.02
 const CHIP_STACK_STEP = CHIP_HEIGHT * 1.36
 const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.42
-const CHIP_POINT_INSET = POINT_WIDTH * 0.1
+const CHIP_POINT_INSET = POINT_WIDTH * 0.18
 const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.53
 
 const MODEL_SCALE = 0.75
@@ -417,8 +422,8 @@ const pointColumnFromEdge = (x) => {
 }
 
 const pointBasePosition = (index) => {
-  const rightLaneOuterX = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5
-  const rightLaneInnerX = CENTER_BAR_WIDTH * 0.5 + POINT_WIDTH * 0.5
+  const rightLaneOuterX = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5 - POINT_INSET_X
+  const rightLaneInnerX = CENTER_BAR_WIDTH * 0.5 + POINT_WIDTH * 0.5 + POINT_INSET_X
   const leftLaneInnerX = -rightLaneInnerX
   const leftLaneOuterX = -rightLaneOuterX
 
@@ -431,14 +436,14 @@ const pointBasePosition = (index) => {
   if (index <= 11) {
     return {
       x: bottomLane[index],
-      z: BOARD_HALF_Z - BOARD_EDGE_MARGIN_Z,
+      z: BOARD_HALF_Z - BOARD_EDGE_MARGIN_Z - POINT_INSET_Z,
       top: false
     }
   }
   const i = 23 - index
   return {
     x: bottomLane[i],
-    z: -BOARD_HALF_Z + BOARD_EDGE_MARGIN_Z,
+    z: -BOARD_HALF_Z + BOARD_EDGE_MARGIN_Z + POINT_INSET_Z,
     top: true
   }
 }
@@ -637,28 +642,28 @@ export default function TavullBattleRoyal() {
     const pointDarkMaterial = new THREE.MeshStandardMaterial({ color: '#08080b', roughness: 0.66, metalness: 0.08 })
     const pointLightMaterial = new THREE.MeshStandardMaterial({ color: '#f4f1e8', roughness: 0.7, metalness: 0.04 })
 
-    const boardBase = new THREE.Mesh(new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2), woodMaterial)
+    const boardBase = new THREE.Mesh(new THREE.BoxGeometry(BOARD_HALF_X * 2, BOARD_BASE_THICKNESS, BOARD_HALF_Z * 2), woodMaterial)
     boardBase.position.y = BOARD_Y
     boardRoot.add(boardBase)
 
     const frameOuter = new THREE.Mesh(
-      new THREE.BoxGeometry(BOARD_HALF_X * 1.98, 0.08, BOARD_HALF_Z * 1.98),
+      new THREE.BoxGeometry(BOARD_HALF_X * 1.98, FRAME_THICKNESS, BOARD_HALF_Z * 1.98),
       trimMaterial
     )
-    frameOuter.position.y = BOARD_Y + 0.1
+    frameOuter.position.y = BOARD_Y + BOARD_BASE_THICKNESS * 0.52
     boardRoot.add(frameOuter)
 
     const laneWidth = BOARD_HALF_X - CENTER_BAR_WIDTH * 0.5 - BOARD_EDGE_MARGIN_X
     const laneDepth = BOARD_HALF_Z * 2 - BOARD_EDGE_MARGIN_Z * 2
     const laneOffset = CENTER_BAR_WIDTH * 0.5 + laneWidth * 0.5
     ;[-1, 1].forEach((side) => {
-      const lane = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.028, laneDepth), inlayMaterial)
-      lane.position.set(side * laneOffset, BOARD_Y + 0.126, 0)
+      const lane = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, LANE_THICKNESS, laneDepth), inlayMaterial)
+      lane.position.set(side * laneOffset, BOARD_Y + BOARD_BASE_THICKNESS * 0.62, 0)
       boardRoot.add(lane)
     })
 
-    const centerBar = new THREE.Mesh(new THREE.BoxGeometry(CENTER_BAR_WIDTH, 0.045, BOARD_HALF_Z * 2 - BOARD_EDGE_MARGIN_Z * 2), trimMaterial)
-    centerBar.position.y = BOARD_Y + 0.128
+    const centerBar = new THREE.Mesh(new THREE.BoxGeometry(CENTER_BAR_WIDTH, CENTER_BAR_THICKNESS, BOARD_HALF_Z * 2 - BOARD_EDGE_MARGIN_Z * 2), trimMaterial)
+    centerBar.position.y = BOARD_Y + BOARD_BASE_THICKNESS * 0.64
     boardRoot.add(centerBar)
 
     const hinge = new THREE.Mesh(
