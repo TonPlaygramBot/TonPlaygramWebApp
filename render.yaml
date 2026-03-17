@@ -4,7 +4,7 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: npm install --no-audit --no-fund && npm --prefix ../webapp install --no-audit --no-fund && NODE_OPTIONS=--max-old-space-size=2048 npm --prefix ../webapp run build
+    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
     startCommand: npm start
     envVars:
       - key: MONGO_URI
