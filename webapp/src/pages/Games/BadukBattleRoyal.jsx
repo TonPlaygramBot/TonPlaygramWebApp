@@ -238,9 +238,6 @@ export default function BadukBattleRoyal() {
   const controlsRef = useRef(null);
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
-  const hoverColRef = useRef(null);
-  const turnRef = useRef('player');
-  const winnerRef = useRef(null);
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const audioCtxRef = useRef(null);
   const [params] = useSearchParams();
@@ -286,18 +283,6 @@ export default function BadukBattleRoyal() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [hoverCol, setHoverCol] = useState(null);
-
-  useEffect(() => { hoverColRef.current = hoverCol; }, [hoverCol]);
-  useEffect(() => { turnRef.current = turn; }, [turn]);
-  useEffect(() => { winnerRef.current = winner; }, [winner]);
-
-  const resetGame = () => {
-    setBoard(createBoard(rows, cols));
-    setTurn('player');
-    setWinner(null);
-    setWinningCells([]);
-    setHoverCol(null);
-  };
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
@@ -585,8 +570,8 @@ export default function BadukBattleRoyal() {
       }
 
       controls.update();
-      if (markerRef.current && Number.isInteger(hoverColRef.current) && turnRef.current === 'player' && !winnerRef.current) {
-        const x = -boardWidth / 2 + (hoverColRef.current + 0.5) * xStep;
+      if (markerRef.current && Number.isInteger(hoverCol) && turn === 'player' && !winner) {
+        const x = -boardWidth / 2 + (hoverCol + 0.5) * xStep;
         markerRef.current.visible = true;
         markerRef.current.position.x = x;
       } else if (markerRef.current) {
@@ -603,7 +588,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -632,22 +617,9 @@ export default function BadukBattleRoyal() {
     winningCells.forEach(([r, c], index) => {
       const piece = piecesMapRef.current.get(`${r}-${c}`);
       if (!piece) return;
-      piece.scale.setScalar(1.16);
-      piece.traverse((child) => {
-        if (child.isMesh && child.material?.emissive) {
-          child.material.emissive.set('#ffd35f');
-          child.material.emissiveIntensity = 0.42;
-        }
-      });
+      piece.scale.setScalar(1.1);
       setTimeout(() => {
-        if (!piece) return;
-        piece.scale.setScalar(1);
-        piece.traverse((child) => {
-          if (child.isMesh && child.material?.emissive) {
-            child.material.emissive.set('#000000');
-            child.material.emissiveIntensity = 0;
-          }
-        });
+        if (piece) piece.scale.setScalar(1);
       }, 300 + index * 60);
     });
   }, [winningCells]);
@@ -864,46 +836,17 @@ export default function BadukBattleRoyal() {
         <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
         <button
           type="button"
-          onClick={resetGame}
+          onClick={() => {
+            setBoard(createBoard(rows, cols));
+            setTurn('player');
+            setWinner(null);
+            setWinningCells([]);
+          }}
           className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
         >
           Restart
         </button>
       </div>
-
-      {winner && (
-        <div className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
-          <div className="relative flex w-[min(92vw,24rem)] flex-col items-center rounded-3xl border border-yellow-300/50 bg-slate-950/90 px-4 pb-5 pt-8 text-center shadow-2xl">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <span
-                key={`coin-${i}`}
-                className="pointer-events-none absolute left-1/2 top-1/2 text-xl"
-                style={{
-                  transform: `translate(-50%, -50%) rotate(${i * 30}deg) translateY(-${68 + (i % 3) * 14}px)`,
-                  animation: `coin-burst 900ms ease-out ${i * 45}ms infinite`
-                }}
-              >
-                🪙
-              </span>
-            ))}
-
-            <img
-              src={winner === 'player' ? (avatar || '/assets/icons/profile.svg') : '/assets/icons/bot.webp'}
-              alt={winner === 'player' ? username : 'AI Rival'}
-              className="relative z-10 h-24 w-24 rounded-full border-4 border-yellow-300/80 object-cover shadow-[0_0_26px_rgba(255,213,79,0.7)]"
-            />
-            <h2 className="relative z-10 mt-4 text-lg font-bold uppercase tracking-[0.16em] text-yellow-200">
-              {winner === 'draw' ? 'Draw' : `${winner === 'player' ? username : 'AI Rival'} Wins!`}
-            </h2>
-            <p className="relative z-10 mt-2 text-xs text-white/75">{winner === 'draw' ? 'No 4-in-row this round.' : 'Connected 4 chips in a row.'}</p>
-
-            <div className="relative z-10 mt-5 flex w-full gap-2">
-              <button type="button" onClick={resetGame} className="flex-1 rounded-xl border border-cyan-200/60 bg-cyan-400/25 px-3 py-2 text-xs font-semibold">Play Again</button>
-              <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs">Return Lobby</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />
       <BottomLeftIcons onChat={() => setShowChat(true)} showInfo={false} showGift={false} showMute={false} className="fixed left-3 bottom-28 z-50 flex flex-col" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" chatIcon="💬" order={['chat']} />
@@ -911,8 +854,6 @@ export default function BadukBattleRoyal() {
       <QuickMessagePopup open={showChat} onClose={() => setShowChat(false)} title="Quick Chat" onSend={(text) => { const id = Date.now(); setChatBubbles((b) => [...b, { id, text, photoUrl: avatar || '/assets/icons/profile.svg' }]); setTimeout(() => setChatBubbles((b) => b.filter((x) => x.id !== id)), 3000); }} />
       {chatBubbles.map((bubble) => <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble"><span>{bubble.text}</span><img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" /></div>)}
       <GiftPopup open={showGift} onClose={() => setShowGift(false)} players={[{ index: 0, id: badukBattleAccountId(accountId || undefined), name: username, photoUrl: avatar || '/assets/icons/profile.svg' }, { index: 1, id: 'ai-rival', name: 'AI Rival', photoUrl: '/assets/icons/bot.webp' }]} senderIndex={0} title="Send Gift" />
-
-      <style>{`@keyframes coin-burst { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }`}</style>
     </div>
   );
 }
