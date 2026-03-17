@@ -59,7 +59,7 @@ const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.28;
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.14;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -1841,25 +1841,6 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-end gap-3">
-            <button
-              type="button"
-              onClick={replayLastMove}
-              disabled={!canReplay}
-              className={`icon-only-button flex h-10 w-10 items-center justify-center text-[1.4rem] ${canReplay ? 'text-white/90' : 'text-white/40'}`}
-            >
-              ↺
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))
-              }
-              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90"
-            >
-              {viewMode === '3d' ? '2D' : '3D'}
-            </button>
-          </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
@@ -2074,32 +2055,58 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute inset-0 z-10 pointer-events-none">
-          {players.map((player) => (
-            <div
-              key={`checkers-seat-${player.index}`}
-              className="absolute pointer-events-auto flex flex-col items-center"
-              data-player-index={player.index}
-              style={{
-                left: FALLBACK_SEAT_POSITIONS[player.index].left,
-                top: FALLBACK_SEAT_POSITIONS[player.index].top,
-                transform: 'translate(-50%, -50%)'
-              }}
-            >
-              <AvatarTimer
-                index={player.index}
-                photoUrl={player.photoUrl}
-                active={player.isTurn}
-                isTurn={player.isTurn}
-                timerPct={1}
-                name={player.name}
-                color={player.color}
-                size={1}
-              />
-              <span className="mt-1 text-[0.65rem] font-semibold text-white">
-                {player.name}
-              </span>
-            </div>
-          ))}
+          {players.map((player) => {
+            const isBottomPlayer = player.index === 1;
+            return (
+              <div
+                key={`checkers-seat-${player.index}`}
+                className={`absolute pointer-events-auto ${isBottomPlayer ? 'flex flex-row items-center gap-3' : 'flex flex-col items-center'}`}
+                data-player-index={player.index}
+                style={{
+                  left: FALLBACK_SEAT_POSITIONS[player.index].left,
+                  top: FALLBACK_SEAT_POSITIONS[player.index].top,
+                  transform: 'translate(-50%, -50%)'
+                }}
+              >
+                {isBottomPlayer ? (
+                  <button
+                    type="button"
+                    onClick={replayLastMove}
+                    disabled={!canReplay}
+                    className={`icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-[1.4rem] ${canReplay ? 'text-white/90' : 'text-white/40'}`}
+                  >
+                    ↺
+                  </button>
+                ) : null}
+                <div className="flex flex-col items-center">
+                  <AvatarTimer
+                    index={player.index}
+                    photoUrl={player.photoUrl}
+                    active={player.isTurn}
+                    isTurn={player.isTurn}
+                    timerPct={1}
+                    name={player.name}
+                    color={player.color}
+                    size={1}
+                  />
+                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                    {player.name}
+                  </span>
+                </div>
+                {isBottomPlayer ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))
+                    }
+                    className="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90"
+                  >
+                    {viewMode === '3d' ? '2D' : '3D'}
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
