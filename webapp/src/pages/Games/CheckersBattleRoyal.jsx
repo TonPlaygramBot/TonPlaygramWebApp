@@ -1286,47 +1286,6 @@ export default function CheckersBattleRoyal() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
-    const getClientPoint = (event) => {
-      if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
-        return { x: event.clientX, y: event.clientY };
-      }
-      const touch = event.changedTouches?.[0] || event.touches?.[0];
-      if (touch) return { x: touch.clientX, y: touch.clientY };
-      return null;
-    };
-
-    const pickSquareFromEvent = (event) => {
-      const point = getClientPoint(event);
-      if (!point) return null;
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((point.x - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((point.y - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-
-      const tileHit = raycaster.intersectObjects(pickTiles, false)[0];
-      if (tileHit?.object?.userData) {
-        return tileHit.object.userData;
-      }
-
-      const pieceIntersections = raycaster.intersectObjects(
-        piecesGroupRef.current?.children || [],
-        true
-      );
-      for (const hit of pieceIntersections) {
-        let object = hit.object;
-        while (object) {
-          if (
-            typeof object.userData?.r === 'number' &&
-            typeof object.userData?.c === 'number'
-          ) {
-            return object.userData;
-          }
-          object = object.parent;
-        }
-      }
-      return null;
-    };
-
     const applyMove = (r, c) => {
       const board = boardRef.current;
       const selected = selectedRef.current;
@@ -1466,14 +1425,12 @@ export default function CheckersBattleRoyal() {
         const dist = Math.hypot(dx, dy);
         if (dt > maxDuration || dist > maxDistance) return;
       }
-
-      const targetSquare = pickSquareFromEvent(event);
-      if (targetSquare) applyMove(targetSquare.r, targetSquare.c);
-    };
-
-    const onClick = (event) => {
-      const targetSquare = pickSquareFromEvent(event);
-      if (targetSquare) applyMove(targetSquare.r, targetSquare.c);
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(pickTiles, false)[0];
+      if (hit?.object?.userData) applyMove(hit.object.userData.r, hit.object.userData.c);
     };
 
     const buildSceneAssets = async () => {
@@ -1643,8 +1600,6 @@ export default function CheckersBattleRoyal() {
     });
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('pointercancel', onPointerCancel);
-    renderer.domElement.addEventListener('click', onClick);
-    renderer.domElement.addEventListener('touchend', onClick);
     window.addEventListener('resize', onResize);
 
     let raf = 0;
@@ -1661,8 +1616,6 @@ export default function CheckersBattleRoyal() {
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
-      renderer.domElement.removeEventListener('click', onClick);
-      renderer.domElement.removeEventListener('touchend', onClick);
       renderer.dispose();
       rendererRef.current = null;
       moveSoundRef.current?.pause();
