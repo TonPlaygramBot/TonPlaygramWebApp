@@ -39,7 +39,7 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { bombSound, chatBeep } from '../../assets/soundData.js';
+import { chatBeep } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import {
@@ -202,7 +202,6 @@ const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
-const RETURN_LOBBY_ROUTE = '/games/checkersbattleroyal/lobby';
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -996,8 +995,6 @@ export default function CheckersBattleRoyal() {
   const [showChat, setShowChat] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [canReplay, setCanReplay] = useState(false);
-  const [gameResult, setGameResult] = useState(null);
-  const [coinBurstToken, setCoinBurstToken] = useState(0);
   const aiBusyRef = useRef(false);
 
   const inv = useMemo(() => {
@@ -1053,13 +1050,6 @@ export default function CheckersBattleRoyal() {
     }
   ];
 
-  const winnerPlayer =
-    gameResult?.winnerSide === 'light'
-      ? players[1]
-      : gameResult?.winnerSide === 'dark'
-        ? players[0]
-        : null;
-
   const renderPieces = useMemo(
     () => () => {
       const group = piecesGroupRef.current;
@@ -1073,41 +1063,20 @@ export default function CheckersBattleRoyal() {
           if (!piece) continue;
           const chip = new THREE.Mesh(
             new THREE.CylinderGeometry(
-              tile * 0.33,
-              tile * 0.3,
-              tile * 0.16,
-              56
+              tile * 0.28,
+              tile * 0.28,
+              tile * 0.13,
+              40
             ),
             createCheckerMaterial(
               piece.side === 'light' ? chipSet.light : chipSet.dark,
               checkerHeadPreset
             )
           );
-          const upperLip = new THREE.Mesh(
-            new THREE.TorusGeometry(tile * 0.24, tile * 0.028, 18, 72),
-            new THREE.MeshStandardMaterial({
-              color: piece.side === 'light' ? '#f8fafc' : '#111827',
-              metalness: 0.7,
-              roughness: 0.2
-            })
-          );
-          upperLip.rotation.x = Math.PI / 2;
-          upperLip.position.y = tile * 0.052;
-          chip.add(upperLip);
-          const centerInset = new THREE.Mesh(
-            new THREE.CylinderGeometry(tile * 0.17, tile * 0.17, tile * 0.03, 40),
-            new THREE.MeshStandardMaterial({
-              color: piece.side === 'light' ? '#e2e8f0' : '#0b1120',
-              metalness: 0.45,
-              roughness: 0.35
-            })
-          );
-          centerInset.position.y = tile * 0.07;
-          chip.add(centerInset);
           chip.castShadow = true;
           chip.position.set(
             x + (c - 3.5) * tile,
-            y + tile * 0.095,
+            y + tile * 0.075,
             z + (r - 3.5) * tile
           );
           chip.userData = { r, c, side: piece.side };
@@ -1198,22 +1167,6 @@ export default function CheckersBattleRoyal() {
     [turn]
   );
 
-  const startNewMatch = useMemo(
-    () => () => {
-      boardRef.current = createInitial();
-      selectedRef.current = null;
-      replayStateRef.current = null;
-      setCanReplay(false);
-      setTurn(HUMAN_SIDE);
-      setGameResult(null);
-      setStatus(`Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`);
-      renderPieces();
-      renderHighlights();
-    },
-    [renderHighlights, renderPieces]
-  );
-
-
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -1282,20 +1235,12 @@ export default function CheckersBattleRoyal() {
 
     moveSoundRef.current = new Audio(MOVE_SOUND_URL);
     moveSoundRef.current.volume = getGameVolume();
-    const captureSound = new Audio(bombSound);
-    captureSound.volume = getGameVolume();
-
-    const playCaptureSound = () => {
-      captureSound.currentTime = 0;
-      captureSound.play().catch(() => {});
-    };
 
     const pickTiles = [];
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
     const applyMove = (r, c) => {
-      if (gameResult) return;
       const board = boardRef.current;
       const selected = selectedRef.current;
       const sideMoves = getMovesForSide(board, turn);
@@ -1303,14 +1248,6 @@ export default function CheckersBattleRoyal() {
         setStatus(
           `${turn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${turn === HUMAN_SIDE ? 'AI' : 'You'} win.`
         );
-        setGameResult({
-          winnerSide: turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE,
-          message:
-            turn === HUMAN_SIDE
-              ? 'You are out of legal moves. Rival wins.'
-              : 'Rival has no legal moves. You win!'
-        });
-        setCoinBurstToken(Date.now());
         return;
       }
 
@@ -1350,11 +1287,7 @@ export default function CheckersBattleRoyal() {
       if (!applied) return;
 
       boardRef.current = applied.board;
-      if (move.capture) {
-        playCaptureSound();
-      } else {
-        moveSoundRef.current?.play().catch(() => {});
-      }
+      moveSoundRef.current?.play().catch(() => {});
       renderPieces();
 
       if (move.capture && applied.chainCaptures.length) {
@@ -1393,19 +1326,7 @@ export default function CheckersBattleRoyal() {
       renderHighlights();
     };
 
-    const pointerDown = { x: 0, y: 0 };
-
-    const onPointerDown = (event) => {
-      pointerDown.x = event.clientX;
-      pointerDown.y = event.clientY;
-    };
-
     const onPointerUp = (event) => {
-      const drift = Math.hypot(
-        event.clientX - pointerDown.x,
-        event.clientY - pointerDown.y
-      );
-      if (drift > 18) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1423,7 +1344,7 @@ export default function CheckersBattleRoyal() {
         for (let r = 0; r < SIZE; r += 1) {
           for (let c = 0; c < SIZE; c += 1) {
             const pick = new THREE.Mesh(
-              new THREE.BoxGeometry(tile * 1.1, 0.35, tile * 1.1),
+              new THREE.BoxGeometry(tile * 0.94, 0.25, tile * 0.94),
               pickMaterial
             );
             pick.position.set(
@@ -1576,7 +1497,6 @@ export default function CheckersBattleRoyal() {
       camera.updateProjectionMatrix();
     };
 
-    renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     window.addEventListener('resize', onResize);
 
@@ -1591,22 +1511,20 @@ export default function CheckersBattleRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.dispose();
       rendererRef.current = null;
       moveSoundRef.current?.pause();
       moveSoundRef.current = null;
-      captureSound.pause();
       if (mount.contains(renderer.domElement))
         mount.removeChild(renderer.domElement);
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [gameResult, renderPieces]);
+  }, [renderPieces]);
 
   useEffect(() => {
-    if (turn !== AI_SIDE || aiBusyRef.current || gameResult) return;
+    if (turn !== AI_SIDE || aiBusyRef.current) return;
     aiBusyRef.current = true;
     setStatus('AI is thinking…');
     const timer = window.setTimeout(() => {
@@ -1614,8 +1532,6 @@ export default function CheckersBattleRoyal() {
       const sideMoves = getMovesForSide(board, AI_SIDE);
       if (!sideMoves.length) {
         setStatus('AI has no legal moves. You win!');
-        setGameResult({ winnerSide: HUMAN_SIDE, message: 'Rival has no legal moves. You win!' });
-        setCoinBurstToken(Date.now());
         aiBusyRef.current = false;
         return;
       }
@@ -1628,13 +1544,7 @@ export default function CheckersBattleRoyal() {
       }
       const beforeBoard = copyBoard(board);
       boardRef.current = applied.board;
-      if (chosen.capture) {
-        const captureAudio = new Audio(bombSound);
-        captureAudio.volume = getGameVolume();
-        captureAudio.play().catch(() => {});
-      } else {
-        moveSoundRef.current?.play().catch(() => {});
-      }
+      moveSoundRef.current?.play().catch(() => {});
       renderPieces();
 
       if (chosen.capture && applied.chainCaptures.length) {
@@ -1691,7 +1601,7 @@ export default function CheckersBattleRoyal() {
       window.clearTimeout(timer);
       aiBusyRef.current = false;
     };
-  }, [gameResult, turn, renderHighlights, renderPieces]);
+  }, [turn, renderHighlights, renderPieces]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -1833,7 +1743,7 @@ export default function CheckersBattleRoyal() {
 
   return (
     <div className="fixed inset-0 bg-[#050814] text-white">
-      <div ref={mountRef} className="h-full w-full" style={{ touchAction: 'none' }} />
+      <div ref={mountRef} className="h-full w-full" />
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
@@ -2076,51 +1986,6 @@ export default function CheckersBattleRoyal() {
             {status} • Turn: {turn}
           </div>
         </div>
-
-        {winnerPlayer && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/65 backdrop-blur-sm pointer-events-auto">
-            <div className="relative w-[min(90vw,360px)] rounded-3xl border border-yellow-300/35 bg-slate-950/90 p-6 text-center text-white shadow-2xl">
-              <div key={coinBurstToken} className="coin-burst" aria-hidden>
-                {Array.from({ length: 30 }).map((_, i) => (
-                  <img
-                    key={`checkers-coin-${i}`}
-                    src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                    alt=""
-                    className="coin-img"
-                    style={{
-                      '--dx': `${(Math.random() - 0.5) * 120}px`,
-                      '--delay': `${Math.random() * 0.28}s`,
-                      '--dur': `${0.84 + Math.random() * 0.46}s`
-                    }}
-                  />
-                ))}
-              </div>
-              <img
-                src={winnerPlayer.photoUrl}
-                alt={`${winnerPlayer.name} avatar`}
-                className="mx-auto h-20 w-20 rounded-full border-4 border-yellow-300/70 object-cover shadow-[0_0_35px_rgba(250,204,21,0.35)]"
-              />
-              <p className="mt-4 text-lg font-black tracking-wide">{winnerPlayer.name} wins</p>
-              <p className="mt-1 text-xs text-slate-200">{gameResult.message}</p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={startNewMatch}
-                  className="rounded-xl border border-emerald-300/40 bg-emerald-400/25 px-3 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-                >
-                  Play again
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate(RETURN_LOBBY_ROUTE)}
-                  className="rounded-xl border border-sky-300/40 bg-sky-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-                >
-                  Return lobby
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {chatBubbles.map((bubble) => (
