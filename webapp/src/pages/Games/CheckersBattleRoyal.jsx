@@ -205,6 +205,8 @@ const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
+const TOUCH_TAP_MAX_DISTANCE_PX = 30;
+const TOUCH_TAP_MAX_DURATION_MS = 560;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -1379,22 +1381,45 @@ export default function CheckersBattleRoyal() {
     };
 
     const onPointerDown = (event) => {
+      if (!event.isPrimary) return;
       pointerDownRef.current = {
+        id: event.pointerId,
         x: event.clientX,
         y: event.clientY,
-        at: performance.now()
+        at: performance.now(),
+        pointerType: event.pointerType || 'mouse'
       };
+      renderer.domElement.setPointerCapture?.(event.pointerId);
+    };
+
+    const onPointerCancel = (event) => {
+      const pointerDown = pointerDownRef.current;
+      if (!pointerDown || pointerDown.id !== event.pointerId) return;
+      pointerDownRef.current = null;
     };
 
     const onPointerUp = (event) => {
       const pointerDown = pointerDownRef.current;
       pointerDownRef.current = null;
+      if (!pointerDown || pointerDown.id !== event.pointerId) return;
+
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+
+      const isTouchPointer =
+        pointerDown.pointerType === 'touch' || pointerDown.pointerType === 'pen';
+      const maxDuration = isTouchPointer
+        ? TOUCH_TAP_MAX_DURATION_MS
+        : TAP_MAX_DURATION_MS;
+      const maxDistance = isTouchPointer
+        ? TOUCH_TAP_MAX_DISTANCE_PX
+        : TAP_MAX_DISTANCE_PX;
+
       if (pointerDown) {
         const dt = performance.now() - pointerDown.at;
         const dx = event.clientX - pointerDown.x;
         const dy = event.clientY - pointerDown.y;
         const dist = Math.hypot(dx, dy);
-        if (dt > TAP_MAX_DURATION_MS || dist > TAP_MAX_DISTANCE_PX) return;
+        if (dt > maxDuration || dist > maxDistance) return;
       }
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1565,8 +1590,12 @@ export default function CheckersBattleRoyal() {
       camera.updateProjectionMatrix();
     };
 
-    renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: true });
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, {
+      passive: true
+    });
     renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('resize', onResize);
 
     let raf = 0;
@@ -1582,6 +1611,7 @@ export default function CheckersBattleRoyal() {
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
       renderer.dispose();
       rendererRef.current = null;
       moveSoundRef.current?.pause();
