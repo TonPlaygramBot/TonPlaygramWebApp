@@ -40,16 +40,24 @@ const TABLE_RADIUS = 2.55
 const TABLE_HEIGHT = 1.16
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82
 const BOARD_Y = TABLE_HEIGHT + 0.08
-const POINT_WIDTH = 0.19
 const BOARD_HALF_X = 1.28
 const BOARD_HALF_Z = 0.98
-const POINT_START_X = 0.08
+const BOARD_EDGE_MARGIN_X = 0.082
+const BOARD_EDGE_MARGIN_Z = 0.126
+const CENTER_BAR_WIDTH = 0.11
+const POINT_COLUMNS = 6
+const POINT_WIDTH = (BOARD_HALF_X * 2 - CENTER_BAR_WIDTH - BOARD_EDGE_MARGIN_X * 2) / (POINT_COLUMNS * 2)
+const POINT_START_X = BOARD_HALF_X - BOARD_EDGE_MARGIN_X - POINT_WIDTH * 0.5
 
-const TRIANGLE_BASE_Y_OFFSET = 0.125
+const TRIANGLE_BASE_Y_OFFSET = 0.126
 const TRIANGLE_HEIGHT = 0.02
-const TRIANGLE_HALF_BASE = 0.056
-const TRIANGLE_APEX_LENGTH = 0.8
-const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + 0.011
+const TRIANGLE_HALF_BASE = POINT_WIDTH * 0.31
+const TRIANGLE_APEX_LENGTH = BOARD_HALF_Z * 0.76
+const CHIP_RADIUS = POINT_WIDTH * 0.34
+const CHIP_HEIGHT = 0.022
+const CHIP_STACK_STEP = CHIP_HEIGHT * 1.45
+const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.52
+const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.56
 
 const MODEL_SCALE = 0.75
 const STOOL_SCALE = 1.5 * 1.3
@@ -404,16 +412,16 @@ const pointBasePosition = (index) => {
   if (index <= 11) {
     const col = index < 6 ? index : index + 1
     return {
-      x: BOARD_HALF_X - POINT_START_X - col * POINT_WIDTH,
-      z: BOARD_HALF_Z - 0.08,
+      x: POINT_START_X - col * POINT_WIDTH,
+      z: BOARD_HALF_Z - BOARD_EDGE_MARGIN_Z,
       top: false
     }
   }
   const i = 23 - index
   const col = i < 6 ? i : i + 1
   return {
-    x: -BOARD_HALF_X + POINT_START_X + col * POINT_WIDTH,
-    z: -BOARD_HALF_Z + 0.08,
+    x: -POINT_START_X + col * POINT_WIDTH,
+    z: -BOARD_HALF_Z + BOARD_EDGE_MARGIN_Z,
     top: true
   }
 }
@@ -623,16 +631,16 @@ export default function TavullBattleRoyal() {
     frameOuter.position.y = BOARD_Y + 0.1
     boardRoot.add(frameOuter)
 
-    const laneWidth = BOARD_HALF_X * 0.93
-    const laneDepth = BOARD_HALF_Z * 1.82
-    const laneOffset = BOARD_HALF_X * 0.49
+    const laneWidth = BOARD_HALF_X - CENTER_BAR_WIDTH * 0.5 - BOARD_EDGE_MARGIN_X
+    const laneDepth = BOARD_HALF_Z * 2 - BOARD_EDGE_MARGIN_Z * 2
+    const laneOffset = CENTER_BAR_WIDTH * 0.5 + laneWidth * 0.5
     ;[-1, 1].forEach((side) => {
       const lane = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.028, laneDepth), inlayMaterial)
       lane.position.set(side * laneOffset, BOARD_Y + 0.126, 0)
       boardRoot.add(lane)
     })
 
-    const centerBar = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.045, BOARD_HALF_Z * 1.87), trimMaterial)
+    const centerBar = new THREE.Mesh(new THREE.BoxGeometry(CENTER_BAR_WIDTH, 0.045, BOARD_HALF_Z * 2 - BOARD_EDGE_MARGIN_Z * 2), trimMaterial)
     centerBar.position.y = BOARD_Y + 0.128
     boardRoot.add(centerBar)
 
@@ -644,7 +652,7 @@ export default function TavullBattleRoyal() {
     boardRoot.add(hinge)
 
     const makeTriangle = (x, top, dark) => {
-      const baseZ = top ? -BOARD_HALF_Z + 0.12 : BOARD_HALF_Z - 0.12
+      const baseZ = top ? -BOARD_HALF_Z + BOARD_EDGE_MARGIN_Z : BOARD_HALF_Z - BOARD_EDGE_MARGIN_Z
       const apex = top ? -TRIANGLE_APEX_LENGTH : TRIANGLE_APEX_LENGTH
       const shape = new THREE.Shape()
       shape.moveTo(-TRIANGLE_HALF_BASE, 0)
@@ -693,7 +701,7 @@ export default function TavullBattleRoyal() {
           nearest = i
         }
       }
-      if (minDist > 0.22) return null
+      if (minDist > POINT_WIDTH * 0.72) return null
       return nearest
     }
     const onBoardTap = (event) => {
@@ -864,7 +872,7 @@ export default function TavullBattleRoyal() {
       const baseMaterial = createCheckerMaterial(sideColor, CHECKERS_CHIP_HEAD_PRESET)
 
       const chip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.075, 0.071, 0.02, 56, 1, false),
+        new THREE.CylinderGeometry(CHIP_RADIUS, CHIP_RADIUS * 0.94, CHIP_HEIGHT, 56, 1, false),
         baseMaterial
       )
       chip.castShadow = true
@@ -872,16 +880,16 @@ export default function TavullBattleRoyal() {
       pieceGroup.add(chip)
 
       const topCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.061, 0.008, 48),
+        new THREE.CylinderGeometry(CHIP_RADIUS * 0.74, CHIP_RADIUS * 0.81, CHIP_HEIGHT * 0.42, 48),
         baseMaterial.clone()
       )
-      topCap.position.y = 0.011
+      topCap.position.y = CHIP_HEIGHT * 0.56
       topCap.castShadow = true
       topCap.receiveShadow = true
       pieceGroup.add(topCap)
 
       const rim = new THREE.Mesh(
-        new THREE.TorusGeometry(0.051, 0.0046, 16, 64),
+        new THREE.TorusGeometry(CHIP_RADIUS * 0.7, CHIP_RADIUS * 0.064, 16, 64),
         new THREE.MeshStandardMaterial({
           color: '#f8fafc',
           metalness: 0.88,
@@ -891,7 +899,7 @@ export default function TavullBattleRoyal() {
         })
       )
       rim.rotation.x = Math.PI / 2
-      rim.position.y = 0.013
+      rim.position.y = CHIP_HEIGHT * 0.64
       pieceGroup.add(rim)
 
       return pieceGroup
@@ -919,14 +927,14 @@ export default function TavullBattleRoyal() {
         const layer = s % 5
         chip.position.set(
           base.x,
-          BOARD_Y + CHIP_BASE_Y_OFFSET + layer * 0.032,
-          base.z + (base.top ? 1 : -1) * (0.098 * stack)
+          BOARD_Y + CHIP_BASE_Y_OFFSET + layer * CHIP_STACK_STEP,
+          base.z + (base.top ? 1 : -1) * (CHIP_COLUMN_SPACING * stack)
         )
         chipGroup.add(chip)
       }
       if (highlightTargets.has(i)) {
         const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(0.11, 0.012, 8, 28),
+          new THREE.TorusGeometry(CHIP_RADIUS * 1.5, CHIP_RADIUS * 0.16, 8, 28),
           new THREE.MeshStandardMaterial({
             color: activeMoveHighlight ? '#f59e0b' : '#22d3ee',
             emissive: activeMoveHighlight ? '#7c2d12' : '#164e63',
@@ -936,7 +944,7 @@ export default function TavullBattleRoyal() {
           })
         )
         ring.rotation.x = Math.PI / 2
-        ring.position.set(base.x, BOARD_Y + CHIP_BASE_Y_OFFSET, base.z + (base.top ? -0.06 : 0.06))
+        ring.position.set(base.x, BOARD_Y + CHIP_BASE_Y_OFFSET, base.z + (base.top ? -CHIP_COLUMN_SPACING * 0.58 : CHIP_COLUMN_SPACING * 0.58))
         chipGroup.add(ring)
       }
     }
@@ -944,7 +952,7 @@ export default function TavullBattleRoyal() {
     const makeBarChips = (count, color, zSign) => {
       for (let s = 0; s < count; s += 1) {
         const chip = createChip(color)
-        chip.position.set(0, BOARD_Y + CHIP_BASE_Y_OFFSET + (s % 6) * 0.032, zSign * (0.08 + Math.floor(s / 6) * 0.098))
+        chip.position.set(0, BOARD_Y + CHIP_BASE_Y_OFFSET + (s % 6) * CHIP_STACK_STEP, zSign * (BOARD_EDGE_MARGIN_Z * 0.7 + Math.floor(s / 6) * CHIP_COLUMN_SPACING))
         chipGroup.add(chip)
       }
     }
