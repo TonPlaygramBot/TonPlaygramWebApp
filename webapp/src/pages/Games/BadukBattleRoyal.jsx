@@ -45,6 +45,8 @@ const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
 const CONNECT4_RED = '#e3342f';
 const CONNECT4_BLUE = '#2d79d8';
+const PLAYER_PILE_BASE = new THREE.Vector3(-0.2, TABLE_HEIGHT + 0.14, TABLE_RADIUS * 0.58);
+const AI_PILE_BASE = new THREE.Vector3(0.2, TABLE_HEIGHT + 0.14, -(TABLE_RADIUS * 0.58));
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -283,6 +285,13 @@ export default function BadukBattleRoyal() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [hoverCol, setHoverCol] = useState(null);
+
+  const resetMatch = () => {
+    setBoard(createBoard(rows, cols));
+    setTurn('player');
+    setWinner(null);
+    setWinningCells([]);
+  };
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
@@ -545,6 +554,7 @@ export default function BadukBattleRoyal() {
     const animate = () => {
       raf = requestAnimationFrame(animate);
       const delta = Math.min(animationClockRef.current.getDelta(), 0.045);
+      const elapsed = animationClockRef.current.elapsedTime;
 
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
         const entry = fallingPiecesRef.current[i];
@@ -569,6 +579,13 @@ export default function BadukBattleRoyal() {
         }
       }
 
+      winningCells.forEach(([r, c]) => {
+        const token = piecesMapRef.current.get(`${r}-${c}`);
+        if (!token) return;
+        const pulse = 1.08 + Math.sin(elapsed * 8) * 0.06;
+        token.scale.setScalar(pulse);
+      });
+
       controls.update();
       if (markerRef.current && Number.isInteger(hoverCol) && turn === 'player' && !winner) {
         const x = -boardWidth / 2 + (hoverCol + 0.5) * xStep;
@@ -588,7 +605,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, hoverCol, turn, winner, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep, winningCells]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -658,6 +675,12 @@ export default function BadukBattleRoyal() {
     if (!group) return;
     const shown = displayedBoardRef.current;
 
+    const getPileSource = (token, tokenCountOnBoard) => {
+      const base = token === 'player' ? PLAYER_PILE_BASE : AI_PILE_BASE;
+      const remaining = Math.max(0, 7 - tokenCountOnBoard);
+      return base.clone().add(new THREE.Vector3(0, remaining * 0.02, 0));
+    };
+
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         const nextCell = board[r][c];
@@ -665,9 +688,8 @@ export default function BadukBattleRoyal() {
         if (nextCell && !currentCell) {
           const [targetX, targetY, targetZ] = worldFromCell(r, c);
           const dropX = -boardWidth / 2 + (c + 0.5) * xStep;
-          const source = nextCell === 'player'
-            ? new THREE.Vector3(-0.2, TABLE_HEIGHT + 0.16, TABLE_RADIUS * 0.58)
-            : new THREE.Vector3(0.2, TABLE_HEIGHT + 0.16, -(TABLE_RADIUS * 0.58));
+          const tokenCountOnBoard = shown.flat().filter((cell) => cell === nextCell).length;
+          const source = getPileSource(nextCell, tokenCountOnBoard);
           const columnTop = new THREE.Vector3(dropX, boardCenterY + boardHeight / 2 + yStep * 0.55, targetZ + 0.03);
           const target = new THREE.Vector3(targetX, targetY, targetZ + 0.03);
           const mesh = createTokenMesh(nextCell);
@@ -682,7 +704,7 @@ export default function BadukBattleRoyal() {
             target,
             elapsed: 0,
             phase: 'toColumn',
-            travelDuration: 0.22,
+            travelDuration: 0.3,
             dropDuration: 0.26 + (rows - 1 - r) * 0.035
           });
         } else if (!nextCell && currentCell) {
@@ -836,17 +858,58 @@ export default function BadukBattleRoyal() {
         <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
         <button
           type="button"
-          onClick={() => {
-            setBoard(createBoard(rows, cols));
-            setTurn('player');
-            setWinner(null);
-            setWinningCells([]);
-          }}
+          onClick={resetMatch}
           className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
         >
           Restart
         </button>
       </div>
+
+      {winner && (
+        <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-[#0e1324]/95 px-6 pb-6 pt-10 text-center shadow-2xl">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+              {Array.from({ length: 14 }).map((_, i) => {
+                const angle = (Math.PI * 2 * i) / 14;
+                const x = Math.cos(angle) * 120;
+                const y = Math.sin(angle) * 96 - 24;
+                return (
+                  <span
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={`coin-${i}`}
+                    className="absolute left-1/2 top-1/2 text-xl"
+                    style={{
+                      animation: `baduk-coin-burst 900ms ease-out ${i * 35}ms forwards`,
+                      '--x': `${x}px`,
+                      '--y': `${y}px`
+                    }}
+                  >
+                    🪙
+                  </span>
+                );
+              })}
+            </div>
+            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-300/60 bg-white/10 text-4xl">
+              {winner === 'player' ? <img src={avatar || '/assets/icons/profile.svg'} alt="winner avatar" className="h-full w-full object-cover" /> : '🤖'}
+            </div>
+            <p className="text-xs uppercase tracking-[0.26em] text-yellow-300">Winner</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">{winner === 'draw' ? 'Draw Game' : winner === 'player' ? `${username} Wins!` : 'AI Rival Wins!'}</h2>
+            <p className="mt-2 text-sm text-white/75">{winner === 'draw' ? 'No more moves left.' : '4 pieces connected and highlighted.'}</p>
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onClick={resetMatch} className="rounded-xl border border-cyan-300/60 bg-cyan-400/20 px-4 py-2 text-sm font-semibold">Play Again</button>
+              <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold">Return Lobby</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>
+        {`@keyframes baduk-coin-burst {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+          15% { opacity: 1; }
+          100% { opacity: 0; transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, -110px))) scale(1.25); }
+        }`}
+      </style>
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />
       <BottomLeftIcons onChat={() => setShowChat(true)} showInfo={false} showGift={false} showMute={false} className="fixed left-3 bottom-28 z-50 flex flex-col" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" chatIcon="💬" order={['chat']} />
