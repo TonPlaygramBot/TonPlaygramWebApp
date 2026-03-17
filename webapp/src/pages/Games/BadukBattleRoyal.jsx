@@ -275,12 +275,12 @@ export default function BadukBattleRoyal() {
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
   const [winningCells, setWinningCells] = useState([]);
+  const [status, setStatus] = useState('Drop pieces into columns. First to connect 4 in row/column/diagonal wins.');
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [configOpen, setConfigOpen] = useState(false);
   const [hoverCol, setHoverCol] = useState(null);
-  const [isAnimatingDrop, setIsAnimatingDrop] = useState(false);
 
   const worldFromCell = (r, c) => [
     -boardWidth / 2 + (c + 0.5) * xStep,
@@ -307,101 +307,31 @@ export default function BadukBattleRoyal() {
     osc.stop(now + duration);
   };
 
-  const createTokenMesh = (tokenType) => {
-    const token = new THREE.Group();
-    const tokenMat = new THREE.MeshStandardMaterial({ color: tokenType === 'player' ? CONNECT4_RED : CONNECT4_BLUE, roughness: 0.34, metalness: 0.03 });
-    const rimMat = new THREE.MeshStandardMaterial({ color: '#1f1a16', roughness: 0.5, metalness: 0.02 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(slotRadius * 0.99, slotRadius * 0.99, 0.13, 42), tokenMat);
-    const domeA = new THREE.Mesh(new THREE.SphereGeometry(slotRadius * 0.93, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2), tokenMat);
-    domeA.rotation.x = Math.PI;
-    domeA.position.y = 0.038;
-    const domeB = domeA.clone();
-    domeB.position.y = -0.038;
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(slotRadius * 0.96, 0.01, 12, 36), rimMat);
-    rim.rotation.x = Math.PI / 2;
-    token.add(body, domeA, domeB, rim);
-    token.rotation.x = Math.PI / 2;
-    return token;
-  };
-
-  const animateDropToCell = (tokenType, row, col) => new Promise((resolve) => {
-    const pieces = piecesGroupRef.current;
-    if (!pieces) {
-      resolve();
-      return;
-    }
-    const [targetX, targetY] = worldFromCell(row, col);
-    const sideSign = tokenType === 'player' ? 1 : -1;
-    const startX = tokenType === 'player' ? -0.2 : 0.2;
-    const travelStartY = TABLE_HEIGHT + 0.09;
-    const travelStartZ = sideSign * (TABLE_RADIUS * 0.58);
-    const dropStartY = boardCenterY + boardHeight / 2 + yStep * 0.68;
-    const token = createTokenMesh(tokenType);
-    token.position.set(startX, travelStartY, travelStartZ);
-    pieces.add(token);
-
-    const travelDurationMs = 220;
-    const gravity = yStep * 17;
-    const forwardSpeed = Math.abs(travelStartZ - 0.03) / 0.18;
-    let phase = 'travel';
-    let phaseStart = performance.now();
-    let previousTime = phaseStart;
-    let velocityY = 0;
-
-    const animate = (time) => {
-      const dt = Math.max(0.001, (time - previousTime) / 1000);
-      previousTime = time;
-
-      if (phase === 'travel') {
-        const p = Math.min(1, (time - phaseStart) / travelDurationMs);
-        token.position.x = THREE.MathUtils.lerp(startX, targetX, p);
-        token.position.y = THREE.MathUtils.lerp(travelStartY, dropStartY, p);
-        token.position.z = THREE.MathUtils.lerp(travelStartZ, 0.03, p);
-        if (p >= 1) {
-          phase = 'drop';
-          phaseStart = time;
-          previousTime = time;
-          token.position.x = targetX;
-          token.position.y = dropStartY;
-          token.position.z = 0.03;
-        }
-      } else {
-        velocityY -= gravity * dt;
-        token.position.y += velocityY * dt;
-        const zStep = forwardSpeed * dt;
-        if (Math.abs(token.position.z - 0.03) > zStep) {
-          token.position.z += token.position.z > 0.03 ? -zStep : zStep;
-        } else {
-          token.position.z = 0.03;
-        }
-        if (token.position.y <= targetY) {
-          token.position.y = targetY;
-          pieces.remove(token);
-          resolve();
-          return;
-        }
-      }
-      requestAnimationFrame(animate);
-    };
-
-    requestAnimationFrame((time) => {
-      phaseStart = time;
-      previousTime = time;
-      requestAnimationFrame(animate);
-    });
-  });
-
   const renderPieces = (boardState) => {
     const group = piecesGroupRef.current;
     if (!group) return;
     group.clear();
     piecesMapRef.current.clear();
+    const playerMat = new THREE.MeshStandardMaterial({ color: CONNECT4_RED, roughness: 0.35, metalness: 0.03 });
+    const aiMat = new THREE.MeshStandardMaterial({ color: CONNECT4_BLUE, roughness: 0.3, metalness: 0.03 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: '#1f1a16', roughness: 0.5, metalness: 0.02 });
+
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         if (!boardState[r][c]) continue;
         const [x, y, z] = worldFromCell(r, c);
-        const token = createTokenMesh(boardState[r][c]);
+        const token = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(slotRadius * 0.99, slotRadius * 0.99, 0.13, 42), boardState[r][c] === 'player' ? playerMat : aiMat);
+        const domeA = new THREE.Mesh(new THREE.SphereGeometry(slotRadius * 0.93, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2), boardState[r][c] === 'player' ? playerMat : aiMat);
+        domeA.rotation.x = Math.PI;
+        domeA.position.y = 0.038;
+        const domeB = domeA.clone();
+        domeB.position.y = -0.038;
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(slotRadius * 0.96, 0.01, 12, 36), rimMat);
+        rim.rotation.x = Math.PI / 2;
+        token.add(body, domeA, domeB, rim);
         token.position.set(x, y, z + 0.03);
+        token.rotation.x = Math.PI / 2;
         group.add(token);
         piecesMapRef.current.set(`${r}-${c}`, token);
       }
@@ -413,6 +343,7 @@ export default function BadukBattleRoyal() {
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
+    setStatus(`Board ${cols}×${rows} loaded. First to connect 4 horizontally, vertically, or diagonally wins.`);
   }, [rows, cols]);
 
   useEffect(() => renderPieces(board), [board, appearance.stoneStyle, rows, cols]);
@@ -568,8 +499,8 @@ export default function BadukBattleRoyal() {
       createChipStack(CONNECT4_BLUE, 'back', 0.2, 7)
     );
 
-    const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight + yStep * 0.9), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-    hitPlane.position.set(0, boardCenterY, 0.2);
+    const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, yStep * 0.95), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+    hitPlane.position.set(0, boardCenterY + boardHeight / 2 + yStep * 0.45, 0.2);
     boardGroup.add(hitPlane);
     boardHitPlaneRef.current = hitPlane;
 
@@ -657,15 +588,12 @@ export default function BadukBattleRoyal() {
     });
   }, [winningCells]);
 
-  const playColumn = async (col, token) => {
-    if (isAnimatingDrop) return false;
+  const playColumn = (col, token) => {
     const row = getDropRow(board, col);
     if (row < 0) {
       playTone(180, 0.05, 'sawtooth', 0.012);
       return false;
     }
-    setIsAnimatingDrop(true);
-    await animateDropToCell(token, row, col);
     const next = cloneBoard(board);
     next[row][col] = token;
     setBoard(next);
@@ -675,19 +603,19 @@ export default function BadukBattleRoyal() {
     if (winning) {
       setWinner(token);
       setWinningCells(winning);
+      setStatus(token === 'player' ? 'You connected 4 and won.' : 'AI connected 4 and won.');
       playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.03);
-      setIsAnimatingDrop(false);
       return true;
     }
     if (isFull(next)) {
       setWinner('draw');
       setWinningCells([]);
+      setStatus('Board full. Draw game.');
       playTone(200, 0.18, 'triangle', 0.02);
-      setIsAnimatingDrop(false);
       return true;
     }
     setTurn(token === 'player' ? 'ai' : 'player');
-    setIsAnimatingDrop(false);
+    setStatus(token === 'player' ? 'AI is thinking…' : 'Your turn.');
     return true;
   };
 
@@ -714,10 +642,10 @@ export default function BadukBattleRoyal() {
     };
 
     const onPointer = (event) => {
-      if (turn !== 'player' || winner || isAnimatingDrop) return;
+      if (turn !== 'player' || winner) return;
       const col = getColumnFromEvent(event);
       setHoverCol(col);
-      if (Number.isInteger(col)) void playColumn(col, 'player');
+      if (Number.isInteger(col)) playColumn(col, 'player');
     };
 
     const onPointerLeave = () => setHoverCol(null);
@@ -730,17 +658,17 @@ export default function BadukBattleRoyal() {
       renderer.domElement.removeEventListener('pointerdown', onPointer);
       renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
     };
-  }, [turn, winner, board, cols, boardWidth, isAnimatingDrop]);
+  }, [turn, winner, board, cols, boardWidth]);
 
   useEffect(() => {
-    if (turn !== 'ai' || winner || isAnimatingDrop) return;
+    if (turn !== 'ai' || winner) return;
     const t = setTimeout(() => {
       const depth = cols >= 8 ? 5 : 6;
       const col = chooseAiMove(board, 'ai', 'player', depth);
-      if (Number.isInteger(col)) void playColumn(col, 'ai');
+      if (Number.isInteger(col)) playColumn(col, 'ai');
     }, 420);
     return () => clearTimeout(t);
-  }, [turn, winner, board, cols, isAnimatingDrop]);
+  }, [turn, winner, board, cols]);
 
   const playerCount = board.flat().filter((x) => x === 'player').length;
   const aiCount = board.flat().filter((x) => x === 'ai').length;
@@ -774,6 +702,7 @@ export default function BadukBattleRoyal() {
           <div className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 p-3 text-xs">
             <h1 className="text-sm font-semibold uppercase tracking-[0.18em]">4 in a Row</h1>
             <p className="mt-1 text-white/80">Board: {cols}×{rows} • You:{playerCount} • AI:{aiCount}</p>
+            <p className="mt-1 text-white/75">{status}</p>
           </div>
         </div>
 
@@ -833,6 +762,7 @@ export default function BadukBattleRoyal() {
             setTurn('player');
             setWinner(null);
             setWinningCells([]);
+            setStatus('New match started. Your move.');
           }}
           className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
         >
