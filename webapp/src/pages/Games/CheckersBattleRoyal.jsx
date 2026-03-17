@@ -39,7 +39,7 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { chatBeep } from '../../assets/soundData.js';
+import { bombSound, chatBeep } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import {
@@ -202,6 +202,7 @@ const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
+const WINNER_COIN_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -975,6 +976,8 @@ export default function CheckersBattleRoyal() {
   const replayStateRef = useRef(null);
   const highlightGroupRef = useRef(null);
   const moveSoundRef = useRef(null);
+  const captureSoundRef = useRef(null);
+  const coinStyleInjectedRef = useRef(false);
 
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -995,6 +998,7 @@ export default function CheckersBattleRoyal() {
   const [showChat, setShowChat] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [canReplay, setCanReplay] = useState(false);
+  const [winner, setWinner] = useState(null);
   const aiBusyRef = useRef(false);
 
   const inv = useMemo(() => {
@@ -1050,6 +1054,71 @@ export default function CheckersBattleRoyal() {
     }
   ];
 
+  const ensureCoinBurstStyles = () => {
+    if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.id = 'checkers-coin-burst';
+    style.textContent = `
+      @keyframes checkersCoinBurst {
+        0% { transform: translateY(-18px) scale(0.8); opacity: 1; }
+        100% { transform: translateY(110vh) scale(1.1); opacity: 0; }
+      }
+      .checkers-coin-burst {
+        position: fixed;
+        top: -24px;
+        width: 30px;
+        height: 30px;
+        pointer-events: none;
+        z-index: 80;
+      }
+    `;
+    document.head.appendChild(style);
+    coinStyleInjectedRef.current = true;
+  };
+
+  const triggerCoinBurst = (count = 20) => {
+    if (typeof document === 'undefined') return;
+    ensureCoinBurstStyles();
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.inset = '0';
+    container.style.pointerEvents = 'none';
+    container.style.zIndex = '80';
+    document.body.appendChild(container);
+    for (let i = 0; i < count; i += 1) {
+      const coin = document.createElement('img');
+      coin.src = WINNER_COIN_ICON;
+      coin.className = 'checkers-coin-burst';
+      coin.style.left = `${Math.random() * 100}vw`;
+      const duration = 1.5 + Math.random() * 0.9;
+      const delay = Math.random() * 0.55;
+      coin.style.animation = `checkersCoinBurst ${duration}s linear ${delay}s forwards`;
+      container.appendChild(coin);
+    }
+    window.setTimeout(() => container.remove(), 2600);
+  };
+
+  const finishGame = (winningSide, message) => {
+    const winnerName = winningSide === HUMAN_SIDE ? playerName : 'Rival';
+    const winnerPhoto =
+      winningSide === HUMAN_SIDE ? playerPhotoUrl : '/assets/icons/profile.svg';
+    setStatus(message);
+    setWinner({ side: winningSide, name: winnerName, photoUrl: winnerPhoto });
+    triggerCoinBurst(24);
+  };
+
+  const resetGame = () => {
+    boardRef.current = createInitial();
+    selectedRef.current = null;
+    replayStateRef.current = null;
+    setCanReplay(false);
+    setWinner(null);
+    setTurn(HUMAN_SIDE);
+    setStatus('Your turn. Forced captures are enabled.');
+    renderPieces();
+    renderHighlights();
+  };
+
   const renderPieces = useMemo(
     () => () => {
       const group = piecesGroupRef.current;
@@ -1063,10 +1132,10 @@ export default function CheckersBattleRoyal() {
           if (!piece) continue;
           const chip = new THREE.Mesh(
             new THREE.CylinderGeometry(
-              tile * 0.28,
-              tile * 0.28,
-              tile * 0.13,
-              40
+              tile * 0.33,
+              tile * 0.29,
+              tile * 0.19,
+              56
             ),
             createCheckerMaterial(
               piece.side === 'light' ? chipSet.light : chipSet.dark,
@@ -1076,22 +1145,53 @@ export default function CheckersBattleRoyal() {
           chip.castShadow = true;
           chip.position.set(
             x + (c - 3.5) * tile,
-            y + tile * 0.075,
+            y + tile * 0.1,
             z + (r - 3.5) * tile
           );
+          const topInset = new THREE.Mesh(
+            new THREE.CylinderGeometry(tile * 0.18, tile * 0.2, tile * 0.03, 36),
+            new THREE.MeshStandardMaterial({
+              color: piece.side === 'light' ? '#f8fafc' : '#1f2937',
+              metalness: 0.28,
+              roughness: 0.32
+            })
+          );
+          topInset.position.y = tile * 0.075;
+          chip.add(topInset);
+          const rim = new THREE.Mesh(
+            new THREE.TorusGeometry(tile * 0.25, tile * 0.018, 18, 42),
+            new THREE.MeshStandardMaterial({
+              color: '#fef3c7',
+              metalness: 0.88,
+              roughness: 0.25
+            })
+          );
+          rim.rotation.x = Math.PI / 2;
+          rim.position.y = tile * 0.06;
+          chip.add(rim);
           chip.userData = { r, c, side: piece.side };
           if (piece.king) {
             const ring = new THREE.Mesh(
-              new THREE.TorusGeometry(tile * 0.17, tile * 0.04, 12, 30),
+              new THREE.TorusGeometry(tile * 0.19, tile * 0.045, 14, 34),
               new THREE.MeshStandardMaterial({
-                color: '#f8fafc',
+                color: '#fde68a',
                 metalness: 0.92,
-                roughness: 0.18
+                roughness: 0.14
               })
             );
             ring.rotation.x = Math.PI / 2;
-            ring.position.y = tile * 0.09;
+            ring.position.y = tile * 0.14;
             chip.add(ring);
+            const crownCore = new THREE.Mesh(
+              new THREE.CylinderGeometry(tile * 0.11, tile * 0.13, tile * 0.08, 24),
+              new THREE.MeshStandardMaterial({
+                color: '#fef08a',
+                metalness: 0.9,
+                roughness: 0.2
+              })
+            );
+            crownCore.position.y = tile * 0.16;
+            chip.add(crownCore);
           }
           group.add(chip);
         }
@@ -1235,6 +1335,8 @@ export default function CheckersBattleRoyal() {
 
     moveSoundRef.current = new Audio(MOVE_SOUND_URL);
     moveSoundRef.current.volume = getGameVolume();
+    captureSoundRef.current = new Audio(bombSound);
+    captureSoundRef.current.volume = getGameVolume();
 
     const pickTiles = [];
     const raycaster = new THREE.Raycaster();
@@ -1245,7 +1347,8 @@ export default function CheckersBattleRoyal() {
       const selected = selectedRef.current;
       const sideMoves = getMovesForSide(board, turn);
       if (!sideMoves.length) {
-        setStatus(
+        finishGame(
+          turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE,
           `${turn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${turn === HUMAN_SIDE ? 'AI' : 'You'} win.`
         );
         return;
@@ -1288,6 +1391,7 @@ export default function CheckersBattleRoyal() {
 
       boardRef.current = applied.board;
       moveSoundRef.current?.play().catch(() => {});
+      if (move.capture) captureSoundRef.current?.play().catch(() => {});
       renderPieces();
 
       if (move.capture && applied.chainCaptures.length) {
@@ -1327,6 +1431,7 @@ export default function CheckersBattleRoyal() {
     };
 
     const onPointerUp = (event) => {
+      if (winner) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1497,6 +1602,7 @@ export default function CheckersBattleRoyal() {
       camera.updateProjectionMatrix();
     };
 
+    renderer.domElement.style.touchAction = 'manipulation';
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     window.addEventListener('resize', onResize);
 
@@ -1516,22 +1622,24 @@ export default function CheckersBattleRoyal() {
       rendererRef.current = null;
       moveSoundRef.current?.pause();
       moveSoundRef.current = null;
+      captureSoundRef.current?.pause();
+      captureSoundRef.current = null;
       if (mount.contains(renderer.domElement))
         mount.removeChild(renderer.domElement);
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [renderPieces]);
+  }, [renderPieces, winner]);
 
   useEffect(() => {
-    if (turn !== AI_SIDE || aiBusyRef.current) return;
+    if (turn !== AI_SIDE || aiBusyRef.current || winner) return;
     aiBusyRef.current = true;
     setStatus('AI is thinking…');
     const timer = window.setTimeout(() => {
       const board = boardRef.current;
       const sideMoves = getMovesForSide(board, AI_SIDE);
       if (!sideMoves.length) {
-        setStatus('AI has no legal moves. You win!');
+        finishGame(HUMAN_SIDE, 'AI has no legal moves. You win!');
         aiBusyRef.current = false;
         return;
       }
@@ -1545,6 +1653,7 @@ export default function CheckersBattleRoyal() {
       const beforeBoard = copyBoard(board);
       boardRef.current = applied.board;
       moveSoundRef.current?.play().catch(() => {});
+      if (chosen.capture) captureSoundRef.current?.play().catch(() => {});
       renderPieces();
 
       if (chosen.capture && applied.chainCaptures.length) {
@@ -1601,7 +1710,7 @@ export default function CheckersBattleRoyal() {
       window.clearTimeout(timer);
       aiBusyRef.current = false;
     };
-  }, [turn, renderHighlights, renderPieces]);
+  }, [turn, winner, renderHighlights, renderPieces]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -2035,6 +2144,36 @@ export default function CheckersBattleRoyal() {
             audio.play().catch(() => {});
           }}
         />
+      {winner ? (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-sm rounded-3xl border border-amber-300/40 bg-slate-950/90 p-6 text-center shadow-2xl">
+            <div className="text-xs uppercase tracking-[0.25em] text-amber-200/80">Winner</div>
+            <img
+              src={winner.photoUrl}
+              alt={`${winner.name} avatar`}
+              className="mx-auto mt-4 h-20 w-20 rounded-full border-4 border-amber-300/70 object-cover"
+            />
+            <div className="mt-3 text-2xl font-extrabold text-white">{winner.name}</div>
+            <div className="mt-1 text-sm text-white/70">{status}</div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={resetGame}
+                className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-bold text-white"
+              >
+                Play again
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/games/checkersbattleroyal/lobby', { replace: true })}
+                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white"
+              >
+                Return lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       </div>
     </div>
   );
