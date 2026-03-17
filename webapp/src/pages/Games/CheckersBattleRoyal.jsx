@@ -1097,7 +1097,17 @@ export default function CheckersBattleRoyal() {
     light: [],
     dark: []
   });
+  const turnRef = useRef('light');
+  const capturedBySideRef = useRef({ light: [], dark: [] });
   const aiBusyRef = useRef(false);
+
+  useEffect(() => {
+    turnRef.current = turn;
+  }, [turn]);
+
+  useEffect(() => {
+    capturedBySideRef.current = capturedBySide;
+  }, [capturedBySide]);
 
   const inv = useMemo(() => {
     const inventory = getChessBattleInventory(chessBattleAccountId());
@@ -1225,7 +1235,7 @@ export default function CheckersBattleRoyal() {
       const maxPerRow = 12;
 
       const placeCapturedForSide = (side, edge) => {
-        const captured = capturedBySide[side] || [];
+        const captured = capturedBySideRef.current[side] || [];
         captured.forEach((piece, idx) => {
           const row = Math.floor(idx / maxPerRow);
           const col = idx % maxPerRow;
@@ -1233,7 +1243,7 @@ export default function CheckersBattleRoyal() {
             col -
             (Math.min(captured.length - row * maxPerRow, maxPerRow) - 1) / 2;
           const checker = createCheckerMesh({
-            tile: tile * 0.74,
+            tile,
             side: piece.side,
             king: piece.king,
             chipSet,
@@ -1251,8 +1261,20 @@ export default function CheckersBattleRoyal() {
       placeCapturedForSide('dark', -1);
       placeCapturedForSide('light', 1);
     },
-    [capturedBySide, checkerHeadPreset, chipSet]
+    [checkerHeadPreset, chipSet]
   );
+
+  const renderPiecesRef = useRef(() => {});
+  const renderCapturedPiecesRef = useRef(() => {});
+  const renderHighlightsRef = useRef(() => {});
+
+  useEffect(() => {
+    renderPiecesRef.current = renderPieces;
+  }, [renderPieces]);
+
+  useEffect(() => {
+    renderCapturedPiecesRef.current = renderCapturedPieces;
+  }, [renderCapturedPieces]);
 
   useEffect(() => {
     renderPieces();
@@ -1325,6 +1347,10 @@ export default function CheckersBattleRoyal() {
     },
     [turn]
   );
+
+  useEffect(() => {
+    renderHighlightsRef.current = renderHighlights;
+  }, [renderHighlights]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -1410,20 +1436,21 @@ export default function CheckersBattleRoyal() {
 
     const applyMove = (r, c) => {
       const board = boardRef.current;
+      const activeTurn = turnRef.current;
       const selected = selectedRef.current;
-      const sideMoves = getMovesForSide(board, turn);
+      const sideMoves = getMovesForSide(board, activeTurn);
       if (!sideMoves.length) {
-        const winnerSide = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
+        const winnerSide = activeTurn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
         setStatus(
-          `${turn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win.`
+          `${activeTurn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win.`
         );
         setGameOver(winnerSide);
         return;
       }
 
       const piece = board[r][c];
-      if (piece && piece.side === turn) {
-        if (turn === AI_SIDE) return;
+      if (piece && piece.side === activeTurn) {
+        if (activeTurn === AI_SIDE) return;
         const forcedCaptures = sideMoves.filter((move) => move.capture);
         if (
           forcedCaptures.length &&
@@ -1462,7 +1489,7 @@ export default function CheckersBattleRoyal() {
         if (capturedPiece?.side) {
           setCapturedBySide((prev) => ({
             ...prev,
-            [turn]: [...prev[turn], capturedPiece]
+            [activeTurn]: [...prev[activeTurn], capturedPiece]
           }));
         }
       }
@@ -1480,12 +1507,12 @@ export default function CheckersBattleRoyal() {
         replayStateRef.current = {
           beforeBoard,
           afterBoard: copyBoard(applied.board),
-          beforeTurn: turn,
-          afterTurn: turn
+          beforeTurn: activeTurn,
+          afterTurn: activeTurn
         };
         setCanReplay(true);
         setStatus(
-          turn === HUMAN_SIDE
+          activeTurn === HUMAN_SIDE
             ? 'Chain capture required. Continue capturing.'
             : 'AI continues a capture chain…'
         );
@@ -1494,17 +1521,17 @@ export default function CheckersBattleRoyal() {
       }
 
       selectedRef.current = null;
-      const nextTurn = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
+      const nextTurn = activeTurn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
       replayStateRef.current = {
         beforeBoard,
         afterBoard: copyBoard(applied.board),
-        beforeTurn: turn,
+        beforeTurn: activeTurn,
         afterTurn: nextTurn
       };
       setCanReplay(true);
       const nextMoves = getMovesForSide(applied.board, nextTurn);
       if (!nextMoves.length) {
-        const winnerSide = turn;
+        const winnerSide = activeTurn;
         setGameOver(winnerSide);
         setTurn(nextTurn);
         setStatus(
@@ -1773,9 +1800,9 @@ export default function CheckersBattleRoyal() {
       };
 
       setupPickTiles();
-      renderPieces();
-      renderCapturedPieces();
-      renderHighlights();
+      renderPiecesRef.current();
+      renderCapturedPiecesRef.current();
+      renderHighlightsRef.current();
       setStatus(
         `Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`
       );
@@ -1829,7 +1856,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [renderCapturedPieces, renderPieces]);
+  }, []);
 
   useEffect(() => {
     if (turn !== AI_SIDE || aiBusyRef.current || gameOver) return;
@@ -2093,32 +2120,6 @@ export default function CheckersBattleRoyal() {
     }, 700);
   };
 
-  const capturedPanel = (side, label) => {
-    const captured = capturedBySide[side] || [];
-    return (
-      <div className="rounded-xl border border-white/20 bg-black/55 px-2 py-1 text-[10px] text-white/85 backdrop-blur">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/60">
-          {label}
-        </div>
-        <div className="flex min-h-[1.1rem] flex-wrap gap-1">
-          {captured.length ? (
-            captured.map((piece, idx) => (
-              <span
-                key={`${side}-captured-${idx}`}
-                className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${piece.side === 'light' ? 'bg-red-400/90 text-red-950' : 'bg-cyan-300/90 text-cyan-950'}`}
-                title={piece.king ? 'King' : 'Piece'}
-              >
-                {piece.king ? '♛' : '●'}
-              </span>
-            ))
-          ) : (
-            <span className="text-[9px] text-white/45">—</span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const optionButton = (active) =>
     `rounded-lg border px-2 py-1 text-[11px] ${active ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`;
 
@@ -2334,12 +2335,6 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute inset-0 z-10 pointer-events-none">
-          <div className="absolute left-3 top-[24%] z-20">
-            {capturedPanel('dark', 'Rival captures')}
-          </div>
-          <div className="absolute right-3 bottom-[23%] z-20">
-            {capturedPanel('light', 'Your captures')}
-          </div>
           {players.map((player) => (
             <div
               key={`checkers-seat-${player.index}`}
