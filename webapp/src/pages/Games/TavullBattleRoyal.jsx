@@ -47,6 +47,8 @@ const POINT_START_X = 0.08
 
 const TRIANGLE_BASE_Y_OFFSET = 0.125
 const TRIANGLE_HEIGHT = 0.02
+const TRIANGLE_HALF_BASE = 0.056
+const TRIANGLE_APEX_LENGTH = 0.8
 const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + 0.011
 
 const MODEL_SCALE = 0.75
@@ -92,10 +94,6 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
 ]
-const BACKGAMMON_BOARD_MODEL_URLS = Object.freeze([
-  '/assets/models/backgammon/backgammon-board.glb',
-  '/assets/models/backgammon/backgammon-board.gltf'
-])
 const BACKGAMMON_DIE_SIZE = 0.116
 const BACKGAMMON_DIE_CORNER_RADIUS = BACKGAMMON_DIE_SIZE * 0.18
 const BACKGAMMON_DIE_PIP_RADIUS = BACKGAMMON_DIE_SIZE * 0.093
@@ -608,72 +606,62 @@ export default function TavullBattleRoyal() {
     const boardRoot = new THREE.Group()
     scene.add(boardRoot)
 
-    const loadBackgammonBoardModel = async () => {
-      const loader = createConfiguredGLTFLoader(renderer)
-      for (const url of BACKGAMMON_BOARD_MODEL_URLS) {
-        try {
-          const gltf = await loader.loadAsync(url)
-          const model = gltf?.scene || gltf?.scenes?.[0]
-          if (!model) continue
-          prepareLoadedModel(model)
-          model.position.set(0, BOARD_Y + 0.1, 0)
-          model.scale.setScalar(0.85)
-          boardRoot.add(model)
-          return true
-        } catch {
-          // Try next URL and fallback to procedural board.
-        }
-      }
-      return false
-    }
+    const woodMaterial = new THREE.MeshStandardMaterial({ color: '#7b4127', roughness: 0.52, metalness: 0.14 })
+    const trimMaterial = new THREE.MeshStandardMaterial({ color: '#5d2e1b', roughness: 0.48, metalness: 0.22 })
+    const inlayMaterial = new THREE.MeshStandardMaterial({ color: '#f0dfbf', roughness: 0.74, metalness: 0.02 })
+    const pointDarkMaterial = new THREE.MeshStandardMaterial({ color: '#08080b', roughness: 0.66, metalness: 0.08 })
+    const pointLightMaterial = new THREE.MeshStandardMaterial({ color: '#f4f1e8', roughness: 0.7, metalness: 0.04 })
 
-    void loadBackgammonBoardModel().then((loaded) => {
-      if (loaded) return
+    const boardBase = new THREE.Mesh(new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2), woodMaterial)
+    boardBase.position.y = BOARD_Y
+    boardRoot.add(boardBase)
 
-      const boardBase = new THREE.Mesh(
-        new THREE.BoxGeometry(BOARD_HALF_X * 2, 0.12, BOARD_HALF_Z * 2),
-        new THREE.MeshStandardMaterial({ color: '#744225', roughness: 0.5, metalness: 0.16 })
-      )
-      boardBase.position.y = BOARD_Y
-      boardRoot.add(boardBase)
+    const frameOuter = new THREE.Mesh(
+      new THREE.BoxGeometry(BOARD_HALF_X * 1.98, 0.08, BOARD_HALF_Z * 1.98),
+      trimMaterial
+    )
+    frameOuter.position.y = BOARD_Y + 0.1
+    boardRoot.add(frameOuter)
 
-      const felt = new THREE.Mesh(
-        new THREE.BoxGeometry(BOARD_HALF_X * 1.94, 0.03, BOARD_HALF_Z * 1.92),
-        new THREE.MeshStandardMaterial({ color: '#174a32', roughness: 0.9, metalness: 0.02 })
-      )
-      felt.position.y = BOARD_Y + 0.1
-      boardRoot.add(felt)
+    const laneWidth = BOARD_HALF_X * 0.93
+    const laneDepth = BOARD_HALF_Z * 1.82
+    const laneOffset = BOARD_HALF_X * 0.49
+    ;[-1, 1].forEach((side) => {
+      const lane = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.028, laneDepth), inlayMaterial)
+      lane.position.set(side * laneOffset, BOARD_Y + 0.126, 0)
+      boardRoot.add(lane)
+    })
 
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.14, 0.06, BOARD_HALF_Z * 1.88),
-        new THREE.MeshStandardMaterial({ color: '#5e3018', roughness: 0.6, metalness: 0.08 })
-      )
-      bar.position.y = BOARD_Y + 0.11
-      boardRoot.add(bar)
+    const centerBar = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.045, BOARD_HALF_Z * 1.87), trimMaterial)
+    centerBar.position.y = BOARD_Y + 0.128
+    boardRoot.add(centerBar)
 
-      const makeTriangle = (x, top, dark) => {
-      const baseZ = top ? -BOARD_HALF_Z + 0.01 : BOARD_HALF_Z - 0.01
-      const apex = top ? -0.56 : 0.56
+    const hinge = new THREE.Mesh(
+      new THREE.BoxGeometry(0.022, 0.09, BOARD_HALF_Z * 0.25),
+      new THREE.MeshStandardMaterial({ color: '#a9b0ba', roughness: 0.3, metalness: 0.92 })
+    )
+    hinge.position.set(0, BOARD_Y + 0.165, 0)
+    boardRoot.add(hinge)
+
+    const makeTriangle = (x, top, dark) => {
+      const baseZ = top ? -BOARD_HALF_Z + 0.12 : BOARD_HALF_Z - 0.12
+      const apex = top ? -TRIANGLE_APEX_LENGTH : TRIANGLE_APEX_LENGTH
       const shape = new THREE.Shape()
-      shape.moveTo(-0.08, 0)
-      shape.lineTo(0.08, 0)
+      shape.moveTo(-TRIANGLE_HALF_BASE, 0)
+      shape.lineTo(TRIANGLE_HALF_BASE, 0)
       shape.lineTo(0, apex)
       shape.closePath()
       const geom = new THREE.ExtrudeGeometry(shape, { depth: TRIANGLE_HEIGHT, bevelEnabled: false })
       geom.rotateX(-Math.PI / 2)
-      const tri = new THREE.Mesh(
-        geom,
-        new THREE.MeshStandardMaterial({ color: dark ? '#7a2f1d' : '#d8b07d', roughness: 0.72, metalness: 0.05 })
-      )
+      const tri = new THREE.Mesh(geom, dark ? pointDarkMaterial : pointLightMaterial)
       tri.position.set(x, BOARD_Y + TRIANGLE_BASE_Y_OFFSET, baseZ)
       boardRoot.add(tri)
-      }
+    }
 
-      for (let i = 0; i < 24; i += 1) {
-        const p = pointBasePosition(i)
-        makeTriangle(p.x, p.top, i % 2 === 0)
-      }
-    })
+    for (let i = 0; i < 24; i += 1) {
+      const p = pointBasePosition(i)
+      makeTriangle(p.x, p.top, i % 2 === 0)
+    }
 
     const chipGroup = new THREE.Group()
     scene.add(chipGroup)
