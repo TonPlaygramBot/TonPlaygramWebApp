@@ -284,6 +284,7 @@ export default function BadukBattleRoyal() {
   const [board, setBoard] = useState(() => createBoard(rows, cols));
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
+  const [showWinnerActions, setShowWinnerActions] = useState(false);
   const [winningCells, setWinningCells] = useState([]);
   const [hoverCol, setHoverCol] = useState(null);
   const [showChat, setShowChat] = useState(false);
@@ -300,6 +301,15 @@ export default function BadukBattleRoyal() {
 
   useEffect(() => {
     winnerRef.current = winner;
+  }, [winner]);
+
+  useEffect(() => {
+    if (!winner) {
+      setShowWinnerActions(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setShowWinnerActions(true), 5000);
+    return () => window.clearTimeout(timer);
   }, [winner]);
 
   useEffect(() => {
@@ -885,8 +895,8 @@ export default function BadukBattleRoyal() {
       </div>
 
       {winner && (
-        <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-[#0e1324]/95 px-6 pb-6 pt-10 text-center shadow-2xl">
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
             <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
               {Array.from({ length: 14 }).map((_, i) => {
                 const angle = (Math.PI * 2 * i) / 14;
@@ -914,10 +924,12 @@ export default function BadukBattleRoyal() {
             <p className="text-xs uppercase tracking-[0.26em] text-yellow-300">Winner</p>
             <h2 className="mt-2 text-2xl font-bold text-white">{winner === 'draw' ? 'Draw Game' : winner === 'player' ? `${username} Wins!` : 'AI Rival Wins!'}</h2>
             <p className="mt-2 text-sm text-white/75">{winner === 'draw' ? 'No more moves left.' : '4 pieces connected and highlighted.'}</p>
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button type="button" onClick={resetMatch} className="rounded-xl border border-cyan-300/60 bg-cyan-400/20 px-4 py-2 text-sm font-semibold">Play Again</button>
-              <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold">Return Lobby</button>
-            </div>
+            {showWinnerActions && (
+              <div className="pointer-events-auto mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button type="button" onClick={resetMatch} className="rounded-xl border border-cyan-300/70 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-100">Play Again</button>
+                <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-xl border border-white/45 bg-transparent px-4 py-2 text-sm font-semibold text-white">Return Lobby</button>
+              </div>
+            )}
           </div>
         </div>
       )}
