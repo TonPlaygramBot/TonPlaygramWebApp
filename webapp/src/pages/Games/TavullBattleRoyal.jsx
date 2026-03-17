@@ -245,6 +245,51 @@ function makeRoyalDie() {
   return die
 }
 
+function createPointNumberSprite(pointIndex) {
+  const size = 160
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const cx = size / 2
+  const cy = size / 2
+  const radius = size * 0.34
+  const pointNumber = String(pointIndex + 1)
+
+  ctx.clearRect(0, 0, size, size)
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.78)'
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.lineWidth = size * 0.045
+  ctx.strokeStyle = 'rgba(125, 211, 252, 0.96)'
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.stroke()
+
+  ctx.fillStyle = '#f8fafc'
+  ctx.font = `700 ${size * 0.35}px Inter, Arial, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(pointNumber, cx, cy + size * 0.01)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false
+  })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(0.14, 0.14, 1)
+  sprite.renderOrder = 20
+  return sprite
+}
+
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return
   try {
@@ -692,6 +737,13 @@ export default function TavullBattleRoyal() {
     for (let i = 0; i < 24; i += 1) {
       const p = pointBasePosition(i)
       makeTriangle(p.x, p.top, pointColumnFromEdge(p.x) % 2 === 0)
+
+      const pointNumber = createPointNumberSprite(i)
+      if (pointNumber) {
+        const zOffset = p.top ? -POINT_WIDTH * 0.18 : POINT_WIDTH * 0.18
+        pointNumber.position.set(p.x, BOARD_Y + TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + 0.06, p.z + zOffset)
+        boardRoot.add(pointNumber)
+      }
     }
 
     const chipGroup = new THREE.Group()
