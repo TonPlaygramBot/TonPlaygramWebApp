@@ -32,8 +32,7 @@ import {
   collectTurnSequences,
   formatMove,
   initialBoard,
-  pickAiSequence,
-  scorePosition
+  pickAiSequence
 } from '../../utils/tavullEngine.js'
 
 const TABLE_RADIUS = 2.55
@@ -81,9 +80,9 @@ const QUALITY_OPTIONS = Object.freeze([
   { id: 'ultra', label: 'Ultra', pixelRatio: 2, shadows: true }
 ])
 const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
+const CAPTURE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Check.mp3'
 const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
 const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3'
-const DICE_ICON_URL = '/assets/icons/file_000000009160620a96f728f463de1c3f.webp'
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
@@ -102,75 +101,24 @@ const BACKGAMMON_DIE_PIP_RIM_OFFSET = BACKGAMMON_DIE_SIZE * 0.0048
 const BACKGAMMON_DIE_PIP_SPREAD = BACKGAMMON_DIE_SIZE * 0.3
 const BACKGAMMON_DIE_FACE_INSET = BACKGAMMON_DIE_SIZE * 0.064
 
-const BACKGAMMON_DOUBLE_CUBE_SIZE = BACKGAMMON_DIE_SIZE * 1.06
-const BACKGAMMON_DOUBLE_CUBE_VALUES = Object.freeze([2, 4, 8, 16, 32, 64])
+const CHECKERS_CHIP_HEAD_PRESET = Object.freeze({ roughness: 0.18, metalness: 0.35, transmission: 0.18, ior: 1.6, thickness: 0.44 })
+const CHECKERS_CHIP_COLORS = Object.freeze({
+  [WHITE]: '#ef4444',
+  [BLACK]: '#06b6d4'
+})
 
-const nextDoubleCubeValue = (current) => {
-  if (current >= 64) return 64
-  return Math.min(64, Math.max(2, current * 2))
-}
-
-const cubeTopValueForStake = (stake) => (stake <= 1 ? 64 : Math.min(64, stake))
-
-function makeBackgammonDoubleCube(topValue = 64) {
-  const cube = new THREE.Group()
-  const cubeSize = BACKGAMMON_DOUBLE_CUBE_SIZE
-  const faceTone = '#f5efe2'
-  const edgeTone = '#0f172a'
-
-  const makeFaceTexture = (label) => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 256
-    canvas.height = 256
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
-    ctx.fillStyle = faceTone
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.strokeStyle = '#d4c4a8'
-    ctx.lineWidth = 16
-    ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16)
-    ctx.fillStyle = edgeTone
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.font = '700 112px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-    ctx.fillText(String(label), canvas.width / 2, canvas.height / 2)
-    const texture = new THREE.CanvasTexture(canvas)
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.needsUpdate = true
-    return texture
-  }
-
-  const faceMaterials = BACKGAMMON_DOUBLE_CUBE_VALUES.map((value) =>
-    new THREE.MeshStandardMaterial({
-      map: makeFaceTexture(value),
-      roughness: 0.42,
-      metalness: 0.12,
-      color: '#ffffff'
-    })
-  )
-
-  const body = new THREE.Mesh(new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize), faceMaterials)
-  body.castShadow = true
-  body.receiveShadow = true
-  cube.add(body)
-
-  const topFaceByValue = {
-    2: new THREE.Euler(-Math.PI / 2, 0, 0),
-    4: new THREE.Euler(0, 0, 0),
-    8: new THREE.Euler(0, Math.PI / 2, 0),
-    16: new THREE.Euler(0, -Math.PI / 2, 0),
-    32: new THREE.Euler(Math.PI / 2, 0, 0),
-    64: new THREE.Euler(Math.PI, 0, 0)
-  }
-
-  cube.userData.setTopValue = (value) => {
-    cube.userData.topValue = value
-    const euler = topFaceByValue[value] || topFaceByValue[64]
-    cube.quaternion.setFromEuler(euler)
-  }
-
-  cube.userData.setTopValue(topValue)
-  return cube
+function createCheckerMaterial(sideColor, headPreset) {
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(sideColor),
+    roughness: headPreset?.roughness ?? 0.08,
+    metalness: headPreset?.metalness ?? 0,
+    transmission: headPreset?.transmission ?? 0.95,
+    ior: headPreset?.ior ?? 1.5,
+    thickness: headPreset?.thickness ?? 0.5,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.08,
+    specularIntensity: 0.9
+  })
 }
 
 function getDieOrientationQuaternion(val) {
@@ -476,8 +424,6 @@ export default function TavullBattleRoyal() {
   const pendingTimeoutsRef = useRef([])
 
   const [game, setGame] = useState({ points: initialBoard(), bar: { white: 0, black: 0 }, off: { white: 0, black: 0 } })
-  const [cubeValue, setCubeValue] = useState(1)
-  const [cubeOwner, setCubeOwner] = useState(null)
   const [forcedWinner, setForcedWinner] = useState(null)
   const [dice, setDice] = useState([])
   const [available, setAvailable] = useState([])
@@ -733,10 +679,6 @@ export default function TavullBattleRoyal() {
       return mesh
     })
 
-    const doubleCube = makeBackgammonDoubleCube(64)
-    doubleCube.position.set(0, BOARD_Y + 0.19, 0)
-    scene.add(doubleCube)
-
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
     const boardPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(BOARD_Y + 0.16))
@@ -842,9 +784,6 @@ export default function TavullBattleRoyal() {
           })
         })
       },
-      setDoubleCubeValue: (stake = 1) => {
-        doubleCube.userData.setTopValue?.(cubeTopValueForStake(stake))
-      },
       applyViewMode,
       applyTableFinish: (idx) => applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[idx] || MURLAN_TABLE_FINISHES[0]),
       applyHdri: (idx) => loadHdriEnvironment(scene, idx),
@@ -880,10 +819,6 @@ export default function TavullBattleRoyal() {
     if (!bundle?.applyViewMode) return
     bundle.applyViewMode(viewMode)
   }, [viewMode])
-
-  useEffect(() => {
-    sceneBundleRef.current?.setDoubleCubeValue?.(cubeValue)
-  }, [cubeValue])
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
@@ -927,16 +862,42 @@ export default function TavullBattleRoyal() {
     chipGroup.clear()
 
     const createChip = (color) => {
-      const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.07, 0.045, 28),
+      const pieceGroup = new THREE.Group()
+      const sideColor = CHECKERS_CHIP_COLORS[color] || CHECKERS_CHIP_COLORS[WHITE]
+      const baseMaterial = createCheckerMaterial(sideColor, CHECKERS_CHIP_HEAD_PRESET)
+
+      const chip = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.075, 0.071, 0.048, 56, 1, false),
+        baseMaterial
+      )
+      chip.castShadow = true
+      chip.receiveShadow = true
+      pieceGroup.add(chip)
+
+      const topCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.061, 0.018, 48),
+        baseMaterial.clone()
+      )
+      topCap.position.y = 0.028
+      topCap.castShadow = true
+      topCap.receiveShadow = true
+      pieceGroup.add(topCap)
+
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.051, 0.0046, 16, 64),
         new THREE.MeshStandardMaterial({
-          color: color === WHITE ? '#f2f2f2' : '#191919',
-          roughness: 0.35,
-          metalness: 0.18
+          color: '#f8fafc',
+          metalness: 0.88,
+          roughness: 0.25,
+          transparent: true,
+          opacity: 0.85
         })
       )
-      mesh.castShadow = true
-      return mesh
+      rim.rotation.x = Math.PI / 2
+      rim.position.y = 0.032
+      pieceGroup.add(rim)
+
+      return pieceGroup
     }
 
     const highlightTargets = new Set()
@@ -1007,9 +968,12 @@ export default function TavullBattleRoyal() {
       if (!isMountedRef.current) return
       const move = line[idx]
       setActiveMoveHighlight({ from: move.from, to: move.to, color })
+      const opponent = color === WHITE ? BLACK : WHITE
+      const previousOpponentBar = currentState.bar[opponent]
       currentState = applyMove(currentState, color, move)
       setGame(currentState)
-      playSfx(MOVE_SOUND_URL, 0.65)
+      const wasCapture = currentState.bar[opponent] > previousOpponentBar
+      playSfx(wasCapture ? CAPTURE_SOUND_URL : MOVE_SOUND_URL, wasCapture ? 0.7 : 0.65)
       idx += 1
       if (idx < line.length) {
         const timeoutId = window.setTimeout(runStep, 460)
@@ -1025,63 +989,7 @@ export default function TavullBattleRoyal() {
     runStep()
   }
 
-  const finishByDoubleDrop = (color, note) => {
-    setForcedWinner(color)
-    setAiThinking(false)
-    setIsRollingDice(false)
-    setAvailable([])
-    setDice([])
-    if (note) setMessage(note)
-  }
-
-  const applyAcceptedDouble = (offeredBy) => {
-    const nextValue = nextDoubleCubeValue(cubeValue)
-    setCubeValue(nextValue)
-    setCubeOwner(offeredBy)
-    return nextValue
-  }
-
-  const canPlayerOfferDouble = !winner && !aiThinking && !isRollingDice && available.length === 0 && (cubeOwner == null || cubeOwner === WHITE)
-
-  const offerDoubleByPlayer = () => {
-    if (!canPlayerOfferDouble) return
-    const blackScore = scorePosition(game, BLACK)
-    setMessage('You offered Double. AI is deciding…')
-    setAiThinking(true)
-    const timeoutId = window.setTimeout(() => {
-      if (!isMountedRef.current) return
-      if (blackScore < -80) {
-        finishByDoubleDrop(WHITE, 'AI passed your Double. You win the game.')
-        return
-      }
-      const nextValue = applyAcceptedDouble(WHITE)
-      setAiThinking(false)
-      setMessage(`AI accepted. Cube is now ${nextValue}. Roll dice.`)
-    }, 620)
-    pendingTimeoutsRef.current.push(timeoutId)
-  }
-
-  const playAi = (stateAfterPlayer, allowDoubleOffer = true) => {
-    const canAiOfferDouble = allowDoubleOffer && !winner && cubeValue < 64 && (cubeOwner == null || cubeOwner === BLACK)
-    if (canAiOfferDouble && scorePosition(stateAfterPlayer, BLACK) > 55) {
-      setAiThinking(true)
-      setMessage('AI offers Double. Evaluating your position…')
-      const timeoutId = window.setTimeout(() => {
-        if (!isMountedRef.current) return
-        const whiteScore = scorePosition(stateAfterPlayer, WHITE)
-        if (whiteScore < -85) {
-          finishByDoubleDrop(BLACK, 'You passed the Double. AI wins this game.')
-          return
-        }
-        const nextValue = applyAcceptedDouble(BLACK)
-        setMessage(`You accepted. Cube is now ${nextValue}. AI is rolling…`)
-        setAiThinking(false)
-        playAi(stateAfterPlayer, false)
-      }, 720)
-      pendingTimeoutsRef.current.push(timeoutId)
-      return
-    }
-
+  const playAi = (stateAfterPlayer) => {
     const d1 = 1 + Math.floor(Math.random() * 6)
     const d2 = 1 + Math.floor(Math.random() * 6)
     const visibleAiDice = [d1, d2]
@@ -1103,14 +1011,14 @@ export default function TavullBattleRoyal() {
         console.error('Backgammon AI turn crashed, skipping turn safely.', error)
       }
       if (!choice || !choice.line.length) {
-        setMessage(`AI rolled ${d1}/${d2} but had no legal move. Your turn. Cube ${cubeValue}.`)
+        setMessage(`AI rolled ${d1}/${d2} but had no legal move. Your turn.`)
         setAiThinking(false)
         setDice([])
         setAvailable([])
         return
       }
       animateSequence(stateAfterPlayer, BLACK, choice, () => {
-        setMessage(`AI played ${choice.line.length} move(s). Your turn. Cube ${cubeValue}.`)
+        setMessage(`AI played ${choice.line.length} move(s). Your turn.`)
         setAiThinking(false)
         setDice([])
         setAvailable([])
@@ -1146,7 +1054,7 @@ export default function TavullBattleRoyal() {
         playAi(game)
         return
       }
-      setMessage(`Tap a checker/point to move, or choose a legal turn from the list. Cube ${cubeValue}.`)
+      setMessage('Tap a checker/point to move, or choose a legal turn from the list.')
     }, 820)
     pendingTimeoutsRef.current.push(timeoutId)
   }
@@ -1338,19 +1246,6 @@ export default function TavullBattleRoyal() {
       )}
 
       <div className="absolute left-1/2 top-[75%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
-        <div className="rounded-full border border-amber-300/40 bg-black/45 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber-100">
-          Cube {cubeValue}
-        </div>
-        {!!dice.length && (
-          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1">
-            {dice.map((value, index) => (
-              <div key={`dice-ui-${index}`} className="relative h-8 w-8 overflow-hidden rounded-md border border-white/30">
-                <img src={DICE_ICON_URL} alt="dice" className="h-full w-full object-cover" />
-                <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">{value}</span>
-              </div>
-            ))}
-          </div>
-        )}
         <button
           type="button"
           onClick={roll}
@@ -1358,14 +1253,6 @@ export default function TavullBattleRoyal() {
           className="rounded-xl border border-white/30 bg-transparent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
           Roll Dice
-        </button>
-        <button
-          type="button"
-          onClick={offerDoubleByPlayer}
-          disabled={!canPlayerOfferDouble || cubeValue >= 64}
-          className="rounded-xl border border-amber-300/45 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50"
-        >
-          Double
         </button>
       </div>
 
