@@ -67,6 +67,8 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
+const CAPTURE_EDGE_OFFSET_IN_TILES = 1.08;
+const CAPTURE_EDGE_COLUMNS = 8;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -1104,57 +1106,80 @@ export default function CheckersBattleRoyal() {
       group.clear();
       const board = boardRef.current;
       const { x, y, z, tile } = boardOriginRef.current;
+
+      const createPieceMesh = (piece, scale = 1) => {
+        const pieceGroup = new THREE.Group();
+        const baseMaterial = createCheckerMaterial(
+          piece.side === 'light' ? chipSet.light : chipSet.dark,
+          checkerHeadPreset
+        );
+        const chip = new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            tile * 0.352 * scale,
+            tile * 0.332 * scale,
+            tile * 0.176 * scale,
+            56,
+            1,
+            false
+          ),
+          baseMaterial
+        );
+        chip.castShadow = true;
+        chip.receiveShadow = true;
+        pieceGroup.add(chip);
+
+        const topCap = new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            tile * 0.264 * scale,
+            tile * 0.292 * scale,
+            tile * 0.064 * scale,
+            48
+          ),
+          baseMaterial.clone()
+        );
+        topCap.position.y = tile * 0.106 * scale;
+        topCap.castShadow = true;
+        topCap.receiveShadow = true;
+        pieceGroup.add(topCap);
+
+        const rim = new THREE.Mesh(
+          new THREE.TorusGeometry(tile * 0.242 * scale, tile * 0.019 * scale, 16, 64),
+          new THREE.MeshStandardMaterial({
+            color: '#f8fafc',
+            metalness: 0.88,
+            roughness: 0.25,
+            transparent: true,
+            opacity: 0.85
+          })
+        );
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = tile * 0.118 * scale;
+        pieceGroup.add(rim);
+
+        if (piece.king) {
+          const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(tile * 0.16 * scale, tile * 0.038 * scale, 12, 32),
+            new THREE.MeshStandardMaterial({
+              color: '#facc15',
+              metalness: 0.94,
+              roughness: 0.14,
+              emissive: '#9a6c00',
+              emissiveIntensity: 0.2
+            })
+          );
+          ring.rotation.x = Math.PI / 2;
+          ring.position.y = tile * 0.13 * scale;
+          pieceGroup.add(ring);
+        }
+
+        return pieceGroup;
+      };
+
       for (let r = 0; r < SIZE; r += 1) {
         for (let c = 0; c < SIZE; c += 1) {
           const piece = board[r][c];
           if (!piece) continue;
-          const pieceGroup = new THREE.Group();
-          const baseMaterial = createCheckerMaterial(
-            piece.side === 'light' ? chipSet.light : chipSet.dark,
-            checkerHeadPreset
-          );
-          const chip = new THREE.Mesh(
-            new THREE.CylinderGeometry(
-              tile * 0.352,
-              tile * 0.332,
-              tile * 0.176,
-              56,
-              1,
-              false
-            ),
-            baseMaterial
-          );
-          chip.castShadow = true;
-          chip.receiveShadow = true;
-          pieceGroup.add(chip);
-
-          const topCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(
-              tile * 0.264,
-              tile * 0.292,
-              tile * 0.064,
-              48
-            ),
-            baseMaterial.clone()
-          );
-          topCap.position.y = tile * 0.106;
-          topCap.castShadow = true;
-          topCap.receiveShadow = true;
-          pieceGroup.add(topCap);
-
-          const rim = new THREE.Mesh(
-            new THREE.TorusGeometry(tile * 0.242, tile * 0.019, 16, 64),
-            new THREE.MeshStandardMaterial({
-              color: '#f8fafc',
-              metalness: 0.88,
-              roughness: 0.25,
-              transparent: true,
-              opacity: 0.85
-            })
-          );
-          rim.rotation.x = Math.PI / 2;
-          rim.position.y = tile * 0.118;
-          pieceGroup.add(rim);
+          const pieceGroup = createPieceMesh(piece);
 
           pieceGroup.position.set(
             x + (c - 3.5) * tile,
@@ -1162,26 +1187,41 @@ export default function CheckersBattleRoyal() {
             z + (r - 3.5) * tile
           );
           pieceGroup.userData = { r, c, side: piece.side };
-          if (piece.king) {
-            const ring = new THREE.Mesh(
-              new THREE.TorusGeometry(tile * 0.16, tile * 0.038, 12, 32),
-              new THREE.MeshStandardMaterial({
-                color: '#facc15',
-                metalness: 0.94,
-                roughness: 0.14,
-                emissive: '#9a6c00',
-                emissiveIntensity: 0.2
-              })
-            );
-            ring.rotation.x = Math.PI / 2;
-            ring.position.y = tile * 0.13;
-            pieceGroup.add(ring);
-          }
           group.add(pieceGroup);
         }
       }
+
+      const placeCapturedRow = (captured, zPosition) => {
+        captured.forEach((piece, idx) => {
+          const row = Math.floor(idx / CAPTURE_EDGE_COLUMNS);
+          const col = idx % CAPTURE_EDGE_COLUMNS;
+          const centeredCol = col - (CAPTURE_EDGE_COLUMNS - 1) / 2;
+          const chip = createPieceMesh(piece, 0.8);
+          chip.position.set(
+            x + centeredCol * tile * 0.92,
+            y + tile * (0.095 + row * 0.19),
+            zPosition
+          );
+          chip.userData = {
+            captured: true,
+            owner: piece.side,
+            row,
+            col
+          };
+          group.add(chip);
+        });
+      };
+
+      placeCapturedRow(
+        capturedBySide.dark || [],
+        z - (SIZE / 2 + CAPTURE_EDGE_OFFSET_IN_TILES) * tile
+      );
+      placeCapturedRow(
+        capturedBySide.light || [],
+        z + (SIZE / 2 + CAPTURE_EDGE_OFFSET_IN_TILES) * tile
+      );
     },
-    [checkerHeadPreset, chipSet.dark, chipSet.light]
+    [capturedBySide.dark, capturedBySide.light, checkerHeadPreset, chipSet.dark, chipSet.light]
   );
 
   useEffect(() => {
