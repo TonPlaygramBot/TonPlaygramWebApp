@@ -62,7 +62,10 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
 // so the playable checker squares need a tighter mapping ratio to keep pieces
 // centered on the dark tiles across portrait/mobile camera angles.
-const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.36;
+// Tuned against the ABeautifulGame board so checker chips sit on the same
+// dark-square centers visible in portrait gameplay references.
+const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.16;
+const REMOTE_ASSET_LOAD_TIMEOUT_MS = 12000;
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -544,7 +547,11 @@ async function loadCheckersBoardModel(renderer = null) {
       loader.setResourcePath(resourcePath);
       loader.setPath('');
       // eslint-disable-next-line no-await-in-loop
-      const gltf = await loader.loadAsync(resolvedUrl);
+      const gltf = await loadWithTimeout(
+        loader.loadAsync(resolvedUrl),
+        REMOTE_ASSET_LOAD_TIMEOUT_MS,
+        `Board load timeout: ${resolvedUrl}`
+      );
       const source = gltf?.scene || gltf?.scenes?.[0];
       if (!source) continue;
 
@@ -805,7 +812,11 @@ async function buildChessMappedChairTemplate() {
   let lastError = null;
   for (const url of CHAIR_MODEL_URLS) {
     try {
-      gltf = await loader.loadAsync(url);
+      gltf = await loadWithTimeout(
+        loader.loadAsync(url),
+        REMOTE_ASSET_LOAD_TIMEOUT_MS,
+        `Chair load timeout: ${url}`
+      );
       break;
     } catch (error) {
       lastError = error;
@@ -826,6 +837,16 @@ async function buildChessMappedChairTemplate() {
   });
   fitChairModelToFootprint(model);
   return model;
+}
+
+function loadWithTimeout(promise, timeoutMs, timeoutMessage) {
+  if (!promise || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    })
+  ]);
 }
 
 function createProceduralChairFallback(chairColor, legColor) {
@@ -1356,6 +1377,57 @@ export default function CheckersBattleRoyal() {
         }
       };
 
+      const addVisibleBoardBase = () => {
+        const boardBase = new THREE.Group();
+        const boardTheme =
+          CHECKERS_BOARD_THEME_OPTIONS.find(
+            (theme) => theme.id === appearance.boardTheme
+          ) || CHECKERS_BOARD_THEME_OPTIONS[0];
+        boardThemeRef.current = boardTheme;
+        const lightMat = new THREE.MeshStandardMaterial({
+          color: boardTheme.light,
+          roughness: 0.34,
+          metalness: 0.22
+        });
+        const darkMat = new THREE.MeshStandardMaterial({
+          color: boardTheme.dark,
+          roughness: 0.4,
+          metalness: 0.28
+        });
+        proceduralBoardRef.current = { lightMat, darkMat };
+        for (let r = 0; r < SIZE; r += 1) {
+          for (let c = 0; c < SIZE; c += 1) {
+            const sq = new THREE.Mesh(
+              new THREE.BoxGeometry(BOARD_TILE_SIZE, 0.06, BOARD_TILE_SIZE),
+              (r + c) % 2 ? darkMat : lightMat
+            );
+            sq.position.set(
+              (c - 3.5) * BOARD_TILE_SIZE,
+              TABLE_HEIGHT + 0.02,
+              (r - 3.5) * BOARD_TILE_SIZE
+            );
+            sq.receiveShadow = true;
+            boardBase.add(sq);
+          }
+        }
+        scene.add(boardBase);
+        return boardBase;
+      };
+
+      const proceduralBoard = addVisibleBoardBase();
+      boardOriginRef.current = {
+        x: 0,
+        y: TABLE_HEIGHT + 0.08,
+        z: 0,
+        tile: BOARD_TILE_SIZE
+      };
+      setupPickTiles();
+      renderPieces();
+      renderHighlights();
+      setStatus(
+        `Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`
+      );
+
       try {
         const table = createMurlanStyleTable({
           arena: scene,
@@ -1420,45 +1492,6 @@ export default function CheckersBattleRoyal() {
           makeFallback(-CHAIR_DISTANCE, 0)
         ];
       }
-
-      const addVisibleBoardBase = () => {
-        const boardBase = new THREE.Group();
-        const boardTheme =
-          CHECKERS_BOARD_THEME_OPTIONS.find(
-            (theme) => theme.id === appearance.boardTheme
-          ) || CHECKERS_BOARD_THEME_OPTIONS[0];
-        boardThemeRef.current = boardTheme;
-        const lightMat = new THREE.MeshStandardMaterial({
-          color: boardTheme.light,
-          roughness: 0.34,
-          metalness: 0.22
-        });
-        const darkMat = new THREE.MeshStandardMaterial({
-          color: boardTheme.dark,
-          roughness: 0.4,
-          metalness: 0.28
-        });
-        proceduralBoardRef.current = { lightMat, darkMat };
-        for (let r = 0; r < SIZE; r += 1) {
-          for (let c = 0; c < SIZE; c += 1) {
-            const sq = new THREE.Mesh(
-              new THREE.BoxGeometry(BOARD_TILE_SIZE, 0.06, BOARD_TILE_SIZE),
-              (r + c) % 2 ? darkMat : lightMat
-            );
-            sq.position.set(
-              (c - 3.5) * BOARD_TILE_SIZE,
-              TABLE_HEIGHT + 0.02,
-              (r - 3.5) * BOARD_TILE_SIZE
-            );
-            sq.receiveShadow = true;
-            boardBase.add(sq);
-          }
-        }
-        scene.add(boardBase);
-        return boardBase;
-      };
-
-      const proceduralBoard = addVisibleBoardBase();
 
       try {
         const boardRoot = await loadCheckersBoardModel(renderer);
