@@ -79,8 +79,7 @@ const QUALITY_OPTIONS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatio: 1.5, shadows: true },
   { id: 'ultra', label: 'Ultra', pixelRatio: 2, shadows: true }
 ])
-const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
-const CAPTURE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Check.mp3'
+const MOVE_SOUND_URL = '/assets/sounds/Callraischip.mp3'
 const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
 const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3'
 const FALLBACK_SEAT_POSITIONS = [
@@ -573,10 +572,14 @@ export default function TavullBattleRoyal() {
     fill.position.set(-4, 4.5, -3)
     scene.add(fill)
 
-    loadHdriEnvironment(scene, 0)
+    const initialHdri = ownedHdriOptions[hdriIdx] || ownedHdriOptions[0]
+    const initialHdriIdx = POOL_ROYALE_HDRI_VARIANTS.findIndex((option) => option.id === initialHdri?.id)
+    loadHdriEnvironment(scene, initialHdriIdx >= 0 ? initialHdriIdx : 0)
 
+    const initialFinish = ownedFinishOptions[tableFinishIdx] || ownedFinishOptions[0]
+    const initialFinishIdx = MURLAN_TABLE_FINISHES.findIndex((option) => option.id === initialFinish?.id)
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT })
-    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[0])
+    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES[initialFinishIdx >= 0 ? initialFinishIdx : 0])
 
     const chairRootA = new THREE.Group()
     chairRootA.position.set(0, CHAIR_BASE_HEIGHT, CHAIR_DISTANCE)
@@ -867,7 +870,7 @@ export default function TavullBattleRoyal() {
       const baseMaterial = createCheckerMaterial(sideColor, CHECKERS_CHIP_HEAD_PRESET)
 
       const chip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.075, 0.071, 0.048, 56, 1, false),
+        new THREE.CylinderGeometry(0.075, 0.071, 0.032, 56, 1, false),
         baseMaterial
       )
       chip.castShadow = true
@@ -875,10 +878,10 @@ export default function TavullBattleRoyal() {
       pieceGroup.add(chip)
 
       const topCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.061, 0.018, 48),
+        new THREE.CylinderGeometry(0.055, 0.061, 0.012, 48),
         baseMaterial.clone()
       )
-      topCap.position.y = 0.028
+      topCap.position.y = 0.018
       topCap.castShadow = true
       topCap.receiveShadow = true
       pieceGroup.add(topCap)
@@ -894,7 +897,7 @@ export default function TavullBattleRoyal() {
         })
       )
       rim.rotation.x = Math.PI / 2
-      rim.position.y = 0.032
+      rim.position.y = 0.02
       pieceGroup.add(rim)
 
       return pieceGroup
@@ -922,7 +925,7 @@ export default function TavullBattleRoyal() {
         const layer = s % 5
         chip.position.set(
           base.x,
-          BOARD_Y + 0.16 + layer * 0.07,
+          BOARD_Y + 0.145 + layer * 0.054,
           base.z + (base.top ? 1 : -1) * (0.12 * stack)
         )
         chipGroup.add(chip)
@@ -947,7 +950,7 @@ export default function TavullBattleRoyal() {
     const makeBarChips = (count, color, zSign) => {
       for (let s = 0; s < count; s += 1) {
         const chip = createChip(color)
-        chip.position.set(0, BOARD_Y + 0.16 + (s % 6) * 0.07, zSign * (0.08 + Math.floor(s / 6) * 0.12))
+        chip.position.set(0, BOARD_Y + 0.145 + (s % 6) * 0.054, zSign * (0.08 + Math.floor(s / 6) * 0.12))
         chipGroup.add(chip)
       }
     }
@@ -973,7 +976,7 @@ export default function TavullBattleRoyal() {
       currentState = applyMove(currentState, color, move)
       setGame(currentState)
       const wasCapture = currentState.bar[opponent] > previousOpponentBar
-      playSfx(wasCapture ? CAPTURE_SOUND_URL : MOVE_SOUND_URL, wasCapture ? 0.7 : 0.65)
+      playSfx(MOVE_SOUND_URL, wasCapture ? 0.76 : 0.7)
       idx += 1
       if (idx < line.length) {
         const timeoutId = window.setTimeout(runStep, 460)
