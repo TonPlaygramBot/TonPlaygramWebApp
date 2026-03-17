@@ -30,7 +30,12 @@ export const BADUK_BOARD_THEMES = Object.freeze([
   { id: 'midnightBamboo', label: 'Midnight Bamboo', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/midnightBamboo.svg', tint: '#a4773f', grid: '#201309' },
   { id: 'stoneTemple', label: 'Stone Temple', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/stoneTemple.svg', tint: '#c6b391', grid: '#2c2c2c' },
   { id: 'sakuraDawn', label: 'Sakura Dawn', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/sakuraDawn.svg', tint: '#d2a084', grid: '#4d2f2d' },
-  { id: 'volcanicAsh', label: 'Volcanic Ash', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/volcanicAsh.svg', tint: '#8e765f', grid: '#1a1715' }
+  { id: 'volcanicAsh', label: 'Volcanic Ash', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/volcanicAsh.svg', tint: '#8e765f', grid: '#1a1715' },
+  { id: 'auroraMint', label: 'Aurora Mint', thumbnail: swatchThumbnail(['#4ade80', '#14532d']), tint: '#4ade80', grid: '#14532d' },
+  { id: 'royalSapphire', label: 'Royal Sapphire', thumbnail: swatchThumbnail(['#3b82f6', '#0f172a']), tint: '#3b82f6', grid: '#0f172a' },
+  { id: 'desertCopper', label: 'Desert Copper', thumbnail: swatchThumbnail(['#f59e0b', '#78350f']), tint: '#f59e0b', grid: '#78350f' },
+  { id: 'violetNebula', label: 'Violet Nebula', thumbnail: swatchThumbnail(['#a855f7', '#312e81']), tint: '#a855f7', grid: '#312e81' },
+  { id: 'iceSilver', label: 'Ice Silver', thumbnail: swatchThumbnail(['#cbd5e1', '#334155']), tint: '#cbd5e1', grid: '#334155' }
 ])
 
 export const BADUK_STONE_STYLES = Object.freeze([
@@ -38,7 +43,12 @@ export const BADUK_STONE_STYLES = Object.freeze([
   { id: 'jadeIvory', label: 'Jade & Ivory', thumbnail: '/assets/game-art/baduk-battle-royal/store/stones/jadeIvory.svg', black: '#0f3b2e', white: '#f8f3d8', blackRoughness: 0.22, whiteRoughness: 0.26 },
   { id: 'obsidianGold', label: 'Obsidian & Gold', thumbnail: '/assets/game-art/baduk-battle-royal/store/stones/obsidianGold.svg', black: '#050506', white: '#f7c24b', blackRoughness: 0.16, whiteRoughness: 0.24 },
   { id: 'coralSky', label: 'Coral & Sky', thumbnail: '/assets/game-art/baduk-battle-royal/store/stones/coralSky.svg', black: '#2463ad', white: '#ff8a6b', blackRoughness: 0.2, whiteRoughness: 0.28 },
-  { id: 'monoInk', label: 'Mono Ink', thumbnail: '/assets/game-art/baduk-battle-royal/store/stones/monoInk.svg', black: '#151515', white: '#dbdbdb', blackRoughness: 0.24, whiteRoughness: 0.24 }
+  { id: 'monoInk', label: 'Mono Ink', thumbnail: '/assets/game-art/baduk-battle-royal/store/stones/monoInk.svg', black: '#151515', white: '#dbdbdb', blackRoughness: 0.24, whiteRoughness: 0.24 },
+  { id: 'rubyPearl', label: 'Ruby & Pearl', thumbnail: swatchThumbnail(['#991b1b', '#fef2f2']), black: '#991b1b', white: '#fef2f2', blackRoughness: 0.22, whiteRoughness: 0.2 },
+  { id: 'tealSand', label: 'Teal & Sand', thumbnail: swatchThumbnail(['#0f766e', '#fef3c7']), black: '#0f766e', white: '#fef3c7', blackRoughness: 0.24, whiteRoughness: 0.28 },
+  { id: 'plasmaSun', label: 'Plasma & Sun', thumbnail: swatchThumbnail(['#7c3aed', '#facc15']), black: '#7c3aed', white: '#facc15', blackRoughness: 0.18, whiteRoughness: 0.24 },
+  { id: 'graphiteRose', label: 'Graphite & Rose', thumbnail: swatchThumbnail(['#1f2937', '#f472b6']), black: '#1f2937', white: '#f472b6', blackRoughness: 0.26, whiteRoughness: 0.26 },
+  { id: 'oceanFrost', label: 'Ocean & Frost', thumbnail: swatchThumbnail(['#0c4a6e', '#dbeafe']), black: '#0c4a6e', white: '#dbeafe', blackRoughness: 0.2, whiteRoughness: 0.2 }
 ])
 
 export const BADUK_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
