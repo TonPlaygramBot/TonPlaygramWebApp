@@ -34,7 +34,12 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_CENTER_LIFT = 0.54;
+const BOARD_CENTER_LIFT = 0.68;
+const CONNECT4_WOOD = '#4b2b1f';
+const CONNECT4_WOOD_DARK = '#2d170f';
+const CONNECT4_PANEL = '#efe9d5';
+const CONNECT4_RED = '#e3342f';
+const CONNECT4_BLUE = '#2d79d8';
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -303,26 +308,25 @@ export default function BadukBattleRoyal() {
     if (!group) return;
     group.clear();
     piecesMapRef.current.clear();
-    const style = BADUK_STONE_STYLES.find((s) => s.id === appearance.stoneStyle) || BADUK_STONE_STYLES[0];
-    const playerMat = new THREE.MeshStandardMaterial({ color: style.white || '#f8fafc', roughness: style.whiteRoughness ?? 0.2, metalness: 0.05 });
-    const aiMat = new THREE.MeshStandardMaterial({ color: style.black || '#1f2937', roughness: style.blackRoughness ?? 0.18, metalness: 0.06 });
-    const rimMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.35, metalness: 0.1 });
+    const playerMat = new THREE.MeshStandardMaterial({ color: CONNECT4_RED, roughness: 0.35, metalness: 0.03 });
+    const aiMat = new THREE.MeshStandardMaterial({ color: CONNECT4_BLUE, roughness: 0.3, metalness: 0.03 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: '#1f1a16', roughness: 0.5, metalness: 0.02 });
 
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         if (!boardState[r][c]) continue;
         const [x, y, z] = worldFromCell(r, c);
         const token = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(slotRadius * 0.92, slotRadius * 0.92, 0.075, 42), boardState[r][c] === 'player' ? playerMat : aiMat);
-        const domeA = new THREE.Mesh(new THREE.SphereGeometry(slotRadius * 0.86, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2), boardState[r][c] === 'player' ? playerMat : aiMat);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(slotRadius * 0.94, slotRadius * 0.94, 0.12, 42), boardState[r][c] === 'player' ? playerMat : aiMat);
+        const domeA = new THREE.Mesh(new THREE.SphereGeometry(slotRadius * 0.87, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2), boardState[r][c] === 'player' ? playerMat : aiMat);
         domeA.rotation.x = Math.PI;
         domeA.position.y = 0.038;
         const domeB = domeA.clone();
         domeB.position.y = -0.038;
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(slotRadius * 0.88, 0.01, 12, 36), rimMat);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(slotRadius * 0.9, 0.008, 12, 36), rimMat);
         rim.rotation.x = Math.PI / 2;
         token.add(body, domeA, domeB, rim);
-        token.position.set(x, y, z + 0.08);
+        token.position.set(x, y, z + 0.03);
         token.rotation.x = Math.PI / 2;
         group.add(token);
         piecesMapRef.current.set(`${r}-${c}`, token);
@@ -388,40 +392,87 @@ export default function BadukBattleRoyal() {
     });
 
     const boardGroup = new THREE.Group();
-    const boardTheme = BADUK_BOARD_THEMES.find((theme) => theme.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
 
-    const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(boardWidth + 0.38, boardHeight + 0.38, 0.28),
-      new THREE.MeshStandardMaterial({ color: boardTheme.tint || '#d7a359', roughness: 0.35, metalness: 0.08 })
-    );
-    frame.position.set(0, boardCenterY, 0);
-    frame.castShadow = true;
-    boardGroup.add(frame);
+    const railMat = new THREE.MeshStandardMaterial({ color: CONNECT4_WOOD, roughness: 0.52, metalness: 0.08 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: CONNECT4_WOOD_DARK, roughness: 0.48, metalness: 0.1 });
+
+    const boardThickness = 0.08;
+    const boardShape = new THREE.Shape();
+    boardShape.moveTo(-boardWidth / 2, -boardHeight / 2);
+    boardShape.lineTo(boardWidth / 2, -boardHeight / 2);
+    boardShape.lineTo(boardWidth / 2, boardHeight / 2);
+    boardShape.lineTo(-boardWidth / 2, boardHeight / 2);
+    boardShape.lineTo(-boardWidth / 2, -boardHeight / 2);
+
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        const x = -boardWidth / 2 + (c + 0.5) * xStep;
+        const y = boardHeight / 2 - (r + 0.5) * yStep;
+        const holePath = new THREE.Path();
+        holePath.absellipse(x, y, slotRadius * 0.86, slotRadius * 0.86, 0, Math.PI * 2, true);
+        boardShape.holes.push(holePath);
+      }
+    }
 
     const boardFace = new THREE.Mesh(
-      new THREE.BoxGeometry(boardWidth, boardHeight, 0.18),
-      new THREE.MeshStandardMaterial({ color: boardTheme.grid || '#334155', roughness: 0.22, metalness: 0.14 })
+      new THREE.ExtrudeGeometry(boardShape, { depth: boardThickness, bevelEnabled: false, curveSegments: 42 }),
+      new THREE.MeshStandardMaterial({ color: CONNECT4_PANEL, roughness: 0.74, metalness: 0.02, side: THREE.DoubleSide })
     );
-    boardFace.position.set(0, boardCenterY, 0.04);
+    boardFace.position.set(0, boardCenterY, -boardThickness / 2);
     boardFace.castShadow = true;
     boardFace.receiveShadow = true;
     boardGroup.add(boardFace);
 
-    const holeGeo = new THREE.CylinderGeometry(slotRadius * 0.86, slotRadius * 0.9, 0.16, 40);
-    const holeMat = new THREE.MeshStandardMaterial({ color: '#020617', roughness: 0.22, metalness: 0.1 });
-    const holeRimGeo = new THREE.TorusGeometry(slotRadius * 0.95, slotRadius * 0.11, 14, 40);
-    const holeRimMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.3, metalness: 0.24 });
+    const topRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.32, 0.12, 0.16), railMat);
+    topRail.position.set(0, boardCenterY + boardHeight / 2 + 0.11, 0.04);
+    boardGroup.add(topRail);
+
+    const slotCutGeo = new THREE.BoxGeometry(xStep * 0.68, 0.06, 0.08);
+    const slotCutMat = new THREE.MeshStandardMaterial({ color: '#1a120d', roughness: 0.65, metalness: 0.02 });
+    for (let c = 0; c < cols; c += 1) {
+      const slotCut = new THREE.Mesh(slotCutGeo, slotCutMat);
+      slotCut.position.set(-boardWidth / 2 + (c + 0.5) * xStep, boardCenterY + boardHeight / 2 + 0.11, 0.08);
+      boardGroup.add(slotCut);
+    }
+
+    const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.32, 0.12, 0.18), railMat);
+    bottomRail.position.set(0, boardCenterY - boardHeight / 2 - 0.12, 0.03);
+    boardGroup.add(bottomRail);
+
+    const sideOffset = boardWidth / 2 + 0.12;
+    const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.12, boardHeight + 0.24, 0.18), railMat);
+    leftRail.position.set(-sideOffset, boardCenterY, 0.03);
+    const rightRail = leftRail.clone();
+    rightRail.position.x = sideOffset;
+    boardGroup.add(leftRail, rightRail);
+
+    const legHeight = boardHeight * 0.68;
+    const legY = boardCenterY - boardHeight / 2 - legHeight / 2 - 0.02;
+    const legLeft = new THREE.Mesh(new THREE.BoxGeometry(0.16, legHeight, 0.2), trimMat);
+    legLeft.position.set(-sideOffset, legY, 0.02);
+    const legRight = legLeft.clone();
+    legRight.position.x = sideOffset;
+    boardGroup.add(legLeft, legRight);
+
+    const footY = boardCenterY - boardHeight / 2 - legHeight - 0.02;
+    const footGeo = new THREE.BoxGeometry(0.54, 0.16, 0.28);
+    const leftFoot = new THREE.Mesh(footGeo, railMat);
+    leftFoot.position.set(-sideOffset - 0.04, footY, 0.04);
+    const rightFoot = leftFoot.clone();
+    rightFoot.position.x = sideOffset + 0.04;
+    boardGroup.add(leftFoot, rightFoot);
+
+    const holeRimGeo = new THREE.TorusGeometry(slotRadius * 0.9, slotRadius * 0.022, 10, 34);
+    const holeRimMat = new THREE.MeshStandardMaterial({ color: '#8f7a63', roughness: 0.55, metalness: 0.03 });
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         const [x, y] = worldFromCell(r, c);
-        const hole = new THREE.Mesh(holeGeo, holeMat);
-        hole.position.set(x, y, 0.07);
-        hole.rotation.x = Math.PI / 2;
-        boardGroup.add(hole);
-        const rim = new THREE.Mesh(holeRimGeo, holeRimMat);
-        rim.position.set(x, y, 0.125);
-        rim.rotation.x = Math.PI / 2;
-        boardGroup.add(rim);
+        const frontRim = new THREE.Mesh(holeRimGeo, holeRimMat);
+        frontRim.position.set(x, y, boardThickness / 2 + 0.002);
+        frontRim.rotation.x = Math.PI / 2;
+        const backRim = frontRim.clone();
+        backRim.position.z = -boardThickness / 2 - 0.002;
+        boardGroup.add(frontRim, backRim);
       }
     }
 
