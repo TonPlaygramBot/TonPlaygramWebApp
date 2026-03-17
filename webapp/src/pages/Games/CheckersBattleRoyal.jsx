@@ -1076,9 +1076,9 @@ export default function CheckersBattleRoyal() {
           );
           const chip = new THREE.Mesh(
             new THREE.CylinderGeometry(
+              tile * 0.352,
               tile * 0.332,
-              tile * 0.312,
-              tile * 0.158,
+              tile * 0.176,
               56,
               1,
               false
@@ -1090,16 +1090,16 @@ export default function CheckersBattleRoyal() {
           pieceGroup.add(chip);
 
           const topCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(tile * 0.246, tile * 0.274, tile * 0.058, 48),
+            new THREE.CylinderGeometry(tile * 0.264, tile * 0.292, tile * 0.064, 48),
             baseMaterial.clone()
           );
-          topCap.position.y = tile * 0.094;
+          topCap.position.y = tile * 0.106;
           topCap.castShadow = true;
           topCap.receiveShadow = true;
           pieceGroup.add(topCap);
 
           const rim = new THREE.Mesh(
-            new THREE.TorusGeometry(tile * 0.228, tile * 0.019, 16, 64),
+            new THREE.TorusGeometry(tile * 0.242, tile * 0.019, 16, 64),
             new THREE.MeshStandardMaterial({
               color: '#f8fafc',
               metalness: 0.88,
@@ -1109,12 +1109,12 @@ export default function CheckersBattleRoyal() {
             })
           );
           rim.rotation.x = Math.PI / 2;
-          rim.position.y = tile * 0.105;
+          rim.position.y = tile * 0.118;
           pieceGroup.add(rim);
 
           pieceGroup.position.set(
             x + (c - 3.5) * tile,
-            y + tile * 0.09,
+            y + tile * 0.1,
             z + (r - 3.5) * tile
           );
           pieceGroup.userData = { r, c, side: piece.side };
@@ -1255,10 +1255,14 @@ export default function CheckersBattleRoyal() {
     controls.target.set(0, TABLE_HEIGHT, 0);
     controls.enablePan = true;
     controls.screenSpacePanning = true;
+    controls.enableZoom = true;
     controls.minDistance = TABLE_RADIUS * 1.85;
     controls.maxDistance = TABLE_RADIUS * 4.9;
     controls.minPolarAngle = THREE.MathUtils.degToRad(28);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
+    controls.rotateSpeed = 0.85;
+    controls.zoomSpeed = 0.7;
+    controls.panSpeed = 0.6;
 
     scene.add(new THREE.AmbientLight('#ffffff', 0.5));
     const key = new THREE.DirectionalLight('#ffffff', 1.08);
