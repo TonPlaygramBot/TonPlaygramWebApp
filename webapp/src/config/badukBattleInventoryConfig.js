@@ -1,22 +1,15 @@
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js'
+import { MURLAN_TABLE_THEMES } from './murlanThemes.js'
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js'
 import { swatchThumbnail } from './storeThumbnails.js'
+import { CHESS_CHAIR_OPTIONS } from './chessBattleInventoryConfig.js'
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id
 
-const mapStoolThemeToChair = (theme) => ({
-  ...theme,
-  primary: theme.seatColor || theme.primary || '#7c3aed',
-  accent: theme.accent || theme.highlight || theme.seatColor,
-  legColor: theme.legColor || theme.baseColor || '#111827',
-  preserveMaterials: theme.preserveMaterials ?? theme.source === 'polyhaven'
-})
-
-export const BADUK_CHAIR_OPTIONS = Object.freeze([...MURLAN_STOOL_THEMES.map(mapStoolThemeToChair)])
+export const BADUK_CHAIR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS])
 export const BADUK_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES])
 
 export const BADUK_BOARD_LAYOUTS = Object.freeze([
@@ -25,11 +18,9 @@ export const BADUK_BOARD_LAYOUTS = Object.freeze([
 ])
 
 export const BADUK_BOARD_THEMES = Object.freeze([
-  { id: 'classicKaya', label: 'Classic Kaya', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/classicKaya.svg', tint: '#e2ae68', grid: '#2a1709' },
-  { id: 'midnightBamboo', label: 'Midnight Bamboo', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/midnightBamboo.svg', tint: '#a4773f', grid: '#201309' },
-  { id: 'stoneTemple', label: 'Stone Temple', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/stoneTemple.svg', tint: '#c6b391', grid: '#2c2c2c' },
-  { id: 'sakuraDawn', label: 'Sakura Dawn', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/sakuraDawn.svg', tint: '#d2a084', grid: '#4d2f2d' },
-  { id: 'volcanicAsh', label: 'Volcanic Ash', thumbnail: '/assets/game-art/baduk-battle-royal/store/boards/volcanicAsh.svg', tint: '#8e765f', grid: '#1a1715' },
+  { id: 'classicArena', label: 'Classic Arena', thumbnail: '/assets/icons/four-in-row-royale.svg', tint: '#f2d3a2', grid: '#6b3e1f' },
+  { id: 'midnightArena', label: 'Midnight Arena', thumbnail: '/assets/icons/four-in-row-royale.svg', tint: '#94a3b8', grid: '#0f172a' },
+  { id: 'rubyArena', label: 'Ruby Arena', thumbnail: '/assets/icons/four-in-row-royale.svg', tint: '#fca5a5', grid: '#7f1d1d' },
   { id: 'auroraMint', label: 'Aurora Mint', thumbnail: swatchThumbnail(['#4ade80', '#14532d']), tint: '#4ade80', grid: '#14532d' },
   { id: 'royalSapphire', label: 'Royal Sapphire', thumbnail: swatchThumbnail(['#3b82f6', '#0f172a']), tint: '#3b82f6', grid: '#0f172a' },
   { id: 'desertCopper', label: 'Desert Copper', thumbnail: swatchThumbnail(['#f59e0b', '#78350f']), tint: '#f59e0b', grid: '#78350f' },
