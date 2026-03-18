@@ -56,10 +56,6 @@ import {
   BADUK_BATTLE_STORE_ITEMS
 } from '../config/badukBattleInventoryConfig.js';
 import {
-  BACKGAMMON_ROYAL_OPTION_LABELS,
-  BACKGAMMON_ROYAL_STORE_ITEMS
-} from '../config/backgammonRoyalInventoryConfig.js';
-import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
@@ -171,13 +167,6 @@ const CHESS_TYPE_LABELS = {
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
   environmentHdri: 'HDR Environments'
-};
-const BACKGAMMON_TYPE_LABELS = {
-  ...CHESS_TYPE_LABELS,
-  boardFinish: 'Board Textures',
-  boardFrameFinish: 'Board Frame',
-  playerOnePieceStyle: 'Player 1 Pieces',
-  playerTwoPieceStyle: 'Player 2 Pieces'
 };
 
 const BADUK_TYPE_LABELS = {
@@ -576,11 +565,11 @@ const USAGE_BY_TYPE = {
   },
   boardFinish: {
     title: 'Board finish',
-    description: 'Applies octagon-table finish textures to the board faces and play surface.'
+    description: 'Applies octagon-table finish textures to the 4 in a Row board faces.'
   },
   boardFrameFinish: {
     title: 'Board frame',
-    description: 'Updates the board frame and center accents with chrome, gold, aluminium, or plastic finishes.'
+    description: 'Updates the 4 in a Row board frame and stand with octagon-table textures.'
   },
   ringFinish: {
     title: 'Ring finish',
@@ -971,7 +960,7 @@ export default function Store() {
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
       checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'checkersbattleroyal' })),
       badukbattleroyal: BADUK_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'badukbattleroyal' })),
-      tavullbattleroyal: [...CHESS_BATTLE_STORE_ITEMS, ...BACKGAMMON_ROYAL_STORE_ITEMS].map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tavullbattleroyal' })),
+      tavullbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tavullbattleroyal' })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'domino-royal' })),
@@ -1009,10 +998,7 @@ export default function Store() {
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       badukbattleroyal: (item) => BADUK_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tavullbattleroyal: (item) =>
-        BACKGAMMON_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] ||
-        CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] ||
-        item.name,
+      tavullbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -1030,7 +1016,7 @@ export default function Store() {
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHESS_TYPE_LABELS,
       badukbattleroyal: BADUK_TYPE_LABELS,
-      tavullbattleroyal: BACKGAMMON_TYPE_LABELS,
+      tavullbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
