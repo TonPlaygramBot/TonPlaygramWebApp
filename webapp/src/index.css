@@ -1340,7 +1340,7 @@ input:focus {
 
 @keyframes coin-up {
   to {
-    transform: translate(calc(-50% + var(--dx)), 160px);
+    transform: translate(calc(-50% + var(--dx)), var(--dy, 160px));
     opacity: 0;
   }
 }
