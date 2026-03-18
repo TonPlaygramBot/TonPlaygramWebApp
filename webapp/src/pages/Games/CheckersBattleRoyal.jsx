@@ -26,7 +26,6 @@ import {
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
-import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import {
   CHESS_BATTLE_OPTION_LABELS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
@@ -39,13 +38,14 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { bombSound, chatBeep } from '../../assets/soundData.js';
+import { bombSound } from '../../assets/soundData.js';
 import coinConfetti from '../../utils/coinConfetti';
 import { getGameVolume } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import {
   chessBattleAccountId,
-  getChessBattleInventory
+  getChessBattleInventory,
+  isChessOptionUnlocked
 } from '../../utils/chessBattleInventory.js';
 
 const SIZE = 8;
@@ -84,6 +84,7 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
 const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
+const CHECKERS_ROOM_HALF_SPAN = 8.8;
 const DRACO_DECODER_PATH =
   'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -215,22 +216,20 @@ const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   capture: '#ff8e6e'
 });
 
-const CHIP_SETS = [
-  { id: 'ruby-cyan', label: 'Ruby/Cyan', light: '#ef4444', dark: '#06b6d4' },
-  {
-    id: 'emerald-violet',
-    label: 'Emerald/Violet',
-    light: '#10b981',
-    dark: '#8b5cf6'
-  },
-  {
-    id: 'amber-slate',
-    label: 'Amber/Slate',
-    light: '#f59e0b',
-    dark: '#334155'
-  },
-  { id: 'rose-ice', label: 'Rose/Ice', light: '#fb7185', dark: '#67e8f9' }
-];
+const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
+  marble: { id: 'marble', light: '#f5f5f5', dark: '#6b7280' },
+  darkForest: { id: 'darkForest', light: '#4ade80', dark: '#14532d' },
+  amberGlow: { id: 'amberGlow', light: '#f59e0b', dark: '#78350f' },
+  mintVale: { id: 'mintVale', light: '#2dd4bf', dark: '#0f766e' },
+  royalWave: { id: 'royalWave', light: '#60a5fa', dark: '#1d4ed8' },
+  roseMist: { id: 'roseMist', light: '#f472b6', dark: '#9d174d' },
+  amethyst: { id: 'amethyst', light: '#a78bfa', dark: '#581c87' },
+  cinderBlaze: { id: 'cinderBlaze', light: '#fb923c', dark: '#7c2d12' },
+  arcticDrift: { id: 'arcticDrift', light: '#e2e8f0', dark: '#0f172a' },
+  obsidianGold: { id: 'obsidianGold', light: '#facc15', dark: '#111827' },
+  coralBloom: { id: 'coralBloom', light: '#fb7185', dark: '#0ea5e9' },
+  neonPulse: { id: 'neonPulse', light: '#a3e635', dark: '#4c1d95' }
+});
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
@@ -992,6 +991,18 @@ function createProceduralChairFallback(chairColor, legColor) {
   return chair;
 }
 
+function computeGroupFloorY(groups = []) {
+  const box = new THREE.Box3();
+  let hasGroup = false;
+  groups.forEach((group) => {
+    if (!group) return;
+    box.expandByObject(group);
+    hasGroup = true;
+  });
+  if (!hasGroup || !Number.isFinite(box.min.y)) return 0;
+  return box.min.y;
+}
+
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions =
@@ -1079,7 +1090,7 @@ export default function CheckersBattleRoyal() {
   const controlsRef = useRef(null);
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
-  const envRef = useRef({ map: null, skybox: null });
+  const envRef = useRef({ map: null, skybox: null, cameraHeight: 0 });
   const boardThemeRef = useRef(CHECKERS_BOARD_THEME_OPTIONS[0]);
   const gltfBoardRef = useRef(null);
   const proceduralBoardRef = useRef({ lightMat: null, darkMat: null });
@@ -1089,8 +1100,6 @@ export default function CheckersBattleRoyal() {
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
   const [showGift, setShowGift] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [chatBubbles, setChatBubbles] = useState([]);
   const [canReplay, setCanReplay] = useState(false);
   const [gameOver, setGameOver] = useState(null);
   const [capturedBySide, setCapturedBySide] = useState({
@@ -1113,9 +1122,48 @@ export default function CheckersBattleRoyal() {
   }, []);
 
   const [appearance, setAppearance] = useState(inv);
-  const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
-
-  const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
+  const unlockedPieceStyleIds = useMemo(() => {
+    const inventory = getChessBattleInventory(chessBattleAccountId());
+    const unlocked = Object.keys(CHECKERS_CHIP_SET_BY_ID).filter((id) =>
+      isChessOptionUnlocked('sideColor', id, inventory)
+    );
+    if (unlocked.length) return unlocked;
+    return ['amberGlow', 'mintVale'].filter((id) =>
+      Object.prototype.hasOwnProperty.call(CHECKERS_CHIP_SET_BY_ID, id)
+    );
+  }, []);
+  const defaultP1PieceStyleId = unlockedPieceStyleIds[0] || 'amberGlow';
+  const defaultP2PieceStyleId =
+    unlockedPieceStyleIds.find((id) => id !== defaultP1PieceStyleId) ||
+    defaultP1PieceStyleId;
+  const [p1PieceStyleId, setP1PieceStyleId] = useState(defaultP1PieceStyleId);
+  const [p2PieceStyleId, setP2PieceStyleId] = useState(defaultP2PieceStyleId);
+  const piecePalette = useMemo(() => {
+    const lightPieceStyle =
+      CHECKERS_CHIP_SET_BY_ID[p1PieceStyleId] ||
+      CHECKERS_CHIP_SET_BY_ID[defaultP1PieceStyleId] ||
+      CHECKERS_CHIP_SET_BY_ID.amberGlow;
+    const darkPieceStyle =
+      CHECKERS_CHIP_SET_BY_ID[p2PieceStyleId] ||
+      CHECKERS_CHIP_SET_BY_ID[defaultP2PieceStyleId] ||
+      CHECKERS_CHIP_SET_BY_ID.mintVale;
+    return {
+      light: lightPieceStyle.light,
+      dark: darkPieceStyle.dark
+    };
+  }, [
+    defaultP1PieceStyleId,
+    defaultP2PieceStyleId,
+    p1PieceStyleId,
+    p2PieceStyleId
+  ]);
+  const unlockedPieceStyles = useMemo(
+    () =>
+      unlockedPieceStyleIds
+        .map((id) => CHECKERS_CHIP_SET_BY_ID[id])
+        .filter(Boolean),
+    [unlockedPieceStyleIds]
+  );
   const checkerHeadPreset = useMemo(() => {
     const headId = inv?.headStyle || 'current';
     if (headId === 'headChrome') {
@@ -1198,7 +1246,7 @@ export default function CheckersBattleRoyal() {
             tile,
             side: piece.side,
             king: piece.king,
-            chipSet,
+            chipSet: piecePalette,
             checkerHeadPreset
           });
 
@@ -1212,7 +1260,7 @@ export default function CheckersBattleRoyal() {
         }
       }
     },
-    [checkerHeadPreset, chipSet.dark, chipSet.light]
+    [checkerHeadPreset, piecePalette.dark, piecePalette.light]
   );
 
   const renderCapturedPieces = useMemo(
@@ -1236,7 +1284,7 @@ export default function CheckersBattleRoyal() {
             tile,
             side: piece.side,
             king: piece.king,
-            chipSet,
+            chipSet: piecePalette,
             checkerHeadPreset
           });
           checker.position.set(
@@ -1251,7 +1299,7 @@ export default function CheckersBattleRoyal() {
       placeCapturedForSide('dark', -1);
       placeCapturedForSide('light', 1);
     },
-    [capturedBySide, checkerHeadPreset, chipSet]
+    [capturedBySide, checkerHeadPreset, piecePalette]
   );
 
   useEffect(() => {
@@ -1801,6 +1849,13 @@ export default function CheckersBattleRoyal() {
     let raf = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
+      if (envRef.current?.skybox && Number.isFinite(envRef.current?.cameraHeight)) {
+        const floorY = computeGroupFloorY([
+          tableRef.current?.group,
+          ...(chairsRef.current || [])
+        ]);
+        envRef.current.skybox.position.y = floorY + envRef.current.cameraHeight;
+      }
       controls.update();
       renderer.render(scene, camera);
     };
@@ -2002,8 +2057,12 @@ export default function CheckersBattleRoyal() {
           typeof variant?.groundRadiusMultiplier === 'number'
             ? variant.groundRadiusMultiplier
             : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const sceneSpan = Math.max(
+          CHECKERS_ROOM_HALF_SPAN,
+          CHAIR_DISTANCE + TABLE_RADIUS
+        );
         const groundRadius = Math.max(
-          TABLE_RADIUS * HDRI_UNITS_PER_METER * radiusMultiplier,
+          sceneSpan * radiusMultiplier * HDRI_UNITS_PER_METER,
           MIN_HDRI_RADIUS
         );
         const skyboxResolution = Math.max(
@@ -2018,11 +2077,20 @@ export default function CheckersBattleRoyal() {
           groundRadius,
           skyboxResolution
         );
-        skybox.position.y = cameraHeight;
+        const floorY = computeGroupFloorY([
+          tableRef.current?.group,
+          ...(chairsRef.current || [])
+        ]);
+        skybox.position.y = floorY + cameraHeight;
         if (typeof variant?.rotationY === 'number')
           skybox.rotation.y = variant.rotationY;
         scene.add(skybox);
-        envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
+        envRef.current = {
+          map: envMap,
+          skybox,
+          hdriId: appearance.hdriId,
+          cameraHeight
+        };
       } catch (error) {
         console.error('Checkers HDRI swap failed:', error);
       }
@@ -2263,15 +2331,27 @@ export default function CheckersBattleRoyal() {
                   ))}
                 </div>
 
-                <div className="mb-2 text-[11px] text-white/70">Chips</div>
-                <div className="flex flex-wrap gap-2">
-                  {CHIP_SETS.map((set) => (
+                <div className="mb-2 text-[11px] text-white/70">Pieces P1</div>
+                <div className="mb-3 grid max-h-32 grid-cols-2 gap-2 overflow-auto">
+                  {unlockedPieceStyles.map((set) => (
                     <button
                       key={set.id}
-                      onClick={() => setChipSetId(set.id)}
-                      className={optionButton(chipSetId === set.id)}
+                      onClick={() => setP1PieceStyleId(set.id)}
+                      className={optionButton(p1PieceStyleId === set.id)}
                     >
-                      {set.label}
+                      {CHESS_BATTLE_OPTION_LABELS.sideColor?.[set.id] || set.id}
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-2 text-[11px] text-white/70">Pieces P2</div>
+                <div className="grid max-h-32 grid-cols-2 gap-2 overflow-auto">
+                  {unlockedPieceStyles.map((set) => (
+                    <button
+                      key={`p2-${set.id}`}
+                      onClick={() => setP2PieceStyleId(set.id)}
+                      className={optionButton(p2PieceStyleId === set.id)}
+                    >
+                      {CHESS_BATTLE_OPTION_LABELS.sideColor?.[set.id] || set.id}
                     </button>
                   ))}
                 </div>
@@ -2292,18 +2372,6 @@ export default function CheckersBattleRoyal() {
             labelClassName="sr-only"
             giftIcon="🎁"
             order={['gift']}
-          />
-          <BottomLeftIcons
-            onChat={() => setShowChat(true)}
-            showInfo={false}
-            showGift={false}
-            showMute={false}
-            className="fixed left-3 bottom-28 z-50 flex flex-col"
-            buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90"
-            iconClassName="text-[1.65rem] leading-none"
-            labelClassName="sr-only"
-            chatIcon="💬"
-            order={['chat']}
           />
         </div>
 
@@ -2379,41 +2447,6 @@ export default function CheckersBattleRoyal() {
         ) : null}
       </div>
 
-      {chatBubbles.map((bubble) => (
-        <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
-          <span>{bubble.text}</span>
-          <img
-            src={bubble.photoUrl}
-            alt="avatar"
-            className="w-5 h-5 rounded-full"
-          />
-        </div>
-      ))}
-
-      <div className="pointer-events-auto">
-        <QuickMessagePopup
-          open={showChat}
-          onClose={() => setShowChat(false)}
-          title="Quick Chat"
-          onSend={(text) => {
-            const id = Date.now();
-            setChatBubbles((bubbles) => [
-              ...bubbles,
-              { id, text, photoUrl: playerPhotoUrl }
-            ]);
-            const audio = new Audio(chatBeep);
-            audio.volume = getGameVolume();
-            audio.play().catch(() => {});
-            setTimeout(
-              () =>
-                setChatBubbles((bubbles) =>
-                  bubbles.filter((bubble) => bubble.id !== id)
-                ),
-              1800
-            );
-          }}
-        />
-      </div>
       <div className="pointer-events-auto">
         <GiftPopup
           open={showGift}
