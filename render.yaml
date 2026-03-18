@@ -4,11 +4,9 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build && rm -rf ./webapp-dist && cp -R ../webapp/dist ./webapp-dist
+    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
     startCommand: npm start
     envVars:
-      - key: ENABLE_WEBAPP_RUNTIME_BUILD
-        value: "0"
       - key: MONGO_URI
         fromSecret: MONGO_URI
       - key: BOT_TOKEN
@@ -28,3 +26,4 @@ services:
         fromSecret: CLAIM_WALLET_MNEMONIC
       - key: RPC_URL
         fromSecret: RPC_URL
+
