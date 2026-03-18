@@ -38,6 +38,8 @@ export const BADUK_BOARD_THEMES = Object.freeze([
 ])
 
 export const BADUK_BOARD_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
+export const BADUK_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
+
 export const BADUK_RING_FINISH_OPTIONS = Object.freeze([
   {
     id: 'chrome',
@@ -80,20 +82,6 @@ export const BADUK_RING_FINISH_OPTIONS = Object.freeze([
     roughness: 0.46
   }
 ])
-
-const BADUK_RING_FRAME_FINISH_OPTIONS = Object.freeze(
-  BADUK_RING_FINISH_OPTIONS.map((ring) => ({
-    id: `ringFrame-${ring.id}`,
-    label: `${ring.label} Frame`,
-    thumbnail: ring.thumbnail,
-    color: ring.color,
-    metalness: ring.metalness,
-    roughness: ring.roughness,
-    materialProfile: 'metal-ring'
-  }))
-)
-
-export const BADUK_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES, ...BADUK_RING_FRAME_FINISH_OPTIONS])
 
 export const BADUK_STONE_STYLES = Object.freeze([
   { id: 'traditional', label: 'Traditional Shell & Slate', thumbnail: '/assets/game-art/baduk-battle-royal/store/stones/traditional.svg', black: '#0a0a0d', white: '#f8fafc', blackRoughness: 0.28, whiteRoughness: 0.2 },
@@ -163,11 +151,9 @@ export const BADUK_BATTLE_STORE_ITEMS = [
     id: `baduk-board-frame-${finish.id}`,
     type: 'boardFrameFinish',
     optionId: finish.id,
-    name: finish.materialProfile === 'metal-ring' ? finish.label : `${finish.label} Frame`,
+    name: `${finish.label} Frame`,
     price: (finish.price ?? 980) + 120 + idx * 30,
-    description: finish.materialProfile === 'metal-ring'
-      ? `Apply ${finish.label} style to the board frame and stand.`
-      : `Apply ${finish.label} octagon-table textures to the board frame and stand.`,
+    description: `Apply ${finish.label} octagon-table textures to the board frame and stand.`,
     swatches: finish.swatches,
     thumbnail: finish.thumbnail,
     previewShape: 'board'

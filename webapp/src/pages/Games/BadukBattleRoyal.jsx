@@ -43,7 +43,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.07;
+const BOARD_TABLE_CLEARANCE = 0.02;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -57,8 +57,6 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
-const AUDIO_GAIN_MULTIPLIER = 1.22;
-const WIN_CELEBRATION_DELAY_MS = 950;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -299,7 +297,6 @@ export default function BadukBattleRoyal() {
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
   const [showWinnerActions, setShowWinnerActions] = useState(false);
-  const [showWinnerCelebration, setShowWinnerCelebration] = useState(false);
   const [winningCells, setWinningCells] = useState([]);
   const [hoverCol, setHoverCol] = useState(null);
   const [showChat, setShowChat] = useState(false);
@@ -321,15 +318,10 @@ export default function BadukBattleRoyal() {
   useEffect(() => {
     if (!winner) {
       setShowWinnerActions(false);
-      setShowWinnerCelebration(false);
       return undefined;
     }
-    const celebrationTimer = window.setTimeout(() => setShowWinnerCelebration(true), WIN_CELEBRATION_DELAY_MS);
-    const actionsTimer = window.setTimeout(() => setShowWinnerActions(true), WIN_CELEBRATION_DELAY_MS + 4100);
-    return () => {
-      window.clearTimeout(celebrationTimer);
-      window.clearTimeout(actionsTimer);
-    };
+    const timer = window.setTimeout(() => setShowWinnerActions(true), 5000);
+    return () => window.clearTimeout(timer);
   }, [winner]);
 
   useEffect(() => {
@@ -342,7 +334,6 @@ export default function BadukBattleRoyal() {
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
-    setShowWinnerCelebration(false);
   };
 
   const worldFromCell = (r, c) => [
@@ -360,11 +351,11 @@ export default function BadukBattleRoyal() {
     const amp = ctx.createGain();
     osc.frequency.value = frequency;
     osc.type = type;
-    amp.gain.value = gain * AUDIO_GAIN_MULTIPLIER;
+    amp.gain.value = gain;
     osc.connect(amp);
     amp.connect(ctx.destination);
     const now = ctx.currentTime;
-    amp.gain.setValueAtTime(gain * AUDIO_GAIN_MULTIPLIER, now);
+    amp.gain.setValueAtTime(gain, now);
     amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     osc.start(now);
     osc.stop(now + duration);
@@ -414,7 +405,6 @@ export default function BadukBattleRoyal() {
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
-    setShowWinnerCelebration(false);
     displayedBoardRef.current = createBoard(rows, cols);
   }, [rows, cols]);
 
@@ -510,20 +500,8 @@ export default function BadukBattleRoyal() {
       });
     };
     applyWoodFinish(boardFaceMat, selectedBoardFinish, 'frame', { x: 0.9, y: 0.9 });
-    if (selectedBoardFrameFinish?.materialProfile === 'metal-ring') {
-      const frameColor = selectedBoardFrameFinish?.color || CONNECT4_WOOD;
-      const frameMetalness = selectedBoardFrameFinish?.metalness ?? 0.45;
-      const frameRoughness = selectedBoardFrameFinish?.roughness ?? 0.3;
-      railMat.color.set(frameColor);
-      railMat.metalness = frameMetalness;
-      railMat.roughness = frameRoughness;
-      trimMat.color.set(new THREE.Color(frameColor).multiplyScalar(0.88));
-      trimMat.metalness = Math.min(1, frameMetalness + 0.08);
-      trimMat.roughness = Math.max(0.16, frameRoughness - 0.08);
-    } else {
-      applyWoodFinish(railMat, selectedBoardFrameFinish, 'rail', { x: 1, y: 1 });
-      applyWoodFinish(trimMat, selectedBoardFrameFinish, 'frame', { x: 1, y: 1 });
-    }
+    applyWoodFinish(railMat, selectedBoardFrameFinish, 'rail', { x: 1, y: 1 });
+    applyWoodFinish(trimMat, selectedBoardFrameFinish, 'frame', { x: 1, y: 1 });
 
     const boardThickness = BOARD_FACE_THICKNESS;
     const boardBaseY = boardBottomY - BOARD_BASE_THICKNESS / 2;
@@ -971,34 +949,29 @@ export default function BadukBattleRoyal() {
         </button>
       </div>
 
-      {winner && showWinnerCelebration && (
+      {winner && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
             <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-              <div className="coin-burst !left-1/2 !bottom-1/2">
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const dx = (Math.random() - 0.5) * 250;
-                  const dy = 120 + Math.random() * 120;
-                  const delay = Math.random() * 0.22;
-                  const dur = 0.72 + Math.random() * 0.34;
-                  return (
-                    <img
-                      // eslint-disable-next-line react/no-array-index-key
-                      key={`coin-${i}`}
-                      src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                      alt=""
-                      className="coin-img"
-                      style={{
-                        '--dx': `${dx}px`,
-                        '--dy': `${dy}px`,
-                        '--delay': `${delay}s`,
-                        '--dur': `${dur}s`,
-                        animationDelay: `${i * 18}ms`
-                      }}
-                    />
-                  );
-                })}
-              </div>
+              {Array.from({ length: 14 }).map((_, i) => {
+                const angle = (Math.PI * 2 * i) / 14;
+                const x = Math.cos(angle) * 120;
+                const y = Math.sin(angle) * 96 - 24;
+                return (
+                  <span
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={`coin-${i}`}
+                    className="absolute left-1/2 top-1/2 text-xl"
+                    style={{
+                      animation: `baduk-coin-burst 900ms ease-out ${i * 35}ms forwards`,
+                      '--x': `${x}px`,
+                      '--y': `${y}px`
+                    }}
+                  >
+                    🪙
+                  </span>
+                );
+              })}
             </div>
             <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-300/60 bg-white/10 text-4xl">
               {winner === 'player' ? <img src={avatar || '/assets/icons/profile.svg'} alt="winner avatar" className="h-full w-full object-cover" /> : '🤖'}
@@ -1016,6 +989,13 @@ export default function BadukBattleRoyal() {
         </div>
       )}
 
+      <style>
+        {`@keyframes baduk-coin-burst {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+          15% { opacity: 1; }
+          100% { opacity: 0; transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, -110px))) scale(1.25); }
+        }`}
+      </style>
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />
       <BottomLeftIcons onChat={() => setShowChat(true)} showInfo={false} showGift={false} showMute={false} className="fixed left-3 bottom-28 z-50 flex flex-col" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" chatIcon="💬" order={['chat']} />
