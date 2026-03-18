@@ -38,6 +38,7 @@ export const BADUK_BOARD_THEMES = Object.freeze([
 ])
 
 export const BADUK_BOARD_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
+export const BADUK_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
 
 export const BADUK_RING_FINISH_OPTIONS = Object.freeze([
   {
@@ -80,21 +81,6 @@ export const BADUK_RING_FINISH_OPTIONS = Object.freeze([
     metalness: 0.04,
     roughness: 0.46
   }
-])
-
-const BADUK_FRAME_RING_FINISH_OPTIONS = Object.freeze(
-  BADUK_RING_FINISH_OPTIONS.map((ring) => ({
-    id: `ringFrame-${ring.id}`,
-    label: `${ring.label} Frame`,
-    thumbnail: ring.thumbnail,
-    ringOption: ring,
-    description: `${ring.label} metal/plastic finish for the board frame holder.`
-  }))
-)
-
-export const BADUK_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_FINISHES,
-  ...BADUK_FRAME_RING_FINISH_OPTIONS
 ])
 
 export const BADUK_STONE_STYLES = Object.freeze([
