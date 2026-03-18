@@ -162,12 +162,8 @@ const AIR_HOCKEY_TYPE_LABELS = {
 const CHESS_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
-  boardFinish: 'Board Surface',
-  boardFrameFinish: 'Board Frame',
   chairColor: 'Chairs',
   sideColor: 'Piece Colors',
-  playerOnePieceColor: 'P1 Pieces',
-  playerTwoPieceColor: 'P2 Pieces',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
   environmentHdri: 'HDR Environments'
@@ -176,9 +172,6 @@ const CHESS_TYPE_LABELS = {
 const BADUK_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
-  boardFinish: 'Board Surface',
-  boardFrameFinish: 'Board Frame',
-  ringFinish: 'Ring Finish',
   chairColor: 'Chairs',
   boardTheme: 'Board Skins',
   boardLayout: 'Board Sizes',
@@ -565,14 +558,6 @@ const USAGE_BY_TYPE = {
   sideColor: {
     title: 'Piece colors',
     description: 'Applies a new palette to player pieces in live matches and replays.'
-  },
-  playerOnePieceColor: {
-    title: 'P1 piece colors',
-    description: 'Applies a palette to Player 1 pieces in Backgammon Royal.'
-  },
-  playerTwoPieceColor: {
-    title: 'P2 piece colors',
-    description: 'Applies a palette to Player 2 pieces in Backgammon Royal.'
   },
   boardTheme: {
     title: 'Board theme',
