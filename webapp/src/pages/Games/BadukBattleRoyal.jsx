@@ -22,7 +22,8 @@ import {
 } from '../../config/badukBattleInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import {
@@ -44,7 +45,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.12;
+const BOARD_TABLE_CLEARANCE = 0.2;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -215,6 +216,12 @@ async function resolveHdriUrl(variant) {
   }
 }
 
+const resolveHdriVariant = (value) =>
+  POOL_ROYALE_HDRI_VARIANT_MAP[value] ||
+  POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === value) ||
+  POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID) ||
+  POOL_ROYALE_HDRI_VARIANTS[0];
+
 function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   const group = new THREE.Group();
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.09, 0.92), new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.5 }));
@@ -257,6 +264,16 @@ export default function BadukBattleRoyal() {
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
+  const tableRef = useRef(null);
+  const chairsRef = useRef([]);
+  const boardMaterialsRef = useRef({
+    face: null,
+    rail: null,
+    trim: null,
+    holeRim: null
+  });
+  const keyLightRef = useRef(null);
+  const tableThemeIdRef = useRef(null);
   const audioCtxRef = useRef(null);
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -458,16 +475,20 @@ export default function BadukBattleRoyal() {
     key.position.set(2.2, 4.5, 1.6);
     key.castShadow = true;
     scene.add(key);
+    keyLightRef.current = key;
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
-    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+    tableRef.current = table;
+    tableThemeIdRef.current = appearance.tableId;
+    applyTableMaterials(table.parts || table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
     const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
-    [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
+    chairsRef.current = [Math.PI / 2, -Math.PI / 2].map((angle) => {
       const chair = createChair(chairTheme.primary, chairTheme.legColor);
       chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
       chair.lookAt(0, TABLE_HEIGHT, 0);
       scene.add(chair);
+      return chair;
     });
 
     const boardGroup = new THREE.Group();
@@ -488,6 +509,7 @@ export default function BadukBattleRoyal() {
       roughness: selectedRingFinish?.roughness ?? 0.52,
       metalness: selectedRingFinish?.metalness ?? 0.04
     });
+    boardMaterialsRef.current = { face: boardFaceMat, rail: railMat, trim: trimMat, holeRim: holeRimMat };
 
     const resolveWoodOption = (finish) => {
       const preset = WOOD_FINISH_PRESETS.find((entry) => entry.id === finish?.woodOption?.presetId) || WOOD_FINISH_PRESETS[1] || WOOD_FINISH_PRESETS[0];
@@ -721,17 +743,21 @@ export default function BadukBattleRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      tableRef.current = null;
+      chairsRef.current = [];
+      boardMaterialsRef.current = { face: null, rail: null, trim: null, holeRim: null };
+      keyLightRef.current = null;
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.boardFinish, appearance.boardFrameFinish, appearance.ringFinish, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || envRef.current.hdriId === appearance.hdriId) return;
     let cancelled = false;
     const apply = async () => {
-      const variant = POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) || POOL_ROYALE_HDRI_VARIANTS[0];
+      const variant = resolveHdriVariant(appearance.hdriId);
       const url = await resolveHdriUrl(variant);
       const loader = url.toLowerCase().endsWith('.exr') ? new EXRLoader() : new RGBELoader();
       const envMap = await loader.loadAsync(url);
@@ -747,6 +773,96 @@ export default function BadukBattleRoyal() {
     void apply();
     return () => { cancelled = true; };
   }, [appearance.hdriId]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer || !appearance.tableId || appearance.tableId === tableThemeIdRef.current) return;
+    const existing = tableRef.current;
+    existing?.dispose?.();
+    const nextTable = createMurlanStyleTable({
+      arena: scene,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT,
+      tableThemeId: appearance.tableId
+    });
+    tableRef.current = nextTable;
+    tableThemeIdRef.current = appearance.tableId;
+    const finish = MURLAN_TABLE_FINISHES.find((entry) => entry.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
+    applyTableMaterials(nextTable.parts || nextTable.materials, finish);
+  }, [appearance.tableId, appearance.tableFinish]);
+
+  useEffect(() => {
+    const table = tableRef.current;
+    if (table?.parts || table?.materials) {
+      const finish = MURLAN_TABLE_FINISHES.find((entry) => entry.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
+      applyTableMaterials(table.parts || table.materials, finish);
+    }
+
+    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const seatColor = new THREE.Color(chairTheme.primary || '#7f1d1d');
+    const legColor = new THREE.Color(chairTheme.legColor || '#111827');
+    chairsRef.current.forEach((chair) => {
+      chair?.traverse?.((obj) => {
+        if (!obj?.isMesh) return;
+        const material = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+        if (!material?.color) return;
+        const lowerName = (obj.name || '').toLowerCase();
+        const useLegColor = lowerName.includes('leg');
+        material.color.copy(useLegColor ? legColor : seatColor);
+        material.needsUpdate = true;
+      });
+    });
+  }, [appearance.tableFinish, appearance.chairId]);
+
+  useEffect(() => {
+    const boardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
+    const boardFinish = BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
+    const frameFinish = BADUK_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || BADUK_BOARD_FRAME_FINISH_OPTIONS[0];
+    const ringFinish = BADUK_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || BADUK_RING_FINISH_OPTIONS[0];
+    const mats = boardMaterialsRef.current;
+    if (!mats.face || !mats.rail || !mats.trim || !mats.holeRim) return;
+
+    mats.face.color.set(boardTheme?.tint || boardFinish?.swatches?.[0] || CONNECT4_PANEL);
+    if (frameFinish?.ringOption) {
+      [mats.rail, mats.trim].forEach((mat) => {
+        mat.map = null;
+        mat.normalMap = null;
+        mat.aoMap = null;
+        mat.roughnessMap = null;
+        mat.metalnessMap = null;
+        mat.color = new THREE.Color(frameFinish.ringOption.color || '#c7ced9');
+        mat.metalness = frameFinish.ringOption.metalness ?? 0.7;
+        mat.roughness = frameFinish.ringOption.roughness ?? 0.35;
+        mat.needsUpdate = true;
+      });
+    } else {
+      mats.rail.color.set(frameFinish?.swatches?.[0] || CONNECT4_WOOD);
+      mats.trim.color.set(frameFinish?.swatches?.[1] || CONNECT4_WOOD_DARK);
+      mats.rail.metalness = 0.08;
+      mats.rail.roughness = 0.52;
+      mats.trim.metalness = 0.1;
+      mats.trim.roughness = 0.48;
+      mats.rail.needsUpdate = true;
+      mats.trim.needsUpdate = true;
+    }
+    mats.holeRim.color.set(ringFinish?.color || '#9a856e');
+    mats.holeRim.metalness = ringFinish?.metalness ?? 0.04;
+    mats.holeRim.roughness = ringFinish?.roughness ?? 0.52;
+    mats.holeRim.needsUpdate = true;
+  }, [appearance.boardTheme, appearance.boardFinish, appearance.boardFrameFinish, appearance.ringFinish]);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const key = keyLightRef.current;
+    const mount = mountRef.current;
+    if (!renderer || !key || !mount) return;
+    const preset = GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) || GRAPHICS_PRESETS[0];
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    key.shadow.mapSize.setScalar(preset.shadowMapSize);
+  }, [appearance.graphics]);
 
   useEffect(() => {
     if (!winningCells.length) return;
@@ -965,17 +1081,6 @@ export default function BadukBattleRoyal() {
       <div className="pointer-events-none absolute inset-0 z-20">
         <div className="absolute left-1/2 top-[12%] -translate-x-1/2"><AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'ai'} size={1} /></div>
         <div className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
-      </div>
-
-      <div className="pointer-events-auto fixed bottom-4 right-3 z-50 flex gap-2">
-        <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
-        <button
-          type="button"
-          onClick={resetMatch}
-          className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
-        >
-          Restart
-        </button>
       </div>
 
       {winner && showWinnerOverlay && (
