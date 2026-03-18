@@ -109,10 +109,7 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     roseMist: 'Rose Mist',
     amethyst: 'Amethyst',
     cinderBlaze: 'Cinder Blaze',
-    arcticDrift: 'Arctic Drift',
-    obsidianGold: 'Obsidian Gold',
-    coralBloom: 'Coral Bloom',
-    neonPulse: 'Neon Pulse'
+    arcticDrift: 'Arctic Drift'
   }),
   boardTheme: Object.freeze({
     classic: 'Classic',
@@ -149,10 +146,7 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
     roseMist: '/assets/game-art/chess-battle-royal/pieces/roseMist.svg',
     amethyst: '/assets/game-art/chess-battle-royal/pieces/amethyst.svg',
     cinderBlaze: '/assets/game-art/chess-battle-royal/pieces/cinderBlaze.svg',
-    arcticDrift: '/assets/game-art/chess-battle-royal/pieces/arcticDrift.svg',
-    obsidianGold: '/assets/game-art/chess-battle-royal/pieces/obsidianGold.svg',
-    coralBloom: '/assets/game-art/chess-battle-royal/pieces/coralBloom.svg',
-    neonPulse: '/assets/game-art/chess-battle-royal/pieces/neonPulse.svg'
+    arcticDrift: '/assets/game-art/chess-battle-royal/pieces/arcticDrift.svg'
   }),
   boardTheme: Object.freeze({
     classic: '/assets/game-art/chess-battle-royal/boards/classic.svg',
@@ -269,33 +263,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     price: 520,
     description: 'Icy stone palette with frosted metallic hints.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.arcticDrift
-  },
-  {
-    id: 'chess-side-obsidian-gold',
-    type: 'sideColor',
-    optionId: 'obsidianGold',
-    name: 'Obsidian Gold Pieces',
-    price: 560,
-    description: 'Midnight obsidian body with luxe gold accents.',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.obsidianGold
-  },
-  {
-    id: 'chess-side-coral-bloom',
-    type: 'sideColor',
-    optionId: 'coralBloom',
-    name: 'Coral Bloom Pieces',
-    price: 540,
-    description: 'Coral and aqua contrast for vibrant checkers sets.',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.coralBloom
-  },
-  {
-    id: 'chess-side-neon-pulse',
-    type: 'sideColor',
-    optionId: 'neonPulse',
-    name: 'Neon Pulse Pieces',
-    price: 600,
-    description: 'Neon lime and ultraviolet combo for night arena vibes.',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.neonPulse
   },
   {
     id: 'chess-board-ivorySlate',
