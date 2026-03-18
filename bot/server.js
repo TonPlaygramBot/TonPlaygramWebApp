@@ -339,16 +339,13 @@ function ensureWebappBuilt() {
   try {
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
-    execSync('npm install --no-audit --no-fund', {
-      cwd: webappDir,
-      stdio: 'inherit'
-    });
+    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
 
     const apiBase = process.env.WEBAPP_API_BASE_URL || '';
     const displayBase = apiBase || '(same origin)';
     console.log(`Using API base URL ${displayBase} for webapp build`);
 
-    execSync('npm run build -- --minify=false', {
+    execSync('npm run build', {
       cwd: webappDir,
       stdio: 'inherit',
       env: {
