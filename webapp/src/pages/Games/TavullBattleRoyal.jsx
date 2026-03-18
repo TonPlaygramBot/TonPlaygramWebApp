@@ -951,13 +951,13 @@ export default function TavullBattleRoyal() {
       new THREE.Mesh(
         new THREE.TorusGeometry(CHIP_RADIUS * (isSource ? 1.08 : 0.92), CHIP_RADIUS * 0.09, 16, 48),
         new THREE.MeshStandardMaterial({
-          color: emphasized ? '#f59e0b' : isSource ? '#22d3ee' : '#38bdf8',
-          emissive: emphasized ? '#7c2d12' : isSource ? '#164e63' : '#0c4a6e',
-          emissiveIntensity: emphasized ? 1.3 : 1,
+          color: emphasized ? '#f59e0b' : isSource ? '#22d3ee' : '#60a5fa',
+          emissive: emphasized ? '#7c2d12' : isSource ? '#164e63' : '#1e3a8a',
+          emissiveIntensity: emphasized ? 1.35 : isSource ? 1 : 1.1,
           roughness: 0.28,
           metalness: 0.24,
           transparent: true,
-          opacity: emphasized ? 0.98 : 0.92
+          opacity: emphasized ? 0.98 : isSource ? 0.92 : 0.95
         })
       )
 
@@ -1005,7 +1005,8 @@ export default function TavullBattleRoyal() {
 
     destinationTargets.forEach((pointIndex) => {
       if (pointIndex < 0 || pointIndex >= 24) return
-      const marker = createPrecisionMarker(false, activeMoveHighlight?.to === pointIndex)
+      const marker = createPrecisionMarker(false, activeMoveHighlight?.to === pointIndex || selectedPoint != null)
+      if (selectedPoint != null) marker.scale.setScalar(1.12)
       marker.rotation.x = Math.PI / 2
       marker.position.copy(pointMarkerPosition(pointIndex, false))
       chipGroup.add(marker)
@@ -1161,12 +1162,17 @@ export default function TavullBattleRoyal() {
       if (selectedPoint == null) {
         const startsFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
         if (!startsFromPoint.length) return
-        if (startsFromPoint.length === 1) {
-          handleSequence(startsFromPoint[0])
-          return
-        }
         setSelectedPoint(point)
-        setMessage('From point selected. Tap destination triangle.')
+        const moveCount = new Set(
+          startsFromPoint
+            .map((seq) => seq?.line?.[0]?.to)
+            .filter((toPoint) => typeof toPoint === 'number')
+        ).size
+        setMessage(
+          moveCount > 0
+            ? `Piece selected. ${moveCount} legal destination${moveCount > 1 ? 's' : ''} highlighted.`
+            : 'Piece selected. Tap destination triangle.'
+        )
         return
       }
 
@@ -1180,7 +1186,16 @@ export default function TavullBattleRoyal() {
       const restartFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
       if (restartFromPoint.length) {
         setSelectedPoint(point)
-        setMessage('From point changed. Tap destination triangle.')
+        const moveCount = new Set(
+          restartFromPoint
+            .map((seq) => seq?.line?.[0]?.to)
+            .filter((toPoint) => typeof toPoint === 'number')
+        ).size
+        setMessage(
+          moveCount > 0
+            ? `Piece changed. ${moveCount} legal destination${moveCount > 1 ? 's' : ''} highlighted.`
+            : 'From point changed. Tap destination triangle.'
+        )
       }
     }
 
@@ -1396,8 +1411,8 @@ export default function TavullBattleRoyal() {
         })}
       </div>
 
-      <div className="absolute top-[61%] left-1/2 -translate-x-1/2 pointer-events-none">
-        <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
+      <div className="absolute top-[32%] left-1/2 z-20 -translate-x-1/2 pointer-events-none">
+        <div className="max-w-[88vw] px-5 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-center text-sm font-semibold backdrop-blur">
           {winner ? `${winner === WHITE ? 'You' : 'AI'} win!` : message}
         </div>
       </div>
