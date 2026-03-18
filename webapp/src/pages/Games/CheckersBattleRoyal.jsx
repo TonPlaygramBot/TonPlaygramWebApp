@@ -51,6 +51,7 @@ import {
 const SIZE = 8;
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
+const CARD_SCALE = 0.95;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -67,9 +68,11 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
+const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
+const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_DISTANCE = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
 const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
@@ -215,22 +218,62 @@ const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   capture: '#ff8e6e'
 });
 
-const CHIP_SETS = [
-  { id: 'ruby-cyan', label: 'Ruby/Cyan', light: '#ef4444', dark: '#06b6d4' },
+const CHECKER_SIDE_OPTIONS = Object.freeze([
   {
-    id: 'emerald-violet',
-    label: 'Emerald/Violet',
-    light: '#10b981',
-    dark: '#8b5cf6'
+    id: 'marble',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.marble || 'Marble',
+    color: '#ffffff',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble
   },
   {
-    id: 'amber-slate',
-    label: 'Amber/Slate',
-    light: '#f59e0b',
-    dark: '#334155'
+    id: 'darkForest',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.darkForest || 'Dark Forest',
+    color: '#0f2d1e',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.darkForest
   },
-  { id: 'rose-ice', label: 'Rose/Ice', light: '#fb7185', dark: '#67e8f9' }
-];
+  {
+    id: 'amberGlow',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.amberGlow || 'Amber Glow',
+    color: '#f59e0b',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amberGlow
+  },
+  {
+    id: 'mintVale',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.mintVale || 'Mint Vale',
+    color: '#10b981',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.mintVale
+  },
+  {
+    id: 'royalWave',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.royalWave || 'Royal Wave',
+    color: '#3b82f6',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.royalWave
+  },
+  {
+    id: 'roseMist',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.roseMist || 'Rose Mist',
+    color: '#ef4444',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.roseMist
+  },
+  {
+    id: 'amethyst',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.amethyst || 'Amethyst',
+    color: '#8b5cf6',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amethyst
+  },
+  {
+    id: 'cinderBlaze',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.cinderBlaze || 'Cinder Blaze',
+    color: '#ff6b35',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.cinderBlaze
+  },
+  {
+    id: 'arcticDrift',
+    label: CHESS_BATTLE_OPTION_LABELS.sideColor.arcticDrift || 'Arctic Drift',
+    color: '#bcd7ff',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.arcticDrift
+  }
+]);
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
@@ -1057,6 +1100,29 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
   });
 }
 
+function computeGroupFloorY(objects = []) {
+  const box = new THREE.Box3();
+  let hasObject = false;
+  objects.forEach((obj) => {
+    if (!obj) return;
+    box.expandByObject(obj);
+    hasObject = true;
+  });
+  if (!hasObject) return 0;
+  return box.min.y;
+}
+
+function alignGroupToFloorY(group, floorY = 0) {
+  if (!group) return 0;
+  const box = new THREE.Box3().setFromObject(group);
+  if (!Number.isFinite(box.min.y)) return 0;
+  const offset = floorY - box.min.y;
+  if (Math.abs(offset) > 1e-4) {
+    group.position.y += offset;
+  }
+  return offset;
+}
+
 export default function CheckersBattleRoyal() {
   useTelegramBackButton();
   const navigate = useNavigate();
@@ -1085,7 +1151,7 @@ export default function CheckersBattleRoyal() {
   const proceduralBoardRef = useRef({ lightMat: null, darkMat: null });
 
   const [turn, setTurn] = useState('light');
-  const [status, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
+  const [, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
   const [showGift, setShowGift] = useState(false);
@@ -1101,6 +1167,14 @@ export default function CheckersBattleRoyal() {
 
   const inv = useMemo(() => {
     const inventory = getChessBattleInventory(chessBattleAccountId());
+    const unlockedPieceSides = (inventory.sideColor || []).filter((optionId) =>
+      CHECKER_SIDE_OPTIONS.some((option) => option.id === optionId)
+    );
+    const defaultP1PieceId = unlockedPieceSides[0] || CHECKER_SIDE_OPTIONS[2]?.id;
+    const defaultP2PieceId =
+      unlockedPieceSides.find((optionId) => optionId !== defaultP1PieceId) ||
+      unlockedPieceSides[1] ||
+      CHECKER_SIDE_OPTIONS[3]?.id;
     return {
       tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
@@ -1108,14 +1182,40 @@ export default function CheckersBattleRoyal() {
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
-      headStyle: inventory.headStyle?.[0] || 'current'
+      headStyle: inventory.headStyle?.[0] || 'current',
+      p1PieceId: defaultP1PieceId,
+      p2PieceId: defaultP2PieceId,
+      unlockedPieceSides
     };
   }, []);
 
   const [appearance, setAppearance] = useState(inv);
-  const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
-
-  const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
+  const unlockedPieceSideOptions = useMemo(() => {
+    const unlockedIds = new Set(inv.unlockedPieceSides || []);
+    const unlocked = CHECKER_SIDE_OPTIONS.filter((option) =>
+      unlockedIds.has(option.id)
+    );
+    return unlocked.length
+      ? unlocked
+      : [CHECKER_SIDE_OPTIONS[2], CHECKER_SIDE_OPTIONS[3]].filter(Boolean);
+  }, [inv.unlockedPieceSides]);
+  const p1Piece =
+    CHECKER_SIDE_OPTIONS.find((option) => option.id === appearance.p1PieceId) ||
+    unlockedPieceSideOptions[0] ||
+    CHECKER_SIDE_OPTIONS[0];
+  const p2Piece =
+    CHECKER_SIDE_OPTIONS.find((option) => option.id === appearance.p2PieceId) ||
+    unlockedPieceSideOptions.find((option) => option.id !== p1Piece?.id) ||
+    unlockedPieceSideOptions[0] ||
+    CHECKER_SIDE_OPTIONS[1] ||
+    CHECKER_SIDE_OPTIONS[0];
+  const chipSet = useMemo(
+    () => ({
+      light: p1Piece?.color || '#f59e0b',
+      dark: p2Piece?.color || '#10b981'
+    }),
+    [p1Piece?.color, p2Piece?.color]
+  );
   const checkerHeadPreset = useMemo(() => {
     const headId = inv?.headStyle || 'current';
     if (headId === 'headChrome') {
@@ -1661,6 +1761,7 @@ export default function CheckersBattleRoyal() {
           MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
         tableRef.current = table;
+        alignGroupToFloorY(table.group, 0);
       } catch (error) {
         console.error('Checkers table load failed:', error);
       }
@@ -1687,6 +1788,7 @@ export default function CheckersBattleRoyal() {
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
+          alignGroupToFloorY(g, 0);
           return g;
         };
         chairsRef.current = [
@@ -1706,6 +1808,7 @@ export default function CheckersBattleRoyal() {
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
+          alignGroupToFloorY(g, 0);
           return g;
         };
         chairsRef.current = [
@@ -2018,7 +2121,11 @@ export default function CheckersBattleRoyal() {
           groundRadius,
           skyboxResolution
         );
-        skybox.position.y = cameraHeight;
+        const floorY = computeGroupFloorY([
+          tableRef.current?.group,
+          ...(chairsRef.current || [])
+        ]);
+        skybox.position.y = floorY + cameraHeight;
         if (typeof variant?.rotationY === 'number')
           skybox.rotation.y = variant.rotationY;
         scene.add(skybox);
@@ -2263,15 +2370,46 @@ export default function CheckersBattleRoyal() {
                   ))}
                 </div>
 
-                <div className="mb-2 text-[11px] text-white/70">Chips</div>
-                <div className="flex flex-wrap gap-2">
-                  {CHIP_SETS.map((set) => (
+                <div className="mb-2 text-[11px] text-white/70">Pieces P1</div>
+                <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                  {unlockedPieceSideOptions.map((option) => (
                     <button
-                      key={set.id}
-                      onClick={() => setChipSetId(set.id)}
-                      className={optionButton(chipSetId === set.id)}
+                      key={`p1-piece-${option.id}`}
+                      onClick={() =>
+                        setAppearance((prev) => ({ ...prev, p1PieceId: option.id }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.p1PieceId === option.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
                     >
-                      {set.label}
+                      {option.thumbnail ? (
+                        <img
+                          src={option.thumbnail}
+                          alt={`${option.label} pieces thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                        />
+                      ) : null}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-2 text-[11px] text-white/70">Pieces P2</div>
+                <div className="grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                  {unlockedPieceSideOptions.map((option) => (
+                    <button
+                      key={`p2-piece-${option.id}`}
+                      onClick={() =>
+                        setAppearance((prev) => ({ ...prev, p2PieceId: option.id }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.p2PieceId === option.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                    >
+                      {option.thumbnail ? (
+                        <img
+                          src={option.thumbnail}
+                          alt={`${option.label} pieces thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                        />
+                      ) : null}
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -2334,12 +2472,6 @@ export default function CheckersBattleRoyal() {
               </span>
             </div>
           ))}
-        </div>
-
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
-            {status} • Turn: {turn}
-          </div>
         </div>
 
         {gameOver ? (
