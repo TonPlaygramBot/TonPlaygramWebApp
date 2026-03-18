@@ -3,11 +3,13 @@ import {
   CHESS_BATTLE_OPTION_LABELS,
   CHESS_BATTLE_OPTION_THUMBNAILS
 } from './chessBattleInventoryConfig.js'
-import { BADUK_RING_FINISH_OPTIONS } from './badukBattleInventoryConfig.js'
+import { BADUK_BOARD_FRAME_FINISH_OPTIONS } from './badukBattleInventoryConfig.js'
 
 export const BACKGAMMON_BOARD_TEXTURE_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
 
-export const BACKGAMMON_FRAME_FINISH_OPTIONS = Object.freeze([...BADUK_RING_FINISH_OPTIONS])
+export const BACKGAMMON_FRAME_FINISH_OPTIONS = Object.freeze([
+  ...BADUK_BOARD_FRAME_FINISH_OPTIONS
+])
 
 const PIECE_STYLE_COLOR_MAP = Object.freeze({
   marble: '#e5e7eb',
