@@ -20,6 +20,11 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx'
 import GiftPopup from '../../components/GiftPopup.jsx'
 import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
 import {
+  CHESS_BOARD_FINISH_OPTIONS,
+  CHESS_BOARD_FRAME_FINISH_OPTIONS,
+  CHESS_SIDE_PALETTE_COLORS
+} from '../../config/chessBattleInventoryConfig.js'
+import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP
@@ -108,7 +113,7 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
 ]
-const BACKGAMMON_DIE_SIZE = 0.116
+const BACKGAMMON_DIE_SIZE = 0.132
 const BACKGAMMON_DIE_CORNER_RADIUS = BACKGAMMON_DIE_SIZE * 0.18
 const BACKGAMMON_DIE_PIP_RADIUS = BACKGAMMON_DIE_SIZE * 0.093
 const BACKGAMMON_DIE_PIP_DEPTH = BACKGAMMON_DIE_SIZE * 0.018
@@ -119,10 +124,6 @@ const BACKGAMMON_DIE_PIP_SPREAD = BACKGAMMON_DIE_SIZE * 0.3
 const BACKGAMMON_DIE_FACE_INSET = BACKGAMMON_DIE_SIZE * 0.064
 
 const CHECKERS_CHIP_HEAD_PRESET = Object.freeze({ roughness: 0.18, metalness: 0.35, transmission: 0.18, ior: 1.6, thickness: 0.44 })
-const CHECKERS_CHIP_COLORS = Object.freeze({
-  [WHITE]: '#ef4444',
-  [BLACK]: '#06b6d4'
-})
 
 function createCheckerMaterial(sideColor, headPreset) {
   return new THREE.MeshPhysicalMaterial({
@@ -476,6 +477,10 @@ export default function TavullBattleRoyal() {
   const [inventoryVersion, setInventoryVersion] = useState(0)
   const [activeMoveHighlight, setActiveMoveHighlight] = useState(null)
   const [selectedPoint, setSelectedPoint] = useState(null)
+  const [boardFinishIdx, setBoardFinishIdx] = useState(0)
+  const [boardFrameFinishIdx, setBoardFrameFinishIdx] = useState(0)
+  const [playerOnePieceIdx, setPlayerOnePieceIdx] = useState(0)
+  const [playerTwoPieceIdx, setPlayerTwoPieceIdx] = useState(0)
   const accountId = chessBattleAccountId()
   const chessInventory = useMemo(() => getChessBattleInventory(accountId), [accountId, inventoryVersion])
   const playerName = getTelegramFirstName() || 'Player'
@@ -515,6 +520,22 @@ export default function TavullBattleRoyal() {
     () => MURLAN_TABLE_FINISHES.filter((option) => isChessOptionUnlocked('tableFinish', option.id, chessInventory)),
     [chessInventory]
   )
+  const ownedBoardFinishOptions = useMemo(
+    () => CHESS_BOARD_FINISH_OPTIONS.filter((option) => isChessOptionUnlocked('boardFinish', option.id, chessInventory)),
+    [chessInventory]
+  )
+  const ownedBoardFrameFinishOptions = useMemo(
+    () => CHESS_BOARD_FRAME_FINISH_OPTIONS.filter((option) => isChessOptionUnlocked('boardFrameFinish', option.id, chessInventory)),
+    [chessInventory]
+  )
+  const ownedPlayerOnePieceOptions = useMemo(
+    () => Object.keys(CHESS_SIDE_PALETTE_COLORS).filter((optionId) => isChessOptionUnlocked('playerOnePieceColor', optionId, chessInventory)),
+    [chessInventory]
+  )
+  const ownedPlayerTwoPieceOptions = useMemo(
+    () => Object.keys(CHESS_SIDE_PALETTE_COLORS).filter((optionId) => isChessOptionUnlocked('playerTwoPieceColor', optionId, chessInventory)),
+    [chessInventory]
+  )
 
   useEffect(() => {
     const onInventoryUpdate = () => setInventoryVersion((v) => v + 1)
@@ -536,6 +557,22 @@ export default function TavullBattleRoyal() {
     if (!ownedHdriOptions.length) return
     if (!ownedHdriOptions[hdriIdx]) setHdriIdx(0)
   }, [ownedHdriOptions, hdriIdx])
+  useEffect(() => {
+    if (!ownedBoardFinishOptions.length) return
+    if (!ownedBoardFinishOptions[boardFinishIdx]) setBoardFinishIdx(0)
+  }, [ownedBoardFinishOptions, boardFinishIdx])
+  useEffect(() => {
+    if (!ownedBoardFrameFinishOptions.length) return
+    if (!ownedBoardFrameFinishOptions[boardFrameFinishIdx]) setBoardFrameFinishIdx(0)
+  }, [ownedBoardFrameFinishOptions, boardFrameFinishIdx])
+  useEffect(() => {
+    if (!ownedPlayerOnePieceOptions.length) return
+    if (!ownedPlayerOnePieceOptions[playerOnePieceIdx]) setPlayerOnePieceIdx(0)
+  }, [ownedPlayerOnePieceOptions, playerOnePieceIdx])
+  useEffect(() => {
+    if (!ownedPlayerTwoPieceOptions.length) return
+    if (!ownedPlayerTwoPieceOptions[playerTwoPieceIdx]) setPlayerTwoPieceIdx(0)
+  }, [ownedPlayerTwoPieceOptions, playerTwoPieceIdx])
 
   const playSfx = (url, volumeScale = 1) => {
     if (isGameMuted() || !soundEnabled) return
@@ -652,6 +689,28 @@ export default function TavullBattleRoyal() {
     )
     frameOuter.position.y = BOARD_Y + BOARD_BASE_THICKNESS * 0.52
     boardRoot.add(frameOuter)
+    const applyBoardFinish = (option) => {
+      const swatches = option?.swatches || ['#7b4127', '#3f240f']
+      woodMaterial.color.set(swatches[0] || '#7b4127')
+      woodMaterial.roughness = option?.roughness ?? 0.5
+      woodMaterial.metalness = option?.metalness ?? 0.14
+      inlayMaterial.color.set(swatches[1] || swatches[0] || '#f0dfbf')
+      inlayMaterial.roughness = Math.min(0.9, (option?.roughness ?? 0.62) + 0.12)
+    }
+    const applyBoardFrameFinish = (option) => {
+      if (option?.ringOption) {
+        trimMaterial.color.set(option.ringOption.color || '#5d2e1b')
+        trimMaterial.metalness = option.ringOption.metalness ?? 0.22
+        trimMaterial.roughness = option.ringOption.roughness ?? 0.48
+        return
+      }
+      const swatches = option?.swatches || ['#5d2e1b', '#2c150c']
+      trimMaterial.color.set(swatches[0] || '#5d2e1b')
+      trimMaterial.roughness = option?.roughness ?? 0.46
+      trimMaterial.metalness = option?.metalness ?? 0.24
+    }
+    applyBoardFinish(ownedBoardFinishOptions[boardFinishIdx] || ownedBoardFinishOptions[0] || CHESS_BOARD_FINISH_OPTIONS[0])
+    applyBoardFrameFinish(ownedBoardFrameFinishOptions[boardFrameFinishIdx] || ownedBoardFrameFinishOptions[0] || CHESS_BOARD_FRAME_FINISH_OPTIONS[0])
 
     const laneWidth = BOARD_HALF_X - CENTER_BAR_WIDTH * 0.5 - BOARD_EDGE_MARGIN_X
     const laneDepth = BOARD_HALF_Z * 2 - BOARD_EDGE_MARGIN_Z * 2
@@ -734,7 +793,12 @@ export default function TavullBattleRoyal() {
       if (!raycaster.ray.intersectPlane(boardPlane, hitPoint)) return
       const nearest = resolveNearestPoint(hitPoint.x, hitPoint.z)
       if (nearest == null) return
-      window.dispatchEvent(new CustomEvent('tavullPointTap', { detail: { point: nearest } }))
+      const base = pointBasePosition(nearest)
+      const towardCenterSign = base.top ? 1 : -1
+      const topPieceZ = base.z + towardCenterSign * (CHIP_POINT_INSET + CHIP_ROW_SPACING * 0.8)
+      const pieceDist = Math.hypot(hitPoint.x - base.x, hitPoint.z - topPieceZ)
+      const target = pieceDist < CHIP_RADIUS * 1.4 ? 'piece' : 'triangle'
+      window.dispatchEvent(new CustomEvent('tavullPointTap', { detail: { point: nearest, target } }))
     }
     renderer.domElement.addEventListener('pointerdown', onBoardTap)
 
@@ -786,7 +850,7 @@ export default function TavullBattleRoyal() {
         const diceValues = (Array.isArray(values) && values.length ? values : [1, 1]).slice(0, maxDice)
         const startZ = seat === 0 ? BOARD_HALF_Z - 0.05 : -BOARD_HALF_Z + 0.05
         const endZ = 0
-        const centerXPositions = [-0.34, 0.34]
+        const centerXPositions = seat === 0 ? [0.18, 0.56] : [-0.56, -0.18]
         diceMeshes.forEach((mesh, index) => {
           if (index >= diceValues.length) {
             mesh.visible = false
@@ -819,7 +883,9 @@ export default function TavullBattleRoyal() {
         renderer.shadowMap.enabled = Boolean(quality.shadows)
         renderer.shadowMap.needsUpdate = true
       },
-      applyChairs: setChairs
+      applyChairs: setChairs,
+      applyBoardFinish,
+      applyBoardFrameFinish
     }
 
     return () => {
@@ -864,6 +930,18 @@ export default function TavullBattleRoyal() {
 
   useEffect(() => {
     const bundle = sceneBundleRef.current
+    if (!bundle?.applyBoardFinish) return
+    bundle.applyBoardFinish(ownedBoardFinishOptions[boardFinishIdx] || ownedBoardFinishOptions[0] || CHESS_BOARD_FINISH_OPTIONS[0])
+  }, [boardFinishIdx, ownedBoardFinishOptions])
+
+  useEffect(() => {
+    const bundle = sceneBundleRef.current
+    if (!bundle?.applyBoardFrameFinish) return
+    bundle.applyBoardFrameFinish(ownedBoardFrameFinishOptions[boardFrameFinishIdx] || ownedBoardFrameFinishOptions[0] || CHESS_BOARD_FRAME_FINISH_OPTIONS[0])
+  }, [boardFrameFinishIdx, ownedBoardFrameFinishOptions])
+
+  useEffect(() => {
+    const bundle = sceneBundleRef.current
     if (!bundle?.applyQuality) return
     bundle.applyQuality(qualityIdx)
   }, [qualityIdx])
@@ -887,9 +965,16 @@ export default function TavullBattleRoyal() {
     const { chipGroup } = bundle
     chipGroup.clear()
 
+    const selectedPlayerOnePalette = ownedPlayerOnePieceOptions[playerOnePieceIdx] || ownedPlayerOnePieceOptions[0] || 'marble'
+    const selectedPlayerTwoPalette = ownedPlayerTwoPieceOptions[playerTwoPieceIdx] || ownedPlayerTwoPieceOptions[0] || 'mintVale'
+    const chipColors = {
+      [WHITE]: CHESS_SIDE_PALETTE_COLORS[selectedPlayerOnePalette]?.white || '#ef4444',
+      [BLACK]: CHESS_SIDE_PALETTE_COLORS[selectedPlayerTwoPalette]?.black || '#06b6d4'
+    }
+
     const createChip = (color) => {
       const pieceGroup = new THREE.Group()
-      const sideColor = CHECKERS_CHIP_COLORS[color] || CHECKERS_CHIP_COLORS[WHITE]
+      const sideColor = chipColors[color] || chipColors[WHITE]
       const baseMaterial = createCheckerMaterial(sideColor, CHECKERS_CHIP_HEAD_PRESET)
 
       const chip = new THREE.Mesh(
@@ -1032,7 +1117,16 @@ export default function TavullBattleRoyal() {
 
     makeCapturedSideChips(game.bar.white, WHITE, 1)
     makeCapturedSideChips(game.bar.black, BLACK, -1)
-  }, [game, available, activeMoveHighlight, selectedPoint])
+  }, [
+    game,
+    available,
+    activeMoveHighlight,
+    selectedPoint,
+    ownedPlayerOnePieceOptions,
+    ownedPlayerTwoPieceOptions,
+    playerOnePieceIdx,
+    playerTwoPieceIdx
+  ])
 
   const animateSequence = (state, color, sequence, onDone) => {
     const line = sequence?.line || []
@@ -1157,9 +1251,14 @@ export default function TavullBattleRoyal() {
     }
     const onPointTap = (event) => {
       const point = event?.detail?.point
+      const target = event?.detail?.target
       if (typeof point !== 'number' || aiThinking || winner) return
 
       if (selectedPoint == null) {
+        if (target !== 'piece') {
+          setMessage('Select a checker first, then tap a destination triangle.')
+          return
+        }
         const startsFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
         if (!startsFromPoint.length) return
         setSelectedPoint(point)
@@ -1173,6 +1272,15 @@ export default function TavullBattleRoyal() {
             ? `Piece selected. ${moveCount} legal destination${moveCount > 1 ? 's' : ''} highlighted.`
             : 'Piece selected. Tap destination triangle.'
         )
+        return
+      }
+
+      if (target === 'piece') {
+        const restartFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
+        if (restartFromPoint.length) {
+          setSelectedPoint(point)
+          setMessage('Piece changed. Destination triangles updated.')
+        }
         return
       }
 
@@ -1247,7 +1355,7 @@ export default function TavullBattleRoyal() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Backgammon Settings</p>
-              <p className="mt-1 text-[0.7rem] text-white/70">Personalize the chairs and table finish.</p>
+              <p className="mt-1 text-[0.7rem] text-white/70">Personalize board, frame, chairs, and both player checker styles.</p>
             </div>
             <button
               type="button"
@@ -1276,13 +1384,17 @@ export default function TavullBattleRoyal() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
+                  <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, board/frame finishes, chairs, and P1/P2 checkers.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     setTableFinishIdx(0)
+                    setBoardFinishIdx(0)
+                    setBoardFrameFinishIdx(0)
                     setChairThemeIdx(0)
+                    setPlayerOnePieceIdx(0)
+                    setPlayerTwoPieceIdx(0)
                     setHdriIdx(0)
                     setQualityIdx(1)
                   }}
@@ -1295,8 +1407,20 @@ export default function TavullBattleRoyal() {
                 <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setTableFinishIdx((v) => (v + 1) % Math.max(1, ownedFinishOptions.length))}>
                   Table Finish: {ownedFinishOptions[tableFinishIdx]?.label || ownedFinishOptions[0]?.label || 'Default'}
                 </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setBoardFinishIdx((v) => (v + 1) % Math.max(1, ownedBoardFinishOptions.length))}>
+                  Board Surface: {ownedBoardFinishOptions[boardFinishIdx]?.label || ownedBoardFinishOptions[0]?.label || 'Default'}
+                </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setBoardFrameFinishIdx((v) => (v + 1) % Math.max(1, ownedBoardFrameFinishOptions.length))}>
+                  Board Frame: {ownedBoardFrameFinishOptions[boardFrameFinishIdx]?.label || ownedBoardFrameFinishOptions[0]?.label || 'Default'}
+                </button>
                 <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setChairThemeIdx((v) => (v + 1) % Math.max(1, ownedChairOptions.length))}>
                   Chair Theme: {ownedChairOptions[chairThemeIdx]?.label || ownedChairOptions[0]?.label || 'Royal'}
+                </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setPlayerOnePieceIdx((v) => (v + 1) % Math.max(1, ownedPlayerOnePieceOptions.length))}>
+                  P1 Checkers: {ownedPlayerOnePieceOptions[playerOnePieceIdx] || ownedPlayerOnePieceOptions[0] || 'marble'}
+                </button>
+                <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setPlayerTwoPieceIdx((v) => (v + 1) % Math.max(1, ownedPlayerTwoPieceOptions.length))}>
+                  P2 Checkers: {ownedPlayerTwoPieceOptions[playerTwoPieceIdx] || ownedPlayerTwoPieceOptions[0] || 'mintVale'}
                 </button>
                 <button type="button" className="rounded-lg border border-white/20 px-3 py-2 text-left" onClick={() => setHdriIdx((v) => (v + 1) % Math.max(1, ownedHdriOptions.length))}>
                   Environment: {ownedHdriOptions[hdriIdx]?.name || ownedHdriOptions[0]?.name || 'Studio'}
