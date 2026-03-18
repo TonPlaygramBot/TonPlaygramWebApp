@@ -57,8 +57,6 @@ const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const BOARD_SCALE = 0.064;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
@@ -197,15 +195,6 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const POLYHAVEN_MODEL_URL_BUILDERS = Object.freeze([
-  (assetId) =>
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-  (assetId) =>
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
-  (assetId) =>
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-  (assetId) => `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
-]);
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679,
   1.9173749900311232,
@@ -224,8 +213,7 @@ const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
-  capture: '#ff8e6e',
-  forcedPiece: '#ffd166'
+  capture: '#ff8e6e'
 });
 
 const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
@@ -881,78 +869,6 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
-async function loadPolyhavenModel(assetId, renderer = null) {
-  if (!assetId) throw new Error('Missing Poly Haven asset id');
-  const loader = createConfiguredGLTFLoader(renderer);
-  let candidates = POLYHAVEN_MODEL_URL_BUILDERS.map((build) => build(assetId));
-  try {
-    const response = await fetch(
-      `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
-    );
-    if (response.ok) {
-      const json = await response.json();
-      const discovered = new Set(candidates);
-      const walk = (value) => {
-        if (!value) return;
-        if (typeof value === 'string') {
-          const lower = value.toLowerCase();
-          if (
-            value.startsWith('http') &&
-            (lower.endsWith('.gltf') || lower.endsWith('.glb'))
-          ) {
-            discovered.add(value);
-          }
-          return;
-        }
-        if (Array.isArray(value)) {
-          value.forEach(walk);
-          return;
-        }
-        if (typeof value === 'object') Object.values(value).forEach(walk);
-      };
-      walk(json);
-      candidates = Array.from(discovered);
-    }
-  } catch (_error) {
-    // Keep fallback candidates.
-  }
-
-  let lastError = null;
-  for (const url of candidates) {
-    try {
-      const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
-      );
-      loader.setResourcePath(resourcePath);
-      loader.setPath('');
-      // eslint-disable-next-line no-await-in-loop
-      const gltf = await loader.loadAsync(resolvedUrl);
-      const source = gltf?.scene || gltf?.scenes?.[0];
-      if (!source) continue;
-      const model = source.clone(true);
-      model.traverse((node) => {
-        if (!node?.isMesh) return;
-        node.castShadow = true;
-        node.receiveShadow = true;
-        const mats = Array.isArray(node.material)
-          ? node.material
-          : [node.material];
-        mats.forEach((mat) => {
-          if (mat?.map) applySRGBColorSpace(mat.map);
-          if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-          mat.needsUpdate = true;
-        });
-      });
-      return model;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError || new Error(`Failed to load Poly Haven model: ${assetId}`);
-}
-
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -972,34 +888,6 @@ function fitChairModelToFootprint(model) {
       -scaledCenter.x,
       TARGET_CHAIR_MIN_Y - scaledBox.min.y,
       TARGET_CHAIR_CENTER_Z - scaledCenter.z
-    )
-  );
-}
-
-function fitModelToTargetFootprint(
-  model,
-  {
-    targetSize = new THREE.Vector3(1, 1, 1),
-    minY = 0,
-    centerX = 0,
-    centerZ = 0
-  } = {}
-) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const scaleX = targetSize.x / Math.max(size.x, 0.001);
-  const scaleY = targetSize.y / Math.max(size.y, 0.001);
-  const scaleZ = targetSize.z / Math.max(size.z, 0.001);
-  const scale = Math.min(scaleX, scaleY, scaleZ);
-  model.scale.multiplyScalar(scale);
-
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-  model.position.add(
-    new THREE.Vector3(
-      centerX - scaledCenter.x,
-      minY - scaledBox.min.y,
-      centerZ - scaledCenter.z
     )
   );
 }
@@ -1034,51 +922,6 @@ async function buildChessMappedChairTemplate() {
   });
   fitChairModelToFootprint(model);
   return model;
-}
-
-async function buildChairFromTheme(theme, renderer = null) {
-  if (theme?.source === 'polyhaven' && theme?.assetId) {
-    const model = await loadPolyhavenModel(theme.assetId, renderer);
-    fitModelToTargetFootprint(model, {
-      targetSize: TARGET_CHAIR_SIZE,
-      minY: TARGET_CHAIR_MIN_Y,
-      centerZ: TARGET_CHAIR_CENTER_Z
-    });
-    return model;
-  }
-  return buildChessMappedChairTemplate();
-}
-
-async function buildTableFromTheme(theme, arena, renderer = null, finish = null) {
-  if (!arena) throw new Error('buildTableFromTheme requires an arena group');
-  if (theme?.source === 'polyhaven' && theme?.assetId) {
-    const model = await loadPolyhavenModel(theme.assetId, renderer);
-    fitModelToTargetFootprint(model, {
-      targetSize: new THREE.Vector3(
-        TABLE_MODEL_TARGET_DIAMETER,
-        TABLE_MODEL_TARGET_HEIGHT,
-        TABLE_MODEL_TARGET_DIAMETER
-      ),
-      minY: 0
-    });
-    arena.add(model);
-    return {
-      group: model,
-      parts: null,
-      dispose: () => {
-        if (model.parent) model.parent.remove(model);
-        disposeGroupMeshes(model);
-      }
-    };
-  }
-  const table = createMurlanStyleTable({
-    arena,
-    renderer,
-    tableRadius: TABLE_RADIUS,
-    tableHeight: TABLE_HEIGHT
-  });
-  if (finish) applyTableMaterials(table.parts, finish);
-  return { group: table.group, parts: table.parts, dispose: table.dispose };
 }
 
 function createProceduralChairFallback(chairColor, legColor) {
@@ -1468,10 +1311,9 @@ export default function CheckersBattleRoyal() {
       if (!group) return;
       disposeGroupMeshes(group);
       group.clear();
-      const board = boardRef.current;
-      const sideMoves = getMovesForSide(board, turn);
-      const forcedCaptures = sideMoves.filter((move) => move.capture);
       const selected = selectedRef.current;
+      if (!selected) return;
+      const board = boardRef.current;
       const { x, y, z, tile } = boardOriginRef.current;
       const toPosition = (r, c) =>
         new THREE.Vector3(
@@ -1479,30 +1321,6 @@ export default function CheckersBattleRoyal() {
           y + tile * 0.02,
           z + (r - 3.5) * tile
         );
-      if (!selected && forcedCaptures.length) {
-        const seen = new Set();
-        forcedCaptures.forEach((move) => {
-          const key = `${move.from.r}:${move.from.c}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          const forcedMarker = new THREE.Mesh(
-            new THREE.CylinderGeometry(
-              tile * 0.3,
-              tile * 0.3,
-              Math.max(0.06, tile * 0.03),
-              20
-            ),
-            new THREE.MeshBasicMaterial({
-              color: CHECKERS_HIGHLIGHT_COLORS.forcedPiece,
-              transparent: true,
-              opacity: 0.92
-            })
-          );
-          forcedMarker.position.copy(toPosition(move.from.r, move.from.c));
-          group.add(forcedMarker);
-        });
-      }
-      if (!selected) return;
       const selection = new THREE.Mesh(
         new THREE.CylinderGeometry(
           tile * 0.3,
@@ -1518,6 +1336,8 @@ export default function CheckersBattleRoyal() {
       );
       selection.position.copy(toPosition(selected.r, selected.c));
       group.add(selection);
+      const sideMoves = getMovesForSide(board, turn);
+      const forcedCaptures = sideMoves.filter((move) => move.capture);
       const allowedMoves = forcedCaptures.length
         ? forcedCaptures
             .filter(
@@ -1873,19 +1693,16 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
-        const tableTheme =
-          CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) ||
-          CHESS_TABLE_OPTIONS[0];
+        const table = createMurlanStyleTable({
+          arena: scene,
+          renderer,
+          tableRadius: TABLE_RADIUS,
+          tableHeight: TABLE_HEIGHT
+        });
         const finish =
           MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
           MURLAN_TABLE_FINISHES[0];
-        const table = await buildTableFromTheme(
-          tableTheme,
-          scene,
-          renderer,
-          finish
-        );
-        table.themeId = tableTheme.id;
+        applyTableMaterials(table.parts, finish);
         tableRef.current = table;
       } catch (error) {
         console.error('Checkers table load failed:', error);
@@ -1895,26 +1712,23 @@ export default function CheckersBattleRoyal() {
         const chairOption =
           CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
           CHESS_CHAIR_OPTIONS[0];
-        const chairTemplate = await buildChairFromTheme(chairOption, renderer);
         const chairColor =
           chairOption?.primary || chairOption?.seatColor || '#8b0000';
+        const chairTemplate = await buildChessMappedChairTemplate();
         const makeChair = (z, ry) => {
           const g = chairTemplate.clone(true);
-          if (!chairOption?.preserveMaterials) {
-            g.traverse((obj) => {
-              if (!obj.isMesh) return;
-              const mats = Array.isArray(obj.material)
-                ? obj.material
-                : [obj.material];
-              mats.forEach((mat) => {
-                if (mat?.color) mat.color.set(chairColor);
-                mat.needsUpdate = true;
-              });
+          g.traverse((obj) => {
+            if (!obj.isMesh) return;
+            const mats = Array.isArray(obj.material)
+              ? obj.material
+              : [obj.material];
+            mats.forEach((mat) => {
+              if (mat?.color) mat.color.set(chairColor);
+              mat.needsUpdate = true;
             });
-          }
+          });
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          g.userData = { ...(g.userData || {}), themeId: chairOption.id };
           scene.add(g);
           return g;
         };
@@ -2167,7 +1981,6 @@ export default function CheckersBattleRoyal() {
 
   useEffect(() => {
     const scene = sceneRef.current;
-    const renderer = rendererRef.current;
     if (!scene) return;
 
     const finish =
@@ -2176,89 +1989,20 @@ export default function CheckersBattleRoyal() {
     if (tableRef.current?.parts)
       applyTableMaterials(tableRef.current.parts, finish);
 
-    if (tableRef.current?.themeId !== appearance.tableId) {
-      const reloadTable = async () => {
-        try {
-          tableRef.current?.dispose?.();
-          tableRef.current?.group?.parent?.remove?.(tableRef.current.group);
-          const tableTheme =
-            CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) ||
-            CHESS_TABLE_OPTIONS[0];
-          const nextTable = await buildTableFromTheme(
-            tableTheme,
-            scene,
-            renderer,
-            finish
-          );
-          nextTable.themeId = tableTheme.id;
-          tableRef.current = nextTable;
-        } catch (error) {
-          console.error('Checkers table theme swap failed:', error);
+    const chairOption =
+      CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
+      CHESS_CHAIR_OPTIONS[0];
+    const nextChairColor = new THREE.Color(
+      chairOption?.primary || chairOption?.seatColor || '#8b0000'
+    );
+    chairsRef.current.forEach((chairGroup) => {
+      chairGroup?.traverse?.((child) => {
+        if (child?.isMesh && child.material?.color) {
+          child.material.color.copy(nextChairColor);
+          child.material.needsUpdate = true;
         }
-      };
-      void reloadTable();
-    }
-
-    if (chairsRef.current?.[0]?.userData?.themeId !== appearance.chairId) {
-      const reloadChairs = async () => {
-        try {
-          chairsRef.current.forEach((chairGroup) => {
-            chairGroup?.parent?.remove?.(chairGroup);
-            disposeGroupMeshes(chairGroup);
-          });
-          const chairOption =
-            CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
-            CHESS_CHAIR_OPTIONS[0];
-          const chairTemplate = await buildChairFromTheme(chairOption, renderer);
-          const chairColor =
-            chairOption?.primary || chairOption?.seatColor || '#8b0000';
-          const makeChair = (z, ry) => {
-            const g = chairTemplate.clone(true);
-            if (!chairOption?.preserveMaterials) {
-              g.traverse((obj) => {
-                if (!obj.isMesh) return;
-                const mats = Array.isArray(obj.material)
-                  ? obj.material
-                  : [obj.material];
-                mats.forEach((mat) => {
-                  if (mat?.color) mat.color.set(chairColor);
-                  mat.needsUpdate = true;
-                });
-              });
-            }
-            g.position.set(0, CHAIR_BASE_HEIGHT, z);
-            g.rotation.y = ry;
-            g.userData = { ...(g.userData || {}), themeId: chairOption.id };
-            scene.add(g);
-            return g;
-          };
-          chairsRef.current = [
-            makeChair(CHAIR_DISTANCE, Math.PI),
-            makeChair(-CHAIR_DISTANCE, 0)
-          ];
-        } catch (error) {
-          console.error('Checkers chair theme swap failed:', error);
-        }
-      };
-      void reloadChairs();
-    } else {
-      const chairOption =
-        CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
-        CHESS_CHAIR_OPTIONS[0];
-      if (!chairOption?.preserveMaterials) {
-        const nextChairColor = new THREE.Color(
-          chairOption?.primary || chairOption?.seatColor || '#8b0000'
-        );
-        chairsRef.current.forEach((chairGroup) => {
-          chairGroup?.traverse?.((child) => {
-            if (child?.isMesh && child.material?.color) {
-              child.material.color.copy(nextChairColor);
-              child.material.needsUpdate = true;
-            }
-          });
-        });
-      }
-    }
+      });
+    });
 
     const boardTheme =
       CHECKERS_BOARD_THEME_OPTIONS.find(
@@ -2644,11 +2388,8 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="min-w-[230px] max-w-[82vw] px-4 py-2 rounded-2xl bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-[11px] leading-tight font-semibold backdrop-blur text-center">
-            <div className="line-clamp-2">{status}</div>
-            <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-white/75">
-              Turn: {turn}
-            </div>
+          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
+            {status} • Turn: {turn}
           </div>
         </div>
 
