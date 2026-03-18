@@ -213,6 +213,17 @@ export const BADUK_BATTLE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#0ea5e9', '#1e293b']),
     previewShape: 'board'
   })),
+  ...BADUK_BOARD_THEMES.slice(1).map((theme, idx) => ({
+    id: `baduk-board-${theme.id}`,
+    type: 'boardTheme',
+    optionId: theme.id,
+    name: theme.label,
+    price: 450 + idx * 30,
+    description: 'Open-source goban texture variant with high-contrast line work.',
+    thumbnail: theme.thumbnail,
+    swatches: [theme.tint, theme.grid],
+    previewShape: 'board'
+  })),
   ...BADUK_STONE_STYLES.slice(1).map((style, idx) => ({
     id: `baduk-stones-${style.id}`,
     type: 'stoneStyle',
