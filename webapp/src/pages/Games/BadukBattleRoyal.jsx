@@ -10,9 +10,6 @@ import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
   BADUK_CHAIR_OPTIONS,
-  BADUK_BOARD_FINISH_OPTIONS,
-  BADUK_FRAME_FINISH_OPTIONS,
-  BADUK_RING_MATERIAL_OPTIONS,
   BADUK_BOARD_THEMES,
   BADUK_STONE_STYLES,
   BADUK_TABLE_OPTIONS,
@@ -278,9 +275,6 @@ export default function BadukBattleRoyal() {
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
     tableId: inventory.tables?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.tables?.[0] || BADUK_TABLE_OPTIONS[0]?.id,
     chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || BADUK_CHAIR_OPTIONS[0]?.id,
-    boardFinish: inventory.boardFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardFinish?.[0] || BADUK_BOARD_FINISH_OPTIONS[0]?.id,
-    frameFinish: inventory.frameFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.frameFinish?.[0] || BADUK_FRAME_FINISH_OPTIONS[0]?.id,
-    ringMaterial: inventory.ringMaterial?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.ringMaterial?.[0] || BADUK_RING_MATERIAL_OPTIONS[0]?.id,
     boardTheme: inventory.boardTheme?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardTheme?.[0] || BADUK_BOARD_THEMES[0]?.id,
     stoneStyle: inventory.stoneStyle?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] || BADUK_STONE_STYLES[0]?.id,
     hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
@@ -452,20 +446,8 @@ export default function BadukBattleRoyal() {
 
     const boardGroup = new THREE.Group();
 
-    const boardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
-    const boardFinish = BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
-    const frameFinish = BADUK_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.frameFinish) || BADUK_FRAME_FINISH_OPTIONS[0];
-    const ringMaterialOption = BADUK_RING_MATERIAL_OPTIONS.find((item) => item.id === appearance.ringMaterial) || BADUK_RING_MATERIAL_OPTIONS[0];
-
-    const framePrimaryColor = frameFinish?.swatches?.[0] || CONNECT4_WOOD;
-    const frameTrimColor = frameFinish?.swatches?.[1] || CONNECT4_WOOD_DARK;
-    const boardBaseColor = boardTheme?.tint || CONNECT4_PANEL;
-    const boardAccentColor = boardTheme?.grid || '#334155';
-    const boardFinishColor = boardFinish?.swatches?.[0] || boardBaseColor;
-    const blendedBoardFace = new THREE.Color(boardFinishColor).lerp(new THREE.Color(boardBaseColor), 0.35).getStyle();
-
-    const railMat = new THREE.MeshStandardMaterial({ color: framePrimaryColor, roughness: 0.5, metalness: 0.09 });
-    const trimMat = new THREE.MeshStandardMaterial({ color: frameTrimColor, roughness: 0.45, metalness: 0.12 });
+    const railMat = new THREE.MeshStandardMaterial({ color: CONNECT4_WOOD, roughness: 0.52, metalness: 0.08 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: CONNECT4_WOOD_DARK, roughness: 0.48, metalness: 0.1 });
 
     const boardThickness = BOARD_FACE_THICKNESS;
     const boardBaseY = boardBottomY - BOARD_BASE_THICKNESS / 2;
@@ -487,7 +469,7 @@ export default function BadukBattleRoyal() {
     }
 
     const boardFaceGeo = new THREE.ExtrudeGeometry(boardShape, { depth: boardThickness, bevelEnabled: false, curveSegments: 42 });
-    const boardFaceMat = new THREE.MeshStandardMaterial({ color: blendedBoardFace, roughness: 0.68, metalness: 0.03, side: THREE.DoubleSide });
+    const boardFaceMat = new THREE.MeshStandardMaterial({ color: CONNECT4_PANEL, roughness: 0.74, metalness: 0.02, side: THREE.DoubleSide });
     const boardFaceFront = new THREE.Mesh(boardFaceGeo, boardFaceMat);
     const boardFaceBack = boardFaceFront.clone();
     boardFaceFront.position.set(0, boardCenterY, BOARD_SLOT_GAP / 2 - boardThickness / 2);
@@ -534,11 +516,7 @@ export default function BadukBattleRoyal() {
     boardGroup.add(leftFoot, rightFoot);
 
     const holeRimGeo = new THREE.TorusGeometry(slotRadius * 0.97, 0.018, 16, 42);
-    const holeRimMat = new THREE.MeshStandardMaterial({
-      color: ringMaterialOption.color,
-      roughness: ringMaterialOption.roughness,
-      metalness: ringMaterialOption.metalness
-    });
+    const holeRimMat = new THREE.MeshStandardMaterial({ color: '#9a856e', roughness: 0.52, metalness: 0.04 });
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
         const [x, y] = worldFromCell(r, c);
@@ -549,29 +527,6 @@ export default function BadukBattleRoyal() {
         boardGroup.add(frontRim, backRim);
       }
     }
-
-    const boardOuterRingGeo = new THREE.TorusGeometry(Math.max(boardWidth, boardHeight) * 0.58, 0.03, 24, 72);
-    const boardOuterRingFront = new THREE.Mesh(boardOuterRingGeo, holeRimMat);
-    boardOuterRingFront.position.set(0, boardCenterY, BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.0045);
-    const boardOuterRingBack = boardOuterRingFront.clone();
-    boardOuterRingBack.position.z = -boardOuterRingFront.position.z;
-    boardGroup.add(boardOuterRingFront, boardOuterRingBack);
-
-    const accentRailMat = new THREE.MeshStandardMaterial({
-      color: boardAccentColor,
-      roughness: 0.48,
-      metalness: 0.14
-    });
-    const accentStripDepth = 0.018;
-    const accentTop = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 1.25, 0.03, accentStripDepth), accentRailMat);
-    accentTop.position.set(0, boardCenterY + boardHeight / 2 + 0.01, BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.021);
-    const accentBottom = accentTop.clone();
-    accentBottom.position.y = boardCenterY - boardHeight / 2 - 0.01;
-    const accentBackTop = accentTop.clone();
-    accentBackTop.position.z *= -1;
-    const accentBackBottom = accentBottom.clone();
-    accentBackBottom.position.z *= -1;
-    boardGroup.add(accentTop, accentBottom, accentBackTop, accentBackBottom);
 
     const createChipStack = (tokenColor, side = 'front', xOffset = 0, count = 6) => {
       const stack = new THREE.Group();
@@ -688,7 +643,7 @@ export default function BadukBattleRoyal() {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.boardFinish, appearance.frameFinish, appearance.ringMaterial, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, appearance.boardTheme, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -853,9 +808,6 @@ export default function BadukBattleRoyal() {
     { key: 'tableId', label: 'Tables', options: BADUK_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'chairId', label: 'Chairs', options: BADUK_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'boardFinish', label: 'Board Finish', options: BADUK_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'frameFinish', label: 'Board Frame', options: BADUK_FRAME_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'ringMaterial', label: 'Metal Rings', options: BADUK_RING_MATERIAL_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'hdriId', label: 'HDRI', options: POOL_ROYALE_HDRI_VARIANTS.map((item) => ({ id: item.id, label: item.name, thumbnail: item.thumbnail })) },
     { key: 'boardTheme', label: 'Board', options: BADUK_BOARD_THEMES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'stoneStyle', label: 'Pieces', options: BADUK_STONE_STYLES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },

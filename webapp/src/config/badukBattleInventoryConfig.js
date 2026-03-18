@@ -18,56 +18,6 @@ const mapStoolThemeToChair = (theme) => ({
 
 export const BADUK_CHAIR_OPTIONS = Object.freeze([...MURLAN_STOOL_THEMES.map(mapStoolThemeToChair)])
 export const BADUK_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES])
-export const BADUK_BOARD_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
-export const BADUK_FRAME_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
-
-export const BADUK_RING_MATERIAL_OPTIONS = Object.freeze([
-  Object.freeze({
-    id: 'chrome',
-    label: 'Chrome Rings',
-    color: '#d7dee7',
-    metalness: 0.95,
-    roughness: 0.14,
-    description: 'Mirror-like chrome rims with bright specular response.',
-    thumbnail: swatchThumbnail(['#f8fafc', '#9ca3af'])
-  }),
-  Object.freeze({
-    id: 'gold',
-    label: 'Gold Rings',
-    color: '#d4a017',
-    metalness: 0.9,
-    roughness: 0.2,
-    description: 'Polished gold rims for a premium arena look.',
-    thumbnail: swatchThumbnail(['#facc15', '#a16207'])
-  }),
-  Object.freeze({
-    id: 'aluminium',
-    label: 'Aluminium Rings',
-    color: '#b8c0c9',
-    metalness: 0.78,
-    roughness: 0.28,
-    description: 'Brushed aluminium rims with a neutral industrial finish.',
-    thumbnail: swatchThumbnail(['#d1d5db', '#6b7280'])
-  }),
-  Object.freeze({
-    id: 'plasticBlack',
-    label: 'Plastic Black Rings',
-    color: '#111827',
-    metalness: 0.08,
-    roughness: 0.52,
-    description: 'Matte black polymer rims for a stealth style.',
-    thumbnail: swatchThumbnail(['#1f2937', '#030712'])
-  }),
-  Object.freeze({
-    id: 'plasticWhite',
-    label: 'Plastic White Rings',
-    color: '#f3f4f6',
-    metalness: 0.04,
-    roughness: 0.46,
-    description: 'Clean white polymer rims with soft reflections.',
-    thumbnail: swatchThumbnail(['#ffffff', '#d1d5db'])
-  })
-])
 
 export const BADUK_BOARD_LAYOUTS = Object.freeze([
   { id: 'classic7x6', label: 'Classic 7×6', rows: 6, cols: 7 },
@@ -105,9 +55,6 @@ export const BADUK_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [BADUK_CHAIR_OPTIONS[0]?.id],
   tables: [BADUK_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
-  boardFinish: [BADUK_BOARD_FINISH_OPTIONS[0]?.id],
-  frameFinish: [BADUK_FRAME_FINISH_OPTIONS[0]?.id],
-  ringMaterial: [BADUK_RING_MATERIAL_OPTIONS[0]?.id],
   boardTheme: [BADUK_BOARD_THEMES[0]?.id],
   boardLayout: [BADUK_BOARD_LAYOUTS[0]?.id],
   stoneStyle: [BADUK_STONE_STYLES[0]?.id],
@@ -118,9 +65,6 @@ export const BADUK_BATTLE_OPTION_LABELS = Object.freeze({
   chairColor: Object.freeze(BADUK_CHAIR_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tables: Object.freeze(BADUK_TABLE_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tableFinish: Object.freeze(MURLAN_TABLE_FINISHES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  boardFinish: Object.freeze(BADUK_BOARD_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  frameFinish: Object.freeze(BADUK_FRAME_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  ringMaterial: Object.freeze(BADUK_RING_MATERIAL_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardTheme: Object.freeze(BADUK_BOARD_THEMES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardLayout: Object.freeze(BADUK_BOARD_LAYOUTS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   stoneStyle: Object.freeze(BADUK_STONE_STYLES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
@@ -160,39 +104,6 @@ export const BADUK_BATTLE_STORE_ITEMS = [
     description: option.description || `${option.label} seating tuned for 4 in a Row.`,
     thumbnail: option.thumbnail,
     previewShape: 'chair'
-  })),
-  ...BADUK_BOARD_FINISH_OPTIONS.slice(1).map((finish, idx) => ({
-    id: `baduk-board-finish-${finish.id}`,
-    type: 'boardFinish',
-    optionId: finish.id,
-    name: `${finish.label} Board`,
-    price: finish.price ?? 920 + idx * 40,
-    description: `Board face texture aligned with Octagon table finish ${finish.label}.`,
-    swatches: finish.swatches,
-    thumbnail: finish.thumbnail,
-    previewShape: 'board'
-  })),
-  ...BADUK_FRAME_FINISH_OPTIONS.slice(1).map((finish, idx) => ({
-    id: `baduk-frame-finish-${finish.id}`,
-    type: 'frameFinish',
-    optionId: finish.id,
-    name: `${finish.label} Frame`,
-    price: (finish.price ?? 920 + idx * 40) + 20,
-    description: `Frame texture aligned with Octagon table finish ${finish.label}.`,
-    swatches: finish.swatches,
-    thumbnail: finish.thumbnail,
-    previewShape: 'board'
-  })),
-  ...BADUK_RING_MATERIAL_OPTIONS.slice(1).map((material, idx) => ({
-    id: `baduk-ring-material-${material.id}`,
-    type: 'ringMaterial',
-    optionId: material.id,
-    name: material.label,
-    price: 520 + idx * 50,
-    description: material.description,
-    thumbnail: material.thumbnail,
-    swatches: [material.color],
-    previewShape: 'board'
   })),
   ...BADUK_BOARD_LAYOUTS.slice(1).map((layout, idx) => ({
     id: `baduk-layout-${layout.id}`,
