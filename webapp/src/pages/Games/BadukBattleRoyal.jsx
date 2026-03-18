@@ -38,13 +38,12 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
-import coinConfetti from '../../utils/coinConfetti';
 
 const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.12;
+const BOARD_TABLE_CLEARANCE = 0.02;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -58,7 +57,6 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
-const WINNER_OVERLAY_DELAY_MS = 900;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -299,7 +297,6 @@ export default function BadukBattleRoyal() {
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
   const [showWinnerActions, setShowWinnerActions] = useState(false);
-  const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
   const [winningCells, setWinningCells] = useState([]);
   const [hoverCol, setHoverCol] = useState(null);
   const [showChat, setShowChat] = useState(false);
@@ -321,21 +318,11 @@ export default function BadukBattleRoyal() {
   useEffect(() => {
     if (!winner) {
       setShowWinnerActions(false);
-      setShowWinnerOverlay(false);
       return undefined;
     }
-    const overlayTimer = window.setTimeout(() => setShowWinnerOverlay(true), WINNER_OVERLAY_DELAY_MS);
     const timer = window.setTimeout(() => setShowWinnerActions(true), 5000);
-    return () => {
-      window.clearTimeout(overlayTimer);
-      window.clearTimeout(timer);
-    };
+    return () => window.clearTimeout(timer);
   }, [winner]);
-
-  useEffect(() => {
-    if (!showWinnerOverlay || !winner || winner === 'draw') return;
-    coinConfetti(44, '/assets/icons/ezgif-54c96d8a9b9236.webp');
-  }, [showWinnerOverlay, winner]);
 
   useEffect(() => {
     winningCellsRef.current = winningCells;
@@ -347,7 +334,6 @@ export default function BadukBattleRoyal() {
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
-    setShowWinnerOverlay(false);
   };
 
   const worldFromCell = (r, c) => [
@@ -356,7 +342,7 @@ export default function BadukBattleRoyal() {
     0
   ];
 
-  const playTone = (frequency = 430, duration = 0.08, type = 'triangle', gain = 0.026) => {
+  const playTone = (frequency = 430, duration = 0.08, type = 'triangle', gain = 0.02) => {
     const ACtx = window.AudioContext || window.webkitAudioContext;
     if (!ACtx) return;
     if (!audioCtxRef.current) audioCtxRef.current = new ACtx();
@@ -514,23 +500,8 @@ export default function BadukBattleRoyal() {
       });
     };
     applyWoodFinish(boardFaceMat, selectedBoardFinish, 'frame', { x: 0.9, y: 0.9 });
-    const applyFrameFinish = (material, finish, texturePart = 'frame') => {
-      if (finish?.ringOption) {
-        material.map = null;
-        material.normalMap = null;
-        material.aoMap = null;
-        material.roughnessMap = null;
-        material.metalnessMap = null;
-        material.color = new THREE.Color(finish.ringOption.color || '#c7ced9');
-        material.metalness = finish.ringOption.metalness ?? 0.7;
-        material.roughness = finish.ringOption.roughness ?? 0.35;
-        material.needsUpdate = true;
-        return;
-      }
-      applyWoodFinish(material, finish, texturePart, { x: 1, y: 1 });
-    };
-    applyFrameFinish(railMat, selectedBoardFrameFinish, 'rail');
-    applyFrameFinish(trimMat, selectedBoardFrameFinish, 'frame');
+    applyWoodFinish(railMat, selectedBoardFrameFinish, 'rail', { x: 1, y: 1 });
+    applyWoodFinish(trimMat, selectedBoardFrameFinish, 'frame', { x: 1, y: 1 });
 
     const boardThickness = BOARD_FACE_THICKNESS;
     const boardBaseY = boardBottomY - BOARD_BASE_THICKNESS / 2;
@@ -763,25 +734,25 @@ export default function BadukBattleRoyal() {
   const playColumn = (col, token) => {
     const row = getDropRow(board, col);
     if (row < 0) {
-      playTone(180, 0.05, 'sawtooth', 0.016);
+      playTone(180, 0.05, 'sawtooth', 0.012);
       return false;
     }
     const next = cloneBoard(board);
     next[row][col] = token;
     setBoard(next);
-    playTone(token === 'player' ? 520 : 300, 0.09, 'triangle', 0.038);
+    playTone(token === 'player' ? 520 : 300, 0.09, 'triangle', 0.03);
 
     const winning = getWinningCells(next, token);
     if (winning) {
       setWinner(token);
       setWinningCells(winning);
-      playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.04);
+      playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.03);
       return true;
     }
     if (isFull(next)) {
       setWinner('draw');
       setWinningCells([]);
-      playTone(200, 0.18, 'triangle', 0.026);
+      playTone(200, 0.18, 'triangle', 0.02);
       return true;
     }
     setTurn(token === 'player' ? 'ai' : 'player');
@@ -978,24 +949,53 @@ export default function BadukBattleRoyal() {
         </button>
       </div>
 
-      {winner && showWinnerOverlay && (
+      {winner && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+              {Array.from({ length: 14 }).map((_, i) => {
+                const angle = (Math.PI * 2 * i) / 14;
+                const x = Math.cos(angle) * 120;
+                const y = Math.sin(angle) * 96 - 24;
+                return (
+                  <span
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={`coin-${i}`}
+                    className="absolute left-1/2 top-1/2 text-xl"
+                    style={{
+                      animation: `baduk-coin-burst 900ms ease-out ${i * 35}ms forwards`,
+                      '--x': `${x}px`,
+                      '--y': `${y}px`
+                    }}
+                  >
+                    🪙
+                  </span>
+                );
+              })}
+            </div>
             <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-300/60 bg-white/10 text-4xl">
               {winner === 'player' ? <img src={avatar || '/assets/icons/profile.svg'} alt="winner avatar" className="h-full w-full object-cover" /> : '🤖'}
             </div>
             <p className="text-xs uppercase tracking-[0.26em] text-yellow-300">Winner</p>
             <h2 className="mt-2 text-2xl font-bold text-white">{winner === 'draw' ? 'Draw Game' : winner === 'player' ? `${username} Wins!` : 'AI Rival Wins!'}</h2>
-            <p className="mt-2 text-sm text-white/75">{winner === 'draw' ? 'No more moves left.' : '4 connected pieces are highlighted first, then the TPC burst appears.'}</p>
+            <p className="mt-2 text-sm text-white/75">{winner === 'draw' ? 'No more moves left.' : '4 pieces connected and highlighted.'}</p>
             {showWinnerActions && (
               <div className="pointer-events-auto mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button type="button" onClick={() => { resetMatch(); setShowWinnerOverlay(false); }} className="rounded-xl border border-cyan-300/70 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-100">Play Again</button>
+                <button type="button" onClick={resetMatch} className="rounded-xl border border-cyan-300/70 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-100">Play Again</button>
                 <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-xl border border-white/45 bg-transparent px-4 py-2 text-sm font-semibold text-white">Return Lobby</button>
               </div>
             )}
           </div>
         </div>
       )}
+
+      <style>
+        {`@keyframes baduk-coin-burst {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+          15% { opacity: 1; }
+          100% { opacity: 0; transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, -110px))) scale(1.25); }
+        }`}
+      </style>
 
       <BottomLeftIcons onGift={() => setShowGift(true)} showInfo={false} showChat={false} showMute={false} className="fixed right-3 bottom-28 z-50 flex flex-col gap-4" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" giftIcon="🎁" order={['gift']} />
       <BottomLeftIcons onChat={() => setShowChat(true)} showInfo={false} showGift={false} showMute={false} className="fixed left-3 bottom-28 z-50 flex flex-col" buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90" iconClassName="text-[1.65rem] leading-none" labelClassName="sr-only" chatIcon="💬" order={['chat']} />
