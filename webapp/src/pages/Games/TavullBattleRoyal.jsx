@@ -13,12 +13,6 @@ import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanT
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js'
 import { getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js'
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js'
-import {
-  DEFAULT_WOOD_GRAIN_ID,
-  WOOD_FINISH_PRESETS,
-  WOOD_GRAIN_OPTIONS_BY_ID,
-  applyWoodTextures
-} from '../../utils/woodMaterials.js'
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
 import { getGameVolume, isGameMuted } from '../../utils/sound.js'
@@ -702,31 +696,6 @@ export default function TavullBattleRoyal() {
     const pointDarkMaterial = new THREE.MeshStandardMaterial({ color: '#08080b', roughness: 0.66, metalness: 0.08 })
     const pointLightMaterial = new THREE.MeshStandardMaterial({ color: '#f4f1e8', roughness: 0.7, metalness: 0.04 })
 
-    const resolveWoodOption = (finish) => {
-      const preset = WOOD_FINISH_PRESETS.find((entry) => entry.id === finish?.woodOption?.presetId) || WOOD_FINISH_PRESETS[1] || WOOD_FINISH_PRESETS[0]
-      const grainId = finish?.woodOption?.grainId || DEFAULT_WOOD_GRAIN_ID
-      const grain = WOOD_GRAIN_OPTIONS_BY_ID[grainId] || WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] || {}
-      return { preset, grain }
-    }
-    const applyWoodFinish = (material, finish, texturePart = 'rail', fallbackRepeat = { x: 1, y: 1 }, textureRotation = 0, keyPrefix = 'backgammon') => {
-      if (!material) return
-      const { preset, grain } = resolveWoodOption(finish)
-      const texture = grain?.[texturePart] || {}
-      applyWoodTextures(material, {
-        hue: preset?.hue ?? 32,
-        sat: preset?.sat ?? 0.34,
-        light: preset?.light ?? 0.7,
-        contrast: preset?.contrast ?? 0.52,
-        repeat: texture?.repeat ?? fallbackRepeat,
-        rotation: texture?.rotation ?? textureRotation ?? 0,
-        textureSize: texture?.textureSize,
-        mapUrl: texture?.mapUrl,
-        roughnessMapUrl: texture?.roughnessMapUrl,
-        normalMapUrl: texture?.normalMapUrl,
-        sharedKey: `${keyPrefix}-${finish?.id || 'default'}-${texturePart}`
-      })
-    }
-
     const boardBase = new THREE.Mesh(new THREE.BoxGeometry(BOARD_HALF_X * 2, BOARD_BASE_THICKNESS, BOARD_HALF_Z * 2), woodMaterial)
     boardBase.position.y = BOARD_Y
     boardRoot.add(boardBase)
@@ -763,32 +732,20 @@ export default function TavullBattleRoyal() {
       const swatches = selected?.swatches?.length ? selected.swatches : ['#f0dfbf', '#d6bf98']
       inlayMaterial.color.set(swatches[0] || '#f0dfbf')
       woodMaterial.color.set(swatches[1] || swatches[0] || '#7b4127')
-      pointDarkMaterial.color.set(swatches[1] || swatches[0] || '#7b4127')
-      pointLightMaterial.color.set(swatches[0] || '#f0dfbf')
       inlayMaterial.roughness = selected?.roughness ?? 0.72
       woodMaterial.roughness = Math.min(0.82, (selected?.roughness ?? 0.66) + 0.08)
-      pointDarkMaterial.roughness = Math.min(0.84, (selected?.roughness ?? 0.7) + 0.1)
-      pointLightMaterial.roughness = selected?.roughness ?? 0.72
-      applyWoodFinish(inlayMaterial, selected, 'frame', { x: 0.92, y: 0.96 }, 0, 'backgammon-board-inlay')
-      applyWoodFinish(woodMaterial, selected, 'rail', { x: 1, y: 1 }, 0, 'backgammon-board-base')
-      applyWoodFinish(pointDarkMaterial, selected, 'rail', { x: 1.1, y: 1.05 }, Math.PI * 0.08, 'backgammon-board-points-dark')
-      applyWoodFinish(pointLightMaterial, selected, 'frame', { x: 1.05, y: 1.1 }, -Math.PI * 0.06, 'backgammon-board-points-light')
       inlayMaterial.needsUpdate = true
       woodMaterial.needsUpdate = true
-      pointDarkMaterial.needsUpdate = true
-      pointLightMaterial.needsUpdate = true
     }
     const applyFrameFinish = (idx) => {
       const selected = BACKGAMMON_FRAME_FINISH_OPTIONS[idx] || BACKGAMMON_FRAME_FINISH_OPTIONS[0]
-      const fallbackColor = selected?.color || selected?.swatches?.[0] || '#e2e8f0'
-      trimMaterial.color.set(fallbackColor)
-      trimMaterial.metalness = selected?.metalness ?? 0.18
-      trimMaterial.roughness = selected?.roughness ?? 0.46
-      applyWoodFinish(trimMaterial, selected, 'rail', { x: 1, y: 1 }, 0, 'backgammon-frame')
+      trimMaterial.color.set(selected?.color || '#e2e8f0')
+      trimMaterial.metalness = selected?.metalness ?? 0.92
+      trimMaterial.roughness = selected?.roughness ?? 0.2
       trimMaterial.needsUpdate = true
-      hinge.material.color.set(fallbackColor)
-      hinge.material.metalness = Math.min(1, (selected?.metalness ?? 0.3) + 0.05)
-      hinge.material.roughness = Math.max(0.18, (selected?.roughness ?? 0.38) - 0.03)
+      hinge.material.color.set(selected?.color || '#a9b0ba')
+      hinge.material.metalness = Math.min(1, (selected?.metalness ?? 0.9) + 0.02)
+      hinge.material.roughness = Math.max(0.18, (selected?.roughness ?? 0.2) - 0.03)
       hinge.material.needsUpdate = true
     }
     applyBoardTexture(boardTextureIdx)
