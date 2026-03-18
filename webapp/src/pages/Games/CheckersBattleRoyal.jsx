@@ -45,7 +45,8 @@ import { getGameVolume } from '../../utils/sound.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import {
   chessBattleAccountId,
-  getChessBattleInventory
+  getChessBattleInventory,
+  isChessOptionUnlocked
 } from '../../utils/chessBattleInventory.js';
 
 const SIZE = 8;
@@ -67,9 +68,10 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_CLEARANCE = 0.12;
+const CHAIR_DISTANCE = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
 const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
@@ -81,7 +83,7 @@ const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
-const MIN_HDRI_RADIUS = 28;
+const MIN_HDRI_RADIUS = 24;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const DRACO_DECODER_PATH =
@@ -215,26 +217,21 @@ const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   capture: '#ff8e6e'
 });
 
-const CHIP_SETS = [
-  { id: 'ruby-cyan', label: 'Ruby/Cyan', light: '#ef4444', dark: '#06b6d4' },
-  {
-    id: 'emerald-violet',
-    label: 'Emerald/Violet',
-    light: '#10b981',
-    dark: '#8b5cf6'
-  },
-  {
-    id: 'amber-slate',
-    label: 'Amber/Slate',
-    light: '#f59e0b',
-    dark: '#334155'
-  },
-  { id: 'rose-ice', label: 'Rose/Ice', light: '#fb7185', dark: '#67e8f9' }
-];
+const CHECKERS_PIECE_OPTIONS = Object.freeze([
+  { id: 'marble', label: 'Marble', hex: '#f8fafc' },
+  { id: 'darkForest', label: 'Dark Forest', hex: '#285437' },
+  { id: 'amberGlow', label: 'Amber Glow', hex: '#f5b700' },
+  { id: 'mintVale', label: 'Mint Vale', hex: '#2dd4bf' },
+  { id: 'royalWave', label: 'Royal Wave', hex: '#3b82f6' },
+  { id: 'roseMist', label: 'Rose Mist', hex: '#fb7185' },
+  { id: 'amethyst', label: 'Amethyst', hex: '#a855f7' },
+  { id: 'cinderBlaze', label: 'Cinder Blaze', hex: '#f97316' },
+  { id: 'arcticDrift', label: 'Arctic Drift', hex: '#67e8f9' }
+]);
 
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '18%' },
-  { left: '50%', top: '82%' }
+  { left: '50%', top: '85%' },
+  { left: '50%', top: '12%' }
 ];
 const RULE_SUMMARY =
   'Forced captures are ON. Chain captures are mandatory. Reach the far rank to crown a king.';
@@ -1102,20 +1099,43 @@ export default function CheckersBattleRoyal() {
   const inv = useMemo(() => {
     const inventory = getChessBattleInventory(chessBattleAccountId());
     return {
+      inventory,
       tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
-      headStyle: inventory.headStyle?.[0] || 'current'
+      headStyle: inventory.headStyle?.[0] || 'current',
+      sideColors:
+        Array.isArray(inventory.sideColor) && inventory.sideColor.length
+          ? inventory.sideColor
+          : ['amberGlow', 'mintVale']
     };
   }, []);
 
   const [appearance, setAppearance] = useState(inv);
-  const [chipSetId, setChipSetId] = useState(CHIP_SETS[0].id);
-
-  const chipSet = CHIP_SETS.find((s) => s.id === chipSetId) || CHIP_SETS[0];
+  const availablePieceOptions = useMemo(
+    () =>
+      CHECKERS_PIECE_OPTIONS.filter((option) =>
+        isChessOptionUnlocked('sideColor', option.id, inv.inventory)
+      ),
+    [inv.inventory]
+  );
+  const fallbackPieceOption = availablePieceOptions[0] || CHECKERS_PIECE_OPTIONS[0];
+  const [p1PieceId, setP1PieceId] = useState(() => inv.sideColors?.[0] || fallbackPieceOption.id);
+  const [p2PieceId, setP2PieceId] = useState(() => inv.sideColors?.[1] || fallbackPieceOption.id);
+  const p1PieceOption =
+    availablePieceOptions.find((option) => option.id === p1PieceId) || fallbackPieceOption;
+  const p2PieceOption =
+    availablePieceOptions.find((option) => option.id === p2PieceId) || fallbackPieceOption;
+  const chipSet = useMemo(
+    () => ({
+      light: p1PieceOption.hex,
+      dark: p2PieceOption.hex
+    }),
+    [p1PieceOption.hex, p2PieceOption.hex]
+  );
   const checkerHeadPreset = useMemo(() => {
     const headId = inv?.headStyle || 'current';
     if (headId === 'headChrome') {
@@ -2002,8 +2022,16 @@ export default function CheckersBattleRoyal() {
           typeof variant?.groundRadiusMultiplier === 'number'
             ? variant.groundRadiusMultiplier
             : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const floorY = Math.min(
+          tableRef.current?.group?.position?.y ?? 0,
+          ...chairsRef.current.map((chair) => chair?.position?.y ?? 0)
+        );
+        const sceneSpan = Math.max(
+          TABLE_RADIUS + SEAT_DEPTH / 2 + (CHAIR_DISTANCE - TABLE_RADIUS),
+          TABLE_RADIUS
+        );
         const groundRadius = Math.max(
-          TABLE_RADIUS * HDRI_UNITS_PER_METER * radiusMultiplier,
+          sceneSpan * HDRI_UNITS_PER_METER * radiusMultiplier,
           MIN_HDRI_RADIUS
         );
         const skyboxResolution = Math.max(
@@ -2018,7 +2046,7 @@ export default function CheckersBattleRoyal() {
           groundRadius,
           skyboxResolution
         );
-        skybox.position.y = cameraHeight;
+        skybox.position.y = floorY + cameraHeight;
         if (typeof variant?.rotationY === 'number')
           skybox.rotation.y = variant.rotationY;
         scene.add(skybox);
@@ -2263,15 +2291,54 @@ export default function CheckersBattleRoyal() {
                   ))}
                 </div>
 
-                <div className="mb-2 text-[11px] text-white/70">Chips</div>
-                <div className="flex flex-wrap gap-2">
-                  {CHIP_SETS.map((set) => (
+                <div className="mb-2 text-[11px] text-white/70">Pieces P1</div>
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  {availablePieceOptions.map((option) => (
                     <button
-                      key={set.id}
-                      onClick={() => setChipSetId(set.id)}
-                      className={optionButton(chipSetId === set.id)}
+                      key={`p1-${option.id}`}
+                      onClick={() => setP1PieceId(option.id)}
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${p1PieceId === option.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
                     >
-                      {set.label}
+                      {CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[option.id] ? (
+                        <img
+                          src={CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[option.id]}
+                          alt={`${option.label} pieces thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span
+                          className="mb-1 block h-10 w-full rounded"
+                          style={{ backgroundColor: option.hex }}
+                        />
+                      )}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-2 text-[11px] text-white/70">Pieces P2</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {availablePieceOptions.map((option) => (
+                    <button
+                      key={`p2-${option.id}`}
+                      onClick={() => setP2PieceId(option.id)}
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${p2PieceId === option.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                    >
+                      {CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[option.id] ? (
+                        <img
+                          src={CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[option.id]}
+                          alt={`${option.label} pieces thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span
+                          className="mb-1 block h-10 w-full rounded"
+                          style={{ backgroundColor: option.hex }}
+                        />
+                      )}
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -2338,7 +2405,7 @@ export default function CheckersBattleRoyal() {
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
-            {status} • Turn: {turn}
+            Turn: {turn}
           </div>
         </div>
 
