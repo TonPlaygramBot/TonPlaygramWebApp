@@ -50,8 +50,6 @@ const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
 const BOARD_SLOT_GAP = 0.15;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
-const BOARD_LIFT_OFFSET = 0.08;
-const BOARD_FRAME_FORWARD_TILT = 0.06;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -281,7 +279,7 @@ export default function BadukBattleRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_LIFT_OFFSET;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -469,12 +467,6 @@ export default function BadukBattleRoyal() {
     });
 
     const boardGroup = new THREE.Group();
-    const boardPanelGroup = new THREE.Group();
-    const panelTiltCos = Math.cos(BOARD_FRAME_FORWARD_TILT);
-    const panelTiltSin = Math.sin(BOARD_FRAME_FORWARD_TILT);
-    boardPanelGroup.rotation.x = BOARD_FRAME_FORWARD_TILT;
-    boardPanelGroup.position.set(0, boardCenterY * (1 - panelTiltCos), -boardCenterY * panelTiltSin);
-    boardGroup.add(boardPanelGroup);
 
     const selectedBoardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
     const selectedBoardFinish =
@@ -550,7 +542,7 @@ export default function BadukBattleRoyal() {
     boardFaceFront.receiveShadow = true;
     boardFaceBack.castShadow = true;
     boardFaceBack.receiveShadow = true;
-    boardPanelGroup.add(boardFaceFront, boardFaceBack);
+    boardGroup.add(boardFaceFront, boardFaceBack);
 
     const frameSideWidth = 0.12;
     const topRailDepth = 0.046;
@@ -558,18 +550,18 @@ export default function BadukBattleRoyal() {
     topFrontRail.position.set(0, boardCenterY + boardHeight / 2 + BOARD_FRAME_THICKNESS / 2, BOARD_SLOT_GAP / 2 + boardThickness / 2 + topRailDepth / 2);
     const topBackRail = topFrontRail.clone();
     topBackRail.position.z = -topFrontRail.position.z;
-    boardPanelGroup.add(topFrontRail, topBackRail);
+    boardGroup.add(topFrontRail, topBackRail);
 
     const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 2, BOARD_FRAME_THICKNESS, BOARD_FRAME_DEPTH), railMat);
     bottomRail.position.set(0, boardCenterY - boardHeight / 2 - BOARD_FRAME_THICKNESS / 2, 0.03);
-    boardPanelGroup.add(bottomRail);
+    boardGroup.add(bottomRail);
 
     const sideOffset = boardWidth / 2 + frameSideWidth / 2;
     const leftRail = new THREE.Mesh(new THREE.BoxGeometry(frameSideWidth, boardHeight + BOARD_FRAME_THICKNESS * 2, BOARD_FRAME_DEPTH), railMat);
     leftRail.position.set(-sideOffset, boardCenterY, 0.03);
     const rightRail = leftRail.clone();
     rightRail.position.x = sideOffset;
-    boardPanelGroup.add(leftRail, rightRail);
+    boardGroup.add(leftRail, rightRail);
 
     const legHeight = boardHeight * 0.66;
     const legY = boardBaseY - legHeight / 2 - 0.02;
@@ -595,7 +587,7 @@ export default function BadukBattleRoyal() {
         frontRim.position.set(x, y, BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.0012);
         const backRim = frontRim.clone();
         backRim.position.z = -(BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.0012);
-        boardPanelGroup.add(frontRim, backRim);
+        boardGroup.add(frontRim, backRim);
       }
     }
 
@@ -626,18 +618,18 @@ export default function BadukBattleRoyal() {
 
     const hitPlane = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight + yStep * 1.65), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
     hitPlane.position.set(0, boardCenterY + yStep * 0.28, 0.2);
-    boardPanelGroup.add(hitPlane);
+    boardGroup.add(hitPlane);
     boardHitPlaneRef.current = hitPlane;
 
     const marker = new THREE.Mesh(new THREE.RingGeometry(slotRadius * 1.1, slotRadius * 1.45, 24), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 }));
     marker.position.set(0, boardCenterY + boardHeight / 2 + yStep * 0.48, 0.2);
     marker.visible = false;
     markerRef.current = marker;
-    boardPanelGroup.add(marker);
+    boardGroup.add(marker);
 
     const pieces = new THREE.Group();
     piecesGroupRef.current = pieces;
-    boardPanelGroup.add(pieces);
+    boardGroup.add(pieces);
     scene.add(boardGroup);
 
     const onResize = () => {
