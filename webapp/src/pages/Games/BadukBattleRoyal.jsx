@@ -43,7 +43,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.02;
+const BOARD_TABLE_CLEARANCE = 0.16;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -255,6 +255,10 @@ export default function BadukBattleRoyal() {
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
+  const keyLightRef = useRef(null);
+  const tableInstanceRef = useRef(null);
+  const chairGroupRef = useRef(null);
+  const boardMaterialRefs = useRef({ boardFaceMat: null, railMat: null, trimMat: null, holeRimMat: null });
   const audioCtxRef = useRef(null);
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -302,6 +306,11 @@ export default function BadukBattleRoyal() {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const appearanceRef = useRef(appearance);
+
+  useEffect(() => {
+    appearanceRef.current = appearance;
+  }, [appearance]);
 
   useEffect(() => {
     hoverColRef.current = hoverCol;
@@ -410,6 +419,31 @@ export default function BadukBattleRoyal() {
 
   useEffect(() => renderPieces(board), [appearance.stoneStyle, rows, cols]);
 
+  const resolveWoodOption = (finish) => {
+    const preset = WOOD_FINISH_PRESETS.find((entry) => entry.id === finish?.woodOption?.presetId) || WOOD_FINISH_PRESETS[1] || WOOD_FINISH_PRESETS[0];
+    const grainId = finish?.woodOption?.grainId || DEFAULT_WOOD_GRAIN_ID;
+    const grain = WOOD_GRAIN_OPTIONS_BY_ID[grainId] || WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] || {};
+    return { preset, grain };
+  };
+  const applyWoodFinish = (material, finish, texturePart = 'rail', fallbackRepeat = { x: 1, y: 1 }) => {
+    if (!material) return;
+    const { preset, grain } = resolveWoodOption(finish);
+    const texture = grain?.[texturePart] || {};
+    applyWoodTextures(material, {
+      hue: preset?.hue ?? 32,
+      sat: preset?.sat ?? 0.34,
+      light: preset?.light ?? 0.7,
+      contrast: preset?.contrast ?? 0.52,
+      repeat: texture?.repeat ?? fallbackRepeat,
+      rotation: texture?.rotation ?? 0,
+      textureSize: texture?.textureSize,
+      mapUrl: texture?.mapUrl,
+      roughnessMapUrl: texture?.roughnessMapUrl,
+      normalMapUrl: texture?.normalMapUrl,
+      sharedKey: `baduk-${finish?.id || 'default'}-${texturePart}`
+    });
+  };
+
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return undefined;
@@ -445,26 +479,31 @@ export default function BadukBattleRoyal() {
     key.castShadow = true;
     scene.add(key);
 
-    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
-    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+    const currentAppearance = appearanceRef.current;
+    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: currentAppearance.tableId });
+    tableInstanceRef.current = table;
+    applyTableMaterials(table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === currentAppearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
-    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === currentAppearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairsGroup = new THREE.Group();
     [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
       const chair = createChair(chairTheme.primary, chairTheme.legColor);
       chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
       chair.lookAt(0, TABLE_HEIGHT, 0);
-      scene.add(chair);
+      chairsGroup.add(chair);
     });
+    chairGroupRef.current = chairsGroup;
+    scene.add(chairsGroup);
 
     const boardGroup = new THREE.Group();
 
-    const selectedBoardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
+    const selectedBoardTheme = BADUK_BOARD_THEMES.find((item) => item.id === currentAppearance.boardTheme) || BADUK_BOARD_THEMES[0];
     const selectedBoardFinish =
-      BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
+      BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === currentAppearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
     const selectedBoardFrameFinish =
-      BADUK_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || BADUK_BOARD_FRAME_FINISH_OPTIONS[0];
+      BADUK_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === currentAppearance.boardFrameFinish) || BADUK_BOARD_FRAME_FINISH_OPTIONS[0];
     const selectedRingFinish =
-      BADUK_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || BADUK_RING_FINISH_OPTIONS[0];
+      BADUK_RING_FINISH_OPTIONS.find((item) => item.id === currentAppearance.ringFinish) || BADUK_RING_FINISH_OPTIONS[0];
 
     const boardFaceMat = new THREE.MeshStandardMaterial({ color: selectedBoardTheme?.tint || CONNECT4_PANEL, roughness: 0.74, metalness: 0.02, side: THREE.DoubleSide });
     const railMat = new THREE.MeshStandardMaterial({ color: CONNECT4_WOOD, roughness: 0.52, metalness: 0.08 });
@@ -475,33 +514,10 @@ export default function BadukBattleRoyal() {
       metalness: selectedRingFinish?.metalness ?? 0.04
     });
 
-    const resolveWoodOption = (finish) => {
-      const preset = WOOD_FINISH_PRESETS.find((entry) => entry.id === finish?.woodOption?.presetId) || WOOD_FINISH_PRESETS[1] || WOOD_FINISH_PRESETS[0];
-      const grainId = finish?.woodOption?.grainId || DEFAULT_WOOD_GRAIN_ID;
-      const grain = WOOD_GRAIN_OPTIONS_BY_ID[grainId] || WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] || {};
-      return { preset, grain };
-    };
-    const applyWoodFinish = (material, finish, texturePart = 'rail', fallbackRepeat = { x: 1, y: 1 }) => {
-      if (!material) return;
-      const { preset, grain } = resolveWoodOption(finish);
-      const texture = grain?.[texturePart] || {};
-      applyWoodTextures(material, {
-        hue: preset?.hue ?? 32,
-        sat: preset?.sat ?? 0.34,
-        light: preset?.light ?? 0.7,
-        contrast: preset?.contrast ?? 0.52,
-        repeat: texture?.repeat ?? fallbackRepeat,
-        rotation: texture?.rotation ?? 0,
-        textureSize: texture?.textureSize,
-        mapUrl: texture?.mapUrl,
-        roughnessMapUrl: texture?.roughnessMapUrl,
-        normalMapUrl: texture?.normalMapUrl,
-        sharedKey: `baduk-${finish?.id || 'default'}-${texturePart}`
-      });
-    };
     applyWoodFinish(boardFaceMat, selectedBoardFinish, 'frame', { x: 0.9, y: 0.9 });
     applyWoodFinish(railMat, selectedBoardFrameFinish, 'rail', { x: 1, y: 1 });
     applyWoodFinish(trimMat, selectedBoardFrameFinish, 'frame', { x: 1, y: 1 });
+    boardMaterialRefs.current = { boardFaceMat, railMat, trimMat, holeRimMat };
 
     const boardThickness = BOARD_FACE_THICKNESS;
     const boardBaseY = boardBottomY - BOARD_BASE_THICKNESS / 2;
@@ -636,6 +652,7 @@ export default function BadukBattleRoyal() {
     };
     onResize();
     animationClockRef.current.start();
+    keyLightRef.current = key;
 
     let raf;
     const animate = () => {
@@ -692,10 +709,81 @@ export default function BadukBattleRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      tableInstanceRef.current?.dispose?.();
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [rows, cols, appearance.boardTheme, appearance.boardFinish, appearance.boardFrameFinish, appearance.ringFinish, appearance.tableId, appearance.tableFinish, appearance.chairId, appearance.graphics, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+  }, [rows, cols, boardWidth, boardHeight, boardCenterY, slotRadius, xStep, yStep]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer) return;
+    tableInstanceRef.current?.dispose?.();
+    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
+    tableInstanceRef.current = table;
+    applyTableMaterials(table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+  }, [appearance.tableId, appearance.tableFinish]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (chairGroupRef.current) {
+      scene.remove(chairGroupRef.current);
+      chairGroupRef.current.traverse((node) => {
+        if (node.isMesh) {
+          node.geometry?.dispose?.();
+          if (Array.isArray(node.material)) node.material.forEach((mat) => mat.dispose?.());
+          else node.material?.dispose?.();
+        }
+      });
+    }
+    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairsGroup = new THREE.Group();
+    [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
+      const chair = createChair(chairTheme.primary, chairTheme.legColor);
+      chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
+      chair.lookAt(0, TABLE_HEIGHT, 0);
+      chairsGroup.add(chair);
+    });
+    chairGroupRef.current = chairsGroup;
+    scene.add(chairsGroup);
+  }, [appearance.chairId]);
+
+  useEffect(() => {
+    const mats = boardMaterialRefs.current;
+    if (!mats.boardFaceMat || !mats.railMat || !mats.trimMat || !mats.holeRimMat) return;
+    const selectedBoardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
+    const selectedBoardFinish =
+      BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
+    const selectedBoardFrameFinish =
+      BADUK_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || BADUK_BOARD_FRAME_FINISH_OPTIONS[0];
+    const selectedRingFinish =
+      BADUK_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || BADUK_RING_FINISH_OPTIONS[0];
+    mats.boardFaceMat.color.set(selectedBoardTheme?.tint || CONNECT4_PANEL);
+    mats.holeRimMat.color.set(selectedRingFinish?.color || '#9a856e');
+    mats.holeRimMat.roughness = selectedRingFinish?.roughness ?? 0.52;
+    mats.holeRimMat.metalness = selectedRingFinish?.metalness ?? 0.04;
+    applyWoodFinish(mats.boardFaceMat, selectedBoardFinish, 'frame', { x: 0.9, y: 0.9 });
+    applyWoodFinish(mats.railMat, selectedBoardFrameFinish, 'rail', { x: 1, y: 1 });
+    applyWoodFinish(mats.trimMat, selectedBoardFrameFinish, 'frame', { x: 1, y: 1 });
+    mats.boardFaceMat.needsUpdate = true;
+    mats.railMat.needsUpdate = true;
+    mats.trimMat.needsUpdate = true;
+    mats.holeRimMat.needsUpdate = true;
+  }, [appearance.boardTheme, appearance.boardFinish, appearance.boardFrameFinish, appearance.ringFinish]);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const key = keyLightRef.current;
+    const mount = mountRef.current;
+    if (!renderer || !key || !mount) return;
+    const preset = GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) || GRAPHICS_PRESETS[0];
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    key.shadow.mapSize.setScalar(preset.shadowMapSize);
+    key.shadow.needsUpdate = true;
+  }, [appearance.graphics]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -936,17 +1024,6 @@ export default function BadukBattleRoyal() {
       <div className="pointer-events-none absolute inset-0 z-20">
         <div className="absolute left-1/2 top-[12%] -translate-x-1/2"><AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'ai'} size={1} /></div>
         <div className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
-      </div>
-
-      <div className="pointer-events-auto fixed bottom-4 right-3 z-50 flex gap-2">
-        <button type="button" onClick={() => navigate('/store/badukbattleroyal')} className="rounded-xl border border-white/20 bg-black/60 px-3 py-2 text-xs">Store</button>
-        <button
-          type="button"
-          onClick={resetMatch}
-          className="rounded-xl border border-cyan-300/40 bg-cyan-400/30 px-3 py-2 text-xs font-semibold"
-        >
-          Restart
-        </button>
       </div>
 
       {winner && (
