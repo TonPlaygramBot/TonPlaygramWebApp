@@ -10,17 +10,19 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
-  BADUK_CHAIR_OPTIONS,
   BADUK_BOARD_THEMES,
   BADUK_BOARD_FINISH_OPTIONS,
   BADUK_BOARD_FRAME_FINISH_OPTIONS,
   BADUK_RING_FINISH_OPTIONS,
-  BADUK_STONE_STYLES,
-  BADUK_TABLE_OPTIONS,
   BADUK_BATTLE_DEFAULT_LOADOUT,
   BADUK_BOARD_LAYOUTS,
   BADUK_BATTLE_OPTION_LABELS
 } from '../../config/badukBattleInventoryConfig.js';
+import {
+  CHESS_BATTLE_OPTION_THUMBNAILS,
+  CHESS_CHAIR_OPTIONS,
+  CHESS_TABLE_OPTIONS
+} from '../../config/chessBattleInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -63,6 +65,19 @@ const WINNER_OVERLAY_DELAY_MS = 900;
 const CHAIR_MODEL_URLS = Object.freeze([
   '/assets/models/chair/chair.glb',
   '/assets/models/chair/chair.gltf'
+]);
+const POLYHAVEN_MODEL_EXTS = Object.freeze(['.glb', '.gltf']);
+
+const QUICK_SIDE_COLORS = Object.freeze([
+  { id: 'marble', hex: 0xffffff, label: 'Marble', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble },
+  { id: 'darkForest', hex: 0x1f2937, label: 'Dark Forest', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.darkForest },
+  { id: 'amberGlow', hex: 0xf59e0b, label: 'Amber Glow', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amberGlow },
+  { id: 'mintVale', hex: 0x10b981, label: 'Mint Vale', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.mintVale },
+  { id: 'royalWave', hex: 0x3b82f6, label: 'Royal Wave', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.royalWave },
+  { id: 'roseMist', hex: 0xef4444, label: 'Rose Mist', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.roseMist },
+  { id: 'amethyst', hex: 0x8b5cf6, label: 'Amethyst', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.amethyst },
+  { id: 'cinderBlaze', hex: 0xff6b35, label: 'Cinder Blaze', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.cinderBlaze },
+  { id: 'arcticDrift', hex: 0xbcd7ff, label: 'Arctic Drift', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.arcticDrift }
 ]);
 
 const GRAPHICS_PRESETS = Object.freeze([
@@ -236,6 +251,7 @@ function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
 }
 
 let chairTemplatePromise = null;
+const polyhavenModelCache = new Map();
 async function loadMappedChairTemplate() {
   if (!chairTemplatePromise) {
     chairTemplatePromise = (async () => {
@@ -271,6 +287,39 @@ async function loadMappedChairTemplate() {
   return chairTemplatePromise;
 }
 
+const buildPolyhavenModelUrls = (assetId) => {
+  const normalized = String(assetId || '').trim();
+  if (!normalized) return [];
+  return POLYHAVEN_MODEL_EXTS.map((ext) => `https://dl.polyhaven.org/file/ph-assets/Models/glTF/${normalized}/${normalized}${ext}`);
+};
+
+async function loadPolyhavenModel(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing Poly Haven asset id');
+  const key = assetId.toLowerCase();
+  if (polyhavenModelCache.has(key)) return polyhavenModelCache.get(key);
+  const promise = (async () => {
+    const loader = new GLTFLoader();
+    if (renderer?.capabilities) {
+      loader.manager?.setURLModifier?.((url) => url);
+    }
+    let lastError = null;
+    for (const url of buildPolyhavenModelUrls(assetId)) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const model = gltf.scene || gltf.scenes?.[0];
+        if (model) return model;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Unable to load Poly Haven model: ${assetId}`);
+  })();
+  polyhavenModelCache.set(key, promise);
+  promise.catch(() => polyhavenModelCache.delete(key));
+  return promise;
+}
+
 const safeThumbnail = (value) => {
   if (!value) return '/assets/icons/four-in-row-royale.svg';
   if (value.startsWith('data:') || value.startsWith('/assets/') || value.startsWith('http')) return value;
@@ -299,6 +348,7 @@ export default function BadukBattleRoyal() {
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const tablePartsRef = useRef(null);
+  const tableInstanceRef = useRef(null);
   const chairGroupsRef = useRef([]);
   const boardMaterialsRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -320,7 +370,7 @@ export default function BadukBattleRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.1;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.16;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -328,13 +378,12 @@ export default function BadukBattleRoyal() {
 
   const [appearance, setAppearance] = useState(() => ({
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
-    tableId: inventory.tables?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.tables?.[0] || BADUK_TABLE_OPTIONS[0]?.id,
-    chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || BADUK_CHAIR_OPTIONS[0]?.id,
+    tableId: inventory.tables?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
+    chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
     boardFinish: inventory.boardFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardFinish?.[0] || BADUK_BOARD_FINISH_OPTIONS[0]?.id,
     boardFrameFinish: inventory.boardFrameFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardFrameFinish?.[0] || BADUK_BOARD_FRAME_FINISH_OPTIONS[0]?.id,
     ringFinish: inventory.ringFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.ringFinish?.[0] || BADUK_RING_FINISH_OPTIONS[0]?.id,
     boardTheme: inventory.boardTheme?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardTheme?.[0] || BADUK_BOARD_THEMES[0]?.id,
-    stoneStyle: inventory.stoneStyle?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] || BADUK_STONE_STYLES[0]?.id,
     hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
     graphics: GRAPHICS_PRESETS[0].id
   }));
@@ -385,6 +434,8 @@ export default function BadukBattleRoyal() {
     winningCellsRef.current = winningCells;
   }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
+  const [p1PieceStyleId, setP1PieceStyleId] = useState(QUICK_SIDE_COLORS[2]?.id || QUICK_SIDE_COLORS[0].id);
+  const [p2PieceStyleId, setP2PieceStyleId] = useState(QUICK_SIDE_COLORS[4]?.id || QUICK_SIDE_COLORS[1].id);
 
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
@@ -420,8 +471,10 @@ export default function BadukBattleRoyal() {
   };
 
   const createTokenMesh = (token) => {
-    const playerMat = new THREE.MeshStandardMaterial({ color: CONNECT4_RED, roughness: 0.35, metalness: 0.03 });
-    const aiMat = new THREE.MeshStandardMaterial({ color: CONNECT4_BLUE, roughness: 0.3, metalness: 0.03 });
+    const p1Color = QUICK_SIDE_COLORS.find((entry) => entry.id === p1PieceStyleId)?.hex ?? CONNECT4_RED;
+    const p2Color = QUICK_SIDE_COLORS.find((entry) => entry.id === p2PieceStyleId)?.hex ?? CONNECT4_BLUE;
+    const playerMat = new THREE.MeshStandardMaterial({ color: p1Color, roughness: 0.35, metalness: 0.03 });
+    const aiMat = new THREE.MeshStandardMaterial({ color: p2Color, roughness: 0.3, metalness: 0.03 });
     const rimMat = new THREE.MeshStandardMaterial({ color: '#1f1a16', roughness: 0.5, metalness: 0.02 });
     const tokenMesh = new THREE.Group();
     const material = token === 'player' ? playerMat : aiMat;
@@ -466,7 +519,7 @@ export default function BadukBattleRoyal() {
     displayedBoardRef.current = createBoard(rows, cols);
   }, [rows, cols]);
 
-  useEffect(() => renderPieces(board), [appearance.stoneStyle, rows, cols]);
+  useEffect(() => renderPieces(board), [p1PieceStyleId, p2PieceStyleId, rows, cols]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -503,11 +556,12 @@ export default function BadukBattleRoyal() {
     key.castShadow = true;
     scene.add(key);
 
-    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
-    tablePartsRef.current = table.parts;
-    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
+    tableInstanceRef.current = table;
+    tablePartsRef.current = table.materials;
+    applyTableMaterials(table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
-    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairTheme = CHESS_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
     const chairRoots = [];
     [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
       const chair = createChair(chairTheme.primary, chairTheme.legColor);
@@ -770,6 +824,8 @@ export default function BadukBattleRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      tableInstanceRef.current?.dispose?.();
+      tableInstanceRef.current = null;
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
@@ -781,6 +837,60 @@ export default function BadukBattleRoyal() {
     const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
     applyTableMaterials(tableParts, finish);
   }, [appearance.tableFinish]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer) return;
+    const theme = CHESS_TABLE_OPTIONS.find((item) => item.id === appearance.tableId) || CHESS_TABLE_OPTIONS[0];
+    let cancelled = false;
+    const swapTable = async () => {
+      tableInstanceRef.current?.dispose?.();
+      tableInstanceRef.current = null;
+      tablePartsRef.current = null;
+      if (theme?.source === 'polyhaven' && theme?.assetId) {
+        try {
+          const root = await loadPolyhavenModel(theme.assetId, renderer);
+          if (cancelled) return;
+          const model = root.clone(true);
+          model.traverse((obj) => {
+            if (obj?.isMesh) {
+              obj.castShadow = true;
+              obj.receiveShadow = true;
+            }
+          });
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const maxXZ = Math.max(size.x || 1, size.z || 1);
+          const maxY = size.y || 1;
+          const targetDiameter = TABLE_RADIUS * 2.05;
+          model.scale.setScalar(Math.min(targetDiameter / maxXZ, TABLE_HEIGHT / maxY));
+          const scaled = new THREE.Box3().setFromObject(model);
+          const center = scaled.getCenter(new THREE.Vector3());
+          model.position.add(new THREE.Vector3(-center.x, TABLE_HEIGHT - scaled.min.y, -center.z));
+          const group = new THREE.Group();
+          group.add(model);
+          scene.add(group);
+          tableInstanceRef.current = {
+            group,
+            materials: null,
+            dispose: () => group.removeFromParent()
+          };
+          return;
+        } catch {}
+      }
+      const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
+      if (cancelled) return;
+      tableInstanceRef.current = table;
+      tablePartsRef.current = table.materials;
+      const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
+      applyTableMaterials(table.materials, finish);
+    };
+    void swapTable();
+    return () => {
+      cancelled = true;
+    };
+  }, [appearance.tableId, appearance.tableFinish]);
 
   useEffect(() => {
     const materials = boardMaterialsRef.current;
@@ -845,19 +955,36 @@ export default function BadukBattleRoyal() {
   useEffect(() => {
     const chairRoots = chairGroupsRef.current;
     if (!chairRoots?.length) return;
-    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairTheme = CHESS_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || CHESS_CHAIR_OPTIONS[0];
     let cancelled = false;
     const applyChairs = async () => {
       try {
-        const template = await loadMappedChairTemplate();
+        const template =
+          chairTheme?.source === 'polyhaven' && chairTheme?.assetId
+            ? await loadPolyhavenModel(chairTheme.assetId, rendererRef.current)
+            : await loadMappedChairTemplate();
         if (cancelled) return;
         chairRoots.forEach((group) => {
           const model = template.clone(true);
+          const sourceBox = new THREE.Box3().setFromObject(model);
+          const sourceSize = sourceBox.getSize(new THREE.Vector3());
+          const maxSize = Math.max(sourceSize.x || 1, sourceSize.y || 1, sourceSize.z || 1);
+          model.scale.multiplyScalar(1.35 / maxSize);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.add(new THREE.Vector3(-center.x, -box.min.y, -center.z));
           model.traverse((child) => {
             if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (chairTheme?.preserveMaterials) return;
             const mats = Array.isArray(child.material) ? child.material : [child.material];
-            mats.forEach((mat) => {
-              if (mat?.color) mat.color.set(chairTheme.primary || chairTheme.seatColor || '#7f1d1d');
+            mats.forEach((mat, idx) => {
+              if (!mat?.color) return;
+              const tint = idx === 0
+                ? (chairTheme.primary || chairTheme.seatColor || '#7f1d1d')
+                : (chairTheme.legColor || '#111827');
+              mat.color.set(tint);
             });
           });
           group.clear();
@@ -1036,15 +1163,14 @@ export default function BadukBattleRoyal() {
   const aiCount = board.flat().filter((x) => x === 'ai').length;
 
   const optionGroups = [
-    { key: 'tableId', label: 'Tables', options: BADUK_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'chairId', label: 'Chairs', options: BADUK_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'tableId', label: 'Tables', options: CHESS_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'chairId', label: 'Chairs', options: CHESS_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFinish', label: 'Board Finish', options: BADUK_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFrameFinish', label: 'Board Frame', options: BADUK_BOARD_FRAME_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'ringFinish', label: 'Ring Finish', options: BADUK_RING_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'hdriId', label: 'HDRI', options: POOL_ROYALE_HDRI_VARIANTS.map((item) => ({ id: item.id, label: item.name, thumbnail: item.thumbnail })) },
     { key: 'boardTheme', label: 'Board', options: BADUK_BOARD_THEMES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'stoneStyle', label: 'Pieces', options: BADUK_STONE_STYLES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'graphics', label: 'Graphics', options: GRAPHICS_PRESETS.map((item) => ({ id: item.id, label: item.label, thumbnail: '/assets/icons/four-in-row-royale.svg' })) }
   ];
 
@@ -1107,6 +1233,40 @@ export default function BadukBattleRoyal() {
                   </div>
                 </div>
               ))}
+              <div className="mt-4 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">Pieces P1</p>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_SIDE_COLORS.map((color) => (
+                    <button
+                      key={`p1-${color.id}`}
+                      type="button"
+                      onClick={() => setP1PieceStyleId(color.id)}
+                      className={`flex w-20 flex-col items-center gap-1 rounded-xl border p-2 text-[0.6rem] font-semibold ${
+                        p1PieceStyleId === color.id ? 'border-white/70 bg-white/10 text-white' : 'border-white/20 bg-white/5 text-white/75'
+                      }`}
+                    >
+                      <img src={safeThumbnail(color.thumbnail)} alt={`${color.label} pieces`} className="h-10 w-10 rounded-lg border border-white/20 object-cover" />
+                      <span className="text-center leading-tight">{color.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">Pieces P2</p>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_SIDE_COLORS.map((color) => (
+                    <button
+                      key={`p2-${color.id}`}
+                      type="button"
+                      onClick={() => setP2PieceStyleId(color.id)}
+                      className={`flex w-20 flex-col items-center gap-1 rounded-xl border p-2 text-[0.6rem] font-semibold ${
+                        p2PieceStyleId === color.id ? 'border-white/70 bg-white/10 text-white' : 'border-white/20 bg-white/5 text-white/75'
+                      }`}
+                    >
+                      <img src={safeThumbnail(color.thumbnail)} alt={`${color.label} pieces`} className="h-10 w-10 rounded-lg border border-white/20 object-cover" />
+                      <span className="text-center leading-tight">{color.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
