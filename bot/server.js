@@ -302,24 +302,13 @@ app.post('/api/goal-rush/calibration', authenticate, async (req, res) => {
 });
 
 // Serve the built React app
-const bundledWebappPath = path.join(__dirname, 'webapp-dist');
-const sourceWebappPath = path.join(__dirname, '../webapp/dist');
-let webappPath = existsSync(path.join(bundledWebappPath, 'index.html'))
-  ? bundledWebappPath
-  : sourceWebappPath;
-const versionFilePath = () => path.join(webappPath, 'version.json');
+const webappPath = path.join(__dirname, '../webapp/dist');
+const versionFilePath = path.join(webappPath, 'version.json');
 const sourceVersionPath = path.join(__dirname, '../webapp/public/version.json');
-
-function hasBuiltWebapp(targetPath = webappPath) {
-  return (
-    existsSync(path.join(targetPath, 'index.html')) &&
-    existsSync(path.join(targetPath, 'assets'))
-  );
-}
 
 function loadWebappVersion() {
   const fallbackBuild = process.env.APP_BUILD || 'dev';
-  const candidates = [versionFilePath(), sourceVersionPath];
+  const candidates = [versionFilePath, sourceVersionPath];
   for (const filePath of candidates) {
     if (existsSync(filePath)) {
       try {
@@ -337,33 +326,20 @@ function loadWebappVersion() {
 }
 
 function ensureWebappBuilt() {
-  if (hasBuiltWebapp(bundledWebappPath)) {
-    webappPath = bundledWebappPath;
-    return true;
-  }
-  if (hasBuiltWebapp(sourceWebappPath)) {
-    webappPath = sourceWebappPath;
-    return true;
-  }
-
   if (process.env.SKIP_WEBAPP_BUILD) {
     console.log('Skipping webapp build');
     return true;
   }
-
-  const allowRuntimeBuild =
-    process.env.ENABLE_WEBAPP_RUNTIME_BUILD === '1' ||
-    process.env.NODE_ENV !== 'production';
-  if (!allowRuntimeBuild) {
-    console.warn(
-      'Webapp build artifacts are missing and runtime build is disabled. ' +
-        'Set ENABLE_WEBAPP_RUNTIME_BUILD=1 to enable fallback build.'
-    );
-    return false;
+  if (
+    existsSync(path.join(webappPath, 'index.html')) &&
+    existsSync(path.join(webappPath, 'assets'))
+  ) {
+    return true;
   }
   try {
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
+    execSync('npm install', { cwd: webappDir, stdio: 'inherit' });
 
     const apiBase = process.env.WEBAPP_API_BASE_URL || '';
     const displayBase = apiBase || '(same origin)';
@@ -378,11 +354,7 @@ function ensureWebappBuilt() {
       }
     });
 
-    if (hasBuiltWebapp(sourceWebappPath)) {
-      webappPath = sourceWebappPath;
-      return true;
-    }
-    return false;
+    return existsSync(path.join(webappPath, 'index.html'));
   } catch (err) {
     console.error('Failed to build webapp:', err.message);
     return false;
@@ -415,16 +387,12 @@ function setWebAssetCacheHeaders(res, filePath) {
   res.setHeader('Cache-Control', `public, max-age=${ONE_YEAR_SECONDS}, immutable`);
 }
 
-app.use((req, res, next) => {
-  if (!hasBuiltWebapp(webappPath)) {
-    next();
-    return;
-  }
+app.use(
   express.static(webappPath, {
     maxAge: 0,
     setHeaders: setWebAssetCacheHeaders
-  })(req, res, next);
-});
+  })
+);
 
 function sendIndex(res) {
   if (ensureWebappBuilt()) {
