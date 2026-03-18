@@ -16,7 +16,6 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.j
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx'
 import AvatarTimer from '../../components/AvatarTimer.jsx'
 import { getGameVolume, isGameMuted } from '../../utils/sound.js'
-import { bombSound } from '../../assets/soundData.js'
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx'
 import GiftPopup from '../../components/GiftPopup.jsx'
 import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js'
@@ -31,7 +30,6 @@ import {
   WHITE,
   applyMove,
   collectTurnSequences,
-  formatMove,
   initialBoard,
   pickAiSequence
 } from '../../utils/tavullEngine.js'
@@ -65,6 +63,8 @@ const CHIP_COLUMN_SPACING = POINT_WIDTH * 0.34
 const CHIP_POINT_INSET = POINT_WIDTH * 0.18
 const CHIP_BASE_Y_OFFSET = TRIANGLE_BASE_Y_OFFSET + TRIANGLE_HEIGHT + CHIP_HEIGHT * 0.53
 const CHIP_MAX_PER_COLUMN = 5
+const CAPTURE_STRIP_OFFSET_ROWS = 1.15
+const CAPTURE_STRIP_PIECE_GAP = 0.82
 
 const MODEL_SCALE = 0.75
 const STOOL_SCALE = 1.5 * 1.3
@@ -104,7 +104,6 @@ const QUALITY_OPTIONS = Object.freeze([
 const MOVE_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3'
 const WIN_SOUND_URL = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3'
 const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3'
-const CAPTURE_SOUND_URL = bombSound
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
@@ -786,9 +785,8 @@ export default function TavullBattleRoyal() {
       animateDiceThrow: (values = [], seat = 0) => {
         const diceValues = (Array.isArray(values) && values.length ? values : [1, 1]).slice(0, maxDice)
         const startZ = seat === 0 ? BOARD_HALF_Z - 0.05 : -BOARD_HALF_Z + 0.05
-        const endZ = seat === 0 ? BOARD_HALF_Z * 0.18 : -BOARD_HALF_Z * 0.18
-        const spacing = 0.16
-        const centerOffset = (diceValues.length - 1) / 2
+        const endZ = 0
+        const centerXPositions = [-0.34, 0.34]
         diceMeshes.forEach((mesh, index) => {
           if (index >= diceValues.length) {
             mesh.visible = false
@@ -798,9 +796,9 @@ export default function TavullBattleRoyal() {
           const dieValue = Number(diceValues[index]) || 1
           mesh.userData.setValue?.(dieValue)
           diceAnimationState.entries = diceAnimationState.entries.filter((entry) => entry.mesh !== mesh)
-          const x = (index - centerOffset) * spacing
+          const x = centerXPositions[index] ?? 0
           const startPos = new THREE.Vector3(x, BOARD_Y + 0.24, startZ)
-          const endPos = new THREE.Vector3(x * 0.75, BOARD_Y + 0.17, endZ)
+          const endPos = new THREE.Vector3(x, BOARD_Y + 0.17, endZ)
           mesh.position.copy(startPos)
           diceAnimationState.entries.push({
             mesh,
@@ -928,16 +926,53 @@ export default function TavullBattleRoyal() {
       return pieceGroup
     }
 
-    const highlightTargets = new Set()
+    const sourceTargets = new Set()
+    const destinationTargets = new Set()
     available.forEach((sequence) => {
       sequence?.line?.forEach((move) => {
-        if (typeof move?.from === 'number') highlightTargets.add(move.from)
-        if (typeof move?.to === 'number') highlightTargets.add(move.to)
+        if (typeof move?.from !== 'number' || typeof move?.to !== 'number') return
+        if (selectedPoint == null) {
+          sourceTargets.add(move.from)
+          return
+        }
+        if (move.from === selectedPoint) {
+          sourceTargets.add(move.from)
+          destinationTargets.add(move.to)
+        }
       })
     })
+
     if (activeMoveHighlight) {
-      if (typeof activeMoveHighlight.from === 'number') highlightTargets.add(activeMoveHighlight.from)
-      if (typeof activeMoveHighlight.to === 'number') highlightTargets.add(activeMoveHighlight.to)
+      if (typeof activeMoveHighlight.from === 'number') sourceTargets.add(activeMoveHighlight.from)
+      if (typeof activeMoveHighlight.to === 'number') destinationTargets.add(activeMoveHighlight.to)
+    }
+
+    const createPrecisionMarker = (isSource, emphasized = false) =>
+      new THREE.Mesh(
+        new THREE.TorusGeometry(CHIP_RADIUS * (isSource ? 1.08 : 0.92), CHIP_RADIUS * 0.09, 16, 48),
+        new THREE.MeshStandardMaterial({
+          color: emphasized ? '#f59e0b' : isSource ? '#22d3ee' : '#38bdf8',
+          emissive: emphasized ? '#7c2d12' : isSource ? '#164e63' : '#0c4a6e',
+          emissiveIntensity: emphasized ? 1.3 : 1,
+          roughness: 0.28,
+          metalness: 0.24,
+          transparent: true,
+          opacity: emphasized ? 0.98 : 0.92
+        })
+      )
+
+    const pointMarkerPosition = (pointIndex, forSource) => {
+      const base = pointBasePosition(pointIndex)
+      const point = game.points[pointIndex]
+      const towardCenterSign = base.top ? 1 : -1
+      const count = point?.count || 0
+      const slot = forSource ? Math.max(0, count - 1) : count
+      const row = Math.min(slot % CHIP_MAX_PER_COLUMN, CHIP_MAX_PER_COLUMN - 1)
+      return new THREE.Vector3(
+        base.x,
+        BOARD_Y + CHIP_BASE_Y_OFFSET + CHIP_HEIGHT * 0.12,
+        base.z + towardCenterSign * (CHIP_POINT_INSET + row * CHIP_ROW_SPACING)
+      )
     }
 
     for (let i = 0; i < 24; i += 1) {
@@ -958,46 +993,45 @@ export default function TavullBattleRoyal() {
         )
         chipGroup.add(chip)
       }
-      if (highlightTargets.has(i)) {
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(CHIP_RADIUS * 1.5, CHIP_RADIUS * 0.16, 8, 28),
-          new THREE.MeshStandardMaterial({
-            color: activeMoveHighlight ? '#f59e0b' : '#22d3ee',
-            emissive: activeMoveHighlight ? '#7c2d12' : '#164e63',
-            emissiveIntensity: 1.2,
-            roughness: 0.3,
-            metalness: 0.2
-          })
-        )
-        ring.rotation.x = Math.PI / 2
-        ring.position.set(
-          base.x,
-          BOARD_Y + CHIP_BASE_Y_OFFSET,
-          base.z + (base.top ? -1 : 1) * (CHIP_POINT_INSET * 0.85)
-        )
-        chipGroup.add(ring)
-      }
     }
 
-    const makeBarChips = (count, color, zSign) => {
-      const totalColumns = Math.ceil(count / CHIP_MAX_PER_COLUMN)
-      const columnCenterOffset = (totalColumns - 1) * 0.5
+    sourceTargets.forEach((pointIndex) => {
+      if (pointIndex < 0 || pointIndex >= 24) return
+      const marker = createPrecisionMarker(true, typeof selectedPoint === 'number' && pointIndex === selectedPoint)
+      marker.rotation.x = Math.PI / 2
+      marker.position.copy(pointMarkerPosition(pointIndex, true))
+      chipGroup.add(marker)
+    })
+
+    destinationTargets.forEach((pointIndex) => {
+      if (pointIndex < 0 || pointIndex >= 24) return
+      const marker = createPrecisionMarker(false, activeMoveHighlight?.to === pointIndex)
+      marker.rotation.x = Math.PI / 2
+      marker.position.copy(pointMarkerPosition(pointIndex, false))
+      chipGroup.add(marker)
+    })
+
+    const makeCapturedSideChips = (count, color, edge) => {
+      if (!count) return
+      const maxPerRow = 12
       for (let s = 0; s < count; s += 1) {
         const chip = createChip(color)
-        const column = Math.floor(s / CHIP_MAX_PER_COLUMN)
-        const row = s % CHIP_MAX_PER_COLUMN
+        const row = Math.floor(s / maxPerRow)
+        const col = s % maxPerRow
+        const rowCount = Math.min(count - row * maxPerRow, maxPerRow)
+        const centered = col - (rowCount - 1) / 2
         chip.position.set(
-          (column - columnCenterOffset) * CHIP_COLUMN_SPACING,
+          centered * CHIP_COLUMN_SPACING * CAPTURE_STRIP_PIECE_GAP,
           BOARD_Y + CHIP_BASE_Y_OFFSET,
-          zSign * (BOARD_EDGE_MARGIN_Z * 0.72 + row * CHIP_ROW_SPACING)
+          edge * (BOARD_HALF_Z + CHIP_POINT_INSET * (CAPTURE_STRIP_OFFSET_ROWS + row * 0.74))
         )
         chipGroup.add(chip)
       }
     }
 
-    makeBarChips(game.bar.white, WHITE, -1)
-    makeBarChips(game.bar.black, BLACK, 1)
-  }, [game, available, activeMoveHighlight])
+    makeCapturedSideChips(game.bar.white, WHITE, 1)
+    makeCapturedSideChips(game.bar.black, BLACK, -1)
+  }, [game, available, activeMoveHighlight, selectedPoint])
 
   const animateSequence = (state, color, sequence, onDone) => {
     const line = sequence?.line || []
@@ -1016,7 +1050,7 @@ export default function TavullBattleRoyal() {
       currentState = applyMove(currentState, color, move)
       setGame(currentState)
       const wasCapture = currentState.bar[opponent] > previousOpponentBar
-      playSfx(wasCapture ? CAPTURE_SOUND_URL : MOVE_SOUND_URL, wasCapture ? 0.76 : 0.7)
+      playSfx(MOVE_SOUND_URL, wasCapture ? 0.76 : 0.7)
       idx += 1
       if (idx < line.length) {
         const timeoutId = window.setTimeout(runStep, 460)
@@ -1097,7 +1131,7 @@ export default function TavullBattleRoyal() {
         playAi(game)
         return
       }
-      setMessage('Tap a checker/point to move, or choose a legal turn from the list.')
+      setMessage('Tap a checker or triangle to select from-point, then tap destination triangle.')
     }, 820)
     pendingTimeoutsRef.current.push(timeoutId)
   }
@@ -1123,32 +1157,31 @@ export default function TavullBattleRoyal() {
     const onPointTap = (event) => {
       const point = event?.detail?.point
       if (typeof point !== 'number' || aiThinking || winner) return
-      const candidates = available.filter((seq) => seq?.line?.some((move) => move.from === point || move.to === point))
-      if (!candidates.length) return
-      if (candidates.length === 1) {
-        handleSequence(candidates[0])
-        return
-      }
 
-      if (selectedPoint == null || selectedPoint === point) {
+      if (selectedPoint == null) {
+        const startsFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
+        if (!startsFromPoint.length) return
+        if (startsFromPoint.length === 1) {
+          handleSequence(startsFromPoint[0])
+          return
+        }
         setSelectedPoint(point)
-        setMessage('Selected point. Tap destination or tap a legal line below.')
+        setMessage('From point selected. Tap destination triangle.')
         return
       }
 
-      const narrowed = candidates.filter((seq) =>
-        seq?.line?.some((move) =>
-          (move.from === selectedPoint && move.to === point) || (move.from === point && move.to === selectedPoint)
-        )
-      )
+      const narrowed = available.filter((seq) => seq?.line?.[0]?.from === selectedPoint && seq?.line?.[0]?.to === point)
 
-      if (narrowed.length === 1) {
+      if (narrowed.length >= 1) {
         handleSequence(narrowed[0])
         return
       }
 
-      setSelectedPoint(point)
-      setMessage('Multiple options here. Tap a legal line below to choose the exact move.')
+      const restartFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
+      if (restartFromPoint.length) {
+        setSelectedPoint(point)
+        setMessage('From point changed. Tap destination triangle.')
+      }
     }
 
     window.addEventListener('tavullPointTap', onPointTap)
@@ -1264,29 +1297,8 @@ export default function TavullBattleRoyal() {
 
       <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-black/30">
         <div ref={canvasHostRef} className="h-full w-full" />
-      </div>
 
-      {available.length > 0 && (
-        <div className="absolute bottom-32 left-1/2 z-30 w-[94vw] max-w-md -translate-x-1/2 rounded-xl border border-white/15 bg-black/70 p-2 text-[10px] backdrop-blur">
-          <div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-cyan-200">Legal turns</div>
-          <div className="max-h-28 space-y-1 overflow-y-auto">
-            {available.map((seq, idx) => (
-              <button
-                key={`seq-${idx}`}
-                type="button"
-                onClick={() => handleSequence(seq)}
-                className={`block w-full rounded border px-2 py-1 text-left ${
-                  selectedPoint != null && seq.line.some((move) => move.from === selectedPoint || move.to === selectedPoint)
-                    ? 'border-amber-300/70 bg-amber-500/20'
-                    : 'border-cyan-300/40 bg-cyan-500/10'
-                }`}
-              >
-                {seq.line.map((move) => formatMove(move)).join(' • ')}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
 
       <div className="absolute left-1/2 top-[75%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
         <button
