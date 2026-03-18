@@ -213,7 +213,8 @@ const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
-  capture: '#ff8e6e'
+  capture: '#ff8e6e',
+  forcedOrigin: '#fde047'
 });
 
 const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
@@ -242,17 +243,36 @@ const AI_SIDE = 'dark';
 const AI_SEARCH_DEPTH = 6;
 const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
 const CAPTURE_STRIP_PIECE_GAP = 0.82;
+const pieceTextureLoader = new THREE.TextureLoader();
+const checkerTextureCache = new Map();
+
+function getCheckerStyleTexture(styleId) {
+  const textureUrl = CHESS_BATTLE_OPTION_THUMBNAILS.sideColor?.[styleId];
+  if (!textureUrl) return null;
+  if (checkerTextureCache.has(textureUrl)) {
+    return checkerTextureCache.get(textureUrl);
+  }
+  const texture = pieceTextureLoader.load(textureUrl);
+  applySRGBColorSpace(texture);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  checkerTextureCache.set(textureUrl, texture);
+  return texture;
+}
 
 const createCheckerMesh = ({
   tile,
   side,
   king,
   chipSet,
+  styleIds,
   checkerHeadPreset
 }) => {
   const pieceGroup = new THREE.Group();
   const baseMaterial = createCheckerMaterial(
     side === 'light' ? chipSet.light : chipSet.dark,
+    side === 'light' ? styleIds?.lightId : styleIds?.darkId,
     checkerHeadPreset
   );
   const chip = new THREE.Mesh(
@@ -818,9 +838,11 @@ function resolveCheckersPlayableTileSize(boardModel) {
   return span / ratio / SIZE;
 }
 
-function createCheckerMaterial(sideColor, headPreset) {
+function createCheckerMaterial(sideColor, styleId, headPreset) {
+  const texture = getCheckerStyleTexture(styleId);
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(sideColor),
+    map: texture || null,
     roughness: headPreset?.roughness ?? 0.08,
     metalness: headPreset?.metalness ?? 0,
     transmission: headPreset?.transmission ?? 0.95,
@@ -991,6 +1013,39 @@ function createProceduralChairFallback(chairColor, legColor) {
   return chair;
 }
 
+const polyhavenModelUrls = (assetId) => [
+  `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+  `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
+];
+
+async function loadPolyhavenModel(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing Poly Haven asset id');
+  const loader = createConfiguredGLTFLoader(renderer);
+  let lastError = null;
+  for (const url of polyhavenModelUrls(assetId)) {
+    try {
+      const gltf = await loader.loadAsync(url);
+      return gltf.scene || gltf.scenes?.[0] || gltf;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error(`Failed to load Poly Haven model: ${assetId}`);
+}
+
+function fitTableModelToArena(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const footprint = Math.max(size.x, size.z);
+  const targetFootprint = TABLE_RADIUS * 2;
+  if (footprint > 0) model.scale.multiplyScalar(targetFootprint / footprint);
+  const scaled = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaled.getCenter(new THREE.Vector3());
+  model.position.add(
+    new THREE.Vector3(-scaledCenter.x, TABLE_HEIGHT - scaled.min.y, -scaledCenter.z)
+  );
+}
+
 function resolveArenaFloorY(...groups) {
   const box = new THREE.Box3();
   let hasObject = false;
@@ -1089,6 +1144,8 @@ export default function CheckersBattleRoyal() {
   const controlsRef = useRef(null);
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
+  const activeTableThemeIdRef = useRef(null);
+  const activeChairThemeIdRef = useRef(null);
   const envRef = useRef({ map: null, skybox: null });
   const boardThemeRef = useRef(CHECKERS_BOARD_THEME_OPTIONS[0]);
   const gltfBoardRef = useRef(null);
@@ -1143,7 +1200,9 @@ export default function CheckersBattleRoyal() {
       CHECKERS_CHIP_SET_BY_ID[defaultP2PieceStyleId] ||
       CHECKERS_CHIP_SET_BY_ID.mintVale;
     return {
+      lightId: lightPieceStyle.id,
       light: lightPieceStyle.light,
+      darkId: darkPieceStyle.id,
       dark: darkPieceStyle.dark
     };
   }, [
@@ -1242,6 +1301,7 @@ export default function CheckersBattleRoyal() {
             side: piece.side,
             king: piece.king,
             chipSet: piecePalette,
+            styleIds: piecePalette,
             checkerHeadPreset
           });
 
@@ -1280,6 +1340,7 @@ export default function CheckersBattleRoyal() {
             side: piece.side,
             king: piece.king,
             chipSet: piecePalette,
+            styleIds: piecePalette,
             checkerHeadPreset
           });
           checker.position.set(
@@ -1311,8 +1372,6 @@ export default function CheckersBattleRoyal() {
       if (!group) return;
       disposeGroupMeshes(group);
       group.clear();
-      const selected = selectedRef.current;
-      if (!selected) return;
       const board = boardRef.current;
       const { x, y, z, tile } = boardOriginRef.current;
       const toPosition = (r, c) =>
@@ -1321,6 +1380,34 @@ export default function CheckersBattleRoyal() {
           y + tile * 0.02,
           z + (r - 3.5) * tile
         );
+      const selected = selectedRef.current;
+      const sideMoves = getMovesForSide(board, turn);
+      const forcedCaptures = sideMoves.filter((move) => move.capture);
+      if (!selected) {
+        if (!forcedCaptures.length) return;
+        const seen = new Set();
+        forcedCaptures.forEach((move) => {
+          const key = `${move.from.r}:${move.from.c}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const forcedOriginMarker = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              tile * 0.28,
+              tile * 0.28,
+              Math.max(0.065, tile * 0.03),
+              20
+            ),
+            new THREE.MeshBasicMaterial({
+              color: CHECKERS_HIGHLIGHT_COLORS.forcedOrigin,
+              transparent: true,
+              opacity: 0.88
+            })
+          );
+          forcedOriginMarker.position.copy(toPosition(move.from.r, move.from.c));
+          group.add(forcedOriginMarker);
+        });
+        return;
+      }
       const selection = new THREE.Mesh(
         new THREE.CylinderGeometry(
           tile * 0.3,
@@ -1336,8 +1423,6 @@ export default function CheckersBattleRoyal() {
       );
       selection.position.copy(toPosition(selected.r, selected.c));
       group.add(selection);
-      const sideMoves = getMovesForSide(board, turn);
-      const forcedCaptures = sideMoves.filter((move) => move.capture);
       const allowedMoves = forcedCaptures.length
         ? forcedCaptures
             .filter(
@@ -1693,17 +1778,36 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
-        const table = createMurlanStyleTable({
-          arena: scene,
-          renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT
-        });
-        const finish =
-          MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-          MURLAN_TABLE_FINISHES[0];
-        applyTableMaterials(table.parts, finish);
-        tableRef.current = table;
+        const tableTheme =
+          CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) ||
+          CHESS_TABLE_OPTIONS[0];
+        if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
+          const model = await loadPolyhavenModel(tableTheme.assetId, renderer);
+          model.traverse((obj) => {
+            if (!obj?.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+          });
+          fitTableModelToArena(model);
+          const group = new THREE.Group();
+          group.add(model);
+          scene.add(group);
+          tableRef.current = { group, parts: null, themeId: tableTheme.id };
+          activeTableThemeIdRef.current = tableTheme.id;
+        } else {
+          const table = createMurlanStyleTable({
+            arena: scene,
+            renderer,
+            tableRadius: TABLE_RADIUS,
+            tableHeight: TABLE_HEIGHT
+          });
+          const finish =
+            MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+            MURLAN_TABLE_FINISHES[0];
+          applyTableMaterials(table.parts, finish);
+          tableRef.current = { ...table, themeId: tableTheme?.id };
+          activeTableThemeIdRef.current = tableTheme?.id || null;
+        }
       } catch (error) {
         console.error('Checkers table load failed:', error);
       }
@@ -1712,21 +1816,28 @@ export default function CheckersBattleRoyal() {
         const chairOption =
           CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
           CHESS_CHAIR_OPTIONS[0];
-        const chairColor =
-          chairOption?.primary || chairOption?.seatColor || '#8b0000';
-        const chairTemplate = await buildChessMappedChairTemplate();
+        let chairTemplate = null;
+        if (chairOption?.source === 'polyhaven' && chairOption?.assetId) {
+          chairTemplate = await loadPolyhavenModel(chairOption.assetId, renderer);
+          fitChairModelToFootprint(chairTemplate);
+        } else {
+          chairTemplate = await buildChessMappedChairTemplate();
+        }
+        const chairColor = chairOption?.primary || chairOption?.seatColor || '#8b0000';
         const makeChair = (z, ry) => {
           const g = chairTemplate.clone(true);
-          g.traverse((obj) => {
-            if (!obj.isMesh) return;
-            const mats = Array.isArray(obj.material)
-              ? obj.material
-              : [obj.material];
-            mats.forEach((mat) => {
-              if (mat?.color) mat.color.set(chairColor);
-              mat.needsUpdate = true;
+          if (!(chairOption?.source === 'polyhaven' && chairOption?.preserveMaterials)) {
+            g.traverse((obj) => {
+              if (!obj.isMesh) return;
+              const mats = Array.isArray(obj.material)
+                ? obj.material
+                : [obj.material];
+              mats.forEach((mat) => {
+                if (mat?.color) mat.color.set(chairColor);
+                mat.needsUpdate = true;
+              });
             });
-          });
+          }
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
@@ -1736,6 +1847,7 @@ export default function CheckersBattleRoyal() {
           makeChair(CHAIR_DISTANCE, Math.PI),
           makeChair(-CHAIR_DISTANCE, 0)
         ];
+        activeChairThemeIdRef.current = chairOption?.id || null;
       } catch (error) {
         console.error('Checkers chairs load failed, using fallback:', error);
         const chairOption =
@@ -1755,6 +1867,7 @@ export default function CheckersBattleRoyal() {
           makeFallback(CHAIR_DISTANCE, Math.PI),
           makeFallback(-CHAIR_DISTANCE, 0)
         ];
+        activeChairThemeIdRef.current = chairOption?.id || null;
       }
 
       const addVisibleBoardBase = () => {
@@ -1983,17 +2096,102 @@ export default function CheckersBattleRoyal() {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    let cancelled = false;
+    const selectedTableTheme =
+      CHESS_TABLE_OPTIONS.find((t) => t.id === appearance.tableId) ||
+      CHESS_TABLE_OPTIONS[0];
+    const selectedChairTheme =
+      CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
+      CHESS_CHAIR_OPTIONS[0];
+
+    const rebuildArenaFurniture = async () => {
+      if (activeTableThemeIdRef.current !== selectedTableTheme?.id) {
+        if (tableRef.current?.dispose) tableRef.current.dispose();
+        if (tableRef.current?.group) {
+          disposeGroupMeshes(tableRef.current.group);
+          tableRef.current.group.removeFromParent?.();
+        }
+        tableRef.current = null;
+        try {
+          if (selectedTableTheme?.source === 'polyhaven' && selectedTableTheme?.assetId) {
+            const model = await loadPolyhavenModel(selectedTableTheme.assetId, rendererRef.current);
+            if (cancelled) return;
+            model.traverse((obj) => {
+              if (!obj?.isMesh) return;
+              obj.castShadow = true;
+              obj.receiveShadow = true;
+            });
+            fitTableModelToArena(model);
+            const group = new THREE.Group();
+            group.add(model);
+            scene.add(group);
+            tableRef.current = { group, parts: null, themeId: selectedTableTheme.id };
+          } else {
+            const table = createMurlanStyleTable({
+              arena: scene,
+              renderer: rendererRef.current,
+              tableRadius: TABLE_RADIUS,
+              tableHeight: TABLE_HEIGHT
+            });
+            tableRef.current = { ...table, themeId: selectedTableTheme?.id };
+          }
+          activeTableThemeIdRef.current = selectedTableTheme?.id || null;
+        } catch (error) {
+          console.error('Checkers table swap failed:', error);
+        }
+      }
+
+      if (activeChairThemeIdRef.current !== selectedChairTheme?.id) {
+        chairsRef.current.forEach((chair) => {
+          disposeGroupMeshes(chair);
+          chair?.removeFromParent?.();
+        });
+        chairsRef.current = [];
+        try {
+          let chairTemplate = null;
+          if (selectedChairTheme?.source === 'polyhaven' && selectedChairTheme?.assetId) {
+            chairTemplate = await loadPolyhavenModel(selectedChairTheme.assetId, rendererRef.current);
+            if (cancelled) return;
+            fitChairModelToFootprint(chairTemplate);
+          } else {
+            chairTemplate = await buildChessMappedChairTemplate();
+          }
+          const chairColor = selectedChairTheme?.primary || selectedChairTheme?.seatColor || '#8b0000';
+          const makeChair = (z, ry) => {
+            const g = chairTemplate.clone(true);
+            if (!(selectedChairTheme?.source === 'polyhaven' && selectedChairTheme?.preserveMaterials)) {
+              g.traverse((obj) => {
+                if (!obj?.isMesh) return;
+                const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+                mats.forEach((mat) => {
+                  if (mat?.color) mat.color.set(chairColor);
+                  mat.needsUpdate = true;
+                });
+              });
+            }
+            g.position.set(0, CHAIR_BASE_HEIGHT, z);
+            g.rotation.y = ry;
+            scene.add(g);
+            return g;
+          };
+          chairsRef.current = [makeChair(CHAIR_DISTANCE, Math.PI), makeChair(-CHAIR_DISTANCE, 0)];
+          activeChairThemeIdRef.current = selectedChairTheme?.id || null;
+        } catch (error) {
+          console.error('Checkers chair swap failed:', error);
+        }
+      }
+    };
+
+    void rebuildArenaFurniture();
+
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
       MURLAN_TABLE_FINISHES[0];
     if (tableRef.current?.parts)
       applyTableMaterials(tableRef.current.parts, finish);
 
-    const chairOption =
-      CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
-      CHESS_CHAIR_OPTIONS[0];
     const nextChairColor = new THREE.Color(
-      chairOption?.primary || chairOption?.seatColor || '#8b0000'
+      selectedChairTheme?.primary || selectedChairTheme?.seatColor || '#8b0000'
     );
     chairsRef.current.forEach((chairGroup) => {
       chairGroup?.traverse?.((child) => {
@@ -2016,7 +2214,9 @@ export default function CheckersBattleRoyal() {
     if (gltfBoardRef.current)
       applyCheckersBoardTheme(gltfBoardRef.current, boardTheme);
 
-    if (envRef.current?.hdriId === appearance.hdriId) return;
+    if (envRef.current?.hdriId === appearance.hdriId) return () => {
+      cancelled = true;
+    };
 
     const applyHdri = async () => {
       try {
@@ -2080,6 +2280,9 @@ export default function CheckersBattleRoyal() {
     };
 
     void applyHdri();
+    return () => {
+      cancelled = true;
+    };
   }, [appearance]);
 
   useEffect(() => {
@@ -2388,8 +2591,11 @@ export default function CheckersBattleRoyal() {
         </div>
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
-            {status} • Turn: {turn}
+          <div className="px-4 py-2 rounded-2xl bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-[11px] font-semibold backdrop-blur leading-tight text-center">
+            <div className="max-w-[78vw] max-h-[2.4em] overflow-hidden">{status}</div>
+            <div className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-white/75">
+              Turn: {turn}
+            </div>
           </div>
         </div>
 
