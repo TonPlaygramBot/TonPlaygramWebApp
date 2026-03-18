@@ -7,48 +7,6 @@ import {
 import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
-const CHESS_FRAME_RING_FINISH_OPTIONS = Object.freeze([
-  {
-    id: 'chrome',
-    label: 'Chrome',
-    thumbnail: swatchThumbnail(['#dbe2ea', '#617185']),
-    color: '#e2e8f0',
-    metalness: 1,
-    roughness: 0.16
-  },
-  {
-    id: 'gold',
-    label: 'Gold',
-    thumbnail: swatchThumbnail(['#facc15', '#92400e']),
-    color: '#f6c453',
-    metalness: 0.98,
-    roughness: 0.24
-  },
-  {
-    id: 'aluminium',
-    label: 'Aluminium',
-    thumbnail: swatchThumbnail(['#cbd5e1', '#64748b']),
-    color: '#c7ced9',
-    metalness: 0.84,
-    roughness: 0.28
-  },
-  {
-    id: 'plasticBlack',
-    label: 'Plastic Black',
-    thumbnail: swatchThumbnail(['#0f172a', '#334155']),
-    color: '#1f2937',
-    metalness: 0.06,
-    roughness: 0.52
-  },
-  {
-    id: 'plasticWhite',
-    label: 'Plastic White',
-    thumbnail: swatchThumbnail(['#f8fafc', '#cbd5e1']),
-    color: '#f1f5f9',
-    metalness: 0.04,
-    roughness: 0.46
-  }
-]);
 
 const BASE_CHAIR_OPTIONS = [
   {
@@ -112,69 +70,12 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
 ]);
 
 export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
-export const CHESS_BOARD_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES]);
-export const CHESS_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_FINISHES,
-  ...CHESS_FRAME_RING_FINISH_OPTIONS.map((ring) => ({
-    id: `ringFrame-${ring.id}`,
-    label: `${ring.label} Frame`,
-    thumbnail: ring.thumbnail,
-    ringOption: ring
-  }))
-]);
-export const CHESS_SIDE_PALETTE_OPTIONS = Object.freeze([
-  'marble',
-  'darkForest',
-  'amberGlow',
-  'mintVale',
-  'royalWave',
-  'roseMist',
-  'amethyst',
-  'cinderBlaze',
-  'arcticDrift',
-  'obsidianGold',
-  'coralBloom',
-  'neonPulse'
-]);
-
-export const CHESS_SIDE_PALETTE_COLORS = Object.freeze({
-  marble: { white: '#e2e8f0', black: '#334155' },
-  darkForest: { white: '#86efac', black: '#14532d' },
-  amberGlow: { white: '#fcd34d', black: '#78350f' },
-  mintVale: { white: '#99f6e4', black: '#115e59' },
-  royalWave: { white: '#93c5fd', black: '#1d4ed8' },
-  roseMist: { white: '#fbcfe8', black: '#9d174d' },
-  amethyst: { white: '#ddd6fe', black: '#6d28d9' },
-  cinderBlaze: { white: '#fdba74', black: '#7c2d12' },
-  arcticDrift: { white: '#f1f5f9', black: '#334155' },
-  obsidianGold: { white: '#fde68a', black: '#111827' },
-  coralBloom: { white: '#fecdd3', black: '#0f766e' },
-  neonPulse: { white: '#a3e635', black: '#4c1d95' }
-});
-const CHESS_SIDE_COLOR_LABELS = Object.freeze({
-  marble: 'Marble',
-  darkForest: 'Dark Forest',
-  amberGlow: 'Amber Glow',
-  mintVale: 'Mint Vale',
-  royalWave: 'Royal Wave',
-  roseMist: 'Rose Mist',
-  amethyst: 'Amethyst',
-  cinderBlaze: 'Cinder Blaze',
-  arcticDrift: 'Arctic Drift',
-  obsidianGold: 'Obsidian Gold',
-  coralBloom: 'Coral Bloom',
-  neonPulse: 'Neon Pulse'
-});
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
-  boardFinish: [CHESS_BOARD_FINISH_OPTIONS[0]?.id],
-  boardFrameFinish: [CHESS_BOARD_FRAME_FINISH_OPTIONS[0]?.id],
   sideColor: ['amberGlow', 'mintVale'],
-  playerOnePieceColor: [CHESS_SIDE_PALETTE_OPTIONS[0]],
-  playerTwoPieceColor: [CHESS_SIDE_PALETTE_OPTIONS[3]],
   boardTheme: ['classic'],
   headStyle: ['current'],
   environmentHdri: [DEFAULT_HDRI_ID]
@@ -199,31 +100,20 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
       return acc;
     }, {})
   ),
-  boardFinish: Object.freeze(
-    CHESS_BOARD_FINISH_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
-  boardFrameFinish: Object.freeze(
-    CHESS_BOARD_FRAME_FINISH_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
-  sideColor: CHESS_SIDE_COLOR_LABELS,
-  playerOnePieceColor: Object.freeze(
-    CHESS_SIDE_PALETTE_OPTIONS.reduce((acc, optionId) => {
-      acc[optionId] = `P1 ${CHESS_SIDE_COLOR_LABELS[optionId] || optionId}`;
-      return acc;
-    }, {})
-  ),
-  playerTwoPieceColor: Object.freeze(
-    CHESS_SIDE_PALETTE_OPTIONS.reduce((acc, optionId) => {
-      acc[optionId] = `P2 ${CHESS_SIDE_COLOR_LABELS[optionId] || optionId}`;
-      return acc;
-    }, {})
-  ),
+  sideColor: Object.freeze({
+    marble: 'Marble',
+    darkForest: 'Dark Forest',
+    amberGlow: 'Amber Glow',
+    mintVale: 'Mint Vale',
+    royalWave: 'Royal Wave',
+    roseMist: 'Rose Mist',
+    amethyst: 'Amethyst',
+    cinderBlaze: 'Cinder Blaze',
+    arcticDrift: 'Arctic Drift',
+    obsidianGold: 'Obsidian Gold',
+    coralBloom: 'Coral Bloom',
+    neonPulse: 'Neon Pulse'
+  }),
   boardTheme: Object.freeze({
     classic: 'Classic',
     ivorySlate: 'Ivory/Slate',
@@ -295,28 +185,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     thumbnail: finish.thumbnail,
     previewShape: 'table'
   })),
-  ...CHESS_BOARD_FINISH_OPTIONS.slice(1).map((finish, idx) => ({
-    id: `chess-board-finish-${finish.id}`,
-    type: 'boardFinish',
-    optionId: finish.id,
-    name: `${finish.label} Board`,
-    price: finish.price ?? 560 + idx * 35,
-    description: `${finish.label} finish for the Backgammon board surface.`,
-    swatches: finish.swatches,
-    thumbnail: finish.thumbnail,
-    previewShape: 'board'
-  })),
-  ...CHESS_BOARD_FRAME_FINISH_OPTIONS.slice(1).map((finish, idx) => ({
-    id: `chess-board-frame-${finish.id}`,
-    type: 'boardFrameFinish',
-    optionId: finish.id,
-    name: `${finish.label} Frame`,
-    price: (finish.price ?? 980) + 120 + idx * 30,
-    description: `Apply ${finish.label} finish to the board frame.`,
-    swatches: finish.swatches,
-    thumbnail: finish.thumbnail,
-    previewShape: 'board'
-  })),
   ...CHESS_TABLE_OPTIONS.slice(1).map((theme, idx) => ({
     id: `chess-table-${theme.id}`,
     type: 'tables',
@@ -348,26 +216,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Premium marble-inspired pieces for either side.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble
   },
-  ...CHESS_SIDE_PALETTE_OPTIONS.map((optionId, idx) => ({
-    id: `chess-p1-side-${optionId}`,
-    type: 'playerOnePieceColor',
-    optionId,
-    name: `P1 ${CHESS_BATTLE_OPTION_LABELS.sideColor[optionId] || optionId} Pieces`,
-    price: 420 + idx * 20,
-    description: 'Apply this palette to Player 1 checkers in Backgammon Royal.',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[optionId],
-    previewShape: 'piece'
-  })),
-  ...CHESS_SIDE_PALETTE_OPTIONS.map((optionId, idx) => ({
-    id: `chess-p2-side-${optionId}`,
-    type: 'playerTwoPieceColor',
-    optionId,
-    name: `P2 ${CHESS_BATTLE_OPTION_LABELS.sideColor[optionId] || optionId} Pieces`,
-    price: 420 + idx * 20,
-    description: 'Apply this palette to Player 2 checkers in Backgammon Royal.',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor[optionId],
-    previewShape: 'piece'
-  })),
   {
     id: 'chess-side-forest',
     type: 'sideColor',
@@ -567,12 +415,8 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
     optionId: MURLAN_TABLE_FINISHES[0]?.id,
     label: MURLAN_TABLE_FINISHES[0]?.label
   },
-  { type: 'boardFinish', optionId: CHESS_BOARD_FINISH_OPTIONS[0]?.id, label: CHESS_BOARD_FINISH_OPTIONS[0]?.label },
-  { type: 'boardFrameFinish', optionId: CHESS_BOARD_FRAME_FINISH_OPTIONS[0]?.id, label: CHESS_BOARD_FRAME_FINISH_OPTIONS[0]?.label },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
-  { type: 'playerOnePieceColor', optionId: CHESS_SIDE_PALETTE_OPTIONS[0], label: 'P1 Marble Pieces' },
-  { type: 'playerTwoPieceColor', optionId: CHESS_SIDE_PALETTE_OPTIONS[3], label: 'P2 Mint Vale Pieces' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },
   { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
   {
