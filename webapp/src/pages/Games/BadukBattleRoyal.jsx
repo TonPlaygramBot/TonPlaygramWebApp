@@ -50,7 +50,7 @@ const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
 const BOARD_SLOT_GAP = 0.15;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
-const BOARD_LIFT_OFFSET = 0.08;
+const BOARD_LIFT_OFFSET = 0.12;
 const BOARD_FRAME_FORWARD_TILT = 0.06;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
@@ -544,8 +544,14 @@ export default function BadukBattleRoyal() {
     const boardFaceGeo = new THREE.ExtrudeGeometry(boardShape, { depth: boardThickness, bevelEnabled: false, curveSegments: 42 });
     const boardFaceFront = new THREE.Mesh(boardFaceGeo, boardFaceMat);
     const boardFaceBack = boardFaceFront.clone();
-    boardFaceFront.position.set(0, boardCenterY, BOARD_SLOT_GAP / 2 - boardThickness / 2);
-    boardFaceBack.position.set(0, boardCenterY, -BOARD_SLOT_GAP / 2 - boardThickness / 2);
+    const frameCenterZ = 0.03;
+    const frameFrontFaceZ = frameCenterZ + BOARD_FRAME_DEPTH / 2;
+    const frameBackFaceZ = frameCenterZ - BOARD_FRAME_DEPTH / 2;
+    const boardInsetFromFrameFace = 0.026;
+    const frontBoardCenterZ = frameFrontFaceZ - boardInsetFromFrameFace - boardThickness / 2;
+    const backBoardCenterZ = frameBackFaceZ + boardInsetFromFrameFace + boardThickness / 2;
+    boardFaceFront.position.set(0, boardCenterY, frontBoardCenterZ);
+    boardFaceBack.position.set(0, boardCenterY, backBoardCenterZ);
     boardFaceFront.castShadow = true;
     boardFaceFront.receiveShadow = true;
     boardFaceBack.castShadow = true;
@@ -554,10 +560,11 @@ export default function BadukBattleRoyal() {
 
     const frameSideWidth = 0.12;
     const topRailDepth = 0.046;
+    const topRailInset = 0.01;
     const topFrontRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 2, BOARD_FRAME_THICKNESS, topRailDepth), railMat);
-    topFrontRail.position.set(0, boardCenterY + boardHeight / 2 + BOARD_FRAME_THICKNESS / 2, BOARD_SLOT_GAP / 2 + boardThickness / 2 + topRailDepth / 2);
+    topFrontRail.position.set(0, boardCenterY + boardHeight / 2 + BOARD_FRAME_THICKNESS / 2, frameFrontFaceZ - topRailDepth / 2 - topRailInset);
     const topBackRail = topFrontRail.clone();
-    topBackRail.position.z = -topFrontRail.position.z;
+    topBackRail.position.z = frameBackFaceZ + topRailDepth / 2 + topRailInset;
     boardPanelGroup.add(topFrontRail, topBackRail);
 
     const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 2, BOARD_FRAME_THICKNESS, BOARD_FRAME_DEPTH), railMat);
@@ -592,9 +599,9 @@ export default function BadukBattleRoyal() {
       for (let c = 0; c < cols; c += 1) {
         const [x, y] = worldFromCell(r, c);
         const frontRim = new THREE.Mesh(holeRimGeo, holeRimMat);
-        frontRim.position.set(x, y, BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.0012);
+        frontRim.position.set(x, y, frontBoardCenterZ + boardThickness / 2 + 0.0012);
         const backRim = frontRim.clone();
-        backRim.position.z = -(BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.0012);
+        backRim.position.z = backBoardCenterZ - boardThickness / 2 - 0.0012;
         boardPanelGroup.add(frontRim, backRim);
       }
     }
