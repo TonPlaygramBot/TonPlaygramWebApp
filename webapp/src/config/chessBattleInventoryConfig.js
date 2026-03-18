@@ -75,7 +75,11 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  boardFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  boardFrameFinish: ['chrome'],
   sideColor: ['amberGlow', 'mintVale'],
+  playerOnePieceStyle: ['amberGlow'],
+  playerTwoPieceStyle: ['mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
   environmentHdri: [DEFAULT_HDRI_ID]
@@ -101,6 +105,47 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   sideColor: Object.freeze({
+    marble: 'Marble',
+    darkForest: 'Dark Forest',
+    amberGlow: 'Amber Glow',
+    mintVale: 'Mint Vale',
+    royalWave: 'Royal Wave',
+    roseMist: 'Rose Mist',
+    amethyst: 'Amethyst',
+    cinderBlaze: 'Cinder Blaze',
+    arcticDrift: 'Arctic Drift',
+    obsidianGold: 'Obsidian Gold',
+    coralBloom: 'Coral Bloom',
+    neonPulse: 'Neon Pulse'
+  }),
+  boardFinish: Object.freeze(
+    MURLAN_TABLE_FINISHES.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
+  boardFrameFinish: Object.freeze({
+    chrome: 'Chrome',
+    gold: 'Gold',
+    aluminium: 'Aluminium',
+    plasticBlack: 'Plastic Black',
+    plasticWhite: 'Plastic White'
+  }),
+  playerOnePieceStyle: Object.freeze({
+    marble: 'Marble',
+    darkForest: 'Dark Forest',
+    amberGlow: 'Amber Glow',
+    mintVale: 'Mint Vale',
+    royalWave: 'Royal Wave',
+    roseMist: 'Rose Mist',
+    amethyst: 'Amethyst',
+    cinderBlaze: 'Cinder Blaze',
+    arcticDrift: 'Arctic Drift',
+    obsidianGold: 'Obsidian Gold',
+    coralBloom: 'Coral Bloom',
+    neonPulse: 'Neon Pulse'
+  }),
+  playerTwoPieceStyle: Object.freeze({
     marble: 'Marble',
     darkForest: 'Dark Forest',
     amberGlow: 'Amber Glow',
