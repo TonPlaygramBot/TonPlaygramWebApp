@@ -561,7 +561,19 @@ const USAGE_BY_TYPE = {
   },
   boardTheme: {
     title: 'Board theme',
-    description: 'Replaces the board texture and accents used in Chess matches.'
+    description: 'Replaces the board texture and accents used in board-based matches.'
+  },
+  boardFinish: {
+    title: 'Board finish',
+    description: 'Applies octagon-table finish textures to the 4 in a Row board faces.'
+  },
+  boardFrameFinish: {
+    title: 'Board frame',
+    description: 'Updates the 4 in a Row board frame and stand with octagon-table textures.'
+  },
+  ringFinish: {
+    title: 'Ring finish',
+    description: 'Changes the slot ring material (chrome, gold, aluminium, or plastic variants).'
   },
   headStyle: {
     title: 'Pawn heads',
