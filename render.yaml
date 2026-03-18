@@ -7,6 +7,8 @@ services:
     buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run build
     startCommand: npm start
     envVars:
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=1536
       - key: MONGO_URI
         fromSecret: MONGO_URI
       - key: BOT_TOKEN
@@ -26,4 +28,3 @@ services:
         fromSecret: CLAIM_WALLET_MNEMONIC
       - key: RPC_URL
         fromSecret: RPC_URL
-
