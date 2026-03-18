@@ -21,7 +21,8 @@ import {
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   createMurlanStyleTable,
-  applyTableMaterials
+  applyTableMaterials,
+  TABLE_SHAPE_OPTIONS
 } from '../../utils/murlanTable.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
@@ -229,6 +230,49 @@ const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
   obsidianGold: { id: 'obsidianGold', light: '#facc15', dark: '#111827' },
   coralBloom: { id: 'coralBloom', light: '#fb7185', dark: '#0ea5e9' },
   neonPulse: { id: 'neonPulse', light: '#a3e635', dark: '#4c1d95' }
+});
+
+const CHECKERS_PIECE_TEXTURES_BY_STYLE = Object.freeze({
+  marble: {
+    colorMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
+    roughnessMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
+    normalMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg'
+  },
+  darkForest: {
+    colorMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
+    roughnessMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
+    normalMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg'
+  },
+  amberGlow: {
+    colorMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
+    roughnessMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
+    normalMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg'
+  },
+  mintVale: {
+    colorMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
+    roughnessMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
+    normalMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg'
+  },
+  royalWave: {
+    colorMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
+    roughnessMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
+    normalMap:
+      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg'
+  }
 });
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -819,6 +863,9 @@ function resolveCheckersPlayableTileSize(boardModel) {
 }
 
 function createCheckerMaterial(sideColor, headPreset) {
+  const map = headPreset?.textureSet?.map || null;
+  const roughnessMap = headPreset?.textureSet?.roughnessMap || null;
+  const normalMap = headPreset?.textureSet?.normalMap || null;
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(sideColor),
     roughness: headPreset?.roughness ?? 0.08,
@@ -828,8 +875,50 @@ function createCheckerMaterial(sideColor, headPreset) {
     thickness: headPreset?.thickness ?? 0.5,
     clearcoat: 0.22,
     clearcoatRoughness: 0.08,
-    specularIntensity: 0.9
+    specularIntensity: 0.9,
+    map,
+    roughnessMap,
+    normalMap,
+    normalScale: normalMap ? new THREE.Vector2(0.26, 0.26) : undefined
   });
+}
+
+const CHECKERS_TEXTURE_CACHE = new Map();
+function loadCheckersTexture(url) {
+  if (!url) return Promise.resolve(null);
+  const existing = CHECKERS_TEXTURE_CACHE.get(url);
+  if (existing) return existing;
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+  const promise = new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (texture) => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1.55, 1.55);
+        texture.needsUpdate = true;
+        resolve(texture);
+      },
+      undefined,
+      reject
+    );
+  });
+  CHECKERS_TEXTURE_CACHE.set(url, promise);
+  return promise;
+}
+
+async function loadCheckersPieceTextureSet(styleId) {
+  const definition =
+    CHECKERS_PIECE_TEXTURES_BY_STYLE[styleId] ||
+    CHECKERS_PIECE_TEXTURES_BY_STYLE.marble;
+  const [map, roughnessMap, normalMap] = await Promise.all([
+    loadCheckersTexture(definition?.colorMap),
+    loadCheckersTexture(definition?.roughnessMap),
+    loadCheckersTexture(definition?.normalMap)
+  ]);
+  if (map) applySRGBColorSpace(map);
+  return { map, roughnessMap, normalMap };
 }
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
@@ -922,6 +1011,43 @@ async function buildChessMappedChairTemplate() {
   });
   fitChairModelToFootprint(model);
   return model;
+}
+
+function applyMappedChairTheme(chairGroup, chairOption) {
+  if (!chairGroup) return;
+  const seatColor = new THREE.Color(
+    chairOption?.primary || chairOption?.seatColor || '#8b0000'
+  );
+  const legColor = new THREE.Color(chairOption?.legColor || '#111827');
+  const preserveMaterials = Boolean(chairOption?.preserveMaterials);
+  chairGroup.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat?.color) return;
+      if (preserveMaterials) {
+        mat.needsUpdate = true;
+        return;
+      }
+      const isMetal = (mat.metalness ?? 0) > 0.35;
+      mat.color.copy(isMetal ? legColor : seatColor);
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function resolveCheckersTableShapeOption(tableId) {
+  if (!TABLE_SHAPE_OPTIONS.length) return null;
+  const byId = TABLE_SHAPE_OPTIONS.find((shape) => shape.id === tableId);
+  if (byId) return byId;
+  const hashSource = String(tableId || '');
+  let hash = 0;
+  for (let i = 0; i < hashSource.length; i += 1) {
+    hash = (hash << 5) - hash + hashSource.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % TABLE_SHAPE_OPTIONS.length;
+  return TABLE_SHAPE_OPTIONS[idx] || TABLE_SHAPE_OPTIONS[0];
 }
 
 function createProceduralChairFallback(chairColor, legColor) {
@@ -1133,6 +1259,10 @@ export default function CheckersBattleRoyal() {
     defaultP1PieceStyleId;
   const [p1PieceStyleId, setP1PieceStyleId] = useState(defaultP1PieceStyleId);
   const [p2PieceStyleId, setP2PieceStyleId] = useState(defaultP2PieceStyleId);
+  const [pieceTextureSets, setPieceTextureSets] = useState({
+    light: null,
+    dark: null
+  });
   const piecePalette = useMemo(() => {
     const lightPieceStyle =
       CHECKERS_CHIP_SET_BY_ID[p1PieceStyleId] ||
@@ -1205,6 +1335,29 @@ export default function CheckersBattleRoyal() {
       thickness: 0.44
     };
   }, [inv?.headStyle]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadTextures = async () => {
+      try {
+        const [lightTextureSet, darkTextureSet] = await Promise.all([
+          loadCheckersPieceTextureSet(p1PieceStyleId),
+          loadCheckersPieceTextureSet(p2PieceStyleId)
+        ]);
+        if (cancelled) return;
+        setPieceTextureSets({
+          light: lightTextureSet,
+          dark: darkTextureSet
+        });
+      } catch (error) {
+        console.warn('Checkers piece texture load failed:', error);
+      }
+    };
+    void loadTextures();
+    return () => {
+      cancelled = true;
+    };
+  }, [p1PieceStyleId, p2PieceStyleId]);
   const playerName = getTelegramFirstName() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
 
@@ -1242,7 +1395,13 @@ export default function CheckersBattleRoyal() {
             side: piece.side,
             king: piece.king,
             chipSet: piecePalette,
-            checkerHeadPreset
+            checkerHeadPreset: {
+              ...checkerHeadPreset,
+              textureSet:
+                piece.side === 'light'
+                  ? pieceTextureSets.light
+                  : pieceTextureSets.dark
+            }
           });
 
           pieceGroup.position.set(
@@ -1255,7 +1414,13 @@ export default function CheckersBattleRoyal() {
         }
       }
     },
-    [checkerHeadPreset, piecePalette.dark, piecePalette.light]
+    [
+      checkerHeadPreset,
+      piecePalette.dark,
+      piecePalette.light,
+      pieceTextureSets.dark,
+      pieceTextureSets.light
+    ]
   );
 
   const renderCapturedPieces = useMemo(
@@ -1280,7 +1445,13 @@ export default function CheckersBattleRoyal() {
             side: piece.side,
             king: piece.king,
             chipSet: piecePalette,
-            checkerHeadPreset
+            checkerHeadPreset: {
+              ...checkerHeadPreset,
+              textureSet:
+                piece.side === 'light'
+                  ? pieceTextureSets.light
+                  : pieceTextureSets.dark
+            }
           });
           checker.position.set(
             x + centered * tile * CAPTURE_STRIP_PIECE_GAP,
@@ -1294,7 +1465,7 @@ export default function CheckersBattleRoyal() {
       placeCapturedForSide('dark', -1);
       placeCapturedForSide('light', 1);
     },
-    [capturedBySide, checkerHeadPreset, piecePalette]
+    [capturedBySide, checkerHeadPreset, piecePalette, pieceTextureSets]
   );
 
   useEffect(() => {
@@ -1693,16 +1864,20 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
+        const tableShape =
+          resolveCheckersTableShapeOption(appearance.tableId) ||
+          TABLE_SHAPE_OPTIONS[0];
         const table = createMurlanStyleTable({
           arena: scene,
           renderer,
           tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT
+          tableHeight: TABLE_HEIGHT,
+          shapeOption: tableShape
         });
         const finish =
           MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
           MURLAN_TABLE_FINISHES[0];
-        applyTableMaterials(table.parts, finish);
+        applyTableMaterials(table.materials, finish);
         tableRef.current = table;
       } catch (error) {
         console.error('Checkers table load failed:', error);
@@ -1712,21 +1887,10 @@ export default function CheckersBattleRoyal() {
         const chairOption =
           CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
           CHESS_CHAIR_OPTIONS[0];
-        const chairColor =
-          chairOption?.primary || chairOption?.seatColor || '#8b0000';
         const chairTemplate = await buildChessMappedChairTemplate();
         const makeChair = (z, ry) => {
           const g = chairTemplate.clone(true);
-          g.traverse((obj) => {
-            if (!obj.isMesh) return;
-            const mats = Array.isArray(obj.material)
-              ? obj.material
-              : [obj.material];
-            mats.forEach((mat) => {
-              if (mat?.color) mat.color.set(chairColor);
-              mat.needsUpdate = true;
-            });
-          });
+          applyMappedChairTheme(g, chairOption);
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
@@ -1983,25 +2147,35 @@ export default function CheckersBattleRoyal() {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    const selectedTableShape = resolveCheckersTableShapeOption(appearance.tableId);
+    if (
+      selectedTableShape &&
+      selectedTableShape.id !== tableRef.current?.shapeId
+    ) {
+      const previousTable = tableRef.current;
+      if (previousTable?.group?.parent) previousTable.group.parent.remove(previousTable.group);
+      previousTable?.dispose?.();
+      const rebuilt = createMurlanStyleTable({
+        arena: scene,
+        renderer: rendererRef.current,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        shapeOption: selectedTableShape
+      });
+      tableRef.current = rebuilt;
+    }
+
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
       MURLAN_TABLE_FINISHES[0];
-    if (tableRef.current?.parts)
-      applyTableMaterials(tableRef.current.parts, finish);
+    if (tableRef.current?.materials)
+      applyTableMaterials(tableRef.current.materials, finish);
 
     const chairOption =
       CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
       CHESS_CHAIR_OPTIONS[0];
-    const nextChairColor = new THREE.Color(
-      chairOption?.primary || chairOption?.seatColor || '#8b0000'
-    );
     chairsRef.current.forEach((chairGroup) => {
-      chairGroup?.traverse?.((child) => {
-        if (child?.isMesh && child.material?.color) {
-          child.material.color.copy(nextChairColor);
-          child.material.needsUpdate = true;
-        }
-      });
+      applyMappedChairTheme(chairGroup, chairOption);
     });
 
     const boardTheme =
