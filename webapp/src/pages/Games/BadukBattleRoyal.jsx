@@ -50,8 +50,10 @@ const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
 const BOARD_SLOT_GAP = 0.15;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
-const BOARD_LIFT_OFFSET = 0.08;
+const BOARD_LIFT_OFFSET = 0.13;
 const BOARD_FRAME_FORWARD_TILT = 0.06;
+const BOARD_FACE_FORWARD_PULL = 0.045;
+const BOARD_TOP_RAIL_FORWARD_PULL = 0.07;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -544,8 +546,8 @@ export default function BadukBattleRoyal() {
     const boardFaceGeo = new THREE.ExtrudeGeometry(boardShape, { depth: boardThickness, bevelEnabled: false, curveSegments: 42 });
     const boardFaceFront = new THREE.Mesh(boardFaceGeo, boardFaceMat);
     const boardFaceBack = boardFaceFront.clone();
-    boardFaceFront.position.set(0, boardCenterY, BOARD_SLOT_GAP / 2 - boardThickness / 2);
-    boardFaceBack.position.set(0, boardCenterY, -BOARD_SLOT_GAP / 2 - boardThickness / 2);
+    boardFaceFront.position.set(0, boardCenterY, BOARD_SLOT_GAP / 2 - boardThickness / 2 + BOARD_FACE_FORWARD_PULL);
+    boardFaceBack.position.set(0, boardCenterY, -BOARD_SLOT_GAP / 2 - boardThickness / 2 + BOARD_FACE_FORWARD_PULL);
     boardFaceFront.castShadow = true;
     boardFaceFront.receiveShadow = true;
     boardFaceBack.castShadow = true;
@@ -555,9 +557,14 @@ export default function BadukBattleRoyal() {
     const frameSideWidth = 0.12;
     const topRailDepth = 0.046;
     const topFrontRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 2, BOARD_FRAME_THICKNESS, topRailDepth), railMat);
-    topFrontRail.position.set(0, boardCenterY + boardHeight / 2 + BOARD_FRAME_THICKNESS / 2, BOARD_SLOT_GAP / 2 + boardThickness / 2 + topRailDepth / 2);
+    const topRailBaseZ = BOARD_SLOT_GAP / 2 + boardThickness / 2 + topRailDepth / 2;
+    topFrontRail.position.set(
+      0,
+      boardCenterY + boardHeight / 2 + BOARD_FRAME_THICKNESS / 2,
+      topRailBaseZ + BOARD_TOP_RAIL_FORWARD_PULL
+    );
     const topBackRail = topFrontRail.clone();
-    topBackRail.position.z = -topFrontRail.position.z;
+    topBackRail.position.z = -topRailBaseZ + BOARD_TOP_RAIL_FORWARD_PULL;
     boardPanelGroup.add(topFrontRail, topBackRail);
 
     const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 2, BOARD_FRAME_THICKNESS, BOARD_FRAME_DEPTH), railMat);
