@@ -1161,13 +1161,12 @@ export default function TavullBattleRoyal() {
       if (selectedPoint == null) {
         const startsFromPoint = available.filter((seq) => seq?.line?.[0]?.from === point)
         if (!startsFromPoint.length) return
+        if (startsFromPoint.length === 1) {
+          handleSequence(startsFromPoint[0])
+          return
+        }
         setSelectedPoint(point)
-        const destinationCount = new Set(startsFromPoint.map((seq) => seq?.line?.[0]?.to).filter((to) => typeof to === 'number')).size
-        setMessage(
-          destinationCount > 1
-            ? `Checker selected. ${destinationCount} legal moves highlighted. Tap a destination triangle.`
-            : 'Checker selected. Legal move highlighted. Tap destination triangle.'
-        )
+        setMessage('From point selected. Tap destination triangle.')
         return
       }
 
@@ -1175,12 +1174,6 @@ export default function TavullBattleRoyal() {
 
       if (narrowed.length >= 1) {
         handleSequence(narrowed[0])
-        return
-      }
-
-      if (point === selectedPoint) {
-        setSelectedPoint(null)
-        setMessage('Selection cleared. Tap a checker or triangle to choose a move.')
         return
       }
 
@@ -1403,7 +1396,7 @@ export default function TavullBattleRoyal() {
         })}
       </div>
 
-      <div className="absolute top-[33%] left-1/2 -translate-x-1/2 pointer-events-none">
+      <div className="absolute top-[61%] left-1/2 -translate-x-1/2 pointer-events-none">
         <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
           {winner ? `${winner === WHITE ? 'You' : 'AI'} win!` : message}
         </div>
