@@ -50,8 +50,9 @@ const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
 const BOARD_SLOT_GAP = 0.15;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
-const BOARD_LIFT_OFFSET = 0.08;
-const BOARD_FRAME_FORWARD_TILT = 0.06;
+const BOARD_LIFT_OFFSET = 0.11;
+const BOARD_FRAME_FORWARD_TILT = 0.085;
+const BOARD_PANEL_FORWARD_OFFSET = 0.045;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -473,7 +474,7 @@ export default function BadukBattleRoyal() {
     const panelTiltCos = Math.cos(BOARD_FRAME_FORWARD_TILT);
     const panelTiltSin = Math.sin(BOARD_FRAME_FORWARD_TILT);
     boardPanelGroup.rotation.x = BOARD_FRAME_FORWARD_TILT;
-    boardPanelGroup.position.set(0, boardCenterY * (1 - panelTiltCos), -boardCenterY * panelTiltSin);
+    boardPanelGroup.position.set(0, boardCenterY * (1 - panelTiltCos), -boardCenterY * panelTiltSin + BOARD_PANEL_FORWARD_OFFSET);
     boardGroup.add(boardPanelGroup);
 
     const selectedBoardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
