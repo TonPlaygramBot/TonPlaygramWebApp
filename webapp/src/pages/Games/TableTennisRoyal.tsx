@@ -199,21 +199,6 @@ type CommentaryPreset = {
   voiceHints: string[];
 };
 
-type BallSoundPreset = {
-  id: string;
-  label: string;
-  description: string;
-  source: string;
-  sourceUrl: string;
-  license: string;
-  oscType: OscillatorType;
-  startFreq: number;
-  endFreq: number;
-  duration: number;
-  toneGain: number;
-  noiseGain: number;
-};
-
 const TABLE_TENNIS_PADDLE_OPTIONS: PaddleOption[] = Object.freeze([
   {
     id: "stiga-carbon",
@@ -307,82 +292,8 @@ const TABLE_TENNIS_COMMENTARY_PRESETS: CommentaryPreset[] = Object.freeze([
   { id: "italian", label: "Italiano", language: "it-IT", description: "Italian commentary with tactical phrasing", voiceHints: ["it-IT", "Italian"] },
 ]);
 
-const TABLE_TENNIS_BALL_SOUND_PRESETS: BallSoundPreset[] = Object.freeze([
-  {
-    id: "classic-pop",
-    label: "Classic Pop",
-    description: "Rounded pop with light felt noise",
-    source: "Freesound ping-pong CC0 references",
-    sourceUrl: "https://freesound.org/search/?q=table+tennis+bounce&f=license:%22Creative+Commons+0%22",
-    license: "CC0",
-    oscType: "triangle",
-    startFreq: 880,
-    endFreq: 460,
-    duration: 0.045,
-    toneGain: 0.05,
-    noiseGain: 0.014,
-  },
-  {
-    id: "arena-click",
-    label: "Arena Click",
-    description: "Sharper click for fast rally feedback",
-    source: "Pixabay ping pong free SFX",
-    sourceUrl: "https://pixabay.com/sound-effects/search/ping%20pong/",
-    license: "Pixabay License",
-    oscType: "square",
-    startFreq: 1160,
-    endFreq: 620,
-    duration: 0.038,
-    toneGain: 0.036,
-    noiseGain: 0.012,
-  },
-  {
-    id: "wood-hall",
-    label: "Wood Hall",
-    description: "Warm tone tuned for hall ambience",
-    source: "Openverse table tennis SFX references",
-    sourceUrl: "https://openverse.org/search/audio?q=table%20tennis",
-    license: "CC BY / CC0",
-    oscType: "sine",
-    startFreq: 760,
-    endFreq: 310,
-    duration: 0.052,
-    toneGain: 0.054,
-    noiseGain: 0.01,
-  },
-  {
-    id: "carbon-smack",
-    label: "Carbon Smack",
-    description: "Short carbon-blade style smack",
-    source: "ZapSplat free ping-pong SFX",
-    sourceUrl: "https://www.zapsplat.com/sound-effect-category/table-tennis/",
-    license: "ZapSplat Standard Free",
-    oscType: "sawtooth",
-    startFreq: 980,
-    endFreq: 340,
-    duration: 0.042,
-    toneGain: 0.04,
-    noiseGain: 0.016,
-  },
-  {
-    id: "pro-echo",
-    label: "Pro Echo",
-    description: "Bright attack with tiny tail",
-    source: "Mixkit free sports SFX",
-    sourceUrl: "https://mixkit.co/free-sound-effects/sports/",
-    license: "Mixkit Free License",
-    oscType: "triangle",
-    startFreq: 1020,
-    endFreq: 390,
-    duration: 0.049,
-    toneGain: 0.048,
-    noiseGain: 0.013,
-  },
-]);
-
 const DEFAULT_PADDLE_ID = TABLE_TENNIS_PADDLE_OPTIONS[0]?.id || "stiga-carbon";
 const DEFAULT_COMMENTARY_PRESET_ID = TABLE_TENNIS_COMMENTARY_PRESETS[0]?.id || "english";
-const DEFAULT_BALL_SOUND_PRESET_ID = TABLE_TENNIS_BALL_SOUND_PRESETS[0]?.id || "classic-pop";
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -891,7 +802,6 @@ export default function TableTennisRoyal() {
   const [showTableMenu, setShowTableMenu] = useState(false);
   const [selectedPaddleId, setSelectedPaddleId] = useState<string>(DEFAULT_PADDLE_ID);
   const [commentaryPresetId, setCommentaryPresetId] = useState<string>(DEFAULT_COMMENTARY_PRESET_ID);
-  const [ballSoundPresetId, setBallSoundPresetId] = useState<string>(DEFAULT_BALL_SOUND_PRESET_ID);
   const [commentaryMuted, setCommentaryMuted] = useState(false);
   const [commentarySupported, setCommentarySupported] = useState<boolean>(() => getSpeechSupport());
   const difficultyRef = useRef<Difficulty>(DEFAULT_DIFFICULTY);
@@ -921,10 +831,6 @@ export default function TableTennisRoyal() {
     () => TABLE_TENNIS_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) || TABLE_TENNIS_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const activeBallSoundPreset = useMemo(
-    () => TABLE_TENNIS_BALL_SOUND_PRESETS.find((preset) => preset.id === ballSoundPresetId) || TABLE_TENNIS_BALL_SOUND_PRESETS[0],
-    [ballSoundPresetId]
-  );
   useEffect(() => {
     graphicsQualityRef.current = graphicsQuality;
   }, [graphicsQuality]);
@@ -941,11 +847,6 @@ export default function TableTennisRoyal() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem("table-tennis-commentary-preset", commentaryPresetId);
   }, [commentaryPresetId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("table-tennis-ball-sound-preset", ballSoundPresetId);
-  }, [ballSoundPresetId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -976,10 +877,6 @@ export default function TableTennisRoyal() {
     const savedMute = window.localStorage.getItem("table-tennis-commentary-muted");
     if (savedMute === "1") setCommentaryMuted(true);
 
-    const savedBallSound = window.localStorage.getItem("table-tennis-ball-sound-preset");
-    if (savedBallSound && TABLE_TENNIS_BALL_SOUND_PRESETS.some((preset) => preset.id === savedBallSound)) {
-      setBallSoundPresetId(savedBallSound);
-    }
   }, []);
 
   const [ui, setUi] = useState<{ phase: Phase; score: Score; call: Call; hint: string }>({
@@ -1000,6 +897,7 @@ export default function TableTennisRoyal() {
   const hdriHandle = useRef<{ envMap: THREE.Texture | null; bgMap: THREE.Texture | null } | null>(null);
   const commentaryLastAtRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const impactClipBufferRef = useRef<AudioBuffer | null>(null);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
     phase: "ready",
@@ -1044,16 +942,32 @@ export default function TableTennisRoyal() {
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AC) return null;
     if (!audioCtxRef.current) audioCtxRef.current = new AC();
-    if (audioCtxRef.current.state === "suspended") {
-      void audioCtxRef.current.resume().catch(() => {});
+    const ctx = audioCtxRef.current;
+    if (!ctx) return null;
+    if (ctx.state === "suspended") {
+      void ctx.resume().catch(() => {});
     }
-    return audioCtxRef.current;
+    return ctx;
   }, []);
 
-  const playImpactFx = useCallback((type: "paddle" | "table") => {
+  const playImpactFx = useCallback((type: "paddle" | "table" | "floor", power = 0.5) => {
     const ctx = getAudioCtx();
     if (!ctx) return;
     const now = ctx.currentTime;
+
+    if (type === "table" || type === "floor") {
+      const clip = impactClipBufferRef.current;
+      if (!clip) return;
+      const normalizedPower = clamp(power, 0, 1);
+      const gainValue = lerp(0.18, 1, normalizedPower);
+      const src = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      src.buffer = clip;
+      gain.gain.setValueAtTime(gainValue, now);
+      src.connect(gain).connect(ctx.destination);
+      src.start(now, 0, Math.min(1, clip.duration));
+      return;
+    }
 
     const makeNoise = (duration: number, gain: number) => {
       const bufferSize = Math.max(128, Math.floor(ctx.sampleRate * duration));
@@ -1072,14 +986,13 @@ export default function TableTennisRoyal() {
 
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
-    const tablePreset = activeBallSoundPreset || TABLE_TENNIS_BALL_SOUND_PRESETS[0];
-    const startFreq = type === "paddle" ? 340 : tablePreset.startFreq;
-    const endFreq = type === "paddle" ? 180 : tablePreset.endFreq;
-    const duration = type === "paddle" ? 0.07 : tablePreset.duration;
-    const startGain = type === "paddle" ? 0.09 : tablePreset.toneGain;
-    const midGain = type === "paddle" ? 0.055 : tablePreset.toneGain * 0.56;
+    const startFreq = 340;
+    const endFreq = 180;
+    const duration = 0.07;
+    const startGain = 0.09;
+    const midGain = 0.055;
 
-    osc.type = type === "paddle" ? "triangle" : tablePreset.oscType;
+    osc.type = "triangle";
     osc.frequency.setValueAtTime(startFreq, now);
     osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
     oscGain.gain.setValueAtTime(startGain, now);
@@ -1090,8 +1003,30 @@ export default function TableTennisRoyal() {
     osc.start(now);
     osc.stop(now + duration + 0.01);
 
-    makeNoise(type === "paddle" ? 0.03 : Math.max(0.012, duration * 0.55), type === "paddle" ? 0.02 : tablePreset.noiseGain);
-  }, [activeBallSoundPreset, getAudioCtx]);
+    makeNoise(0.03, 0.02);
+  }, [getAudioCtx]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (typeof window === "undefined" || typeof fetch !== "function") return;
+    const loadImpactClip = async () => {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const response = await fetch("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3");
+        if (!response.ok) return;
+        const raw = await response.arrayBuffer();
+        const decoded = await ctx.decodeAudioData(raw.slice(0));
+        if (!cancelled) impactClipBufferRef.current = decoded;
+      } catch {
+        impactClipBufferRef.current = null;
+      }
+    };
+    void loadImpactClip();
+    return () => {
+      cancelled = true;
+    };
+  }, [getAudioCtx]);
 
   const showAnnouncement = useCallback((text: string) => {
     if (!text) return;
@@ -1502,7 +1437,8 @@ export default function TableTennisRoyal() {
               b.v.z = contactVz * PHYS.tableTangentialDamp - b.spin.x * PHYS.tableSpinTransfer;
               b.spin.x *= 0.985;
               b.spin.y *= 0.985;
-              playImpactFx("table");
+              const tablePower = clamp((Math.abs(contactVx) + Math.abs(contactVz) + impactV) / U(10), 0.08, 1);
+              playImpactFx("table", tablePower);
 
               const side = sideOfZ(b.p.z);
               if (b.lastBounceSide === side) b.bouncesOnSide += 1;
@@ -1542,6 +1478,10 @@ export default function TableTennisRoyal() {
             const outXZ = Math.abs(b.p.x) > TABLE.W / 2 + U(0.30) || Math.abs(b.p.z) > TABLE.L / 2 + U(0.55);
             const floorHit = b.p.y - BALL.R <= 0;
             if (floorHit || outXZ) {
+              if (floorHit) {
+                const floorPower = clamp((Math.abs(b.v.y) + Math.abs(b.v.x) + Math.abs(b.v.z)) / U(10), 0.08, 1);
+                playImpactFx("floor", floorPower);
+              }
               const side = sideOfZ(b.p.z);
               awardPoint(side === "player" ? "ai" : "player", outXZ ? "OUT" : "MISS");
               t.raf = requestAnimationFrame(tick);
@@ -1865,32 +1805,6 @@ export default function TableTennisRoyal() {
               </div>
               <div className="mt-4 max-h-[58vh] space-y-4 overflow-y-auto pr-1">
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Ball sound style</h3>
-                  <p className="mt-1 text-[0.68rem] text-white/60">Choose one of 5 free/open sound references for table-ball bounce feel.</p>
-                  <div className="mt-2 grid gap-2">
-                    {TABLE_TENNIS_BALL_SOUND_PRESETS.map((preset) => {
-                      const active = preset.id === ballSoundPresetId;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => setBallSoundPresetId(preset.id)}
-                          aria-pressed={active}
-                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)] text-white'
-                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                          }`}
-                        >
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em]">{preset.label}</span>
-                          <span className="mt-1 block text-[10px] text-white/70">{preset.description}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Paddles</h3>
                   <p className="mt-1 text-[0.68rem] text-white/60">10 realistic open-source paddle thumbnails from free media libraries.</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1964,22 +1878,7 @@ export default function TableTennisRoyal() {
 
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Sound FX</h3>
-                  <p className="mt-1 text-[0.68rem] text-white/60">Ball/table and paddle hits are fully procedural via WebAudio (no binary audio files added to git).</p>
-                  <div className="mt-2 space-y-1 rounded-xl border border-white/15 bg-white/5 p-2">
-                    {TABLE_TENNIS_BALL_SOUND_PRESETS.map((preset) => (
-                      <a
-                        key={preset.id}
-                        href={preset.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block rounded-lg border border-white/10 px-2 py-1 text-[10px] text-emerald-100/85 transition hover:border-emerald-300/60 hover:bg-emerald-400/10"
-                      >
-                        <span className="font-semibold uppercase tracking-[0.18em]">{preset.label}</span>
-                        <span className="ml-2 text-white/70">{preset.source}</span>
-                        <span className="ml-2 text-white/50">{preset.license}</span>
-                      </a>
-                    ))}
-                  </div>
+                  <p className="mt-1 text-[0.68rem] text-white/60">Table/floor impact uses /assets/sounds/freesound_community-ping-pong-ball-100140.mp3 (first 1 second only), and loudness scales with shot power.</p>
                 </div>
 
                 <div>
