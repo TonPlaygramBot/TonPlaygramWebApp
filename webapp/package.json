@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/write-build-metadata.mjs && vite build",
+    "build": "node scripts/write-build-metadata.mjs && node --max-old-space-size=3072 ./node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "generate:native-assets": "node scripts/generate-native-assets.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
